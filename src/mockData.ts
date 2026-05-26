@@ -2,33 +2,51 @@ import type { Order, StagingZone, ConfirmationLog } from "./types";
 
 export const stagingZones: StagingZone[] = [
   {
-    id: "G21",
-    label: "Zone G21",
-    description: "Loading dock west, bay 21",
+    id: "G1",
+    label: "Ground Spot 1",
+    description: "Ground staging spot — near roll-up door",
+    currentOrderId: "ORD-003",
+  },
+  {
+    id: "G2",
+    label: "Ground Spot 2",
+    description: "Ground staging spot — center bay",
     currentOrderId: "ORD-001",
   },
   {
-    id: "A14",
-    label: "Zone A14",
-    description: "Receiving area north, bay 14",
+    id: "G3",
+    label: "Ground Spot 3",
+    description: "Ground staging spot — far wall",
+    currentOrderId: null,
+  },
+  {
+    id: "S1-A",
+    label: "Shelf 1 · Bin A",
+    description: "Shelf unit 1, top bin A",
     currentOrderId: "ORD-002",
   },
   {
-    id: "B7",
-    label: "Zone B7",
-    description: "Receiving area south, bay 7",
+    id: "S1-B",
+    label: "Shelf 1 · Bin B",
+    description: "Shelf unit 1, lower bin B",
     currentOrderId: null,
+  },
+  {
+    id: "S2-A",
+    label: "Shelf 2 · Bin A",
+    description: "Shelf unit 2, top bin A",
+    currentOrderId: "ORD-004",
   },
 ];
 
 export const mockOrders: Order[] = [
   {
     id: "ORD-001",
-    vendor: "Carrier HVAC Supply",
+    vendor: "Johnstone Supply",
     jobName: "Riverside Medical Center",
     jobNumber: "JOB-2026-0421",
     siteNumber: "SITE-A3",
-    zoneId: "G21",
+    zoneId: "G2",
     status: "Pending",
     items: [
       {
@@ -41,7 +59,7 @@ export const mockOrders: Order[] = [
       },
       {
         id: "itm-2",
-        description: "Ductwork section 24x12",
+        description: "Ductwork section 24×12",
         quantity: 4,
         deliveredQty: 0,
         missingQty: 0,
@@ -49,7 +67,7 @@ export const mockOrders: Order[] = [
       },
       {
         id: "itm-3",
-        description: "Return air grille 20x20",
+        description: "Return air grille 20×20",
         quantity: 6,
         deliveredQty: 0,
         missingQty: 0,
@@ -61,11 +79,11 @@ export const mockOrders: Order[] = [
   },
   {
     id: "ORD-002",
-    vendor: "Ferguson HVAC",
+    vendor: "First Supply",
     jobName: "Oakwood Office Park",
     jobNumber: "JOB-2026-0389",
     siteNumber: "SITE-B1",
-    zoneId: "A14",
+    zoneId: "S1-A",
     status: "Partial",
     items: [
       {
@@ -78,7 +96,7 @@ export const mockOrders: Order[] = [
       },
       {
         id: "itm-5",
-        description: "Line set 50ft 3/8-7/8",
+        description: "Line set 50′ 3/8-7/8",
         quantity: 2,
         deliveredQty: 2,
         missingQty: 0,
@@ -99,11 +117,11 @@ export const mockOrders: Order[] = [
   },
   {
     id: "ORD-003",
-    vendor: "Johnstone Supply",
+    vendor: "Carrier HVAC Supply",
     jobName: "Pinebrook Apartments",
     jobNumber: "JOB-2026-0410",
     siteNumber: "SITE-C2",
-    zoneId: "G21",
+    zoneId: "G1",
     status: "Complete",
     items: [
       {
@@ -124,7 +142,7 @@ export const mockOrders: Order[] = [
       },
       {
         id: "itm-9",
-        description: "Filter rack 16x25",
+        description: "Filter rack 16×25",
         quantity: 3,
         deliveredQty: 3,
         missingQty: 0,
@@ -136,11 +154,11 @@ export const mockOrders: Order[] = [
   },
   {
     id: "ORD-004",
-    vendor: "Carrier HVAC Supply",
+    vendor: "Ferguson HVAC",
     jobName: "Downtown Highrise",
     jobNumber: "JOB-2026-0450",
     siteNumber: "SITE-D4",
-    zoneId: "B7",
+    zoneId: "S2-A",
     status: "Pending",
     items: [
       {
@@ -177,11 +195,11 @@ export const mockConfirmations: ConfirmationLog[] = [
   {
     id: "LOG-001",
     orderId: "ORD-002",
-    vendor: "Ferguson HVAC",
+    vendor: "First Supply",
     jobName: "Oakwood Office Park",
     jobNumber: "JOB-2026-0389",
     siteNumber: "SITE-B1",
-    zoneId: "A14",
+    zoneId: "S1-A",
     status: "Partial",
     confirmedAt: "2026-05-25T09:45:00Z",
     items: [
@@ -195,7 +213,7 @@ export const mockConfirmations: ConfirmationLog[] = [
       },
       {
         id: "itm-5",
-        description: "Line set 50ft 3/8-7/8",
+        description: "Line set 50′ 3/8-7/8",
         quantity: 2,
         deliveredQty: 2,
         missingQty: 0,
@@ -215,11 +233,11 @@ export const mockConfirmations: ConfirmationLog[] = [
   {
     id: "LOG-002",
     orderId: "ORD-003",
-    vendor: "Johnstone Supply",
+    vendor: "Carrier HVAC Supply",
     jobName: "Pinebrook Apartments",
     jobNumber: "JOB-2026-0410",
     siteNumber: "SITE-C2",
-    zoneId: "G21",
+    zoneId: "G1",
     status: "Complete",
     confirmedAt: "2026-05-24T16:20:00Z",
     items: [
@@ -241,7 +259,7 @@ export const mockConfirmations: ConfirmationLog[] = [
       },
       {
         id: "itm-9",
-        description: "Filter rack 16x25",
+        description: "Filter rack 16×25",
         quantity: 3,
         deliveredQty: 3,
         missingQty: 0,
@@ -250,3 +268,13 @@ export const mockConfirmations: ConfirmationLog[] = [
     ],
   },
 ];
+
+/* ── Zone naming reference ── */
+export const zoneNamingReference: Record<string, string> = {
+  G1: "Ground staging spot 1",
+  G2: "Ground staging spot 2",
+  G3: "Ground staging spot 3",
+  "S1-A": "Shelf 1, Bin A",
+  "S1-B": "Shelf 1, Bin B",
+  "S2-A": "Shelf 2, Bin A",
+};

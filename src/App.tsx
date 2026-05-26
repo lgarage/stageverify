@@ -408,77 +408,140 @@ function ActiveOrders() {
 
 /* ── Entry Display Board ── */
 function EntryDisplay() {
+  const zoneDesc = (zoneId: string): string => {
+    const map: Record<string, string> = {
+      G1: "Ground Spot 1",
+      G2: "Ground Spot 2",
+      G3: "Ground Spot 3",
+      "S1-A": "Shelf 1 · Bin A",
+      "S1-B": "Shelf 1 · Bin B",
+      "S2-A": "Shelf 2 · Bin A",
+    };
+    return map[zoneId] ?? zoneId;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">
           Entry Display Board
         </h1>
-        <span className="text-xs text-text-secondary bg-bg-card border border-border rounded-lg px-3 py-1.5 font-mono">
-          Live Preview
-        </span>
+        <a
+          href="#/display"
+          className="text-xs text-accent bg-accent/10 border border-accent/30 rounded-lg px-3 py-1.5 font-mono hover:bg-accent/20 transition-colors"
+        >
+          Open Fullscreen →
+        </a>
       </div>
 
-      {/* Simulated display board */}
-      <div className="rounded-xl border-2 border-accent/40 bg-black p-8 shadow-lg shadow-accent/5">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-black tracking-widest text-accent uppercase">
+      {/* Simulated display board — large-screen friendly */}
+      <div className="rounded-xl border-2 border-accent/40 bg-black p-6 sm:p-10 shadow-lg shadow-accent/5">
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="text-4xl sm:text-5xl font-black tracking-widest text-accent uppercase">
             StageVerify
           </h2>
-          <p className="text-text-secondary text-sm mt-1">
+          <p className="text-text-secondary text-sm sm:text-base mt-2 tracking-[0.3em] uppercase">
             Delivery Staging Board
           </p>
-          <div className="mx-auto mt-4 h-px w-32 bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+          <div className="mx-auto mt-5 h-px w-48 bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {stagingZones.map((zone) => {
             const order = mockOrders.find((o) => o.id === zone.currentOrderId);
+            const statusClass =
+              order?.status === "Pending"
+                ? "bg-accent-amber text-accent-amber"
+                : order?.status === "Partial"
+                  ? "bg-accent-purple text-accent-purple"
+                  : order?.status === "Complete"
+                    ? "bg-accent-green text-accent-green"
+                    : "";
+
             return (
               <div
                 key={zone.id}
-                className="rounded-lg border border-border bg-bg-card/80 p-4 text-center"
+                className={
+                  order
+                    ? "rounded-xl border border-white/15 bg-white/[0.04] p-5 sm:p-6 flex flex-col"
+                    : "rounded-xl border border-white/[0.05] bg-transparent border-dashed p-5 sm:p-6 flex flex-col"
+                }
               >
-                <p
-                  className={`text-lg font-black font-mono ${
-                    order ? "text-accent" : "text-text-secondary"
-                  }`}
-                >
-                  {zone.id}
-                </p>
-                <p className="text-xs text-text-secondary mt-1">
-                  {zone.description}
-                </p>
+                {/* Zone code — BIG */}
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span
+                    className={
+                      order
+                        ? "text-4xl sm:text-5xl font-black font-mono tracking-tight text-accent"
+                        : "text-4xl sm:text-5xl font-black font-mono tracking-tight text-white/15"
+                    }
+                  >
+                    {zone.id}
+                  </span>
+                  <span className="text-sm text-white/30 font-medium">
+                    {zoneDesc(zone.id)}
+                  </span>
+                </div>
+
                 {order ? (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <p className="text-sm font-semibold truncate">
-                      {order.vendor}
-                    </p>
-                    <p className="text-xs text-text-secondary truncate">
+                  <>
+                    <div className="h-px bg-white/10 mb-3" />
+                    {/* Destination: Vendor → Zone */}
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-xl sm:text-2xl font-bold text-white truncate">
+                        {order.vendor}
+                      </span>
+                      <svg
+                        className="size-4 text-accent shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 7l5 5m0 0l-5 5m5-5H6"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-sm sm:text-base text-white/50 truncate">
                       {order.jobName}
                     </p>
-                    <span className={statusBadge(order.status)}>
-                      {order.status}
-                    </span>
-                  </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <div
+                        className={`size-2 rounded-full ${statusClass.split(" ")[0]}`}
+                      />
+                      <span
+                        className={`text-xs font-semibold uppercase tracking-wider ${statusClass.split(" ")[1]}`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                  </>
                 ) : (
-                  <p className="mt-3 text-xs text-accent-green font-semibold uppercase tracking-wider">
-                    Available
-                  </p>
+                  <div className="flex-1 flex flex-col items-center justify-center py-4">
+                    <p className="text-sm font-semibold uppercase tracking-wider text-accent-green/60">
+                      Available
+                    </p>
+                    <p className="text-xs text-white/15 mt-1">
+                      No delivery assigned
+                    </p>
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
 
-        <p className="text-center text-xs text-text-secondary mt-6">
+        <p className="text-center text-xs sm:text-sm text-white/25 mt-8">
           Scan QR code at your assigned zone to confirm delivery
         </p>
       </div>
 
       <p className="text-xs text-text-secondary bg-bg-card border border-border rounded-lg p-3">
-        This board would be displayed on a large monitor at the shop entrance.
-        Zone assignments update automatically as dispatchers create orders.
+        This board is displayed on a large monitor at the shop entrance. Zone
+        assignments update automatically. G = Ground spot, S = Shelf/Bin.
       </p>
     </div>
   );
@@ -577,7 +640,7 @@ function StagingZones() {
 
 /* ── Vendor Check-In ── */
 function VendorCheckIn() {
-  const [selectedZone, setSelectedZone] = useState<string>("G21");
+  const [selectedZone, setSelectedZone] = useState<string>("G2");
   const [step, setStep] = useState<"select" | "checkoff" | "done">("select");
   const [vendorNote, setVendorNote] = useState("");
 

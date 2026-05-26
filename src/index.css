@@ -13,6 +13,8 @@
   --color-border: #2a2d3a;
   --color-text-primary: #e2e4e9;
   --color-text-secondary: #989bb0;
+  --color-white: #ffffff;
+  --color-black: #000000;
 }
 
 * {
@@ -29,6 +31,8 @@ body {
     system-ui,
     -apple-system,
     sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -45,4 +49,39 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 3px;
+}
+
+/* ── Mobile-first responsive text sizing ── */
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+/* ── Large-screen optimizations ── */
+@media (min-width: 1920px) {
+  html {
+    font-size: 20px;
+  }
+}
+
+/* ── Smooth transitions for interactive elements ── */
+input[type="number"],
+select,
+textarea,
+button {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+/* ── Remove number input spinners on mobile ── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
