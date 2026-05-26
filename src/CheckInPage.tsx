@@ -12,7 +12,7 @@ const orderStatusBadge = (status: OrderStatus) => {
     Complete:
       "bg-accent-green/15 text-accent-green border border-accent-green/30",
   };
-  return `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${map[status]}`;
+  return `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${map[status]}`;
 };
 
 /* ── Zone description helper ── */
@@ -28,13 +28,85 @@ const zoneDescription = (zoneId: string): string => {
   return map[zoneId] ?? zoneId;
 };
 
-/* ── Status dropdown options ── */
-const statusOptions: { value: ItemStatus; label: string }[] = [
-  { value: "Delivered", label: "Delivered" },
-  { value: "Partial", label: "Partial" },
-  { value: "Backordered", label: "Backordered" },
-  { value: "Damaged", label: "Damaged" },
-];
+/* ── Status pill component ── */
+const StatusPill = ({
+  status,
+  onSelect,
+  selected,
+}: {
+  status: ItemStatus | null;
+  onSelect: (s: ItemStatus) => void;
+  selected: ItemStatus | null;
+}) => {
+  const options: {
+    value: ItemStatus;
+    label: string;
+    color: string;
+    dotColor: string;
+  }[] = [
+    {
+      value: "Delivered",
+      label: "Delivered",
+      color: "border-accent-green bg-accent-green/15 text-accent-green",
+      dotColor: "bg-accent-green",
+    },
+    {
+      value: "Partial",
+      label: "Partial",
+      color: "border-accent-purple bg-accent-purple/15 text-accent-purple",
+      dotColor: "bg-accent-purple",
+    },
+    {
+      value: "Backordered",
+      label: "Backordered",
+      color: "border-accent-amber bg-accent-amber/15 text-accent-amber",
+      dotColor: "bg-accent-amber",
+    },
+    {
+      value: "Damaged",
+      label: "Damaged",
+      color: "border-accent-red bg-accent-red/15 text-accent-red",
+      dotColor: "bg-accent-red",
+    },
+  ];
+
+  const current = options.find((o) => o.value === (selected ?? status));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-xs uppercase tracking-wider text-text-secondary font-semibold">
+        Status
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onSelect(opt.value)}
+            className={`tap-target rounded-xl border-2 px-3 py-3 text-sm font-bold transition-all text-center active:scale-[0.96] ${
+              (selected ?? status) === opt.value
+                ? opt.color + " shadow-sm"
+                : "border-border bg-bg-secondary text-text-secondary hover:border-text-secondary/40"
+            }`}
+          >
+            <span
+              className={`inline-block size-2 rounded-full mr-1.5 align-middle ${opt.dotColor}`}
+            />
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {current && (selected ?? status) && (
+        <div
+          className={`inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider ${current.color} border`}
+        >
+          <span className={`size-2.5 rounded-full ${current.dotColor}`} />
+          {current.label}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ── Component ── */
 export function CheckInPage() {
@@ -116,37 +188,37 @@ export function CheckInPage() {
     );
   }
 
-  const handleDeliveredQty = (itemId: string, value: string) => {
-    const num = parseInt(value, 10);
+  const handleDeliveredQty = (itemId: string, delta: number) => {
     setItems((prev) =>
       prev.map((it) => {
         if (it.id !== itemId) return it;
-        const clamped = isNaN(num)
-          ? 0
-          : Math.max(0, Math.min(num, it.quantity));
-        const missingQty = it.quantity - clamped;
+        const newQty = Math.max(
+          0,
+          Math.min(it.deliveredQty + delta, it.quantity),
+        );
+        const missingQty = it.quantity - newQty;
         let status: ItemStatus | null = it.status;
         if (
-          clamped === it.quantity &&
+          newQty === it.quantity &&
           status !== "Backordered" &&
           status !== "Damaged"
         ) {
           status = "Delivered";
         } else if (
-          clamped < it.quantity &&
-          clamped > 0 &&
+          newQty < it.quantity &&
+          newQty > 0 &&
           status !== "Backordered" &&
           status !== "Damaged"
         ) {
           status = "Partial";
         } else if (
-          clamped === 0 &&
+          newQty === 0 &&
           status !== "Backordered" &&
           status !== "Damaged"
         ) {
           status = "Partial";
         }
-        return { ...it, deliveredQty: clamped, missingQty, status };
+        return { ...it, deliveredQty: newQty, missingQty, status };
       }),
     );
   };
@@ -191,137 +263,171 @@ export function CheckInPage() {
   return (
     <div className="min-h-screen bg-bg-primary">
       {step === "checkoff" && (
-        <div className="max-w-lg mx-auto px-4 py-6 sm:py-8">
-          {/* Header Card */}
-          <div className="rounded-xl border border-border bg-bg-card p-5 mb-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="size-12 rounded-lg bg-accent/20 flex items-center justify-center font-black font-mono text-lg text-accent shrink-0">
+        <div className="max-w-lg mx-auto px-4 py-4 sm:py-8 pb-28 sm:pb-8">
+          {/* Big Zone/Job Header */}
+          <div className="rounded-2xl border-2 border-accent/30 bg-bg-card p-5 sm:p-6 mb-5 shadow-lg shadow-accent/5">
+            <div className="flex items-center gap-3 sm:gap-4 mb-4">
+              <div className="size-14 sm:size-16 rounded-xl bg-accent/20 flex items-center justify-center font-black font-mono text-2xl sm:text-3xl text-accent shrink-0 shadow-inner">
                 {order.zoneId}
               </div>
-              <div>
-                <p className="text-xs text-text-secondary uppercase tracking-wider">
+              <div className="min-w-0">
+                <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold">
                   Location
                 </p>
-                <p className="text-sm font-semibold">
+                <p className="text-base sm:text-lg font-bold truncate">
                   {zoneDescription(order.zoneId)}
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-text-secondary">Job/Site</span>
-                <span className="font-medium text-right">{order.jobName}</span>
+            <div className="space-y-2.5 text-sm sm:text-base">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-text-secondary shrink-0">Job/Site</span>
+                <span className="font-semibold text-right truncate">
+                  {order.jobName}
+                </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-secondary">Vendor</span>
-                <span className="font-medium">{order.vendor}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-text-secondary shrink-0">Vendor</span>
+                <span className="font-semibold">{order.vendor}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-secondary">Order ID</span>
-                <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded border border-border">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-text-secondary shrink-0">Order ID</span>
+                <span className="font-mono text-xs sm:text-sm bg-bg-secondary px-2.5 py-1 rounded-lg border border-border tracking-wider">
                   {order.id}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Item Checkoff */}
-          <p className="text-xs text-text-secondary uppercase tracking-wider mb-3 font-semibold">
+          {/* Item Checkoff Header */}
+          <p className="text-xs text-text-secondary uppercase tracking-wider mb-3 font-bold">
             Item Check-Off
           </p>
 
+          {/* Item Cards */}
           <div className="space-y-4 mb-6">
             {items.map((item, idx) => (
               <div
                 key={item.id}
-                className="rounded-xl border border-border bg-bg-card overflow-hidden"
+                className="card-tap rounded-2xl border-2 border-border bg-bg-card overflow-hidden"
               >
-                {/* Item header */}
+                {/* Item header with status pill */}
                 <div className="flex items-start justify-between px-4 pt-4 pb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary rounded px-1.5 py-0.5">
+                      <span className="text-[10px] sm:text-xs font-mono text-text-secondary bg-bg-secondary rounded-lg px-2 py-1 font-bold">
                         {idx + 1}
                       </span>
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm sm:text-base font-semibold truncate">
                         {item.description}
                       </p>
                     </div>
-                    <p className="text-xs text-text-secondary ml-0.5">
-                      Qty ordered:{" "}
-                      <strong className="text-text-primary">
+                    <p className="text-xs sm:text-sm text-text-secondary ml-0.5">
+                      Qty Ordered:{" "}
+                      <strong className="text-text-primary text-base sm:text-lg">
                         {item.quantity}
                       </strong>
                     </p>
                   </div>
+                  {/* Status pill in header */}
+                  {item.status && (
+                    <span
+                      className={`shrink-0 ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider border ${
+                        item.status === "Delivered"
+                          ? "bg-accent-green/15 text-accent-green border-accent-green/30"
+                          : item.status === "Partial"
+                            ? "bg-accent-purple/15 text-accent-purple border-accent-purple/30"
+                            : item.status === "Backordered"
+                              ? "bg-accent-amber/15 text-accent-amber border-accent-amber/30"
+                              : "bg-accent-red/15 text-accent-red border-accent-red/30"
+                      }`}
+                    >
+                      <span
+                        className={`size-2 rounded-full ${
+                          item.status === "Delivered"
+                            ? "bg-accent-green"
+                            : item.status === "Partial"
+                              ? "bg-accent-purple"
+                              : item.status === "Backordered"
+                                ? "bg-accent-amber"
+                                : "bg-accent-red"
+                        }`}
+                      />
+                      {item.status}
+                    </span>
+                  )}
                 </div>
 
                 {/* Item inputs */}
-                <div className="px-4 pb-4 space-y-3">
-                  {/* Delivered Qty */}
+                <div className="px-4 pb-4 space-y-4">
+                  {/* Qty Delivered — BIG stepper */}
                   <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-text-secondary mb-1.5 font-semibold">
+                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-2 font-bold">
                       Quantity Delivered
                     </label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      min={0}
-                      max={item.quantity}
-                      value={item.deliveredQty}
-                      onChange={(e) =>
-                        handleDeliveredQty(item.id, e.target.value)
-                      }
-                      className="w-full rounded-lg border border-border bg-bg-secondary px-4 py-3 text-base text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
-                    />
+                    <div className="flex items-stretch gap-2">
+                      {/* Minus button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeliveredQty(item.id, -1)}
+                        disabled={item.deliveredQty <= 0}
+                        className="stepper-btn tap-target w-14 sm:w-16 flex items-center justify-center rounded-xl border-2 border-border bg-bg-secondary text-text-primary text-2xl sm:text-3xl font-bold hover:border-accent/50 hover:bg-bg-card disabled:opacity-25 disabled:cursor-not-allowed active:scale-95 transition-all shrink-0"
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+
+                      {/* Value display */}
+                      <div className="flex-1 flex items-center justify-center rounded-xl border-2 border-accent/50 bg-bg-secondary px-3">
+                        <span className="text-2xl sm:text-3xl font-black font-mono text-accent tabular-nums">
+                          {item.deliveredQty}
+                        </span>
+                        <span className="text-sm text-text-secondary ml-2">
+                          / {item.quantity}
+                        </span>
+                      </div>
+
+                      {/* Plus button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeliveredQty(item.id, 1)}
+                        disabled={item.deliveredQty >= item.quantity}
+                        className="stepper-btn tap-target w-14 sm:w-16 flex items-center justify-center rounded-xl border-2 border-border bg-bg-secondary text-text-primary text-2xl sm:text-3xl font-bold hover:border-accent/50 hover:bg-bg-card disabled:opacity-25 disabled:cursor-not-allowed active:scale-95 transition-all shrink-0"
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Missing Qty (auto) */}
+                  {/* Qty Missing (auto) */}
                   <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-text-secondary mb-1.5 font-semibold">
+                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-1 font-bold">
                       Quantity Missing
                     </label>
-                    <div className="w-full rounded-lg border border-border bg-bg-secondary/60 px-4 py-3 text-base text-text-secondary font-mono">
+                    <div
+                      className={`w-full rounded-xl border-2 px-4 py-3 text-lg sm:text-xl font-bold font-mono tabular-nums ${
+                        item.missingQty > 0
+                          ? "border-accent-red/40 bg-accent-red/5 text-accent-red"
+                          : "border-accent-green/40 bg-accent-green/5 text-accent-green"
+                      }`}
+                    >
                       {item.missingQty}
                     </div>
                   </div>
 
-                  {/* Status */}
-                  <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-text-secondary mb-1.5 font-semibold">
-                      Status
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {statusOptions.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => handleStatusChange(item.id, opt.value)}
-                          className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-center ${
-                            item.status === opt.value
-                              ? opt.value === "Delivered"
-                                ? "border-accent-green bg-accent-green/15 text-accent-green"
-                                : opt.value === "Partial"
-                                  ? "border-accent-purple bg-accent-purple/15 text-accent-purple"
-                                  : opt.value === "Backordered"
-                                    ? "border-accent-amber bg-accent-amber/15 text-accent-amber"
-                                    : "border-accent-red bg-accent-red/15 text-accent-red"
-                              : "border-border bg-bg-secondary text-text-secondary hover:border-text-secondary/50"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Status selector */}
+                  <StatusPill
+                    status={item.status}
+                    selected={item.status}
+                    onSelect={(s) => handleStatusChange(item.id, s)}
+                  />
 
                   {/* Validation */}
                   {item.deliveredQty > item.quantity && (
-                    <p className="text-xs text-accent-red mt-1">
-                      Delivered quantity cannot exceed ordered quantity (
-                      {item.quantity}).
+                    <p className="text-sm text-accent-red font-semibold mt-1">
+                      Cannot exceed ordered quantity ({item.quantity}).
                     </p>
                   )}
                 </div>
@@ -330,8 +436,8 @@ export function CheckInPage() {
           </div>
 
           {/* Vendor Note */}
-          <div className="rounded-xl border border-border bg-bg-card p-4 mb-5">
-            <label className="block text-sm font-semibold mb-2">
+          <div className="rounded-2xl border-2 border-border bg-bg-card p-4 sm:p-5 mb-5">
+            <label className="block text-sm sm:text-base font-bold mb-2">
               Delivery Notes
             </label>
             <textarea
@@ -339,14 +445,14 @@ export function CheckInPage() {
               onChange={(e) => setVendorNote(e.target.value)}
               placeholder="Explain any missing, backordered, or damaged items…"
               rows={3}
-              className="w-full rounded-lg border border-border bg-bg-secondary px-4 py-3 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 resize-none"
+              className="w-full rounded-xl border-2 border-border bg-bg-secondary px-4 py-3 text-base text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none"
             />
           </div>
 
           {/* Summary */}
-          <div className="rounded-xl border border-border bg-bg-card p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold">
+          <div className="rounded-2xl border-2 border-border bg-bg-card p-4 sm:p-5 mb-6">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold uppercase tracking-wider text-text-secondary">
                 Overall Status
               </p>
               <span className={orderStatusBadge(overallStatus)}>
@@ -354,27 +460,27 @@ export function CheckInPage() {
               </span>
             </div>
             {overallStatus === "Partial" && (
-              <p className="text-xs text-text-secondary mt-3">
+              <p className="text-sm text-text-secondary mt-3 leading-relaxed">
                 This order has items that are not fully delivered. Dispatch will
                 be notified.
               </p>
             )}
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Button — BIG */}
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="w-full rounded-xl bg-accent px-6 py-4 text-base font-bold text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-lg shadow-accent/20 active:scale-[0.98]"
+            className="tap-target w-full rounded-2xl bg-accent px-6 py-5 text-lg sm:text-xl font-black text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xl shadow-accent/20 active:scale-[0.97] tracking-wide"
           >
             {canSubmit
               ? overallStatus === "Complete"
-                ? "Submit Confirmation — Complete"
+                ? "✓  Submit Confirmation — Complete"
                 : "Submit Confirmation — Partial"
-              : "Select a status for each item to continue"}
+              : "Select a status for each item"}
           </button>
 
-          <p className="text-center text-[11px] text-text-secondary mt-4">
+          <p className="text-center text-xs text-text-secondary mt-4 mb-2">
             By submitting, you confirm the items delivered and their condition.
           </p>
         </div>
@@ -398,7 +504,7 @@ export function CheckInPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-bold mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">
               Delivery confirmation submitted
             </h2>
             <p className="text-base mb-1">
@@ -418,7 +524,7 @@ export function CheckInPage() {
             </p>
             <button
               onClick={handleReset}
-              className="rounded-xl border border-border bg-bg-card px-6 py-3 text-sm font-semibold hover:bg-bg-secondary transition-colors active:scale-[0.98]"
+              className="tap-target rounded-xl border-2 border-border bg-bg-card px-8 py-4 text-base font-bold hover:bg-bg-secondary transition-colors active:scale-[0.97]"
             >
               New Check-In
             </button>

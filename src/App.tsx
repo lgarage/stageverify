@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { mockOrders, stagingZones, mockConfirmations } from "./mockData";
 import type { Order, OrderStatus, ItemStatus } from "./types";
 
@@ -149,6 +149,22 @@ const Icon = ({ name }: { name: string }) => {
         d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
       />
     ),
+    hamburger: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 6h16M4 12h16M4 18h16"
+      />
+    ),
+    close: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 18L18 6M6 6l12 12"
+      />
+    ),
   };
   return (
     <svg
@@ -186,8 +202,10 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <span className="text-sm text-text-secondary">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          Dashboard
+        </h1>
+        <span className="text-xs sm:text-sm text-text-secondary">
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",
             year: "numeric",
@@ -198,7 +216,7 @@ function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: "Total Orders", value: c.total, color: "text-accent" },
           {
@@ -219,12 +237,12 @@ function Dashboard() {
         ].map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-border bg-bg-card p-5"
+            className="rounded-xl border border-border bg-bg-card p-4 sm:p-5"
           >
-            <p className="text-xs font-medium uppercase tracking-widest text-text-secondary">
+            <p className="text-[10px] sm:text-xs font-medium uppercase tracking-widest text-text-secondary">
               {card.label}
             </p>
-            <p className={`mt-2 text-3xl font-bold ${card.color}`}>
+            <p className={`mt-2 text-2xl sm:text-3xl font-bold ${card.color}`}>
               {card.value}
             </p>
           </div>
@@ -233,11 +251,11 @@ function Dashboard() {
 
       {/* Recent Orders */}
       <div className="rounded-xl border border-border bg-bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider">
+        <div className="flex items-center justify-between border-b border-border px-4 sm:px-5 py-3 sm:py-4">
+          <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider">
             Active Orders
           </h2>
-          <span className="text-xs text-text-secondary">
+          <span className="text-[10px] sm:text-xs text-text-secondary">
             Tap an order for details
           </span>
         </div>
@@ -245,7 +263,7 @@ function Dashboard() {
           {mockOrders.map((o) => (
             <div
               key={o.id}
-              className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors cursor-pointer"
+              className="card-tap flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-white/[0.02] transition-colors cursor-pointer"
             >
               <div className={statusDot(o.status)} />
               <div className="flex-1 min-w-0">
@@ -282,15 +300,19 @@ function ActiveOrders() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Active Orders</h1>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 transition-colors">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          Active Orders
+        </h1>
+        <button className="tap-target inline-flex items-center gap-2 rounded-lg bg-accent px-3 sm:px-4 py-2.5 sm:py-2 text-sm font-semibold text-white hover:bg-accent/90 transition-colors">
           <Icon name="plus" />
-          Create Order
+          <span className="hidden sm:inline">Create Order</span>
         </button>
       </div>
 
+      {/* Desktop: table | Mobile: cards */}
       <div className="rounded-xl border border-border bg-bg-card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop table — hidden on mobile */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wider text-text-secondary">
@@ -336,12 +358,47 @@ function ActiveOrders() {
           </table>
         </div>
 
+        {/* Mobile cards — shown only on mobile */}
+        <div className="md:hidden divide-y divide-border">
+          {mockOrders.map((o) => (
+            <div
+              key={o.id}
+              onClick={() => setSelected(selected?.id === o.id ? null : o)}
+              className={`card-tap px-4 py-4 cursor-pointer transition-colors ${
+                selected?.id === o.id ? "bg-white/[0.04]" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={statusDot(o.status)} />
+                  <span className={statusBadge(o.status)}>{o.status}</span>
+                </div>
+                <span className="font-mono text-xs bg-bg-secondary px-2 py-1 rounded border border-border">
+                  {o.id}
+                </span>
+              </div>
+              <p className="text-base font-semibold mb-1">{o.vendor}</p>
+              <p className="text-sm text-text-secondary mb-2">
+                {o.jobName} <span className="text-text-secondary/50">·</span>{" "}
+                {o.jobNumber} / {o.siteNumber}
+              </p>
+              <div className="flex items-center gap-3 text-xs text-text-secondary">
+                <span className="font-mono font-bold text-accent text-sm">
+                  Zone {o.zoneId}
+                </span>
+                <span>{o.items.length} items</span>
+                <span>{new Date(o.createdAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {selected && (
-          <div className="border-t border-border p-5">
+          <div className="border-t border-border p-4 sm:p-5">
             <h3 className="font-semibold mb-3">
               {selected.id} — {selected.vendor}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4">
               <div>
                 <p className="text-xs text-text-secondary uppercase tracking-wider">
                   Job Name
@@ -370,17 +427,17 @@ function ActiveOrders() {
               </div>
             </div>
             <div>
-              <p className="text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <p className="text-xs text-text-secondary uppercase tracking-wider mb-2 font-semibold">
                 Line Items
               </p>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {selected.items.map((it) => (
                   <div
                     key={it.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border border-border px-3 py-2.5 text-sm gap-2"
                   >
                     <div className="flex-1">
-                      <span>{it.description}</span>
+                      <span className="font-medium">{it.description}</span>
                       <span className="text-text-secondary ml-2">
                         Qty: {it.quantity}
                       </span>
@@ -423,7 +480,7 @@ function EntryDisplay() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
           Entry Display Board
         </h1>
         <a
@@ -434,19 +491,18 @@ function EntryDisplay() {
         </a>
       </div>
 
-      {/* Simulated display board — large-screen friendly */}
-      <div className="rounded-xl border-2 border-accent/40 bg-black p-6 sm:p-10 shadow-lg shadow-accent/5">
-        <div className="text-center mb-8 sm:mb-10">
-          <h2 className="text-4xl sm:text-5xl font-black tracking-widest text-accent uppercase">
+      <div className="rounded-xl border-2 border-accent/40 bg-black p-4 sm:p-10 shadow-lg shadow-accent/5">
+        <div className="text-center mb-6 sm:mb-10">
+          <h2 className="text-3xl sm:text-5xl font-black tracking-widest text-accent uppercase">
             StageVerify
           </h2>
-          <p className="text-text-secondary text-sm sm:text-base mt-2 tracking-[0.3em] uppercase">
+          <p className="text-text-secondary text-xs sm:text-base mt-2 tracking-[0.3em] uppercase">
             Delivery Staging Board
           </p>
           <div className="mx-auto mt-5 h-px w-48 bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {stagingZones.map((zone) => {
             const order = mockOrders.find((o) => o.id === zone.currentOrderId);
             const statusClass =
@@ -463,17 +519,16 @@ function EntryDisplay() {
                 key={zone.id}
                 className={
                   order
-                    ? "rounded-xl border border-white/15 bg-white/[0.04] p-5 sm:p-6 flex flex-col"
-                    : "rounded-xl border border-white/[0.05] bg-transparent border-dashed p-5 sm:p-6 flex flex-col"
+                    ? "rounded-xl border border-white/15 bg-white/[0.04] p-4 sm:p-6 flex flex-col"
+                    : "rounded-xl border border-white/[0.05] bg-transparent border-dashed p-4 sm:p-6 flex flex-col"
                 }
               >
-                {/* Zone code — BIG */}
                 <div className="flex items-baseline gap-2 mb-3">
                   <span
                     className={
                       order
-                        ? "text-4xl sm:text-5xl font-black font-mono tracking-tight text-accent"
-                        : "text-4xl sm:text-5xl font-black font-mono tracking-tight text-white/15"
+                        ? "text-3xl sm:text-5xl font-black font-mono tracking-tight text-accent"
+                        : "text-3xl sm:text-5xl font-black font-mono tracking-tight text-white/15"
                     }
                   >
                     {zone.id}
@@ -486,9 +541,8 @@ function EntryDisplay() {
                 {order ? (
                   <>
                     <div className="h-px bg-white/10 mb-3" />
-                    {/* Destination: Vendor → Zone */}
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-xl sm:text-2xl font-bold text-white truncate">
+                      <span className="text-lg sm:text-2xl font-bold text-white truncate">
                         {order.vendor}
                       </span>
                       <svg
@@ -534,7 +588,7 @@ function EntryDisplay() {
           })}
         </div>
 
-        <p className="text-center text-xs sm:text-sm text-white/25 mt-8">
+        <p className="text-center text-xs sm:text-sm text-white/25 mt-6 sm:mt-8">
           Scan QR code at your assigned zone to confirm delivery
         </p>
       </div>
@@ -552,13 +606,15 @@ function StagingZones() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Staging Zones</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          Staging Zones
+        </h1>
         <span className="text-xs text-text-secondary">
           {stagingZones.length} zones configured
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stagingZones.map((zone) => {
           const order = mockOrders.find((o) => o.id === zone.currentOrderId);
           return (
@@ -566,7 +622,7 @@ function StagingZones() {
               key={zone.id}
               className="rounded-xl border border-border bg-bg-card overflow-hidden"
             >
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div
                     className={`size-10 rounded-lg flex items-center justify-center font-black font-mono text-lg ${
@@ -619,7 +675,6 @@ function StagingZones() {
                   </div>
                 )}
 
-                {/* QR Code Placeholder */}
                 <div className="mt-4 flex justify-center">
                   <div className="size-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-bg-secondary">
                     <span className="text-[10px] text-text-secondary text-center leading-tight">
@@ -649,45 +704,50 @@ function VendorCheckIn() {
   );
   const [items, setItems] = useState(order?.items ?? []);
 
-  const handleDeliveredQty = (itemId: string, value: string) => {
-    const num = parseInt(value, 10);
+  const handleDeliveredQty = (itemId: string, delta: number) => {
     setItems((prev) =>
       prev.map((it) => {
         if (it.id !== itemId) return it;
-        const clamped = isNaN(num)
-          ? 0
-          : Math.max(0, Math.min(num, it.quantity));
-        const missingQty = it.quantity - clamped;
-        // Auto-set status based on quantity rules
+        const newQty = Math.max(
+          0,
+          Math.min(it.deliveredQty + delta, it.quantity),
+        );
+        const missingQty = it.quantity - newQty;
         let status: ItemStatus | null = it.status;
         if (
-          clamped === it.quantity &&
+          newQty === it.quantity &&
           status !== "Backordered" &&
           status !== "Damaged"
         ) {
           status = "Delivered";
         } else if (
-          clamped < it.quantity &&
-          clamped > 0 &&
+          newQty < it.quantity &&
+          newQty > 0 &&
           status !== "Backordered" &&
           status !== "Damaged"
         ) {
           status = "Partial";
         } else if (
-          clamped === 0 &&
+          newQty === 0 &&
           status !== "Backordered" &&
           status !== "Damaged"
         ) {
           status = "Partial";
         }
-        return { ...it, deliveredQty: clamped, missingQty, status };
+        return { ...it, deliveredQty: newQty, missingQty, status };
       }),
     );
   };
 
   const handleStatusChange = (itemId: string, status: ItemStatus) => {
     setItems((prev) =>
-      prev.map((it) => (it.id === itemId ? { ...it, status } : it)),
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        if (status === "Delivered") {
+          return { ...it, status, deliveredQty: it.quantity, missingQty: 0 };
+        }
+        return { ...it, status };
+      }),
     );
   };
 
@@ -727,16 +787,20 @@ function VendorCheckIn() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Vendor Check-In</h1>
-      <p className="text-sm text-text-secondary">
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+        Vendor Check-In
+      </h1>
+      <p className="text-xs sm:text-sm text-text-secondary">
         Simulates the vendor scanning a zone QR code and confirming delivered
         quantities per item.
       </p>
 
       {step === "select" && (
-        <div className="rounded-xl border border-border bg-bg-card p-6">
-          <h2 className="text-lg font-semibold mb-4">Step 1 — Select Zone</h2>
-          <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="rounded-xl border border-border bg-bg-card p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-4">
+            Step 1 — Select Zone
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-6">
             {stagingZones.map((zone) => {
               const hasPending = mockOrders.some(
                 (o) => o.zoneId === zone.id && o.status === "Pending",
@@ -747,14 +811,16 @@ function VendorCheckIn() {
                   onClick={() => {
                     setSelectedZone(zone.id);
                   }}
-                  className={`rounded-lg border p-4 text-center transition-colors ${
+                  className={`tap-target rounded-lg border-2 p-3 sm:p-4 text-center transition-colors ${
                     selectedZone === zone.id
                       ? "border-accent bg-accent/10 text-accent"
                       : "border-border bg-bg-secondary hover:border-accent/40"
                   } ${!hasPending ? "opacity-40" : ""}`}
                   disabled={!hasPending}
                 >
-                  <p className="text-2xl font-black font-mono">{zone.id}</p>
+                  <p className="text-xl sm:text-2xl font-black font-mono">
+                    {zone.id}
+                  </p>
                   <p className="text-xs text-text-secondary mt-1">
                     {zone.description}
                   </p>
@@ -789,7 +855,7 @@ function VendorCheckIn() {
                 (o) => o.zoneId === selectedZone && o.status === "Pending",
               )
             }
-            className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="tap-target w-full rounded-xl bg-accent px-4 py-3.5 text-base font-bold text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             Continue to Check-Off
           </button>
@@ -797,69 +863,98 @@ function VendorCheckIn() {
       )}
 
       {step === "checkoff" && order && (
-        <div className="rounded-xl border border-border bg-bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-xl border border-border bg-bg-card p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
             <div>
-              <h2 className="text-lg font-semibold">Step 2 — Item Check-Off</h2>
-              <p className="text-sm text-text-secondary">
+              <h2 className="text-base sm:text-lg font-semibold">
+                Step 2 — Item Check-Off
+              </h2>
+              <p className="text-xs sm:text-sm text-text-secondary">
                 Zone {order.zoneId} &middot; {order.vendor} &middot;{" "}
                 {order.jobName}
               </p>
             </div>
-            <span className="font-mono text-xs bg-bg-secondary px-3 py-1 rounded border border-border">
+            <span className="font-mono text-xs bg-bg-secondary px-3 py-1 rounded border border-border self-start">
               {order.id}
             </span>
           </div>
 
-          <div className="space-y-3 mb-6">
+          <div className="space-y-4 mb-6">
             {items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-border bg-bg-secondary p-4"
+                className="card-tap rounded-xl border-2 border-border bg-bg-secondary p-4"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{item.description}</p>
-                    <p className="text-xs text-text-secondary">
-                      Quantity ordered: <strong>{item.quantity}</strong>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm sm:text-base font-semibold truncate">
+                      {item.description}
+                    </p>
+                    <p className="text-xs sm:text-sm text-text-secondary mt-0.5">
+                      Quantity ordered:{" "}
+                      <strong className="text-text-primary">
+                        {item.quantity}
+                      </strong>
                     </p>
                   </div>
-                  <span className={itemStatusBadge(item.status ?? "Partial")}>
-                    {item.status ?? "—"}
+                  <span className="shrink-0 ml-2">
+                    <span className={itemStatusBadge(item.status ?? "Partial")}>
+                      {item.status ?? "—"}
+                    </span>
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  {/* Quantity Delivered */}
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-text-secondary mb-1">
-                      Qty Delivered
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={item.quantity}
-                      value={item.deliveredQty}
-                      onChange={(e) =>
-                        handleDeliveredQty(item.id, e.target.value)
-                      }
-                      className="w-full rounded-lg border border-border bg-bg-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
-                    />
+                {/* Big stepper for mobile */}
+                <div className="mb-3">
+                  <label className="block text-xs uppercase tracking-wider text-text-secondary mb-2 font-bold">
+                    Qty Delivered
+                  </label>
+                  <div className="flex items-stretch gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDeliveredQty(item.id, -1)}
+                      disabled={item.deliveredQty <= 0}
+                      className="stepper-btn tap-target w-12 sm:w-14 flex items-center justify-center rounded-xl border-2 border-border bg-bg-card text-text-primary text-xl sm:text-2xl font-bold hover:border-accent/50 disabled:opacity-25 disabled:cursor-not-allowed active:scale-95 transition-all shrink-0"
+                    >
+                      −
+                    </button>
+                    <div className="flex-1 flex items-center justify-center rounded-xl border-2 border-accent/50 bg-bg-card px-2">
+                      <span className="text-xl sm:text-2xl font-black font-mono text-accent tabular-nums">
+                        {item.deliveredQty}
+                      </span>
+                      <span className="text-xs text-text-secondary ml-1.5">
+                        / {item.quantity}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeliveredQty(item.id, 1)}
+                      disabled={item.deliveredQty >= item.quantity}
+                      className="stepper-btn tap-target w-12 sm:w-14 flex items-center justify-center rounded-xl border-2 border-border bg-bg-card text-text-primary text-xl sm:text-2xl font-bold hover:border-accent/50 disabled:opacity-25 disabled:cursor-not-allowed active:scale-95 transition-all shrink-0"
+                    >
+                      +
+                    </button>
                   </div>
+                </div>
 
-                  {/* Quantity Missing (auto-calculated) */}
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-text-secondary mb-1">
+                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-1 font-bold">
                       Qty Missing
                     </label>
-                    <div className="w-full rounded-lg border border-border bg-bg-card/60 px-3 py-2 text-sm text-text-secondary">
+                    <div
+                      className={`w-full rounded-lg border-2 px-3 py-2.5 text-base sm:text-lg font-bold font-mono tabular-nums ${
+                        item.missingQty > 0
+                          ? "border-accent-red/40 bg-accent-red/5 text-accent-red"
+                          : "border-accent-green/40 bg-accent-green/5 text-accent-green"
+                      }`}
+                    >
                       {item.missingQty}
                     </div>
                   </div>
 
-                  {/* Status Selector */}
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-text-secondary mb-1">
+                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-1 font-bold">
                       Status
                     </label>
                     <select
@@ -870,10 +965,10 @@ function VendorCheckIn() {
                           e.target.value as ItemStatus,
                         )
                       }
-                      className="w-full rounded-lg border border-border bg-bg-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
+                      className="tap-target w-full rounded-lg border-2 border-border bg-bg-card px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-colors"
                     >
                       <option value="" disabled>
-                        Select status
+                        Select
                       </option>
                       <option value="Delivered">Delivered</option>
                       <option value="Partial">Partial</option>
@@ -883,9 +978,8 @@ function VendorCheckIn() {
                   </div>
                 </div>
 
-                {/* Validation hints */}
                 {item.deliveredQty > item.quantity && (
-                  <p className="text-xs text-accent-red mt-1">
+                  <p className="text-xs text-accent-red mt-2 font-semibold">
                     Delivered quantity cannot exceed ordered quantity (
                     {item.quantity}).
                   </p>
@@ -894,9 +988,8 @@ function VendorCheckIn() {
             ))}
           </div>
 
-          {/* Vendor Note */}
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
+            <label className="block text-sm font-bold mb-2">
               Delivery notes / missing item explanation
             </label>
             <textarea
@@ -904,13 +997,12 @@ function VendorCheckIn() {
               onChange={(e) => setVendorNote(e.target.value)}
               placeholder="Explain any missing, backordered, or damaged items…"
               rows={3}
-              className="w-full rounded-lg border border-border bg-bg-secondary px-4 py-3 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors resize-none"
+              className="w-full rounded-xl border-2 border-border bg-bg-secondary px-4 py-3 text-base text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-colors resize-none"
             />
           </div>
 
-          {/* Summary */}
-          <div className="rounded-lg border border-border bg-bg-secondary p-3 mb-6">
-            <p className="text-xs text-text-secondary mb-1">
+          <div className="rounded-xl border-2 border-border bg-bg-secondary p-4 mb-6">
+            <p className="text-xs text-text-secondary mb-1.5 font-bold uppercase tracking-wider">
               Overall Order Status
             </p>
             <span className={statusBadge(overallStatus)}>{overallStatus}</span>
@@ -924,11 +1016,11 @@ function VendorCheckIn() {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="tap-target w-full rounded-xl bg-accent px-4 py-4 text-base sm:text-lg font-black text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-lg shadow-accent/10"
           >
             {canSubmit
               ? overallStatus === "Complete"
-                ? "Submit Confirmation (Complete)"
+                ? "✓ Submit Confirmation (Complete)"
                 : "Submit Confirmation (Partial)"
               : "Select a status for each item to continue"}
           </button>
@@ -936,7 +1028,7 @@ function VendorCheckIn() {
       )}
 
       {step === "done" && (
-        <div className="rounded-xl border border-accent-green/30 bg-accent-green/5 p-8 text-center">
+        <div className="rounded-xl border border-accent-green/30 bg-accent-green/5 p-6 sm:p-8 text-center">
           <div className="size-16 mx-auto rounded-full bg-accent-green/20 flex items-center justify-center mb-4">
             <svg
               className="size-8 text-accent-green"
@@ -971,7 +1063,7 @@ function VendorCheckIn() {
           </p>
           <button
             onClick={handleReset}
-            className="mt-6 rounded-lg border border-border bg-bg-card px-4 py-2 text-sm font-medium hover:bg-bg-secondary transition-colors"
+            className="tap-target mt-6 rounded-xl border-2 border-border bg-bg-card px-6 py-3 text-sm font-bold hover:bg-bg-secondary transition-colors"
           >
             New Check-In
           </button>
@@ -988,16 +1080,17 @@ function DispatchStatus() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dispatch Status</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          Dispatch Status
+        </h1>
         <span className="text-xs text-text-secondary bg-bg-card border border-border rounded-lg px-3 py-1.5 font-mono">
           Read-Only
         </span>
       </div>
 
-      {/* Confirmation Feed */}
       <div className="rounded-xl border border-border bg-bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider">
+        <div className="flex items-center justify-between border-b border-border px-4 sm:px-5 py-3 sm:py-4">
+          <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider">
             Confirmation Log
           </h2>
           <span className="text-xs text-text-secondary">
@@ -1009,11 +1102,11 @@ function DispatchStatus() {
             <div
               key={log.id}
               onClick={() => setSelectedLog(selectedLog === idx ? null : idx)}
-              className={`px-5 py-4 cursor-pointer hover:bg-white/[0.02] transition-colors ${
+              className={`card-tap px-4 sm:px-5 py-3 sm:py-4 cursor-pointer hover:bg-white/[0.02] transition-colors ${
                 selectedLog === idx ? "bg-white/[0.04]" : ""
               }`}
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Icon name="mail" />
@@ -1035,7 +1128,7 @@ function DispatchStatus() {
                     {log.jobName} &middot; Zone {log.zoneId}
                   </p>
                 </div>
-                <span className="text-xs text-text-secondary">
+                <span className="text-xs text-text-secondary shrink-0">
                   {new Date(log.confirmedAt).toLocaleString()}
                 </span>
               </div>
@@ -1044,16 +1137,15 @@ function DispatchStatus() {
         </div>
       </div>
 
-      {/* Email Notification Preview */}
       {selectedLog !== null &&
         (() => {
           const log = mockConfirmations[selectedLog];
           return (
-            <div className="rounded-xl border border-border bg-bg-card p-5">
+            <div className="rounded-xl border border-border bg-bg-card p-4 sm:p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wider mb-4">
                 Email Notification Preview
               </h2>
-              <div className="rounded-lg border border-border bg-bg-secondary p-5 font-mono text-xs text-text-secondary space-y-2">
+              <div className="rounded-lg border border-border bg-bg-secondary p-4 sm:p-5 font-mono text-xs text-text-secondary space-y-2 overflow-x-auto">
                 <div className="flex gap-2">
                   <span className="text-text-primary shrink-0">From:</span>
                   <span>stageverify@example.com</span>
@@ -1099,7 +1191,6 @@ function DispatchStatus() {
                     <span>{new Date(log.confirmedAt).toLocaleString()}</span>
                   </div>
 
-                  {/* Items table */}
                   <div className="border-t border-border pt-2 mt-2">
                     <p className="text-text-primary font-semibold mb-2">
                       Item Details:
@@ -1108,12 +1199,12 @@ function DispatchStatus() {
                       {log.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between bg-bg-card rounded px-3 py-1.5"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between bg-bg-card rounded px-3 py-1.5 gap-1"
                         >
                           <span className="text-text-primary truncate flex-1 mr-3">
                             {item.description}
                           </span>
-                          <div className="flex items-center gap-3 text-[11px] shrink-0">
+                          <div className="flex items-center gap-2 text-[10px] sm:text-[11px] shrink-0 flex-wrap">
                             <span>
                               <span className="text-text-secondary">Ord:</span>{" "}
                               {item.quantity}
@@ -1159,7 +1250,6 @@ function DispatchStatus() {
                     </div>
                   </div>
 
-                  {/* Vendor note */}
                   {log.vendorNote && (
                     <div className="border-t border-border pt-2 mt-2">
                       <p className="text-text-primary font-semibold mb-1">
@@ -1180,6 +1270,36 @@ function DispatchStatus() {
 /* ── Main App ── */
 export default function App() {
   const [activeSection, setActiveSection] = useState<Section>("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on route change (mobile)
+  const navigateTo = (section: Section) => {
+    setActiveSection(section);
+    setSidebarOpen(false);
+  };
+
+  // Close sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
 
   const renderSection = () => {
     switch (activeSection) {
@@ -1198,15 +1318,74 @@ export default function App() {
     }
   };
 
+  // Sidebar content (reused in both desktop and mobile)
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
+        <div className="size-9 rounded-lg bg-accent flex items-center justify-center">
+          <svg
+            className="size-5 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+            />
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-base font-bold tracking-tight leading-tight">
+            StageVerify
+          </h1>
+          <p className="text-[10px] text-text-secondary uppercase tracking-wider">
+            HVAC Staging
+          </p>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 py-4 px-3 space-y-1">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => navigateTo(item.id)}
+            className={`w-full flex items-center gap-3 rounded-lg px-3 py-3 sm:py-2.5 text-sm font-medium transition-colors text-left tap-target ${
+              activeSection === item.id
+                ? "bg-accent/15 text-accent"
+                : "text-text-secondary hover:text-text-primary hover:bg-white/[0.04]"
+            }`}
+          >
+            <Icon name={item.icon} />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t border-border px-5 py-3">
+        <p className="text-[10px] text-text-secondary">StageVerify MVP v0.1</p>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
-      {/* Sidebar */}
-      <aside className="w-60 shrink-0 border-r border-border bg-bg-sidebar flex flex-col">
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="size-9 rounded-lg bg-accent flex items-center justify-center">
+      {/* Desktop sidebar — hidden on mobile */}
+      <aside className="hidden md:flex w-60 shrink-0 border-r border-border bg-bg-sidebar flex-col">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between bg-bg-sidebar border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="size-7 rounded-lg bg-accent flex items-center justify-center">
             <svg
-              className="size-5 text-white"
+              className="size-4 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1219,44 +1398,64 @@ export default function App() {
               />
             </svg>
           </div>
-          <div>
-            <h1 className="text-base font-bold tracking-tight leading-tight">
-              StageVerify
-            </h1>
-            <p className="text-[10px] text-text-secondary uppercase tracking-wider">
-              HVAC Staging
-            </p>
-          </div>
+          <h1 className="text-sm font-bold tracking-tight">StageVerify</h1>
         </div>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="tap-target p-2 -mr-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+          aria-label="Open menu"
+        >
+          <Icon name="hamburger" />
+        </button>
+      </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left ${
-                activeSection === item.id
-                  ? "bg-accent/15 text-accent"
-                  : "text-text-secondary hover:text-text-primary hover:bg-white/[0.04]"
-              }`}
-            >
-              <Icon name={item.icon} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="border-t border-border px-5 py-3">
-          <p className="text-[10px] text-text-secondary">
-            StageVerify MVP v0.1
-          </p>
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="sidebar-backdrop absolute inset-0"
+            onClick={() => setSidebarOpen(false)}
+          />
+          {/* Slide-out sidebar */}
+          <aside className="relative w-64 max-w-[80vw] shrink-0 border-r border-border bg-bg-sidebar flex flex-col z-10 animate-slide-in">
+            {/* Close button */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="size-7 rounded-lg bg-accent flex items-center justify-center">
+                  <svg
+                    className="size-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                    />
+                  </svg>
+                </div>
+                <h1 className="text-sm font-bold">StageVerify</h1>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="tap-target p-2 -mr-2 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+                aria-label="Close menu"
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+            {sidebarContent}
+          </aside>
         </div>
-      </aside>
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-8">{renderSection()}</main>
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 pt-16 md:pt-8">
+        {renderSection()}
+      </main>
     </div>
   );
 }
