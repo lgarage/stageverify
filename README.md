@@ -1,28 +1,73 @@
-# StageVerify
+# React + TypeScript + Vite
 
-HVAC material staging and vendor delivery confirmation system.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## What Is StageVerify?
+Currently, two official plugins are available:
 
-StageVerify helps HVAC project teams track vendor deliveries, manage staging zones, and confirm that the right materials arrive at the right place at the right time. It replaces paper checklists and manual phone coordination with a structured digital workflow.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Core MVP Workflow
+## React Compiler
 
-1. A delivery arrives from a vendor.
-2. Warehouse staff scan a QR code at the staging zone.
-3. The system displays delivery details (vendor, PO, items).
-4. Staff confirm receipt and note any discrepancies.
-5. An e-ink sign at the zone updates to show the current delivery status.
-6. Dispatchers see real-time confirmations without calling the warehouse.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Planned Screens
+## Expanding the ESLint configuration
 
-- **Dashboard** — overview of active deliveries and staging zones.
-- **Delivery Detail** — individual delivery info, line items, confirmation controls.
-- **Staging Zone Map** — visual layout of zones with status indicators.
-- **Dispatch View** — read-only view for dispatchers to monitor confirmations.
-- **E-Ink Preview** — what currently appears (or will appear) on the physical e-ink sign.
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-## Current Status
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-**Initial project setup.** Repository created, documentation in place. No application code has been written yet. Frameworks, APIs, and infrastructure will be selected and added in future phases.
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```

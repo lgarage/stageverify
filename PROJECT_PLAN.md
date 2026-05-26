@@ -2,76 +2,81 @@
 
 ## MVP Goal
 
-A working system that lets warehouse staff confirm vendor deliveries by scanning a QR code at a staging zone, and lets dispatchers see those confirmations in near real-time without calling the warehouse.
+A working system that lets an HVAC shop assign approved vendor orders to staging zones, guide vendors to the correct physical drop location, let vendors confirm delivery by QR code, and notify dispatch whether the order is complete or partial.
 
 ## Core Workflow
 
-1. Dispatcher or project manager creates a delivery record (vendor, PO, expected items, target staging zone).
-2. Vendor arrives at the warehouse with materials.
-3. Warehouse staff scan the staging zone QR code or select the delivery from a list.
-4. System shows delivery details — what was ordered, what zone it should go to.
-5. Staff confirm receipt. They can mark line items as received, short, or damaged.
-6. A physical e-ink sign at the staging zone updates to reflect the delivery status.
-7. Dispatchers see the confirmation appear on their dispatch view without manual communication.
+1. Dispatcher records an approved vendor order.
+2. Dispatcher assigns vendor, job/site name, job number, site number, expected items, and target staging zone.
+3. System updates the entry display board and staging-zone sign preview.
+4. Vendor arrives at the shop.
+5. Vendor checks the entry display and finds the assigned zone.
+6. Vendor places materials in the assigned zone.
+7. Vendor scans the QR code on the zone sign.
+8. Vendor marks each item as Delivered, Missing, or Backordered.
+9. Vendor submits the confirmation.
+10. System marks the order as Complete or Partial.
+11. Dispatch receives a confirmation email/status update.
 
 ## Screens To Build
 
-- **Dashboard**
-  - Active deliveries grouped by status (Pending, In Progress, Confirmed, Flagged).
-  - Quick filters by zone, vendor, or date.
-  - Summary counts (total deliveries, pending confirmations, flagged items).
+- **Orders Dashboard**
+  - Active order list with status, vendor, job/site, and staging zone.
+  - Filters for zone, vendor, job, and status.
+  - Summary counts for complete, partial, and pending orders.
 
-- **Delivery Detail**
-  - Full delivery info: vendor name, PO number, scheduled date, target zone.
-  - Line-item list with status toggles (Received / Short / Damaged).
-  - Notes field for warehouse staff.
-  - Confirm button (with "are you sure?" step).
-  - QR code display/link for the staging zone.
+- **Create Order**
+  - Manual order entry for vendor, job/site, job number, site number, expected items, and staging zone.
+  - Mock data support for MVP.
 
-- **Staging Zone Map**
-  - Visual grid or list of staging zones.
-  - Color-coded by status: empty (gray), pending delivery (yellow), confirmed (green), flagged (red).
-  - Click a zone to see its current delivery.
+- **Entry Display Board**
+  - Shop entry display showing assigned deliveries and zone directions.
+  - Clear vendor-facing guidance for where to place materials.
 
-- **Dispatch View**
-  - Read-only view optimized for dispatchers.
-  - Auto-refreshing list of recent confirmations.
-  - Filter by project, zone, or vendor.
+- **Vendor QR Check-In Page**
+  - Zone-specific page loaded from the scanned QR code.
+  - Item checkoff flow for Delivered, Missing, or Backordered.
+  - Submit confirmation button.
 
-- **E-Ink Preview**
-  - Shows exactly what is rendered (or will render) on the physical e-ink display.
-  - Zone name, delivery status, vendor, item count, timestamp of last update.
-  - Useful for testing without physical hardware.
+- **Dispatch Status View**
+  - Read-only view of recent confirmations.
+  - Displays order status as Complete or Partial.
+  - Placeholder for confirmation email/log.
 
-## Explicitly Out of Scope For MVP
+- **E-Ink Sign Preview**
+  - Preview of what the physical zone sign would display.
+  - Includes zone, order status, vendor, job/site, and timestamp.
 
-- User authentication and role management.
-- Integration with Minew Bluetooth tags/beacons.
-- Integration with BuildOps API.
-- Inventory tracking or stock-level management.
-- Mobile native apps (web only for MVP).
-- Notifications (email, SMS, push).
-- Historical reporting and analytics.
-- Multi-project / multi-tenant support.
-- Barcode scanning hardware integration (will use camera-based QR scanning in browser).
+- **Zone Map/List**
+  - Visual list or map of staging zones.
+  - Status indicators for assigned, pending, complete, or partial.
+
+## Out of Scope For MVP
+
+- BuildOps API integration
+- Minew API integration
+- Full inventory tracking
+- Truck inventory sync
+- User authentication
+- Multi-location SaaS billing
+- AI PDF parsing
+- Vendor login accounts
+
+## Keep in MVP
+
+- Mock data
+- QR code generation
+- Manual order creation
+- Delivery item checkoff
+- Complete/Partial status logic
+- Confirmation email placeholder or console/logged confirmation
+- E-ink sign preview placeholder
 
 ## Future Phases
 
-### Phase 2 — Connectivity
-
-- Minew BLE tag integration for automatic zone detection.
-- BuildOps API sync for delivery data.
-- User auth with role-based access (warehouse vs. dispatcher vs. admin).
-
-### Phase 3 — Hardware
-
-- Physical e-ink sign provisioning and management.
-- QR code label printing.
-- Tablet-optimized warehouse UI.
-
-### Phase 4 — Intelligence
-
-- Delivery ETA predictions based on vendor history.
-- Auto-flagging of discrepancies.
-- Inventory reconciliation between ordered and received.
-- Reporting dashboard with export.
+1. Minew e-ink sign API connection
+2. BuildOps/order email parsing or import
+3. Repair/install kits
+4. Truck stock replenishment routing
+5. Real email/SMS notifications
+6. Multi-shop SaaS setup
