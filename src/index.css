@@ -4,7 +4,7 @@
   --color-bg-primary: #0f1117;
   --color-bg-secondary: #161822;
   --color-bg-card: #1c1e2c;
-  --color-bg-sidebar: #12141e;
+  --color-bg-surface: #222433;
   --color-accent: #3b82f6;
   --color-accent-green: #22c55e;
   --color-accent-amber: #f59e0b;
@@ -26,6 +26,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  font-size: 16px;
 }
 
 body {
@@ -40,52 +41,52 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
+  /* Prevent pull-to-refresh / browser chrome on mobile */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-primary);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
-/* ── Mobile-first responsive text sizing ── */
-@media (max-width: 640px) {
-  html {
-    font-size: 16px;
-  }
+/* ── Touch-friendly: everything tappable is at least 48px ── */
+button,
+a[role="button"],
+.tap-target {
+  min-height: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Large-screen optimizations ── */
-@media (min-width: 1920px) {
-  html {
-    font-size: 20px;
-  }
-}
-
-/* ── Smooth transitions for interactive elements ── */
+/* Prevent iOS zoom on input focus */
+input[type="text"],
 input[type="number"],
+input[type="email"],
+input[type="search"],
 select,
-textarea,
-button {
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    background-color 0.15s ease;
+textarea {
+  font-size: 16px !important;
 }
 
-/* ── Remove number input spinners on mobile ── */
+/* Remove number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -95,60 +96,215 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* ── Mobile: ensure all buttons/tappable elements are min 44px ── */
-@media (max-width: 767px) {
-  button,
-  a[role="button"],
-  .tap-target {
-    min-height: 44px;
-  }
-
-  /* Prevent iOS zoom on input focus */
-  input[type="text"],
-  input[type="number"],
-  input[type="email"],
-  input[type="search"],
-  select,
-  textarea {
-    font-size: 16px !important;
-  }
-
-  /* Hide table scrollbar on mobile */
-  .overflow-x-auto::-webkit-scrollbar {
-    display: none;
-  }
+/* ── Smooth transitions ── */
+input,
+select,
+textarea,
+button {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
 }
 
-/* ── Sidebar overlay backdrop ── */
-.sidebar-backdrop {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
+/* ── Bottom nav bar styles ── */
+.bottom-nav {
+  background: var(--color-bg-card);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  flex-shrink: 0;
 }
 
-/* ── Stepper button styles ── */
+.bottom-nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px;
+  min-height: 56px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.bottom-nav-btn.active {
+  color: var(--color-accent);
+}
+
+.bottom-nav-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Status pill badges (large, readable) ── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Giant stepper buttons ── */
 .stepper-btn {
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.1s ease;
 }
 
-/* ── Card tap feedback ── */
-@media (hover: none) and (pointer: coarse) {
-  .card-tap:active {
-    transform: scale(0.97);
-    transition: transform 0.1s ease;
+.stepper-btn:active {
+  transform: scale(0.95);
+  border-color: var(--color-accent);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* ── Giant action buttons for scanner UI ── */
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 3px solid transparent;
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  touch-action: manipulation;
+}
+
+.action-btn:active {
+  transform: scale(0.97);
+}
+
+.action-btn-delivered {
+  background: #166534;
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.action-btn-damaged {
+  background: #7f1d1d;
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+.action-btn-backordered {
+  background: #78350f;
+  border-color: #f59e0b;
+  color: #fcd34d;
+}
+
+.action-btn-partial {
+  background: #3b0764;
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+}
+
+/* ── Progress dots ── */
+.progress-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: background 0.2s;
+}
+.progress-dot.done {
+  background: var(--color-accent-green);
+}
+.progress-dot.current {
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+}
+.progress-dot.issue {
+  background: var(--color-accent-amber);
+}
+
+/* ── Scan line animation ── */
+@keyframes scan-line {
+  0%,
+  100% {
+    top: 20%;
+  }
+  50% {
+    top: 75%;
   }
 }
 
-/* ── Mobile sidebar slide animation ── */
-@keyframes slide-in {
+.animate-scan-line {
+  animation: scan-line 2s ease-in-out infinite;
+}
+
+/* ── Pulse for confirmation ── */
+@keyframes pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(34, 197, 94, 0);
+  }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 2s infinite;
+}
+
+/* ── Slide up animation ── */
+@keyframes slide-up {
   from {
-    transform: translateX(-100%);
+    opacity: 0;
+    transform: translateY(16px);
   }
   to {
-    transform: translateX(0);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-.animate-slide-in {
-  animation: slide-in 0.25s ease-out;
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+/* ── Large screen: constrain width, center content ── */
+@media (min-width: 768px) {
+  .app-container {
+    max-width: 480px;
+    margin: 0 auto;
+    border-left: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+  }
 }
