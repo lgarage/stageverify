@@ -1,20 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #09090b;
-  --color-bg-secondary: #121214;
-  --color-bg-card: #18181b;
-  --color-bg-surface: #27272a;
-  --color-accent: #3b82f6;
-  --color-accent-green: #10b981;
-  --color-accent-amber: #f59e0b;
-  --color-accent-red: #ef4444;
-  --color-accent-purple: #8b5cf6;
-  --color-border: #27272a;
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #a1a1aa;
-  --color-white: #ffffff;
-  --color-black: #000000;
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #1c1c1e;
+  --color-bg-card: #1c1c1e;
+  --color-bg-surface: #2c2c2e;
+  --color-accent: #0a84ff;
+  --color-accent-green: #30d158;
+  --color-accent-amber: #ff9f0a;
+  --color-accent-red: #ff453a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #8e8e93;
 }
 
 * {
@@ -33,15 +29,12 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  /* Prevent pull-to-refresh / browser chrome on mobile */
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -55,63 +48,31 @@ body {
   flex-direction: column;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
+  display: none;
 }
 
-/* ── Touch-friendly: everything tappable is at least 48px ── */
 button,
 a[role="button"],
 .tap-target {
-  min-height: 48px;
+  min-height: 64px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Prevent iOS zoom on input focus */
-input[type="text"],
-input[type="number"],
-input[type="email"],
-input[type="search"],
-select,
-textarea {
-  font-size: 16px !important;
-}
-
-/* Remove number input spinners */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-/* ── Smooth transitions ── */
-input,
-select,
-textarea,
 button {
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    background-color 0.15s ease;
+    transform 0.1s ease,
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+}
+button:active {
+  transform: scale(0.96);
 }
 
-/* ── Bottom nav bar styles ── */
 .bottom-nav {
-  background: var(--color-bg-primary);
-  border-top: 1px solid var(--color-border);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--color-bg-secondary);
+  padding-bottom: env(safe-area-inset-bottom, 16px);
   display: flex;
   flex-shrink: 0;
 }
@@ -122,196 +83,98 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 12px 4px;
-  min-height: 64px;
+  gap: 8px;
+  padding: 16px 4px;
+  min-height: 88px;
   color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 13px;
+  font-weight: 700;
   background: none;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.bottom-nav-btn:hover {
-  color: var(--color-text-primary);
 }
 
 .bottom-nav-btn.active {
-  color: var(--color-text-primary);
-}
-
-.bottom-nav-btn.active svg {
   color: var(--color-accent);
 }
 
 .bottom-nav-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
 }
 
-/* ── Status pill badges (large, readable) ── */
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 100px;
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* ── Giant stepper buttons ── */
 .stepper-btn {
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  font-size: 32px;
+  font-size: 48px;
   font-weight: 400;
-  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-card);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.stepper-btn:active {
-  transform: scale(0.95);
+  border-radius: 20px;
   background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: none;
+  width: 88px;
+  height: 88px;
 }
-
+.stepper-btn:active {
+  background: #3a3a3c;
+}
 .stepper-btn:disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
+  opacity: 0.3;
 }
 
-/* ── Giant action buttons for scanner UI ── */
 .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   width: 100%;
-  padding: 18px 24px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 28px 24px;
+  border-radius: 20px;
+  font-size: 22px;
+  font-weight: 800;
   letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  touch-action: manipulation;
+  border: none;
+  color: #ffffff;
 }
 
-.action-btn:active {
-  transform: scale(0.98);
-}
-
-.action-btn-delivered {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-}
-
-.action-btn-damaged {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-}
-
-.action-btn-backordered {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-}
-
-.action-btn-partial {
-  background: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.2);
-  color: #8b5cf6;
-}
-
-/* ── Progress dots ── */
-.progress-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-border);
-  transition: background 0.2s;
-}
-.progress-dot.done {
-  background: var(--color-accent-green);
-}
-.progress-dot.current {
+.action-btn-primary {
   background: var(--color-accent);
-  box-shadow: 0 0 8px var(--color-accent);
 }
-.progress-dot.issue {
+.action-btn-delivered {
+  background: var(--color-accent-green);
+  color: #000000;
+}
+.action-btn-damaged {
+  background: var(--color-accent-red);
+}
+.action-btn-partial {
   background: var(--color-accent-amber);
+  color: #000000;
+}
+.action-btn-secondary {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
 }
 
-/* ── Scan line animation ── */
-@keyframes scan-line {
-  0%,
-  100% {
-    top: 20%;
-  }
-  50% {
-    top: 75%;
-  }
-}
-
-.animate-scan-line {
-  animation: scan-line 2s ease-in-out infinite;
-}
-
-/* ── Pulse for confirmation ── */
-@keyframes pulse-green {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 16px rgba(34, 197, 94, 0);
-  }
-}
-
-.animate-pulse-green {
-  animation: pulse-green 2s infinite;
-}
-
-/* ── Slide up animation ── */
 @keyframes slide-up {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
 .animate-slide-up {
-  animation: slide-up 0.25s ease-out;
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Large screen: constrain width, center content ── */
 @media (min-width: 768px) {
   .app-container {
     max-width: 480px;
     margin: 0 auto;
-    border-left: 1px solid var(--color-border);
-    border-right: 1px solid var(--color-border);
+    background: var(--color-bg-primary);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
   }
 }

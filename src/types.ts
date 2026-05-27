@@ -17,6 +17,7 @@ export interface Order {
   jobNumber: string;
   siteNumber: string;
   zoneId: string;
+  additionalZoneIds?: string[];
   status: OrderStatus;
   items: LineItem[];
   createdAt: string;
