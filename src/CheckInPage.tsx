@@ -6,13 +6,13 @@ import type { Order, LineItem, ItemStatus, OrderStatus } from "./types";
 const orderStatusBadge = (status: OrderStatus) => {
   const map: Record<OrderStatus, string> = {
     Pending:
-      "bg-accent-amber/15 text-accent-amber border border-accent-amber/30",
+      "bg-accent-amber/10 text-accent-amber border border-accent-amber/20",
     Partial:
-      "bg-accent-purple/15 text-accent-purple border border-accent-purple/30",
+      "bg-accent-purple/10 text-accent-purple border border-accent-purple/20",
     Complete:
-      "bg-accent-green/15 text-accent-green border border-accent-green/30",
+      "bg-accent-green/10 text-accent-green border border-accent-green/20",
   };
-  return `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${map[status]}`;
+  return `inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-medium uppercase tracking-widest ${map[status]}`;
 };
 
 /* ── Zone description helper ── */
@@ -47,25 +47,25 @@ const StatusPill = ({
     {
       value: "Delivered",
       label: "Delivered",
-      color: "border-accent-green bg-accent-green/15 text-accent-green",
+      color: "border-accent-green/20 bg-accent-green/10 text-accent-green",
       dotColor: "bg-accent-green",
     },
     {
       value: "Partial",
       label: "Partial",
-      color: "border-accent-purple bg-accent-purple/15 text-accent-purple",
+      color: "border-accent-purple/20 bg-accent-purple/10 text-accent-purple",
       dotColor: "bg-accent-purple",
     },
     {
       value: "Backordered",
       label: "Backordered",
-      color: "border-accent-amber bg-accent-amber/15 text-accent-amber",
+      color: "border-accent-amber/20 bg-accent-amber/10 text-accent-amber",
       dotColor: "bg-accent-amber",
     },
     {
       value: "Damaged",
       label: "Damaged",
-      color: "border-accent-red bg-accent-red/15 text-accent-red",
+      color: "border-accent-red/20 bg-accent-red/10 text-accent-red",
       dotColor: "bg-accent-red",
     },
   ];
@@ -73,24 +73,24 @@ const StatusPill = ({
   const current = options.find((o) => o.value === (selected ?? status));
 
   return (
-    <div className="flex flex-col gap-2">
-      <label className="text-xs uppercase tracking-wider text-text-secondary font-semibold">
+    <div className="flex flex-col gap-3">
+      <label className="text-[10px] uppercase tracking-widest text-text-secondary">
         Status
       </label>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         {options.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => onSelect(opt.value)}
-            className={`tap-target rounded-xl border-2 px-3 py-3 text-sm font-bold transition-all text-center active:scale-[0.96] ${
+            className={`tap-target rounded-xl border px-3 py-4 text-sm font-medium transition-all text-center active:scale-[0.98] ${
               (selected ?? status) === opt.value
-                ? opt.color + " shadow-sm"
-                : "border-border bg-bg-secondary text-text-secondary hover:border-text-secondary/40"
+                ? opt.color
+                : "border-border bg-bg-card text-text-secondary hover:text-text-primary"
             }`}
           >
             <span
-              className={`inline-block size-2 rounded-full mr-1.5 align-middle ${opt.dotColor}`}
+              className={`inline-block size-2 rounded-full mr-2 align-middle ${opt.dotColor}`}
             />
             {opt.label}
           </button>
@@ -98,9 +98,9 @@ const StatusPill = ({
       </div>
       {current && (selected ?? status) && (
         <div
-          className={`inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider ${current.color} border`}
+          className={`inline-flex self-start items-center gap-2 px-3 py-1.5 rounded text-[10px] font-medium uppercase tracking-widest ${current.color} border`}
         >
-          <span className={`size-2.5 rounded-full ${current.dotColor}`} />
+          <span className={`size-1.5 rounded-full ${current.dotColor}`} />
           {current.label}
         </div>
       )}
@@ -263,37 +263,39 @@ export function CheckInPage() {
   return (
     <div className="min-h-screen bg-bg-primary">
       {step === "checkoff" && (
-        <div className="max-w-lg mx-auto px-4 py-4 sm:py-8 pb-28 sm:pb-8">
+        <div className="max-w-lg mx-auto px-6 py-8 pb-32">
           {/* Big Zone/Job Header */}
-          <div className="rounded-2xl border-2 border-accent/30 bg-bg-card p-5 sm:p-6 mb-5 shadow-lg shadow-accent/5">
-            <div className="flex items-center gap-3 sm:gap-4 mb-4">
-              <div className="size-14 sm:size-16 rounded-xl bg-accent/20 flex items-center justify-center font-black font-mono text-2xl sm:text-3xl text-accent shrink-0 shadow-inner">
+          <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="size-16 rounded-xl bg-accent/10 flex items-center justify-center font-light font-mono text-3xl text-accent shrink-0">
                 {order.zoneId}
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold">
+                <p className="text-[10px] text-text-secondary uppercase tracking-widest mb-1">
                   Location
                 </p>
-                <p className="text-base sm:text-lg font-bold truncate">
+                <p className="text-lg font-medium truncate text-text-primary">
                   {zoneDescription(order.zoneId)}
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2.5 text-sm sm:text-base">
+            <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Job/Site</span>
-                <span className="font-semibold text-right truncate">
+                <span className="font-medium text-right truncate text-text-primary">
                   {order.jobName}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Vendor</span>
-                <span className="font-semibold">{order.vendor}</span>
+                <span className="font-medium text-text-primary">
+                  {order.vendor}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Order ID</span>
-                <span className="font-mono text-xs sm:text-sm bg-bg-secondary px-2.5 py-1 rounded-lg border border-border tracking-wider">
+                <span className="font-mono text-xs bg-bg-surface px-2 py-1 rounded text-text-primary">
                   {order.id}
                 </span>
               </div>
@@ -301,31 +303,31 @@ export function CheckInPage() {
           </div>
 
           {/* Item Checkoff Header */}
-          <p className="text-xs text-text-secondary uppercase tracking-wider mb-3 font-bold">
+          <p className="text-[10px] text-text-secondary uppercase tracking-widest mb-4">
             Item Check-Off
           </p>
 
           {/* Item Cards */}
-          <div className="space-y-4 mb-6">
+          <div className="space-y-6 mb-8">
             {items.map((item, idx) => (
               <div
                 key={item.id}
-                className="card-tap rounded-2xl border-2 border-border bg-bg-card overflow-hidden"
+                className="rounded-2xl border border-border bg-bg-card overflow-hidden"
               >
                 {/* Item header with status pill */}
-                <div className="flex items-start justify-between px-4 pt-4 pb-3">
+                <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-border/50">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] sm:text-xs font-mono text-text-secondary bg-bg-secondary rounded-lg px-2 py-1 font-bold">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-[10px] font-mono text-text-secondary bg-bg-surface rounded px-2 py-1">
                         {idx + 1}
                       </span>
-                      <p className="text-sm sm:text-base font-semibold truncate">
+                      <p className="text-base font-medium truncate text-text-primary">
                         {item.description}
                       </p>
                     </div>
-                    <p className="text-xs sm:text-sm text-text-secondary ml-0.5">
+                    <p className="text-sm text-text-secondary">
                       Qty Ordered:{" "}
-                      <strong className="text-text-primary text-base sm:text-lg">
+                      <strong className="text-text-primary font-mono">
                         {item.quantity}
                       </strong>
                     </p>
@@ -333,18 +335,18 @@ export function CheckInPage() {
                   {/* Status pill in header */}
                   {item.status && (
                     <span
-                      className={`shrink-0 ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider border ${
+                      className={`shrink-0 ml-3 inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium uppercase tracking-widest border ${
                         item.status === "Delivered"
-                          ? "bg-accent-green/15 text-accent-green border-accent-green/30"
+                          ? "bg-accent-green/10 text-accent-green border-accent-green/20"
                           : item.status === "Partial"
-                            ? "bg-accent-purple/15 text-accent-purple border-accent-purple/30"
+                            ? "bg-accent-purple/10 text-accent-purple border-accent-purple/20"
                             : item.status === "Backordered"
-                              ? "bg-accent-amber/15 text-accent-amber border-accent-amber/30"
-                              : "bg-accent-red/15 text-accent-red border-accent-red/30"
+                              ? "bg-accent-amber/10 text-accent-amber border-accent-amber/20"
+                              : "bg-accent-red/10 text-accent-red border-accent-red/20"
                       }`}
                     >
                       <span
-                        className={`size-2 rounded-full ${
+                        className={`size-1.5 rounded-full ${
                           item.status === "Delivered"
                             ? "bg-accent-green"
                             : item.status === "Partial"
@@ -360,30 +362,30 @@ export function CheckInPage() {
                 </div>
 
                 {/* Item inputs */}
-                <div className="px-4 pb-4 space-y-4">
+                <div className="px-5 py-5 space-y-6">
                   {/* Qty Delivered — BIG stepper */}
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-2 font-bold">
+                    <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-3">
                       Quantity Delivered
                     </label>
-                    <div className="flex items-stretch gap-2">
+                    <div className="flex items-stretch gap-3">
                       {/* Minus button */}
                       <button
                         type="button"
                         onClick={() => handleDeliveredQty(item.id, -1)}
                         disabled={item.deliveredQty <= 0}
-                        className="stepper-btn tap-target w-14 sm:w-16 flex items-center justify-center rounded-xl border-2 border-border bg-bg-secondary text-text-primary text-2xl sm:text-3xl font-bold hover:border-accent/50 hover:bg-bg-card disabled:opacity-25 disabled:cursor-not-allowed active:scale-95 transition-all shrink-0"
+                        className="stepper-btn w-16 shrink-0"
                         aria-label="Decrease quantity"
                       >
                         −
                       </button>
 
                       {/* Value display */}
-                      <div className="flex-1 flex items-center justify-center rounded-xl border-2 border-accent/50 bg-bg-secondary px-3">
-                        <span className="text-2xl sm:text-3xl font-black font-mono text-accent tabular-nums">
+                      <div className="flex-1 flex items-center justify-center rounded-xl border border-border bg-bg-surface px-4">
+                        <span className="text-3xl font-light font-mono text-text-primary tabular-nums">
                           {item.deliveredQty}
                         </span>
-                        <span className="text-sm text-text-secondary ml-2">
+                        <span className="text-sm text-text-secondary ml-2 font-mono">
                           / {item.quantity}
                         </span>
                       </div>
@@ -393,7 +395,7 @@ export function CheckInPage() {
                         type="button"
                         onClick={() => handleDeliveredQty(item.id, 1)}
                         disabled={item.deliveredQty >= item.quantity}
-                        className="stepper-btn tap-target w-14 sm:w-16 flex items-center justify-center rounded-xl border-2 border-border bg-bg-secondary text-text-primary text-2xl sm:text-3xl font-bold hover:border-accent/50 hover:bg-bg-card disabled:opacity-25 disabled:cursor-not-allowed active:scale-95 transition-all shrink-0"
+                        className="stepper-btn w-16 shrink-0"
                         aria-label="Increase quantity"
                       >
                         +
@@ -403,14 +405,14 @@ export function CheckInPage() {
 
                   {/* Qty Missing (auto) */}
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-1 font-bold">
+                    <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-2">
                       Quantity Missing
                     </label>
                     <div
-                      className={`w-full rounded-xl border-2 px-4 py-3 text-lg sm:text-xl font-bold font-mono tabular-nums ${
+                      className={`w-full rounded-xl border px-4 py-3 text-xl font-light font-mono tabular-nums ${
                         item.missingQty > 0
-                          ? "border-accent-red/40 bg-accent-red/5 text-accent-red"
-                          : "border-accent-green/40 bg-accent-green/5 text-accent-green"
+                          ? "border-accent-red/20 bg-accent-red/5 text-accent-red"
+                          : "border-accent-green/20 bg-accent-green/5 text-accent-green"
                       }`}
                     >
                       {item.missingQty}
@@ -426,7 +428,7 @@ export function CheckInPage() {
 
                   {/* Validation */}
                   {item.deliveredQty > item.quantity && (
-                    <p className="text-sm text-accent-red font-semibold mt-1">
+                    <p className="text-xs text-accent-red mt-2">
                       Cannot exceed ordered quantity ({item.quantity}).
                     </p>
                   )}
@@ -436,8 +438,8 @@ export function CheckInPage() {
           </div>
 
           {/* Vendor Note */}
-          <div className="rounded-2xl border-2 border-border bg-bg-card p-4 sm:p-5 mb-5">
-            <label className="block text-sm sm:text-base font-bold mb-2">
+          <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
+            <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-3">
               Delivery Notes
             </label>
             <textarea
@@ -445,14 +447,14 @@ export function CheckInPage() {
               onChange={(e) => setVendorNote(e.target.value)}
               placeholder="Explain any missing, backordered, or damaged items…"
               rows={3}
-              className="w-full rounded-xl border-2 border-border bg-bg-secondary px-4 py-3 text-base text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none"
+              className="w-full rounded-xl border border-border bg-bg-surface px-4 py-3 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent resize-none"
             />
           </div>
 
           {/* Summary */}
-          <div className="rounded-2xl border-2 border-border bg-bg-card p-4 sm:p-5 mb-6">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-bold uppercase tracking-wider text-text-secondary">
+          <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-[10px] uppercase tracking-widest text-text-secondary">
                 Overall Status
               </p>
               <span className={orderStatusBadge(overallStatus)}>
@@ -460,7 +462,7 @@ export function CheckInPage() {
               </span>
             </div>
             {overallStatus === "Partial" && (
-              <p className="text-sm text-text-secondary mt-3 leading-relaxed">
+              <p className="text-xs text-text-secondary mt-4">
                 This order has items that are not fully delivered. Dispatch will
                 be notified.
               </p>
@@ -471,27 +473,39 @@ export function CheckInPage() {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="tap-target w-full rounded-2xl bg-accent px-6 py-5 text-lg sm:text-xl font-black text-white hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xl shadow-accent/20 active:scale-[0.97] tracking-wide"
+            className={`w-full rounded-xl py-5 text-lg font-medium transition-transform active:scale-[0.98] ${
+              canSubmit
+                ? overallStatus === "Complete"
+                  ? "bg-accent-green text-bg-primary"
+                  : "bg-accent-amber text-bg-primary"
+                : "bg-bg-surface text-text-secondary cursor-not-allowed"
+            }`}
           >
             {canSubmit
               ? overallStatus === "Complete"
-                ? "✓  Submit Confirmation — Complete"
+                ? "Submit Confirmation — Complete"
                 : "Submit Confirmation — Partial"
               : "Select a status for each item"}
           </button>
 
-          <p className="text-center text-xs text-text-secondary mt-4 mb-2">
+          <p className="text-center text-[10px] text-text-secondary mt-4 uppercase tracking-widest">
             By submitting, you confirm the items delivered and their condition.
           </p>
         </div>
       )}
 
       {step === "done" && (
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen flex items-center justify-center px-6">
           <div className="max-w-sm w-full text-center">
-            <div className="size-20 mx-auto rounded-full bg-accent-green/20 flex items-center justify-center mb-6">
+            <div
+              className={`size-24 mx-auto rounded-full flex items-center justify-center mb-8 ${
+                overallStatus === "Complete"
+                  ? "bg-accent-green/10 text-accent-green"
+                  : "bg-accent-purple/10 text-accent-purple"
+              }`}
+            >
               <svg
-                className="size-10 text-accent-green"
+                className="size-12"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -504,27 +518,27 @@ export function CheckInPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold mb-2">
-              Delivery confirmation submitted
+            <h2 className="text-3xl font-light tracking-tight mb-3 text-text-primary">
+              Confirmation Submitted
             </h2>
-            <p className="text-base mb-1">
+            <p className="text-base mb-2 text-text-secondary">
               Status:{" "}
               <strong
                 className={
                   overallStatus === "Complete"
-                    ? "text-accent-green"
-                    : "text-accent-purple"
+                    ? "text-accent-green font-medium"
+                    : "text-accent-purple font-medium"
                 }
               >
                 {overallStatus}
               </strong>
             </p>
-            <p className="text-sm text-text-secondary mb-6">
-              Dispatch has been notified.
+            <p className="text-sm text-text-secondary mb-8 bg-bg-surface inline-block px-4 py-2 rounded-full">
+              Dispatch has been notified
             </p>
             <button
               onClick={handleReset}
-              className="tap-target rounded-xl border-2 border-border bg-bg-card px-8 py-4 text-base font-bold hover:bg-bg-secondary transition-colors active:scale-[0.97]"
+              className="w-full rounded-xl border border-border bg-bg-card py-4 text-base font-medium hover:bg-bg-surface transition-colors active:scale-[0.98] text-text-primary"
             >
               New Check-In
             </button>

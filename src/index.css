@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #0f1117;
-  --color-bg-secondary: #161822;
-  --color-bg-card: #1c1e2c;
-  --color-bg-surface: #222433;
+  --color-bg-primary: #09090b;
+  --color-bg-secondary: #121214;
+  --color-bg-card: #18181b;
+  --color-bg-surface: #27272a;
   --color-accent: #3b82f6;
-  --color-accent-green: #22c55e;
+  --color-accent-green: #10b981;
   --color-accent-amber: #f59e0b;
   --color-accent-red: #ef4444;
   --color-accent-purple: #8b5cf6;
-  --color-border: #2a2d3a;
-  --color-text-primary: #e2e4e9;
-  --color-text-secondary: #989bb0;
+  --color-border: #27272a;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
   --color-white: #ffffff;
   --color-black: #000000;
 }
@@ -109,7 +109,7 @@ button {
 
 /* ── Bottom nav bar styles ── */
 .bottom-nav {
-  background: var(--color-bg-card);
+  background: var(--color-bg-primary);
   border-top: 1px solid var(--color-border);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
@@ -122,21 +122,29 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 8px 4px;
-  min-height: 56px;
+  gap: 4px;
+  padding: 12px 4px;
+  min-height: 64px;
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.15s;
+  transition: all 0.2s ease;
+}
+
+.bottom-nav-btn:hover {
+  color: var(--color-text-primary);
 }
 
 .bottom-nav-btn.active {
+  color: var(--color-text-primary);
+}
+
+.bottom-nav-btn.active svg {
   color: var(--color-accent);
 }
 
@@ -163,23 +171,23 @@ button {
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 32px;
+  font-weight: 400;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  border: 2px solid var(--color-border);
-  background: var(--color-bg-surface);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.2s ease;
 }
 
 .stepper-btn:active {
   transform: scale(0.95);
-  border-color: var(--color-accent);
+  background: var(--color-bg-surface);
 }
 
 .stepper-btn:disabled {
@@ -192,46 +200,45 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 20px 24px;
-  border-radius: 16px;
-  border: 3px solid transparent;
-  font-size: 18px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  padding: 18px 24px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.2s ease;
   touch-action: manipulation;
 }
 
 .action-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .action-btn-delivered {
-  background: #166534;
-  border-color: #22c55e;
-  color: #86efac;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
 }
 
 .action-btn-damaged {
-  background: #7f1d1d;
-  border-color: #ef4444;
-  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 .action-btn-backordered {
-  background: #78350f;
-  border-color: #f59e0b;
-  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
 }
 
 .action-btn-partial {
-  background: #3b0764;
-  border-color: #8b5cf6;
-  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #8b5cf6;
 }
 
 /* ── Progress dots ── */

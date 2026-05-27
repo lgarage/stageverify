@@ -24,26 +24,26 @@ export function EntryDisplayPage() {
   const activeZones = stagingZones.filter((z) => z.currentOrderId !== null);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col">
       {/* Header */}
-      <header className="border-b border-white/10 px-8 py-6 flex items-center justify-between shrink-0">
+      <header className="border-b border-border px-8 py-6 flex items-center justify-between shrink-0 bg-bg-card">
         <div>
-          <h1 className="text-3xl font-black tracking-widest uppercase text-accent">
+          <h1 className="text-3xl font-light tracking-widest uppercase text-text-primary">
             StageVerify
           </h1>
-          <p className="text-sm text-white/40 mt-1 uppercase tracking-[0.3em]">
+          <p className="text-[10px] text-text-secondary mt-2 uppercase tracking-[0.3em]">
             Delivery Staging Board
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-mono text-white/70">
+          <p className="text-xl font-light font-mono text-text-primary">
             {new Date().toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
               day: "numeric",
             })}
           </p>
-          <p className="text-sm text-white/30 mt-0.5">
+          <p className="text-sm text-text-secondary mt-1 font-mono">
             {new Date().toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
@@ -62,28 +62,28 @@ export function EntryDisplayPage() {
             return (
               <div
                 key={zone.id}
-                className="relative rounded-2xl border-2 border-white/10 bg-white/[0.03] p-6 flex flex-col"
+                className="relative rounded-2xl border border-border bg-bg-card p-8 flex flex-col shadow-lg"
               >
                 {/* Zone location code - BIG */}
-                <div className="flex items-baseline gap-3 mb-4">
-                  <span className="text-6xl sm:text-7xl font-black font-mono tracking-tight text-accent">
+                <div className="flex items-baseline gap-4 mb-6">
+                  <span className="text-6xl sm:text-7xl font-light font-mono tracking-tight text-text-primary">
                     {zone.id}
                   </span>
-                  <span className="text-lg text-white/40 font-medium">
+                  <span className="text-sm text-text-secondary uppercase tracking-widest">
                     {zoneDescription(zone.id)}
                   </span>
                 </div>
 
-                <div className="h-px bg-gradient-to-r from-white/10 via-white/5 to-transparent mb-4" />
+                <div className="h-px bg-border mb-6" />
 
                 {/* Destination info */}
                 <div className="space-y-2 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold text-white">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-2xl sm:text-3xl font-medium text-text-primary">
                       {order.vendor}
                     </span>
                     <svg
-                      className="size-5 text-accent shrink-0"
+                      className="size-5 text-text-secondary shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -96,16 +96,16 @@ export function EntryDisplayPage() {
                       />
                     </svg>
                   </div>
-                  <p className="text-xl text-white/50 font-medium">
+                  <p className="text-xl text-text-secondary font-light">
                     {order.jobName}
                   </p>
                 </div>
 
                 {/* Status and order info */}
-                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`size-2.5 rounded-full ${
+                      className={`size-2 rounded-full ${
                         order.status === "Pending"
                           ? "bg-accent-amber"
                           : order.status === "Partial"
@@ -114,20 +114,20 @@ export function EntryDisplayPage() {
                       }`}
                     />
                     <span
-                      className={`text-sm font-semibold uppercase tracking-wider ${statusColor(order.status)}`}
+                      className={`text-[10px] font-medium uppercase tracking-widest ${statusColor(order.status)}`}
                     >
                       {statusLabel(order.status)}
                     </span>
                   </div>
-                  <span className="text-xs text-white/30 font-mono">
-                    {order.id}
-                  </span>
-                </div>
-
-                {/* Qty info */}
-                <div className="mt-2 text-xs text-white/30">
-                  {order.items.length}{" "}
-                  {order.items.length === 1 ? "item" : "items"}
+                  <div className="text-right">
+                    <span className="text-[10px] text-text-secondary font-mono block mb-1">
+                      {order.id}
+                    </span>
+                    <span className="text-[10px] text-text-secondary uppercase tracking-widest">
+                      {order.items.length}{" "}
+                      {order.items.length === 1 ? "item" : "items"}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -139,15 +139,15 @@ export function EntryDisplayPage() {
             .map((zone) => (
               <div
                 key={zone.id}
-                className="rounded-2xl border-2 border-dashed border-white/[0.06] bg-transparent p-6 flex flex-col items-center justify-center text-center min-h-[200px]"
+                className="rounded-2xl border border-dashed border-border bg-bg-surface/30 p-8 flex flex-col items-center justify-center text-center min-h-[240px]"
               >
-                <span className="text-5xl font-black font-mono text-white/15 tracking-tight">
+                <span className="text-5xl font-light font-mono text-text-secondary/50 tracking-tight">
                   {zone.id}
                 </span>
-                <span className="text-sm text-white/20 mt-2 uppercase tracking-wider font-semibold">
+                <span className="text-[10px] text-text-secondary mt-4 uppercase tracking-widest">
                   Available
                 </span>
-                <span className="text-xs text-white/10 mt-1">
+                <span className="text-xs text-text-secondary/50 mt-2">
                   {zoneDescription(zone.id)}
                 </span>
               </div>
@@ -156,11 +156,11 @@ export function EntryDisplayPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 px-8 py-3 flex items-center justify-between shrink-0">
-        <p className="text-xs text-white/20">
+      <footer className="border-t border-border px-8 py-4 flex items-center justify-between shrink-0 bg-bg-card">
+        <p className="text-[10px] text-text-secondary uppercase tracking-widest">
           Scan QR code at your assigned zone to confirm delivery
         </p>
-        <p className="text-xs text-white/15 font-mono">
+        <p className="text-[10px] text-text-secondary font-mono uppercase tracking-widest">
           {activeZones.length} active &middot;{" "}
           {stagingZones.length - activeZones.length} available
         </p>
