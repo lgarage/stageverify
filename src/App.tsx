@@ -53,7 +53,11 @@ function ScanScreen() {
     if (isScanning) {
       scannerRef.current = new Html5QrcodeScanner(
         "reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          videoConstraints: { facingMode: "environment" },
+        },
         false,
       );
       scannerRef.current.render(
@@ -202,27 +206,65 @@ function ScanScreen() {
 
   if (isScanning) {
     return (
-      <div className="flex-1 flex flex-col bg-black">
-        <div className="p-4 flex justify-between items-center bg-bg-secondary">
-          <h2 className="text-lg font-bold text-white">Scan QR Code</h2>
-          <button
-            onClick={() => setIsScanning(false)}
-            className="text-text-secondary p-2"
-          >
-            Cancel
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div
-            id="reader"
-            className="w-full max-w-sm bg-white rounded-lg overflow-hidden"
-          ></div>
-          {scanError && <p className="text-accent-red mt-4">{scanError}</p>}
+      <div className="flex-1 flex flex-col bg-bg-primary">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-text-primary mb-2">
+              Vendor Check-In
+            </h2>
+            <p className="text-sm text-text-secondary">
+              Scan the QR code at your assigned staging zone
+            </p>
+          </div>
+
+          {/* Premium Scanner Box */}
+          <div className="relative w-full max-w-[280px] aspect-square mb-8">
+            {/* Scanner Frame */}
+            <div className="absolute inset-0 border-2 border-accent rounded-3xl overflow-hidden bg-bg-secondary/50">
+              <div
+                id="reader"
+                className="w-full h-full [&>div]:border-none [&>div]:shadow-none"
+              ></div>
+
+              {/* Animated Scan Line */}
+              <div className="absolute left-0 right-0 h-0.5 bg-accent shadow-[0_0_8px_2px_rgba(59,130,246,0.5)] animate-scan-line z-10"></div>
+
+              {/* Corner Accents */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-3xl z-20"></div>
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-3xl z-20"></div>
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-3xl z-20"></div>
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-3xl z-20"></div>
+
+              {/* Overlay Text */}
+              <div className="absolute bottom-4 left-0 right-0 text-center z-20">
+                <span className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase">
+                  Align QR
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {scanError && (
+            <p className="text-accent-red mt-4 text-sm">{scanError}</p>
+          )}
+
           <button
             onClick={handleManualScan}
-            className="mt-8 text-accent underline"
+            className="action-btn action-btn-primary w-full max-w-[280px] mb-6"
           >
-            Simulate Scan (Demo)
+            <Svg d={icons.scan} size={20} />
+            SIMULATE QR SCAN
+          </button>
+
+          <p className="text-xs text-text-secondary mb-8">
+            Demo: taps a pending order automatically
+          </p>
+
+          <button
+            onClick={() => setIsScanning(false)}
+            className="text-text-secondary text-sm font-medium py-2 px-4"
+          >
+            Cancel
           </button>
         </div>
       </div>
@@ -274,7 +316,7 @@ function ScanScreen() {
         <div className="bg-bg-secondary border-b border-border p-4 shrink-0 z-10">
           <button
             onClick={() => setShowSpaceModal(true)}
-            className="w-full bg-accent-amber text-black font-bold py-3 rounded-lg mb-4 active:scale-[0.98] transition-transform text-sm"
+            className="w-full bg-accent-amber text-black font-bold py-2.5 rounded-full mb-4 active:scale-[0.98] transition-transform text-sm"
           >
             Need More Space?
           </button>
@@ -308,7 +350,7 @@ function ScanScreen() {
                   />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary leading-snug">
+                  <p className="text-[15px] font-medium text-text-primary leading-snug">
                     Qty: {it.quantity} &nbsp;&nbsp; {it.description}
                   </p>
                   {it.deliveredQty !== it.quantity && it.deliveredQty > 0 && (
@@ -329,7 +371,7 @@ function ScanScreen() {
         </div>
 
         {/* Fixed Bottom Actions */}
-        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-3 z-10">
+        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-3 z-10 pb-[env(safe-area-inset-bottom,16px)]">
           <button
             onClick={handleSubmit}
             className="action-btn action-btn-primary"

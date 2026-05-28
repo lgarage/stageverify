@@ -161,6 +161,20 @@ button:active {
   background: var(--color-accent-orange);
 }
 
+/* Scanner Animation */
+@keyframes scan-line {
+  0%,
+  100% {
+    top: 10%;
+  }
+  50% {
+    top: 90%;
+  }
+}
+.animate-scan-line {
+  animation: scan-line 2s ease-in-out infinite;
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
