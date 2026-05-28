@@ -405,7 +405,7 @@ function ScanScreen() {
         </div>
 
         {/* Fixed Bottom Actions */}
-        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-2 z-10 pb-[env(safe-area-inset-bottom,16px)]">
+        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-3 z-10 pb-[calc(env(safe-area-inset-bottom,16px)+16px)]">
           <button
             onClick={handleSubmit}
             className="action-btn action-btn-primary py-3"
@@ -540,10 +540,10 @@ function ScanScreen() {
                 )}
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <button
                   onClick={() => setShowSubmitConfirm(false)}
-                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
+                  className="w-full py-3 bg-accent-orange text-white font-medium rounded-lg"
                 >
                   Go Back
                 </button>
