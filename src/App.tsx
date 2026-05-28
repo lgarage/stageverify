@@ -43,6 +43,7 @@ function ScanScreen() {
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(0);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanError] = useState<string | null>(null);
 
@@ -176,6 +177,11 @@ function ScanScreen() {
   };
 
   const handleSubmit = () => {
+    setShowSubmitConfirm(true);
+  };
+
+  const confirmSubmit = () => {
+    setShowSubmitConfirm(false);
     if (order) {
       const allDelivered = items.every((it) => it.deliveredQty === it.quantity);
       setOrder({ ...order, status: allDelivered ? "Complete" : "Partial" });
@@ -218,6 +224,7 @@ function ScanScreen() {
       if (e.key === "Escape") {
         setAdjustingItemId(null);
         setShowSpaceModal(false);
+        setShowSubmitConfirm(false);
         setIsScanning(false);
       }
     };
@@ -361,31 +368,37 @@ function ScanScreen() {
             return (
               <div
                 key={it.id}
-                className={`bg-bg-surface rounded-lg p-3 flex items-center gap-3 border border-border transition-opacity ${isChecked ? "opacity-50" : "opacity-100"}`}
+                className={`bg-bg-surface rounded-lg p-3 flex flex-col gap-2 border border-border transition-opacity ${isChecked ? "opacity-50" : "opacity-100"}`}
               >
-                <button
-                  onClick={() => toggleItemCheck(it.id)}
-                  className="shrink-0 text-accent-green"
-                >
-                  <Svg
-                    d={isChecked ? icons.checkSquare : icons.square}
-                    size={28}
-                  />
-                </button>
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <span className="text-[14px] font-medium text-text-secondary shrink-0">
-                    Qty: {it.quantity}
-                  </span>
-                  <span className="text-[14px] font-medium text-text-primary truncate">
-                    {it.description}
-                  </span>
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => toggleItemCheck(it.id)}
+                    className="shrink-0 text-accent-green mt-0.5"
+                  >
+                    <Svg
+                      d={isChecked ? icons.checkSquare : icons.square}
+                      size={28}
+                    />
+                  </button>
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="flex items-start gap-2">
+                      <span className="text-[14px] font-medium text-text-secondary shrink-0">
+                        Qty: {it.quantity}
+                      </span>
+                      <span className="text-[14px] font-medium text-text-primary">
+                        {it.description}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <button
+                        onClick={() => openAdjust(it)}
+                        className="bg-accent text-white font-medium py-1 px-4 rounded-full active:scale-[0.98] transition-transform text-[12px] inline-block"
+                      >
+                        Adjust
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  onClick={() => openAdjust(it)}
-                  className="bg-accent text-white font-medium py-1.5 px-4 rounded-full active:scale-[0.98] transition-transform text-[13px] shrink-0"
-                >
-                  Adjust
-                </button>
               </div>
             );
           })}
@@ -459,37 +472,88 @@ function ScanScreen() {
           </div>
         )}
 
-        {/* Space Modal (Action Sheet Style) */}
+        {/* Space Modal (Centered) */}
         {showSpaceModal && (
           <div
-            className="absolute inset-0 bg-black/60 flex items-end justify-center z-50"
+            className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
             onClick={() => setShowSpaceModal(false)}
           >
             <div
-              className="bg-bg-surface rounded-t-2xl p-6 w-full max-w-md border-t border-border animate-slide-up"
+              className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-bold text-text-primary mb-4 text-center">
                 Need More Space?
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <button
                   onClick={() => handleRequestSpace("ground")}
-                  className="w-full py-4 bg-bg-secondary text-text-primary font-medium rounded-xl border border-border"
+                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
                 >
                   Ground
                 </button>
                 <button
                   onClick={() => handleRequestSpace("shelf")}
-                  className="w-full py-4 bg-bg-secondary text-text-primary font-medium rounded-xl border border-border"
+                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
                 >
                   Shelf
                 </button>
                 <button
                   onClick={() => setShowSpaceModal(false)}
-                  className="w-full py-4 text-text-secondary font-medium mt-2"
+                  className="w-full py-3 text-text-secondary font-medium mt-2"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Submit Confirmation Modal */}
+        {showSubmitConfirm && (
+          <div
+            className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowSubmitConfirm(false)}
+          >
+            <div
+              className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-text-primary mb-4 text-center">
+                Complete Delivery?
+              </h3>
+
+              <div className="text-center mb-6">
+                <p className="text-text-secondary mb-2">Checked Items:</p>
+                <p className="text-2xl font-bold text-text-primary mb-2">
+                  {items.filter((i) => i.deliveredQty === i.quantity).length} of{" "}
+                  {items.length}
+                </p>
+                {items.every((i) => i.deliveredQty === i.quantity) ? (
+                  <p className="text-accent-green font-medium">
+                    All items verified.
+                  </p>
+                ) : (
+                  <p className="text-accent-amber font-medium">
+                    Some items are still unchecked.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowSubmitConfirm(false)}
+                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={confirmSubmit}
+                  className="w-full py-3 bg-accent text-white font-medium rounded-lg"
+                >
+                  {items.every((i) => i.deliveredQty === i.quantity)
+                    ? "Submit Delivery"
+                    : "Submit Anyway"}
                 </button>
               </div>
             </div>
