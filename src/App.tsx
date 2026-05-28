@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Html5QrcodeScanner } from "html5-qrcode";
 import { mockOrders, stagingZones } from "./mockData";
 import type { Order, LineItem as OrderItem } from "./types";
 
@@ -47,49 +46,8 @@ function ScanScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanError] = useState<string | null>(null);
 
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-
-  useEffect(() => {
-    if (isScanning) {
-      scannerRef.current = new Html5QrcodeScanner(
-        "reader",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          videoConstraints: { facingMode: "environment" },
-        },
-        false,
-      );
-      scannerRef.current.render(
-        (decodedText) => {
-          // Try to find order by ID or Zone
-          const foundOrder = mockOrders.find(
-            (o) => o.id === decodedText || o.zoneId === decodedText,
-          );
-          if (foundOrder) {
-            handleOrderFound(foundOrder);
-          } else {
-            // Fallback to first order for demo purposes if not found
-            handleOrderFound(mockOrders[0]);
-          }
-        },
-        (error) => {
-          console.warn(error);
-        },
-      );
-    } else {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-        scannerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-      }
-    };
-  }, [isScanning]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scannerRef = useRef<any>(null);
 
   const handleOrderFound = (o: Order) => {
     setIsScanning(false);
@@ -108,6 +66,64 @@ function ScanScreen() {
   const handleManualScan = () => {
     handleOrderFound(mockOrders[0]);
   };
+
+  useEffect(() => {
+    if (isScanning) {
+      // Use Html5Qrcode directly to avoid the built-in UI (camera selection, etc.)
+      import("html5-qrcode").then(({ Html5Qrcode }) => {
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+
+        html5QrCode
+          .start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            },
+            (decodedText) => {
+              const foundOrder = mockOrders.find(
+                (o) => o.id === decodedText || o.zoneId === decodedText,
+              );
+              if (foundOrder) {
+                handleOrderFound(foundOrder);
+              } else {
+                handleOrderFound(mockOrders[0]);
+              }
+            },
+            () => {
+              // Ignore continuous scanning errors
+            },
+          )
+          .catch((err) => {
+            console.error("Error starting scanner", err);
+            // Fallback if camera fails
+            handleManualScan();
+          });
+      });
+    } else {
+      if (scannerRef.current) {
+        scannerRef.current
+          .stop()
+          .then(() => {
+            scannerRef.current.clear();
+            scannerRef.current = null;
+          })
+          .catch(console.error);
+      }
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current
+          .stop()
+          .then(() => {
+            scannerRef.current.clear();
+          })
+          .catch(console.error);
+      }
+    };
+  }, [isScanning]);
 
   const toggleItemCheck = (id: string) => {
     setItems(
@@ -221,10 +237,7 @@ function ScanScreen() {
           <div className="relative w-full max-w-[280px] aspect-square mb-8">
             {/* Scanner Frame */}
             <div className="absolute inset-0 border-2 border-accent rounded-3xl overflow-hidden bg-bg-secondary/50">
-              <div
-                id="reader"
-                className="w-full h-full [&>div]:border-none [&>div]:shadow-none"
-              ></div>
+              <div id="reader" className="w-full h-full"></div>
 
               {/* Animated Scan Line */}
               <div className="absolute left-0 right-0 h-0.5 bg-accent shadow-[0_0_8px_2px_rgba(59,130,246,0.5)] animate-scan-line z-10"></div>
@@ -316,71 +329,74 @@ function ScanScreen() {
         <div className="bg-bg-secondary border-b border-border p-4 shrink-0 z-10">
           <button
             onClick={() => setShowSpaceModal(true)}
-            className="w-full bg-accent-amber text-black font-bold py-2.5 rounded-full mb-4 active:scale-[0.98] transition-transform text-sm"
+            className="w-full bg-accent-amber text-black font-bold py-2 rounded-full mb-3 active:scale-[0.98] transition-transform text-sm"
           >
             Need More Space?
           </button>
 
-          <h2 className="text-xl font-bold text-text-primary">
+          <h2 className="text-lg font-bold text-text-primary">
             {order.vendor}
           </h2>
-          <p className="text-sm text-text-secondary mt-1">{order.jobName}</p>
-          <p className="text-sm text-text-secondary">{order.jobNumber}</p>
-          <p className="text-sm font-bold text-accent mt-2">
+          <p className="text-[13px] text-text-secondary mt-0.5">
+            {order.jobName}
+          </p>
+          <p className="text-[13px] text-text-secondary">{order.jobNumber}</p>
+          {order.poNumber && (
+            <p className="text-[13px] text-text-secondary">{order.poNumber}</p>
+          )}
+          <p className="text-[13px] font-bold text-accent mt-1">
             Spots: {allZones.join(", ")}
           </p>
         </div>
 
         {/* Scrollable Items List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {items.map((it) => {
             const isChecked = it.deliveredQty === it.quantity;
             return (
               <div
                 key={it.id}
-                className="bg-bg-surface rounded-lg p-4 flex items-start gap-3 border border-border"
+                className={`bg-bg-surface rounded-lg p-3 flex items-center gap-3 border border-border transition-opacity ${isChecked ? "opacity-50" : "opacity-100"}`}
               >
                 <button
                   onClick={() => toggleItemCheck(it.id)}
-                  className="mt-0.5 shrink-0 text-accent-green"
+                  className="shrink-0 text-accent-green"
                 >
                   <Svg
                     d={isChecked ? icons.checkSquare : icons.square}
                     size={28}
                   />
                 </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-medium text-text-primary leading-snug">
-                    Qty: {it.quantity} &nbsp;&nbsp; {it.description}
-                  </p>
-                  {it.deliveredQty !== it.quantity && it.deliveredQty > 0 && (
-                    <p className="text-accent-amber font-medium mt-1 text-xs">
-                      Delivered: {it.deliveredQty} (Missing: {it.missingQty})
-                    </p>
-                  )}
-                  <button
-                    onClick={() => openAdjust(it)}
-                    className="bg-bg-secondary text-text-primary font-medium py-1.5 px-4 rounded mt-2 active:scale-[0.98] transition-transform text-xs border border-border"
-                  >
-                    Adjust
-                  </button>
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <span className="text-[14px] font-medium text-text-secondary shrink-0">
+                    Qty: {it.quantity}
+                  </span>
+                  <span className="text-[14px] font-medium text-text-primary truncate">
+                    {it.description}
+                  </span>
                 </div>
+                <button
+                  onClick={() => openAdjust(it)}
+                  className="bg-accent text-white font-medium py-1.5 px-4 rounded-full active:scale-[0.98] transition-transform text-[13px] shrink-0"
+                >
+                  Adjust
+                </button>
               </div>
             );
           })}
         </div>
 
         {/* Fixed Bottom Actions */}
-        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-3 z-10 pb-[env(safe-area-inset-bottom,16px)]">
+        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-2 z-10 pb-[env(safe-area-inset-bottom,16px)]">
           <button
             onClick={handleSubmit}
-            className="action-btn action-btn-primary"
+            className="action-btn action-btn-primary py-3"
           >
             Submit
           </button>
           <button
             onClick={() => setIsScanning(true)}
-            className="action-btn action-btn-orange"
+            className="action-btn action-btn-orange py-3"
           >
             Scan Another QR Code
           </button>
@@ -438,35 +454,35 @@ function ScanScreen() {
           </div>
         )}
 
-        {/* Space Modal */}
+        {/* Space Modal (Action Sheet Style) */}
         {showSpaceModal && (
           <div
-            className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+            className="absolute inset-0 bg-black/60 flex items-end justify-center z-50"
             onClick={() => setShowSpaceModal(false)}
           >
             <div
-              className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border"
+              className="bg-bg-surface rounded-t-2xl p-6 w-full max-w-md border-t border-border animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-text-primary mb-6 text-center">
+              <h3 className="text-lg font-bold text-text-primary mb-4 text-center">
                 Need More Space?
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <button
                   onClick={() => handleRequestSpace("ground")}
-                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
+                  className="w-full py-4 bg-bg-secondary text-text-primary font-medium rounded-xl border border-border"
                 >
-                  Ground Spot
+                  Ground
                 </button>
                 <button
                   onClick={() => handleRequestSpace("shelf")}
-                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
+                  className="w-full py-4 bg-bg-secondary text-text-primary font-medium rounded-xl border border-border"
                 >
-                  Shelf Spot
+                  Shelf
                 </button>
                 <button
                   onClick={() => setShowSpaceModal(false)}
-                  className="w-full py-3 text-text-secondary font-medium mt-2"
+                  className="w-full py-4 text-text-secondary font-medium mt-2"
                 >
                   Cancel
                 </button>

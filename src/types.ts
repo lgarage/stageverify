@@ -15,6 +15,7 @@ export interface Order {
   vendor: string;
   jobName: string;
   jobNumber: string;
+  poNumber?: string;
   siteNumber: string;
   zoneId: string;
   additionalZoneIds?: string[];
