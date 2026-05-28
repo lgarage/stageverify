@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
 import { mockOrders, stagingZones } from "./mockData";
 import type { Order, LineItem as OrderItem } from "./types";
 
@@ -43,9 +44,51 @@ function ScanScreen() {
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(0);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError] = useState<string | null>(null);
 
-  const handleScan = () => {
-    const o = mockOrders[0];
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+  useEffect(() => {
+    if (isScanning) {
+      scannerRef.current = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false,
+      );
+      scannerRef.current.render(
+        (decodedText) => {
+          // Try to find order by ID or Zone
+          const foundOrder = mockOrders.find(
+            (o) => o.id === decodedText || o.zoneId === decodedText,
+          );
+          if (foundOrder) {
+            handleOrderFound(foundOrder);
+          } else {
+            // Fallback to first order for demo purposes if not found
+            handleOrderFound(mockOrders[0]);
+          }
+        },
+        (error) => {
+          console.warn(error);
+        },
+      );
+    } else {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
+        scannerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
+      }
+    };
+  }, [isScanning]);
+
+  const handleOrderFound = (o: Order) => {
+    setIsScanning(false);
     setOrder(o);
     setItems(
       o.items.map((it) => ({
@@ -58,8 +101,8 @@ function ScanScreen() {
     setStep("list");
   };
 
-  const handleScanAnother = () => {
-    alert("Scanning another QR code...");
+  const handleManualScan = () => {
+    handleOrderFound(mockOrders[0]);
   };
 
   const toggleItemCheck = (id: string) => {
@@ -144,33 +187,75 @@ function ScanScreen() {
     setShowSpaceModal(false);
   };
 
+  // Close modals on escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAdjustingItemId(null);
+        setShowSpaceModal(false);
+        setIsScanning(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  if (isScanning) {
+    return (
+      <div className="flex-1 flex flex-col bg-black">
+        <div className="p-4 flex justify-between items-center bg-bg-secondary">
+          <h2 className="text-lg font-bold text-white">Scan QR Code</h2>
+          <button
+            onClick={() => setIsScanning(false)}
+            className="text-text-secondary p-2"
+          >
+            Cancel
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <div
+            id="reader"
+            className="w-full max-w-sm bg-white rounded-lg overflow-hidden"
+          ></div>
+          {scanError && <p className="text-accent-red mt-4">{scanError}</p>}
+          <button
+            onClick={handleManualScan}
+            className="mt-8 text-accent underline"
+          >
+            Simulate Scan (Demo)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "scan") {
     return (
       <div className="flex-1 flex flex-col px-6 py-12">
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-text-primary mb-4">
-            Scan Delivery
+          <h1 className="text-3xl font-bold text-text-primary mb-2">
+            Vendor Check-In
           </h1>
-          <p className="text-xl text-text-secondary">
+          <p className="text-base text-text-secondary">
             Scan the QR code on your packing slip or staging zone.
           </p>
         </div>
 
         <div
-          onClick={handleScan}
-          className="flex-1 bg-bg-surface rounded-[32px] flex flex-col items-center justify-center gap-6 cursor-pointer active:scale-[0.98] transition-transform"
+          onClick={() => setIsScanning(true)}
+          className="flex-1 bg-bg-surface rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer active:scale-[0.98] transition-transform border border-border"
         >
-          <div className="size-32 rounded-full bg-accent/20 text-accent flex items-center justify-center">
-            <Svg d={icons.camera} size={64} />
+          <div className="size-24 rounded-full bg-accent/10 text-accent flex items-center justify-center">
+            <Svg d={icons.camera} size={48} />
           </div>
-          <span className="text-2xl font-bold text-text-primary">
+          <span className="text-xl font-bold text-text-primary">
             Tap to Scan
           </span>
         </div>
 
         <div className="mt-8">
           <button
-            onClick={handleScan}
+            onClick={handleManualScan}
             className="action-btn action-btn-secondary"
           >
             ENTER ID MANUALLY
@@ -184,103 +269,102 @@ function ScanScreen() {
     const allZones = [order.zoneId, ...(order.additionalZoneIds || [])];
 
     return (
-      <div className="flex-1 flex flex-col px-6 py-8 relative">
-        {/* Header */}
-        <div className="mb-8">
+      <div className="flex-1 flex flex-col relative h-full overflow-hidden">
+        {/* Fixed Header */}
+        <div className="bg-bg-secondary border-b border-border p-4 shrink-0 z-10">
           <button
             onClick={() => setShowSpaceModal(true)}
-            className="w-full bg-bg-surface text-text-primary font-bold py-4 rounded-full mb-6 active:scale-[0.98] transition-transform border border-border"
+            className="w-full bg-accent-amber text-black font-bold py-3 rounded-lg mb-4 active:scale-[0.98] transition-transform text-sm"
           >
             Need More Space?
           </button>
 
-          <h2 className="text-4xl font-bold text-text-primary mb-4">
+          <h2 className="text-xl font-bold text-text-primary">
             {order.vendor}
           </h2>
-          <div className="bg-bg-surface rounded-2xl p-4">
-            <p className="text-lg text-text-secondary mb-2">Locations:</p>
-            <div className="flex flex-wrap gap-2">
-              {allZones.map((z) => (
-                <span
-                  key={z}
-                  className="bg-accent/20 text-accent font-bold px-4 py-2 rounded-lg text-xl"
-                >
-                  {z}
-                </span>
-              ))}
-            </div>
-          </div>
+          <p className="text-sm text-text-secondary mt-1">{order.jobName}</p>
+          <p className="text-sm text-text-secondary">{order.jobNumber}</p>
+          <p className="text-sm font-bold text-accent mt-2">
+            Spots: {allZones.join(", ")}
+          </p>
         </div>
 
-        {/* Items List */}
-        <div className="flex-1 overflow-y-auto space-y-6 mb-8">
+        {/* Scrollable Items List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {items.map((it) => {
             const isChecked = it.deliveredQty === it.quantity;
             return (
-              <div key={it.id} className="bg-bg-surface rounded-3xl p-6">
-                <div className="flex items-start gap-4">
-                  <button
-                    onClick={() => toggleItemCheck(it.id)}
-                    className="mt-1 shrink-0 text-accent-green"
-                  >
-                    <Svg
-                      d={isChecked ? icons.checkSquare : icons.square}
-                      size={48}
-                    />
-                  </button>
-                  <div className="flex-1">
-                    <p className="text-2xl font-bold text-text-primary mb-2">
-                      Qty: {it.quantity} &nbsp;&nbsp; {it.description}
+              <div
+                key={it.id}
+                className="bg-bg-surface rounded-lg p-4 flex items-start gap-3 border border-border"
+              >
+                <button
+                  onClick={() => toggleItemCheck(it.id)}
+                  className="mt-0.5 shrink-0 text-accent-green"
+                >
+                  <Svg
+                    d={isChecked ? icons.checkSquare : icons.square}
+                    size={28}
+                  />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary leading-snug">
+                    Qty: {it.quantity} &nbsp;&nbsp; {it.description}
+                  </p>
+                  {it.deliveredQty !== it.quantity && it.deliveredQty > 0 && (
+                    <p className="text-accent-amber font-medium mt-1 text-xs">
+                      Delivered: {it.deliveredQty} (Missing: {it.missingQty})
                     </p>
-                    {it.deliveredQty !== it.quantity && it.deliveredQty > 0 && (
-                      <p className="text-accent-amber font-bold mb-2 text-lg">
-                        Delivered: {it.deliveredQty} (Missing: {it.missingQty})
-                      </p>
-                    )}
-                    <button
-                      onClick={() => openAdjust(it)}
-                      className="bg-bg-card text-text-primary font-bold py-3 px-8 rounded-xl mt-2 active:scale-[0.98] transition-transform text-lg"
-                    >
-                      Adjust
-                    </button>
-                  </div>
+                  )}
+                  <button
+                    onClick={() => openAdjust(it)}
+                    className="bg-bg-secondary text-text-primary font-medium py-1.5 px-4 rounded mt-2 active:scale-[0.98] transition-transform text-xs border border-border"
+                  >
+                    Adjust
+                  </button>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Bottom Actions */}
-        <div className="mt-auto space-y-4">
+        {/* Fixed Bottom Actions */}
+        <div className="bg-bg-secondary border-t border-border p-4 shrink-0 space-y-3 z-10">
           <button
             onClick={handleSubmit}
             className="action-btn action-btn-primary"
           >
-            SUBMIT
+            Submit
           </button>
           <button
-            onClick={handleScanAnother}
-            className="action-btn action-btn-secondary"
+            onClick={() => setIsScanning(true)}
+            className="action-btn action-btn-orange"
           >
-            SCAN ANOTHER QR CODE
+            Scan Another QR Code
           </button>
         </div>
 
         {/* Adjust Modal */}
         {adjustingItemId && (
-          <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-6 z-50">
-            <div className="bg-bg-surface rounded-3xl p-8 w-full max-w-sm">
-              <h3 className="text-3xl font-bold text-text-primary mb-8 text-center">
+          <div
+            className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+            onClick={() => setAdjustingItemId(null)}
+          >
+            <div
+              className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-text-primary mb-6 text-center">
                 Adjust Quantity
               </h3>
-              <div className="flex items-center justify-center gap-8 mb-12">
+              <div className="flex items-center justify-center gap-6 mb-8">
                 <button
                   className="stepper-btn"
                   onClick={() => setAdjustQty(Math.max(0, adjustQty - 1))}
                 >
                   −
                 </button>
-                <span className="text-6xl font-bold text-text-primary tabular-nums w-24 text-center">
+                <span className="text-3xl font-bold text-text-primary tabular-nums w-16 text-center">
                   {adjustQty}
                 </span>
                 <button
@@ -294,41 +378,55 @@ function ScanScreen() {
                   +
                 </button>
               </div>
-              <button
-                onClick={saveAdjust}
-                className="action-btn action-btn-primary w-full"
-              >
-                SAVE
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setAdjustingItemId(null)}
+                  className="flex-1 py-3 text-text-secondary font-medium text-sm bg-bg-secondary rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveAdjust}
+                  className="flex-1 py-3 bg-accent text-white font-medium text-sm rounded-lg"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Space Modal */}
         {showSpaceModal && (
-          <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-6 z-50">
-            <div className="bg-bg-surface rounded-3xl p-8 w-full max-w-sm">
-              <h3 className="text-3xl font-bold text-text-primary mb-8 text-center">
+          <div
+            className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowSpaceModal(false)}
+          >
+            <div
+              className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-text-primary mb-6 text-center">
                 Need More Space?
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <button
                   onClick={() => handleRequestSpace("ground")}
-                  className="action-btn action-btn-secondary w-full"
+                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
                 >
-                  GROUND SPOT
+                  Ground Spot
                 </button>
                 <button
                   onClick={() => handleRequestSpace("shelf")}
-                  className="action-btn action-btn-secondary w-full"
+                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
                 >
-                  SHELF SPOT
+                  Shelf Spot
                 </button>
                 <button
                   onClick={() => setShowSpaceModal(false)}
-                  className="w-full py-4 text-text-secondary font-bold mt-4 text-xl"
+                  className="w-full py-3 text-text-secondary font-medium mt-2"
                 >
-                  CANCEL
+                  Cancel
                 </button>
               </div>
             </div>
@@ -343,21 +441,21 @@ function ScanScreen() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
         <div
-          className={`size-48 rounded-full flex items-center justify-center mb-12 ${
+          className={`size-32 rounded-full flex items-center justify-center mb-8 ${
             allDelivered
-              ? "bg-accent-green text-black"
-              : "bg-accent-amber text-black"
+              ? "bg-accent-green/20 text-accent-green"
+              : "bg-accent-amber/20 text-accent-amber"
           }`}
         >
-          <Svg d={icons.check} size={96} />
+          <Svg d={icons.check} size={64} />
         </div>
 
-        <h2 className="text-5xl font-bold text-text-primary mb-6">
+        <h2 className="text-3xl font-bold text-text-primary mb-4">
           {allDelivered ? "Delivery Complete" : "Partial Delivery"}
         </h2>
 
-        <p className="text-2xl text-text-secondary mb-16">
-          Order {order.id} • Locations:{" "}
+        <p className="text-base text-text-secondary mb-12">
+          Order {order.id} • Spots:{" "}
           {[order.zoneId, ...(order.additionalZoneIds || [])].join(", ")}
         </p>
 
@@ -365,7 +463,7 @@ function ScanScreen() {
           onClick={handleReset}
           className="action-btn action-btn-secondary w-full"
         >
-          NEW CHECK-IN
+          New Check-In
         </button>
       </div>
     );
@@ -376,7 +474,7 @@ function ScanScreen() {
 
 export default function App() {
   return (
-    <div className="app-container flex flex-col min-h-screen min-h-dvh bg-bg-primary">
+    <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
       <ScanScreen />
     </div>
   );
