@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { mockOrders, stagingZones } from "./mockData";
 import type { Order, LineItem as OrderItem } from "./types";
 
@@ -46,9 +46,6 @@ function ScanScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanError] = useState<string | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scannerRef = useRef<any>(null);
-
   const handleOrderFound = (o: Order) => {
     setIsScanning(false);
     setOrder(o);
@@ -67,12 +64,21 @@ function ScanScreen() {
     handleOrderFound(mockOrders[0]);
   };
 
+  const handleCancelScan = () => {
+    setIsScanning(false);
+  };
+
   useEffect(() => {
+    let isMounted = true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let html5QrCode: any = null;
+
     if (isScanning) {
       // Use Html5Qrcode directly to avoid the built-in UI (camera selection, etc.)
       import("html5-qrcode").then(({ Html5Qrcode }) => {
-        const html5QrCode = new Html5Qrcode("reader");
-        scannerRef.current = html5QrCode;
+        if (!isMounted) return;
+
+        html5QrCode = new Html5Qrcode("reader");
 
         html5QrCode
           .start(
@@ -81,7 +87,7 @@ function ScanScreen() {
               fps: 10,
               qrbox: { width: 250, height: 250 },
             },
-            (decodedText) => {
+            (decodedText: string) => {
               const foundOrder = mockOrders.find(
                 (o) => o.id === decodedText || o.zoneId === decodedText,
               );
@@ -95,32 +101,31 @@ function ScanScreen() {
               // Ignore continuous scanning errors
             },
           )
-          .catch((err) => {
+          .catch((err: unknown) => {
             console.error("Error starting scanner", err);
             // Fallback if camera fails
-            handleManualScan();
+            if (isMounted) {
+              handleManualScan();
+            }
           });
       });
-    } else {
-      if (scannerRef.current) {
-        scannerRef.current
-          .stop()
-          .then(() => {
-            scannerRef.current.clear();
-            scannerRef.current = null;
-          })
-          .catch(console.error);
-      }
     }
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current
-          .stop()
-          .then(() => {
-            scannerRef.current.clear();
-          })
-          .catch(console.error);
+      isMounted = false;
+      if (html5QrCode) {
+        try {
+          html5QrCode
+            .stop()
+            .then(() => {
+              html5QrCode.clear();
+            })
+            .catch(() => {
+              // ignore
+            });
+        } catch {
+          // ignore
+        }
       }
     };
   }, [isScanning]);
@@ -274,7 +279,7 @@ function ScanScreen() {
           </p>
 
           <button
-            onClick={() => setIsScanning(false)}
+            onClick={handleCancelScan}
             className="text-text-secondary text-sm font-medium py-2 px-4"
           >
             Cancel
