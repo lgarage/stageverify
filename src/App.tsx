@@ -135,12 +135,12 @@ function ScanScreen() {
     setItems(
       items.map((it) => {
         if (it.id === id) {
-          const isChecked = it.deliveredQty === it.quantity;
+          const currentlyChecked = it.deliveredQty > 0;
           return {
             ...it,
-            deliveredQty: isChecked ? 0 : it.quantity,
-            missingQty: isChecked ? it.quantity : 0,
-            status: isChecked ? null : "Delivered",
+            deliveredQty: currentlyChecked ? 0 : it.quantity,
+            missingQty: currentlyChecked ? it.quantity : 0,
+            status: currentlyChecked ? null : "Delivered",
           };
         }
         return it;
@@ -364,7 +364,11 @@ function ScanScreen() {
         {/* Scrollable Items List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {items.map((it) => {
-            const isChecked = it.deliveredQty === it.quantity;
+            const isFullyDelivered = it.deliveredQty === it.quantity;
+            const isPartial =
+              it.deliveredQty > 0 && it.deliveredQty < it.quantity;
+            const isChecked = isFullyDelivered || isPartial;
+
             return (
               <div
                 key={it.id}
@@ -373,7 +377,7 @@ function ScanScreen() {
                 <div className="flex items-start gap-3">
                   <button
                     onClick={() => toggleItemCheck(it.id)}
-                    className="shrink-0 text-accent-green mt-0.5"
+                    className={`shrink-0 mt-0.5 ${isPartial ? "text-accent-red" : "text-accent-green"}`}
                   >
                     <Svg
                       d={isChecked ? icons.checkSquare : icons.square}
@@ -389,13 +393,18 @@ function ScanScreen() {
                         {it.description}
                       </span>
                     </div>
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-3">
                       <button
                         onClick={() => openAdjust(it)}
-                        className="bg-accent text-white font-medium py-1 px-4 rounded-full active:scale-[0.98] transition-transform text-[12px] inline-block"
+                        className="bg-accent text-white font-medium py-1.5 px-6 rounded-full active:scale-[0.98] transition-transform text-[13px] inline-block"
                       >
                         Adjust
                       </button>
+                      {isPartial && (
+                        <span className="text-[12px] font-bold text-accent-red bg-accent-red/10 px-2 py-0.5 rounded">
+                          Partial Delivery
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
