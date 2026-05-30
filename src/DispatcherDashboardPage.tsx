@@ -11,8 +11,9 @@ import {
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
-const NAVY = "#1a2b4a";
-const RED = "#c8102e";
+const NAVY = "#0a3161";
+const RED = "#bf0a30";
+const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const STATUS_ORDER: DeliveryStatus[] = [
   "pending",
@@ -292,28 +293,26 @@ export function DispatcherDashboardPage() {
 
   /* ── Render ── */
   return (
-    <div
-      style={{
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-      }}
-      className="min-h-screen flex"
-    >
+    <div style={{ fontFamily: FONT }} className="min-h-screen flex">
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside
-        style={{ backgroundColor: NAVY, minHeight: "100vh" }}
-        className="w-64 flex-shrink-0 hidden md:flex flex-col shadow-xl z-20"
+        style={{
+          backgroundColor: NAVY,
+          minHeight: "100vh",
+          boxShadow: "rgba(0,0,0,0.15) 2px 0px 10px 0px",
+        }}
+        className="w-60 flex-shrink-0 hidden md:flex flex-col z-20"
       >
         {/* Brand */}
         <div
-          className="flex flex-col items-center px-6 pt-8 pb-6"
+          className="flex flex-col items-center px-6 pt-7 pb-5"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
         >
           <div
             className="flex items-center justify-center rounded-full mb-3"
             style={{
-              width: 64,
-              height: 64,
+              width: 60,
+              height: 60,
               backgroundColor: "#fff",
               border: `3px solid ${RED}`,
               boxShadow: "0 2px 12px rgba(0,0,0,0.20)",
@@ -323,7 +322,7 @@ export function DispatcherDashboardPage() {
               style={{
                 color: NAVY,
                 fontWeight: 900,
-                fontSize: 22,
+                fontSize: 20,
                 letterSpacing: "-0.04em",
               }}
             >
@@ -334,7 +333,7 @@ export function DispatcherDashboardPage() {
             style={{
               color: "#fff",
               fontWeight: 700,
-              fontSize: 15,
+              fontSize: 14,
               letterSpacing: "0.08em",
             }}
           >
@@ -378,25 +377,25 @@ export function DispatcherDashboardPage() {
                   ? {
                       backgroundColor: RED,
                       color: "#fff",
-                      borderRadius: 8,
+                      borderRadius: 6,
                       display: "flex",
                       alignItems: "center",
-                      gap: 11,
-                      padding: "10px 14px",
-                      fontWeight: 600,
-                      fontSize: 13.5,
+                      gap: 10,
+                      padding: "9px 12px",
+                      fontWeight: 700,
+                      fontSize: 13,
                       textDecoration: "none",
-                      boxShadow: "0 2px 8px rgba(200,16,46,0.35)",
+                      boxShadow: `0 2px 8px rgba(191,10,48,0.35)`,
                     }
                   : {
                       color: "rgba(255,255,255,0.60)",
-                      borderRadius: 8,
+                      borderRadius: 6,
                       display: "flex",
                       alignItems: "center",
-                      gap: 11,
-                      padding: "10px 14px",
+                      gap: 10,
+                      padding: "9px 12px",
                       fontWeight: 500,
-                      fontSize: 13.5,
+                      fontSize: 13,
                       textDecoration: "none",
                       transition: "background 0.15s, color 0.15s",
                     }
@@ -418,8 +417,8 @@ export function DispatcherDashboardPage() {
               }}
             >
               <svg
-                width={17}
-                height={17}
+                width={16}
+                height={16}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={1.9}
@@ -457,16 +456,17 @@ export function DispatcherDashboardPage() {
       >
         {/* Top bar */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-8 py-0"
+          className="sticky top-0 z-10 flex items-center justify-between"
           style={{
             backgroundColor: "#fff",
-            borderBottom: "1px solid #e5e7eb",
-            height: 60,
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            borderBottom: "1px solid #e0e3e8",
+            height: 52,
+            padding: "0 20px",
+            boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
           }}
         >
           <div className="flex items-center gap-3">
-            <span style={{ color: NAVY, fontWeight: 700, fontSize: 17 }}>
+            <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>
               Dispatcher Dashboard
             </span>
             <span style={{ color: "#9ca3af", fontSize: 13 }}>
@@ -482,8 +482,8 @@ export function DispatcherDashboardPage() {
             </div>
             <div
               style={{
-                width: 34,
-                height: 34,
+                width: 30,
+                height: 30,
                 borderRadius: "50%",
                 backgroundColor: NAVY,
                 color: "#fff",
@@ -500,18 +500,30 @@ export function DispatcherDashboardPage() {
           </div>
         </div>
 
+        {/* Page content */}
         <div
-          className="px-8 py-7 flex flex-col gap-6"
-          style={{ maxWidth: 1700, width: "100%" }}
+          style={{
+            padding: "30px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+            width: "100%",
+          }}
         >
           {/* ── Page header ── */}
           <div>
             <h1
-              style={{ fontSize: 26, fontWeight: 800, color: NAVY, margin: 0 }}
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: NAVY,
+                margin: 0,
+                lineHeight: "1.2",
+              }}
             >
               Delivery Overview
             </h1>
-            <p style={{ fontSize: 13.5, color: "#6b7280", marginTop: 4 }}>
+            <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
               Manage incoming deliveries, staging assignments, and verification
               status.
             </p>
@@ -519,7 +531,7 @@ export function DispatcherDashboardPage() {
 
           {/* ── Summary tiles ── */}
           {allRows.length > 0 && (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
               {STATUS_ORDER.map((status) => {
                 const c = STATUS_COUNT_COLORS[status];
                 const count = statusCounts[status];
@@ -532,22 +544,20 @@ export function DispatcherDashboardPage() {
                       backgroundColor: isFiltered ? c.accent : "#fff",
                       border: isFiltered
                         ? `2px solid ${c.accent}`
-                        : "1px solid #e5e7eb",
-                      borderRadius: 10,
-                      padding: "14px 16px",
+                        : "1px solid #dde1e7",
+                      borderRadius: 8,
+                      padding: "15px",
                       textAlign: "left",
                       cursor: "pointer",
-                      boxShadow: isFiltered
-                        ? `0 4px 12px ${c.accent}33`
-                        : "0 1px 3px rgba(0,0,0,0.06)",
+                      boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
                       transition: "all 0.15s",
                       outline: "none",
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 26,
-                        fontWeight: 800,
+                        fontSize: 22,
+                        fontWeight: 700,
                         color: isFiltered ? "#fff" : c.accent,
                         lineHeight: 1,
                       }}
@@ -557,13 +567,14 @@ export function DispatcherDashboardPage() {
                     <div
                       style={{
                         fontSize: 11,
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: isFiltered
                           ? "rgba(255,255,255,0.85)"
                           : "#6b7280",
                         marginTop: 6,
                         textTransform: "uppercase",
-                        letterSpacing: "0.07em",
+                        letterSpacing: "0.06em",
+                        fontFamily: FONT,
                       }}
                     >
                       {STATUS_LABEL(status)}
@@ -578,10 +589,10 @@ export function DispatcherDashboardPage() {
           <div
             style={{
               backgroundColor: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
-              padding: "20px 24px",
+              border: "1px solid #dde1e7",
+              borderRadius: 8,
+              boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
+              padding: "15px 20px",
             }}
           >
             <div className="flex flex-col md:flex-row gap-5 items-start">
@@ -595,7 +606,7 @@ export function DispatcherDashboardPage() {
                     color: "#6b7280",
                     textTransform: "uppercase",
                     letterSpacing: "0.09em",
-                    marginBottom: 7,
+                    marginBottom: 6,
                   }}
                 >
                   Search Deliveries
@@ -612,7 +623,7 @@ export function DispatcherDashboardPage() {
                     viewBox="0 0 24 24"
                     style={{
                       position: "absolute",
-                      left: 12,
+                      left: 10,
                       top: "50%",
                       transform: "translateY(-50%)",
                       pointerEvents: "none",
@@ -633,21 +644,22 @@ export function DispatcherDashboardPage() {
                     placeholder="Job #, name, PO, order, vendor, staging location…"
                     style={{
                       width: "100%",
-                      padding: "9px 12px 9px 38px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 8,
-                      fontSize: 13.5,
-                      color: "#111827",
+                      padding: "8px 12px 8px 34px",
+                      border: "1px solid #ccd0d7",
+                      borderRadius: 4,
+                      fontSize: 14,
+                      color: "#333",
                       outline: "none",
                       backgroundColor: "#fafafa",
+                      fontFamily: FONT,
                       transition: "border-color 0.15s, box-shadow 0.15s",
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = NAVY;
-                      e.target.style.boxShadow = `0 0 0 3px ${NAVY}18`;
+                      e.target.style.boxShadow = `0 0 0 2px ${NAVY}20`;
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = "#d1d5db";
+                      e.target.style.borderColor = "#ccd0d7";
                       e.target.style.boxShadow = "none";
                     }}
                   />
@@ -664,7 +676,7 @@ export function DispatcherDashboardPage() {
                     color: "#6b7280",
                     textTransform: "uppercase",
                     letterSpacing: "0.09em",
-                    marginBottom: 7,
+                    marginBottom: 6,
                   }}
                 >
                   Filter by Status
@@ -673,7 +685,7 @@ export function DispatcherDashboardPage() {
                   style={{
                     display: "flex",
                     flexWrap: "wrap",
-                    gap: 6,
+                    gap: 5,
                     alignItems: "center",
                   }}
                 >
@@ -685,14 +697,14 @@ export function DispatcherDashboardPage() {
                         key={status}
                         onClick={() => toggleStatus(status)}
                         style={{
-                          padding: "6px 12px",
-                          borderRadius: 6,
+                          padding: "4px 10px",
+                          borderRadius: 4,
                           fontSize: 12,
                           fontWeight: 700,
-                          letterSpacing: "0.04em",
+                          letterSpacing: "0.02em",
                           border: active
                             ? `2px solid ${b.border}`
-                            : `1px solid #e5e7eb`,
+                            : `1px solid #ccd0d7`,
                           backgroundColor: active ? b.bg : "#f9fafb",
                           color: active ? b.text : "#6b7280",
                           cursor: "pointer",
@@ -700,15 +712,16 @@ export function DispatcherDashboardPage() {
                           outline: "none",
                           display: "flex",
                           alignItems: "center",
-                          gap: 6,
+                          gap: 5,
+                          fontFamily: FONT,
                         }}
                       >
                         <span
                           style={{
-                            width: 7,
-                            height: 7,
+                            width: 6,
+                            height: 6,
                             borderRadius: "50%",
-                            backgroundColor: active ? b.dot : "#d1d5db",
+                            backgroundColor: active ? b.dot : "#ccd0d7",
                             flexShrink: 0,
                           }}
                         />
@@ -727,16 +740,17 @@ export function DispatcherDashboardPage() {
                         }))
                       }
                       style={{
-                        marginLeft: 4,
-                        padding: "6px 12px",
-                        borderRadius: 6,
+                        marginLeft: 2,
+                        padding: "4px 10px",
+                        borderRadius: 4,
                         fontSize: 12,
                         fontWeight: 600,
-                        border: "1px solid #e5e7eb",
+                        border: "1px solid #ccd0d7",
                         backgroundColor: "#fff",
                         color: "#ef4444",
                         cursor: "pointer",
                         outline: "none",
+                        fontFamily: FONT,
                       }}
                     >
                       ✕ Clear
@@ -751,22 +765,22 @@ export function DispatcherDashboardPage() {
           <div
             style={{
               backgroundColor: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+              border: "1px solid #dde1e7",
+              borderRadius: 8,
+              boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
             }}
           >
-            {/* Table header row */}
+            {/* Table card header */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "16px 24px",
-                borderBottom: "1px solid #f3f4f6",
+                padding: "15px 20px",
+                borderBottom: "1px solid #eaecf0",
               }}
             >
               <div>
@@ -807,30 +821,29 @@ export function DispatcherDashboardPage() {
               <table
                 style={{
                   width: "100%",
-                  minWidth: 1200,
+                  minWidth: 1100,
                   borderCollapse: "collapse",
-                  fontSize: 13.5,
+                  fontSize: 14,
+                  fontFamily: FONT,
                 }}
               >
                 <thead>
-                  <tr style={{ backgroundColor: NAVY }}>
+                  <tr style={{ backgroundColor: RED }}>
                     {SORT_COLUMNS.map((col) => {
                       const isSorted = col.key && query.sortBy === col.key;
                       return (
                         <th
                           key={col.label}
                           style={{
-                            padding: "13px 16px",
-                            fontWeight: 600,
-                            fontSize: 12,
-                            color: isSorted
-                              ? "#f0f0f0"
-                              : "rgba(255,255,255,0.80)",
+                            padding: "12px",
+                            fontWeight: 700,
+                            fontSize: 14,
+                            color: "#ffffff",
                             textAlign: col.className?.includes("text-right")
                               ? "right"
                               : "left",
                             whiteSpace: "nowrap",
-                            letterSpacing: "0.04em",
+                            letterSpacing: "normal",
                             userSelect: "none",
                           }}
                         >
@@ -856,7 +869,7 @@ export function DispatcherDashboardPage() {
                               <span
                                 style={{
                                   fontSize: 10,
-                                  opacity: isSorted ? 1 : 0.5,
+                                  opacity: isSorted ? 1 : 0.6,
                                 }}
                               >
                                 {isSorted
@@ -921,8 +934,8 @@ export function DispatcherDashboardPage() {
                         {/* Status badge */}
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                           }}
                         >
                           <span
@@ -930,11 +943,11 @@ export function DispatcherDashboardPage() {
                               display: "inline-flex",
                               alignItems: "center",
                               gap: 5,
-                              padding: "4px 10px",
-                              borderRadius: 20,
+                              padding: "3px 8px",
+                              borderRadius: 4,
                               fontSize: 11,
                               fontWeight: 700,
-                              letterSpacing: "0.04em",
+                              letterSpacing: "0.02em",
                               backgroundColor: b.bg,
                               color: b.text,
                               border: `1px solid ${b.border}`,
@@ -955,62 +968,62 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#374151",
+                            color: "#333",
                             fontWeight: 600,
-                            fontSize: 12.5,
+                            fontSize: 13,
                           }}
                         >
                           {row.jobNumber}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             fontWeight: 600,
-                            color: "#111827",
+                            color: "#111",
                           }}
                         >
                           {row.jobName}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#6b7280",
-                            fontSize: 12.5,
+                            color: "#666",
+                            fontSize: 13,
                           }}
                         >
                           {row.poNumber ?? "—"}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#6b7280",
-                            fontSize: 12.5,
+                            color: "#666",
+                            fontSize: 13,
                           }}
                         >
                           {row.orderNumber}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
-                            color: "#374151",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
+                            color: "#333",
                           }}
                         >
                           {row.vendorName}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
-                            color: "#374151",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
+                            color: "#333",
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -1018,17 +1031,17 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                           }}
                         >
                           {row.stagingLocationCode ? (
                             <span
                               style={{
                                 display: "inline-block",
-                                padding: "3px 9px",
-                                borderRadius: 5,
-                                backgroundColor: "#f0f4ff",
+                                padding: "3px 8px",
+                                borderRadius: 4,
+                                backgroundColor: "#eef2ff",
                                 color: NAVY,
                                 fontSize: 12,
                                 fontWeight: 700,
@@ -1044,10 +1057,10 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#374151",
+                            color: "#333",
                             fontWeight: 600,
                           }}
                         >
@@ -1055,8 +1068,8 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             color: row.issueSummary ? "#c62828" : "#9ca3af",
                             maxWidth: 200,
                           }}
@@ -1080,8 +1093,8 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            borderBottom: "1px solid #f3f4f6",
+                            padding: "12px",
+                            borderBottom: "1px solid #eaecf0",
                             textAlign: "right",
                           }}
                         >
@@ -1094,14 +1107,15 @@ export function DispatcherDashboardPage() {
                               backgroundColor: selected ? NAVY : "#fff",
                               color: selected ? "#fff" : NAVY,
                               border: `1.5px solid ${NAVY}`,
-                              borderRadius: 6,
-                              padding: "5px 14px",
+                              borderRadius: 4,
+                              padding: "4px 10px",
                               fontSize: 12,
                               fontWeight: 700,
                               cursor: "pointer",
-                              letterSpacing: "0.03em",
+                              letterSpacing: "0.02em",
                               transition: "all 0.13s",
                               outline: "none",
+                              fontFamily: FONT,
                             }}
                             onMouseEnter={(e) => {
                               const el = e.currentTarget as HTMLElement;
@@ -1143,7 +1157,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             fontSize: 16,
                             fontWeight: 700,
-                            color: "#374151",
+                            color: "#333",
                             margin: 0,
                           }}
                         >
@@ -1170,14 +1184,15 @@ export function DispatcherDashboardPage() {
                             }
                             style={{
                               marginTop: 16,
-                              padding: "8px 20px",
-                              borderRadius: 7,
+                              padding: "8px 18px",
+                              borderRadius: 4,
                               border: `1.5px solid ${NAVY}`,
                               backgroundColor: "#fff",
                               color: NAVY,
                               fontWeight: 600,
                               fontSize: 13,
                               cursor: "pointer",
+                              fontFamily: FONT,
                             }}
                           >
                             Clear Filters
@@ -1198,22 +1213,19 @@ export function DispatcherDashboardPage() {
                 justifyContent: "space-between",
                 flexWrap: "wrap",
                 gap: 12,
-                padding: "12px 24px",
-                borderTop: "1px solid #f3f4f6",
+                padding: "12px 20px",
+                borderTop: "1px solid #eaecf0",
                 backgroundColor: "#fafbfc",
               }}
             >
               <span style={{ fontSize: 13, color: "#6b7280" }}>
                 Showing{" "}
-                <strong style={{ color: "#111827" }}>
-                  {paged.items.length}
-                </strong>{" "}
-                of{" "}
-                <strong style={{ color: "#111827" }}>{paged.totalItems}</strong>{" "}
+                <strong style={{ color: "#333" }}>{paged.items.length}</strong>{" "}
+                of <strong style={{ color: "#333" }}>{paged.totalItems}</strong>{" "}
                 deliveries
               </span>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <PagBtn
                   onClick={() =>
                     setQuery((p) => ({ ...p, page: Math.max(1, p.page - 1) }))
@@ -1221,6 +1233,7 @@ export function DispatcherDashboardPage() {
                   disabled={paged.page <= 1 || listLoading}
                   label="← Prev"
                   navy={NAVY}
+                  font={FONT}
                 />
 
                 {pageNumbers.map((n) => (
@@ -1230,6 +1243,7 @@ export function DispatcherDashboardPage() {
                     disabled={listLoading}
                     label={String(n)}
                     navy={NAVY}
+                    font={FONT}
                     active={n === paged.page}
                   />
                 ))}
@@ -1244,6 +1258,7 @@ export function DispatcherDashboardPage() {
                   disabled={paged.page >= paged.totalPages || listLoading}
                   label="Next →"
                   navy={NAVY}
+                  font={FONT}
                 />
               </div>
             </div>
@@ -1271,11 +1286,12 @@ export function DispatcherDashboardPage() {
               width: "100%",
               maxWidth: 480,
               backgroundColor: "#fff",
-              borderLeft: "1px solid #e5e7eb",
+              borderLeft: "1px solid #e0e3e8",
               boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
               overflowY: "auto",
               display: "flex",
               flexDirection: "column",
+              fontFamily: FONT,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1285,21 +1301,21 @@ export function DispatcherDashboardPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "18px 24px",
-                borderBottom: "1px solid #e5e7eb",
+                padding: "15px 20px",
+                borderBottom: "1px solid #e0e3e8",
                 position: "sticky",
                 top: 0,
                 backgroundColor: "#fff",
                 zIndex: 10,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
               }}
             >
               <div>
                 <h2
                   style={{
                     margin: 0,
-                    fontSize: 17,
-                    fontWeight: 800,
+                    fontSize: 16,
+                    fontWeight: 700,
                     color: NAVY,
                   }}
                 >
@@ -1319,16 +1335,17 @@ export function DispatcherDashboardPage() {
               <button
                 onClick={() => setSelectedDeliveryId(null)}
                 style={{
-                  padding: "6px 14px",
-                  border: "1.5px solid #e5e7eb",
-                  borderRadius: 7,
+                  padding: "5px 12px",
+                  border: "1px solid #ccd0d7",
+                  borderRadius: 4,
                   backgroundColor: "#f9fafb",
-                  color: "#374151",
-                  fontWeight: 600,
-                  fontSize: 13,
+                  color: "#333",
+                  fontWeight: 700,
+                  fontSize: 12,
                   cursor: "pointer",
                   outline: "none",
                   transition: "all 0.12s",
+                  fontFamily: FONT,
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.backgroundColor =
@@ -1341,20 +1358,21 @@ export function DispatcherDashboardPage() {
                   (e.currentTarget as HTMLElement).style.backgroundColor =
                     "#f9fafb";
                   (e.currentTarget as HTMLElement).style.borderColor =
-                    "#e5e7eb";
-                  (e.currentTarget as HTMLElement).style.color = "#374151";
+                    "#ccd0d7";
+                  (e.currentTarget as HTMLElement).style.color = "#333";
                 }}
               >
                 ✕ Close
               </button>
             </div>
 
-            <div style={{ padding: "24px", flex: 1 }}>
+            <div style={{ padding: "20px", flex: 1 }}>
               <DetailContent
                 loading={detailLoading}
                 error={detailError}
                 details={selectedDetails}
                 navy={NAVY}
+                font={FONT}
               />
             </div>
           </div>
@@ -1371,12 +1389,14 @@ function PagBtn({
   disabled,
   label,
   navy,
+  font,
   active = false,
 }: {
   onClick: () => void;
   disabled: boolean;
   label: string;
   navy: string;
+  font: string;
   active?: boolean;
 }) {
   return (
@@ -1384,17 +1404,18 @@ function PagBtn({
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: "6px 12px",
-        borderRadius: 6,
-        border: active ? `2px solid ${navy}` : "1px solid #d1d5db",
+        padding: "5px 10px",
+        borderRadius: 4,
+        border: active ? `2px solid ${navy}` : "1px solid #ccd0d7",
         backgroundColor: active ? navy : "#fff",
-        color: active ? "#fff" : disabled ? "#9ca3af" : "#374151",
+        color: active ? "#fff" : disabled ? "#9ca3af" : "#333",
         fontWeight: active ? 700 : 500,
         fontSize: 13,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
         outline: "none",
         transition: "all 0.12s",
+        fontFamily: font,
       }}
     >
       {label}
@@ -1409,11 +1430,13 @@ function DetailContent({
   error,
   details,
   navy,
+  font,
 }: {
   loading: boolean;
   error: string | null;
   details: DeliveryDetails | null;
   navy: string;
+  font: string;
 }) {
   if (loading) {
     return (
@@ -1430,8 +1453,8 @@ function DetailContent({
       <div
         style={{
           backgroundColor: "#fee2e2",
-          borderRadius: 8,
-          padding: "16px",
+          borderRadius: 6,
+          padding: "15px",
           color: "#b91c1c",
           fontSize: 14,
         }}
@@ -1445,9 +1468,7 @@ function DetailContent({
     return (
       <div style={{ textAlign: "center", padding: "64px 0" }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-        <p
-          style={{ fontWeight: 700, fontSize: 16, color: "#374151", margin: 0 }}
-        >
+        <p style={{ fontWeight: 700, fontSize: 16, color: "#333", margin: 0 }}>
           No delivery selected
         </p>
         <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>
@@ -1473,11 +1494,11 @@ function DetailContent({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 24,
-        fontSize: 13.5,
+        gap: 20,
+        fontSize: 14,
+        fontFamily: font,
       }}
     >
-      {/* Section helper */}
       {[
         {
           title: "Delivery & Vendor",
@@ -1485,9 +1506,9 @@ function DetailContent({
             <div
               style={{
                 backgroundColor: "#f8fafc",
-                border: "1px solid #e5e7eb",
-                borderRadius: 10,
-                padding: "16px",
+                border: "1px solid #e0e3e8",
+                borderRadius: 8,
+                padding: "15px",
                 display: "flex",
                 flexDirection: "column" as const,
                 gap: 10,
@@ -1520,7 +1541,7 @@ function DetailContent({
                           fontFamily: "monospace",
                           fontWeight: 700,
                           backgroundColor: "#eef2ff",
-                          padding: "2px 8px",
+                          padding: "2px 7px",
                           borderRadius: 4,
                           color: navy,
                           border: "1px solid #c7d2fe",
@@ -1551,7 +1572,7 @@ function DetailContent({
                   >
                     {label}
                   </span>
-                  <span style={{ color: "#111827", textAlign: "right" }}>
+                  <span style={{ color: "#333", textAlign: "right" }}>
                     {value}
                   </span>
                 </div>
@@ -1560,7 +1581,7 @@ function DetailContent({
               {details.delivery.notes && (
                 <div
                   style={{
-                    borderTop: "1px solid #f3f4f6",
+                    borderTop: "1px solid #eaecf0",
                     paddingTop: 10,
                     marginTop: 2,
                   }}
@@ -1579,11 +1600,11 @@ function DetailContent({
                   <p
                     style={{
                       margin: 0,
-                      color: "#374151",
+                      color: "#333",
                       backgroundColor: "#fff",
                       padding: "8px 12px",
-                      borderRadius: 7,
-                      border: "1px solid #e5e7eb",
+                      borderRadius: 4,
+                      border: "1px solid #e0e3e8",
                     }}
                   >
                     {details.delivery.notes}
@@ -1593,7 +1614,7 @@ function DetailContent({
               {details.delivery.issueSummary && (
                 <div
                   style={{
-                    borderTop: "1px solid #f3f4f6",
+                    borderTop: "1px solid #eaecf0",
                     paddingTop: 10,
                     marginTop: 2,
                   }}
@@ -1615,7 +1636,7 @@ function DetailContent({
                       color: "#c62828",
                       backgroundColor: "#ffebee",
                       padding: "8px 12px",
-                      borderRadius: 7,
+                      borderRadius: 4,
                       border: "1px solid #ef9a9a",
                     }}
                   >
@@ -1633,7 +1654,7 @@ function DetailContent({
               style={{
                 display: "flex",
                 flexDirection: "column" as const,
-                gap: 10,
+                gap: 8,
               }}
             >
               {details.items.map((item) => {
@@ -1646,11 +1667,11 @@ function DetailContent({
                   <div
                     key={item.id}
                     style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 10,
-                      padding: "14px",
+                      border: "1px solid #e0e3e8",
+                      borderRadius: 8,
+                      padding: "12px",
                       backgroundColor: "#fff",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                      boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
                     }}
                   >
                     <div
@@ -1667,7 +1688,7 @@ function DetailContent({
                           style={{
                             margin: 0,
                             fontWeight: 700,
-                            color: "#111827",
+                            color: "#111",
                           }}
                         >
                           {item.description}
@@ -1686,8 +1707,8 @@ function DetailContent({
                       <span
                         style={{
                           flexShrink: 0,
-                          padding: "3px 9px",
-                          borderRadius: 20,
+                          padding: "3px 8px",
+                          borderRadius: 4,
                           fontSize: 10,
                           fontWeight: 700,
                           textTransform: "uppercase",
@@ -1712,8 +1733,8 @@ function DetailContent({
                           label: "Ordered",
                           value: item.qtyOrdered,
                           bg: "#f8f9fa",
-                          text: "#374151",
-                          border: "#e5e7eb",
+                          text: "#333",
+                          border: "#e0e3e8",
                         },
                         {
                           label: "Received",
@@ -1735,7 +1756,7 @@ function DetailContent({
                           style={{
                             backgroundColor: bg,
                             border: `1px solid ${border}`,
-                            borderRadius: 7,
+                            borderRadius: 4,
                             padding: "8px 4px",
                             textAlign: "center",
                           }}
@@ -1743,7 +1764,7 @@ function DetailContent({
                           <div
                             style={{
                               fontSize: 10,
-                              fontWeight: 600,
+                              fontWeight: 700,
                               color: text,
                               marginBottom: 2,
                               textTransform: "uppercase",
@@ -1754,8 +1775,8 @@ function DetailContent({
                           </div>
                           <div
                             style={{
-                              fontSize: 17,
-                              fontWeight: 800,
+                              fontSize: 16,
+                              fontWeight: 700,
                               fontFamily: "monospace",
                               color: text,
                             }}
@@ -1778,11 +1799,11 @@ function DetailContent({
               style={{
                 position: "relative",
                 paddingLeft: 20,
-                borderLeft: `2px solid #e5e7eb`,
+                borderLeft: `2px solid #e0e3e8`,
                 marginLeft: 8,
                 display: "flex",
                 flexDirection: "column" as const,
-                gap: 18,
+                gap: 16,
               }}
             >
               {details.statusHistory.length ? (
@@ -1801,7 +1822,7 @@ function DetailContent({
                         boxShadow: `0 0 0 3px #eef2ff`,
                       }}
                     />
-                    <p style={{ margin: 0, fontWeight: 700, color: "#111827" }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
                       {event.entityType}{" "}
                       <span
                         style={{
@@ -1818,7 +1839,7 @@ function DetailContent({
                           fontSize: 11,
                           letterSpacing: "0.06em",
                           color: navy,
-                          fontWeight: 800,
+                          fontWeight: 700,
                         }}
                       >
                         {event.toStatus}
@@ -1839,12 +1860,12 @@ function DetailContent({
                       <p
                         style={{
                           margin: "6px 0 0",
-                          fontSize: 12.5,
-                          color: "#374151",
+                          fontSize: 13,
+                          color: "#333",
                           backgroundColor: "#f8fafc",
                           padding: "7px 10px",
-                          borderRadius: 6,
-                          border: "1px solid #e5e7eb",
+                          borderRadius: 4,
+                          border: "1px solid #e0e3e8",
                         }}
                       >
                         {event.reason}
@@ -1867,7 +1888,7 @@ function DetailContent({
               style={{
                 display: "flex",
                 flexDirection: "column" as const,
-                gap: 10,
+                gap: 8,
               }}
             >
               {details.pickupEvents.length ? (
@@ -1875,14 +1896,14 @@ function DetailContent({
                   <div
                     key={pickup.id}
                     style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 10,
-                      padding: "14px",
+                      border: "1px solid #e0e3e8",
+                      borderRadius: 8,
+                      padding: "12px",
                       backgroundColor: "#fff",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                      boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
                     }}
                   >
-                    <p style={{ margin: 0, fontWeight: 700, color: "#111827" }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
                       {pickup.technicianName}
                     </p>
                     <p
@@ -1899,9 +1920,9 @@ function DetailContent({
                         margin: 0,
                         backgroundColor: "#f8fafc",
                         padding: "8px 12px",
-                        borderRadius: 7,
-                        border: "1px solid #e5e7eb",
-                        color: "#374151",
+                        borderRadius: 4,
+                        border: "1px solid #e0e3e8",
+                        color: "#333",
                       }}
                     >
                       {pickup.itemsPickedSummary}
@@ -1932,9 +1953,9 @@ function DetailContent({
         <section key={title}>
           <h3
             style={{
-              margin: "0 0 12px",
+              margin: "0 0 10px",
               fontSize: 11,
-              fontWeight: 800,
+              fontWeight: 700,
               color: "#9ca3af",
               textTransform: "uppercase",
               letterSpacing: "0.10em",
@@ -1946,7 +1967,7 @@ function DetailContent({
             <span
               style={{
                 display: "inline-block",
-                width: 18,
+                width: 16,
                 height: 2,
                 backgroundColor: navy,
                 borderRadius: 2,
