@@ -1,14 +1,24 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   mockDispatcherDataService,
   type DeliveryDetails,
   type DeliveryListRow,
   type DeliverySortField,
   type DeliveryStatus,
+  type PagedResult,
   type SortDirection,
 } from "./dispatcher";
 
-const statusStyles: Record<DeliveryStatus, string> = {
+const STATUS_ORDER: DeliveryStatus[] = [
+  "pending",
+  "arrived",
+  "partial",
+  "complete",
+  "issue",
+  "picked_up",
+];
+
+const STATUS_STYLE: Record<DeliveryStatus, string> = {
   pending: "bg-accent-amber/15 text-accent-amber border border-accent-amber/40",
   arrived: "bg-accent/15 text-accent border border-accent/40",
   partial:
@@ -19,19 +29,19 @@ const statusStyles: Record<DeliveryStatus, string> = {
   picked_up: "bg-bg-surface text-text-primary border border-border",
 };
 
-const statusOrder: DeliveryStatus[] = [
-  "pending",
-  "arrived",
-  "partial",
-  "complete",
-  "issue",
-  "picked_up",
-];
+type ListQueryState = {
+  search: string;
+  statuses: DeliveryStatus[];
+  sortBy: DeliverySortField;
+  sortDirection: SortDirection;
+  page: number;
+  pageSize: number;
+};
 
-const statusLabel = (status: DeliveryStatus): string =>
+const STATUS_LABEL = (status: DeliveryStatus): string =>
   status.replace("_", " ").toUpperCase();
 
-const sortColumns: Array<{
+const SORT_COLUMNS: Array<{
   label: string;
   key?: DeliverySortField;
   className?: string;
@@ -49,90 +59,125 @@ const sortColumns: Array<{
   { label: "Action", className: "text-right" },
 ];
 
+const INITIAL_PAGED: PagedResult<DeliveryListRow> = {
+  items: [],
+  page: 1,
+  pageSize: 20,
+  totalItems: 0,
+  totalPages: 1,
+};
+
 export function DispatcherDashboardPage() {
-  const [search, setSearch] = useState("");
-  const [activeStatuses, setActiveStatuses] = useState<DeliveryStatus[]>([]);
-  const [sortBy, setSortBy] = useState<DeliverySortField>("deliveryDate");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [rows, setRows] = useState<DeliveryListRow[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [detailsMap, setDetailsMap] = useState<Record<string, DeliveryDetails>>(
-    {},
+  const [query, setQuery] = useState<ListQueryState>({
+    search: "",
+    statuses: [],
+    sortBy: "deliveryDate",
+    sortDirection: "desc",
+    page: 1,
+    pageSize: 20,
+  });
+  const [paged, setPaged] =
+    useState<PagedResult<DeliveryListRow>>(INITIAL_PAGED);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
+    null,
   );
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [selectedDetails, setSelectedDetails] =
+    useState<DeliveryDetails | null>(null);
 
-  const queryStatuses = useMemo(
-    () => (activeStatuses.length ? activeStatuses : undefined),
-    [activeStatuses],
-  );
+  const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchList = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
 
-    mockDispatcherDataService
-      .listDeliveries({
-        search,
-        statuses: queryStatuses,
-        sortBy,
-        sortDirection,
-        page: 1,
-        pageSize: 100,
-      })
-      .then((result) => {
-        if (mounted) {
-          setRows(result.items);
-        }
+    try {
+      const result = await mockDispatcherDataService.listDeliveries({
+        search: query.search,
+        statuses: query.statuses.length ? query.statuses : undefined,
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+        page: query.page,
+        pageSize: query.pageSize,
       });
 
-    return () => {
-      mounted = false;
-    };
-  }, [search, queryStatuses, sortBy, sortDirection]);
+      setPaged(result);
+      setLastUpdated(new Date().toLocaleString());
+    } catch {
+      setListError("Could not load deliveries. Please try again.");
+    } finally {
+      setListLoading(false);
+    }
+  }, [query]);
+
+  useEffect(() => {
+    void fetchList();
+  }, [fetchList]);
+
+  const selectDelivery = async (deliveryId: string) => {
+    setSelectedDeliveryId(deliveryId);
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      const detail =
+        await mockDispatcherDataService.getDeliveryDetails(deliveryId);
+      if (!detail) {
+        setDetailError("Delivery details not found.");
+        setSelectedDetails(null);
+        return;
+      }
+      setSelectedDetails(detail);
+    } catch {
+      setDetailError("Unable to load delivery details.");
+      setSelectedDetails(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const toggleStatus = (status: DeliveryStatus) => {
-    setActiveStatuses((prev) =>
-      prev.includes(status)
-        ? prev.filter((s) => s !== status)
-        : [...prev, status],
-    );
+    setQuery((prev) => ({
+      ...prev,
+      page: 1,
+      statuses: prev.statuses.includes(status)
+        ? prev.statuses.filter((s) => s !== status)
+        : [...prev.statuses, status],
+    }));
   };
 
   const toggleSort = (field: DeliverySortField) => {
-    setSortBy((prevField) => {
-      if (prevField === field) {
-        setSortDirection((prevDirection) =>
-          prevDirection === "asc" ? "desc" : "asc",
-        );
-        return prevField;
+    setQuery((prev) => {
+      if (prev.sortBy === field) {
+        return {
+          ...prev,
+          sortDirection: prev.sortDirection === "asc" ? "desc" : "asc",
+        };
       }
 
-      setSortDirection("asc");
-      return field;
+      return {
+        ...prev,
+        sortBy: field,
+        sortDirection: "asc",
+      };
     });
   };
 
-  const openDetails = async (deliveryId: string) => {
-    if (expandedId === deliveryId) {
-      setExpandedId(null);
-      return;
-    }
-
-    setExpandedId(deliveryId);
-    if (detailsMap[deliveryId]) {
-      return;
-    }
-
-    const details =
-      await mockDispatcherDataService.getDeliveryDetails(deliveryId);
-    if (!details) {
-      return;
-    }
-
-    setDetailsMap((prev) => ({ ...prev, [deliveryId]: details }));
-  };
+  const pageNumbers = useMemo(() => {
+    return Array.from(
+      { length: paged.totalPages },
+      (_, index) => index + 1,
+    ).slice(Math.max(0, paged.page - 3), Math.max(5, paged.page + 2));
+  }, [paged.page, paged.totalPages]);
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
-      <div className="max-w-[1500px] mx-auto px-4 md:px-8 py-6">
+      <div className="max-w-[1700px] mx-auto px-4 md:px-8 py-6">
         <header className="mb-4">
           <h1 className="text-2xl md:text-3xl font-bold">
             Dispatcher Dashboard
@@ -140,152 +185,336 @@ export function DispatcherDashboardPage() {
           <p className="text-sm text-text-secondary mt-1">
             Delivery staging and verification overview
           </p>
+          <p className="text-xs text-text-secondary mt-2">
+            Last updated: {lastUpdated ?? "Loading..."}
+          </p>
         </header>
 
-        <div className="sticky top-0 z-20 bg-bg-primary pb-3">
+        <div className="sticky top-0 z-30 bg-bg-primary pb-3">
           <div className="rounded-xl border border-border bg-bg-card p-3 md:p-4 shadow-lg">
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={query.search}
+              onChange={(e) =>
+                setQuery((prev) => ({
+                  ...prev,
+                  page: 1,
+                  search: e.target.value,
+                }))
+              }
               placeholder="Search by Job #, Job Name, PO #, Order #, Vendor, Staging Location"
               className="w-full rounded-lg border border-border bg-bg-surface px-4 py-3 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-accent"
             />
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {statusOrder.map((status) => {
-                const active = activeStatuses.includes(status);
+            <div className="mt-3 flex flex-wrap gap-2 items-center">
+              {STATUS_ORDER.map((status) => {
+                const active = query.statuses.includes(status);
                 return (
                   <button
                     key={status}
                     onClick={() => toggleStatus(status)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide border transition-colors ${
                       active
-                        ? statusStyles[status]
-                        : "bg-bg-surface text-text-secondary border-border"
+                        ? STATUS_STYLE[status]
+                        : "bg-bg-surface text-text-secondary border-border hover:text-text-primary"
                     }`}
                   >
-                    {statusLabel(status)}
+                    {STATUS_LABEL(status)}
                   </button>
                 );
               })}
+
+              {hasActiveFilters && (
+                <button
+                  onClick={() =>
+                    setQuery((prev) => ({
+                      ...prev,
+                      search: "",
+                      statuses: [],
+                      page: 1,
+                    }))
+                  }
+                  className="ml-auto text-xs px-3 py-1.5 rounded border border-border text-text-secondary hover:text-text-primary"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-border bg-bg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] text-sm">
-              <thead className="bg-bg-secondary text-text-secondary">
-                <tr>
-                  {sortColumns.map((column) => {
-                    const isSorted = column.key && sortBy === column.key;
-                    return (
-                      <th
-                        key={column.label}
-                        className={`px-3 py-3 text-left font-semibold whitespace-nowrap ${column.className ?? ""}`}
-                      >
-                        {column.key ? (
-                          <button
-                            className="inline-flex items-center gap-1 hover:text-text-primary"
-                            onClick={() =>
-                              toggleSort(column.key as DeliverySortField)
-                            }
-                          >
-                            {column.label}
-                            <span className="text-[10px]">
-                              {isSorted
-                                ? sortDirection === "asc"
-                                  ? "▲"
-                                  : "▼"
-                                : "↕"}
-                            </span>
-                          </button>
-                        ) : (
-                          column.label
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-
-              <tbody>
-                {rows.map((row) => (
-                  <Fragment key={row.deliveryId}>
-                    <tr
-                      className="border-t border-border hover:bg-bg-secondary/40 cursor-pointer"
-                      onClick={() => openDetails(row.deliveryId)}
-                    >
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex px-2 py-1 rounded text-[10px] font-semibold tracking-wider ${statusStyles[row.status]}`}
+        <div className="mt-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-4">
+          <section className="rounded-xl border border-border bg-bg-card overflow-hidden min-w-0">
+            <div className="overflow-auto max-h-[70vh]">
+              <table className="w-full min-w-[1200px] text-sm">
+                <thead className="sticky top-0 z-20 bg-bg-secondary text-text-secondary shadow-sm">
+                  <tr>
+                    {SORT_COLUMNS.map((column) => {
+                      const isSorted =
+                        column.key && query.sortBy === column.key;
+                      return (
+                        <th
+                          key={column.label}
+                          className={`px-3 py-3 text-left font-semibold whitespace-nowrap ${column.className ?? ""}`}
                         >
-                          {statusLabel(row.status)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 font-mono">{row.jobNumber}</td>
-                      <td className="px-3 py-2">{row.jobName}</td>
-                      <td className="px-3 py-2 font-mono">
-                        {row.poNumber ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 font-mono">{row.orderNumber}</td>
-                      <td className="px-3 py-2">{row.vendorName}</td>
-                      <td className="px-3 py-2">{row.deliveryDate}</td>
-                      <td className="px-3 py-2 font-mono">
-                        {row.stagingLocationCode ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 font-mono">
-                        {row.itemsReceivedLabel}
-                      </td>
-                      <td className="px-3 py-2">{row.issueSummary || "—"}</td>
-                      <td className="px-3 py-2 text-right">
-                        <button className="text-accent underline text-xs">
-                          View
-                        </button>
-                      </td>
-                    </tr>
+                          {column.key ? (
+                            <button
+                              className="inline-flex items-center gap-1 hover:text-text-primary"
+                              onClick={() =>
+                                toggleSort(column.key as DeliverySortField)
+                              }
+                            >
+                              {column.label}
+                              <span className="text-[10px]">
+                                {isSorted
+                                  ? query.sortDirection === "asc"
+                                    ? "▲"
+                                    : "▼"
+                                  : "↕"}
+                              </span>
+                            </button>
+                          ) : (
+                            column.label
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
 
-                    {expandedId === row.deliveryId && (
-                      <tr className="bg-bg-secondary/30 border-t border-border">
-                        <td colSpan={11} className="p-4">
-                          <DetailPanel details={detailsMap[row.deliveryId]} />
+                <tbody>
+                  {paged.items.map((row) => {
+                    const selected = selectedDeliveryId === row.deliveryId;
+
+                    return (
+                      <tr
+                        key={row.deliveryId}
+                        tabIndex={0}
+                        role="button"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            void selectDelivery(row.deliveryId);
+                          }
+                        }}
+                        onClick={() => void selectDelivery(row.deliveryId)}
+                        className={`border-t border-border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 ${
+                          selected
+                            ? "bg-accent/10"
+                            : "hover:bg-bg-secondary/50 active:bg-bg-secondary/70"
+                        }`}
+                      >
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex px-2 py-1 rounded text-[10px] font-semibold tracking-wider ${STATUS_STYLE[row.status]}`}
+                          >
+                            {STATUS_LABEL(row.status)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 font-mono">{row.jobNumber}</td>
+                        <td className="px-3 py-2">{row.jobName}</td>
+                        <td className="px-3 py-2 font-mono">
+                          {row.poNumber ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 font-mono">
+                          {row.orderNumber}
+                        </td>
+                        <td className="px-3 py-2">{row.vendorName}</td>
+                        <td className="px-3 py-2">{row.deliveryDate}</td>
+                        <td className="px-3 py-2 font-mono">
+                          {row.stagingLocationCode ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 font-mono">
+                          {row.itemsReceivedLabel}
+                        </td>
+                        <td className="px-3 py-2">{row.issueSummary || "—"}</td>
+                        <td className="px-3 py-2 text-right">
+                          <span className="text-accent underline text-xs">
+                            Open
+                          </span>
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
+                    );
+                  })}
+
+                  {!listLoading && !listError && paged.items.length === 0 && (
+                    <tr>
+                      <td colSpan={11} className="p-10 text-center">
+                        <p className="text-text-primary font-medium">
+                          No matching deliveries
+                        </p>
+                        <p className="text-sm text-text-secondary mt-1">
+                          Try adjusting search text or status filters.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border-t border-border p-3 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+              <span>
+                Showing {paged.items.length} of {paged.totalItems}
+              </span>
+
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  onClick={() =>
+                    setQuery((prev) => ({
+                      ...prev,
+                      page: Math.max(1, prev.page - 1),
+                    }))
+                  }
+                  disabled={paged.page <= 1 || listLoading}
+                  className="px-2 py-1 rounded border border-border disabled:opacity-40"
+                >
+                  Prev
+                </button>
+
+                {pageNumbers.map((pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    onClick={() =>
+                      setQuery((prev) => ({ ...prev, page: pageNumber }))
+                    }
+                    className={`px-2 py-1 rounded border ${
+                      pageNumber === paged.page
+                        ? "border-accent text-accent"
+                        : "border-border"
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
                 ))}
 
-                {rows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={11}
-                      className="p-8 text-center text-text-secondary"
-                    >
-                      No deliveries match current search/filters.
-                    </td>
-                  </tr>
+                <button
+                  onClick={() =>
+                    setQuery((prev) => ({
+                      ...prev,
+                      page: Math.min(paged.totalPages, prev.page + 1),
+                    }))
+                  }
+                  disabled={paged.page >= paged.totalPages || listLoading}
+                  className="px-2 py-1 rounded border border-border disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            {(listLoading || listError) && (
+              <div className="border-t border-border px-4 py-3 text-sm">
+                {listLoading && (
+                  <p className="text-text-secondary">Loading deliveries…</p>
                 )}
-              </tbody>
-            </table>
+                {listError && <p className="text-accent-red">{listError}</p>}
+              </div>
+            )}
+          </section>
+
+          <aside className="hidden xl:block rounded-xl border border-border bg-bg-card overflow-hidden">
+            <DesktopDetailDrawer
+              loading={detailLoading}
+              error={detailError}
+              details={selectedDetails}
+              selectedDeliveryId={selectedDeliveryId}
+            />
+          </aside>
+        </div>
+      </div>
+
+      {selectedDeliveryId && (
+        <div
+          className="xl:hidden fixed inset-0 z-50 bg-black/60"
+          onClick={() => setSelectedDeliveryId(null)}
+        >
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-[92vw] bg-bg-card border-l border-border overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-bg-card z-10">
+              <h2 className="font-semibold">Delivery Details</h2>
+              <button
+                className="text-sm border border-border rounded px-2 py-1"
+                onClick={() => setSelectedDeliveryId(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-4">
+              <DetailContent
+                loading={detailLoading}
+                error={detailError}
+                details={selectedDetails}
+              />
+            </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function DesktopDetailDrawer({
+  loading,
+  error,
+  details,
+  selectedDeliveryId,
+}: {
+  loading: boolean;
+  error: string | null;
+  details: DeliveryDetails | null;
+  selectedDeliveryId: string | null;
+}) {
+  return (
+    <div className="h-full max-h-[70vh] overflow-y-auto sticky top-[148px]">
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold">Delivery Details</h2>
+        <p className="text-xs text-text-secondary mt-1">
+          {selectedDeliveryId
+            ? `Selected: ${selectedDeliveryId}`
+            : "Select a row to view details"}
+        </p>
+      </div>
+
+      <div className="p-4">
+        <DetailContent loading={loading} error={error} details={details} />
       </div>
     </div>
   );
 }
 
-function DetailPanel({ details }: { details?: DeliveryDetails }) {
+function DetailContent({
+  loading,
+  error,
+  details,
+}: {
+  loading: boolean;
+  error: string | null;
+  details: DeliveryDetails | null;
+}) {
+  if (loading) {
+    return <p className="text-sm text-text-secondary">Loading detail panel…</p>;
+  }
+
+  if (error) {
+    return <p className="text-sm text-accent-red">{error}</p>;
+  }
+
   if (!details) {
     return (
-      <div className="text-sm text-text-secondary">Loading details...</div>
+      <p className="text-sm text-text-secondary">
+        No delivery selected. Click a row in the table.
+      </p>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 text-sm">
-      <section className="rounded-lg border border-border bg-bg-card p-4">
+    <div className="space-y-4 text-sm">
+      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
         <h3 className="font-semibold mb-2">Delivery + Vendor</h3>
-        <div className="space-y-1 text-text-secondary">
+        <div className="space-y-1 text-text-secondary text-xs">
           <p>
             <span className="text-text-primary font-medium">Order:</span>{" "}
             {details.delivery.orderNumber}
@@ -301,7 +530,7 @@ function DetailPanel({ details }: { details?: DeliveryDetails }) {
           <p>
             <span className="text-text-primary font-medium">Staging:</span>{" "}
             {details.stagingLocation?.code ?? "—"}{" "}
-            {details.stagingLocation?.label}
+            {details.stagingLocation?.label ?? ""}
           </p>
           <p>
             <span className="text-text-primary font-medium">Notes:</span>{" "}
@@ -314,57 +543,42 @@ function DetailPanel({ details }: { details?: DeliveryDetails }) {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-bg-card p-4 xl:col-span-2">
+      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
         <h3 className="font-semibold mb-2">Items</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[650px] text-xs">
-            <thead className="text-text-secondary">
-              <tr>
-                <th className="text-left py-1">Description</th>
-                <th className="text-left py-1">SKU</th>
-                <th className="text-left py-1">Ordered</th>
-                <th className="text-left py-1">Received</th>
-                <th className="text-left py-1">Missing</th>
-                <th className="text-left py-1">Damaged</th>
-                <th className="text-left py-1">Backordered</th>
-                <th className="text-left py-1">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {details.items.map((item) => (
-                <tr key={item.id} className="border-t border-border/70">
-                  <td className="py-1.5 text-text-primary">
-                    {item.description}
-                  </td>
-                  <td className="py-1.5 font-mono">{item.sku ?? "—"}</td>
-                  <td className="py-1.5 font-mono">{item.qtyOrdered}</td>
-                  <td className="py-1.5 font-mono">{item.qtyReceived}</td>
-                  <td className="py-1.5 font-mono">{item.qtyMissing}</td>
-                  <td className="py-1.5 font-mono">{item.qtyDamaged}</td>
-                  <td className="py-1.5 font-mono">{item.qtyBackordered}</td>
-                  <td className="py-1.5 uppercase">{item.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2 text-xs">
+          {details.items.map((item) => (
+            <div key={item.id} className="border border-border rounded p-2">
+              <p className="text-text-primary font-medium">
+                {item.description}
+              </p>
+              <p className="text-text-secondary">
+                SKU: {item.sku ?? "—"} · Ordered {item.qtyOrdered} · Received{" "}
+                {item.qtyReceived}
+              </p>
+              <p className="text-text-secondary">
+                Missing {item.qtyMissing} · Damaged {item.qtyDamaged} ·
+                Backordered {item.qtyBackordered}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-bg-card p-4">
+      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
         <h3 className="font-semibold mb-2">Status History</h3>
         <ul className="space-y-2 text-xs text-text-secondary">
           {details.statusHistory.length ? (
             details.statusHistory.map((event) => (
-              <li key={event.id} className="border-l-2 border-border pl-3">
+              <li key={event.id} className="border-l-2 border-border pl-2">
                 <p className="text-text-primary">
                   {event.entityType} → {event.toStatus}
                 </p>
-                <p>{event.reason ?? "No reason provided"}</p>
                 <p>
                   {event.actorType}
                   {event.actorName ? ` (${event.actorName})` : ""} ·{" "}
                   {event.createdAt}
                 </p>
+                <p>{event.reason ?? "No reason provided"}</p>
               </li>
             ))
           ) : (
@@ -373,13 +587,13 @@ function DetailPanel({ details }: { details?: DeliveryDetails }) {
         </ul>
       </section>
 
-      <section className="rounded-lg border border-border bg-bg-card p-4 xl:col-span-2">
+      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
         <h3 className="font-semibold mb-2">Pickup Events</h3>
         <ul className="space-y-2 text-xs text-text-secondary">
           {details.pickupEvents.length ? (
             details.pickupEvents.map((pickup) => (
               <li key={pickup.id} className="border border-border rounded p-2">
-                <p className="text-text-primary font-medium">
+                <p className="text-text-primary">
                   {pickup.technicianName} · {pickup.pickedUpAt}
                 </p>
                 <p>{pickup.itemsPickedSummary}</p>
