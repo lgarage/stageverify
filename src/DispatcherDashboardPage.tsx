@@ -19,14 +19,12 @@ const STATUS_ORDER: DeliveryStatus[] = [
 ];
 
 const STATUS_STYLE: Record<DeliveryStatus, string> = {
-  pending: "bg-accent-amber/15 text-accent-amber border border-accent-amber/40",
-  arrived: "bg-accent/15 text-accent border border-accent/40",
-  partial:
-    "bg-accent-purple/15 text-accent-purple border border-accent-purple/40",
-  complete:
-    "bg-accent-green/15 text-accent-green border border-accent-green/40",
-  issue: "bg-accent-red/15 text-accent-red border border-accent-red/40",
-  picked_up: "bg-bg-surface text-text-primary border border-border",
+  pending: "bg-white border border-gray-300 text-gray-700 shadow-sm",
+  arrived: "bg-blue-50 border border-blue-200 text-blue-700 shadow-sm",
+  partial: "bg-purple-50 border border-purple-200 text-purple-700 shadow-sm",
+  complete: "bg-green-50 border border-green-200 text-green-700 shadow-sm",
+  issue: "bg-red-50 border border-red-200 text-red-700 shadow-sm",
+  picked_up: "bg-gray-100 border border-gray-200 text-gray-600 shadow-sm",
 };
 
 type ListQueryState = {
@@ -93,9 +91,6 @@ export function DispatcherDashboardPage() {
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
   const fetchList = useCallback(async () => {
-    setListLoading(true);
-    setListError(null);
-
     try {
       const result = await mockDispatcherDataService.listDeliveries({
         search: query.search,
@@ -108,6 +103,7 @@ export function DispatcherDashboardPage() {
 
       setPaged(result);
       setLastUpdated(new Date().toLocaleString());
+      setListError(null);
     } catch {
       setListError("Could not load deliveries. Please try again.");
     } finally {
@@ -116,7 +112,17 @@ export function DispatcherDashboardPage() {
   }, [query]);
 
   useEffect(() => {
-    void fetchList();
+    let mounted = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (!mounted) return;
+      setListLoading(true);
+      await fetchList();
+    };
+    void run();
+    return () => {
+      mounted = false;
+    };
   }, [fetchList]);
 
   const selectDelivery = async (deliveryId: string) => {
@@ -176,77 +182,91 @@ export function DispatcherDashboardPage() {
   }, [paged.page, paged.totalPages]);
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary">
-      <div className="max-w-[1700px] mx-auto px-4 md:px-8 py-6">
-        <header className="mb-4">
-          <h1 className="text-2xl md:text-3xl font-bold">
-            Dispatcher Dashboard
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Delivery staging and verification overview
-          </p>
-          <p className="text-xs text-text-secondary mt-2">
-            Last updated: {lastUpdated ?? "Loading..."}
-          </p>
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      <div className="max-w-[1700px] mx-auto px-4 md:px-8 py-8">
+        <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-[#0f294d]">
+              StageVerify Dashboard
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Delivery staging and verification overview
+            </p>
+          </div>
+          <div className="text-sm text-gray-500 bg-white px-4 py-2 rounded-md border border-gray-200 shadow-sm">
+            Last updated:{" "}
+            <span className="font-medium text-gray-700">
+              {lastUpdated ?? "Loading..."}
+            </span>
+          </div>
         </header>
 
-        <div className="sticky top-0 z-30 bg-bg-primary pb-3">
-          <div className="rounded-xl border border-border bg-bg-card p-3 md:p-4 shadow-lg">
-            <input
-              value={query.search}
-              onChange={(e) =>
-                setQuery((prev) => ({
-                  ...prev,
-                  page: 1,
-                  search: e.target.value,
-                }))
-              }
-              placeholder="Search by Job #, Job Name, PO #, Order #, Vendor, Staging Location"
-              className="w-full rounded-lg border border-border bg-bg-surface px-4 py-3 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-accent"
-            />
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 p-4 md:p-5">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Search
+              </label>
+              <input
+                value={query.search}
+                onChange={(e) =>
+                  setQuery((prev) => ({
+                    ...prev,
+                    page: 1,
+                    search: e.target.value,
+                  }))
+                }
+                placeholder="Job #, Job Name, PO #, Order #, Vendor, Staging Location..."
+                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Filter by Status
+              </label>
+              <div className="flex flex-wrap gap-2 items-center">
+                {STATUS_ORDER.map((status) => {
+                  const active = query.statuses.includes(status);
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => toggleStatus(status)}
+                      className={`px-3 py-2 rounded-md text-xs font-semibold tracking-wide transition-colors ${
+                        active
+                          ? STATUS_STYLE[status]
+                          : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      {STATUS_LABEL(status)}
+                    </button>
+                  );
+                })}
 
-            <div className="mt-3 flex flex-wrap gap-2 items-center">
-              {STATUS_ORDER.map((status) => {
-                const active = query.statuses.includes(status);
-                return (
+                {hasActiveFilters && (
                   <button
-                    key={status}
-                    onClick={() => toggleStatus(status)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide border transition-colors ${
-                      active
-                        ? STATUS_STYLE[status]
-                        : "bg-bg-surface text-text-secondary border-border hover:text-text-primary"
-                    }`}
+                    onClick={() =>
+                      setQuery((prev) => ({
+                        ...prev,
+                        search: "",
+                        statuses: [],
+                        page: 1,
+                      }))
+                    }
+                    className="ml-2 text-xs px-3 py-2 rounded-md border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    {STATUS_LABEL(status)}
+                    Clear Filters
                   </button>
-                );
-              })}
-
-              {hasActiveFilters && (
-                <button
-                  onClick={() =>
-                    setQuery((prev) => ({
-                      ...prev,
-                      search: "",
-                      statuses: [],
-                      page: 1,
-                    }))
-                  }
-                  className="ml-auto text-xs px-3 py-1.5 rounded border border-border text-text-secondary hover:text-text-primary"
-                >
-                  Clear Filters
-                </button>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-4">
-          <section className="rounded-xl border border-border bg-bg-card overflow-hidden min-w-0">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_450px] gap-6">
+          <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0 flex flex-col">
             <div className="overflow-auto max-h-[70vh]">
-              <table className="w-full min-w-[1200px] text-sm">
-                <thead className="sticky top-0 z-20 bg-bg-secondary text-text-secondary shadow-sm">
+              <table className="w-full min-w-[1200px] text-sm text-left border-collapse">
+                <thead className="sticky top-0 z-20 bg-[#0f294d] text-white shadow-sm">
                   <tr>
                     {SORT_COLUMNS.map((column) => {
                       const isSorted =
@@ -254,17 +274,17 @@ export function DispatcherDashboardPage() {
                       return (
                         <th
                           key={column.label}
-                          className={`px-3 py-3 text-left font-semibold whitespace-nowrap ${column.className ?? ""}`}
+                          className={`px-4 py-3.5 font-semibold whitespace-nowrap ${column.className ?? ""}`}
                         >
                           {column.key ? (
                             <button
-                              className="inline-flex items-center gap-1 hover:text-text-primary"
+                              className="inline-flex items-center gap-1.5 hover:text-blue-200 transition-colors focus:outline-none"
                               onClick={() =>
                                 toggleSort(column.key as DeliverySortField)
                               }
                             >
                               {column.label}
-                              <span className="text-[10px]">
+                              <span className="text-[10px] opacity-70">
                                 {isSorted
                                   ? query.sortDirection === "asc"
                                     ? "▲"
@@ -281,7 +301,7 @@ export function DispatcherDashboardPage() {
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {paged.items.map((row) => {
                     const selected = selectedDeliveryId === row.deliveryId;
 
@@ -297,40 +317,48 @@ export function DispatcherDashboardPage() {
                           }
                         }}
                         onClick={() => void selectDelivery(row.deliveryId)}
-                        className={`border-t border-border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 ${
-                          selected
-                            ? "bg-accent/10"
-                            : "hover:bg-bg-secondary/50 active:bg-bg-secondary/70"
+                        className={`cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-blue-50 ${
+                          selected ? "bg-blue-50" : "hover:bg-gray-50"
                         }`}
                       >
-                        <td className="px-3 py-2">
+                        <td className="px-4 py-3.5">
                           <span
-                            className={`inline-flex px-2 py-1 rounded text-[10px] font-semibold tracking-wider ${STATUS_STYLE[row.status]}`}
+                            className={`inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider ${STATUS_STYLE[row.status]}`}
                           >
                             {STATUS_LABEL(row.status)}
                           </span>
                         </td>
-                        <td className="px-3 py-2 font-mono">{row.jobNumber}</td>
-                        <td className="px-3 py-2">{row.jobName}</td>
-                        <td className="px-3 py-2 font-mono">
+                        <td className="px-4 py-3.5 font-mono text-gray-600">
+                          {row.jobNumber}
+                        </td>
+                        <td className="px-4 py-3.5 font-medium text-gray-900">
+                          {row.jobName}
+                        </td>
+                        <td className="px-4 py-3.5 font-mono text-gray-600">
                           {row.poNumber ?? "—"}
                         </td>
-                        <td className="px-3 py-2 font-mono">
+                        <td className="px-4 py-3.5 font-mono text-gray-600">
                           {row.orderNumber}
                         </td>
-                        <td className="px-3 py-2">{row.vendorName}</td>
-                        <td className="px-3 py-2">{row.deliveryDate}</td>
-                        <td className="px-3 py-2 font-mono">
+                        <td className="px-4 py-3.5 text-gray-700">
+                          {row.vendorName}
+                        </td>
+                        <td className="px-4 py-3.5 text-gray-700">
+                          {row.deliveryDate}
+                        </td>
+                        <td className="px-4 py-3.5 font-mono text-gray-600">
                           {row.stagingLocationCode ?? "—"}
                         </td>
-                        <td className="px-3 py-2 font-mono">
+                        <td className="px-4 py-3.5 font-mono text-gray-600">
                           {row.itemsReceivedLabel}
                         </td>
-                        <td className="px-3 py-2">{row.issueSummary || "—"}</td>
-                        <td className="px-3 py-2 text-right">
-                          <span className="text-accent underline text-xs">
-                            Open
-                          </span>
+                        <td className="px-4 py-3.5 text-gray-700">
+                          {row.issueSummary || "—"}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                            View
+                          </button>
                         </td>
                       </tr>
                     );
@@ -338,11 +366,11 @@ export function DispatcherDashboardPage() {
 
                   {!listLoading && !listError && paged.items.length === 0 && (
                     <tr>
-                      <td colSpan={11} className="p-10 text-center">
-                        <p className="text-text-primary font-medium">
+                      <td colSpan={11} className="p-12 text-center">
+                        <p className="text-gray-900 font-medium text-lg">
                           No matching deliveries
                         </p>
-                        <p className="text-sm text-text-secondary mt-1">
+                        <p className="text-sm text-gray-500 mt-1">
                           Try adjusting search text or status filters.
                         </p>
                       </td>
@@ -352,12 +380,19 @@ export function DispatcherDashboardPage() {
               </table>
             </div>
 
-            <div className="border-t border-border p-3 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+            <div className="border-t border-gray-200 bg-gray-50 p-4 flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-auto">
               <span>
-                Showing {paged.items.length} of {paged.totalItems}
+                Showing{" "}
+                <span className="font-medium text-gray-900">
+                  {paged.items.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium text-gray-900">
+                  {paged.totalItems}
+                </span>
               </span>
 
-              <div className="ml-auto flex items-center gap-1">
+              <div className="ml-auto flex items-center gap-1.5">
                 <button
                   onClick={() =>
                     setQuery((prev) => ({
@@ -366,7 +401,7 @@ export function DispatcherDashboardPage() {
                     }))
                   }
                   disabled={paged.page <= 1 || listLoading}
-                  className="px-2 py-1 rounded border border-border disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors font-medium"
                 >
                   Prev
                 </button>
@@ -377,10 +412,10 @@ export function DispatcherDashboardPage() {
                     onClick={() =>
                       setQuery((prev) => ({ ...prev, page: pageNumber }))
                     }
-                    className={`px-2 py-1 rounded border ${
+                    className={`px-3 py-1.5 rounded-md border font-medium transition-colors ${
                       pageNumber === paged.page
-                        ? "border-accent text-accent"
-                        : "border-border"
+                        ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : "border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
                     }`}
                   >
                     {pageNumber}
@@ -395,7 +430,7 @@ export function DispatcherDashboardPage() {
                     }))
                   }
                   disabled={paged.page >= paged.totalPages || listLoading}
-                  className="px-2 py-1 rounded border border-border disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors font-medium"
                 >
                   Next
                 </button>
@@ -403,16 +438,16 @@ export function DispatcherDashboardPage() {
             </div>
 
             {(listLoading || listError) && (
-              <div className="border-t border-border px-4 py-3 text-sm">
+              <div className="border-t border-gray-200 bg-white px-4 py-3 text-sm">
                 {listLoading && (
-                  <p className="text-text-secondary">Loading deliveries…</p>
+                  <p className="text-gray-500">Loading deliveries…</p>
                 )}
-                {listError && <p className="text-accent-red">{listError}</p>}
+                {listError && <p className="text-red-600">{listError}</p>}
               </div>
             )}
           </section>
 
-          <aside className="hidden xl:block rounded-xl border border-border bg-bg-card overflow-hidden">
+          <aside className="hidden xl:block rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <DesktopDetailDrawer
               loading={detailLoading}
               error={detailError}
@@ -425,24 +460,26 @@ export function DispatcherDashboardPage() {
 
       {selectedDeliveryId && (
         <div
-          className="xl:hidden fixed inset-0 z-50 bg-black/60"
+          className="xl:hidden fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-sm"
           onClick={() => setSelectedDeliveryId(null)}
         >
           <div
-            className="absolute right-0 top-0 h-full w-full max-w-[92vw] bg-bg-card border-l border-border overflow-y-auto"
+            className="absolute right-0 top-0 h-full w-full max-w-[92vw] sm:max-w-md bg-white border-l border-gray-200 shadow-2xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-bg-card z-10">
-              <h2 className="font-semibold">Delivery Details</h2>
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-bold text-gray-900">
+                Delivery Details
+              </h2>
               <button
-                className="text-sm border border-border rounded px-2 py-1"
+                className="text-sm font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md px-3 py-1.5 transition-colors"
                 onClick={() => setSelectedDeliveryId(null)}
               >
                 Close
               </button>
             </div>
 
-            <div className="p-4">
+            <div className="p-5">
               <DetailContent
                 loading={detailLoading}
                 error={detailError}
@@ -468,17 +505,17 @@ function DesktopDetailDrawer({
   selectedDeliveryId: string | null;
 }) {
   return (
-    <div className="h-full max-h-[70vh] overflow-y-auto sticky top-[148px]">
-      <div className="p-4 border-b border-border">
-        <h2 className="font-semibold">Delivery Details</h2>
-        <p className="text-xs text-text-secondary mt-1">
+    <div className="h-full max-h-[70vh] overflow-y-auto sticky top-[148px] flex flex-col">
+      <div className="p-5 border-b border-gray-200 bg-gray-50">
+        <h2 className="text-lg font-bold text-gray-900">Delivery Details</h2>
+        <p className="text-sm text-gray-500 mt-1">
           {selectedDeliveryId
             ? `Selected: ${selectedDeliveryId}`
             : "Select a row to view details"}
         </p>
       </div>
 
-      <div className="p-4">
+      <div className="p-5 flex-1">
         <DetailContent loading={loading} error={error} details={details} />
       </div>
     </div>
@@ -495,115 +532,198 @@ function DetailContent({
   details: DeliveryDetails | null;
 }) {
   if (loading) {
-    return <p className="text-sm text-text-secondary">Loading detail panel…</p>;
+    return <p className="text-sm text-gray-500">Loading detail panel…</p>;
   }
 
   if (error) {
-    return <p className="text-sm text-accent-red">{error}</p>;
+    return <p className="text-sm text-red-600">{error}</p>;
   }
 
   if (!details) {
     return (
-      <p className="text-sm text-text-secondary">
-        No delivery selected. Click a row in the table.
-      </p>
+      <div className="flex flex-col items-center justify-center h-48 text-center">
+        <svg
+          className="w-12 h-12 text-gray-300 mb-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+          />
+        </svg>
+        <p className="text-sm text-gray-500">
+          No delivery selected.
+          <br />
+          Click a row in the table to view details.
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4 text-sm">
-      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
-        <h3 className="font-semibold mb-2">Delivery + Vendor</h3>
-        <div className="space-y-1 text-text-secondary text-xs">
-          <p>
-            <span className="text-text-primary font-medium">Order:</span>{" "}
-            {details.delivery.orderNumber}
+    <div className="space-y-6 text-sm">
+      <section>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+          Delivery & Vendor
+        </h3>
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 space-y-2 text-gray-600">
+          <p className="flex justify-between">
+            <span className="font-medium text-gray-900">Order:</span>
+            <span className="font-mono">{details.delivery.orderNumber}</span>
           </p>
-          <p>
-            <span className="text-text-primary font-medium">Vendor:</span>{" "}
-            {details.vendor.name}
+          <p className="flex justify-between">
+            <span className="font-medium text-gray-900">Vendor:</span>
+            <span>{details.vendor.name}</span>
           </p>
-          <p>
-            <span className="text-text-primary font-medium">PO:</span>{" "}
-            {details.purchaseOrder?.poNumber ?? "—"}
+          <p className="flex justify-between">
+            <span className="font-medium text-gray-900">PO:</span>
+            <span className="font-mono">
+              {details.purchaseOrder?.poNumber ?? "—"}
+            </span>
           </p>
-          <p>
-            <span className="text-text-primary font-medium">Staging:</span>{" "}
-            {details.stagingLocation?.code ?? "—"}{" "}
-            {details.stagingLocation?.label ?? ""}
+          <p className="flex justify-between">
+            <span className="font-medium text-gray-900">Staging:</span>
+            <span className="font-mono">
+              {details.stagingLocation?.code ?? "—"}{" "}
+              <span className="text-gray-500 font-sans text-xs ml-1">
+                {details.stagingLocation?.label ?? ""}
+              </span>
+            </span>
           </p>
-          <p>
-            <span className="text-text-primary font-medium">Notes:</span>{" "}
-            {details.delivery.notes || "—"}
-          </p>
-          <p>
-            <span className="text-text-primary font-medium">Issue:</span>{" "}
-            {details.delivery.issueSummary || "—"}
-          </p>
+          <div className="pt-2 mt-2 border-t border-gray-200">
+            <p className="font-medium text-gray-900 mb-1">Notes:</p>
+            <p className="text-gray-700 bg-white p-2 rounded border border-gray-200">
+              {details.delivery.notes || "—"}
+            </p>
+          </div>
+          <div className="pt-2">
+            <p className="font-medium text-gray-900 mb-1">Issue:</p>
+            <p className="text-red-700 bg-red-50 p-2 rounded border border-red-100">
+              {details.delivery.issueSummary || "—"}
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
-        <h3 className="font-semibold mb-2">Items</h3>
-        <div className="space-y-2 text-xs">
+      <section>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+          Items
+        </h3>
+        <div className="space-y-3">
           {details.items.map((item) => (
-            <div key={item.id} className="border border-border rounded p-2">
-              <p className="text-text-primary font-medium">
-                {item.description}
+            <div
+              key={item.id}
+              className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <p className="font-bold text-gray-900">{item.description}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+                  {item.status}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">
+                SKU:{" "}
+                <span className="font-mono text-gray-700">
+                  {item.sku ?? "—"}
+                </span>
               </p>
-              <p className="text-text-secondary">
-                SKU: {item.sku ?? "—"} · Ordered {item.qtyOrdered} · Received{" "}
-                {item.qtyReceived}
-              </p>
-              <p className="text-text-secondary">
-                Missing {item.qtyMissing} · Damaged {item.qtyDamaged} ·
-                Backordered {item.qtyBackordered}
-              </p>
+              <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                <div className="bg-gray-50 rounded p-1.5 border border-gray-100">
+                  <div className="text-gray-500 mb-0.5">Ordered</div>
+                  <div className="font-mono font-medium text-gray-900">
+                    {item.qtyOrdered}
+                  </div>
+                </div>
+                <div className="bg-blue-50 rounded p-1.5 border border-blue-100">
+                  <div className="text-blue-600 mb-0.5">Received</div>
+                  <div className="font-mono font-medium text-blue-700">
+                    {item.qtyReceived}
+                  </div>
+                </div>
+                <div className="bg-red-50 rounded p-1.5 border border-red-100">
+                  <div className="text-red-600 mb-0.5">Missing</div>
+                  <div className="font-mono font-medium text-red-700">
+                    {item.qtyMissing}
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
-        <h3 className="font-semibold mb-2">Status History</h3>
-        <ul className="space-y-2 text-xs text-text-secondary">
+      <section>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+          Status History
+        </h3>
+        <div className="relative border-l-2 border-gray-200 ml-3 space-y-4 pb-2">
           {details.statusHistory.length ? (
             details.statusHistory.map((event) => (
-              <li key={event.id} className="border-l-2 border-border pl-2">
-                <p className="text-text-primary">
-                  {event.entityType} → {event.toStatus}
+              <div key={event.id} className="relative pl-4">
+                <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-2 border-blue-500"></div>
+                <p className="text-sm font-medium text-gray-900">
+                  {event.entityType} &rarr;{" "}
+                  <span className="uppercase text-xs tracking-wider">
+                    {event.toStatus}
+                  </span>
                 </p>
-                <p>
+                <p className="text-xs text-gray-500 mt-0.5">
                   {event.actorType}
-                  {event.actorName ? ` (${event.actorName})` : ""} ·{" "}
-                  {event.createdAt}
+                  {event.actorName ? ` (${event.actorName})` : ""} &middot;{" "}
+                  {new Date(event.createdAt).toLocaleString()}
                 </p>
-                <p>{event.reason ?? "No reason provided"}</p>
-              </li>
+                {event.reason && (
+                  <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
+                    {event.reason}
+                  </p>
+                )}
+              </div>
             ))
           ) : (
-            <li>No status history found.</li>
+            <p className="pl-4 text-gray-500 text-sm">
+              No status history found.
+            </p>
           )}
-        </ul>
+        </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-bg-secondary/30 p-3">
-        <h3 className="font-semibold mb-2">Pickup Events</h3>
-        <ul className="space-y-2 text-xs text-text-secondary">
+      <section>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+          Pickup Events
+        </h3>
+        <div className="space-y-3">
           {details.pickupEvents.length ? (
             details.pickupEvents.map((pickup) => (
-              <li key={pickup.id} className="border border-border rounded p-2">
-                <p className="text-text-primary">
-                  {pickup.technicianName} · {pickup.pickedUpAt}
+              <div
+                key={pickup.id}
+                className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm"
+              >
+                <p className="font-medium text-gray-900">
+                  {pickup.technicianName}
                 </p>
-                <p>{pickup.itemsPickedSummary}</p>
-                <p>{pickup.notes ?? "No notes"}</p>
-              </li>
+                <p className="text-xs text-gray-500 mb-2">
+                  {new Date(pickup.pickedUpAt).toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 mb-2">
+                  {pickup.itemsPickedSummary}
+                </p>
+                {pickup.notes && (
+                  <p className="text-xs text-gray-600 italic">
+                    Note: {pickup.notes}
+                  </p>
+                )}
+              </div>
             ))
           ) : (
-            <li>No pickup events recorded yet.</li>
+            <p className="text-gray-500 text-sm italic">
+              No pickup events recorded yet.
+            </p>
           )}
-        </ul>
+        </div>
       </section>
     </div>
   );
