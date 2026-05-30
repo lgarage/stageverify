@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App";
 import { CheckInPage } from "./CheckInPage";
 import { EntryDisplayPage } from "./EntryDisplayPage";
+import { DispatcherDashboardPage } from "./DispatcherDashboardPage";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -13,6 +14,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/*" element={<App />} />
         <Route path="/checkin/:orderId" element={<CheckInPage />} />
         <Route path="/display" element={<EntryDisplayPage />} />
+        <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
       </Routes>
     </HashRouter>
   </StrictMode>,
