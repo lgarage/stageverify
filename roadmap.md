@@ -161,6 +161,8 @@ CREATE DELIVERY WORKFLOW
 
 This unlocks the entire StageVerify lifecycle and provides the greatest business value relative to implementation effort.
 
+---
+
 StageVerify: Minimum Viable Workflow — End-to-End Gap Analysis
 The complete lifecycle has 4 phases and 12 discrete steps. Below is each step with its current implementation status, every missing screen, every missing button, every missing API endpoint, and every data model gap.
 
