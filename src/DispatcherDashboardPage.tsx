@@ -2471,6 +2471,8 @@ function StatusActionPanel({
               borderRadius: 6,
               fontSize: 14,
               fontFamily: font,
+              color: "#111",
+              backgroundColor: "#fff",
               outline: "none",
               marginBottom: 8,
             }}
