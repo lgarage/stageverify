@@ -1,5 +1,6 @@
 import { mockOrders, stagingZones, zoneNamingReference } from "./mockData";
 import type { OrderStatus } from "./types";
+import { useEffect, useState } from "react";
 
 /* ── Status helpers ── */
 const statusColor = (status: OrderStatus): string => {
@@ -21,7 +22,17 @@ const zoneDescription = (zoneId: string): string => {
 
 /* ── Component ── */
 export function EntryDisplayPage() {
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const activeZones = stagingZones.filter((z) => z.currentOrderId !== null);
+
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      setCurrentTime(new Date());
+    };
+
+    const intervalId = window.setInterval(updateCurrentTime, 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col">
@@ -37,14 +48,14 @@ export function EntryDisplayPage() {
         </div>
         <div className="text-right">
           <p className="text-xl font-light font-mono text-text-primary">
-            {new Date().toLocaleDateString("en-US", {
+            {currentTime.toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
               day: "numeric",
             })}
           </p>
           <p className="text-sm text-text-secondary mt-1 font-mono">
-            {new Date().toLocaleTimeString("en-US", {
+            {currentTime.toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
             })}

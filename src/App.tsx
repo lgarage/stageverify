@@ -45,10 +45,12 @@ function ScanScreen() {
   const [showSpaceModal, setShowSpaceModal] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [scanError] = useState<string | null>(null);
 
   const handleOrderFound = (o: Order) => {
     setIsScanning(false);
+    setNotFoundCode(null);
     setOrder(o);
     setItems(
       o.items.map((it) => ({
@@ -62,6 +64,7 @@ function ScanScreen() {
   };
 
   const handleManualScan = () => {
+    setNotFoundCode(null);
     handleOrderFound(mockOrders[0]);
   };
 
@@ -95,7 +98,8 @@ function ScanScreen() {
               if (foundOrder) {
                 handleOrderFound(foundOrder);
               } else {
-                handleOrderFound(mockOrders[0]);
+                setIsScanning(false);
+                setNotFoundCode(decodedText);
               }
             },
             () => {
@@ -192,6 +196,7 @@ function ScanScreen() {
   const handleReset = () => {
     setOrder(null);
     setItems([]);
+    setNotFoundCode(null);
     setStep("scan");
   };
 
@@ -307,6 +312,13 @@ function ScanScreen() {
             Scan the QR code on your packing slip or staging zone.
           </p>
         </div>
+
+        {notFoundCode && (
+          <div className="mb-6 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red">
+            <p className="font-medium">No delivery found for this code.</p>
+            <p className="mt-1 text-sm break-all">{notFoundCode}</p>
+          </div>
+        )}
 
         <div
           onClick={() => setIsScanning(true)}
