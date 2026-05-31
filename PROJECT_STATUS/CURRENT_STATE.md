@@ -4,8 +4,8 @@
 > Overflow → migrate into PROJECT_STATUS/archives/. Read protocol: agent-ops skill §1.
 
 ## Snapshot
-- Active Phase: Create Delivery Workflow
-- Last shipped: PO Number persistence fix in CreateDeliveryModal (commit 0f04b83)
+- Active Phase: Dispatcher delivery drawer updates
+- Last shipped: PO Number edit field in delivery detail drawer
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4 (CSS-first, no config), html5-qrcode 2.3.8. Deploy: GitHub Pages (gh-pages) → https://lgarage.github.io/stageverify
 - Data: in-memory mocks (src/mockData.ts, src/dispatcher/mockData.ts). Backend: NONE yet (Firebase/Supabase under consideration).
 - Models: src/dispatcher/models.ts (canonical). src/types.ts = legacy, targeted for deletion.
@@ -14,7 +14,7 @@
 None.
 
 ## Immediate Next Step
-Verify new deliveries show a PO # when PO Number is entered, then move to Priority 2: Vendor Check-In Integration.
+Verify the delivery drawer PO editor updates the table PO # column, then move to Priority 2: Vendor Check-In Integration.
 
 ## Agent-ops reference
 - Away-list tasks: `PROJECT_STATUS/away-list.json` (run status: `away-status.json`)

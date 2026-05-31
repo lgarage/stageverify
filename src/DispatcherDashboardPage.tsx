@@ -297,6 +297,33 @@ export function DispatcherDashboardPage() {
     }
   };
 
+  const handleUpdatePurchaseOrder = async (
+    poNumber: string,
+  ): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await mockDispatcherDataService.updatePurchaseOrder(
+        selectedDeliveryId,
+        poNumber,
+      );
+      if (updated) {
+        setSelectedDetails(updated);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to update purchase order.");
+      }
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while updating purchase order.",
+      );
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   /* ── Detail drawer ── */
   const handleUpdateStatus = async (
     toStatus: DeliveryStatus,
@@ -1591,6 +1618,7 @@ export function DispatcherDashboardPage() {
                 onUpdateStatus={handleUpdateStatus}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
+                onUpdatePurchaseOrder={handleUpdatePurchaseOrder}
               />
             </div>
           </div>
@@ -1660,6 +1688,7 @@ function DetailContent({
   onUpdateStatus,
   stagingLocations,
   onUpdateStagingLocation,
+  onUpdatePurchaseOrder,
 }: {
   loading: boolean;
   error: string | null;
@@ -1671,6 +1700,7 @@ function DetailContent({
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
+  onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
 }) {
   if (loading) {
     return (
@@ -1731,6 +1761,7 @@ function DetailContent({
         error={mutationError}
         onUpdateStatus={onUpdateStatus}
         onUpdateStagingLocation={onUpdateStagingLocation}
+        onUpdatePurchaseOrder={onUpdatePurchaseOrder}
         stagingLocations={stagingLocations}
         navy={navy}
         font={font}
@@ -2243,6 +2274,7 @@ function StatusActionPanel({
   error,
   onUpdateStatus,
   onUpdateStagingLocation,
+  onUpdatePurchaseOrder,
   stagingLocations,
   navy,
   font,
@@ -2252,6 +2284,7 @@ function StatusActionPanel({
   error: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
+  onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   stagingLocations: StagingLocation[];
   navy: string;
   font: string;
@@ -2261,7 +2294,18 @@ function StatusActionPanel({
   const [pendingLocationId, setPendingLocationId] = useState<string>(
     details.stagingLocation?.id ?? "",
   );
+  const [pendingPoNumber, setPendingPoNumber] = useState(
+    details.purchaseOrder?.poNumber ?? "",
+  );
   const isDirty = pendingLocationId !== (details.stagingLocation?.id ?? "");
+  const originalPoNumber = details.purchaseOrder?.poNumber ?? "";
+  const isPoDirty =
+    pendingPoNumber.trim() !== originalPoNumber.trim();
+
+  useEffect(() => {
+    setPendingLocationId(details.stagingLocation?.id ?? "");
+    setPendingPoNumber(details.purchaseOrder?.poNumber ?? "");
+  }, [details.purchaseOrder?.poNumber, details.stagingLocation?.id, details.delivery.id]);
 
   const currentStatus = details.delivery.status;
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
@@ -2516,6 +2560,59 @@ function StatusActionPanel({
             }}
           >
             {loading ? "Saving…" : "Assign"}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <h3
+          style={{
+            margin: "0 0 8px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#9ca3af",
+            textTransform: "uppercase",
+            letterSpacing: "0.10em",
+          }}
+        >
+          PO Number
+        </h3>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            value={pendingPoNumber}
+            onChange={(e) => setPendingPoNumber(e.target.value)}
+            disabled={loading}
+            placeholder="Enter PO number"
+            style={{
+              flex: 1,
+              padding: "7px 10px",
+              border: isPoDirty ? `1.5px solid ${navy}` : "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 13,
+              fontFamily: font,
+              color: "#333",
+              backgroundColor: loading ? "#f9fafb" : "#fff",
+              outline: "none",
+            }}
+          />
+          <button
+            onClick={() => void onUpdatePurchaseOrder(pendingPoNumber)}
+            disabled={loading || !isPoDirty}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: loading || !isPoDirty ? "not-allowed" : "pointer",
+              backgroundColor: loading || !isPoDirty ? "#f3f4f6" : navy,
+              color: loading || !isPoDirty ? "#9ca3af" : "#fff",
+              border: `1.5px solid ${loading || !isPoDirty ? "#d1d5db" : navy}`,
+              transition: "all 0.13s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {loading ? "Saving…" : "Save PO"}
           </button>
         </div>
       </div>

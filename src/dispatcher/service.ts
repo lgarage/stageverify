@@ -60,4 +60,8 @@ export interface DispatcherDataService {
     deliveryId: string,
     stagingLocationId: string | null,
   ): Promise<DeliveryDetails | null>;
+  updatePurchaseOrder(
+    deliveryId: string,
+    poNumber: string,
+  ): Promise<DeliveryDetails | null>;
 }

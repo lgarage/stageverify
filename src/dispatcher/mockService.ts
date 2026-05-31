@@ -357,6 +357,42 @@ export class MockDispatcherDataService implements DispatcherDataService {
 
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async updatePurchaseOrder(
+    deliveryId: string,
+    poNumber: string,
+  ): Promise<DeliveryDetails | null> {
+    const delivery = deliveryOrders.find((entry) => entry.id === deliveryId);
+    if (!delivery) return null;
+
+    if (poNumber.trim()) {
+      // If a PO already exists for this delivery, update it
+      const existingPo = purchaseOrders.find(
+        (entry) => entry.id === delivery.purchaseOrderId,
+      );
+      if (existingPo) {
+        existingPo.poNumber = poNumber.trim();
+      } else {
+        // Create a new PurchaseOrder and link it
+        const newPo = {
+          id: "po-" + Date.now(),
+          poNumber: poNumber.trim(),
+          jobId: delivery.jobId,
+          vendorId: delivery.vendorId,
+          orderDate: new Date().toISOString().slice(0, 10),
+          status: "open" as const,
+        };
+        purchaseOrders.push(newPo);
+        delivery.purchaseOrderId = newPo.id;
+      }
+    } else {
+      // Clear the PO link if blank
+      delivery.purchaseOrderId = undefined;
+    }
+
+    delivery.updatedAt = new Date().toISOString();
+    return this.getDeliveryDetails(deliveryId);
+  }
 }
 
 export const mockDispatcherDataService: DispatcherDataService =
