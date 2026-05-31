@@ -319,6 +319,17 @@ export class MockDispatcherDataService implements DispatcherDataService {
     return this.getDeliveryDetails(deliveryId);
   }
 
+  async updateIssueSummary(
+    deliveryId: string,
+    summary: string,
+  ): Promise<DeliveryDetails | null> {
+    const delivery = deliveryOrders.find((d) => d.id === deliveryId);
+    if (!delivery) return null;
+    delivery.issueSummary = summary;
+    delivery.updatedAt = new Date().toISOString();
+    return this.getDeliveryDetails(deliveryId);
+  }
+
   async listStagingLocations(): Promise<StagingLocation[]> {
     return stagingLocations.filter((loc) => loc.active);
   }

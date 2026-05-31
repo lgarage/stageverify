@@ -317,6 +317,37 @@ export class FirestoreDataService implements DispatcherDataService {
     return this.getDeliveryDetails(deliveryId);
   }
 
+  async updateIssueSummary(
+    deliveryId: string,
+    summary: string,
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+
+    const now = new Date().toISOString();
+    const eventId = `event-${Date.now()}`;
+    const batch = writeBatch(db);
+
+    batch.update(doc(db, "deliveries", deliveryId), {
+      issueSummary: summary,
+      updatedAt: now,
+    });
+    batch.set(doc(db, "statusHistory", eventId), {
+      id: eventId,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus: "issue",
+      toStatus: "issue",
+      reason: summary,
+      actorType: "dispatcher",
+      actorName: "Dispatcher",
+      createdAt: now,
+    });
+
+    await batch.commit();
+    return this.getDeliveryDetails(deliveryId);
+  }
+
   async listStagingLocations(): Promise<StagingLocation[]> {
     const all = await fetchAll<StagingLocation>("stagingLocations");
     return all.filter((loc) => loc.active);

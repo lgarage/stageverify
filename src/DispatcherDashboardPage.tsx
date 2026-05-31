@@ -358,6 +358,25 @@ export function DispatcherDashboardPage() {
     }
   };
 
+  const handleUpdateIssueSummary = async (summary: string): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await mockDispatcherDataService.updateIssueSummary(
+        selectedDeliveryId,
+        summary,
+      );
+      if (updated) setSelectedDetails(updated);
+    } catch (err) {
+      setMutationError(
+        err instanceof Error ? err.message : "Failed to update issue",
+      );
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   const selectDelivery = async (deliveryId: string) => {
     setSelectedDeliveryId(deliveryId);
     setDetailLoading(true);
@@ -1616,6 +1635,7 @@ export function DispatcherDashboardPage() {
                 mutationLoading={mutationLoading}
                 mutationError={mutationError}
                 onUpdateStatus={handleUpdateStatus}
+                onUpdateIssueSummary={handleUpdateIssueSummary}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
                 onUpdatePurchaseOrder={handleUpdatePurchaseOrder}
@@ -1686,6 +1706,7 @@ function DetailContent({
   mutationLoading,
   mutationError,
   onUpdateStatus,
+  onUpdateIssueSummary,
   stagingLocations,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
@@ -1698,6 +1719,7 @@ function DetailContent({
   mutationLoading: boolean;
   mutationError: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onUpdateIssueSummary: (summary: string) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
@@ -1760,6 +1782,7 @@ function DetailContent({
         loading={mutationLoading}
         error={mutationError}
         onUpdateStatus={onUpdateStatus}
+        onUpdateIssueSummary={onUpdateIssueSummary}
         onUpdateStagingLocation={onUpdateStagingLocation}
         onUpdatePurchaseOrder={onUpdatePurchaseOrder}
         stagingLocations={stagingLocations}
@@ -2273,6 +2296,7 @@ function StatusActionPanel({
   loading,
   error,
   onUpdateStatus,
+  onUpdateIssueSummary,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
   stagingLocations,
@@ -2283,6 +2307,7 @@ function StatusActionPanel({
   loading: boolean;
   error: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onUpdateIssueSummary: (summary: string) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   stagingLocations: StagingLocation[];
@@ -2351,7 +2376,7 @@ function StatusActionPanel({
 
   const handleSaveEdit = () => {
     if (editReason.trim()) {
-      void onUpdateStatus("issue", editReason.trim());
+      void onUpdateIssueSummary(editReason.trim());
       setEditingIssue(false);
     }
   };

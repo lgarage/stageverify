@@ -55,6 +55,10 @@ export interface DispatcherDataService {
     toStatus: DeliveryStatus,
     reason?: string,
   ): Promise<DeliveryDetails | null>;
+  updateIssueSummary(
+    deliveryId: string,
+    summary: string,
+  ): Promise<DeliveryDetails | null>;
   listStagingLocations(): Promise<StagingLocation[]>;
   updateStagingLocation(
     deliveryId: string,
