@@ -4,8 +4,8 @@
 > Overflow → migrate into PROJECT_STATUS/archives/. Read protocol: agent-ops skill §1.
 
 ## Snapshot
-- Active Phase: <fill in current focus>
-- Last shipped: <fill in>
+- Active Phase: Entry Display clock refresh
+- Last shipped: Fixed frozen clock on Entry Display board
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4 (CSS-first, no config), html5-qrcode 2.3.8. Deploy: GitHub Pages (gh-pages) → https://lgarage.github.io/stageverify
 - Data: in-memory mocks (src/mockData.ts, src/dispatcher/mockData.ts). Backend: NONE yet (Firebase/Supabase under consideration).
 - Models: src/dispatcher/models.ts (canonical). src/types.ts = legacy, targeted for deletion.
@@ -14,7 +14,7 @@
 None.
 
 ## Immediate Next Step
-<what the NEXT session should do — not what this one finished>
+Verify any other dashboard timers that should auto-refresh.
 
 ## Update Protocol
 - Touch Snapshot / Active Blocker / Immediate Next Step at end of every session.
