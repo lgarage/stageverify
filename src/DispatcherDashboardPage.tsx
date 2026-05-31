@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { firestoreDataService as mockDispatcherDataService } from "./dispatcher/firestoreService";
@@ -2291,6 +2291,7 @@ function StatusActionPanel({
 }) {
   const [reason, setReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [pendingLocationId, setPendingLocationId] = useState<string>(
     details.stagingLocation?.id ?? "",
   );
@@ -2309,6 +2310,15 @@ function StatusActionPanel({
   useEffect(() => {
     setPendingPoNumber(details.purchaseOrder?.poNumber ?? "");
   }, [details.purchaseOrder?.poNumber, details.delivery.id]);
+
+  useEffect(() => {
+    if (showReasonInput) {
+      // Small timeout ensures the element is fully mounted in the DOM
+      // before focus is called (required on iOS Safari inside fixed overlays)
+      const t = setTimeout(() => textareaRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [showReasonInput]);
 
   const currentStatus = details.delivery.status;
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
@@ -2446,12 +2456,15 @@ function StatusActionPanel({
             Report Issue
           </h3>
           <textarea
+            ref={textareaRef}
+            autoFocus
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Briefly describe the issue..."
             disabled={false}
             style={{
               width: "100%",
+              boxSizing: "border-box",
               minHeight: 60,
               padding: "8px 12px",
               border: "1.5px solid #ccd0d7",
@@ -2484,7 +2497,10 @@ function StatusActionPanel({
               {loading ? "Saving..." : "Confirm Issue"}
             </button>
             <button
-              onClick={() => setShowReasonInput(false)}
+              onClick={() => {
+                setShowReasonInput(false);
+                setReason("");
+              }}
               disabled={loading}
               style={{
                 backgroundColor: "#fff",
