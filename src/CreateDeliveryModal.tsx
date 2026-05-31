@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import type { DeliveryOrder, Item, StatusHistoryEvent } from "./dispatcher/models";
+import type { DeliveryOrder, Item, PurchaseOrder, StatusHistoryEvent } from "./dispatcher/models";
 import {
   deliveryOrders,
   items,
   jobs,
+  purchaseOrders,
   stagingLocations,
   statusHistory,
   vendors,
@@ -123,15 +124,32 @@ export function CreateDeliveryModal({
     if (!isValid) return;
 
     const now = new Date().toISOString();
+    const trimmedPoNumber = poNumber.trim();
     const deliveryId = "delivery-" + Date.now();
     const orderNumber =
       "ORD-" + String(deliveryOrders.length + 1).padStart(3, "0");
+    let purchaseOrderId: string | undefined;
+
+    if (trimmedPoNumber !== "") {
+      const newPo: PurchaseOrder = {
+        id: "po-" + Date.now(),
+        poNumber: trimmedPoNumber,
+        jobId,
+        vendorId,
+        orderDate: new Date().toISOString().slice(0, 10),
+        expectedDeliveryDate: deliveryDate,
+        status: "open",
+      };
+      purchaseOrders.push(newPo);
+      purchaseOrderId = newPo.id;
+    }
 
     const delivery: DeliveryOrder = {
       id: deliveryId,
       orderNumber,
       jobId,
       vendorId,
+      purchaseOrderId,
       deliveryDate,
       stagingLocationId: stagingLocationId || undefined,
       status: "pending",
