@@ -2304,8 +2304,11 @@ function StatusActionPanel({
 
   useEffect(() => {
     setPendingLocationId(details.stagingLocation?.id ?? "");
+  }, [details.stagingLocation?.id, details.delivery.id]);
+
+  useEffect(() => {
     setPendingPoNumber(details.purchaseOrder?.poNumber ?? "");
-  }, [details.purchaseOrder?.poNumber, details.stagingLocation?.id, details.delivery.id]);
+  }, [details.purchaseOrder?.poNumber, details.delivery.id]);
 
   const currentStatus = details.delivery.status;
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
