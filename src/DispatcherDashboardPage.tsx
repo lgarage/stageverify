@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import {
   mockDispatcherDataService,
   VALID_TRANSITIONS,
@@ -178,6 +179,8 @@ export function DispatcherDashboardPage() {
   const [availableStagingLocations, setAvailableStagingLocations] = useState<
     StagingLocation[]
   >([]);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
@@ -612,6 +615,24 @@ export function DispatcherDashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 4,
+                border: "none",
+                backgroundColor: RED,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: FONT,
+                outline: "none",
+              }}
+            >
+              + New Delivery
+            </button>
             <button
               type="button"
               onClick={() => void fetchAllData()}
@@ -1543,6 +1564,12 @@ export function DispatcherDashboardPage() {
           </div>
         </div>
       )}
+
+      <CreateDeliveryModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={() => void fetchAllData()}
+      />
     </div>
   );
 }
