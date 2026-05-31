@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { firestoreDataService as mockDispatcherDataService } from "./dispatcher/firestoreService";
 import {
+  DISPATCHER_REVERT_TARGETS,
   VALID_TRANSITIONS,
   type DeliveryDetails,
   type DeliveryListRow,
@@ -352,6 +353,33 @@ export function DispatcherDashboardPage() {
       }
     } catch (e) {
       setMutationError("An unexpected error occurred while updating status.");
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleRevertStatus = async () => {
+    if (!selectedDeliveryId) return;
+
+    setMutationLoading(true);
+    setMutationError(null);
+
+    try {
+      const updatedDetails =
+        await mockDispatcherDataService.revertDeliveryStatus(
+          selectedDeliveryId,
+          "dispatcher",
+        );
+
+      if (updatedDetails) {
+        setSelectedDetails(updatedDetails);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to revert status.");
+      }
+    } catch (e) {
+      setMutationError("An unexpected error occurred while reverting status.");
       console.error(e);
     } finally {
       setMutationLoading(false);
@@ -1636,6 +1664,7 @@ export function DispatcherDashboardPage() {
                 mutationLoading={mutationLoading}
                 mutationError={mutationError}
                 onUpdateStatus={handleUpdateStatus}
+                onRevertStatus={handleRevertStatus}
                 onUpdateIssueSummary={handleUpdateIssueSummary}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
@@ -1707,6 +1736,7 @@ function DetailContent({
   mutationLoading,
   mutationError,
   onUpdateStatus,
+  onRevertStatus,
   onUpdateIssueSummary,
   stagingLocations,
   onUpdateStagingLocation,
@@ -1720,6 +1750,7 @@ function DetailContent({
   mutationLoading: boolean;
   mutationError: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onRevertStatus: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
@@ -1783,6 +1814,7 @@ function DetailContent({
         loading={mutationLoading}
         error={mutationError}
         onUpdateStatus={onUpdateStatus}
+        onRevertStatus={onRevertStatus}
         onUpdateIssueSummary={onUpdateIssueSummary}
         onUpdateStagingLocation={onUpdateStagingLocation}
         onUpdatePurchaseOrder={onUpdatePurchaseOrder}
@@ -2297,6 +2329,7 @@ function StatusActionPanel({
   loading,
   error,
   onUpdateStatus,
+  onRevertStatus,
   onUpdateIssueSummary,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
@@ -2308,6 +2341,7 @@ function StatusActionPanel({
   loading: boolean;
   error: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onRevertStatus: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
@@ -2358,6 +2392,7 @@ function StatusActionPanel({
 
   const currentStatus = details.delivery.status;
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
+  const revertTarget = DISPATCHER_REVERT_TARGETS[currentStatus];
 
   const handleActionClick = (nextStatus: DeliveryStatus) => {
     if (nextStatus === "issue") {
@@ -2481,6 +2516,41 @@ function StatusActionPanel({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {revertTarget && !showReasonInput && (
+        <div style={{ marginTop: 12 }}>
+          <h3
+            style={{
+              margin: "0 0 8px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#9ca3af",
+              textTransform: "uppercase",
+              letterSpacing: "0.10em",
+            }}
+          >
+            Revert
+          </h3>
+          <button
+            onClick={() => void onRevertStatus()}
+            disabled={loading}
+            style={{
+              backgroundColor: loading ? "#f3f4f6" : "#fff",
+              color: loading ? "#9ca3af" : "#6b7280",
+              border: `1.5px solid ${loading ? "#d1d5db" : "#9ca3af"}`,
+              borderRadius: 4,
+              padding: "6px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: loading ? "not-allowed" : "pointer",
+              fontFamily: font,
+              transition: "all 0.13s",
+            }}
+          >
+            {loading ? "Updating…" : `Revert to ${STATUS_LABEL(revertTarget)}`}
+          </button>
         </div>
       )}
 

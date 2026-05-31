@@ -30,7 +30,8 @@ import type {
   PagedResult,
   SortDirection,
 } from "./service";
-import { VALID_TRANSITIONS } from "./service";
+import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } from "./service";
+import type { AppSettings } from "./models";
 
 async function fetchAll<T>(colName: string): Promise<T[]> {
   const snap = await getDocs(collection(db, colName));
@@ -497,6 +498,7 @@ export class FirestoreDataService implements DispatcherDataService {
 
     batch.update(doc(db, "deliveries", deliveryId), {
       status: overallStatus,
+      submittedAt: now,
       updatedAt: now,
     });
     batch.set(doc(db, "statusHistory", eventId), {
@@ -513,7 +515,70 @@ export class FirestoreDataService implements DispatcherDataService {
     await batch.commit();
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async revertDeliveryStatus(
+    deliveryId: string,
+    actorType: "vendor" | "dispatcher",
+    vendorRevertWindowMinutes = 60,
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+    const delivery = deliverySnap.data() as DeliveryOrder;
+
+    const revertTargets =
+      actorType === "vendor" ? VENDOR_REVERT_TARGETS : DISPATCHER_REVERT_TARGETS;
+    const toStatus = revertTargets[delivery.status];
+    if (!toStatus) return this.getDeliveryDetails(deliveryId);
+
+    if (actorType === "vendor") {
+      const submittedAt = delivery.submittedAt;
+      if (!submittedAt) return this.getDeliveryDetails(deliveryId);
+      const elapsedMs = Date.now() - new Date(submittedAt).getTime();
+      if (elapsedMs > vendorRevertWindowMinutes * 60 * 1000) {
+        return this.getDeliveryDetails(deliveryId);
+      }
+    }
+
+    const now = new Date().toISOString();
+    const eventId = `event-${Date.now()}`;
+    const batch = writeBatch(db);
+
+    batch.update(doc(db, "deliveries", deliveryId), {
+      status: toStatus,
+      submittedAt: toStatus === "arrived" ? null : delivery.submittedAt,
+      updatedAt: now,
+    });
+    batch.set(doc(db, "statusHistory", eventId), {
+      id: eventId,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus: delivery.status,
+      toStatus,
+      reason: "Reverted",
+      actorType,
+      actorName: actorType === "dispatcher" ? "Dispatcher" : "Vendor",
+      createdAt: now,
+    });
+
+    await batch.commit();
+    return this.getDeliveryDetails(deliveryId);
+  }
 }
 
-export const firestoreDataService: DispatcherDataService =
-  new FirestoreDataService();
+const APP_SETTINGS_DOC = doc(db, "appSettings", "config");
+const DEFAULT_APP_SETTINGS: AppSettings = { vendorRevertWindowMinutes: 60 };
+
+export async function getAppSettings(): Promise<AppSettings> {
+  const snap = await getDoc(APP_SETTINGS_DOC);
+  if (!snap.exists()) return { ...DEFAULT_APP_SETTINGS };
+  return { ...DEFAULT_APP_SETTINGS, ...(snap.data() as Partial<AppSettings>) };
+}
+
+export async function updateAppSettings(
+  settings: Partial<AppSettings>,
+): Promise<AppSettings> {
+  await setDoc(APP_SETTINGS_DOC, settings, { merge: true });
+  return getAppSettings();
+}
+
+export const firestoreDataService = new FirestoreDataService();

@@ -14,6 +14,20 @@ export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   picked_up: [],
 };
 
+/** Vendor revert: only undo a check-in submission (goes back to arrived) */
+export const VENDOR_REVERT_TARGETS: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
+  partial: "arrived",
+  complete: "arrived",
+};
+
+/** Dispatcher revert: superset — can also undo arrived→pending and picked_up→complete */
+export const DISPATCHER_REVERT_TARGETS: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
+  arrived: "pending",
+  partial: "arrived",
+  complete: "arrived",
+  picked_up: "complete",
+};
+
 export type DeliverySortField =
   | "status"
   | "jobNumber"
@@ -77,5 +91,10 @@ export interface DispatcherDataService {
       qtyMissing: number;
       qtyDamaged: number;
     }>,
+  ): Promise<DeliveryDetails | null>;
+  revertDeliveryStatus(
+    deliveryId: string,
+    actorType: "vendor" | "dispatcher",
+    vendorRevertWindowMinutes?: number,
   ): Promise<DeliveryDetails | null>;
 }

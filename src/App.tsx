@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { firestoreDataService } from "./dispatcher/firestoreService";
+import { firestoreDataService, getAppSettings } from "./dispatcher/firestoreService";
 import type {
   DeliveryOrder,
   Item,
@@ -70,6 +70,13 @@ function ScanScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [scanError] = useState<string | null>(null);
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+  const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
+  const [reverting, setReverting] = useState(false);
+
+  useEffect(() => {
+    getAppSettings().then((s) => setRevertWindowMinutes(s.vendorRevertWindowMinutes));
+  }, []);
 
   const handleDeliveryFound = async (deliveryId: string) => {
     const details = await firestoreDataService.getDeliveryDetails(deliveryId);
@@ -228,6 +235,7 @@ function ScanScreen() {
   const confirmSubmit = async () => {
     setShowSubmitConfirm(false);
     if (!currentDelivery) return;
+    const now = new Date().toISOString();
     await firestoreDataService.submitCheckin(
       currentDelivery.delivery.id,
       driverName.trim() || "Vendor Driver",
@@ -238,7 +246,21 @@ function ScanScreen() {
         qtyDamaged: 0,
       })),
     );
+    setSubmittedAt(now);
     setStep("done");
+  };
+
+  const handleRevert = async () => {
+    if (!currentDelivery) return;
+    setReverting(true);
+    await firestoreDataService.revertDeliveryStatus(
+      currentDelivery.delivery.id,
+      "vendor",
+      revertWindowMinutes,
+    );
+    setReverting(false);
+    setSubmittedAt(null);
+    setStep("list");
   };
 
   const handleReset = () => {
@@ -666,6 +688,17 @@ function ScanScreen() {
         <p className="text-sm text-text-secondary mb-12">
           Dispatch has been notified.
         </p>
+        {submittedAt &&
+          Date.now() - new Date(submittedAt).getTime() <
+            revertWindowMinutes * 60 * 1000 && (
+            <button
+              onClick={handleRevert}
+              disabled={reverting}
+              className="action-btn action-btn-secondary w-full mb-3"
+            >
+              {reverting ? "Reverting…" : "Undo Submission"}
+            </button>
+          )}
         <button
           onClick={handleReset}
           className="action-btn action-btn-secondary w-full"

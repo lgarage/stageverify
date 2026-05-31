@@ -1,7 +1,8 @@
-import { useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
+import { useState, useEffect, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Vendor } from "./dispatcher/models";
 import { vendors } from "./dispatcher/mockData";
+import { getAppSettings, updateAppSettings } from "./dispatcher/firestoreService";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -96,6 +97,10 @@ export function SettingsPage() {
   const [contactPhone, setContactPhone] = useState("");
   const [email, setEmail] = useState("");
 
+  const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
+  const [savingRevert, setSavingRevert] = useState(false);
+  const [revertSaved, setRevertSaved] = useState(false);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     name: string;
@@ -126,6 +131,26 @@ export function SettingsPage() {
     vendor.email = editDraft.email.trim() || undefined;
     setEditingId(null);
     setRefresh((r) => r + 1);
+  };
+
+  useEffect(() => {
+    void getAppSettings().then((settings) => {
+      setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
+    });
+  }, []);
+
+  const saveRevertWindow = async () => {
+    if (savingRevert) return;
+    setSavingRevert(true);
+    try {
+      await updateAppSettings({
+        vendorRevertWindowMinutes: revertWindowMinutes,
+      });
+      setRevertSaved(true);
+      setTimeout(() => setRevertSaved(false), 2000);
+    } finally {
+      setSavingRevert(false);
+    }
   };
 
   const handleAddVendor = (e: FormEvent) => {
@@ -734,6 +759,92 @@ export function SettingsPage() {
                 Add Vendor
               </button>
             </form>
+          </div>
+
+          {/* Workflow settings */}
+          <div style={{ ...cardStyle, overflow: "hidden" }}>
+            <div
+              style={{
+                padding: "15px 20px",
+                borderBottom: "1px solid #eaecf0",
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                Workflow
+              </span>
+            </div>
+            <div
+              style={{
+                padding: "20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#6b7280",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Vendor Revert Window
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={revertWindowMinutes}
+                onChange={(e) =>
+                  setRevertWindowMinutes(Number(e.target.value) || 0)
+                }
+                onBlur={() => void saveRevertWindow()}
+                style={{
+                  width: 80,
+                  padding: "10px 12px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  color: "#333",
+                  outline: "none",
+                  backgroundColor: "#fff",
+                  fontFamily: FONT,
+                  boxSizing: "border-box",
+                }}
+              />
+              <span style={{ fontSize: 13, color: "#6b7280" }}>minutes</span>
+              <button
+                type="button"
+                onClick={() => void saveRevertWindow()}
+                disabled={savingRevert}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 4,
+                  border: "none",
+                  backgroundColor: savingRevert ? "#f3f4f6" : NAVY,
+                  color: savingRevert ? "#9ca3af" : "#fff",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: savingRevert ? "not-allowed" : "pointer",
+                  fontFamily: FONT,
+                  outline: "none",
+                }}
+              >
+                Save
+              </button>
+              {revertSaved && (
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#2e7d32",
+                  }}
+                >
+                  Saved ✓
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

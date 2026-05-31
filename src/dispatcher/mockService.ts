@@ -459,6 +459,14 @@ export class MockDispatcherDataService implements DispatcherDataService {
     await new Promise((resolve) => setTimeout(resolve, 300));
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async revertDeliveryStatus(
+    deliveryId: string,
+    _actorType: "vendor" | "dispatcher",
+    _vendorRevertWindowMinutes?: number,
+  ): Promise<DeliveryDetails | null> {
+    return this.getDeliveryDetails(deliveryId);
+  }
 }
 
 export const mockDispatcherDataService: DispatcherDataService =

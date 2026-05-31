@@ -66,8 +66,13 @@ export interface DeliveryOrder {
   status: DeliveryStatus;
   issueSummary?: string;
   notes?: string;
+  submittedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AppSettings {
+  vendorRevertWindowMinutes: number;
 }
 
 export interface Item {
