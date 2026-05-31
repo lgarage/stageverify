@@ -96,6 +96,38 @@ export function SettingsPage() {
   const [contactPhone, setContactPhone] = useState("");
   const [email, setEmail] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{
+    name: string;
+    contactName: string;
+    contactPhone: string;
+    email: string;
+  }>({ name: "", contactName: "", contactPhone: "", email: "" });
+
+  const startEdit = (vendor: Vendor) => {
+    setEditingId(vendor.id);
+    setEditDraft({
+      name: vendor.name,
+      contactName: vendor.contactName ?? "",
+      contactPhone: vendor.contactPhone ?? "",
+      email: vendor.email ?? "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const saveEdit = (vendor: Vendor) => {
+    if (!editDraft.name.trim()) return;
+    vendor.name = editDraft.name.trim();
+    vendor.contactName = editDraft.contactName.trim() || undefined;
+    vendor.contactPhone = editDraft.contactPhone.trim() || undefined;
+    vendor.email = editDraft.email.trim() || undefined;
+    setEditingId(null);
+    setRefresh((r) => r + 1);
+  };
+
   const handleAddVendor = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -380,10 +412,10 @@ export function SettingsPage() {
               >
                 <thead>
                   <tr style={{ backgroundColor: NAVY }}>
-                    {["Name", "Contact Name", "Contact Phone", "Email"].map(
-                      (col) => (
+                    {["Name", "Contact Name", "Contact Phone", "Email", ""].map(
+                      (col, i) => (
                         <th
-                          key={col}
+                          key={i}
                           style={{
                             padding: "12px",
                             fontWeight: 700,
@@ -400,52 +432,141 @@ export function SettingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {vendors.map((vendor, idx) => (
-                    <tr
-                      key={vendor.id}
-                      style={{
-                        backgroundColor: idx % 2 === 0 ? "#fff" : "#fafbfc",
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "14px 12px",
-                          borderBottom: "1px solid #eaecf0",
-                          fontWeight: 600,
-                          color: "#111",
-                        }}
-                      >
-                        {vendor.name}
-                      </td>
-                      <td
-                        style={{
-                          padding: "14px 12px",
-                          borderBottom: "1px solid #eaecf0",
-                          color: "#333",
-                        }}
-                      >
-                        {vendor.contactName ?? "—"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "14px 12px",
-                          borderBottom: "1px solid #eaecf0",
-                          color: "#333",
-                        }}
-                      >
-                        {vendor.contactPhone ?? "—"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "14px 12px",
-                          borderBottom: "1px solid #eaecf0",
-                          color: "#333",
-                        }}
-                      >
-                        {vendor.email ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {vendors.map((vendor, idx) => {
+                    const isEditing = editingId === vendor.id;
+                    const rowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                    const tdBase: CSSProperties = {
+                      padding: "10px 12px",
+                      borderBottom: "1px solid #eaecf0",
+                      verticalAlign: "middle",
+                    };
+                    const inlineInput: CSSProperties = {
+                      padding: "4px 8px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 4,
+                      fontSize: 13,
+                      color: "#333",
+                      fontFamily: FONT,
+                      outline: "none",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      backgroundColor: "#fff",
+                    };
+
+                    return (
+                      <tr key={vendor.id} style={{ backgroundColor: rowBg }}>
+                        <td style={{ ...tdBase, fontWeight: 600, color: "#111" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.name}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, name: e.target.value }))
+                              }
+                              autoFocus
+                            />
+                          ) : (
+                            vendor.name
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.contactName}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, contactName: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            vendor.contactName ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.contactPhone}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, contactPhone: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            vendor.contactPhone ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.email}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, email: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            vendor.email ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, whiteSpace: "nowrap" }}>
+                          {isEditing ? (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={() => saveEdit(vendor)}
+                                disabled={!editDraft.name.trim()}
+                                style={{
+                                  padding: "3px 10px",
+                                  borderRadius: 4,
+                                  border: "none",
+                                  backgroundColor: !editDraft.name.trim() ? "#e5e7eb" : NAVY,
+                                  color: !editDraft.name.trim() ? "#9ca3af" : "#fff",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: !editDraft.name.trim() ? "not-allowed" : "pointer",
+                                  fontFamily: FONT,
+                                }}
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                style={{
+                                  padding: "3px 10px",
+                                  borderRadius: 4,
+                                  border: "1.5px solid #ccd0d7",
+                                  backgroundColor: "#fff",
+                                  color: "#6b7280",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  fontFamily: FONT,
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEdit(vendor)}
+                              style={{
+                                padding: "3px 10px",
+                                borderRadius: 4,
+                                border: "1.5px solid #0a3161",
+                                backgroundColor: "#fff",
+                                color: "#0a3161",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontFamily: FONT,
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
