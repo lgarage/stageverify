@@ -381,9 +381,9 @@ export function DispatcherDashboardPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 10,
-                      padding: "9px 12px",
+                      padding: "18px 12px",
                       fontWeight: 700,
-                      fontSize: 13,
+                      fontSize: 15,
                       textDecoration: "none",
                       boxShadow: `0 2px 8px rgba(191,10,48,0.35)`,
                     }
@@ -393,9 +393,9 @@ export function DispatcherDashboardPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 10,
-                      padding: "9px 12px",
+                      padding: "18px 12px",
                       fontWeight: 500,
-                      fontSize: 13,
+                      fontSize: 15,
                       textDecoration: "none",
                       transition: "background 0.15s, color 0.15s",
                     }
