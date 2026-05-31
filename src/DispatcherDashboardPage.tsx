@@ -231,6 +231,15 @@ export function DispatcherDashboardPage() {
     };
   }, [fetchAllData]);
 
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      void fetchAllData();
+    }, 30000);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [fetchAllData]);
+
   /* ── Esc to close drawer ── */
   useEffect(() => {
     if (!selectedDeliveryId) return;
@@ -603,6 +612,25 @@ export function DispatcherDashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void fetchAllData()}
+              disabled={listLoading}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 4,
+                border: `1.5px solid ${NAVY}`,
+                backgroundColor: listLoading ? "#f3f4f6" : "#fff",
+                color: listLoading ? "#9ca3af" : NAVY,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: listLoading ? "not-allowed" : "pointer",
+                fontFamily: FONT,
+                outline: "none",
+              }}
+            >
+              Refresh Now
+            </button>
             <div style={{ fontSize: 12, color: "#6b7280" }}>
               Last updated:{" "}
               <span style={{ fontWeight: 600, color: "#374151" }}>
