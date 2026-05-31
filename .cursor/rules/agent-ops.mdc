@@ -1,0 +1,38 @@
+---
+description: Enforce the agent-ops efficiency loop in stageverify (model routing, away-list, outcome logging).
+alwaysApply: true
+---
+
+# agent-ops loop (stageverify)
+
+This repo uses the **agent-ops** skill (personal skill at `~/.cursor/skills/agent-ops`,
+git source `C:\Projects\cursor-agent-brain`). Follow it every session.
+
+## Session start (read order — STOP after this)
+1. `PROJECT_STATUS/CURRENT_STATE.md` (hot tier).
+2. The agent-ops skill's Global Tier Table (its `SKILL.md` §2).
+Do NOT read archives or `outcomes/*.jsonl` during normal work.
+
+## During work
+- Classify each task into an archetype and route to the tier-table default model.
+  Orchestrate on Sonnet 4.6; dispatch cheaper workers as subagents when independent.
+- Offer to queue qualifying side-tasks to `PROJECT_STATUS/away-list.json`
+  (agent-ops triage rule §4) — pre-scoped, reversible, self-verifiable, ≥85% conf.
+- `backend-write-critical` stays on Opus 4.6 until this repo gains a backend.
+
+## Session end (MANDATORY when work was substantive — do not skip)
+Append ONE outcome line to the brain repo, then commit+push it. Use the machine
+hostname as the filename. PowerShell:
+```powershell
+$m = $env:COMPUTERNAME
+$row = '{"date":"<YYYY-MM-DD>","repo":"stageverify","archetype":"<slug>","model":"<slug>","tier":"<T?>","confStart":<n>,"confAfter":<n>,"outcome":"ok","machine":"'+$m+'","note":"<=80 chars"}'
+Add-Content -Path "C:\Projects\cursor-agent-brain\outcomes\$m.jsonl" -Value $row
+cd "C:\Projects\cursor-agent-brain"; git add outcomes; git commit -m "log: <archetype> <model>"; git push
+```
+- `archetype` MUST be a slug from `archetypes.json`. `outcome` = ok | fail | escalate.
+- Skip logging trivial/no-signal turns (typos, pure Q&A, duplicate patterns).
+- The nightly cloud job recomputes the tier table from these rows — no local recompute needed.
+
+## stageverify project commits
+Normal stageverify code changes are committed to the stageverify repo as usual.
+Only the one outcome line goes to the brain repo. Keep the two pushes separate.
