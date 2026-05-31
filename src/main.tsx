@@ -9,8 +9,10 @@ import { DispatcherDashboardPage } from "./DispatcherDashboardPage";
 import { SettingsPage } from "./SettingsPage";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
-seedFirestore().then(() => {
-  createRoot(document.getElementById("root")!).render(
+const root = createRoot(document.getElementById("root")!);
+
+const renderApp = () => {
+  root.render(
     <StrictMode>
       <HashRouter>
         <Routes>
@@ -23,4 +25,11 @@ seedFirestore().then(() => {
       </HashRouter>
     </StrictMode>,
   );
+};
+
+// Render immediately so a Firestore error never produces a blank screen.
+// Seed runs in the background; components handle their own loading states.
+renderApp();
+seedFirestore().catch((err) => {
+  console.error("Firestore seed failed (app still works with empty DB):", err);
 });
