@@ -45,6 +45,7 @@ export const vendors: Vendor[] = [
     name: "Johnstone Supply",
     contactName: "Dispatch Desk",
     contactPhone: "555-0101",
+    email: "dispatch@johnstone.com",
     createdAt: "2026-05-01T08:00:00Z",
   },
   {
@@ -52,6 +53,7 @@ export const vendors: Vendor[] = [
     name: "First Supply",
     contactName: "Warehouse Counter",
     contactPhone: "555-0102",
+    email: "counter@firstsupply.com",
     createdAt: "2026-05-01T08:00:00Z",
   },
   {
@@ -59,6 +61,7 @@ export const vendors: Vendor[] = [
     name: "Ferguson HVAC",
     contactName: "Commercial Team",
     contactPhone: "555-0103",
+    email: "commercial@ferguson.com",
     createdAt: "2026-05-01T08:00:00Z",
   },
 ];

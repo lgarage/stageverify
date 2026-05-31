@@ -41,6 +41,7 @@ export interface Vendor {
   name: string;
   contactName?: string;
   contactPhone?: string;
+  email?: string;
   createdAt: string;
 }
 
