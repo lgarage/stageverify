@@ -10,7 +10,7 @@
       "acceptance": "Header shows a Refresh Now button that refetches on click; dashboard auto-refetches every 30s; interval cleared on unmount (no duplicate timers); app builds clean (npm run build); existing styling unchanged.",
       "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Steps 3.1 / Refresh Now)",
       "preApproved": true,
-      "status": "queued"
+      "status": "done"
     },
     {
       "id": "away-002",
@@ -22,7 +22,7 @@
       "acceptance": "Scanning/decoding an unknown code shows a visible 'No delivery found' message and does NOT load mockOrders[0]; a valid code still loads the correct order; app builds clean.",
       "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.2 bug)",
       "preApproved": true,
-      "status": "queued"
+      "status": "done"
     },
     {
       "id": "away-003",
@@ -34,7 +34,7 @@
       "acceptance": "The board's displayed time advances over time without a manual refresh; interval cleared on unmount; no data-source or layout changes; app builds clean.",
       "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.1 frozen clock)",
       "preApproved": true,
-      "status": "queued"
+      "status": "done"
     }
   ]
 }
