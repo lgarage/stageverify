@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: Backend wired ? Firebase Firestore live
-- Last shipped: Full Firestore integration (firestoreService.ts), auto-seed on first load, cross-device sync confirmed working. Vendor check-in on phone updates dispatcher dashboard on PC.
+- Last shipped: "New Delivery" button + form on Dispatcher Dashboard (Gavin can now create a delivery before vendor arrives). Full lifecycle unblocked.
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x. Deploy: GitHub Pages ? https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db). src/dispatcher/mockData.ts = seed source only. src/mockData.ts + src/types.ts = legacy (CheckInPage only), targeted for deletion.
 - Models: src/dispatcher/models.ts (canonical). src/dispatcher/firestoreService.ts = live data layer.
@@ -14,14 +14,14 @@
 None.
 
 ## Immediate Next Step
-Priority 1 ? Create Delivery Workflow: add "New Delivery" button + form on dispatcher dashboard so Gavin can create a delivery before a vendor arrives. This unblocks the full lifecycle.
+Priority 1 ? Define next lifecycle gap: delivery status transitions, vendor notification, or legacy mockData.ts cleanup. Review with Gavin.
 
 ## Last Session (2026-05-31)
 - Fixed Report Issue textarea: white-on-white text (body color cascading), added color:#111 + bg:#fff
 - Added Edit Issue inline editor in drawer (Issue Summary section with Edit button)
 - Added `updateIssueSummary` service method to bypass `issue?issue` transition guard
 - Fixed fetchAllData missing from handleUpdateIssueSummary (main table now updates instantly)
-- agent-ops skill: Playwright pre/post capture loop, stuck-subagent detection, npx-only rule
+- Added "New Delivery" button + form to Dispatcher Dashboard ? full delivery creation workflow live, tested, verified
 
 ## Agent-ops reference
 - Away-list tasks: `PROJECT_STATUS/away-list.json` (run status: `away-status.json`)
