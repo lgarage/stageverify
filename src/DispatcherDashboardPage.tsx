@@ -8,6 +8,7 @@ import {
   type DeliveryStatus,
   type PagedResult,
   type SortDirection,
+  type StagingLocation,
 } from "./dispatcher";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -174,6 +175,10 @@ export function DispatcherDashboardPage() {
   const [mutationLoading, setMutationLoading] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
+  const [availableStagingLocations, setAvailableStagingLocations] = useState<
+    StagingLocation[]
+  >([]);
+
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
   /* ── Status summary tile counts (from full unfiltered list) ── */
@@ -239,6 +244,41 @@ export function DispatcherDashboardPage() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [selectedDeliveryId]);
+
+  /* ── Fetch staging locations once on mount ── */
+  useEffect(() => {
+    void mockDispatcherDataService
+      .listStagingLocations()
+      .then(setAvailableStagingLocations);
+  }, []);
+
+  /* ── Staging location assignment ── */
+  const handleUpdateStagingLocation = async (
+    locationId: string | null,
+  ): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await mockDispatcherDataService.updateStagingLocation(
+        selectedDeliveryId,
+        locationId,
+      );
+      if (updated) {
+        setSelectedDetails(updated);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to update staging location.");
+      }
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while updating staging location.",
+      );
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
 
   /* ── Detail drawer ── */
   const handleUpdateStatus = async (
@@ -1468,6 +1508,8 @@ export function DispatcherDashboardPage() {
                 mutationLoading={mutationLoading}
                 mutationError={mutationError}
                 onUpdateStatus={handleUpdateStatus}
+                stagingLocations={availableStagingLocations}
+                onUpdateStagingLocation={handleUpdateStagingLocation}
               />
             </div>
           </div>
@@ -1529,6 +1571,8 @@ function DetailContent({
   mutationLoading,
   mutationError,
   onUpdateStatus,
+  stagingLocations,
+  onUpdateStagingLocation,
 }: {
   loading: boolean;
   error: string | null;
@@ -1538,6 +1582,8 @@ function DetailContent({
   mutationLoading: boolean;
   mutationError: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  stagingLocations: StagingLocation[];
+  onUpdateStagingLocation: (id: string | null) => Promise<void>;
 }) {
   if (loading) {
     return (
@@ -1597,6 +1643,8 @@ function DetailContent({
         loading={mutationLoading}
         error={mutationError}
         onUpdateStatus={onUpdateStatus}
+        onUpdateStagingLocation={onUpdateStagingLocation}
+        stagingLocations={stagingLocations}
         navy={navy}
         font={font}
       />
@@ -2107,6 +2155,8 @@ function StatusActionPanel({
   loading,
   error,
   onUpdateStatus,
+  onUpdateStagingLocation,
+  stagingLocations,
   navy,
   font,
 }: {
@@ -2114,11 +2164,17 @@ function StatusActionPanel({
   loading: boolean;
   error: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onUpdateStagingLocation: (id: string | null) => Promise<void>;
+  stagingLocations: StagingLocation[];
   navy: string;
   font: string;
 }) {
   const [reason, setReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
+  const [pendingLocationId, setPendingLocationId] = useState<string>(
+    details.stagingLocation?.id ?? "",
+  );
+  const isDirty = pendingLocationId !== (details.stagingLocation?.id ?? "");
 
   const currentStatus = details.delivery.status;
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
@@ -2313,6 +2369,69 @@ function StatusActionPanel({
           </div>
         </div>
       )}
+
+      {/* ── Staging Location Assignment ── */}
+      <div style={{ marginTop: 16 }}>
+        <h3
+          style={{
+            margin: "0 0 8px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#9ca3af",
+            textTransform: "uppercase",
+            letterSpacing: "0.10em",
+          }}
+        >
+          Staging Location
+        </h3>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={pendingLocationId}
+            onChange={(e) => setPendingLocationId(e.target.value)}
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: "7px 10px",
+              border: isDirty ? `1.5px solid ${navy}` : "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 13,
+              fontFamily: font,
+              color: "#333",
+              backgroundColor: loading ? "#f9fafb" : "#fff",
+              outline: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            <option value="">— Unassigned —</option>
+            {stagingLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.code} — {loc.label}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() =>
+              void onUpdateStagingLocation(pendingLocationId || null)
+            }
+            disabled={loading || !isDirty}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: loading || !isDirty ? "not-allowed" : "pointer",
+              backgroundColor: loading || !isDirty ? "#f3f4f6" : navy,
+              color: loading || !isDirty ? "#9ca3af" : "#fff",
+              border: `1.5px solid ${loading || !isDirty ? "#d1d5db" : navy}`,
+              transition: "all 0.13s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {loading ? "Saving…" : "Assign"}
+          </button>
+        </div>
+      </div>
 
       {error && (
         <div

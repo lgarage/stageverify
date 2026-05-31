@@ -2,6 +2,7 @@ import type {
   DeliveryDetails,
   DeliveryListRow,
   DeliveryStatus,
+  StagingLocation,
 } from "./models";
 
 export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
@@ -53,5 +54,10 @@ export interface DispatcherDataService {
     deliveryId: string,
     toStatus: DeliveryStatus,
     reason?: string,
+  ): Promise<DeliveryDetails | null>;
+  listStagingLocations(): Promise<StagingLocation[]>;
+  updateStagingLocation(
+    deliveryId: string,
+    stagingLocationId: string | null,
   ): Promise<DeliveryDetails | null>;
 }

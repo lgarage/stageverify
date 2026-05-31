@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Embedded repos / clones not part of this project
+hvac-repair-quoting-tool-clone/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

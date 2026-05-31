@@ -318,6 +318,45 @@ export class MockDispatcherDataService implements DispatcherDataService {
 
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async listStagingLocations(): Promise<StagingLocation[]> {
+    return stagingLocations.filter((loc) => loc.active);
+  }
+
+  async updateStagingLocation(
+    deliveryId: string,
+    stagingLocationId: string | null,
+  ): Promise<DeliveryDetails | null> {
+    const delivery = deliveryOrders.find((entry) => entry.id === deliveryId);
+    if (!delivery) {
+      return null;
+    }
+
+    const prevId = delivery.stagingLocationId;
+    const prevLoc = prevId
+      ? stagingLocations.find((loc) => loc.id === prevId)
+      : undefined;
+    const newLoc = stagingLocationId
+      ? stagingLocations.find((loc) => loc.id === stagingLocationId)
+      : undefined;
+
+    delivery.stagingLocationId = stagingLocationId ?? undefined;
+    delivery.updatedAt = new Date().toISOString();
+
+    statusHistory.push({
+      id: `event-${Date.now()}`,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus: prevLoc?.code ?? "unassigned",
+      toStatus: newLoc?.code ?? "unassigned",
+      reason: "Staging location updated",
+      actorType: "dispatcher",
+      actorName: "Dispatcher",
+      createdAt: new Date().toISOString(),
+    });
+
+    return this.getDeliveryDetails(deliveryId);
+  }
 }
 
 export const mockDispatcherDataService: DispatcherDataService =
