@@ -2259,6 +2259,7 @@ function StatusActionPanel({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Briefly describe the issue..."
+            disabled={false}
             style={{
               width: "100%",
               minHeight: 60,
