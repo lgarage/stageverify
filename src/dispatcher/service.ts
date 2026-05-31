@@ -4,6 +4,15 @@ import type {
   DeliveryStatus,
 } from "./models";
 
+export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
+  pending: ["arrived", "issue"],
+  arrived: ["partial", "complete", "issue"],
+  partial: ["complete", "issue"],
+  complete: ["picked_up"],
+  issue: ["arrived", "partial", "complete"],
+  picked_up: [],
+};
+
 export type DeliverySortField =
   | "status"
   | "jobNumber"
@@ -40,4 +49,9 @@ export interface PagedResult<T> {
 export interface DispatcherDataService {
   listDeliveries(query?: DeliveryQuery): Promise<PagedResult<DeliveryListRow>>;
   getDeliveryDetails(deliveryId: string): Promise<DeliveryDetails | null>;
+  updateDeliveryStatus(
+    deliveryId: string,
+    toStatus: DeliveryStatus,
+    reason?: string,
+  ): Promise<DeliveryDetails | null>;
 }

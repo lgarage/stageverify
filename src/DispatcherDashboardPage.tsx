@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   mockDispatcherDataService,
+  VALID_TRANSITIONS,
   type DeliveryDetails,
   type DeliveryListRow,
   type DeliverySortField,
@@ -170,6 +171,9 @@ export function DispatcherDashboardPage() {
   const [selectedDetails, setSelectedDetails] =
     useState<DeliveryDetails | null>(null);
 
+  const [mutationLoading, setMutationLoading] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
   /* ── Status summary tile counts (from full unfiltered list) ── */
@@ -184,17 +188,22 @@ export function DispatcherDashboardPage() {
   }, [allRows]);
 
   /* ── Data fetching ── */
-  const fetchList = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
+    setListLoading(true);
     try {
-      const result = await mockDispatcherDataService.listDeliveries({
-        search: query.search,
-        statuses: query.statuses.length ? query.statuses : undefined,
-        sortBy: query.sortBy,
-        sortDirection: query.sortDirection,
-        page: query.page,
-        pageSize: query.pageSize,
-      });
-      setPaged(result);
+      const [pagedResult, allResult] = await Promise.all([
+        mockDispatcherDataService.listDeliveries({
+          search: query.search,
+          statuses: query.statuses.length ? query.statuses : undefined,
+          sortBy: query.sortBy,
+          sortDirection: query.sortDirection,
+          page: query.page,
+          pageSize: query.pageSize,
+        }),
+        mockDispatcherDataService.listDeliveries({ page: 1, pageSize: 1000 }),
+      ]);
+      setPaged(pagedResult);
+      setAllRows(allResult.items);
       setLastUpdated(new Date().toLocaleString());
       setListError(null);
     } catch {
@@ -204,27 +213,18 @@ export function DispatcherDashboardPage() {
     }
   }, [query]);
 
-  // Fetch all rows once for summary tiles
-  useEffect(() => {
-    mockDispatcherDataService
-      .listDeliveries({ page: 1, pageSize: 1000 })
-      .then((r) => setAllRows(r.items))
-      .catch(() => {});
-  }, []);
-
   useEffect(() => {
     let mounted = true;
     const run = async () => {
       await Promise.resolve();
       if (!mounted) return;
-      setListLoading(true);
-      await fetchList();
+      await fetchAllData();
     };
     void run();
     return () => {
       mounted = false;
     };
-  }, [fetchList]);
+  }, [fetchAllData]);
 
   /* ── Esc to close drawer ── */
   useEffect(() => {
@@ -241,10 +241,44 @@ export function DispatcherDashboardPage() {
   }, [selectedDeliveryId]);
 
   /* ── Detail drawer ── */
+  const handleUpdateStatus = async (
+    toStatus: DeliveryStatus,
+    reason?: string,
+  ) => {
+    if (!selectedDeliveryId) return;
+
+    setMutationLoading(true);
+    setMutationError(null);
+
+    try {
+      const updatedDetails =
+        await mockDispatcherDataService.updateDeliveryStatus(
+          selectedDeliveryId,
+          toStatus,
+          reason,
+        );
+
+      if (updatedDetails) {
+        setSelectedDetails(updatedDetails);
+        await fetchAllData(); // Refresh dashboard data
+      } else {
+        setMutationError(
+          "Failed to update status. The transition may be invalid.",
+        );
+      }
+    } catch (e) {
+      setMutationError("An unexpected error occurred while updating status.");
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   const selectDelivery = async (deliveryId: string) => {
     setSelectedDeliveryId(deliveryId);
     setDetailLoading(true);
     setDetailError(null);
+    setMutationError(null); // Clear mutation error on new selection
     try {
       const detail =
         await mockDispatcherDataService.getDeliveryDetails(deliveryId);
@@ -1431,6 +1465,9 @@ export function DispatcherDashboardPage() {
                 details={selectedDetails}
                 navy={NAVY}
                 font={FONT}
+                mutationLoading={mutationLoading}
+                mutationError={mutationError}
+                onUpdateStatus={handleUpdateStatus}
               />
             </div>
           </div>
@@ -1489,12 +1526,18 @@ function DetailContent({
   details,
   navy,
   font,
+  mutationLoading,
+  mutationError,
+  onUpdateStatus,
 }: {
   loading: boolean;
   error: string | null;
   details: DeliveryDetails | null;
   navy: string;
   font: string;
+  mutationLoading: boolean;
+  mutationError: string | null;
+  onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
 }) {
   if (loading) {
     return (
@@ -1548,495 +1591,744 @@ function DetailContent({
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-        fontSize: 14,
-        fontFamily: font,
-      }}
-    >
-      {[
-        {
-          title: "Delivery & Vendor",
-          content: (
-            <div
-              style={{
-                backgroundColor: "#f8fafc",
-                border: "1px solid #e0e3e8",
-                borderRadius: 8,
-                padding: "15px",
-                display: "flex",
-                flexDirection: "column" as const,
-                gap: 10,
-              }}
-            >
-              {[
-                {
-                  label: "Order #",
-                  value: (
-                    <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
-                      {details.delivery.orderNumber}
-                    </span>
-                  ),
-                },
-                { label: "Vendor", value: details.vendor.name },
-                {
-                  label: "PO #",
-                  value: (
-                    <span style={{ fontFamily: "monospace" }}>
-                      {details.purchaseOrder?.poNumber ?? "—"}
-                    </span>
-                  ),
-                },
-                {
-                  label: "Staging",
-                  value: details.stagingLocation ? (
-                    <>
+    <>
+      <StatusActionPanel
+        details={details}
+        loading={mutationLoading}
+        error={mutationError}
+        onUpdateStatus={onUpdateStatus}
+        navy={navy}
+        font={font}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+          fontSize: 14,
+          fontFamily: font,
+        }}
+      >
+        {[
+          {
+            title: "Delivery & Vendor",
+            content: (
+              <div
+                style={{
+                  backgroundColor: "#f8fafc",
+                  border: "1px solid #e0e3e8",
+                  borderRadius: 8,
+                  padding: "15px",
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: 10,
+                }}
+              >
+                {[
+                  {
+                    label: "Order #",
+                    value: (
                       <span
-                        style={{
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          backgroundColor: "#eef2ff",
-                          padding: "2px 7px",
-                          borderRadius: 4,
-                          color: navy,
-                          border: "1px solid #c7d2fe",
-                        }}
+                        style={{ fontFamily: "monospace", fontWeight: 700 }}
                       >
-                        {details.stagingLocation.code}
-                      </span>{" "}
-                      <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                        {details.stagingLocation.label}
+                        {details.delivery.orderNumber}
                       </span>
-                    </>
-                  ) : (
-                    "—"
-                  ),
-                },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <span
-                    style={{ color: "#6b7280", fontWeight: 600, flexShrink: 0 }}
-                  >
-                    {label}
-                  </span>
-                  <span style={{ color: "#333", textAlign: "right" }}>
-                    {value}
-                  </span>
-                </div>
-              ))}
-
-              {details.delivery.notes && (
-                <div
-                  style={{
-                    borderTop: "1px solid #eaecf0",
-                    paddingTop: 10,
-                    marginTop: 2,
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#6b7280",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      display: "block",
-                      marginBottom: 5,
-                    }}
-                  >
-                    Notes
-                  </span>
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#333",
-                      backgroundColor: "#fff",
-                      padding: "8px 12px",
-                      borderRadius: 4,
-                      border: "1px solid #e0e3e8",
-                    }}
-                  >
-                    {details.delivery.notes}
-                  </p>
-                </div>
-              )}
-              {details.delivery.issueSummary && (
-                <div
-                  style={{
-                    borderTop: "1px solid #eaecf0",
-                    paddingTop: 10,
-                    marginTop: 2,
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#c62828",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      display: "block",
-                      marginBottom: 5,
-                    }}
-                  >
-                    ⚠ Issue
-                  </span>
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#c62828",
-                      backgroundColor: "#ffebee",
-                      padding: "8px 12px",
-                      borderRadius: 4,
-                      border: "1px solid #ef9a9a",
-                    }}
-                  >
-                    {details.delivery.issueSummary}
-                  </p>
-                </div>
-              )}
-            </div>
-          ),
-        },
-        {
-          title: `Items (${details.items.length})`,
-          content: (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column" as const,
-                gap: 8,
-              }}
-            >
-              {details.items.map((item) => {
-                const sb = STATUS_BADGE_LOCAL[item.status] ?? {
-                  bg: "#f8f9fa",
-                  text: "#495057",
-                  border: "#ced4da",
-                };
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      border: "1px solid #e0e3e8",
-                      borderRadius: 8,
-                      padding: "12px",
-                      backgroundColor: "#fff",
-                      boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <div>
-                        <p
+                    ),
+                  },
+                  { label: "Vendor", value: details.vendor.name },
+                  {
+                    label: "PO #",
+                    value: (
+                      <span style={{ fontFamily: "monospace" }}>
+                        {details.purchaseOrder?.poNumber ?? "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    label: "Staging",
+                    value: details.stagingLocation ? (
+                      <>
+                        <span
                           style={{
-                            margin: 0,
-                            fontWeight: 700,
-                            color: "#111",
-                          }}
-                        >
-                          {item.description}
-                        </p>
-                        <p
-                          style={{
-                            margin: "3px 0 0",
-                            fontSize: 11,
-                            color: "#9ca3af",
                             fontFamily: "monospace",
-                          }}
-                        >
-                          SKU: {item.sku ?? "—"}
-                        </p>
-                      </div>
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          padding: "3px 8px",
-                          borderRadius: 4,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          backgroundColor: sb.bg,
-                          color: sb.text,
-                          border: `1px solid ${sb.border}`,
-                        }}
-                      >
-                        {item.status}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr 1fr",
-                        gap: 8,
-                      }}
-                    >
-                      {[
-                        {
-                          label: "Ordered",
-                          value: item.qtyOrdered,
-                          bg: "#f8f9fa",
-                          text: "#333",
-                          border: "#e0e3e8",
-                        },
-                        {
-                          label: "Received",
-                          value: item.qtyReceived,
-                          bg: "#e8f5e9",
-                          text: "#2e7d32",
-                          border: "#a5d6a7",
-                        },
-                        {
-                          label: "Missing",
-                          value: item.qtyMissing,
-                          bg: "#ffebee",
-                          text: "#c62828",
-                          border: "#ef9a9a",
-                        },
-                      ].map(({ label, value, bg, text, border }) => (
-                        <div
-                          key={label}
-                          style={{
-                            backgroundColor: bg,
-                            border: `1px solid ${border}`,
+                            fontWeight: 700,
+                            backgroundColor: "#eef2ff",
+                            padding: "2px 7px",
                             borderRadius: 4,
-                            padding: "8px 4px",
-                            textAlign: "center",
+                            color: navy,
+                            border: "1px solid #c7d2fe",
                           }}
                         >
-                          <div
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: text,
-                              marginBottom: 2,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.06em",
-                            }}
-                          >
-                            {label}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 16,
-                              fontWeight: 700,
-                              fontFamily: "monospace",
-                              color: text,
-                            }}
-                          >
-                            {value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ),
-        },
-        {
-          title: "Status History",
-          content: (
-            <div
-              style={{
-                position: "relative",
-                paddingLeft: 20,
-                borderLeft: `2px solid #e0e3e8`,
-                marginLeft: 8,
-                display: "flex",
-                flexDirection: "column" as const,
-                gap: 16,
-              }}
-            >
-              {details.statusHistory.length ? (
-                details.statusHistory.map((event) => (
-                  <div key={event.id} style={{ position: "relative" }}>
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: -27,
-                        top: 4,
-                        width: 14,
-                        height: 14,
-                        borderRadius: "50%",
-                        backgroundColor: "#fff",
-                        border: `2px solid ${navy}`,
-                        boxShadow: `0 0 0 3px #eef2ff`,
-                      }}
-                    />
-                    <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
-                      {event.entityType}{" "}
-                      <span
-                        style={{
-                          color: "#9ca3af",
-                          fontWeight: 400,
-                          fontSize: 12,
-                        }}
-                      >
-                        →
-                      </span>{" "}
-                      <span
-                        style={{
-                          textTransform: "uppercase",
-                          fontSize: 11,
-                          letterSpacing: "0.06em",
-                          color: navy,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {event.toStatus}
-                      </span>
-                    </p>
-                    <p
-                      style={{
-                        margin: "3px 0 0",
-                        fontSize: 12,
-                        color: "#9ca3af",
-                      }}
-                    >
-                      {event.actorType}
-                      {event.actorName ? ` · ${event.actorName}` : ""} ·{" "}
-                      {new Date(event.createdAt).toLocaleString()}
-                    </p>
-                    {event.reason && (
-                      <p
-                        style={{
-                          margin: "6px 0 0",
-                          fontSize: 13,
-                          color: "#333",
-                          backgroundColor: "#f8fafc",
-                          padding: "7px 10px",
-                          borderRadius: 4,
-                          border: "1px solid #e0e3e8",
-                        }}
-                      >
-                        {event.reason}
-                      </p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p style={{ color: "#9ca3af", fontSize: 13 }}>
-                  No status history found.
-                </p>
-              )}
-            </div>
-          ),
-        },
-        {
-          title: "Pickup Events",
-          content: (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column" as const,
-                gap: 8,
-              }}
-            >
-              {details.pickupEvents.length ? (
-                details.pickupEvents.map((pickup) => (
+                          {details.stagingLocation.code}
+                        </span>{" "}
+                        <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                          {details.stagingLocation.label}
+                        </span>
+                      </>
+                    ) : (
+                      "—"
+                    ),
+                  },
+                ].map(({ label, value }) => (
                   <div
-                    key={pickup.id}
+                    key={label}
                     style={{
-                      border: "1px solid #e0e3e8",
-                      borderRadius: 8,
-                      padding: "12px",
-                      backgroundColor: "#fff",
-                      boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
                     }}
                   >
-                    <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
-                      {pickup.technicianName}
-                    </p>
-                    <p
+                    <span
                       style={{
-                        margin: "3px 0 8px",
-                        fontSize: 12,
-                        color: "#9ca3af",
+                        color: "#6b7280",
+                        fontWeight: 600,
+                        flexShrink: 0,
                       }}
                     >
-                      {new Date(pickup.pickedUpAt).toLocaleString()}
-                    </p>
+                      {label}
+                    </span>
+                    <span style={{ color: "#333", textAlign: "right" }}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+
+                {details.delivery.notes && (
+                  <div
+                    style={{
+                      borderTop: "1px solid #eaecf0",
+                      paddingTop: 10,
+                      marginTop: 2,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: "#6b7280",
+                        fontWeight: 600,
+                        fontSize: 12,
+                        display: "block",
+                        marginBottom: 5,
+                      }}
+                    >
+                      Notes
+                    </span>
                     <p
                       style={{
                         margin: 0,
-                        backgroundColor: "#f8fafc",
+                        color: "#333",
+                        backgroundColor: "#fff",
                         padding: "8px 12px",
                         borderRadius: 4,
                         border: "1px solid #e0e3e8",
-                        color: "#333",
                       }}
                     >
-                      {pickup.itemsPickedSummary}
+                      {details.delivery.notes}
                     </p>
-                    {pickup.notes && (
-                      <p
+                  </div>
+                )}
+                {details.delivery.issueSummary && (
+                  <div
+                    style={{
+                      borderTop: "1px solid #eaecf0",
+                      paddingTop: 10,
+                      marginTop: 2,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: "#c62828",
+                        fontWeight: 600,
+                        fontSize: 12,
+                        display: "block",
+                        marginBottom: 5,
+                      }}
+                    >
+                      ⚠ Issue
+                    </span>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "#c62828",
+                        backgroundColor: "#ffebee",
+                        padding: "8px 12px",
+                        borderRadius: 4,
+                        border: "1px solid #ef9a9a",
+                      }}
+                    >
+                      {details.delivery.issueSummary}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ),
+          },
+          {
+            title: `Items (${details.items.length})`,
+            content: (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: 8,
+                }}
+              >
+                {details.items.map((item) => {
+                  const sb = STATUS_BADGE_LOCAL[item.status] ?? {
+                    bg: "#f8f9fa",
+                    text: "#495057",
+                    border: "#ced4da",
+                  };
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        border: "1px solid #e0e3e8",
+                        borderRadius: 8,
+                        padding: "12px",
+                        backgroundColor: "#fff",
+                        boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+                      }}
+                    >
+                      <div
                         style={{
-                          margin: "8px 0 0",
-                          fontSize: 12,
-                          color: "#6b7280",
-                          fontStyle: "italic",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: 8,
+                          marginBottom: 8,
                         }}
                       >
-                        Note: {pickup.notes}
+                        <div>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontWeight: 700,
+                              color: "#111",
+                            }}
+                          >
+                            {item.description}
+                          </p>
+                          <p
+                            style={{
+                              margin: "3px 0 0",
+                              fontSize: 11,
+                              color: "#9ca3af",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            SKU: {item.sku ?? "—"}
+                          </p>
+                        </div>
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            padding: "3px 8px",
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            backgroundColor: sb.bg,
+                            color: sb.text,
+                            border: `1px solid ${sb.border}`,
+                          }}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr 1fr",
+                          gap: 8,
+                        }}
+                      >
+                        {[
+                          {
+                            label: "Ordered",
+                            value: item.qtyOrdered,
+                            bg: "#f8f9fa",
+                            text: "#333",
+                            border: "#e0e3e8",
+                          },
+                          {
+                            label: "Received",
+                            value: item.qtyReceived,
+                            bg: "#e8f5e9",
+                            text: "#2e7d32",
+                            border: "#a5d6a7",
+                          },
+                          {
+                            label: "Missing",
+                            value: item.qtyMissing,
+                            bg: "#ffebee",
+                            text: "#c62828",
+                            border: "#ef9a9a",
+                          },
+                        ].map(({ label, value, bg, text, border }) => (
+                          <div
+                            key={label}
+                            style={{
+                              backgroundColor: bg,
+                              border: `1px solid ${border}`,
+                              borderRadius: 4,
+                              padding: "8px 4px",
+                              textAlign: "center",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: text,
+                                marginBottom: 2,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                              }}
+                            >
+                              {label}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 16,
+                                fontWeight: 700,
+                                fontFamily: "monospace",
+                                color: text,
+                              }}
+                            >
+                              {value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ),
+          },
+          {
+            title: "Status History",
+            content: (
+              <div
+                style={{
+                  position: "relative",
+                  paddingLeft: 20,
+                  borderLeft: `2px solid #e0e3e8`,
+                  marginLeft: 8,
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: 16,
+                }}
+              >
+                {details.statusHistory.length ? (
+                  details.statusHistory.map((event) => (
+                    <div key={event.id} style={{ position: "relative" }}>
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: -27,
+                          top: 4,
+                          width: 14,
+                          height: 14,
+                          borderRadius: "50%",
+                          backgroundColor: "#fff",
+                          border: `2px solid ${navy}`,
+                          boxShadow: `0 0 0 3px #eef2ff`,
+                        }}
+                      />
+                      <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                        {event.entityType}{" "}
+                        <span
+                          style={{
+                            color: "#9ca3af",
+                            fontWeight: 400,
+                            fontSize: 12,
+                          }}
+                        >
+                          →
+                        </span>{" "}
+                        <span
+                          style={{
+                            textTransform: "uppercase",
+                            fontSize: 11,
+                            letterSpacing: "0.06em",
+                            color: navy,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {event.toStatus}
+                        </span>
                       </p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p style={{ color: "#9ca3af", fontSize: 13 }}>
-                  No pickup events recorded yet.
-                </p>
-              )}
-            </div>
-          ),
-        },
-      ].map(({ title, content }) => (
-        <section key={title}>
+                      <p
+                        style={{
+                          margin: "3px 0 0",
+                          fontSize: 12,
+                          color: "#9ca3af",
+                        }}
+                      >
+                        {event.actorType}
+                        {event.actorName ? ` · ${event.actorName}` : ""} ·{" "}
+                        {new Date(event.createdAt).toLocaleString()}
+                      </p>
+                      {event.reason && (
+                        <p
+                          style={{
+                            margin: "6px 0 0",
+                            fontSize: 13,
+                            color: "#333",
+                            backgroundColor: "#f8fafc",
+                            padding: "7px 10px",
+                            borderRadius: 4,
+                            border: "1px solid #e0e3e8",
+                          }}
+                        >
+                          {event.reason}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: "#9ca3af", fontSize: 13 }}>
+                    No status history found.
+                  </p>
+                )}
+              </div>
+            ),
+          },
+          {
+            title: "Pickup Events",
+            content: (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: 8,
+                }}
+              >
+                {details.pickupEvents.length ? (
+                  details.pickupEvents.map((pickup) => (
+                    <div
+                      key={pickup.id}
+                      style={{
+                        border: "1px solid #e0e3e8",
+                        borderRadius: 8,
+                        padding: "12px",
+                        backgroundColor: "#fff",
+                        boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+                      }}
+                    >
+                      <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                        {pickup.technicianName}
+                      </p>
+                      <p
+                        style={{
+                          margin: "3px 0 8px",
+                          fontSize: 12,
+                          color: "#9ca3af",
+                        }}
+                      >
+                        {new Date(pickup.pickedUpAt).toLocaleString()}
+                      </p>
+                      <p
+                        style={{
+                          margin: 0,
+                          backgroundColor: "#f8fafc",
+                          padding: "8px 12px",
+                          borderRadius: 4,
+                          border: "1px solid #e0e3e8",
+                          color: "#333",
+                        }}
+                      >
+                        {pickup.itemsPickedSummary}
+                      </p>
+                      {pickup.notes && (
+                        <p
+                          style={{
+                            margin: "8px 0 0",
+                            fontSize: 12,
+                            color: "#6b7280",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          Note: {pickup.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: "#9ca3af", fontSize: 13 }}>
+                    No pickup events recorded yet.
+                  </p>
+                )}
+              </div>
+            ),
+          },
+        ].map(({ title, content }) => (
+          <section key={title}>
+            <h3
+              style={{
+                margin: "0 0 10px",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#9ca3af",
+                textTransform: "uppercase",
+                letterSpacing: "0.10em",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 16,
+                  height: 2,
+                  backgroundColor: navy,
+                  borderRadius: 2,
+                  flexShrink: 0,
+                }}
+              />
+              {title}
+            </h3>
+            {content}
+          </section>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ─── Status Action Panel ────────────────────────────────────────────────── */
+
+function StatusActionPanel({
+  details,
+  loading,
+  error,
+  onUpdateStatus,
+  navy,
+  font,
+}: {
+  details: DeliveryDetails;
+  loading: boolean;
+  error: string | null;
+  onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  navy: string;
+  font: string;
+}) {
+  const [reason, setReason] = useState("");
+  const [showReasonInput, setShowReasonInput] = useState(false);
+
+  const currentStatus = details.delivery.status;
+  const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
+
+  const handleActionClick = (nextStatus: DeliveryStatus) => {
+    if (nextStatus === "issue") {
+      setShowReasonInput(true);
+    } else {
+      void onUpdateStatus(nextStatus);
+    }
+  };
+
+  const handleConfirmIssue = () => {
+    if (reason.trim()) {
+      void onUpdateStatus("issue", reason.trim());
+      setShowReasonInput(false);
+      setReason("");
+    }
+  };
+
+  const b = STATUS_BADGE[currentStatus];
+
+  return (
+    <section
+      style={{
+        border: "1px solid #dde1e7",
+        borderRadius: 8,
+        backgroundColor: "#f8fafc",
+        padding: "15px",
+        marginBottom: 20,
+      }}
+    >
+      <h3
+        style={{
+          margin: "0 0 12px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#9ca3af",
+          textTransform: "uppercase",
+          letterSpacing: "0.10em",
+        }}
+      >
+        Current Status
+      </h3>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 12px",
+            borderRadius: 6,
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: "normal",
+            backgroundColor: b.bg,
+            color: b.text,
+            border: `1px solid ${b.border}`,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: b.dot,
+              flexShrink: 0,
+            }}
+          />
+          {STATUS_LABEL(currentStatus)}
+        </span>
+      </div>
+
+      {possibleNext.length > 0 && !showReasonInput && (
+        <div>
           <h3
             style={{
-              margin: "0 0 10px",
+              margin: "16px 0 8px",
               fontSize: 11,
               fontWeight: 700,
               color: "#9ca3af",
               textTransform: "uppercase",
               letterSpacing: "0.10em",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
             }}
           >
-            <span
-              style={{
-                display: "inline-block",
-                width: 16,
-                height: 2,
-                backgroundColor: navy,
-                borderRadius: 2,
-                flexShrink: 0,
-              }}
-            />
-            {title}
+            Update Status
           </h3>
-          {content}
-        </section>
-      ))}
-    </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {possibleNext.map((status) => (
+              <button
+                key={status}
+                onClick={() => handleActionClick(status)}
+                disabled={loading}
+                style={{
+                  backgroundColor: loading ? "#f3f4f6" : "#fff",
+                  color: loading ? "#9ca3af" : navy,
+                  border: `1.5px solid ${loading ? "#d1d5db" : navy}`,
+                  borderRadius: 4,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: loading ? "not-allowed" : "pointer",
+                  fontFamily: font,
+                  transition: "all 0.13s",
+                }}
+              >
+                {loading ? "Updating…" : `Mark ${STATUS_LABEL(status)}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showReasonInput && (
+        <div>
+          <h3
+            style={{
+              margin: "16px 0 8px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#c62828",
+              textTransform: "uppercase",
+              letterSpacing: "0.10em",
+            }}
+          >
+            Report Issue
+          </h3>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Briefly describe the issue..."
+            disabled={loading}
+            style={{
+              width: "100%",
+              minHeight: 60,
+              padding: "8px 12px",
+              border: "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: font,
+              outline: "none",
+              marginBottom: 8,
+            }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleConfirmIssue}
+              disabled={loading || !reason.trim()}
+              style={{
+                backgroundColor:
+                  loading || !reason.trim() ? "#f3f4f6" : "#c62828",
+                color: loading || !reason.trim() ? "#9ca3af" : "#fff",
+                border: `1.5px solid ${
+                  loading || !reason.trim() ? "#d1d5db" : "#c62828"
+                }`,
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: loading || !reason.trim() ? "not-allowed" : "pointer",
+                fontFamily: font,
+              }}
+            >
+              {loading ? "Saving..." : "Confirm Issue"}
+            </button>
+            <button
+              onClick={() => setShowReasonInput(false)}
+              disabled={loading}
+              style={{
+                backgroundColor: "#fff",
+                color: "#374151",
+                border: "1.5px solid #d1d5db",
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            marginTop: 12,
+            backgroundColor: "#fee2e2",
+            borderRadius: 6,
+            padding: "10px 15px",
+            color: "#b91c1c",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {error}
+        </div>
+      )}
+    </section>
   );
 }

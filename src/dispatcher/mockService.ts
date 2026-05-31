@@ -24,6 +24,8 @@ import type {
   PagedResult,
   SortDirection,
 } from "./service";
+import { VALID_TRANSITIONS } from "./service";
+import type { DeliveryStatus } from "./models";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 25;
@@ -270,6 +272,51 @@ export class MockDispatcherDataService implements DispatcherDataService {
         (entry) => entry.deliveryOrderId === delivery.id,
       ),
     };
+  }
+
+  async updateDeliveryStatus(
+    deliveryId: string,
+    toStatus: DeliveryStatus,
+    reason?: string,
+  ): Promise<DeliveryDetails | null> {
+    const delivery = deliveryOrders.find((entry) => entry.id === deliveryId);
+    if (!delivery) {
+      return null;
+    }
+
+    const fromStatus = delivery.status;
+    const isValidTransition = VALID_TRANSITIONS[fromStatus]?.includes(toStatus);
+
+    if (!isValidTransition) {
+      console.error(`Invalid status transition: ${fromStatus} -> ${toStatus}`);
+      return this.getDeliveryDetails(deliveryId); // Return current state
+    }
+
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    delivery.status = toStatus;
+    delivery.updatedAt = new Date().toISOString();
+
+    if (toStatus === "issue" && reason) {
+      delivery.issueSummary = reason;
+    } else if (fromStatus === "issue") {
+      delivery.issueSummary = "";
+    }
+
+    statusHistory.push({
+      id: `event-${Date.now()}`,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus,
+      toStatus,
+      reason,
+      actorType: "dispatcher",
+      actorName: "Dispatcher",
+      createdAt: new Date().toISOString(),
+    });
+
+    return this.getDeliveryDetails(deliveryId);
   }
 }
 
