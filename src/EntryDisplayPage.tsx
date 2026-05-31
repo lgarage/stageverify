@@ -1,39 +1,11 @@
-import { useEffect, useState } from "react";
-import {
-  deliveryOrders,
-  items,
-  stagingLocations,
-  vendors,
-  jobs,
-} from "./dispatcher/mockData";
-import type { DeliveryStatus } from "./dispatcher/models";
+import { useCallback, useEffect, useState } from "react";
+import { firestoreDataService } from "./dispatcher/firestoreService";
+import type { DeliveryListRow, DeliveryStatus, StagingLocation } from "./dispatcher/models";
 
-function getDisplayData() {
-  const activeEntries = stagingLocations
-    .filter((loc) => loc.active)
-    .flatMap((loc) => {
-      const delivery = deliveryOrders.find(
-        (d) => d.stagingLocationId === loc.id && d.status !== "picked_up",
-      );
-      if (!delivery) return [];
-      const vendor = vendors.find((v) => v.id === delivery.vendorId);
-      const job = jobs.find((j) => j.id === delivery.jobId);
-      const itemCount = items.filter(
-        (i) => i.deliveryOrderId === delivery.id,
-      ).length;
-      return [{ loc, delivery, vendor, job, itemCount }];
-    });
-
-  const availableLocs = stagingLocations.filter(
-    (loc) =>
-      loc.active &&
-      !deliveryOrders.some(
-        (d) => d.stagingLocationId === loc.id && d.status !== "picked_up",
-      ),
-  );
-
-  return { activeEntries, availableLocs };
-}
+type ActiveEntry = {
+  loc: StagingLocation;
+  deliveryRow: DeliveryListRow;
+};
 
 const statusDotColor = (status: DeliveryStatus): string => {
   const map: Record<DeliveryStatus, string> = {
@@ -65,19 +37,42 @@ const statusLabel = (status: DeliveryStatus): string =>
 /* ── Component ── */
 export function EntryDisplayPage() {
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const [tick, setTick] = useState(0);
-  const { activeEntries, availableLocs } = getDisplayData();
-  void tick;
+  const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);
+  const [availableLocs, setAvailableLocs] = useState<StagingLocation[]>([]);
+
+  const fetchDisplayData = useCallback(async () => {
+    const [deliveriesResult, locations] = await Promise.all([
+      firestoreDataService.listDeliveries({ pageSize: 100 }),
+      firestoreDataService.listStagingLocations(),
+    ]);
+
+    const rows = deliveriesResult.items.filter((d) => d.status !== "picked_up");
+
+    const active: ActiveEntry[] = locations
+      .filter((loc) =>
+        rows.some((d) => d.stagingLocationCode === loc.code),
+      )
+      .map((loc) => {
+        const deliveryRow = rows.find((d) => d.stagingLocationCode === loc.code)!;
+        return { loc, deliveryRow };
+      });
+
+    const available = locations.filter(
+      (loc) => !rows.some((d) => d.stagingLocationCode === loc.code),
+    );
+
+    setActiveEntries(active);
+    setAvailableLocs(available);
+  }, []);
 
   useEffect(() => {
-    const updateCurrentTime = () => {
+    void fetchDisplayData();
+    const intervalId = window.setInterval(() => {
       setCurrentTime(new Date());
-      setTick((t) => t + 1);
-    };
-
-    const intervalId = window.setInterval(updateCurrentTime, 30_000);
+      void fetchDisplayData();
+    }, 30_000);
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [fetchDisplayData]);
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col">
@@ -133,7 +128,7 @@ export function EntryDisplayPage() {
                 <div className="space-y-2 flex-1">
                   <div className="flex items-baseline gap-3">
                     <span className="text-2xl sm:text-3xl font-medium text-text-primary">
-                      {entry.vendor?.name ?? "Unknown Vendor"}
+                      {entry.deliveryRow.vendorName}
                     </span>
                     <svg
                       className="size-5 text-text-secondary shrink-0"
@@ -150,7 +145,7 @@ export function EntryDisplayPage() {
                     </svg>
                   </div>
                   <p className="text-xl text-text-secondary font-light">
-                    {entry.job?.jobName ?? ""}
+                    {entry.deliveryRow.jobName}
                   </p>
                 </div>
 
@@ -158,21 +153,20 @@ export function EntryDisplayPage() {
                 <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`size-2 rounded-full ${statusDotColor(entry.delivery.status)}`}
+                      className={`size-2 rounded-full ${statusDotColor(entry.deliveryRow.status)}`}
                     />
                     <span
-                      className={`text-[10px] font-medium uppercase tracking-widest ${statusTextColor(entry.delivery.status)}`}
+                      className={`text-[10px] font-medium uppercase tracking-widest ${statusTextColor(entry.deliveryRow.status)}`}
                     >
-                      {statusLabel(entry.delivery.status)}
+                      {statusLabel(entry.deliveryRow.status)}
                     </span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-text-secondary font-mono block mb-1">
-                      {entry.delivery.orderNumber}
+                      {entry.deliveryRow.orderNumber}
                     </span>
                     <span className="text-[10px] text-text-secondary uppercase tracking-widest">
-                      {entry.itemCount}{" "}
-                      {entry.itemCount === 1 ? "item" : "items"}
+                      {entry.deliveryRow.itemsReceivedLabel} items
                     </span>
                   </div>
                 </div>

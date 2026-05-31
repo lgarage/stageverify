@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  deliveryOrders,
-  items,
-  stagingLocations,
-  vendors,
-  jobs,
-} from "./dispatcher/mockData";
-import { mockDispatcherDataService } from "./dispatcher/mockService";
+import { firestoreDataService } from "./dispatcher/firestoreService";
 import type {
   DeliveryOrder,
   Item,
@@ -78,16 +71,11 @@ function ScanScreen() {
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [scanError] = useState<string | null>(null);
 
-  const handleDeliveryFound = (deliveryId: string) => {
-    const delivery = deliveryOrders.find((d) => d.id === deliveryId);
-    if (!delivery) return;
-    const vendor = vendors.find((v) => v.id === delivery.vendorId);
-    const job = jobs.find((j) => j.id === delivery.jobId);
-    const location = delivery.stagingLocationId
-      ? stagingLocations.find((l) => l.id === delivery.stagingLocationId)
-      : undefined;
-    const allItems = items.filter((i) => i.deliveryOrderId === deliveryId);
-    setCurrentDelivery({ delivery, vendor, job, location, allItems });
+  const handleDeliveryFound = async (deliveryId: string) => {
+    const details = await firestoreDataService.getDeliveryDetails(deliveryId);
+    if (!details) return;
+    const { delivery, vendor, job, stagingLocation, items: allItems } = details;
+    setCurrentDelivery({ delivery, vendor, job, location: stagingLocation, allItems });
     setCheckInItems(
       allItems.map((i) => ({
         id: i.id,
@@ -101,11 +89,14 @@ function ScanScreen() {
     setStep("name");
   };
 
-  const handleManualScan = () => {
+  const handleManualScan = async () => {
     setNotFoundCode(null);
-    const pending = deliveryOrders.find((d) => d.status === "pending");
-    if (pending) {
-      handleDeliveryFound(pending.id);
+    const result = await firestoreDataService.listDeliveries({
+      statuses: ["pending"],
+      pageSize: 1,
+    });
+    if (result.items.length > 0) {
+      await handleDeliveryFound(result.items[0].deliveryId);
     }
   };
 
@@ -131,28 +122,28 @@ function ScanScreen() {
               if (handledDecode || !isMounted) return;
               handledDecode = true;
               void (async () => {
-                const loc = stagingLocations.find((l) => l.code === decodedText);
-                let delivery = loc
-                  ? deliveryOrders.find(
-                      (d) =>
-                        d.stagingLocationId === loc.id &&
-                        (d.status === "pending" || d.status === "arrived"),
-                    )
-                  : deliveryOrders.find(
-                      (d) =>
-                        d.id === decodedText &&
-                        (d.status === "pending" || d.status === "arrived"),
-                    );
-                if (delivery) {
-                  if (delivery.status === "pending") {
-                    await mockDispatcherDataService.updateDeliveryStatus(
-                      delivery.id,
+                const result = await firestoreDataService.listDeliveries({
+                  pageSize: 100,
+                });
+                const matchByZone = result.items.find(
+                  (d) =>
+                    d.stagingLocationCode === decodedText &&
+                    d.status !== "picked_up",
+                );
+                const matchById = result.items.find(
+                  (d) =>
+                    d.deliveryId === decodedText && d.status !== "picked_up",
+                );
+                const match = matchByZone ?? matchById;
+
+                if (match) {
+                  if (match.status === "pending") {
+                    await firestoreDataService.updateDeliveryStatus(
+                      match.deliveryId,
                       "arrived",
                     );
-                    const deliveryId = delivery.id;
-                    delivery = deliveryOrders.find((d) => d.id === deliveryId);
                   }
-                  if (isMounted && delivery) handleDeliveryFound(delivery.id);
+                  if (isMounted) await handleDeliveryFound(match.deliveryId);
                 } else {
                   if (isMounted) {
                     setIsScanning(false);
@@ -167,7 +158,7 @@ function ScanScreen() {
           )
           .catch((err: unknown) => {
             console.error("Error starting scanner", err);
-            if (isMounted) handleManualScan();
+            if (isMounted) void handleManualScan();
           });
       });
     }
@@ -229,7 +220,7 @@ function ScanScreen() {
   const confirmSubmit = async () => {
     setShowSubmitConfirm(false);
     if (!currentDelivery) return;
-    await mockDispatcherDataService.submitCheckin(
+    await firestoreDataService.submitCheckin(
       currentDelivery.delivery.id,
       driverName.trim() || "Vendor Driver",
       checkInItems.map((i) => ({
@@ -306,7 +297,7 @@ function ScanScreen() {
           )}
 
           <button
-            onClick={handleManualScan}
+            onClick={() => { void handleManualScan(); }}
             className="action-btn action-btn-primary w-full max-w-[280px] mb-6"
           >
             <Svg d={icons.scan} size={20} />
@@ -364,7 +355,7 @@ function ScanScreen() {
 
         <div className="mt-8">
           <button
-            onClick={handleManualScan}
+            onClick={() => { void handleManualScan(); }}
             className="action-btn action-btn-secondary"
           >
             ENTER ID MANUALLY

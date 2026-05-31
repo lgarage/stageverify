@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
+import { firestoreDataService as mockDispatcherDataService } from "./dispatcher/firestoreService";
 import {
-  mockDispatcherDataService,
   VALID_TRANSITIONS,
   type DeliveryDetails,
   type DeliveryListRow,
