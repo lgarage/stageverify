@@ -4,8 +4,8 @@
 > Overflow → migrate into PROJECT_STATUS/archives/. Read protocol: agent-ops skill §1.
 
 ## Snapshot
-- Active Phase: Entry Display clock refresh
-- Last shipped: Fixed frozen clock on Entry Display board
+- Active Phase: Create Delivery Workflow
+- Last shipped: Create Delivery modal with line items in dispatcher dashboard (commit 3925b48)
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4 (CSS-first, no config), html5-qrcode 2.3.8. Deploy: GitHub Pages (gh-pages) → https://lgarage.github.io/stageverify
 - Data: in-memory mocks (src/mockData.ts, src/dispatcher/mockData.ts). Backend: NONE yet (Firebase/Supabase under consideration).
 - Models: src/dispatcher/models.ts (canonical). src/types.ts = legacy, targeted for deletion.
@@ -14,7 +14,7 @@
 None.
 
 ## Immediate Next Step
-Pick up the next queued away-list task.
+Fix PO Number persistence in CreateDeliveryModal — form collects it but doesn't push a PurchaseOrder record, so PO # column is blank for new deliveries. Or move to Priority 2: Vendor Check-In Integration.
 
 ## Agent-ops reference
 - Away-list tasks: `PROJECT_STATUS/away-list.json` (run status: `away-status.json`)
