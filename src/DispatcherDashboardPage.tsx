@@ -2292,6 +2292,9 @@ function StatusActionPanel({
   const [reason, setReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [editingIssue, setEditingIssue] = useState(false);
+  const [editReason, setEditReason] = useState("");
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [pendingLocationId, setPendingLocationId] = useState<string>(
     details.stagingLocation?.id ?? "",
   );
@@ -2320,6 +2323,13 @@ function StatusActionPanel({
     }
   }, [showReasonInput]);
 
+  useEffect(() => {
+    if (editingIssue) {
+      const t = setTimeout(() => editTextareaRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [editingIssue]);
+
   const currentStatus = details.delivery.status;
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
 
@@ -2336,6 +2346,13 @@ function StatusActionPanel({
       void onUpdateStatus("issue", reason.trim());
       setShowReasonInput(false);
       setReason("");
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (editReason.trim()) {
+      void onUpdateStatus("issue", editReason.trim());
+      setEditingIssue(false);
     }
   };
 
@@ -2503,6 +2520,134 @@ function StatusActionPanel({
                 setShowReasonInput(false);
                 setReason("");
               }}
+              disabled={loading}
+              style={{
+                backgroundColor: "#fff",
+                color: "#374151",
+                border: "1.5px solid #d1d5db",
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {currentStatus === "issue" && !editingIssue && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#c62828",
+                textTransform: "uppercase",
+                letterSpacing: "0.10em",
+              }}
+            >
+              Issue Summary
+            </h3>
+            <button
+              onClick={() => {
+                setEditReason(details.delivery.issueSummary ?? "");
+                setEditingIssue(true);
+              }}
+              disabled={loading}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#2563eb",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: loading ? "not-allowed" : "pointer",
+                padding: "2px 0",
+                fontFamily: font,
+                textDecoration: "underline",
+              }}
+            >
+              Edit
+            </button>
+          </div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: "#374151",
+              backgroundColor: "#fff1f2",
+              border: "1px solid #fecaca",
+              borderRadius: 6,
+              padding: "8px 12px",
+              fontFamily: font,
+              lineHeight: 1.5,
+            }}
+          >
+            {details.delivery.issueSummary || <em style={{ color: "#9ca3af" }}>No summary recorded.</em>}
+          </p>
+        </div>
+      )}
+
+      {currentStatus === "issue" && editingIssue && (
+        <div style={{ marginTop: 12 }}>
+          <h3
+            style={{
+              margin: "0 0 8px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#c62828",
+              textTransform: "uppercase",
+              letterSpacing: "0.10em",
+            }}
+          >
+            Edit Issue Summary
+          </h3>
+          <textarea
+            ref={editTextareaRef}
+            autoFocus
+            value={editReason}
+            onChange={(e) => setEditReason(e.target.value)}
+            placeholder="Describe the issue..."
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              minHeight: 60,
+              padding: "8px 12px",
+              border: "1.5px solid #fca5a5",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: font,
+              color: "#111",
+              backgroundColor: "#fff",
+              outline: "none",
+              marginBottom: 8,
+            }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleSaveEdit}
+              disabled={loading || !editReason.trim()}
+              style={{
+                backgroundColor: loading || !editReason.trim() ? "#f3f4f6" : "#c62828",
+                color: loading || !editReason.trim() ? "#9ca3af" : "#fff",
+                border: `1.5px solid ${loading || !editReason.trim() ? "#d1d5db" : "#c62828"}`,
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: loading || !editReason.trim() ? "not-allowed" : "pointer",
+                fontFamily: font,
+              }}
+            >
+              {loading ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => { setEditingIssue(false); setEditReason(""); }}
               disabled={loading}
               style={{
                 backgroundColor: "#fff",
