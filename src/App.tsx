@@ -321,7 +321,10 @@ function ScanScreen() {
         )}
 
         <div
-          onClick={() => setIsScanning(true)}
+          onClick={() => {
+            setNotFoundCode(null);
+            setIsScanning(true);
+          }}
           className="flex-1 bg-bg-surface rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer active:scale-[0.98] transition-transform border border-border"
         >
           <div className="size-24 rounded-full bg-accent/10 text-accent flex items-center justify-center">
