@@ -16,6 +16,11 @@ None.
 ## Immediate Next Step
 Pick up the next queued away-list task.
 
+## Agent-ops reference
+- Away-list tasks: `PROJECT_STATUS/away-list.json` (run status: `away-status.json`)
+- Phase 2 explanation: `PROJECT_STATUS/AGENT_OPS_PHASE2.md` (cold — read only when asked)
+- Brain repo / learning status: `C:\Projects\cursor-agent-brain\STATS.md`
+
 ## Update Protocol
 - Touch Snapshot / Active Blocker / Immediate Next Step at end of every session.
 - "Immediate Next Step" describes what the NEXT session should do.
