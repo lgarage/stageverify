@@ -1,33 +1,78 @@
-import { mockOrders, stagingZones, zoneNamingReference } from "./mockData";
-import type { OrderStatus } from "./types";
 import { useEffect, useState } from "react";
+import {
+  deliveryOrders,
+  items,
+  stagingLocations,
+  vendors,
+  jobs,
+} from "./dispatcher/mockData";
+import type { DeliveryStatus } from "./dispatcher/models";
 
-/* ── Status helpers ── */
-const statusColor = (status: OrderStatus): string => {
-  const map: Record<OrderStatus, string> = {
-    Pending: "text-accent-amber",
-    Partial: "text-accent-purple",
-    Complete: "text-accent-green",
+function getDisplayData() {
+  const activeEntries = stagingLocations
+    .filter((loc) => loc.active)
+    .flatMap((loc) => {
+      const delivery = deliveryOrders.find(
+        (d) => d.stagingLocationId === loc.id && d.status !== "picked_up",
+      );
+      if (!delivery) return [];
+      const vendor = vendors.find((v) => v.id === delivery.vendorId);
+      const job = jobs.find((j) => j.id === delivery.jobId);
+      const itemCount = items.filter(
+        (i) => i.deliveryOrderId === delivery.id,
+      ).length;
+      return [{ loc, delivery, vendor, job, itemCount }];
+    });
+
+  const availableLocs = stagingLocations.filter(
+    (loc) =>
+      loc.active &&
+      !deliveryOrders.some(
+        (d) => d.stagingLocationId === loc.id && d.status !== "picked_up",
+      ),
+  );
+
+  return { activeEntries, availableLocs };
+}
+
+const statusDotColor = (status: DeliveryStatus): string => {
+  const map: Record<DeliveryStatus, string> = {
+    pending: "bg-accent-amber",
+    arrived: "bg-accent",
+    partial: "bg-accent-purple",
+    complete: "bg-accent-green",
+    issue: "bg-accent-red",
+    picked_up: "bg-text-secondary",
   };
-  return map[status];
+  return map[status] ?? "bg-text-secondary";
 };
 
-const statusLabel = (status: OrderStatus): string => {
-  return status.toUpperCase();
+const statusTextColor = (status: DeliveryStatus): string => {
+  const map: Record<DeliveryStatus, string> = {
+    pending: "text-accent-amber",
+    arrived: "text-accent",
+    partial: "text-accent-purple",
+    complete: "text-accent-green",
+    issue: "text-accent-red",
+    picked_up: "text-text-secondary",
+  };
+  return map[status] ?? "text-text-secondary";
 };
 
-const zoneDescription = (zoneId: string): string => {
-  return zoneNamingReference[zoneId] ?? zoneId;
-};
+const statusLabel = (status: DeliveryStatus): string =>
+  status.replace("_", " ").toUpperCase();
 
 /* ── Component ── */
 export function EntryDisplayPage() {
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const activeZones = stagingZones.filter((z) => z.currentOrderId !== null);
+  const [tick, setTick] = useState(0);
+  const { activeEntries, availableLocs } = getDisplayData();
+  void tick;
 
   useEffect(() => {
     const updateCurrentTime = () => {
       setCurrentTime(new Date());
+      setTick((t) => t + 1);
     };
 
     const intervalId = window.setInterval(updateCurrentTime, 30_000);
@@ -66,22 +111,19 @@ export function EntryDisplayPage() {
       {/* Main Grid */}
       <main className="flex-1 p-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {activeZones.map((zone) => {
-            const order = mockOrders.find((o) => o.id === zone.currentOrderId);
-            if (!order) return null;
-
+          {activeEntries.map((entry) => {
             return (
               <div
-                key={zone.id}
+                key={entry.loc.id}
                 className="relative rounded-2xl border border-border bg-bg-card p-8 flex flex-col shadow-lg"
               >
                 {/* Zone location code - BIG */}
                 <div className="flex items-baseline gap-4 mb-6">
                   <span className="text-6xl sm:text-7xl font-light font-mono tracking-tight text-text-primary">
-                    {zone.id}
+                    {entry.loc.code}
                   </span>
                   <span className="text-sm text-text-secondary uppercase tracking-widest">
-                    {zoneDescription(zone.id)}
+                    {entry.loc.label}
                   </span>
                 </div>
 
@@ -91,7 +133,7 @@ export function EntryDisplayPage() {
                 <div className="space-y-2 flex-1">
                   <div className="flex items-baseline gap-3">
                     <span className="text-2xl sm:text-3xl font-medium text-text-primary">
-                      {order.vendor}
+                      {entry.vendor?.name ?? "Unknown Vendor"}
                     </span>
                     <svg
                       className="size-5 text-text-secondary shrink-0"
@@ -108,7 +150,7 @@ export function EntryDisplayPage() {
                     </svg>
                   </div>
                   <p className="text-xl text-text-secondary font-light">
-                    {order.jobName}
+                    {entry.job?.jobName ?? ""}
                   </p>
                 </div>
 
@@ -116,27 +158,21 @@ export function EntryDisplayPage() {
                 <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`size-2 rounded-full ${
-                        order.status === "Pending"
-                          ? "bg-accent-amber"
-                          : order.status === "Partial"
-                            ? "bg-accent-purple"
-                            : "bg-accent-green"
-                      }`}
+                      className={`size-2 rounded-full ${statusDotColor(entry.delivery.status)}`}
                     />
                     <span
-                      className={`text-[10px] font-medium uppercase tracking-widest ${statusColor(order.status)}`}
+                      className={`text-[10px] font-medium uppercase tracking-widest ${statusTextColor(entry.delivery.status)}`}
                     >
-                      {statusLabel(order.status)}
+                      {statusLabel(entry.delivery.status)}
                     </span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-text-secondary font-mono block mb-1">
-                      {order.id}
+                      {entry.delivery.orderNumber}
                     </span>
                     <span className="text-[10px] text-text-secondary uppercase tracking-widest">
-                      {order.items.length}{" "}
-                      {order.items.length === 1 ? "item" : "items"}
+                      {entry.itemCount}{" "}
+                      {entry.itemCount === 1 ? "item" : "items"}
                     </span>
                   </div>
                 </div>
@@ -145,21 +181,19 @@ export function EntryDisplayPage() {
           })}
 
           {/* Available zones */}
-          {stagingZones
-            .filter((z) => z.currentOrderId === null)
-            .map((zone) => (
+          {availableLocs.map((loc) => (
               <div
-                key={zone.id}
+                key={loc.id}
                 className="rounded-2xl border border-dashed border-border bg-bg-surface/30 p-8 flex flex-col items-center justify-center text-center min-h-[240px]"
               >
                 <span className="text-5xl font-light font-mono text-text-secondary/50 tracking-tight">
-                  {zone.id}
+                  {loc.code}
                 </span>
                 <span className="text-[10px] text-text-secondary mt-4 uppercase tracking-widest">
                   Available
                 </span>
                 <span className="text-xs text-text-secondary/50 mt-2">
-                  {zoneDescription(zone.id)}
+                  {loc.label}
                 </span>
               </div>
             ))}
@@ -172,8 +206,7 @@ export function EntryDisplayPage() {
           Scan QR code at your assigned zone to confirm delivery
         </p>
         <p className="text-[10px] text-text-secondary font-mono uppercase tracking-widest">
-          {activeZones.length} active &middot;{" "}
-          {stagingZones.length - activeZones.length} available
+          {activeEntries.length} active &middot; {availableLocs.length} available
         </p>
       </footer>
     </div>
