@@ -563,6 +563,8 @@ export function DispatcherDashboardPage() {
             flexDirection: "column",
             gap: 16,
             width: "100%",
+            maxWidth: 1440,
+            margin: "0 auto",
           }}
         >
           {/* ── Page header ── */}
@@ -601,18 +603,19 @@ export function DispatcherDashboardPage() {
                         ? `2px solid ${c.accent}`
                         : "1px solid #dde1e7",
                       borderRadius: 8,
-                      padding: "15px",
+                      padding: "18px 20px",
                       textAlign: "left",
                       cursor: "pointer",
                       boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
                       transition: "all 0.15s",
                       outline: "none",
+                      minHeight: 90,
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 22,
-                        fontWeight: 700,
+                        fontSize: 32,
+                        fontWeight: 800,
                         color: isFiltered ? "#fff" : c.accent,
                         lineHeight: 1,
                       }}
@@ -621,14 +624,14 @@ export function DispatcherDashboardPage() {
                     </div>
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: isFiltered
                           ? "rgba(255,255,255,0.85)"
-                          : "#6b7280",
-                        marginTop: 6,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
+                          : "#374151",
+                        marginTop: 10,
+                        textTransform: "none",
+                        letterSpacing: "normal",
                         fontFamily: FONT,
                       }}
                     >
@@ -656,11 +659,11 @@ export function DispatcherDashboardPage() {
                 <label
                   style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 700,
                     color: "#6b7280",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.09em",
+                    textTransform: "none",
+                    letterSpacing: "normal",
                     marginBottom: 6,
                   }}
                 >
@@ -668,8 +671,8 @@ export function DispatcherDashboardPage() {
                 </label>
                 <div style={{ position: "relative" }}>
                   <svg
-                    width={16}
-                    height={16}
+                    width={18}
+                    height={18}
                     fill="none"
                     stroke="#9ca3af"
                     strokeWidth={2}
@@ -678,7 +681,7 @@ export function DispatcherDashboardPage() {
                     viewBox="0 0 24 24"
                     style={{
                       position: "absolute",
-                      left: 10,
+                      left: 13,
                       top: "50%",
                       transform: "translateY(-50%)",
                       pointerEvents: "none",
@@ -699,13 +702,13 @@ export function DispatcherDashboardPage() {
                     placeholder="Job #, name, PO, order, vendor, staging location…"
                     style={{
                       width: "100%",
-                      padding: "8px 12px 8px 34px",
-                      border: "1px solid #ccd0d7",
-                      borderRadius: 4,
-                      fontSize: 14,
+                      padding: "12px 14px 12px 40px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 6,
+                      fontSize: 16,
                       color: "#333",
                       outline: "none",
-                      backgroundColor: "#fafafa",
+                      backgroundColor: "#fff",
                       fontFamily: FONT,
                       transition: "border-color 0.15s, box-shadow 0.15s",
                     }}
@@ -726,11 +729,11 @@ export function DispatcherDashboardPage() {
                 <label
                   style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 700,
                     color: "#6b7280",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.09em",
+                    textTransform: "none",
+                    letterSpacing: "normal",
                     marginBottom: 6,
                   }}
                 >
@@ -756,7 +759,7 @@ export function DispatcherDashboardPage() {
                           borderRadius: 4,
                           fontSize: 12,
                           fontWeight: 700,
-                          letterSpacing: "0.02em",
+                          letterSpacing: "normal",
                           border: active
                             ? `2px solid ${b.border}`
                             : `1px solid #ccd0d7`,
@@ -883,7 +886,7 @@ export function DispatcherDashboardPage() {
                 }}
               >
                 <thead>
-                  <tr style={{ backgroundColor: RED }}>
+                  <tr style={{ backgroundColor: NAVY }}>
                     {SORT_COLUMNS.map((col) => {
                       const isSorted = col.key && query.sortBy === col.key;
                       return (
@@ -989,7 +992,7 @@ export function DispatcherDashboardPage() {
                         {/* Status badge */}
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                           }}
                         >
@@ -1002,7 +1005,7 @@ export function DispatcherDashboardPage() {
                               borderRadius: 4,
                               fontSize: 11,
                               fontWeight: 700,
-                              letterSpacing: "0.02em",
+                              letterSpacing: "normal",
                               backgroundColor: b.bg,
                               color: b.text,
                               border: `1px solid ${b.border}`,
@@ -1023,7 +1026,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
                             color: "#333",
@@ -1035,7 +1038,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             fontWeight: 600,
                             color: "#111",
@@ -1045,7 +1048,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
                             color: "#666",
@@ -1056,7 +1059,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
                             color: "#666",
@@ -1067,7 +1070,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             color: "#333",
                           }}
@@ -1076,7 +1079,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             color: "#333",
                             whiteSpace: "nowrap",
@@ -1086,7 +1089,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                           }}
                         >
@@ -1112,7 +1115,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             fontFamily: "monospace",
                             color: "#333",
@@ -1123,7 +1126,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             color: row.issueSummary ? "#c62828" : "#9ca3af",
                             maxWidth: 200,
@@ -1148,7 +1151,7 @@ export function DispatcherDashboardPage() {
                         </td>
                         <td
                           style={{
-                            padding: "12px",
+                            padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
                             textAlign: "right",
                           }}
@@ -1167,7 +1170,7 @@ export function DispatcherDashboardPage() {
                               fontSize: 12,
                               fontWeight: 700,
                               cursor: "pointer",
-                              letterSpacing: "0.02em",
+                              letterSpacing: "normal",
                               transition: "all 0.13s",
                               outline: "none",
                               fontFamily: FONT,
