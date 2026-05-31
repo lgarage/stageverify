@@ -14,7 +14,7 @@
 None.
 
 ## Immediate Next Step
-Verify any other dashboard timers that should auto-refresh.
+Pick up the next queued away-list task.
 
 ## Update Protocol
 - Touch Snapshot / Active Blocker / Immediate Next Step at end of every session.
