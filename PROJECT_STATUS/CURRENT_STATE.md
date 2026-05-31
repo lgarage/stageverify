@@ -1,0 +1,22 @@
+# stageverify | Current State
+
+> READ THIS FILE FIRST every session. Hot-tier — hard cap ~30 lines.
+> Overflow → migrate into PROJECT_STATUS/archives/. Read protocol: agent-ops skill §1.
+
+## Snapshot
+- Active Phase: <fill in current focus>
+- Last shipped: <fill in>
+- Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4 (CSS-first, no config), html5-qrcode 2.3.8. Deploy: GitHub Pages (gh-pages) → https://lgarage.github.io/stageverify
+- Data: in-memory mocks (src/mockData.ts, src/dispatcher/mockData.ts). Backend: NONE yet (Firebase/Supabase under consideration).
+- Models: src/dispatcher/models.ts (canonical). src/types.ts = legacy, targeted for deletion.
+
+## Active Blocker
+None.
+
+## Immediate Next Step
+<what the NEXT session should do — not what this one finished>
+
+## Update Protocol
+- Touch Snapshot / Active Blocker / Immediate Next Step at end of every session.
+- "Immediate Next Step" describes what the NEXT session should do.
+- Hard size cap: if total lines ≥ 55, collapse oldest snapshot entries into archives/.

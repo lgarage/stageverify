@@ -1,0 +1,2 @@
+# Rotated outcome logs land here as outcomes/YYYY-Www.md (append-only).
+# Query with rg; never read end-to-end. See agent-ops skill §7.
