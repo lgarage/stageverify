@@ -64,4 +64,14 @@ export interface DispatcherDataService {
     deliveryId: string,
     poNumber: string,
   ): Promise<DeliveryDetails | null>;
+  submitCheckin(
+    deliveryId: string,
+    driverName: string,
+    itemUpdates: Array<{
+      id: string;
+      qtyReceived: number;
+      qtyMissing: number;
+      qtyDamaged: number;
+    }>,
+  ): Promise<DeliveryDetails | null>;
 }

@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
-import { mockOrders, stagingZones } from "./mockData";
-import type { Order, LineItem as OrderItem } from "./types";
+import {
+  deliveryOrders,
+  items,
+  stagingLocations,
+  vendors,
+  jobs,
+} from "./dispatcher/mockData";
+import { mockDispatcherDataService } from "./dispatcher/mockService";
+import type {
+  DeliveryOrder,
+  Item,
+  StagingLocation,
+  Vendor,
+  Job,
+} from "./dispatcher/models";
 
 // --- Icons ---
 const icons = {
@@ -34,38 +47,66 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
   );
 }
 
-type Step = "scan" | "list" | "done";
+type Step = "scan" | "name" | "list" | "done";
+
+type CheckInItem = {
+  id: string;
+  description: string;
+  qtyOrdered: number;
+  deliveredQty: number;
+};
+
+type CheckInDelivery = {
+  delivery: DeliveryOrder;
+  vendor: Vendor | undefined;
+  job: Job | undefined;
+  location: StagingLocation | undefined;
+  allItems: Item[];
+};
 
 function ScanScreen() {
   const [step, setStep] = useState<Step>("scan");
-  const [order, setOrder] = useState<Order | null>(null);
-  const [items, setItems] = useState<OrderItem[]>([]);
+  const [currentDelivery, setCurrentDelivery] = useState<CheckInDelivery | null>(
+    null,
+  );
+  const [checkInItems, setCheckInItems] = useState<CheckInItem[]>([]);
+  const [driverName, setDriverName] = useState("");
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(0);
-  const [showSpaceModal, setShowSpaceModal] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [scanError] = useState<string | null>(null);
 
-  const handleOrderFound = (o: Order) => {
-    setIsScanning(false);
-    setNotFoundCode(null);
-    setOrder(o);
-    setItems(
-      o.items.map((it) => ({
-        ...it,
+  const handleDeliveryFound = (deliveryId: string) => {
+    const delivery = deliveryOrders.find((d) => d.id === deliveryId);
+    if (!delivery) return;
+    const vendor = vendors.find((v) => v.id === delivery.vendorId);
+    const job = jobs.find((j) => j.id === delivery.jobId);
+    const location = delivery.stagingLocationId
+      ? stagingLocations.find((l) => l.id === delivery.stagingLocationId)
+      : undefined;
+    const allItems = items.filter((i) => i.deliveryOrderId === deliveryId);
+    setCurrentDelivery({ delivery, vendor, job, location, allItems });
+    setCheckInItems(
+      allItems.map((i) => ({
+        id: i.id,
+        description: i.description,
+        qtyOrdered: i.qtyOrdered,
         deliveredQty: 0,
-        missingQty: it.quantity,
-        status: null,
       })),
     );
-    setStep("list");
+    setIsScanning(false);
+    setNotFoundCode(null);
+    setStep("name");
   };
 
   const handleManualScan = () => {
     setNotFoundCode(null);
-    handleOrderFound(mockOrders[0]);
+    const pending = deliveryOrders.find((d) => d.status === "pending");
+    if (pending) {
+      handleDeliveryFound(pending.id);
+    }
   };
 
   const handleCancelScan = () => {
@@ -76,42 +117,57 @@ function ScanScreen() {
     let isMounted = true;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let html5QrCode: any = null;
+    let handledDecode = false;
 
     if (isScanning) {
-      // Use Html5Qrcode directly to avoid the built-in UI (camera selection, etc.)
       import("html5-qrcode").then(({ Html5Qrcode }) => {
         if (!isMounted) return;
-
         html5QrCode = new Html5Qrcode("reader");
-
         html5QrCode
           .start(
             { facingMode: "environment" },
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-            },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
             (decodedText: string) => {
-              const foundOrder = mockOrders.find(
-                (o) => o.id === decodedText || o.zoneId === decodedText,
-              );
-              if (foundOrder) {
-                handleOrderFound(foundOrder);
-              } else {
-                setIsScanning(false);
-                setNotFoundCode(decodedText);
-              }
+              if (handledDecode || !isMounted) return;
+              handledDecode = true;
+              void (async () => {
+                const loc = stagingLocations.find((l) => l.code === decodedText);
+                let delivery = loc
+                  ? deliveryOrders.find(
+                      (d) =>
+                        d.stagingLocationId === loc.id &&
+                        (d.status === "pending" || d.status === "arrived"),
+                    )
+                  : deliveryOrders.find(
+                      (d) =>
+                        d.id === decodedText &&
+                        (d.status === "pending" || d.status === "arrived"),
+                    );
+                if (delivery) {
+                  if (delivery.status === "pending") {
+                    await mockDispatcherDataService.updateDeliveryStatus(
+                      delivery.id,
+                      "arrived",
+                    );
+                    const deliveryId = delivery.id;
+                    delivery = deliveryOrders.find((d) => d.id === deliveryId);
+                  }
+                  if (isMounted && delivery) handleDeliveryFound(delivery.id);
+                } else {
+                  if (isMounted) {
+                    setIsScanning(false);
+                    setNotFoundCode(decodedText);
+                  }
+                }
+              })();
             },
             () => {
-              // Ignore continuous scanning errors
+              // ignore continuous scan errors
             },
           )
           .catch((err: unknown) => {
             console.error("Error starting scanner", err);
-            // Fallback if camera fails
-            if (isMounted) {
-              handleManualScan();
-            }
+            if (isMounted) handleManualScan();
           });
       });
     }
@@ -125,9 +181,7 @@ function ScanScreen() {
             .then(() => {
               html5QrCode.clear();
             })
-            .catch(() => {
-              // ignore
-            });
+            .catch(() => {});
         } catch {
           // ignore
         }
@@ -136,15 +190,13 @@ function ScanScreen() {
   }, [isScanning]);
 
   const toggleItemCheck = (id: string) => {
-    setItems(
-      items.map((it) => {
+    setCheckInItems(
+      checkInItems.map((it) => {
         if (it.id === id) {
           const currentlyChecked = it.deliveredQty > 0;
           return {
             ...it,
-            deliveredQty: currentlyChecked ? 0 : it.quantity,
-            missingQty: currentlyChecked ? it.quantity : 0,
-            status: currentlyChecked ? null : "Delivered",
+            deliveredQty: currentlyChecked ? 0 : it.qtyOrdered,
           };
         }
         return it;
@@ -152,27 +204,17 @@ function ScanScreen() {
     );
   };
 
-  const openAdjust = (it: OrderItem) => {
+  const openAdjust = (it: CheckInItem) => {
     setAdjustingItemId(it.id);
     setAdjustQty(it.deliveredQty);
   };
 
   const saveAdjust = () => {
     if (!adjustingItemId) return;
-    setItems(
-      items.map((it) => {
+    setCheckInItems(
+      checkInItems.map((it) => {
         if (it.id === adjustingItemId) {
-          return {
-            ...it,
-            deliveredQty: adjustQty,
-            missingQty: it.quantity - adjustQty,
-            status:
-              adjustQty === it.quantity
-                ? "Delivered"
-                : adjustQty > 0
-                  ? "Partial"
-                  : null,
-          };
+          return { ...it, deliveredQty: adjustQty };
         }
         return it;
       }),
@@ -184,43 +226,29 @@ function ScanScreen() {
     setShowSubmitConfirm(true);
   };
 
-  const confirmSubmit = () => {
+  const confirmSubmit = async () => {
     setShowSubmitConfirm(false);
-    if (order) {
-      const allDelivered = items.every((it) => it.deliveredQty === it.quantity);
-      setOrder({ ...order, status: allDelivered ? "Complete" : "Partial" });
-    }
+    if (!currentDelivery) return;
+    await mockDispatcherDataService.submitCheckin(
+      currentDelivery.delivery.id,
+      driverName.trim() || "Vendor Driver",
+      checkInItems.map((i) => ({
+        id: i.id,
+        qtyReceived: i.deliveredQty,
+        qtyMissing: i.qtyOrdered - i.deliveredQty,
+        qtyDamaged: 0,
+      })),
+    );
     setStep("done");
   };
 
   const handleReset = () => {
-    setOrder(null);
-    setItems([]);
+    setCurrentDelivery(null);
+    setCheckInItems([]);
+    setDriverName("");
     setNotFoundCode(null);
+    setAdjustingItemId(null);
     setStep("scan");
-  };
-
-  const handleRequestSpace = (type: "ground" | "shelf") => {
-    if (!order) return;
-
-    // Find nearest available spot
-    const availableSpot = stagingZones.find(
-      (z) =>
-        z.currentOrderId === null &&
-        (type === "ground" ? z.id.startsWith("G") : z.id.startsWith("S")),
-    );
-
-    if (availableSpot) {
-      const newZones = order.additionalZoneIds
-        ? [...order.additionalZoneIds]
-        : [];
-      newZones.push(availableSpot.id);
-      setOrder({ ...order, additionalZoneIds: newZones });
-      availableSpot.currentOrderId = order.id; // Mock update
-    } else {
-      alert("No available spots of that type.");
-    }
-    setShowSpaceModal(false);
   };
 
   // Close modals on escape key
@@ -228,7 +256,6 @@ function ScanScreen() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setAdjustingItemId(null);
-        setShowSpaceModal(false);
         setShowSubmitConfirm(false);
         setIsScanning(false);
       }
@@ -347,41 +374,92 @@ function ScanScreen() {
     );
   }
 
-  if (step === "list" && order) {
-    const allZones = [order.zoneId, ...(order.additionalZoneIds || [])];
+  if (step === "name" && currentDelivery) {
+    const { vendor, job, location } = currentDelivery;
+    return (
+      <div className="flex-1 flex flex-col px-6 py-12">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-text-primary mb-1">
+            {vendor?.name ?? "Unknown Vendor"}
+          </h2>
+          <p className="text-base text-text-secondary">
+            {job?.jobName} · Zone {location?.code ?? "—"}
+          </p>
+        </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-text-primary mb-2">
+            Who&rsquo;s delivering?
+          </h1>
+          <p className="text-base text-text-secondary">
+            Enter your name to begin the check-in.
+          </p>
+        </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            Driver Name
+          </label>
+          <input
+            type="text"
+            value={driverName}
+            onChange={(e) => setDriverName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && driverName.trim()) setStep("list");
+            }}
+            placeholder="e.g. John Smith"
+            className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
+            autoFocus
+          />
+        </div>
+        <button
+          onClick={() => setStep("list")}
+          disabled={!driverName.trim()}
+          className="action-btn action-btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Continue
+        </button>
+        <button
+          onClick={() => {
+            setCurrentDelivery(null);
+            setCheckInItems([]);
+            setDriverName("");
+            setStep("scan");
+          }}
+          className="text-text-secondary text-sm font-medium py-2 px-4 mt-4"
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
 
+  if (step === "list" && currentDelivery) {
     return (
       <div className="flex-1 flex flex-col relative h-full overflow-hidden">
         {/* Fixed Header */}
         <div className="bg-bg-secondary border-b border-border p-4 shrink-0 z-10">
-          <button
-            onClick={() => setShowSpaceModal(true)}
-            className="w-full bg-accent-amber text-black font-bold py-2 rounded-full mb-3 active:scale-[0.98] transition-transform text-sm"
-          >
-            Need More Space?
-          </button>
-
           <h2 className="text-lg font-bold text-text-primary">
-            {order.vendor}
+            {currentDelivery?.vendor?.name ?? "Unknown Vendor"}
           </h2>
           <p className="text-[13px] text-text-secondary mt-0.5">
-            {order.jobName}
+            {currentDelivery?.job?.jobName}
           </p>
-          <p className="text-[13px] text-text-secondary">{order.jobNumber}</p>
-          {order.poNumber && (
-            <p className="text-[13px] text-text-secondary">{order.poNumber}</p>
-          )}
+          <p className="text-[13px] text-text-secondary">
+            {currentDelivery?.job?.jobNumber}
+          </p>
           <p className="text-[13px] font-bold text-accent mt-1">
-            Spots: {allZones.join(", ")}
+            Zone: {currentDelivery?.location?.code ?? "—"}
+          </p>
+          <p className="text-[13px] text-text-secondary mt-0.5">
+            Driver: {driverName}
           </p>
         </div>
 
         {/* Scrollable Items List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {items.map((it) => {
-            const isFullyDelivered = it.deliveredQty === it.quantity;
+          {checkInItems.map((it) => {
+            const isFullyDelivered = it.deliveredQty === it.qtyOrdered;
             const isPartial =
-              it.deliveredQty > 0 && it.deliveredQty < it.quantity;
+              it.deliveredQty > 0 && it.deliveredQty < it.qtyOrdered;
             const isChecked = isFullyDelivered || isPartial;
 
             return (
@@ -402,7 +480,7 @@ function ScanScreen() {
                   <div className="flex-1 min-w-0 flex flex-col">
                     <div className="flex items-start gap-2">
                       <span className="text-[14px] font-medium text-text-secondary shrink-0">
-                        Qty: {it.quantity}
+                        Qty: {it.qtyOrdered}
                       </span>
                       <span className="text-[14px] font-medium text-text-primary">
                         {it.description}
@@ -470,9 +548,11 @@ function ScanScreen() {
                 <button
                   className="stepper-btn"
                   onClick={() => {
-                    const item = items.find((i) => i.id === adjustingItemId);
+                    const item = checkInItems.find(
+                      (i) => i.id === adjustingItemId,
+                    );
                     if (item)
-                      setAdjustQty(Math.min(item.quantity, adjustQty + 1));
+                      setAdjustQty(Math.min(item.qtyOrdered, adjustQty + 1));
                   }}
                 >
                   +
@@ -496,43 +576,6 @@ function ScanScreen() {
           </div>
         )}
 
-        {/* Space Modal (Centered) */}
-        {showSpaceModal && (
-          <div
-            className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowSpaceModal(false)}
-          >
-            <div
-              className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border animate-slide-up"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-bold text-text-primary mb-4 text-center">
-                Need More Space?
-              </h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => handleRequestSpace("ground")}
-                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
-                >
-                  Ground
-                </button>
-                <button
-                  onClick={() => handleRequestSpace("shelf")}
-                  className="w-full py-3 bg-bg-secondary text-text-primary font-medium rounded-lg border border-border"
-                >
-                  Shelf
-                </button>
-                <button
-                  onClick={() => setShowSpaceModal(false)}
-                  className="w-full py-3 text-text-secondary font-medium mt-2"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Submit Confirmation Modal */}
         {showSubmitConfirm && (
           <div
@@ -550,10 +593,14 @@ function ScanScreen() {
               <div className="text-center mb-6">
                 <p className="text-text-secondary mb-2">Checked Items:</p>
                 <p className="text-2xl font-bold text-text-primary mb-2">
-                  {items.filter((i) => i.deliveredQty === i.quantity).length} of{" "}
-                  {items.length}
+                  {
+                    checkInItems.filter(
+                      (i) => i.deliveredQty === i.qtyOrdered,
+                    ).length
+                  }{" "}
+                  of {checkInItems.length}
                 </p>
-                {items.every((i) => i.deliveredQty === i.quantity) ? (
+                {checkInItems.every((i) => i.deliveredQty === i.qtyOrdered) ? (
                   <p className="text-accent-green font-medium">
                     All items verified.
                   </p>
@@ -572,10 +619,12 @@ function ScanScreen() {
                   Go Back
                 </button>
                 <button
-                  onClick={confirmSubmit}
+                  onClick={() => {
+                    void confirmSubmit();
+                  }}
                   className="w-full py-3 bg-accent text-white font-medium rounded-lg"
                 >
-                  {items.every((i) => i.deliveredQty === i.quantity)
+                  {checkInItems.every((i) => i.deliveredQty === i.qtyOrdered)
                     ? "Submit Delivery"
                     : "Submit Anyway"}
                 </button>
@@ -587,8 +636,10 @@ function ScanScreen() {
     );
   }
 
-  if (step === "done" && order) {
-    const allDelivered = items.every((i) => i.deliveredQty === i.quantity);
+  if (step === "done" && currentDelivery) {
+    const allDelivered = checkInItems.every(
+      (i) => i.deliveredQty === i.qtyOrdered,
+    );
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
         <div
@@ -600,16 +651,16 @@ function ScanScreen() {
         >
           <Svg d={icons.check} size={64} />
         </div>
-
         <h2 className="text-3xl font-bold text-text-primary mb-4">
           {allDelivered ? "Delivery Complete" : "Partial Delivery"}
         </h2>
-
-        <p className="text-base text-text-secondary mb-12">
-          Order {order.id} • Spots:{" "}
-          {[order.zoneId, ...(order.additionalZoneIds || [])].join(", ")}
+        <p className="text-base text-text-secondary mb-4">
+          {currentDelivery.delivery.orderNumber} · Zone{" "}
+          {currentDelivery.location?.code ?? "—"}
         </p>
-
+        <p className="text-sm text-text-secondary mb-12">
+          Dispatch has been notified.
+        </p>
         <button
           onClick={handleReset}
           className="action-btn action-btn-secondary w-full"

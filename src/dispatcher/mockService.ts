@@ -393,6 +393,61 @@ export class MockDispatcherDataService implements DispatcherDataService {
     delivery.updatedAt = new Date().toISOString();
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async submitCheckin(
+    deliveryId: string,
+    driverName: string,
+    itemUpdates: Array<{
+      id: string;
+      qtyReceived: number;
+      qtyMissing: number;
+      qtyDamaged: number;
+    }>,
+  ): Promise<DeliveryDetails | null> {
+    const delivery = deliveryOrders.find((d) => d.id === deliveryId);
+    if (!delivery) return null;
+
+    for (const update of itemUpdates) {
+      const item = items.find((i) => i.id === update.id);
+      if (item) {
+        item.qtyReceived = update.qtyReceived;
+        item.qtyMissing = update.qtyMissing;
+        item.qtyDamaged = update.qtyDamaged;
+        item.status =
+          update.qtyReceived === item.qtyOrdered
+            ? "received"
+            : update.qtyReceived > 0
+              ? "partial"
+              : update.qtyDamaged > 0
+                ? "damaged"
+                : "missing";
+      }
+    }
+
+    const deliveryItems = items.filter((i) => i.deliveryOrderId === deliveryId);
+    const allReceived = deliveryItems.every(
+      (i) => i.qtyReceived === i.qtyOrdered,
+    );
+    const overallStatus: DeliveryStatus = allReceived ? "complete" : "partial";
+
+    const fromStatus = delivery.status;
+    delivery.status = overallStatus;
+    delivery.updatedAt = new Date().toISOString();
+
+    statusHistory.push({
+      id: `event-${Date.now()}`,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus,
+      toStatus: overallStatus,
+      actorType: "vendor",
+      actorName: driverName || "Vendor Driver",
+      createdAt: new Date().toISOString(),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return this.getDeliveryDetails(deliveryId);
+  }
 }
 
 export const mockDispatcherDataService: DispatcherDataService =
