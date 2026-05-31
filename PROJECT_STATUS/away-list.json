@@ -1,3 +1,40 @@
 {
-  "queue": []
+  "queue": [
+    {
+      "id": "away-001",
+      "title": "Dispatcher dashboard: Refresh Now button + 30s auto-poll",
+      "scope": "In src/DispatcherDashboardPage.tsx, add a 'Refresh Now' button in the header that calls the existing fetchAllData(), and add a useEffect with setInterval(fetchAllData, 30000) that clears on unmount. Do not change fetch logic, styling, or the sidebar. Reuse existing data-fetch function only.",
+      "files": ["src/DispatcherDashboardPage.tsx"],
+      "tier": "T2",
+      "model": "composer-2.5",
+      "acceptance": "Header shows a Refresh Now button that refetches on click; dashboard auto-refetches every 30s; interval cleared on unmount (no duplicate timers); app builds clean (npm run build); existing styling unchanged.",
+      "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Steps 3.1 / Refresh Now)",
+      "preApproved": true,
+      "status": "queued"
+    },
+    {
+      "id": "away-002",
+      "title": "Fix QR scan silent wrong-order fallback",
+      "scope": "In App.tsx QR onDecode handler (~lines 91-99), the no-match branch currently loads mockOrders[0], silently showing a wrong order. Replace that fallback with a clear 'No delivery found for this code' message/state instead of loading a random order. Keep the successful-match path unchanged.",
+      "files": ["src/App.tsx"],
+      "tier": "T1",
+      "model": "gpt-5.4-mini",
+      "acceptance": "Scanning/decoding an unknown code shows a visible 'No delivery found' message and does NOT load mockOrders[0]; a valid code still loads the correct order; app builds clean.",
+      "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.2 bug)",
+      "preApproved": true,
+      "status": "queued"
+    },
+    {
+      "id": "away-003",
+      "title": "Fix frozen clock on Entry Display board",
+      "scope": "In EntryDisplayPage.tsx the displayed time is frozen at mount. Add a useEffect with setInterval (e.g. every 30s) that updates the displayed current time, cleared on unmount. Scope strictly to the clock/time display — do NOT touch the staging-zone data source or styling.",
+      "files": ["src/EntryDisplayPage.tsx"],
+      "tier": "T1",
+      "model": "gpt-5.4-mini",
+      "acceptance": "The board's displayed time advances over time without a manual refresh; interval cleared on unmount; no data-source or layout changes; app builds clean.",
+      "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.1 frozen clock)",
+      "preApproved": true,
+      "status": "queued"
+    }
+  ]
 }
