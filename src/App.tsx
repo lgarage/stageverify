@@ -91,12 +91,20 @@ function ScanScreen() {
 
   const handleManualScan = async () => {
     setNotFoundCode(null);
-    const result = await firestoreDataService.listDeliveries({
+    let result = await firestoreDataService.listDeliveries({
       statuses: ["pending"],
       pageSize: 1,
     });
+    if (result.items.length === 0) {
+      result = await firestoreDataService.listDeliveries({
+        statuses: ["arrived"],
+        pageSize: 1,
+      });
+    }
     if (result.items.length > 0) {
       await handleDeliveryFound(result.items[0].deliveryId);
+    } else {
+      setNotFoundCode("__no_deliveries__");
     }
   };
 
@@ -333,8 +341,14 @@ function ScanScreen() {
 
         {notFoundCode && (
           <div className="mb-6 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red">
-            <p className="font-medium">No delivery found for this code.</p>
-            <p className="mt-1 text-sm break-all">{notFoundCode}</p>
+            {notFoundCode === "__no_deliveries__" ? (
+              <p className="font-medium">No deliveries available to check in right now.</p>
+            ) : (
+              <>
+                <p className="font-medium">No delivery found for this code.</p>
+                <p className="mt-1 text-sm break-all">{notFoundCode}</p>
+              </>
+            )}
           </div>
         )}
 
