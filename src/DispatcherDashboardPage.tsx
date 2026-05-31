@@ -368,6 +368,7 @@ export function DispatcherDashboardPage() {
         summary,
       );
       if (updated) setSelectedDetails(updated);
+      await fetchAllData();
     } catch (err) {
       setMutationError(
         err instanceof Error ? err.message : "Failed to update issue",
