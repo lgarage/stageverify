@@ -1,8 +1,13 @@
 import { useState, useEffect, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Vendor } from "./dispatcher/models";
-import { vendors } from "./dispatcher/mockData";
-import { getAppSettings, updateAppSettings } from "./dispatcher/firestoreService";
+import {
+  getAppSettings,
+  updateAppSettings,
+  listVendors,
+  createVendor,
+  updateVendor,
+} from "./dispatcher/firestoreService";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -92,6 +97,7 @@ export function SettingsPage() {
   const isDashboard = location.pathname === "/dispatcher";
 
   const [, setRefresh] = useState(0);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [name, setName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -123,15 +129,26 @@ export function SettingsPage() {
     setEditingId(null);
   };
 
-  const saveEdit = (vendor: Vendor) => {
+  const saveEdit = async (vendor: Vendor) => {
     if (!editDraft.name.trim()) return;
-    vendor.name = editDraft.name.trim();
-    vendor.contactName = editDraft.contactName.trim() || undefined;
-    vendor.contactPhone = editDraft.contactPhone.trim() || undefined;
-    vendor.email = editDraft.email.trim() || undefined;
+    const updated: Vendor = {
+      ...vendor,
+      name: editDraft.name.trim(),
+      contactName: editDraft.contactName.trim() || undefined,
+      contactPhone: editDraft.contactPhone.trim() || undefined,
+      email: editDraft.email.trim() || undefined,
+    };
+    await updateVendor(updated);
+    setVendors((prev) =>
+      prev.map((v) => (v.id === vendor.id ? updated : v)),
+    );
     setEditingId(null);
     setRefresh((r) => r + 1);
   };
+
+  useEffect(() => {
+    void listVendors().then(setVendors);
+  }, []);
 
   useEffect(() => {
     void getAppSettings().then((settings) => {
@@ -153,7 +170,7 @@ export function SettingsPage() {
     }
   };
 
-  const handleAddVendor = (e: FormEvent) => {
+  const handleAddVendor = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
@@ -166,7 +183,8 @@ export function SettingsPage() {
       createdAt: new Date().toISOString(),
     };
 
-    vendors.push(newVendor);
+    await createVendor(newVendor);
+    setVendors((prev) => [...prev, newVendor]);
     setRefresh((r) => r + 1);
     setName("");
     setContactName("");

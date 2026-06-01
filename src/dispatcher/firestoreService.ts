@@ -591,6 +591,7 @@ export class FirestoreDataService implements DispatcherDataService {
 
   async recordPickupEvent(
     deliveryId: string,
+    technicianName: string,
     itemsPickedSummary: string,
     notes?: string,
   ): Promise<void> {
@@ -603,7 +604,7 @@ export class FirestoreDataService implements DispatcherDataService {
       id: eventId,
       deliveryOrderId: deliveryId,
       jobId: details.delivery.jobId,
-      technicianName: "Tech",
+      technicianName,
       pickedUpAt: now,
       itemsPickedSummary,
       notes,
@@ -634,3 +635,111 @@ export async function updateAppSettings(
 }
 
 export const firestoreDataService = new FirestoreDataService();
+
+export async function getDeliveryByOrderNumber(
+  orderNumber: string,
+): Promise<DeliveryDetails | null> {
+  const matches = await fetchWhere<DeliveryOrder>(
+    "deliveries",
+    "orderNumber",
+    orderNumber,
+  );
+  if (matches.length === 0) return null;
+  return firestoreDataService.getDeliveryDetails(matches[0].id);
+}
+
+export async function listVendors(): Promise<Vendor[]> {
+  return fetchAll<Vendor>("vendors");
+}
+
+export async function createVendor(vendor: Vendor): Promise<void> {
+  await setDoc(doc(db, "vendors", vendor.id), vendor);
+}
+
+export async function updateVendor(vendor: Vendor): Promise<void> {
+  await setDoc(doc(db, "vendors", vendor.id), vendor, { merge: true });
+}
+
+export async function listJobs(): Promise<Job[]> {
+  return fetchAll<Job>("jobs");
+}
+
+export interface CreateDeliveryInput {
+  vendorId: string;
+  jobId: string;
+  poNumber?: string;
+  deliveryDate: string;
+  stagingLocationId?: string;
+  lineItems: Array<{ sku?: string; description: string; qtyOrdered: number }>;
+}
+
+export async function createDelivery(
+  input: CreateDeliveryInput,
+): Promise<string> {
+  const now = new Date().toISOString();
+  const deliveryId = `delivery-${Date.now()}`;
+  const allDeliveries = await fetchAll<DeliveryOrder>("deliveries");
+  const orderNumber = `ORD-${String(allDeliveries.length + 1).padStart(3, "0")}`;
+  const batch = writeBatch(db);
+
+  let purchaseOrderId: string | undefined;
+  if (input.poNumber?.trim()) {
+    purchaseOrderId = `po-${Date.now()}`;
+    const po: PurchaseOrder = {
+      id: purchaseOrderId,
+      poNumber: input.poNumber.trim(),
+      jobId: input.jobId,
+      vendorId: input.vendorId,
+      orderDate: now.slice(0, 10),
+      expectedDeliveryDate: input.deliveryDate,
+      status: "open",
+    };
+    batch.set(doc(db, "purchaseOrders", purchaseOrderId), po);
+  }
+
+  const delivery: DeliveryOrder = {
+    id: deliveryId,
+    orderNumber,
+    jobId: input.jobId,
+    vendorId: input.vendorId,
+    purchaseOrderId,
+    deliveryDate: input.deliveryDate,
+    stagingLocationId: input.stagingLocationId || undefined,
+    status: "pending",
+    createdAt: now,
+    updatedAt: now,
+  };
+  batch.set(doc(db, "deliveries", deliveryId), delivery);
+
+  input.lineItems.forEach((row, index) => {
+    const itemId = `item-${Date.now()}-${index}`;
+    const item: Item = {
+      id: itemId,
+      deliveryOrderId: deliveryId,
+      sku: row.sku?.trim() || undefined,
+      description: row.description.trim(),
+      qtyOrdered: row.qtyOrdered,
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "pending",
+    };
+    batch.set(doc(db, "items", itemId), item);
+  });
+
+  const eventId = `event-${Date.now()}`;
+  const historyEvent: StatusHistoryEvent = {
+    id: eventId,
+    entityType: "delivery_order",
+    entityId: deliveryId,
+    toStatus: "pending",
+    actorType: "dispatcher",
+    actorName: "Dispatcher",
+    createdAt: now,
+  };
+  batch.set(doc(db, "statusHistory", eventId), historyEvent);
+
+  await batch.commit();
+  return deliveryId;
+}

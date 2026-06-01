@@ -1,15 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { mockOrders } from "./mockData";
-import type { Order, LineItem, ItemStatus, OrderStatus } from "./types";
+import {
+  firestoreDataService,
+  getDeliveryByOrderNumber,
+} from "./dispatcher/firestoreService";
+import type { DeliveryDetails } from "./dispatcher/models";
 
-const orderStatusBadge = (status: OrderStatus) => {
-  const map: Record<OrderStatus, string> = {
-    Pending:
+type DisplayItemStatus = "Delivered" | "Partial" | "Backordered" | "Damaged";
+type DisplayOrderStatus = "Pending" | "Partial" | "Complete";
+
+interface CheckInLineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  deliveredQty: number;
+  missingQty: number;
+  status: DisplayItemStatus | null;
+}
+
+const orderStatusBadge = (status: DisplayOrderStatus) => {
+  const map: Record<DisplayOrderStatus, string> = {
+    "Pending":
       "bg-accent-amber/10 text-accent-amber border border-accent-amber/20",
-    Partial:
+    "Partial":
       "bg-accent-purple/10 text-accent-purple border border-accent-purple/20",
-    Complete:
+    "Complete":
       "bg-accent-green/10 text-accent-green border border-accent-green/20",
   };
   return `inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-medium uppercase tracking-widest ${map[status]}`;
@@ -34,12 +49,12 @@ const StatusPill = ({
   onSelect,
   selected,
 }: {
-  status: ItemStatus | null;
-  onSelect: (s: ItemStatus) => void;
-  selected: ItemStatus | null;
+  status: DisplayItemStatus | null;
+  onSelect: (s: DisplayItemStatus) => void;
+  selected: DisplayItemStatus | null;
 }) => {
   const options: {
-    value: ItemStatus;
+    value: DisplayItemStatus;
     label: string;
     color: string;
     dotColor: string;
@@ -111,21 +126,48 @@ const StatusPill = ({
 /* ── Component ── */
 export function CheckInPage() {
   const { orderId } = useParams<{ orderId: string }>();
-  const order: Order | undefined = mockOrders.find((o) => o.id === orderId);
+  const [details, setDetails] = useState<DeliveryDetails | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [step, setStep] = useState<"checkoff" | "done">("checkoff");
   const [vendorNote, setVendorNote] = useState("");
-  const [items, setItems] = useState<LineItem[]>(
-    () =>
-      order?.items.map((it) => ({
-        ...it,
-        deliveredQty: it.deliveredQty ?? 0,
-        missingQty: it.missingQty ?? it.quantity,
-        status: it.status ?? null,
-      })) ?? [],
-  );
+  const [items, setItems] = useState<CheckInLineItem[]>([]);
 
-  if (!order) {
+  useEffect(() => {
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    void getDeliveryByOrderNumber(orderId).then((result) => {
+      setDetails(result);
+      if (result) {
+        setItems(
+          result.items.map((it) => ({
+            id: it.id,
+            description: it.description,
+            quantity: it.qtyOrdered,
+            deliveredQty: 0,
+            missingQty: it.qtyOrdered,
+            status: null,
+          })),
+        );
+      } else {
+        setItems([]);
+      }
+      setLoading(false);
+    });
+  }, [orderId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+        <p className="text-sm text-text-secondary">Loading order…</p>
+      </div>
+    );
+  }
+
+  if (!details) {
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
         <div className="text-center">
@@ -158,7 +200,7 @@ export function CheckInPage() {
     );
   }
 
-  if (order.status === "Complete") {
+  if (details.delivery.status === "complete") {
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
         <div className="text-center">
@@ -180,8 +222,10 @@ export function CheckInPage() {
           <h2 className="text-lg font-bold mb-1">Already Confirmed</h2>
           <p className="text-sm text-text-secondary">
             Order{" "}
-            <span className="font-mono text-text-primary">{order.id}</span> has
-            already been marked as Complete.
+            <span className="font-mono text-text-primary">
+              {details.delivery.orderNumber}
+            </span>{" "}
+            has already been marked as Complete.
           </p>
         </div>
       </div>
@@ -197,7 +241,7 @@ export function CheckInPage() {
           Math.min(it.deliveredQty + delta, it.quantity),
         );
         const missingQty = it.quantity - newQty;
-        let status: ItemStatus | null = it.status;
+        let status: DisplayItemStatus | null = it.status;
         if (
           newQty === it.quantity &&
           status !== "Backordered" &&
@@ -223,7 +267,7 @@ export function CheckInPage() {
     );
   };
 
-  const handleStatusChange = (itemId: string, status: ItemStatus) => {
+  const handleStatusChange = (itemId: string, status: DisplayItemStatus) => {
     setItems((prev) =>
       prev.map((it) => {
         if (it.id !== itemId) return it;
@@ -238,12 +282,22 @@ export function CheckInPage() {
   const allDelivered = items.every(
     (it) => it.deliveredQty === it.quantity && it.status === "Delivered",
   );
-  const overallStatus: OrderStatus = allDelivered ? "Complete" : "Partial";
+  const overallStatus: DisplayOrderStatus = allDelivered ? "Complete" : "Partial";
   const canSubmit = items.every(
     (it) => it.deliveredQty >= 0 && it.status !== null,
   );
 
   const handleSubmit = () => {
+    void firestoreDataService.submitCheckin(
+      details.delivery.id,
+      "Vendor",
+      items.map((it) => ({
+        id: it.id,
+        qtyReceived: it.deliveredQty,
+        qtyMissing: it.status === "Damaged" ? 0 : it.missingQty,
+        qtyDamaged: it.status === "Damaged" ? it.missingQty : 0,
+      })),
+    );
     setStep("done");
   };
 
@@ -251,14 +305,18 @@ export function CheckInPage() {
     setStep("checkoff");
     setVendorNote("");
     setItems(
-      order.items.map((it) => ({
-        ...it,
+      details.items.map((it) => ({
+        id: it.id,
+        description: it.description,
+        quantity: it.qtyOrdered,
         deliveredQty: 0,
-        missingQty: it.quantity,
+        missingQty: it.qtyOrdered,
         status: null,
       })),
     );
   };
+
+  const zoneCode = details.stagingLocation?.code ?? "—";
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -268,14 +326,14 @@ export function CheckInPage() {
           <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
             <div className="flex items-center gap-4 mb-6">
               <div className="size-16 rounded-xl bg-accent/10 flex items-center justify-center font-light font-mono text-3xl text-accent shrink-0">
-                {order.zoneId}
+                {zoneCode}
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-text-secondary uppercase tracking-widest mb-1">
                   Location
                 </p>
                 <p className="text-lg font-medium truncate text-text-primary">
-                  {zoneDescription(order.zoneId)}
+                  {zoneDescription(zoneCode)}
                 </p>
               </div>
             </div>
@@ -284,19 +342,19 @@ export function CheckInPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Job/Site</span>
                 <span className="font-medium text-right truncate text-text-primary">
-                  {order.jobName}
+                  {details.job.jobName}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Vendor</span>
                 <span className="font-medium text-text-primary">
-                  {order.vendor}
+                  {details.vendor.name}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Order ID</span>
                 <span className="font-mono text-xs bg-bg-surface px-2 py-1 rounded text-text-primary">
-                  {order.id}
+                  {details.delivery.orderNumber}
                 </span>
               </div>
             </div>

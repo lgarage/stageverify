@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import type { DeliveryOrder, Item, PurchaseOrder, StatusHistoryEvent } from "./dispatcher/models";
+import type { Job, Vendor, StagingLocation } from "./dispatcher/models";
 import {
-  deliveryOrders,
-  items,
-  jobs,
-  purchaseOrders,
-  stagingLocations,
-  statusHistory,
-  vendors,
-} from "./dispatcher/mockData";
+  createDelivery,
+  firestoreDataService,
+  listJobs,
+  listVendors,
+} from "./dispatcher/firestoreService";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -66,6 +63,24 @@ export function CreateDeliveryModal({
   const [lineItems, setLineItems] = useState<LineItemRow[]>([
     { ...EMPTY_LINE_ITEM },
   ]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [stagingLocations, setStagingLocations] = useState<StagingLocation[]>(
+    [],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    void Promise.all([
+      listVendors(),
+      listJobs(),
+      firestoreDataService.listStagingLocations(),
+    ]).then(([loadedVendors, loadedJobs, loadedLocations]) => {
+      setVendors(loadedVendors);
+      setJobs(loadedJobs);
+      setStagingLocations(loadedLocations);
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -119,72 +134,22 @@ export function CreateDeliveryModal({
     setLineItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
 
-    const now = new Date().toISOString();
-    const trimmedPoNumber = poNumber.trim();
-    const deliveryId = "delivery-" + Date.now();
-    const orderNumber =
-      "ORD-" + String(deliveryOrders.length + 1).padStart(3, "0");
-    let purchaseOrderId: string | undefined;
-
-    if (trimmedPoNumber !== "") {
-      const newPo: PurchaseOrder = {
-        id: "po-" + Date.now(),
-        poNumber: trimmedPoNumber,
-        jobId,
-        vendorId,
-        orderDate: new Date().toISOString().slice(0, 10),
-        expectedDeliveryDate: deliveryDate,
-        status: "open",
-      };
-      purchaseOrders.push(newPo);
-      purchaseOrderId = newPo.id;
-    }
-
-    const delivery: DeliveryOrder = {
-      id: deliveryId,
-      orderNumber,
-      jobId,
+    await createDelivery({
       vendorId,
-      purchaseOrderId,
+      jobId,
+      poNumber: poNumber.trim() || undefined,
       deliveryDate,
       stagingLocationId: stagingLocationId || undefined,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    deliveryOrders.push(delivery);
-
-    validLineItems.forEach((row, index) => {
-      const item: Item = {
-        id: "item-" + Date.now() + "-" + index,
-        deliveryOrderId: deliveryId,
+      lineItems: validLineItems.map((row) => ({
         sku: row.sku.trim() || undefined,
         description: row.description.trim(),
         qtyOrdered: row.qtyOrdered,
-        qtyReceived: 0,
-        qtyMissing: 0,
-        qtyDamaged: 0,
-        qtyBackordered: 0,
-        status: "pending",
-      };
-      items.push(item);
+      })),
     });
-
-    const historyEvent: StatusHistoryEvent = {
-      id: "event-" + Date.now(),
-      entityType: "delivery_order",
-      entityId: deliveryId,
-      toStatus: "pending",
-      actorType: "dispatcher",
-      actorName: "Dispatcher",
-      createdAt: now,
-    };
-    statusHistory.push(historyEvent);
 
     onCreated();
     onClose();
