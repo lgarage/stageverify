@@ -306,6 +306,9 @@ export class FirestoreDataService implements DispatcherDataService {
     } else if (fromStatus === "issue") {
       updatedFields.issueSummary = "";
     }
+    if (toStatus === "picked_up") {
+      updatedFields.stagingLocationId = "";
+    }
 
     batch.update(doc(db, "deliveries", deliveryId), updatedFields);
     batch.set(doc(db, "statusHistory", eventId), {
