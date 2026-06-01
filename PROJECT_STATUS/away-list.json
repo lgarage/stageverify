@@ -99,6 +99,20 @@
                       "tier":  "T1",
                       "title":  "Full repo security audit — all src/ files",
                       "scheduledFor":  "2026-06-02T02:00:00-05:00"
+                  },
+                  {
+                      "id":  "away-008",
+                      "title":  "Add maxLength={64} to ReceivingPage manual ID input",
+                      "scope":  "In src/ReceivingPage.tsx, find the manual delivery ID text input (around line 378). Add maxLength={64} to the input element. No other changes.",
+                      "files":  [
+                                    "src/ReceivingPage.tsx"
+                                ],
+                      "tier":  "T0",
+                      "model":  "gpt-5.4-mini-medium",
+                      "acceptance":  "The manual delivery ID input has maxLength={64}; app builds clean (npm run build passes); no other changes.",
+                      "capturedDuring":  "Security scan 2026-06-01 — Opus LOW finding",
+                      "preApproved":  true,
+                      "status":  "queued"
                   }
               ]
 }
