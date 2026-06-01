@@ -18,11 +18,11 @@ const renderApp = () => {
       <HashRouter>
         <Routes>
           <Route path="/pickup" element={<PickupPortalPage />} />
-          <Route path="/*" element={<App />} />
           <Route path="/checkin/:orderId" element={<CheckInPage />} />
           <Route path="/display" element={<EntryDisplayPage />} />
           <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/" element={<App />} />
         </Routes>
       </HashRouter>
     </StrictMode>,

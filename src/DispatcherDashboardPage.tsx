@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
-import { firestoreDataService as mockDispatcherDataService } from "./dispatcher/firestoreService";
+import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
   DISPATCHER_REVERT_TARGETS,
   VALID_TRANSITIONS,
@@ -206,7 +206,7 @@ export function DispatcherDashboardPage() {
     setListLoading(true);
     try {
       const [pagedResult, allResult] = await Promise.all([
-        mockDispatcherDataService.listDeliveries({
+        firestoreDataService.listDeliveries({
           search: query.search,
           statuses: query.statuses.length ? query.statuses : undefined,
           sortBy: query.sortBy,
@@ -214,7 +214,7 @@ export function DispatcherDashboardPage() {
           page: query.page,
           pageSize: query.pageSize,
         }),
-        mockDispatcherDataService.listDeliveries({ page: 1, pageSize: 1000 }),
+        firestoreDataService.listDeliveries({ page: 1, pageSize: 1000 }),
       ]);
       setPaged(pagedResult);
       setAllRows(allResult.items);
@@ -265,7 +265,7 @@ export function DispatcherDashboardPage() {
 
   /* ── Fetch staging locations once on mount ── */
   useEffect(() => {
-    void mockDispatcherDataService
+    void firestoreDataService
       .listStagingLocations()
       .then(setAvailableStagingLocations);
   }, []);
@@ -278,7 +278,7 @@ export function DispatcherDashboardPage() {
     setMutationLoading(true);
     setMutationError(null);
     try {
-      const updated = await mockDispatcherDataService.updateStagingLocation(
+      const updated = await firestoreDataService.updateStagingLocation(
         selectedDeliveryId,
         locationId,
       );
@@ -305,7 +305,7 @@ export function DispatcherDashboardPage() {
     setMutationLoading(true);
     setMutationError(null);
     try {
-      const updated = await mockDispatcherDataService.updatePurchaseOrder(
+      const updated = await firestoreDataService.updatePurchaseOrder(
         selectedDeliveryId,
         poNumber,
       );
@@ -337,7 +337,7 @@ export function DispatcherDashboardPage() {
 
     try {
       const updatedDetails =
-        await mockDispatcherDataService.updateDeliveryStatus(
+        await firestoreDataService.updateDeliveryStatus(
           selectedDeliveryId,
           toStatus,
           reason,
@@ -367,7 +367,7 @@ export function DispatcherDashboardPage() {
 
     try {
       const updatedDetails =
-        await mockDispatcherDataService.revertDeliveryStatus(
+        await firestoreDataService.revertDeliveryStatus(
           selectedDeliveryId,
           "dispatcher",
         );
@@ -391,7 +391,7 @@ export function DispatcherDashboardPage() {
     setMutationLoading(true);
     setMutationError(null);
     try {
-      const updated = await mockDispatcherDataService.updateIssueSummary(
+      const updated = await firestoreDataService.updateIssueSummary(
         selectedDeliveryId,
         summary,
       );
@@ -413,7 +413,7 @@ export function DispatcherDashboardPage() {
     setMutationError(null); // Clear mutation error on new selection
     try {
       const detail =
-        await mockDispatcherDataService.getDeliveryDetails(deliveryId);
+        await firestoreDataService.getDeliveryDetails(deliveryId);
       if (!detail) {
         setDetailError("Delivery details not found.");
         setSelectedDetails(null);
