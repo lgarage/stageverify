@@ -16,6 +16,9 @@ Do NOT read archives or `outcomes/*.jsonl` during normal work.
 ## During work
 - Classify each task into an archetype and route to the tier-table default model.
   Orchestrate on Sonnet 4.6; dispatch cheaper workers as subagents when independent.
+- **PRE-EDIT GATE (mandatory)**: Before any file edit, state archetype + tier + dispatch decision.
+  See `.cursor/rules/model-dispatch-gate.mdc` for the full gate protocol and tier defaults.
+  T0/T1 edits MUST be dispatched to Composer 2.5 Fast via Task tool — never done inline in Sonnet 4.6.
 - Offer to queue qualifying side-tasks to `PROJECT_STATUS/away-list.json`
   (agent-ops triage rule §4) — pre-scoped, reversible, self-verifiable, ≥85% conf.
 - `backend-write-critical` stays on Opus 4.6 until this repo gains a backend.

@@ -1,0 +1,37 @@
+---
+description: Pre-edit model dispatch gate — forces archetype check before any file edit.
+alwaysApply: true
+---
+
+# Pre-Edit Model Dispatch Gate
+
+**BEFORE making any file edit (StrReplace, Write, EditNotebook), you MUST stop and state:**
+
+1. **Archetype** — classify the task (e.g. `ui-component`, `multi-file-feature`, `css-restyle`, `backend-write-critical`)
+2. **Recommended model** — look up the tier table; state tier (T0/T1/T2) and the default model
+3. **Dispatch decision** — are you dispatching a subagent, or doing it inline? Justify inline only if:
+   - The edit is a single line / trivial fix already mid-conversation, OR
+   - You are already inside a subagent context
+
+## Tier defaults (stageverify)
+
+| Tier | Archetypes | Model |
+|------|-----------|-------|
+| T0 | `ui-component`, `css-restyle`, `docs-update` | **Composer 2.5 Fast** |
+| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** |
+| T2 | `multi-file-feature` with auth/routing/Firestore reads | **Sonnet 4.6** |
+| T3 | `backend-write-critical` (rules, CF write paths, schema migrations) | **Opus 4.6** |
+
+## How to dispatch T0/T1 work
+
+```
+Task tool → subagent_type: "best-of-n-runner" or "generalPurpose", model: "composer-2.5-fast"
+```
+
+Provide the subagent with: file paths, exact goal, build command to verify (`npm run build`), and deploy step if needed.
+
+## What NOT to do
+
+❌ Classify a task, decide it's T1, then edit files directly because "I'm already here."
+❌ Skip the archetype statement and jump straight to StrReplace.
+✅ State archetype + tier + dispatch decision first, every time, no exceptions.
