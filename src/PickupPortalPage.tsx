@@ -48,6 +48,7 @@ function PickupScreen() {
   const [manualZoneCode, setManualZoneCode] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [technicianName, setTechnicianName] = useState("");
 
   const loadDeliveryByZoneCode = async (zoneCode: string) => {
     const trimmed = zoneCode.trim();
@@ -92,11 +93,17 @@ function PickupScreen() {
 
   const handleConfirmPickup = async () => {
     if (!currentDelivery) return;
+    const trimmedTechnicianName = technicianName.trim();
+    if (!trimmedTechnicianName) {
+      setConfirmError("Please enter your name before confirming.");
+      return;
+    }
     setConfirming(true);
     setConfirmError(null);
     try {
       await firestoreDataService.recordPickupEvent(
         currentDelivery.delivery.id,
+        trimmedTechnicianName,
         itemsSummary(currentDelivery),
       );
       setStep("done");
@@ -113,6 +120,7 @@ function PickupScreen() {
     setShowManualEntry(false);
     setManualZoneCode("");
     setConfirmError(null);
+    setTechnicianName("");
     setStep("scan");
   };
 
@@ -324,11 +332,29 @@ function PickupScreen() {
           </div>
         )}
 
+        <div className="mb-4">
+          <label
+            htmlFor="technician-name"
+            className="mb-2 block text-sm font-medium text-text-secondary"
+          >
+            Your name
+          </label>
+          <input
+            id="technician-name"
+            type="text"
+            value={technicianName}
+            onChange={(e) => setTechnicianName(e.target.value)}
+            placeholder="Enter your name"
+            className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
+            autoComplete="name"
+          />
+        </div>
+
         <button
           onClick={() => {
             void handleConfirmPickup();
           }}
-          disabled={confirming}
+          disabled={confirming || !technicianName.trim()}
           className="action-btn action-btn-delivered mb-3 disabled:opacity-40"
         >
           {confirming ? "Confirming…" : "Confirm Pickup"}
