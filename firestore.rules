@@ -1,0 +1,135 @@
+rules_version = '2';
+
+// stageverify Firestore Security Rules
+// ------------------------------------
+// Access model:
+//
+// PUBLIC READ (no auth): deliveries, items, stagingLocations, vendors, appSettings
+//   - Mobile scan/check-in flows read delivery data, line items, zone codes, vendor names,
+//     and global timing config without signing in.
+//
+// AUTH REQUIRED READ: jobs, purchaseOrders, statusHistory, pickupEvents
+//   - Dispatcher/settings UI and audit views require Firebase Auth.
+//
+// UNAUTHENTICATED WRITES (mobile scan/check-in):
+//   - deliveries: update only — status, submittedAt, updatedAt, lastCheckmarkAt, stagingLocationId
+//   - items: update only — qtyReceived, qtyMissing, qtyDamaged, status
+//   - statusHistory: create only (append-only audit log)
+//   - pickupEvents: create only (append-only pickup log)
+//   - Status enum values are validated on unauthenticated delivery/item writes.
+//
+// AUTHENTICATED WRITES (dispatcher/settings UI):
+//   - deliveries: full create/update/delete
+//   - purchaseOrders, vendors, jobs: create/update
+//   - stagingLocations: create/update/delete
+//   - appSettings: write
+//   - items: full create/update/delete (managed by dispatcher flows)
+//
+// Cloud Functions use the Admin SDK and bypass these rules.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidDeliveryStatus(status) {
+      return status in [
+        'pending',
+        'arrived',
+        'partial',
+        'ready_for_pickup',
+        'complete',
+        'issue',
+        'picked_up',
+      ];
+    }
+
+    function isValidItemStatus(status) {
+      return status in [
+        'pending',
+        'partial',
+        'received',
+        'missing',
+        'damaged',
+        'backordered',
+      ];
+    }
+
+    function unauthDeliveryUpdateAllowed() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+          'status',
+          'submittedAt',
+          'updatedAt',
+          'lastCheckmarkAt',
+          'stagingLocationId',
+        ])
+        && (!changed.hasAny(['status']) || isValidDeliveryStatus(request.resource.data.status));
+    }
+
+    function unauthItemUpdateAllowed() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+          'qtyReceived',
+          'qtyMissing',
+          'qtyDamaged',
+          'status',
+        ])
+        && (!changed.hasAny(['status']) || isValidItemStatus(request.resource.data.status));
+    }
+
+    match /deliveries/{deliveryId} {
+      allow read: if true;
+      allow create, delete: if isAuthenticated();
+      allow update: if isAuthenticated() || unauthDeliveryUpdateAllowed();
+    }
+
+    match /items/{itemId} {
+      allow read: if true;
+      allow create, delete: if isAuthenticated();
+      allow update: if isAuthenticated() || unauthItemUpdateAllowed();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if false;
+    }
+
+    match /vendors/{vendorId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if false;
+    }
+
+    match /stagingLocations/{locationId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    match /purchaseOrders/{poId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if false;
+    }
+
+    match /statusHistory/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    match /pickupEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    match /appSettings/{docId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+}
