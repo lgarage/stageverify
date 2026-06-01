@@ -188,6 +188,21 @@ button:active {
   animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@keyframes zone-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
+    border-color: rgb(59, 130, 246);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
+    border-color: rgb(96, 165, 250);
+  }
+}
+.animate-zone-pulse {
+  animation: zone-pulse 0.75s ease-in-out 2;
+}
+
 @media (min-width: 768px) {
   .app-container {
     max-width: 480px;

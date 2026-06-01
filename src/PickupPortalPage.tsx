@@ -52,6 +52,28 @@ function zoneSummary(deliveries: DeliveryDetails[]): string {
   return `${zones} · ${vendors}`;
 }
 
+function extractJobIdFromPickupUrl(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed.includes("pickup") || !trimmed.includes("job=")) {
+    return null;
+  }
+
+  try {
+    if (/^https?:\/\//i.test(trimmed)) {
+      const url = new URL(trimmed);
+      const fromHash = url.hash.match(/[?&]job=([^&]+)/);
+      if (fromHash) return decodeURIComponent(fromHash[1]);
+      const fromSearch = url.searchParams.get("job");
+      if (fromSearch) return fromSearch;
+    }
+  } catch {
+    // fall through to string parsing
+  }
+
+  const match = trimmed.match(/[#?&]job=([^&]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function loadPickupReadyDeliveries(
   jobId: string,
 ): Promise<DeliveryDetails[]> {
@@ -193,7 +215,7 @@ function QrScannerOverlay({
 function WalkUpEntry({
   onJobResolved,
 }: {
-  onJobResolved: (jobId: string, preCheckedDeliveryId: string) => void;
+  onJobResolved: (jobId: string, highlightDeliveryId: string | null) => void;
 }) {
   const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
@@ -201,13 +223,24 @@ function WalkUpEntry({
   const [manualZoneCode, setManualZoneCode] = useState("");
   const [resolving, setResolving] = useState(false);
 
-  const handleZoneCode = useCallback(
-    async (zoneCode: string) => {
+  const handleDecodedText = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      const jobId = extractJobIdFromPickupUrl(trimmed);
+      if (jobId) {
+        setNotFoundCode(null);
+        setIsScanning(false);
+        setShowManualEntry(false);
+        setManualZoneCode("");
+        onJobResolved(jobId, null);
+        return;
+      }
+
       setResolving(true);
-      const resolved = await resolveJobFromZoneCode(zoneCode);
+      const resolved = await resolveJobFromZoneCode(trimmed);
       setResolving(false);
       if (!resolved) {
-        setNotFoundCode(zoneCode.trim());
+        setNotFoundCode(trimmed);
         setIsScanning(false);
         return;
       }
@@ -222,9 +255,9 @@ function WalkUpEntry({
 
   const handleScanDecode = useCallback(
     (text: string) => {
-      void handleZoneCode(text);
+      void handleDecodedText(text);
     },
-    [handleZoneCode],
+    [handleDecodedText],
   );
 
   const handleCancelScan = useCallback(() => {
@@ -296,14 +329,14 @@ function WalkUpEntry({
               value={manualZoneCode}
               onChange={(e) => setManualZoneCode(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") void handleZoneCode(manualZoneCode);
+                if (e.key === "Enter") void handleDecodedText(manualZoneCode);
               }}
               placeholder="Zone code (e.g. G2)"
               className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
               autoFocus
             />
             <button
-              onClick={() => void handleZoneCode(manualZoneCode)}
+              onClick={() => void handleDecodedText(manualZoneCode)}
               disabled={!manualZoneCode.trim() || resolving}
               className="action-btn action-btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -318,17 +351,15 @@ function WalkUpEntry({
 
 function JobPickupScreen({
   jobId,
-  initialCheckedIds = [],
+  highlightDeliveryId = null,
   onStartOver,
 }: {
   jobId: string;
-  initialCheckedIds?: string[];
+  highlightDeliveryId?: string | null;
   onStartOver: () => void;
 }) {
   const [deliveries, setDeliveries] = useState<DeliveryDetails[]>([]);
-  const [checked, setChecked] = useState<Set<string>>(
-    () => new Set(initialCheckedIds),
-  );
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -341,12 +372,32 @@ function JobPickupScreen({
   >(null);
   const [isScanning, setIsScanning] = useState(false);
   const [zoneScanError, setZoneScanError] = useState<string | null>(null);
+  const [checkingIds, setCheckingIds] = useState<Set<string>>(() => new Set());
+  const [cardErrors, setCardErrors] = useState<Map<string, string>>(
+    () => new Map(),
+  );
+  const [nameRequiredMsg, setNameRequiredMsg] = useState(false);
+  const [pulsingId, setPulsingId] = useState<string | null>(null);
   const submittedRef = useRef(false);
+  const checkedRef = useRef(checked);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const initialHighlightDone = useRef(false);
+
+  checkedRef.current = checked;
+
+  const highlightCard = useCallback((deliveryId: string) => {
+    setPulsingId(deliveryId);
+    const el = cardRefs.current.get(deliveryId);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => setPulsingId(null), 1500);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    initialHighlightDone.current = false;
 
     void (async () => {
       try {
@@ -372,36 +423,102 @@ function JobPickupScreen({
     };
   }, [jobId]);
 
-  const handleSubmit = useCallback(
-    async (isAuto: boolean) => {
-      if (submittedRef.current || submitting) return;
-      submittedRef.current = true;
-      setSubmitting(true);
-      setError(null);
+  useEffect(() => {
+    if (
+      loading ||
+      !highlightDeliveryId ||
+      initialHighlightDone.current ||
+      !deliveries.some((d) => d.delivery.id === highlightDeliveryId)
+    ) {
+      return;
+    }
+    initialHighlightDone.current = true;
+    window.setTimeout(() => highlightCard(highlightDeliveryId), 100);
+  }, [loading, highlightDeliveryId, deliveries, highlightCard]);
 
-      const targets = isAuto
-        ? deliveries
-        : deliveries.filter((d) => checked.has(d.delivery.id));
+  const checkOffDelivery = useCallback(
+    async (delivery: DeliveryDetails) => {
+      const deliveryId = delivery.delivery.id;
+      if (checkedRef.current.has(deliveryId)) return;
+
+      if (!technicianName.trim()) {
+        nameInputRef.current?.focus();
+        setNameRequiredMsg(true);
+        window.setTimeout(() => setNameRequiredMsg(false), 3000);
+        return;
+      }
+
+      setCheckingIds((prev) => new Set([...prev, deliveryId]));
+      setCardErrors((prev) => {
+        const next = new Map(prev);
+        next.delete(deliveryId);
+        return next;
+      });
 
       try {
-        for (const d of targets) {
-          await firestoreDataService.recordPickupEvent(
-            d.delivery.id,
-            technicianName.trim() || "Auto-submitted",
-            `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
-            notes || undefined,
-          );
-        }
-        setSubmitted(true);
+        await firestoreDataService.recordPickupEvent(
+          deliveryId,
+          technicianName.trim() || "Technician",
+          `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
+          notes || undefined,
+        );
+        setChecked((prev) => new Set([...prev, deliveryId]));
       } catch {
-        submittedRef.current = false;
-        setError("Failed to record pickup. Please try again.");
+        setCardErrors((prev) =>
+          new Map(prev).set(
+            deliveryId,
+            "Failed to record pickup. Tap to retry.",
+          ),
+        );
       } finally {
-        setSubmitting(false);
+        setCheckingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(deliveryId);
+          return next;
+        });
       }
     },
-    [deliveries, checked, technicianName, notes, submitting],
+    [technicianName, notes],
   );
+
+  const handleDone = useCallback(() => {
+    if (submittedRef.current) return;
+    const allChecked =
+      deliveries.length > 0 &&
+      deliveries.every((d) => checkedRef.current.has(d.delivery.id));
+    if (!allChecked) return;
+    submittedRef.current = true;
+    setSubmitted(true);
+  }, [deliveries]);
+
+  const handleAutoSubmit = useCallback(async () => {
+    if (submittedRef.current || submitting) return;
+    submittedRef.current = true;
+    setSubmitting(true);
+    setError(null);
+
+    const unchecked = deliveries.filter(
+      (d) => !checkedRef.current.has(d.delivery.id),
+    );
+
+    try {
+      for (const d of unchecked) {
+        await firestoreDataService.recordPickupEvent(
+          d.delivery.id,
+          technicianName.trim() || "Auto-submitted",
+          `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
+          notes || undefined,
+        );
+      }
+      setChecked(new Set(deliveries.map((d) => d.delivery.id)));
+      setSubmitted(true);
+    } catch {
+      submittedRef.current = false;
+      setError("Failed to auto-submit pickups. Please check off remaining items.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [deliveries, technicianName, notes, submitting]);
 
   useEffect(() => {
     if (
@@ -418,7 +535,7 @@ function JobPickupScreen({
       setAutoSubmitSecondsLeft((prev) => {
         if (prev === null || prev <= 1) {
           window.clearInterval(timer);
-          if (prev === 1) void handleSubmit(true);
+          if (prev === 1) void handleAutoSubmit();
           return 0;
         }
         return prev - 1;
@@ -431,17 +548,8 @@ function JobPickupScreen({
     submitted,
     loading,
     deliveries.length,
-    handleSubmit,
+    handleAutoSubmit,
   ]);
-
-  const toggleChecked = (deliveryId: string) => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(deliveryId)) next.delete(deliveryId);
-      else next.add(deliveryId);
-      return next;
-    });
-  };
 
   const handleCheckOffScan = useCallback(
     (zoneCode: string) => {
@@ -456,9 +564,9 @@ function JobPickupScreen({
         return;
       }
       setZoneScanError(null);
-      setChecked((prev) => new Set([...prev, match.delivery.id]));
+      highlightCard(match.delivery.id);
     },
-    [deliveries],
+    [deliveries, highlightCard],
   );
 
   const handleCancelScan = useCallback(() => {
@@ -466,8 +574,8 @@ function JobPickupScreen({
   }, []);
 
   const allChecked =
-    deliveries.length > 0 && checked.size === deliveries.length;
-  const canManualSubmit = allChecked && technicianName.trim().length > 0;
+    deliveries.length > 0 &&
+    deliveries.every((d) => checked.has(d.delivery.id));
 
   if (isScanning) {
     return (
@@ -545,6 +653,7 @@ function JobPickupScreen({
             Your name
           </label>
           <input
+            ref={nameInputRef}
             id="technician-name"
             type="text"
             value={technicianName}
@@ -553,21 +662,39 @@ function JobPickupScreen({
             className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
             autoComplete="name"
           />
+          {nameRequiredMsg && (
+            <p className="mt-2 text-sm text-accent-amber">
+              Enter your name first
+            </p>
+          )}
         </div>
 
         <div className="space-y-3 mb-4">
           {deliveries.map((d) => {
-            const isChecked = checked.has(d.delivery.id);
+            const deliveryId = d.delivery.id;
+            const isChecked = checked.has(deliveryId);
+            const isChecking = checkingIds.has(deliveryId);
+            const isPulsing = pulsingId === deliveryId;
+            const cardError = cardErrors.get(deliveryId);
             const isPartial = d.delivery.status === "partial";
             return (
               <button
-                key={d.delivery.id}
+                key={deliveryId}
+                ref={(el) => {
+                  if (el) cardRefs.current.set(deliveryId, el);
+                  else cardRefs.current.delete(deliveryId);
+                }}
                 type="button"
-                onClick={() => toggleChecked(d.delivery.id)}
-                className={`w-full text-left bg-bg-surface rounded-2xl border p-4 transition-colors ${
+                disabled={isChecked || isChecking}
+                onClick={() => void checkOffDelivery(d)}
+                className={`w-full text-left bg-bg-surface rounded-2xl border p-4 transition-colors disabled:cursor-default ${
                   isChecked
                     ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
-                    : "border-border"
+                    : isPulsing
+                      ? "border-accent animate-zone-pulse"
+                      : cardError
+                        ? "border-accent-red/50"
+                        : "border-border"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -600,6 +727,14 @@ function JobPickupScreen({
                     >
                       {isPartial ? "Partial" : "Complete"}
                     </span>
+                    {isChecking && (
+                      <p className="mt-2 text-xs text-text-secondary">
+                        Recording…
+                      </p>
+                    )}
+                    {cardError && (
+                      <p className="mt-2 text-xs text-accent-red">{cardError}</p>
+                    )}
                   </div>
                 </div>
               </button>
@@ -657,11 +792,11 @@ function JobPickupScreen({
             </p>
           )}
         <button
-          onClick={() => void handleSubmit(false)}
-          disabled={submitting || !canManualSubmit}
+          onClick={handleDone}
+          disabled={submitting || !allChecked}
           className="action-btn action-btn-delivered w-full disabled:opacity-40"
         >
-          {submitting ? "Submitting…" : "Submit Pickup"}
+          {submitting ? "Submitting…" : "Done — All Picked Up ✓"}
         </button>
       </div>
     </div>
@@ -672,23 +807,23 @@ export default function PickupPortalPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const jobIdFromUrl = searchParams.get("job");
   const [discoveredJobId, setDiscoveredJobId] = useState<string | null>(null);
-  const [preCheckedDeliveryId, setPreCheckedDeliveryId] = useState<
+  const [highlightDeliveryId, setHighlightDeliveryId] = useState<
     string | null
   >(null);
 
   const activeJobId = jobIdFromUrl ?? discoveredJobId;
 
   const handleJobResolved = useCallback(
-    (jobId: string, deliveryId: string) => {
+    (jobId: string, deliveryId: string | null) => {
       setDiscoveredJobId(jobId);
-      setPreCheckedDeliveryId(deliveryId);
+      setHighlightDeliveryId(deliveryId);
     },
     [],
   );
 
   const handleStartOver = useCallback(() => {
     setDiscoveredJobId(null);
-    setPreCheckedDeliveryId(null);
+    setHighlightDeliveryId(null);
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
@@ -696,11 +831,9 @@ export default function PickupPortalPage() {
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
       {activeJobId ? (
         <JobPickupScreen
-          key={`${activeJobId}-${preCheckedDeliveryId ?? "link"}`}
+          key={`${activeJobId}-${highlightDeliveryId ?? "link"}`}
           jobId={activeJobId}
-          initialCheckedIds={
-            preCheckedDeliveryId ? [preCheckedDeliveryId] : []
-          }
+          highlightDeliveryId={highlightDeliveryId}
           onStartOver={handleStartOver}
         />
       ) : (
