@@ -11,17 +11,15 @@ import {
   type StagingLocation,
 } from "./dispatcher/models";
 
-type FlowState =
-  | "idle"
-  | "suggesting"
-  | "promptOversized"
-  | "suggestingOversized"
-  | "done";
+type FlowState = "idle" | "suggesting" | "suggestingOversized" | "done";
 
 const sortByProximity = (a: StagingLocation, b: StagingLocation): number =>
   (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
 
-function pickStandardSpot(
+const isShelfType = (type: StagingLocation["type"]): boolean =>
+  type === "shelf" || type === "bin";
+
+function pickShelfSpot(
   locations: StagingLocation[],
   assigned: Set<string>,
 ): StagingLocation | undefined {
@@ -30,12 +28,13 @@ function pickStandardSpot(
       (loc) =>
         isLocationActive(loc) &&
         !assigned.has(loc.id) &&
-        !isOversizedSpot(loc),
+        !isOversizedSpot(loc) &&
+        isShelfType(loc.type),
     )
     .sort(sortByProximity)[0];
 }
 
-function pickOversizedSpot(
+function pickGroundSpot(
   locations: StagingLocation[],
   assigned: Set<string>,
 ): StagingLocation | undefined {
@@ -44,28 +43,72 @@ function pickOversizedSpot(
       (loc) =>
         isLocationActive(loc) &&
         !assigned.has(loc.id) &&
+        !isOversizedSpot(loc) &&
+        loc.type === "ground",
+    )
+    .sort(sortByProximity)[0];
+}
+
+function pickOversizedGroundSpot(
+  locations: StagingLocation[],
+  assigned: Set<string>,
+): StagingLocation | undefined {
+  return locations
+    .filter(
+      (loc) =>
+        isLocationActive(loc) &&
+        !assigned.has(loc.id) &&
+        loc.type === "ground" &&
         isOversizedSpot(loc),
     )
     .sort(sortByProximity)[0];
 }
 
-function formatDimensions(loc: StagingLocation): string {
-  const w = loc.widthFt;
-  const d = loc.depthFt;
-  if (w != null && d != null) return `${w}×${d} ft`;
-  return "";
-}
-
-function formatOversizedLine(loc: StagingLocation): string {
-  const w = loc.widthFt ?? 4;
-  const d = loc.depthFt ?? 10;
-  return `ground · ${w}×${d} ft`;
+function formatSizeLine(
+  loc: StagingLocation,
+  defaults: { w: number; d: number },
+): string {
+  const w = loc.widthFt ?? defaults.w;
+  const d = loc.depthFt ?? defaults.d;
+  return `${w} × ${d} ft`;
 }
 
 interface NeedMoreSpaceButtonProps {
   delivery: DeliveryOrder;
   onDeliveryUpdated?: (delivery: DeliveryOrder) => void;
   className?: string;
+}
+
+function SpotCard({
+  title,
+  loc,
+  sizeLine,
+  disabled,
+  onAdd,
+}: {
+  title: string;
+  loc: StagingLocation;
+  sizeLine: string;
+  disabled: boolean;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="flex flex-col rounded-xl border border-border bg-bg-surface p-3 min-w-0">
+      <p className="text-[10px] uppercase tracking-widest text-text-secondary mb-1">
+        {title}
+      </p>
+      <p className="font-semibold text-text-primary truncate">{loc.label}</p>
+      <p className="text-xs text-text-secondary mt-1">{sizeLine}</p>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onAdd}
+        className="mt-3 w-full rounded-lg bg-accent-green py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
+      >
+        Add this spot
+      </button>
+    </div>
+  );
 }
 
 export function NeedMoreSpaceButton({
@@ -75,44 +118,38 @@ export function NeedMoreSpaceButton({
 }: NeedMoreSpaceButtonProps) {
   const [flowState, setFlowState] = useState<FlowState>("idle");
   const [localDelivery, setLocalDelivery] = useState(delivery);
-  const [standardSpot, setStandardSpot] = useState<StagingLocation | undefined>();
+  const [shelfSpot, setShelfSpot] = useState<StagingLocation | undefined>();
+  const [groundSpot, setGroundSpot] = useState<StagingLocation | undefined>();
   const [oversizedSpot, setOversizedSpot] = useState<StagingLocation | undefined>();
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState<string | null>(null);
-  const [noSpotsMessage, setNoSpotsMessage] = useState(false);
+  const [noLargerMessage, setNoLargerMessage] = useState(false);
 
   useEffect(() => {
     setLocalDelivery(delivery);
   }, [delivery]);
 
-  const refreshRecommendations = useCallback(
-    (locations: StagingLocation[]) => {
-      const assigned = new Set(getAllStagingLocationIds(localDelivery));
-      setStandardSpot(pickStandardSpot(locations, assigned));
-      setOversizedSpot(pickOversizedSpot(locations, assigned));
-    },
-    [localDelivery],
-  );
-
   const loadAndRecommend = useCallback(async (): Promise<void> => {
     setLoading(true);
-    setNoSpotsMessage(false);
+    setNoLargerMessage(false);
     try {
       const all = await firestoreDataService.listStagingLocations();
       const assigned = new Set(getAllStagingLocationIds(localDelivery));
-      const standard = pickStandardSpot(all, assigned);
-      const oversized = pickOversizedSpot(all, assigned);
-      setStandardSpot(standard);
+      const shelf = pickShelfSpot(all, assigned);
+      const ground = pickGroundSpot(all, assigned);
+      const oversized = pickOversizedGroundSpot(all, assigned);
+      setShelfSpot(shelf);
+      setGroundSpot(ground);
       setOversizedSpot(oversized);
 
-      if (standard) {
+      if (shelf || ground) {
         setFlowState("suggesting");
       } else if (oversized) {
         setFlowState("suggestingOversized");
       } else {
-        setNoSpotsMessage(true);
-        window.setTimeout(() => setFlowState("done"), 3000);
+        setNoLargerMessage(true);
+        window.setTimeout(() => setFlowState("done"), 2500);
       }
     } finally {
       setLoading(false);
@@ -132,45 +169,58 @@ export function NeedMoreSpaceButton({
     setConfirmLabel(label);
   };
 
-  const handleAccept = async (
-    loc: StagingLocation,
-    nextAfterConfirm: FlowState,
-  ) => {
+  const handleTier1Add = async (loc: StagingLocation) => {
     setAdding(true);
     try {
       await addStagingLocation(localDelivery.id, loc.id);
-      applyAddedLocation(loc.id, loc.label);
+      const updated: DeliveryOrder = {
+        ...localDelivery,
+        additionalStagingLocationIds: [
+          ...(localDelivery.additionalStagingLocationIds ?? []),
+          loc.id,
+        ],
+      };
+      setLocalDelivery(updated);
+      onDeliveryUpdated?.(updated);
+      setConfirmLabel(loc.label);
       window.setTimeout(() => {
         setConfirmLabel(null);
         void firestoreDataService.listStagingLocations().then((all) => {
-          refreshRecommendations(all);
+          const assigned = new Set(getAllStagingLocationIds(updated));
+          const oversized = pickOversizedGroundSpot(all, assigned);
+          setOversizedSpot(oversized);
+          if (oversized) {
+            setFlowState("suggestingOversized");
+          } else {
+            setNoLargerMessage(true);
+            window.setTimeout(() => setFlowState("done"), 2500);
+          }
         });
-        setFlowState(nextAfterConfirm);
       }, 2000);
     } finally {
       setAdding(false);
     }
   };
 
-  const openOversizedFlow = () => {
-    void firestoreDataService.listStagingLocations().then((all) => {
-      const assigned = new Set(getAllStagingLocationIds(localDelivery));
-      const oversized = pickOversizedSpot(all, assigned);
-      setOversizedSpot(oversized);
-      if (oversized) {
-        setFlowState("suggestingOversized");
-      } else {
-        setNoSpotsMessage(true);
-        window.setTimeout(() => setFlowState("done"), 3000);
-      }
-    });
+  const handleTier2Add = async (loc: StagingLocation) => {
+    setAdding(true);
+    try {
+      await addStagingLocation(localDelivery.id, loc.id);
+      applyAddedLocation(loc.id, loc.label);
+      window.setTimeout(() => {
+        setConfirmLabel(null);
+        setFlowState("done");
+      }, 2000);
+    } finally {
+      setAdding(false);
+    }
   };
 
   if (flowState === "done") {
-    if (noSpotsMessage) {
+    if (noLargerMessage) {
       return (
         <p className="text-sm text-text-secondary text-center py-2">
-          No additional spots available — ask staff for assistance.
+          No larger spots available
         </p>
       );
     }
@@ -193,10 +243,10 @@ export function NeedMoreSpaceButton({
     );
   }
 
-  if (noSpotsMessage) {
+  if (noLargerMessage && flowState !== "suggesting" && flowState !== "suggestingOversized") {
     return (
       <p className="text-sm text-text-secondary text-center py-4">
-        No additional spots available — ask staff for assistance.
+        No larger spots available
       </p>
     );
   }
@@ -213,51 +263,48 @@ export function NeedMoreSpaceButton({
     );
   }
 
-  if (flowState === "promptOversized") {
-    return (
-      <button
-        type="button"
-        onClick={openOversizedFlow}
-        className={`w-full rounded-xl border border-border bg-bg-card py-4 text-base font-medium hover:bg-bg-surface transition-colors active:scale-[0.98] text-text-primary ${className}`}
-      >
-        Need an even bigger spot?
-      </button>
-    );
-  }
-
-  if (flowState === "suggesting" && standardSpot) {
-    const dims = formatDimensions(standardSpot);
+  if (flowState === "suggesting" && (shelfSpot || groundSpot)) {
     return (
       <div
         className={`rounded-xl border border-border bg-bg-card p-4 space-y-4 ${className}`}
       >
-        <div className="text-center">
-          <p className="text-base font-medium text-text-primary">
-            Need more space?
-          </p>
-          <p className="text-sm text-text-secondary mt-2">
-            Closest available spot: {standardSpot.label} ({standardSpot.type}
-            {dims ? ` · ${dims}` : ""})
-          </p>
+        <p className="text-base font-medium text-text-primary text-center">
+          Need more space?
+        </p>
+
+        <div
+          className={`grid gap-3 ${
+            shelfSpot && groundSpot ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+          }`}
+        >
+          {shelfSpot && (
+            <SpotCard
+              title="Shelf spot"
+              loc={shelfSpot}
+              sizeLine={formatSizeLine(shelfSpot, { w: 3, d: 3 })}
+              disabled={adding}
+              onAdd={() => void handleTier1Add(shelfSpot)}
+            />
+          )}
+          {groundSpot && (
+            <SpotCard
+              title="Ground spot"
+              loc={groundSpot}
+              sizeLine={formatSizeLine(groundSpot, { w: 4, d: 4 })}
+              disabled={adding}
+              onAdd={() => void handleTier1Add(groundSpot)}
+            />
+          )}
         </div>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            disabled={adding}
-            onClick={() => void handleAccept(standardSpot, "promptOversized")}
-            className="flex-1 rounded-xl bg-accent-green py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
-          >
-            Accept
-          </button>
-          <button
-            type="button"
-            disabled={adding}
-            onClick={() => setFlowState("done")}
-            className="flex-1 rounded-xl border border-border bg-bg-surface py-3 text-sm font-medium text-text-secondary hover:bg-bg-secondary transition-colors disabled:opacity-50 active:scale-[0.98]"
-          >
-            No thanks
-          </button>
-        </div>
+
+        <button
+          type="button"
+          disabled={adding}
+          onClick={() => setFlowState("done")}
+          className="w-full py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+        >
+          No thanks
+        </button>
       </div>
     );
   }
@@ -267,32 +314,39 @@ export function NeedMoreSpaceButton({
       <div
         className={`rounded-xl border border-border bg-bg-card p-4 space-y-4 ${className}`}
       >
-        <div className="text-center">
-          <p className="text-base font-medium text-text-primary">
-            Need an even bigger spot?
+        <p className="text-base font-medium text-text-primary text-center">
+          Need an even bigger spot?
+        </p>
+
+        <div className="rounded-xl border border-border bg-bg-surface p-4">
+          <p className="text-[10px] uppercase tracking-widest text-text-secondary mb-1">
+            Large ground spot
           </p>
-          <p className="text-sm text-text-secondary mt-2">
-            Closest large spot: {oversizedSpot.label} (
-            {formatOversizedLine(oversizedSpot)})
+          <p className="font-semibold text-text-primary">
+            {oversizedSpot.label}
+            <span className="text-text-secondary font-normal">
+              {" "}
+              · {formatSizeLine(oversizedSpot, { w: 4, d: 10 })}
+            </span>
           </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            disabled={adding}
-            onClick={() => void handleAccept(oversizedSpot, "done")}
-            className="flex-1 rounded-xl bg-accent-green py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
-          >
-            Accept
-          </button>
-          <button
-            type="button"
-            disabled={adding}
-            onClick={() => setFlowState("done")}
-            className="flex-1 rounded-xl border border-border bg-bg-surface py-3 text-sm font-medium text-text-secondary hover:bg-bg-secondary transition-colors disabled:opacity-50 active:scale-[0.98]"
-          >
-            No thanks
-          </button>
+          <div className="flex gap-3 mt-4">
+            <button
+              type="button"
+              disabled={adding}
+              onClick={() => void handleTier2Add(oversizedSpot)}
+              className="flex-1 rounded-xl bg-accent-green py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
+            >
+              Add this spot
+            </button>
+            <button
+              type="button"
+              disabled={adding}
+              onClick={() => setFlowState("done")}
+              className="flex-1 rounded-xl border border-border bg-bg-surface py-3 text-sm font-medium text-text-secondary hover:bg-bg-secondary transition-colors disabled:opacity-50 active:scale-[0.98]"
+            >
+              No thanks
+            </button>
+          </div>
         </div>
       </div>
     );
