@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
+import { QRCodeSVG } from "qrcode.react";
 import { auth } from "./firebase";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { firestoreDataService } from "./dispatcher/firestoreService";
@@ -1872,6 +1873,121 @@ function CopyPickupLinkButton({
   );
 }
 
+/* ─── Print Label Modal ──────────────────────────────────────────────────── */
+
+function PrintLabelModal({
+  deliveryId,
+  orderNumber,
+  vendorName,
+  onClose,
+}: {
+  deliveryId: string;
+  orderNumber: string;
+  vendorName: string;
+  onClose: () => void;
+}) {
+  const qrUrl = `${window.location.origin}${window.location.pathname}#/receive?id=${deliveryId}`;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(15, 23, 42, 0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
+          width: "100%",
+          maxWidth: 380,
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          alignItems: "center",
+          fontFamily: FONT,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 18,
+            fontWeight: 800,
+            color: "#111827",
+          }}
+        >
+          Delivery Label
+        </h2>
+        <div
+          style={{
+            backgroundColor: "#fff",
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <QRCodeSVG value={qrUrl} size={200} />
+        </div>
+        <div
+          style={{
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>
+            {orderNumber}
+          </div>
+          <div style={{ fontSize: 14, color: "#4b5563" }}>{vendorName}</div>
+        </div>
+        <div style={{ display: "flex", gap: 10, width: "100%", justifyContent: "center" }}>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 6,
+              border: `1px solid ${NAVY}`,
+              backgroundColor: NAVY,
+              color: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            Print
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              backgroundColor: "#fff",
+              color: "#374151",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Detail Content ─────────────────────────────────────────────────────── */
 
 function DetailContent({
@@ -1905,6 +2021,8 @@ function DetailContent({
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
 }) {
+  const [showPrintLabel, setShowPrintLabel] = useState(false);
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: "48px 0" }}>
@@ -2030,6 +2148,26 @@ function DetailContent({
                     </span>
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setShowPrintLabel(true)}
+                  style={{
+                    marginTop: 4,
+                    backgroundColor: "#fff",
+                    color: NAVY,
+                    border: `1.5px solid ${NAVY}`,
+                    borderRadius: 4,
+                    padding: "6px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: font,
+                    alignSelf: "flex-start",
+                    transition: "all 0.13s",
+                  }}
+                >
+                  Print Label
+                </button>
                 <CopyPickupLinkButton jobId={details.job.id} navy={navy} font={font} />
               </div>
             ),
@@ -2520,6 +2658,14 @@ function DetailContent({
           </section>
         ))}
       </div>
+      {showPrintLabel && (
+        <PrintLabelModal
+          deliveryId={details.delivery.id}
+          orderNumber={details.delivery.orderNumber ?? ""}
+          vendorName={details.vendor.name}
+          onClose={() => setShowPrintLabel(false)}
+        />
+      )}
     </>
   );
 }
