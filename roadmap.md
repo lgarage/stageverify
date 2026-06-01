@@ -59,10 +59,12 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | **Driver name in `CheckInPage.tsx`** — direct route still defaults to `"Vendor"` instead of prompting for a name | Not started |
+| 1 | **Driver name in `CheckInPage.tsx`** — direct route still defaults to `"Vendor"` instead of prompting for a name | Done (880ba2f) |
 | 2 | **Check-in flow consolidation** — `App.tsx` + `CheckInPage.tsx` overlap; unify or clearly separate | Not started |
 | 3 | **ESL Cloud Function** — MinewTag ESL tag integration via Cloud Function | Blocked: waiting on vendor API creds |
 | 4 | **Security audit (away-007)** — full `src/` scan, Gemini 3 Flash scanner + Sonnet verifier | Queued |
+| 5 | **Location status model** — add `Planned/Installed/Tagged/Active` status to `StagingLocation` schema; allow system to operate with partial tag deployment | Not started |
+| 6 | **Item status flow** — extend delivery/item status to include `Ordered → Shipped → Received → Staged → Picked Up → Installed` with location field | Not started |
 
 ---
 

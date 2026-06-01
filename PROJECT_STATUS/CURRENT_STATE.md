@@ -9,8 +9,11 @@
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2, qrcode.react. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 
-## Active Blocker
-None.
+## Active Blockers
+1. **Minew ESL creds** ? waiting on vendor login for demo kit (ESL Cloud Function blocked). See ESL_INTEGRATION_PLAN.md.
+2. **Shelving decision** ? waiting on Jake Korb. Blocks: shop map, location ID assignment, tag count, tag order.
+3. **Physical shop map** ? not yet created. Blocks full location ID assignment and Minew tag deployment.
+See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 
 ## Immediate Next Step
 1. **Firebase Auth** ? already fully implemented (LoginPage, ProtectedRoute, AuthContext all present). DONE ? no work needed.
@@ -18,6 +21,7 @@ None.
 3. **Next roadmap item** ? check roadmap.md for next unshipped feature.
 
 ## Last Session (2026-06-01, this session)
+- fix: driver name input added to CheckInPage.tsx direct check-in route; replaces hardcoded "Vendor"; submit blocked until name entered (880ba2f).
 - fix: qtyDamaged numeric input added to App.tsx (adjust modal) and CheckInPage.tsx (inline when Damaged/Partial); replaces hardcoded 0 in both flows. Build clean, deployed (1ef1a67).
 - discovery: Firebase Auth already fully implemented ? LoginPage, ProtectedRoute, AuthContext, logout buttons all present.
 
