@@ -49,6 +49,7 @@ function PickupScreen() {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState("");
+  const [notes, setNotes] = useState("");
 
   const loadDeliveryByZoneCode = async (zoneCode: string) => {
     const trimmed = zoneCode.trim();
@@ -105,6 +106,7 @@ function PickupScreen() {
         currentDelivery.delivery.id,
         trimmedTechnicianName,
         itemsSummary(currentDelivery),
+        notes || undefined,
       );
       setStep("done");
     } catch {
@@ -121,6 +123,7 @@ function PickupScreen() {
     setManualZoneCode("");
     setConfirmError(null);
     setTechnicianName("");
+    setNotes("");
     setStep("scan");
   };
 
@@ -347,6 +350,20 @@ function PickupScreen() {
             placeholder="Enter your name"
             className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
             autoComplete="name"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="pickup-notes" className="mb-2 block text-sm font-medium text-text-secondary">
+            Notes (optional)
+          </label>
+          <textarea
+            id="pickup-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Any notes about this pickup?"
+            rows={2}
+            className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent resize-none"
           />
         </div>
 

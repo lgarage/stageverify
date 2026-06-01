@@ -277,6 +277,8 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     toStatus: DeliveryStatus,
     reason?: string,
+    actorType: "dispatcher" | "technician" = "dispatcher",
+    actorName?: string,
   ): Promise<DeliveryDetails | null> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
@@ -309,8 +311,10 @@ export class FirestoreDataService implements DispatcherDataService {
       fromStatus,
       toStatus,
       reason: reason ?? null,
-      actorType: "dispatcher",
-      actorName: "Dispatcher",
+      actorType,
+      actorName:
+        actorName ??
+        (actorType === "technician" ? "Technician" : "Dispatcher"),
       createdAt: now,
     });
 
@@ -611,7 +615,13 @@ export class FirestoreDataService implements DispatcherDataService {
     };
 
     await setDoc(doc(db, "pickupEvents", eventId), event);
-    await this.updateDeliveryStatus(deliveryId, "picked_up");
+    await this.updateDeliveryStatus(
+      deliveryId,
+      "picked_up",
+      undefined,
+      "technician",
+      technicianName,
+    );
   }
 }
 

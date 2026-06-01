@@ -359,6 +359,37 @@ export function DispatcherDashboardPage() {
     }
   };
 
+  const handleRecordPickup = async (
+    technicianName: string,
+    itemsSummary: string,
+  ) => {
+    if (!selectedDeliveryId) return;
+
+    setMutationLoading(true);
+    setMutationError(null);
+
+    try {
+      await firestoreDataService.recordPickupEvent(
+        selectedDeliveryId,
+        technicianName,
+        itemsSummary,
+      );
+      const updatedDetails =
+        await firestoreDataService.getDeliveryDetails(selectedDeliveryId);
+      if (updatedDetails) {
+        setSelectedDetails(updatedDetails);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to record pickup.");
+      }
+    } catch (e) {
+      setMutationError("An unexpected error occurred while recording pickup.");
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   const handleRevertStatus = async () => {
     if (!selectedDeliveryId) return;
 
@@ -722,6 +753,25 @@ export function DispatcherDashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              to="/pickup"
+              target="_blank"
+              style={{
+                padding: "5px 12px",
+                borderRadius: 4,
+                border: `1.5px solid ${NAVY}`,
+                backgroundColor: "#fff",
+                color: NAVY,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: FONT,
+                textDecoration: "none",
+                outline: "none",
+              }}
+            >
+              Pickup Portal ↗
+            </Link>
             <button
               type="button"
               onClick={() => setShowCreateModal(true)}
@@ -1664,6 +1714,7 @@ export function DispatcherDashboardPage() {
                 mutationLoading={mutationLoading}
                 mutationError={mutationError}
                 onUpdateStatus={handleUpdateStatus}
+                onRecordPickup={handleRecordPickup}
                 onRevertStatus={handleRevertStatus}
                 onUpdateIssueSummary={handleUpdateIssueSummary}
                 stagingLocations={availableStagingLocations}
@@ -1736,6 +1787,7 @@ function DetailContent({
   mutationLoading,
   mutationError,
   onUpdateStatus,
+  onRecordPickup,
   onRevertStatus,
   onUpdateIssueSummary,
   stagingLocations,
@@ -1750,6 +1802,7 @@ function DetailContent({
   mutationLoading: boolean;
   mutationError: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
   onRevertStatus: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   stagingLocations: StagingLocation[];
@@ -1814,6 +1867,7 @@ function DetailContent({
         loading={mutationLoading}
         error={mutationError}
         onUpdateStatus={onUpdateStatus}
+        onRecordPickup={onRecordPickup}
         onRevertStatus={onRevertStatus}
         onUpdateIssueSummary={onUpdateIssueSummary}
         onUpdateStagingLocation={onUpdateStagingLocation}
@@ -2329,6 +2383,7 @@ function StatusActionPanel({
   loading,
   error,
   onUpdateStatus,
+  onRecordPickup,
   onRevertStatus,
   onUpdateIssueSummary,
   onUpdateStagingLocation,
@@ -2341,6 +2396,7 @@ function StatusActionPanel({
   loading: boolean;
   error: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
   onRevertStatus: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
@@ -2351,7 +2407,10 @@ function StatusActionPanel({
 }) {
   const [reason, setReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
+  const [showPickupInput, setShowPickupInput] = useState(false);
+  const [pickupTechnicianName, setPickupTechnicianName] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pickupInputRef = useRef<HTMLInputElement>(null);
   const [editingIssue, setEditingIssue] = useState(false);
   const [editReason, setEditReason] = useState("");
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -2384,6 +2443,13 @@ function StatusActionPanel({
   }, [showReasonInput]);
 
   useEffect(() => {
+    if (showPickupInput) {
+      const t = setTimeout(() => pickupInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [showPickupInput]);
+
+  useEffect(() => {
     if (editingIssue) {
       const t = setTimeout(() => editTextareaRef.current?.focus(), 50);
       return () => clearTimeout(t);
@@ -2397,9 +2463,22 @@ function StatusActionPanel({
   const handleActionClick = (nextStatus: DeliveryStatus) => {
     if (nextStatus === "issue") {
       setShowReasonInput(true);
+    } else if (nextStatus === "picked_up") {
+      setShowPickupInput(true);
     } else {
       void onUpdateStatus(nextStatus);
     }
+  };
+
+  const handleConfirmPickup = () => {
+    const trimmedName = pickupTechnicianName.trim();
+    if (!trimmedName) return;
+    const itemCount = details.items.length;
+    const summary =
+      itemCount === 1 ? "1 item" : `${itemCount} items`;
+    void onRecordPickup(trimmedName, summary);
+    setShowPickupInput(false);
+    setPickupTechnicianName("");
   };
 
   const handleConfirmIssue = () => {
@@ -2479,7 +2558,7 @@ function StatusActionPanel({
         </span>
       </div>
 
-      {possibleNext.length > 0 && !showReasonInput && (
+      {possibleNext.length > 0 && !showReasonInput && !showPickupInput && (
         <div>
           <h3
             style={{
@@ -2519,7 +2598,7 @@ function StatusActionPanel({
         </div>
       )}
 
-      {revertTarget && !showReasonInput && (
+      {revertTarget && !showReasonInput && !showPickupInput && (
         <div style={{ marginTop: 12 }}>
           <h3
             style={{
@@ -2551,6 +2630,105 @@ function StatusActionPanel({
           >
             {loading ? "Updating…" : `Revert to ${STATUS_LABEL(revertTarget)}`}
           </button>
+        </div>
+      )}
+
+      {showPickupInput && (
+        <div>
+          <h3
+            style={{
+              margin: "16px 0 8px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: navy,
+              textTransform: "uppercase",
+              letterSpacing: "0.10em",
+            }}
+          >
+            Record Pickup
+          </h3>
+          <label
+            htmlFor="dispatcher-pickup-name"
+            style={{
+              display: "block",
+              marginBottom: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#374151",
+              fontFamily: font,
+            }}
+          >
+            Technician name
+          </label>
+          <input
+            ref={pickupInputRef}
+            id="dispatcher-pickup-name"
+            type="text"
+            autoFocus
+            value={pickupTechnicianName}
+            onChange={(e) => setPickupTechnicianName(e.target.value)}
+            placeholder="Enter technician name"
+            disabled={loading}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 12px",
+              border: "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: font,
+              color: "#111",
+              backgroundColor: "#fff",
+              outline: "none",
+              marginBottom: 8,
+            }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleConfirmPickup}
+              disabled={loading || !pickupTechnicianName.trim()}
+              style={{
+                backgroundColor:
+                  loading || !pickupTechnicianName.trim() ? "#f3f4f6" : navy,
+                color:
+                  loading || !pickupTechnicianName.trim() ? "#9ca3af" : "#fff",
+                border: `1.5px solid ${
+                  loading || !pickupTechnicianName.trim() ? "#d1d5db" : navy
+                }`,
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor:
+                  loading || !pickupTechnicianName.trim()
+                    ? "not-allowed"
+                    : "pointer",
+                fontFamily: font,
+              }}
+            >
+              {loading ? "Saving..." : "Confirm Pickup"}
+            </button>
+            <button
+              onClick={() => {
+                setShowPickupInput(false);
+                setPickupTechnicianName("");
+              }}
+              disabled={loading}
+              style={{
+                backgroundColor: "#fff",
+                color: "#374151",
+                border: "1.5px solid #d1d5db",
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 

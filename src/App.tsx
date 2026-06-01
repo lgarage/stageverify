@@ -742,6 +742,14 @@ export default function App() {
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
       <ScanScreen />
+      <div className="px-6 py-4 text-center">
+        <a
+          href="#/pickup"
+          className="text-text-secondary text-sm underline"
+        >
+          Tech Pickup →
+        </a>
+      </div>
     </div>
   );
 }
