@@ -13,14 +13,16 @@
 None.
 
 ## Immediate Next Step
-Priority 1 ? Consolidate Vendor Check-In Flow: Verify routing in App.tsx/main.tsx is consistent and legacy routes are gone.
-Priority 2 ? Consider code-splitting to reduce 610 kB chunk (build warning, not error).
+Priority 1 ? Consider code-splitting to reduce 610 kB chunk (build warning, not error).
+Priority 2 ? Monitor Firestore usage and optimize queries if needed.
 
 ## Last Session (2026-05-31)
+- Audited and cleaned up routing in `src/main.tsx` and `src/App.tsx`.
+- Removed legacy `mockDispatcherDataService` alias in `src/DispatcherDashboardPage.tsx`.
+- Reordered routes in `src/main.tsx` to prevent conflicts (specific routes before `/`).
+- Verified `CheckInPage.tsx` is correctly wired to Firestore.
+- npm run build passes clean. GitHub Pages deploy: Published.
 - Audited CreateDeliveryModal ? already fully wired to Firestore, no mock data, no hardcoded IDs.
-- createDelivery() called with real user-entered vendorId, jobId, deliveryDate, lineItems.
-- Vendors/jobs/stagingLocations loaded from Firestore on modal open via listVendors(), listJobs(), listStagingLocations().
-- npm run build passes clean (exit 0). GitHub Pages deploy: Published.
 
 ## Agent-ops reference
 - Away-list tasks: PROJECT_STATUS/away-list.json (run status: away-status.json)
