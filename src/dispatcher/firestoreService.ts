@@ -7,6 +7,7 @@ import {
   writeBatch,
   query,
   where,
+  limit,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type {
@@ -33,8 +34,10 @@ import type {
 import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } from "./service";
 import type { AppSettings } from "./models";
 
+const COLLECTION_SAFETY_LIMIT = 500;
+
 async function fetchAll<T>(colName: string): Promise<T[]> {
-  const snap = await getDocs(collection(db, colName));
+  const snap = await getDocs(query(collection(db, colName), limit(COLLECTION_SAFETY_LIMIT)));
   return snap.docs.map((d) => d.data() as T);
 }
 
@@ -294,7 +297,7 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const now = new Date().toISOString();
-    const eventId = `event-${Date.now()}`;
+    const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
 
     const updatedFields: Partial<DeliveryOrder> = {
@@ -337,7 +340,7 @@ export class FirestoreDataService implements DispatcherDataService {
     if (!deliverySnap.exists()) return null;
 
     const now = new Date().toISOString();
-    const eventId = `event-${Date.now()}`;
+    const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
 
     batch.update(doc(db, "deliveries", deliveryId), {
@@ -391,7 +394,7 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const now = new Date().toISOString();
-    const eventId = `event-${Date.now()}`;
+    const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
 
     batch.update(doc(db, "deliveries", deliveryId), {
@@ -432,7 +435,7 @@ export class FirestoreDataService implements DispatcherDataService {
           { merge: true },
         );
       } else {
-        const newPoId = `po-${Date.now()}`;
+        const newPoId = `po-${crypto.randomUUID()}`;
         await setDoc(doc(db, "purchaseOrders", newPoId), {
           id: newPoId,
           poNumber: poNumber.trim(),
@@ -507,7 +510,7 @@ export class FirestoreDataService implements DispatcherDataService {
       ? "ready_for_pickup"
       : "partial";
     const now = new Date().toISOString();
-    const eventId = `event-${Date.now()}`;
+    const eventId = `event-${crypto.randomUUID()}`;
 
     batch.update(doc(db, "deliveries", deliveryId), {
       status: overallStatus,
@@ -553,7 +556,7 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const now = new Date().toISOString();
-    const eventId = `event-${Date.now()}`;
+    const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
 
     batch.update(doc(db, "deliveries", deliveryId), {
@@ -720,7 +723,7 @@ export async function listAllZones(): Promise<StagingLocation[]> {
 export async function createZone(
   data: Omit<StagingLocation, "id">,
 ): Promise<string> {
-  const id = `zone-${Date.now()}`;
+  const id = `zone-${crypto.randomUUID()}`;
   const zone: StagingLocation = { ...data, id };
   await setDoc(doc(db, "stagingLocations", id), zone);
   return id;
@@ -754,14 +757,14 @@ export async function createDelivery(
   input: CreateDeliveryInput,
 ): Promise<string> {
   const now = new Date().toISOString();
-  const deliveryId = `delivery-${Date.now()}`;
+  const deliveryId = `delivery-${crypto.randomUUID()}`;
   const allDeliveries = await fetchAll<DeliveryOrder>("deliveries");
   const orderNumber = `ORD-${String(allDeliveries.length + 1).padStart(3, "0")}`;
   const batch = writeBatch(db);
 
   let purchaseOrderId: string | undefined;
   if (input.poNumber?.trim()) {
-    purchaseOrderId = `po-${Date.now()}`;
+    purchaseOrderId = `po-${crypto.randomUUID()}`;
     const po: PurchaseOrder = {
       id: purchaseOrderId,
       poNumber: input.poNumber.trim(),
@@ -788,8 +791,8 @@ export async function createDelivery(
   };
   batch.set(doc(db, "deliveries", deliveryId), delivery);
 
-  input.lineItems.forEach((row, index) => {
-    const itemId = `item-${Date.now()}-${index}`;
+  input.lineItems.forEach((row) => {
+    const itemId = `item-${crypto.randomUUID()}`;
     const item: Item = {
       id: itemId,
       deliveryOrderId: deliveryId,
@@ -805,7 +808,7 @@ export async function createDelivery(
     batch.set(doc(db, "items", itemId), item);
   });
 
-  const eventId = `event-${Date.now()}`;
+  const eventId = `event-${crypto.randomUUID()}`;
   const historyEvent: StatusHistoryEvent = {
     id: eventId,
     entityType: "delivery_order",

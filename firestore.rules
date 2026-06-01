@@ -71,13 +71,34 @@ service cloud.firestore {
 
     function unauthItemUpdateAllowed() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
       return changed.hasOnly([
           'qtyReceived',
           'qtyMissing',
           'qtyDamaged',
           'status',
         ])
-        && (!changed.hasAny(['status']) || isValidItemStatus(request.resource.data.status));
+        && (!changed.hasAny(['status']) || isValidItemStatus(d.status))
+        && (!changed.hasAny(['qtyReceived']) || (d.qtyReceived is int && d.qtyReceived >= 0 && d.qtyReceived <= 9999))
+        && (!changed.hasAny(['qtyMissing'])  || (d.qtyMissing  is int && d.qtyMissing  >= 0 && d.qtyMissing  <= 9999))
+        && (!changed.hasAny(['qtyDamaged'])  || (d.qtyDamaged  is int && d.qtyDamaged  >= 0 && d.qtyDamaged  <= 9999));
+    }
+
+    function unauthStatusHistoryCreateAllowed() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['id', 'entityType', 'entityId', 'toStatus', 'actorType', 'createdAt'])
+        && d.entityType == 'delivery_order'
+        && d.actorType in ['vendor', 'technician']
+        && isValidDeliveryStatus(d.toStatus)
+        && d.actorName is string
+        && d.actorName.size() <= 128;
+    }
+
+    function unauthPickupEventCreateAllowed() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['id', 'deliveryOrderId', 'jobId', 'technicianName', 'pickedUpAt', 'itemsPickedSummary'])
+        && d.technicianName is string
+        && d.technicianName.size() <= 128;
     }
 
     match /deliveries/{deliveryId} {
@@ -117,13 +138,13 @@ service cloud.firestore {
 
     match /statusHistory/{eventId} {
       allow read: if isAuthenticated();
-      allow create: if true;
+      allow create: if isAuthenticated() || unauthStatusHistoryCreateAllowed();
       allow update, delete: if false;
     }
 
     match /pickupEvents/{eventId} {
       allow read: if isAuthenticated();
-      allow create: if true;
+      allow create: if isAuthenticated() || unauthPickupEventCreateAllowed();
       allow update, delete: if false;
     }
 

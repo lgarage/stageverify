@@ -54,6 +54,8 @@ const renderApp = () => {
 };
 
 renderApp();
-seedFirestore().catch((err) => {
-  console.error("Firestore seed failed (app still works with empty DB):", err);
-});
+if (import.meta.env.DEV) {
+  seedFirestore().catch((err) => {
+    console.error("Firestore seed failed:", err);
+  });
+}
