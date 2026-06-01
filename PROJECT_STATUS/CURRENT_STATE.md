@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: Backend wired — Firebase Firestore live + Cloud Functions active
-- Last shipped: Pickup portal redesigned as job-scoped checklist. URL: /#/pickup?job=JOB-ID. Tech sees all pickup-ready zones for job; must enter name then tap each card (immediate Firestore write per tap). Scanning job QR highlights card only — no auto-check. Done button enables when all zones checked. Auto-submit after autoSubmitMinutes. Dispatcher drawer has Copy Pickup Link button. Commits: a8971e7, 1f44702.
+- Last shipped: Pickup portal zone cards are now expandable accordions. Each panel shows Order #, Vendor, PO #, Staging info + a shared master item list (all job items combined, optional per-item checkoff with shared state across all zones). Copy Pickup Link now appends &zones=G2,S1-A,S1-B to the URL. Item fields in use: description, qtyOrdered, sku. Commit: 5099198.
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes. All legacy mock files deleted - canonical models in src/dispatcher/models.ts only.
 
@@ -17,8 +17,7 @@ Priority 1 - Clear stagingLocationId on pickup (staging zone not freed after pic
 Priority 2 - Consider code-splitting to reduce 610 kB chunk (build warning, not error).
 
 ## Last Session (2026-05-31)
-- Pickup portal fully redesigned: job-scoped checklist, immediate per-tap writes, job-URL QR parsing, Copy Pickup Link in dispatcher, auto-submit.
-- npm run build passes clean. GitHub Pages deploy: Published (commit 1f44702).
+- Pickup portal: job-scoped checklist, immediate per-tap writes, QR highlight, copy link, auto-submit, zone accordions with shared item checklist, zones in URL. Commits: 6959c28, a8971e7, 1f44702, 5099198.
 
 ## Agent-ops reference
 - Away-list tasks: PROJECT_STATUS/away-list.json (run status: away-status.json)
