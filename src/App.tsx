@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
@@ -83,6 +84,7 @@ type CheckInDelivery = {
 };
 
 function ScanScreen() {
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>("scan");
   const [currentDelivery, setCurrentDelivery] = useState<CheckInDelivery | null>(
     null,
@@ -136,7 +138,7 @@ function ScanScreen() {
       });
     }
     if (result.items.length > 0) {
-      await handleDeliveryFound(result.items[0].deliveryId);
+      navigate(`/checkin/${result.items[0].deliveryId}`);
     } else {
       setNotFoundCode("__no_deliveries__");
     }
@@ -165,20 +167,23 @@ function ScanScreen() {
               handledDecode = true;
               void (async () => {
                 const extracted = extractQrValue(decodedText);
+
+                // Delivery-ID QRs (packing slip labels) → route to CheckInPage
+                if (extracted.type === "id") {
+                  if (isMounted) navigate(`/checkin/${extracted.value}`);
+                  return;
+                }
+
+                // Zone QRs → resolve delivery assigned to that zone
                 const lookupValue = extracted.value;
                 const result = await firestoreDataService.listDeliveries({
                   pageSize: 100,
                 });
-                const matchByZone = result.items.find(
+                const match = result.items.find(
                   (d) =>
                     d.stagingLocationCode === lookupValue &&
                     d.status !== "picked_up",
                 );
-                const matchById = result.items.find(
-                  (d) =>
-                    d.deliveryId === lookupValue && d.status !== "picked_up",
-                );
-                const match = matchByZone ?? matchById;
 
                 if (match) {
                   if (match.status === "pending") {

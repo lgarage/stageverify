@@ -141,7 +141,13 @@ export function CheckInPage() {
       return;
     }
     setLoading(true);
-    void getDeliveryByOrderNumber(orderId).then((result) => {
+    void getDeliveryByOrderNumber(orderId).then(async (result) => {
+      if (result && result.delivery.status === "pending") {
+        await firestoreDataService.updateDeliveryStatus(
+          result.delivery.id,
+          "arrived",
+        );
+      }
       setDetails(result);
       if (result) {
         setItems(
