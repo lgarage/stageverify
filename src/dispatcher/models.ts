@@ -146,6 +146,8 @@ export function parseStagingLocation(
     notes: typeof data.notes === "string" ? data.notes : undefined,
     sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : undefined,
     eslTagId: typeof data.eslTagId === "string" ? data.eslTagId : undefined,
+    widthFt: typeof data.widthFt === "number" ? data.widthFt : undefined,
+    depthFt: typeof data.depthFt === "number" ? data.depthFt : undefined,
   };
 }
 
@@ -158,7 +160,12 @@ export interface StagingLocation {
   notes?: string;
   sortOrder?: number;
   eslTagId?: string;
+  widthFt?: number;
+  depthFt?: number;
 }
+
+export const isOversizedSpot = (loc: StagingLocation): boolean =>
+  (loc.widthFt ?? 0) >= 8 || (loc.depthFt ?? 0) >= 8;
 
 export interface StatusHistoryEvent {
   id: string;

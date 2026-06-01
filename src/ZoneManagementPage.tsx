@@ -130,6 +130,21 @@ interface ZoneFormState {
   notes: string;
   sortOrder: string;
   eslTagId: string;
+  widthFt: string;
+  depthFt: string;
+}
+
+function defaultDimensionsForType(type: ZoneType): {
+  widthFt: string;
+  depthFt: string;
+} {
+  if (type === "shelf" || type === "bin") {
+    return { widthFt: "3", depthFt: "3" };
+  }
+  if (type === "ground") {
+    return { widthFt: "4", depthFt: "4" };
+  }
+  return { widthFt: "", depthFt: "" };
 }
 
 const EMPTY_FORM: ZoneFormState = {
@@ -140,6 +155,7 @@ const EMPTY_FORM: ZoneFormState = {
   notes: "",
   sortOrder: "",
   eslTagId: "",
+  ...defaultDimensionsForType("ground"),
 };
 
 function zoneToForm(zone: StagingLocation): ZoneFormState {
@@ -151,6 +167,8 @@ function zoneToForm(zone: StagingLocation): ZoneFormState {
     notes: zone.notes ?? "",
     sortOrder: zone.sortOrder != null ? String(zone.sortOrder) : "",
     eslTagId: zone.eslTagId ?? "",
+    widthFt: zone.widthFt != null ? String(zone.widthFt) : "",
+    depthFt: zone.depthFt != null ? String(zone.depthFt) : "",
   };
 }
 
@@ -158,6 +176,8 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
   const sortOrder = form.sortOrder.trim()
     ? Number(form.sortOrder)
     : undefined;
+  const widthFt = form.widthFt.trim() ? Number(form.widthFt) : undefined;
+  const depthFt = form.depthFt.trim() ? Number(form.depthFt) : undefined;
   return {
     code: form.code.trim(),
     label: form.label.trim(),
@@ -166,6 +186,8 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
     notes: form.notes.trim() || undefined,
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
     eslTagId: form.eslTagId.trim() || undefined,
+    widthFt: Number.isFinite(widthFt) ? widthFt : undefined,
+    depthFt: Number.isFinite(depthFt) ? depthFt : undefined,
   };
 }
 
@@ -782,12 +804,16 @@ export function ZoneManagementPage() {
                     <select
                       style={inputStyle}
                       value={form.type}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const type = e.target.value as ZoneType;
+                        const defaults = defaultDimensionsForType(type);
                         setForm((f) => ({
                           ...f,
-                          type: e.target.value as ZoneType,
-                        }))
-                      }
+                          type,
+                          widthFt: defaults.widthFt,
+                          depthFt: defaults.depthFt,
+                        }));
+                      }}
                     >
                       {ZONE_TYPES.map((t) => (
                         <option key={t} value={t}>
@@ -837,6 +863,37 @@ export function ZoneManagementPage() {
                       }
                       placeholder="E0000001BC48"
                     />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Width (ft)</label>
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={form.widthFt}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, widthFt: e.target.value }))
+                      }
+                      placeholder="3"
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Depth (ft)</label>
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={form.depthFt}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, depthFt: e.target.value }))
+                      }
+                      placeholder="3"
+                    />
+                    <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
+                      Used to suggest spot sizes during check-in
+                    </p>
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={labelStyle}>Notes</label>

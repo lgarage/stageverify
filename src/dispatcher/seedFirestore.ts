@@ -75,6 +75,9 @@ const stagingLocations: StagingLocation[] = [
     label: "Ground Spot 1",
     type: "ground",
     status: "Active",
+    sortOrder: 1,
+    widthFt: 4,
+    depthFt: 4,
   },
   {
     id: "staging-2",
@@ -82,6 +85,9 @@ const stagingLocations: StagingLocation[] = [
     label: "Ground Spot 2",
     type: "ground",
     status: "Active",
+    sortOrder: 2,
+    widthFt: 4,
+    depthFt: 4,
   },
   {
     id: "staging-3",
@@ -89,6 +95,9 @@ const stagingLocations: StagingLocation[] = [
     label: "Shelf 1 - Bin A",
     type: "shelf",
     status: "Active",
+    sortOrder: 3,
+    widthFt: 3,
+    depthFt: 3,
   },
   {
     id: "staging-4",
@@ -96,6 +105,19 @@ const stagingLocations: StagingLocation[] = [
     label: "Shelf 2 - Bin A",
     type: "shelf",
     status: "Active",
+    sortOrder: 4,
+    widthFt: 3,
+    depthFt: 3,
+  },
+  {
+    id: "staging-5",
+    code: "GL",
+    label: "Large Ground Spot",
+    type: "ground",
+    status: "Active",
+    sortOrder: 5,
+    widthFt: 4,
+    depthFt: 10,
   },
 ];
 
