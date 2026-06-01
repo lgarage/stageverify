@@ -13,7 +13,10 @@
 None.
 
 ## Immediate Next Step
-Phase 2 built — playbooks + trial ladder live in cursor-agent-brain. Test the 3 feature changes on device (ready_for_pickup, pickup portal filter, fuzzy zone match).
+Full codebase audit (2026-06-01) confirmed MVP is complete. Real next items:
+1. **Firebase Auth** — protect `/dispatcher` + `/settings` routes with login screen (no auth exists today).
+2. **Staging Zone Management page** — sidebar "Staging Map" is a dead link; need page to create/edit zones + print QR labels.
+3. **Check-in consolidation + qtyDamaged** — `App.tsx` and `CheckInPage.tsx` are two parallel impls; `qtyDamaged` hardcoded to 0 in App.tsx scanner flow.
 
 ## Last Session (2026-06-01)
 - feat: added `ready_for_pickup` status — replaces `complete` in active delivery flow; all transitions, write paths, labels, and Cloud Functions updated. Backward compat kept for existing `complete` records (a0f0f9f).
