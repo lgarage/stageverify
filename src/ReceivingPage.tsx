@@ -5,7 +5,10 @@ import {
   useCallback,
 } from "react";
 import { Link } from "react-router-dom";
-import { firestoreDataService } from "./dispatcher/firestoreService";
+import {
+  firestoreDataService,
+  getDeliveryDetailsPublic,
+} from "./dispatcher/firestoreService";
 import type { DeliveryDetails, StagingLocation } from "./dispatcher/models";
 
 type Step = "scan" | "items" | "zone" | "done";
@@ -155,8 +158,7 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        let details =
-          await firestoreDataService.getDeliveryDetails(trimmed);
+        let details = await getDeliveryDetailsPublic(trimmed);
 
         if (!details) {
           showToast("Delivery not found");
@@ -388,7 +390,7 @@ export function ReceivingPage() {
                 <p className="text-sm font-medium">{deliveryDetails.vendor.name}</p>
                 <p className="text-xs text-text-secondary">
                   {deliveryDetails.delivery.orderNumber} ·{" "}
-                  {deliveryDetails.job.jobName}
+                  {deliveryDetails.job?.jobName ?? ""}
                 </p>
               </div>
             )}
@@ -437,7 +439,7 @@ export function ReceivingPage() {
                 </p>
                 <p>
                   <span className="text-text-secondary">Job: </span>
-                  {deliveryDetails.job.jobName}
+                  {deliveryDetails.job?.jobName ?? ""}
                 </p>
                 <p>
                   <span className="text-text-secondary">Date: </span>
@@ -667,7 +669,7 @@ export function ReceivingPage() {
                   {deliveryDetails.vendor.name}
                 </span>
               </p>
-              <p>Job: {deliveryDetails.job.jobName}</p>
+              <p>Job: {deliveryDetails.job?.jobName ?? ""}</p>
               <p>
                 {totalReceived} item
                 {totalReceived === 1 ? "" : "s"} received

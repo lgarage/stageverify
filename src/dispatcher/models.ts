@@ -141,7 +141,7 @@ export interface DeliveryListRow {
 
 export interface DeliveryDetails {
   delivery: DeliveryOrder;
-  job: Job;
+  job?: Job;
   vendor: Vendor;
   purchaseOrder?: PurchaseOrder;
   stagingLocation?: StagingLocation;

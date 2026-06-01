@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
+  getDeliveryDetailsPublic,
 } from "./dispatcher/firestoreService";
 import type { DeliveryDetails, DeliveryStatus } from "./dispatcher/models";
 
@@ -91,9 +92,7 @@ async function loadPickupReadyDeliveries(
   });
   const pickupReady = result.items.filter((d) => isPickupReady(d.status));
   const detailsList = await Promise.all(
-    pickupReady.map((d) =>
-      firestoreDataService.getDeliveryDetails(d.deliveryId),
-    ),
+    pickupReady.map((d) => getDeliveryDetailsPublic(d.deliveryId)),
   );
   return detailsList.filter((d): d is DeliveryDetails => d !== null);
 }
@@ -114,9 +113,7 @@ async function resolveJobFromZoneCode(
   );
   if (!match) return null;
 
-  const details = await firestoreDataService.getDeliveryDetails(
-    match.deliveryId,
-  );
+  const details = await getDeliveryDetailsPublic(match.deliveryId);
   if (!details) return null;
 
   return { jobId: details.delivery.jobId, deliveryId: details.delivery.id };
@@ -664,7 +661,7 @@ function JobPickupScreen({
     );
   }
 
-  const jobName = deliveries[0]?.job.jobName ?? "Job";
+  const jobName = deliveries[0]?.job?.jobName ?? "Job";
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

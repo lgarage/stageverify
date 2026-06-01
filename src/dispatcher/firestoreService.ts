@@ -655,6 +655,40 @@ export async function updateAppSettings(
 
 export const firestoreDataService = new FirestoreDataService();
 
+export async function getDeliveryDetailsPublic(
+  deliveryId: string,
+): Promise<DeliveryDetails | null> {
+  const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+  if (!deliverySnap.exists()) return null;
+  const delivery = deliverySnap.data() as DeliveryOrder;
+
+  const vendorSnap = await getDoc(doc(db, "vendors", delivery.vendorId));
+  if (!vendorSnap.exists()) return null;
+  const { contactName: _c, contactPhone: _p, email: _e, ...publicVendor } =
+    vendorSnap.data() as Vendor;
+
+  let stagingLocation: StagingLocation | undefined;
+  if (delivery.stagingLocationId) {
+    const locSnap = await getDoc(
+      doc(db, "stagingLocations", delivery.stagingLocationId),
+    );
+    if (locSnap.exists()) stagingLocation = locSnap.data() as StagingLocation;
+  }
+
+  const items = await fetchWhere<Item>("items", "deliveryOrderId", deliveryId);
+
+  const { notes: _n, ...publicDelivery } = delivery;
+
+  return {
+    delivery: publicDelivery as DeliveryOrder,
+    vendor: publicVendor as Vendor,
+    stagingLocation,
+    items,
+    statusHistory: [],
+    pickupEvents: [],
+  };
+}
+
 export async function getDeliveryByOrderNumber(
   orderNumber: string,
 ): Promise<DeliveryDetails | null> {
@@ -664,7 +698,7 @@ export async function getDeliveryByOrderNumber(
     orderNumber,
   );
   if (matches.length === 0) return null;
-  return firestoreDataService.getDeliveryDetails(matches[0].id);
+  return getDeliveryDetailsPublic(matches[0].id);
 }
 
 export async function listVendors(): Promise<Vendor[]> {

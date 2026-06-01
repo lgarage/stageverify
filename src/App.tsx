@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { firestoreDataService, getAppSettings } from "./dispatcher/firestoreService";
+import {
+  firestoreDataService,
+  getAppSettings,
+  getDeliveryDetailsPublic,
+} from "./dispatcher/firestoreService";
 import type {
   DeliveryOrder,
   Item,
@@ -99,7 +103,7 @@ function ScanScreen() {
   }, []);
 
   const handleDeliveryFound = async (deliveryId: string) => {
-    const details = await firestoreDataService.getDeliveryDetails(deliveryId);
+    const details = await getDeliveryDetailsPublic(deliveryId);
     if (!details) return;
     const { delivery, vendor, job, stagingLocation, items: allItems } = details;
     setCurrentDelivery({ delivery, vendor, job, location: stagingLocation, allItems });

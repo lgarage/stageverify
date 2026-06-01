@@ -2068,6 +2068,9 @@ function DetailContent({
     );
   }
 
+  if (!details.job) return null;
+  const job = details.job;
+
   const STATUS_BADGE_LOCAL: Record<
     string,
     { bg: string; text: string; border: string }
@@ -2124,11 +2127,11 @@ function DetailContent({
                     label: "Job #",
                     value: (
                       <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
-                        {details.job.jobNumber}
+                        {job.jobNumber}
                       </span>
                     ),
                   },
-                  { label: "Job Name", value: details.job.jobName },
+                  { label: "Job Name", value: job.jobName },
                 ].map(({ label, value }) => (
                   <div
                     key={label}
@@ -2173,7 +2176,7 @@ function DetailContent({
                 >
                   Print Label
                 </button>
-                <CopyPickupLinkButton jobId={details.job.id} navy={navy} font={font} />
+                <CopyPickupLinkButton jobId={job.id} navy={navy} font={font} />
               </div>
             ),
           },

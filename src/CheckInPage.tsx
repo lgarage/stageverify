@@ -345,7 +345,7 @@ export function CheckInPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-text-secondary shrink-0">Job/Site</span>
                 <span className="font-medium text-right truncate text-text-primary">
-                  {details.job.jobName}
+                  {details.job?.jobName ?? ""}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
