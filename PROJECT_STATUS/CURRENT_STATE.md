@@ -1,36 +1,33 @@
-ï»¿# stageverify | Current State
+# stageverify | Current State
 
-> READ THIS FILE FIRST every session. Hot-tier â€” hard cap ~30 lines.
+> READ THIS FILE FIRST every session. Hot-tier — hard cap ~30 lines.
 > Overflow ? migrate into PROJECT_STATUS/archives/. Read protocol: agent-ops skill S1.
 
 ## Snapshot
-- Active Phase: Backend wired â€” Firebase Firestore live + Cloud Functions active
-- Last shipped: `ReceivingPage` at `/receive` (mobile scan QR ? check-in items ? assign zone ? submit); `MobileHubPage` at `/hub` (protected splash with 3 workflow buttons: vendor check-in, tech checkout, supplies receive); `?next=` login redirect support. Commits: c049b76, 1e68adf, 3d97fb1.
+- Active Phase: Backend wired — Firebase Firestore live + Cloud Functions active
+- Last shipped: `firestore.rules` + `firebase.json` updated — Firestore security rules written (Composer 2.5, Trial #3, Opus grade: clean). Committed to repo but NOT YET deployed to Firebase (see Active Blocker). Composer 2.5 now at 3/5 consecutive clean passes.
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes. All legacy mock files deleted - canonical models in src/dispatcher/models.ts only.
 
 ## Active Blocker
-None.
+`firestore.rules` committed but NOT deployed: `getDeliveryDetails()` in `firestoreService.ts` reads from auth-gated collections (`jobs`, `purchaseOrders`, `statusHistory`, `pickupEvents`). Called from 4 unauthenticated routes (`/`, `/pickup`, `/checkin/:orderId`, `/receive`). Deploying rules now will break those mobile flows. Fix: split `getDeliveryDetails` into auth/unauth variants (strip `jobs`/`purchaseOrders`/`statusHistory`/`pickupEvents` reads from unauth path). Then run `firebase deploy --only firestore:rules`.
 
 ## Immediate Next Step
-1. **Firestore Security Rules** (backend-write-critical) - no `firestore.rules` file exists; server-side rules absent means anyone with the project ID can hit REST API directly. Add rules: restrict unauthenticated writes to delivery/item transitions only; require auth for dispatcher reads; enforce valid status values.
+1. **Fix getDeliveryDetails for unauthenticated callers** (multi-file-feature, Composer 2.5) — split into auth/unauth variants, then deploy rules with `firebase deploy --only firestore:rules`.
 2. **Firebase Auth** - protect `/dispatcher` + `/settings` routes with login screen (no auth exists today).
 3. **Staging Zone Management page** - sidebar "Staging Map" is a dead link; need page to create/edit zones + print QR labels.
 4. **Check-in consolidation + qtyDamaged** - `App.tsx` and `CheckInPage.tsx` are two parallel impls; `qtyDamaged` hardcoded to 0 in App.tsx scanner flow.
-5. **Hub as default mobile entry** - consider redirecting `/` to `/hub` for logged-in users (currently hub is only reachable via `/#/hub` direct nav or `?next=/hub` on login).
+5. **Hub as default mobile entry** - consider redirecting `/` to `/hub` for logged-in users.
 
 ## Last Session (2026-06-01)
-- feat: `ReceivingPage` at `/#/receive` â€” mobile-first 4-step flow: QR scan tag on delivered package ? item check-in steppers with auto-save ? staging zone picker ? submit. Reuses all existing firestoreService write paths. (c049b76, 1e68adf)
-- feat: `MobileHubPage` at `/#/hub` (protected) â€” splash page with 3 large buttons for vendor check-in, tech parts checkout, manual supplies check-in. (3d97fb1)
-- feat: `?next=` query param on LoginPage â€” `/#/login?next=/hub` lands on hub post-login. Open-redirect guard included.
-- trial: backend-write-critical Trial #1+#2 â€” Composer 2.5 built both features; Opus graded both **clean**. Composer 2.5 now at 2/5 consecutive clean passes.
-- lesson: use `npm run build` over `tsc --noEmit` in builder prompts â€” Vite catches TS strict-overlap cast errors that noEmit misses.
+- feat: `firestore.rules` — Composer 2.5 Trial #3, Opus graded clean (8/8 criteria). Firestore security rules with field-restricted unauth writes, enum enforcement, append-only audit logs. Committed; deploy blocked pending getDeliveryDetails fix.
+- feat: `ReceivingPage` at `/#/receive` — mobile-first 4-step flow: QR scan ? check-in steppers ? zone picker ? submit. (c049b76, 1e68adf)
+- feat: `MobileHubPage` at `/#/hub` + `?next=` redirect support. (3d97fb1)
+- trial: Composer 2.5 now 3/5 consecutive clean passes (3/10 trials used).
 
 ## Prev Session (2026-06-01, earlier)
-- feat: added `ready_for_pickup` status â€” replaces `complete` in active delivery flow; all transitions, write paths, labels, and Cloud Functions updated. Backward compat kept for existing `complete` records (a0f0f9f).
-- fix: EntryDisplayPage replaceAll so `ready_for_pickup` ? "READY FOR PICKUP"; CheckInPage gate blocks re-check-in on both `complete` and `ready_for_pickup` (66d1909).
-- feat: pickup portal `PICKUP_READY` filter now includes `ready_for_pickup` â€” orders visible in pickup app after new status flow.
-- feat: fuzzy zone code matching â€” `normalizeZoneCode` strips dashes/spaces and uppercases; `s2a` now resolves to `S2-A` in walk-up.
+- feat: added `ready_for_pickup` status; pickup portal filter updated. (a0f0f9f, 66d1909)
+- feat: fuzzy zone code matching — `normalizeZoneCode` strips dashes/spaces.
 
 ## Agent-ops reference
 - Away-list tasks: PROJECT_STATUS/away-list.json (run status: away-status.json)
