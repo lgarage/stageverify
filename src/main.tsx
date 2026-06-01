@@ -9,6 +9,7 @@ import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const App = lazy(() => import("./App"));
 const CheckInPage = lazy(() => import("./CheckInPage").then(m => ({ default: m.CheckInPage })));
+const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
 const EntryDisplayPage = lazy(() => import("./EntryDisplayPage").then(m => ({ default: m.EntryDisplayPage })));
 const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").then(m => ({ default: m.DispatcherDashboardPage })));
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
@@ -26,6 +27,7 @@ const renderApp = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/pickup" element={<PickupPortalPage />} />
               <Route path="/checkin/:orderId" element={<CheckInPage />} />
+              <Route path="/receive" element={<ReceivingPage />} />
               <Route path="/display" element={<EntryDisplayPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
