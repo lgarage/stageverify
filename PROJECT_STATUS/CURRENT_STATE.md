@@ -13,7 +13,7 @@
 None.
 
 ## Immediate Next Step
-Test the 3 new changes live on device — see test plan in last session notes below.
+Phase 2 built — playbooks + trial ladder live in cursor-agent-brain. Test the 3 feature changes on device (ready_for_pickup, pickup portal filter, fuzzy zone match).
 
 ## Last Session (2026-06-01)
 - feat: added `ready_for_pickup` status — replaces `complete` in active delivery flow; all transitions, write paths, labels, and Cloud Functions updated. Backward compat kept for existing `complete` records (a0f0f9f).
@@ -21,6 +21,7 @@ Test the 3 new changes live on device — see test plan in last session notes be
 - feat: pickup portal `PICKUP_READY` filter now includes `ready_for_pickup` — orders visible in pickup app after new status flow.
 - feat: fuzzy zone code matching — `normalizeZoneCode` strips dashes/spaces and uppercases; `s2a` now resolves to `S2-A` in walk-up.
 - Both GitHub Pages + Firebase Functions deployed.
+- chore: Phase 2a playbooks scaffolding + Phase 2b trial ladder built in cursor-agent-brain (83da650). MODEL_DOSSIER backend-write-critical marked ACTIVE (1abdd9c).
 
 ## Prev Session (2026-05-31)
 - Pickup portal: job-scoped checklist, per-tap writes, QR highlight, copy link, auto-submit, zone accordions, zones in URL. Commits: 6959c28, a8971e7, 1f44702, 5099198.
