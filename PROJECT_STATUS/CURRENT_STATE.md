@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: Backend wired ? Firebase Firestore live + Cloud Functions active
-- Last shipped: Pickup portal zone cards are now expandable accordions. Each panel shows Order #, Vendor, PO #, Staging info + a shared master item list (all job items combined, optional per-item checkoff with shared state across all zones). Copy Pickup Link now appends &zones=G2,S1-A,S1-B to the URL. Item fields in use: description, qtyOrdered, sku. Commit: 5099198.
+- Last shipped: `ready_for_pickup` status replaces `complete` in active flow; pickup portal filter updated; fuzzy zone matching (`s2a`→`S2-A`). Commits: a0f0f9f, 66d1909.
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes. All legacy mock files deleted - canonical models in src/dispatcher/models.ts only.
 
@@ -13,12 +13,14 @@
 None.
 
 ## Immediate Next Step
-Review away-006 live on device ? confirm pickup flow feels right without name field. No open priorities.
+Test the 3 new changes live on device — see test plan in last session notes below.
 
 ## Last Session (2026-06-01)
-- away-004: stagingLocationId cleared on picked_up (firestoreService.ts, 7bc7011).
-- away-005: React.lazy code-splitting ? 610 kB monolith ? 6 page chunks, deployed (7bc7011).
-- away-006: Pickup portal UX ? removed name field, checkbox icons, Complete/Partial badge. Playwright PASS (f0ba6cc).
+- feat: added `ready_for_pickup` status — replaces `complete` in active delivery flow; all transitions, write paths, labels, and Cloud Functions updated. Backward compat kept for existing `complete` records (a0f0f9f).
+- fix: EntryDisplayPage replaceAll so `ready_for_pickup` → "READY FOR PICKUP"; CheckInPage gate blocks re-check-in on both `complete` and `ready_for_pickup` (66d1909).
+- feat: pickup portal `PICKUP_READY` filter now includes `ready_for_pickup` — orders visible in pickup app after new status flow.
+- feat: fuzzy zone code matching — `normalizeZoneCode` strips dashes/spaces and uppercases; `s2a` now resolves to `S2-A` in walk-up.
+- Both GitHub Pages + Firebase Functions deployed.
 
 ## Prev Session (2026-05-31)
 - Pickup portal: job-scoped checklist, per-tap writes, QR highlight, copy link, auto-submit, zone accordions, zones in URL. Commits: 6959c28, a8971e7, 1f44702, 5099198.
