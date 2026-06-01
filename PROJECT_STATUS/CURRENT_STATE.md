@@ -15,13 +15,12 @@ None.
 
 ## Immediate Next Step
 Priority 1 (away-list) ? Delete legacy src/mockData.ts + src/types.ts (CheckInPage still references them).
-Priority 2 ? Pickup Portal polish: tech name input on confirm screen; pickupEvents write currently uses hardcoded "Tech" default.
 
 ## Last Session (2026-05-31)
 - Shipped Pickup Portal: /#/pickup ? QR scan or manual zone entry, confirm card, success screen. Matches vendor app visual style.
 - Added recordPickupEvent() to firestoreService.ts (writes pickupEvents collection + transitions status to picked_up).
 - Enabled partial ? picked_up transition in service.ts state machine.
-- Commit 5ec1e64 pushed; GitHub Pages deploy confirmed Published.
+- Removed tech name input ? technicianName hardcoded to "Tech" in firestoreService. Commit 5a7b4dd deployed.
 
 ## Agent-ops reference
 - Away-list tasks: PROJECT_STATUS/away-list.json (run status: away-status.json)
