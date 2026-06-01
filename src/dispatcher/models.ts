@@ -76,6 +76,7 @@ export interface DeliveryOrder {
 export interface AppSettings {
   vendorRevertWindowMinutes: number;
   autoSubmitMinutes: number;
+  entrywayEslTagId?: string;
 }
 
 export interface Item {
@@ -97,6 +98,9 @@ export interface StagingLocation {
   label: string;
   type: "ground" | "shelf" | "bin" | "other";
   active: boolean;
+  notes?: string;
+  sortOrder?: number;
+  eslTagId?: string;
 }
 
 export interface StatusHistoryEvent {

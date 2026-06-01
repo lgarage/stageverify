@@ -679,6 +679,30 @@ export async function updateVendor(vendor: Vendor): Promise<void> {
   await setDoc(doc(db, "vendors", vendor.id), vendor, { merge: true });
 }
 
+export async function listAllZones(): Promise<StagingLocation[]> {
+  return fetchAll<StagingLocation>("stagingLocations");
+}
+
+export async function createZone(
+  data: Omit<StagingLocation, "id">,
+): Promise<string> {
+  const id = `zone-${Date.now()}`;
+  const zone: StagingLocation = { ...data, id };
+  await setDoc(doc(db, "stagingLocations", id), zone);
+  return id;
+}
+
+export async function updateZone(
+  id: string,
+  data: Partial<StagingLocation>,
+): Promise<void> {
+  await setDoc(doc(db, "stagingLocations", id), data, { merge: true });
+}
+
+export async function deactivateZone(id: string): Promise<void> {
+  await updateZone(id, { active: false });
+}
+
 export async function listJobs(): Promise<Job[]> {
   return fetchAll<Job>("jobs");
 }
