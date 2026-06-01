@@ -14,7 +14,7 @@
 
 ## Security review gate
 - Runs MANDATORY after every `backend-write-critical` commit and any `multi-file-feature` touching auth/routes/Firestore.
-- Scanner: Gemini 3 Flash (`read-only-analysis`). Verifier: Opus 4.6.
+- Scanner: Gemini 3 Flash (`read-only-analysis`). Verifier: Sonnet 4.6.
 - BLOCK deploy on any HIGH risk finding until fixed and re-scanned.
 - See agent-ops SKILL.md §11 for full protocol.
 
