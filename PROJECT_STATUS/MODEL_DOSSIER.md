@@ -9,8 +9,9 @@
 - **Mixed SPA + backend.** Firebase Firestore + Cloud Functions v2 are live (Blaze plan, project: stageverify-db).
   Frontend work (T0–T2): Tailwind restyles, React components, routing, TS model refactors.
   Backend work: classify as `backend-write-critical` for any Firestore security rules, Cloud Function write paths, or schema migrations.
-- **backend-write-critical: ACTIVE (Opus 4.6 floor).** Firebase Firestore + Cloud Functions live as of 2026-05-31.
-  Any change to security rules, Cloud Function logic, or Firestore data schema → `backend-write-critical`. Locked at Opus until Phase 2b trial earns promotion.
+- **backend-write-critical: ACTIVE (trial in progress).** Firebase Firestore + Cloud Functions live as of 2026-05-31.
+  Any change to security rules, Cloud Function logic, or Firestore data schema → `backend-write-critical`.
+  Active trial: Composer 2.5 (3/5 clean passes). Grader: Sonnet 4.6. Locked fallback (if all candidates fail): Opus 4.6.
 
 ## Security review gate
 - Runs MANDATORY after every `backend-write-critical` commit and any `multi-file-feature` touching auth/routes/Firestore.
