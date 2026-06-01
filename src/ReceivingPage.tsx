@@ -34,6 +34,26 @@ const TERMINAL_STATUSES = new Set([
   "picked_up",
 ]);
 
+function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
+  if (raw.startsWith("http")) {
+    try {
+      const url = new URL(raw);
+      const hash = url.hash;
+      const qsStart = hash.indexOf("?");
+      if (qsStart !== -1) {
+        const params = new URLSearchParams(hash.slice(qsStart + 1));
+        const id = params.get("id");
+        const zone = params.get("zone");
+        if (id) return { type: "id", value: id };
+        if (zone) return { type: "zone", value: zone };
+      }
+    } catch {
+      // fall through to raw
+    }
+  }
+  return { type: "raw", value: raw };
+}
+
 function Toast({ message }: { message: string }) {
   return (
     <div className="fixed top-4 left-4 right-4 z-50 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm text-text-primary shadow-lg">
@@ -193,10 +213,13 @@ export function ReceivingPage() {
           (decodedText: string) => {
             if (handledDecode || !isMounted) return;
             handledDecode = true;
+            const extracted = extractQrValue(decodedText);
+            const lookupValue =
+              extracted.type === "zone" ? decodedText : extracted.value;
             void scanner.stop().then(() => {
               scanner.clear();
               scannerRef.current = null;
-              if (isMounted) void processDeliveryLookup(decodedText);
+              if (isMounted) void processDeliveryLookup(lookupValue);
             });
           },
           () => {

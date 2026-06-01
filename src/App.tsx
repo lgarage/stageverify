@@ -23,6 +23,26 @@ const icons = {
     "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",
 };
 
+function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
+  if (raw.startsWith("http")) {
+    try {
+      const url = new URL(raw);
+      const hash = url.hash;
+      const qsStart = hash.indexOf("?");
+      if (qsStart !== -1) {
+        const params = new URLSearchParams(hash.slice(qsStart + 1));
+        const id = params.get("id");
+        const zone = params.get("zone");
+        if (id) return { type: "id", value: id };
+        if (zone) return { type: "zone", value: zone };
+      }
+    } catch {
+      // fall through to raw
+    }
+  }
+  return { type: "raw", value: raw };
+}
+
 function Svg({ d, size = 24 }: { d: string; size?: number }) {
   return (
     <svg
@@ -137,17 +157,19 @@ function ScanScreen() {
               if (handledDecode || !isMounted) return;
               handledDecode = true;
               void (async () => {
+                const extracted = extractQrValue(decodedText);
+                const lookupValue = extracted.value;
                 const result = await firestoreDataService.listDeliveries({
                   pageSize: 100,
                 });
                 const matchByZone = result.items.find(
                   (d) =>
-                    d.stagingLocationCode === decodedText &&
+                    d.stagingLocationCode === lookupValue &&
                     d.status !== "picked_up",
                 );
                 const matchById = result.items.find(
                   (d) =>
-                    d.deliveryId === decodedText && d.status !== "picked_up",
+                    d.deliveryId === lookupValue && d.status !== "picked_up",
                 );
                 const match = matchByZone ?? matchById;
 
