@@ -97,4 +97,11 @@ export interface DispatcherDataService {
     actorType: "vendor" | "dispatcher",
     vendorRevertWindowMinutes?: number,
   ): Promise<DeliveryDetails | null>;
+  updateItemQty(
+    deliveryId: string,
+    itemId: string,
+    qtyOrdered: number,
+    qtyReceived: number,
+    qtyMissing: number,
+  ): Promise<void>;
 }

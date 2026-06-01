@@ -563,10 +563,38 @@ export class FirestoreDataService implements DispatcherDataService {
     await batch.commit();
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async updateItemQty(
+    deliveryId: string,
+    itemId: string,
+    qtyOrdered: number,
+    qtyReceived: number,
+    qtyMissing: number,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    let itemStatus: ItemStatus = "missing";
+    if (qtyReceived >= qtyOrdered) itemStatus = "received";
+    else if (qtyReceived > 0) itemStatus = "partial";
+
+    const batch = writeBatch(db);
+    batch.update(doc(db, "items", itemId), {
+      qtyReceived,
+      qtyMissing,
+      status: itemStatus,
+    });
+    batch.update(doc(db, "deliveries", deliveryId), {
+      lastCheckmarkAt: now,
+      updatedAt: now,
+    });
+    await batch.commit();
+  }
 }
 
 const APP_SETTINGS_DOC = doc(db, "appSettings", "config");
-const DEFAULT_APP_SETTINGS: AppSettings = { vendorRevertWindowMinutes: 60 };
+const DEFAULT_APP_SETTINGS: AppSettings = {
+  vendorRevertWindowMinutes: 60,
+  autoSubmitMinutes: 30,
+};
 
 export async function getAppSettings(): Promise<AppSettings> {
   const snap = await getDoc(APP_SETTINGS_DOC);

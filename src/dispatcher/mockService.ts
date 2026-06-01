@@ -467,6 +467,16 @@ export class MockDispatcherDataService implements DispatcherDataService {
   ): Promise<DeliveryDetails | null> {
     return this.getDeliveryDetails(deliveryId);
   }
+
+  async updateItemQty(
+    _deliveryId: string,
+    _itemId: string,
+    _qtyOrdered: number,
+    _qtyReceived: number,
+    _qtyMissing: number,
+  ): Promise<void> {
+    // mock: no-op
+  }
 }
 
 export const mockDispatcherDataService: DispatcherDataService =

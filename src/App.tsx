@@ -196,6 +196,10 @@ function ScanScreen() {
   }, [isScanning]);
 
   const toggleItemCheck = (id: string) => {
+    const toggled = checkInItems.find((i) => i.id === id);
+    const newQty =
+      toggled && toggled.deliveredQty > 0 ? 0 : (toggled?.qtyOrdered ?? 0);
+
     setCheckInItems(
       checkInItems.map((it) => {
         if (it.id === id) {
@@ -208,6 +212,17 @@ function ScanScreen() {
         return it;
       }),
     );
+
+    // fire-and-forget — write qty to Firestore so auto-submit has accurate data
+    if (toggled && currentDelivery) {
+      void firestoreDataService.updateItemQty(
+        currentDelivery.delivery.id,
+        id,
+        toggled.qtyOrdered,
+        newQty,
+        toggled.qtyOrdered - newQty,
+      );
+    }
   };
 
   const openAdjust = (it: CheckInItem) => {
@@ -226,6 +241,17 @@ function ScanScreen() {
       }),
     );
     setAdjustingItemId(null);
+
+    const adj = checkInItems.find((i) => i.id === adjustingItemId);
+    if (adj && currentDelivery) {
+      void firestoreDataService.updateItemQty(
+        currentDelivery.delivery.id,
+        adj.id,
+        adj.qtyOrdered,
+        adjustQty,
+        adj.qtyOrdered - adjustQty,
+      );
+    }
   };
 
   const handleSubmit = () => {

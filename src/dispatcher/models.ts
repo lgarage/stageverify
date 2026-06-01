@@ -67,12 +67,14 @@ export interface DeliveryOrder {
   issueSummary?: string;
   notes?: string;
   submittedAt?: string;
+  lastCheckmarkAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AppSettings {
   vendorRevertWindowMinutes: number;
+  autoSubmitMinutes: number;
 }
 
 export interface Item {
