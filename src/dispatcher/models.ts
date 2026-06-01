@@ -79,6 +79,7 @@ export interface DeliveryOrder {
   purchaseOrderId?: string;
   deliveryDate: string;
   stagingLocationId?: string;
+  additionalStagingLocationIds?: string[];
   status: DeliveryStatus;
   issueSummary?: string;
   notes?: string;
@@ -180,6 +181,15 @@ export interface PickupEvent {
   itemsPickedSummary: string;
   notes?: string;
 }
+
+export const getAllStagingLocationIds = (delivery: DeliveryOrder): string[] => {
+  const ids: string[] = [];
+  if (delivery.stagingLocationId) ids.push(delivery.stagingLocationId);
+  if (delivery.additionalStagingLocationIds?.length) {
+    ids.push(...delivery.additionalStagingLocationIds);
+  }
+  return ids;
+};
 
 export interface DeliveryListRow {
   deliveryId: string;

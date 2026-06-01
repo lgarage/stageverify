@@ -4,7 +4,8 @@ import {
   firestoreDataService,
   getDeliveryByOrderNumber,
 } from "./dispatcher/firestoreService";
-import type { DeliveryDetails } from "./dispatcher/models";
+import type { DeliveryDetails, DeliveryOrder } from "./dispatcher/models";
+import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 
 type DisplayItemStatus = "Delivered" | "Partial" | "Backordered" | "Damaged";
 type DisplayOrderStatus = "Pending" | "Partial" | "Complete";
@@ -134,6 +135,9 @@ export function CheckInPage() {
   const [driverName, setDriverName] = useState("");
   const [vendorNote, setVendorNote] = useState("");
   const [items, setItems] = useState<CheckInLineItem[]>([]);
+  const [submittedDelivery, setSubmittedDelivery] = useState<DeliveryOrder | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!orderId) {
@@ -334,6 +338,7 @@ export function CheckInPage() {
         };
       }),
     );
+    setSubmittedDelivery(details.delivery);
     setStep("done");
   };
 
@@ -341,6 +346,7 @@ export function CheckInPage() {
     setStep("checkoff");
     setDriverName("");
     setVendorNote("");
+    setSubmittedDelivery(null);
     setItems(
       details.items.map((it) => ({
         id: it.id,
@@ -673,6 +679,14 @@ export function CheckInPage() {
             <p className="text-sm text-text-secondary mb-8 bg-bg-surface inline-block px-4 py-2 rounded-full">
               Dispatch has been notified
             </p>
+            {submittedDelivery && (
+              <div className="mb-4">
+                <NeedMoreSpaceButton
+                  delivery={submittedDelivery}
+                  onDeliveryUpdated={setSubmittedDelivery}
+                />
+              </div>
+            )}
             <button
               onClick={handleReset}
               className="w-full rounded-xl border border-border bg-bg-card py-4 text-base font-medium hover:bg-bg-surface transition-colors active:scale-[0.98] text-text-primary"

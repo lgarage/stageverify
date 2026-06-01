@@ -8,8 +8,10 @@ import {
 } from "./dispatcher/firestoreService";
 import {
   DELIVERY_STATUS_LABEL,
+  getAllStagingLocationIds,
   type DeliveryDetails,
   type DeliveryStatus,
+  type StagingLocation,
 } from "./dispatcher/models";
 
 const normalizeZoneCode = (code: string): string =>
@@ -70,10 +72,87 @@ function formatCountdown(totalSeconds: number): string {
 
 function zoneSummary(deliveries: DeliveryDetails[]): string {
   const zones = deliveries
-    .map((d) => d.stagingLocation?.code ?? "—")
+    .flatMap((d) => {
+      const ids = getAllStagingLocationIds(d.delivery);
+      if (ids.length === 0) return [d.stagingLocation?.code ?? "—"];
+      return ids.map((id) => {
+        if (id === d.stagingLocation?.id) return d.stagingLocation?.code ?? "—";
+        return id;
+      });
+    })
     .join(", ");
   const vendors = [...new Set(deliveries.map((d) => d.vendor.name))].join(", ");
   return `${zones} · ${vendors}`;
+}
+
+function resolveStagingLocations(
+  delivery: DeliveryDetails,
+  allLocations: StagingLocation[],
+): { code: string; label: string; isPrimary: boolean }[] {
+  const ids = getAllStagingLocationIds(delivery.delivery);
+  return ids.map((id, idx) => {
+    const loc =
+      allLocations.find((l) => l.id === id) ??
+      (delivery.stagingLocation?.id === id
+        ? delivery.stagingLocation
+        : undefined);
+    return {
+      code: loc?.code ?? id,
+      label: loc?.label ?? loc?.code ?? id,
+      isPrimary: idx === 0,
+    };
+  });
+}
+
+function StagingLocationsDisplay({
+  locations,
+  compact = false,
+}: {
+  locations: { code: string; label: string; isPrimary: boolean }[];
+  compact?: boolean;
+}) {
+  if (locations.length === 0) {
+    return <span className="text-text-secondary">—</span>;
+  }
+
+  if (compact) {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {locations.map((loc, idx) => (
+          <span key={`${loc.code}-${idx}`}>
+            {idx > 0 && <span className="text-text-secondary">, </span>}
+            <span
+              className={
+                loc.isPrimary
+                  ? "font-bold text-accent"
+                  : "text-text-primary"
+              }
+            >
+              {loc.code}
+            </span>
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-text-primary font-medium text-right inline-flex flex-wrap items-center justify-end gap-1.5">
+      {locations.map((loc, idx) => (
+        <span
+          key={`${loc.code}-${idx}`}
+          className={`rounded-full px-2 py-0.5 text-xs ${
+            loc.isPrimary
+              ? "bg-accent/10 font-bold text-accent"
+              : "bg-bg-surface border border-border text-text-primary"
+          }`}
+          title={loc.label}
+        >
+          {loc.code}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function extractJobIdFromPickupUrl(text: string): string | null {
@@ -383,6 +462,9 @@ function JobPickupScreen({
   onStartOver: () => void;
 }) {
   const [deliveries, setDeliveries] = useState<DeliveryDetails[]>([]);
+  const [allStagingLocations, setAllStagingLocations] = useState<
+    StagingLocation[]
+  >([]);
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -429,11 +511,13 @@ function JobPickupScreen({
 
     void (async () => {
       try {
-        const [settings, loaded] = await Promise.all([
+        const [settings, loaded, stagingLocs] = await Promise.all([
           getAppSettings(),
           loadPickupReadyDeliveries(jobId),
+          firestoreDataService.listStagingLocations(),
         ]);
         if (cancelled) return;
+        setAllStagingLocations(stagingLocs);
         setAutoSubmitMinutes(settings.autoSubmitMinutes);
         if (settings.autoSubmitMinutes > 0) {
           setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
@@ -760,8 +844,12 @@ function JobPickupScreen({
             const isPulsing = pulsingId === deliveryId;
             const cardError = cardErrors.get(deliveryId);
             const isExpanded = expandedDeliveryIds.has(deliveryId);
-            const stagingCode = d.stagingLocation?.code ?? "—";
-            const stagingLabel = d.stagingLocation?.label ?? "—";
+            const stagingLocations = resolveStagingLocations(
+              d,
+              allStagingLocations,
+            );
+            const primaryStaging = stagingLocations[0];
+            const stagingCode = primaryStaging?.code ?? "—";
             const canCheckOff = isPickupReady(deliveryStatus) && !isChecked;
             return (
               <div
@@ -810,7 +898,11 @@ function JobPickupScreen({
                                 : "text-text-primary"
                             }`}
                           >
-                            Zone {stagingCode}
+                            Staging:{" "}
+                            <StagingLocationsDisplay
+                              locations={stagingLocations}
+                              compact
+                            />
                           </p>
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
@@ -895,12 +987,7 @@ function JobPickupScreen({
                       ))}
                       <div className="flex items-center justify-between gap-4 text-xs">
                         <span className="text-text-secondary">Staging</span>
-                        <span className="text-text-primary font-medium text-right inline-flex items-center justify-end gap-2">
-                          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-bold text-accent">
-                            {stagingCode}
-                          </span>
-                          <span>{stagingLabel}</span>
-                        </span>
+                        <StagingLocationsDisplay locations={stagingLocations} />
                       </div>
                     </div>
 

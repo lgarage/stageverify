@@ -12,6 +12,7 @@ import type {
   Vendor,
   Job,
 } from "./dispatcher/models";
+import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 
 // --- Icons ---
 const icons = {
@@ -812,6 +813,16 @@ function ScanScreen() {
         <p className="text-sm text-text-secondary mb-12">
           Dispatch has been notified.
         </p>
+        <div className="w-full max-w-sm mb-4">
+          <NeedMoreSpaceButton
+            delivery={currentDelivery.delivery}
+            onDeliveryUpdated={(updated) =>
+              setCurrentDelivery((prev) =>
+                prev ? { ...prev, delivery: updated } : prev,
+              )
+            }
+          />
+        </div>
         {submittedAt &&
           Date.now() - new Date(submittedAt).getTime() <
             revertWindowMinutes * 60 * 1000 && (

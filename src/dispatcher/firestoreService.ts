@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -674,6 +675,32 @@ export async function updateAppSettings(
 }
 
 export const firestoreDataService = new FirestoreDataService();
+
+export async function addStagingLocation(
+  deliveryId: string,
+  locationId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const eventId = `event-${crypto.randomUUID()}`;
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, "deliveries", deliveryId), {
+    additionalStagingLocationIds: arrayUnion(locationId),
+    updatedAt: now,
+  });
+  batch.set(doc(db, "statusHistory", eventId), {
+    id: eventId,
+    entityType: "delivery_order",
+    entityId: deliveryId,
+    toStatus: "staging_extended",
+    reason: `Additional staging location added: ${locationId}`,
+    actorType: "vendor",
+    actorName: "Vendor",
+    createdAt: now,
+  });
+
+  await batch.commit();
+}
 
 export async function getDeliveryDetailsPublic(
   deliveryId: string,
