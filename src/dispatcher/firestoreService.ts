@@ -591,7 +591,6 @@ export class FirestoreDataService implements DispatcherDataService {
 
   async recordPickupEvent(
     deliveryId: string,
-    technicianName: string,
     itemsPickedSummary: string,
     notes?: string,
   ): Promise<void> {
@@ -604,7 +603,7 @@ export class FirestoreDataService implements DispatcherDataService {
       id: eventId,
       deliveryOrderId: deliveryId,
       jobId: details.delivery.jobId,
-      technicianName: technicianName.trim() || "Tech",
+      technicianName: "Tech",
       pickedUpAt: now,
       itemsPickedSummary,
       notes,

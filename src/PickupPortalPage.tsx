@@ -42,7 +42,6 @@ function PickupScreen() {
   const [step, setStep] = useState<Step>("scan");
   const [currentDelivery, setCurrentDelivery] =
     useState<DeliveryDetails | null>(null);
-  const [technicianName] = useState("Tech");
   const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -98,7 +97,6 @@ function PickupScreen() {
     try {
       await firestoreDataService.recordPickupEvent(
         currentDelivery.delivery.id,
-        technicianName,
         itemsSummary(currentDelivery),
       );
       setStep("done");
