@@ -10,15 +10,18 @@
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 
 ## Active Blocker
-`firestore.rules` committed but NOT deployed: `getDeliveryDetails()` reads auth-gated collections from 4 unauthenticated routes. Fix: split into auth/unauth variants then `firebase deploy --only firestore:rules`. (multi-file-feature, Composer 2.5)
+None.
 
 ## Immediate Next Step
-1. **Fix getDeliveryDetails** (multi-file-feature, Composer 2.5) ? split auth/unauth variants, deploy firestore.rules.
-2. **Firebase Auth** ? protect /dispatcher + /settings routes with login screen.
+1. **Firebase Auth** ? protect /dispatcher + /settings routes with login screen. (multi-file-feature, Composer 2.5)
+2. **Check-in consolidation + qtyDamaged** ? App.tsx and CheckInPage.tsx parallel impls; qtyDamaged hardcoded to 0.
 3. **ESL Cloud Function** (backend-write-critical) ? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
-4. **Check-in consolidation + qtyDamaged** ? App.tsx and CheckInPage.tsx parallel impls; qtyDamaged hardcoded to 0.
 
-## Last Session (2026-06-01)
+## Last Session (2026-06-01, this session)
+- fix: getDeliveryDetails split ? getDeliveryDetailsPublic() (public collections only); vendor PII + delivery notes stripped; firestore.rules deployed (cff7cd9)
+- Security gate: Gemini 3 Flash caught PII leakage HIGH; fixed before deploy. Composer 2.5 trial: 4/5 clean.
+
+## Prev Session (2026-06-01)
 - feat: Zone Management Page ? /zones route, ZoneManagementPage.tsx, zone CRUD, grouped cards, QR preview, Print All Active Labels, StagingLocation schema (eslTagId/notes/sortOrder), sidebar link activated (f769942)
 - feat: URL-aware QR scan handlers ? App.tsx + ReceivingPage.tsx accept full URLs with ?id= or ?zone= params (away-010)
 - feat: Print Label QR button in dispatcher delivery detail drawer, qrcode.react installed (away-011)
