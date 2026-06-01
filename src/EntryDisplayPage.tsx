@@ -34,7 +34,7 @@ const statusTextColor = (status: DeliveryStatus): string => {
 };
 
 const statusLabel = (status: DeliveryStatus): string =>
-  status.replace("_", " ").toUpperCase();
+  status.replaceAll("_", " ").toUpperCase();
 
 /* ── Component ── */
 export function EntryDisplayPage() {
