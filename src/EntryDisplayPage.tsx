@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { firestoreDataService } from "./dispatcher/firestoreService";
-import type { DeliveryListRow, DeliveryStatus, StagingLocation } from "./dispatcher/models";
+import {
+  DELIVERY_STATUS_LABEL,
+  type DeliveryListRow,
+  type DeliveryStatus,
+  type StagingLocation,
+} from "./dispatcher/models";
 
 type ActiveEntry = {
   loc: StagingLocation;
@@ -10,12 +15,14 @@ type ActiveEntry = {
 const statusDotColor = (status: DeliveryStatus): string => {
   const map: Record<DeliveryStatus, string> = {
     pending: "bg-accent-amber",
+    shipped: "bg-accent",
     arrived: "bg-accent",
     partial: "bg-accent-purple",
     ready_for_pickup: "bg-accent-green",
     complete: "bg-accent-green",
     issue: "bg-accent-red",
     picked_up: "bg-text-secondary",
+    installed: "bg-text-secondary/60",
   };
   return map[status] ?? "bg-text-secondary";
 };
@@ -23,18 +30,20 @@ const statusDotColor = (status: DeliveryStatus): string => {
 const statusTextColor = (status: DeliveryStatus): string => {
   const map: Record<DeliveryStatus, string> = {
     pending: "text-accent-amber",
+    shipped: "text-accent",
     arrived: "text-accent",
     partial: "text-accent-purple",
     ready_for_pickup: "text-accent-green",
     complete: "text-accent-green",
     issue: "text-accent-red",
     picked_up: "text-text-secondary",
+    installed: "text-text-secondary/70",
   };
   return map[status] ?? "text-text-secondary";
 };
 
 const statusLabel = (status: DeliveryStatus): string =>
-  status.replaceAll("_", " ").toUpperCase();
+  DELIVERY_STATUS_LABEL[status];
 
 /* ── Component ── */
 export function EntryDisplayPage() {
@@ -48,7 +57,9 @@ export function EntryDisplayPage() {
       firestoreDataService.listStagingLocations(),
     ]);
 
-    const rows = deliveriesResult.items.filter((d) => d.status !== "picked_up");
+    const rows = deliveriesResult.items.filter(
+      (d) => d.status !== "picked_up" && d.status !== "installed",
+    );
 
     const active: ActiveEntry[] = locations
       .filter((loc) =>

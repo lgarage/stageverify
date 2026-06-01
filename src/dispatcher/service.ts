@@ -7,12 +7,14 @@ import type {
 
 export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   pending: ["arrived", "issue"],
+  shipped: ["arrived", "issue"],
   arrived: ["partial", "ready_for_pickup", "issue"],
   partial: ["ready_for_pickup", "issue", "picked_up"],
   ready_for_pickup: ["picked_up"],
   complete: ["picked_up"],
   issue: ["arrived", "partial", "ready_for_pickup"],
-  picked_up: [],
+  picked_up: ["installed"],
+  installed: [],
 };
 
 /** Vendor revert: only undo a check-in submission (goes back to arrived) */
@@ -24,6 +26,7 @@ export const VENDOR_REVERT_TARGETS: Partial<Record<DeliveryStatus, DeliveryStatu
 
 /** Dispatcher revert: superset — can also undo arrived→pending and picked_up→ready_for_pickup */
 export const DISPATCHER_REVERT_TARGETS: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
+  shipped: "pending",
   arrived: "pending",
   partial: "arrived",
   ready_for_pickup: "arrived",

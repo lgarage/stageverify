@@ -4,8 +4,12 @@ import { signOut } from "firebase/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { auth } from "./firebase";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
-import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
+  firestoreDataService,
+  markDeliveryShipped,
+} from "./dispatcher/firestoreService";
+import {
+  DELIVERY_STATUS_LABEL,
   DISPATCHER_REVERT_TARGETS,
   VALID_TRANSITIONS,
   type DeliveryDetails,
@@ -25,12 +29,14 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const STATUS_ORDER: DeliveryStatus[] = [
   "pending",
+  "shipped",
   "arrived",
   "partial",
   "ready_for_pickup",
   "complete",
   "issue",
   "picked_up",
+  "installed",
 ];
 
 const STATUS_BADGE: Record<
@@ -42,6 +48,12 @@ const STATUS_BADGE: Record<
     text: "#495057",
     border: "#ced4da",
     dot: "#adb5bd",
+  },
+  shipped: {
+    bg: "#e3f2fd",
+    text: "#0d47a1",
+    border: "#90caf9",
+    dot: "#1976d2",
   },
   arrived: {
     bg: "#e8f4fd",
@@ -74,6 +86,12 @@ const STATUS_BADGE: Record<
     border: "#e0e0e0",
     dot: "#9e9e9e",
   },
+  installed: {
+    bg: "#eceff1",
+    text: "#546e7a",
+    border: "#cfd8dc",
+    dot: "#78909c",
+  },
 };
 
 const STATUS_COUNT_COLORS: Record<
@@ -87,15 +105,12 @@ const STATUS_COUNT_COLORS: Record<
   complete: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
   issue: { bg: "#ffebee", text: "#c62828", accent: "#d32f2f" },
   picked_up: { bg: "#f5f5f5", text: "#424242", accent: "#757575" },
+  shipped: { bg: "#e3f2fd", text: "#0d47a1", accent: "#1976d2" },
+  installed: { bg: "#eceff1", text: "#546e7a", accent: "#78909c" },
 };
 
-const STATUS_LABEL = (status: DeliveryStatus): string => {
-  if (status === "picked_up") return "Picked Up";
-  if (status === "ready_for_pickup" || status === "complete") {
-    return "Ready for Pickup";
-  }
-  return status.charAt(0).toUpperCase() + status.slice(1);
-};
+const STATUS_LABEL = (status: DeliveryStatus): string =>
+  DELIVERY_STATUS_LABEL[status];
 
 const SORT_COLUMNS: Array<{
   label: string;
@@ -427,6 +442,30 @@ export function DispatcherDashboardPage() {
       }
     } catch (e) {
       setMutationError("An unexpected error occurred while reverting status.");
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleMarkShipped = async () => {
+    if (!selectedDeliveryId) return;
+
+    setMutationLoading(true);
+    setMutationError(null);
+
+    try {
+      await markDeliveryShipped(selectedDeliveryId);
+      const updatedDetails =
+        await firestoreDataService.getDeliveryDetails(selectedDeliveryId);
+      if (updatedDetails) {
+        setSelectedDetails(updatedDetails);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to mark delivery as shipped.");
+      }
+    } catch (e) {
+      setMutationError("An unexpected error occurred while marking shipped.");
       console.error(e);
     } finally {
       setMutationLoading(false);
@@ -1758,6 +1797,7 @@ export function DispatcherDashboardPage() {
                 onUpdateStatus={handleUpdateStatus}
                 onRecordPickup={handleRecordPickup}
                 onRevertStatus={handleRevertStatus}
+                onMarkShipped={handleMarkShipped}
                 onUpdateIssueSummary={handleUpdateIssueSummary}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
@@ -2006,6 +2046,7 @@ function DetailContent({
   onUpdateStatus,
   onRecordPickup,
   onRevertStatus,
+  onMarkShipped,
   onUpdateIssueSummary,
   stagingLocations,
   onUpdateStagingLocation,
@@ -2021,6 +2062,7 @@ function DetailContent({
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
   onRevertStatus: () => Promise<void>;
+  onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
@@ -2091,6 +2133,7 @@ function DetailContent({
         onUpdateStatus={onUpdateStatus}
         onRecordPickup={onRecordPickup}
         onRevertStatus={onRevertStatus}
+        onMarkShipped={onMarkShipped}
         onUpdateIssueSummary={onUpdateIssueSummary}
         onUpdateStagingLocation={onUpdateStagingLocation}
         onUpdatePurchaseOrder={onUpdatePurchaseOrder}
@@ -2687,6 +2730,7 @@ function StatusActionPanel({
   onUpdateStatus,
   onRecordPickup,
   onRevertStatus,
+  onMarkShipped,
   onUpdateIssueSummary,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
@@ -2700,6 +2744,7 @@ function StatusActionPanel({
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
   onRevertStatus: () => Promise<void>;
+  onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
@@ -2859,6 +2904,29 @@ function StatusActionPanel({
           {STATUS_LABEL(currentStatus)}
         </span>
       </div>
+
+      {currentStatus === "pending" && !showReasonInput && !showPickupInput && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => void onMarkShipped()}
+            disabled={loading}
+            style={{
+              backgroundColor: loading ? "#f3f4f6" : navy,
+              color: loading ? "#9ca3af" : "#fff",
+              border: `1.5px solid ${loading ? "#d1d5db" : navy}`,
+              borderRadius: 4,
+              padding: "8px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: loading ? "not-allowed" : "pointer",
+              fontFamily: font,
+              transition: "all 0.13s",
+            }}
+          >
+            {loading ? "Updating…" : "Mark Shipped"}
+          </button>
+        </div>
+      )}
 
       {possibleNext.length > 0 && !showReasonInput && !showPickupInput && (
         <div>

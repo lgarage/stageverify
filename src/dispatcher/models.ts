@@ -1,11 +1,13 @@
 export type DeliveryStatus =
   | "pending"
+  | "shipped"
   | "arrived"
   | "partial"
   | "ready_for_pickup"
   | "complete"
   | "issue"
-  | "picked_up";
+  | "picked_up"
+  | "installed";
 
 export type ItemStatus =
   | "pending"
@@ -13,7 +15,20 @@ export type ItemStatus =
   | "received"
   | "missing"
   | "damaged"
-  | "backordered";
+  | "backordered"
+  | "installed";
+
+export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
+  pending: "Ordered",
+  shipped: "Shipped",
+  arrived: "Received",
+  partial: "Partial",
+  ready_for_pickup: "Staged",
+  complete: "Complete",
+  issue: "Issue",
+  picked_up: "Picked Up",
+  installed: "Installed",
+};
 
 export type JobStatus = "active" | "on_hold" | "closed";
 
@@ -90,6 +105,7 @@ export interface Item {
   qtyDamaged: number;
   qtyBackordered: number;
   status: ItemStatus;
+  locationId?: string;
 }
 
 export type LocationStatus = "Planned" | "Installed" | "Tagged" | "Active";

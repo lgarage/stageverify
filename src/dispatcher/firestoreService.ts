@@ -844,3 +844,65 @@ export async function createDelivery(
   await batch.commit();
   return deliveryId;
 }
+
+export async function markDeliveryShipped(deliveryId: string): Promise<void> {
+  const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+  if (!deliverySnap.exists()) return;
+
+  const delivery = deliverySnap.data() as DeliveryOrder;
+  const now = new Date().toISOString();
+  const eventId = `event-${crypto.randomUUID()}`;
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, "deliveries", deliveryId), {
+    status: "shipped" satisfies DeliveryStatus,
+    updatedAt: now,
+  });
+  batch.set(doc(db, "statusHistory", eventId), {
+    id: eventId,
+    entityType: "delivery_order",
+    entityId: deliveryId,
+    fromStatus: delivery.status,
+    toStatus: "shipped",
+    actorType: "dispatcher",
+    actorName: "Dispatcher",
+    createdAt: now,
+  });
+
+  await batch.commit();
+}
+
+export async function markDeliveryInstalled(deliveryId: string): Promise<void> {
+  const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+  if (!deliverySnap.exists()) return;
+
+  const delivery = deliverySnap.data() as DeliveryOrder;
+  const items = await fetchWhere<Item>("items", "deliveryOrderId", deliveryId);
+  const now = new Date().toISOString();
+  const eventId = `event-${crypto.randomUUID()}`;
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, "deliveries", deliveryId), {
+    status: "installed" satisfies DeliveryStatus,
+    updatedAt: now,
+  });
+
+  for (const item of items) {
+    if (item.status === "received") {
+      batch.update(doc(db, "items", item.id), { status: "installed" });
+    }
+  }
+
+  batch.set(doc(db, "statusHistory", eventId), {
+    id: eventId,
+    entityType: "delivery_order",
+    entityId: deliveryId,
+    fromStatus: delivery.status,
+    toStatus: "installed",
+    actorType: "technician",
+    actorName: "Technician",
+    createdAt: now,
+  });
+
+  await batch.commit();
+}

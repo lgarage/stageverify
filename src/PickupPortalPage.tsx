@@ -4,8 +4,13 @@ import {
   firestoreDataService,
   getAppSettings,
   getDeliveryDetailsPublic,
+  markDeliveryInstalled,
 } from "./dispatcher/firestoreService";
-import type { DeliveryDetails, DeliveryStatus } from "./dispatcher/models";
+import {
+  DELIVERY_STATUS_LABEL,
+  type DeliveryDetails,
+  type DeliveryStatus,
+} from "./dispatcher/models";
 
 const normalizeZoneCode = (code: string): string =>
   code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -37,14 +42,24 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
   );
 }
 
-const PICKUP_READY: DeliveryStatus[] = [
+const PORTAL_STATUSES: DeliveryStatus[] = [
   "ready_for_pickup",
   "complete",
   "partial",
+  "picked_up",
+  "installed",
 ];
 
+function isPortalDelivery(status: DeliveryStatus): boolean {
+  return PORTAL_STATUSES.includes(status);
+}
+
 function isPickupReady(status: DeliveryStatus): boolean {
-  return PICKUP_READY.includes(status);
+  return (
+    status === "ready_for_pickup" ||
+    status === "complete" ||
+    status === "partial"
+  );
 }
 
 function formatCountdown(totalSeconds: number): string {
@@ -90,7 +105,7 @@ async function loadPickupReadyDeliveries(
     jobId,
     pageSize: 100,
   });
-  const pickupReady = result.items.filter((d) => isPickupReady(d.status));
+  const pickupReady = result.items.filter((d) => isPortalDelivery(d.status));
   const detailsList = await Promise.all(
     pickupReady.map((d) => getDeliveryDetailsPublic(d.deliveryId)),
   );
@@ -381,6 +396,7 @@ function JobPickupScreen({
   const [isScanning, setIsScanning] = useState(false);
   const [zoneScanError, setZoneScanError] = useState<string | null>(null);
   const [checkingIds, setCheckingIds] = useState<Set<string>>(() => new Set());
+  const [installingIds, setInstallingIds] = useState<Set<string>>(() => new Set());
   const [expandedDeliveryIds, setExpandedDeliveryIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -423,6 +439,17 @@ function JobPickupScreen({
           setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
         }
         setDeliveries(loaded);
+        setChecked(
+          new Set(
+            loaded
+              .filter(
+                (d) =>
+                  d.delivery.status === "picked_up" ||
+                  d.delivery.status === "installed",
+              )
+              .map((d) => d.delivery.id),
+          ),
+        );
       } catch {
         if (!cancelled) setError("Failed to load deliveries. Please try again.");
       } finally {
@@ -468,6 +495,14 @@ function JobPickupScreen({
           notes || undefined,
         );
         setChecked((prev) => new Set([...prev, deliveryId]));
+        const refreshed = await getDeliveryDetailsPublic(deliveryId);
+        if (refreshed) {
+          setDeliveries((prev) =>
+            prev.map((d) =>
+              d.delivery.id === deliveryId ? refreshed : d,
+            ),
+          );
+        }
       } catch {
         setCardErrors((prev) =>
           new Map(prev).set(
@@ -485,6 +520,40 @@ function JobPickupScreen({
     },
     [notes],
   );
+
+  const handleMarkInstalled = useCallback(async (deliveryId: string) => {
+    setInstallingIds((prev) => new Set([...prev, deliveryId]));
+    setCardErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(deliveryId);
+      return next;
+    });
+
+    try {
+      await markDeliveryInstalled(deliveryId);
+      const refreshed = await getDeliveryDetailsPublic(deliveryId);
+      if (refreshed) {
+        setDeliveries((prev) =>
+          prev.map((d) =>
+            d.delivery.id === deliveryId ? refreshed : d,
+          ),
+        );
+      }
+    } catch {
+      setCardErrors((prev) =>
+        new Map(prev).set(
+          deliveryId,
+          "Failed to mark installed. Tap to retry.",
+        ),
+      );
+    } finally {
+      setInstallingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deliveryId);
+        return next;
+      });
+    }
+  }, []);
 
   const handleDone = useCallback(() => {
     if (submittedRef.current) return;
@@ -603,7 +672,12 @@ function JobPickupScreen({
 
   const allChecked =
     deliveries.length > 0 &&
-    deliveries.every((d) => checked.has(d.delivery.id));
+    deliveries.every(
+      (d) =>
+        checked.has(d.delivery.id) ||
+        d.delivery.status === "picked_up" ||
+        d.delivery.status === "installed",
+    );
 
   if (isScanning) {
     return (
@@ -676,24 +750,32 @@ function JobPickupScreen({
         <div className="space-y-3 mb-4">
           {deliveries.map((d) => {
             const deliveryId = d.delivery.id;
-            const isChecked = checked.has(deliveryId);
+            const deliveryStatus = d.delivery.status;
+            const isInstalled = deliveryStatus === "installed";
+            const isPickedUp =
+              deliveryStatus === "picked_up" || checked.has(deliveryId);
+            const isChecked = isPickedUp || isInstalled;
             const isChecking = checkingIds.has(deliveryId);
+            const isInstalling = installingIds.has(deliveryId);
             const isPulsing = pulsingId === deliveryId;
             const cardError = cardErrors.get(deliveryId);
             const isExpanded = expandedDeliveryIds.has(deliveryId);
             const stagingCode = d.stagingLocation?.code ?? "—";
             const stagingLabel = d.stagingLocation?.label ?? "—";
+            const canCheckOff = isPickupReady(deliveryStatus) && !isChecked;
             return (
               <div
                 key={deliveryId}
                 className={`w-full text-left bg-bg-surface rounded-2xl border overflow-hidden transition-colors ${
-                  isChecked
-                    ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
-                    : isPulsing
-                      ? "border-accent animate-zone-pulse"
-                      : cardError
-                        ? "border-accent-red/50"
-                        : "border-border"
+                  isInstalled
+                    ? "border-border opacity-60"
+                    : isChecked
+                      ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
+                      : isPulsing
+                        ? "border-accent animate-zone-pulse"
+                        : cardError
+                          ? "border-accent-red/50"
+                          : "border-border"
                 }`}
               >
                 <div className="flex items-stretch">
@@ -703,20 +785,45 @@ function JobPickupScreen({
                       else cardRefs.current.delete(deliveryId);
                     }}
                     type="button"
-                    disabled={isChecked || isChecking}
+                    disabled={!canCheckOff || isChecking}
                     onClick={() => void checkOffDelivery(d)}
                     className="flex-1 min-w-0 p-4 text-left disabled:cursor-default"
                   >
                     <div className="flex items-start gap-3">
-                      {isChecked && (
-                        <span className="shrink-0 mt-0.5 text-accent-green">
+                      {(isChecked || isInstalled) && (
+                        <span
+                          className={`shrink-0 mt-0.5 ${
+                            isInstalled
+                              ? "text-text-secondary"
+                              : "text-accent-green"
+                          }`}
+                        >
                           <Svg d={icons.check} size={24} />
                         </span>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-text-primary font-bold">
-                          Zone {stagingCode}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <p
+                            className={`font-bold ${
+                              isInstalled
+                                ? "text-text-secondary"
+                                : "text-text-primary"
+                            }`}
+                          >
+                            Zone {stagingCode}
+                          </p>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                              isInstalled
+                                ? "bg-text-secondary/15 text-text-secondary"
+                                : deliveryStatus === "picked_up"
+                                  ? "bg-accent-green/15 text-accent-green"
+                                  : "bg-accent/10 text-accent"
+                            }`}
+                          >
+                            {DELIVERY_STATUS_LABEL[deliveryStatus]}
+                          </span>
+                        </div>
                         <p className="text-text-secondary text-sm">
                           {d.vendor.name} ·{" "}
                           {d.items.length === 1
@@ -752,6 +859,18 @@ function JobPickupScreen({
                     </span>
                   </button>
                 </div>
+                {deliveryStatus === "picked_up" && (
+                  <div className="border-t border-border px-4 py-3">
+                    <button
+                      type="button"
+                      disabled={isInstalling}
+                      onClick={() => void handleMarkInstalled(deliveryId)}
+                      className="action-btn action-btn-secondary w-full text-sm disabled:opacity-40"
+                    >
+                      {isInstalling ? "Updating…" : "Mark Installed"}
+                    </button>
+                  </div>
+                )}
                 <div
                   className={`overflow-hidden transition-[max-height,opacity] duration-200 ${
                     isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
