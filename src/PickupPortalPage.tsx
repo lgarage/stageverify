@@ -365,7 +365,6 @@ function JobPickupScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [technicianName, setTechnicianName] = useState("");
   const [notes, setNotes] = useState("");
   const [autoSubmitMinutes, setAutoSubmitMinutes] = useState(0);
   const [autoSubmitSecondsLeft, setAutoSubmitSecondsLeft] = useState<
@@ -383,11 +382,9 @@ function JobPickupScreen({
   const [cardErrors, setCardErrors] = useState<Map<string, string>>(
     () => new Map(),
   );
-  const [nameRequiredMsg, setNameRequiredMsg] = useState(false);
   const [pulsingId, setPulsingId] = useState<string | null>(null);
   const submittedRef = useRef(false);
   const checkedRef = useRef(checked);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const initialHighlightDone = useRef(false);
 
@@ -448,13 +445,6 @@ function JobPickupScreen({
       const deliveryId = delivery.delivery.id;
       if (checkedRef.current.has(deliveryId)) return;
 
-      if (!technicianName.trim()) {
-        nameInputRef.current?.focus();
-        setNameRequiredMsg(true);
-        window.setTimeout(() => setNameRequiredMsg(false), 3000);
-        return;
-      }
-
       setCheckingIds((prev) => new Set([...prev, deliveryId]));
       setCardErrors((prev) => {
         const next = new Map(prev);
@@ -465,7 +455,7 @@ function JobPickupScreen({
       try {
         await firestoreDataService.recordPickupEvent(
           deliveryId,
-          technicianName.trim() || "Technician",
+          "Technician",
           `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
           notes || undefined,
         );
@@ -485,7 +475,7 @@ function JobPickupScreen({
         });
       }
     },
-    [technicianName, notes],
+    [notes],
   );
 
   const handleDone = useCallback(() => {
@@ -512,7 +502,7 @@ function JobPickupScreen({
       for (const d of unchecked) {
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
-          technicianName.trim() || "Auto-submitted",
+          "Technician",
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
         );
@@ -525,7 +515,7 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, technicianName, notes, submitting]);
+  }, [deliveries, notes, submitting]);
 
   useEffect(() => {
     if (
@@ -673,30 +663,6 @@ function JobPickupScreen({
           {jobName}
         </p>
 
-        <div className="mb-4">
-          <label
-            htmlFor="technician-name"
-            className="mb-2 block text-sm font-medium text-text-secondary"
-          >
-            Your name
-          </label>
-          <input
-            ref={nameInputRef}
-            id="technician-name"
-            type="text"
-            value={technicianName}
-            onChange={(e) => setTechnicianName(e.target.value)}
-            placeholder="Enter your name"
-            className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
-            autoComplete="name"
-          />
-          {nameRequiredMsg && (
-            <p className="mt-2 text-sm text-accent-amber">
-              Enter your name first
-            </p>
-          )}
-        </div>
-
         <div className="space-y-3 mb-4">
           {deliveries.map((d) => {
             const deliveryId = d.delivery.id;
@@ -704,7 +670,6 @@ function JobPickupScreen({
             const isChecking = checkingIds.has(deliveryId);
             const isPulsing = pulsingId === deliveryId;
             const cardError = cardErrors.get(deliveryId);
-            const isPartial = d.delivery.status === "partial";
             const isExpanded = expandedDeliveryIds.has(deliveryId);
             const stagingCode = d.stagingLocation?.code ?? "—";
             const stagingLabel = d.stagingLocation?.label ?? "—";
@@ -733,16 +698,11 @@ function JobPickupScreen({
                     className="flex-1 min-w-0 p-4 text-left disabled:cursor-default"
                   >
                     <div className="flex items-start gap-3">
-                      <span
-                        className={`shrink-0 mt-0.5 ${
-                          isChecked ? "text-accent-green" : "text-text-secondary"
-                        }`}
-                      >
-                        <Svg
-                          d={isChecked ? icons.checkSquare : icons.square}
-                          size={24}
-                        />
-                      </span>
+                      {isChecked && (
+                        <span className="shrink-0 mt-0.5 text-accent-green">
+                          <Svg d={icons.check} size={24} />
+                        </span>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-text-primary font-bold">
                           Zone {stagingCode}
@@ -753,15 +713,6 @@ function JobPickupScreen({
                             ? "1 item"
                             : `${d.items.length} items`}
                         </p>
-                        <span
-                          className={`inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full ${
-                            isPartial
-                              ? "bg-accent-amber/20 text-accent-amber"
-                              : "bg-accent-green/20 text-accent-green"
-                          }`}
-                        >
-                          {isPartial ? "Partial" : "Complete"}
-                        </span>
                         {isChecking && (
                           <p className="mt-2 text-xs text-text-secondary">
                             Recording…
