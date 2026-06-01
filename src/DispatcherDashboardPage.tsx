@@ -1776,6 +1776,50 @@ function PagBtn({
   );
 }
 
+/* ─── Copy Pickup Link ───────────────────────────────────────────────────── */
+
+function CopyPickupLinkButton({
+  jobId,
+  navy,
+  font,
+}: {
+  jobId: string;
+  navy: string;
+  font: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}`;
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleCopy()}
+      style={{
+        marginTop: 4,
+        backgroundColor: copied ? "#e8f5e9" : "#fff",
+        color: copied ? "#2e7d32" : navy,
+        border: `1.5px solid ${copied ? "#a5d6a7" : navy}`,
+        borderRadius: 4,
+        padding: "6px 12px",
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+        fontFamily: font,
+        alignSelf: "flex-start",
+        transition: "all 0.13s",
+      }}
+    >
+      {copied ? "Copied!" : "Copy Pickup Link"}
+    </button>
+  );
+}
+
 /* ─── Detail Content ─────────────────────────────────────────────────────── */
 
 function DetailContent({
@@ -1886,6 +1930,58 @@ function DetailContent({
         }}
       >
         {[
+          {
+            title: "Job",
+            content: (
+              <div
+                style={{
+                  backgroundColor: "#f8fafc",
+                  border: "1px solid #e0e3e8",
+                  borderRadius: 8,
+                  padding: "15px",
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: 10,
+                }}
+              >
+                {[
+                  {
+                    label: "Job #",
+                    value: (
+                      <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                        {details.job.jobNumber}
+                      </span>
+                    ),
+                  },
+                  { label: "Job Name", value: details.job.jobName },
+                ].map(({ label, value }) => (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: "#6b7280",
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {label}
+                    </span>
+                    <span style={{ color: "#333", textAlign: "right" }}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+                <CopyPickupLinkButton jobId={details.job.id} navy={navy} font={font} />
+              </div>
+            ),
+          },
           {
             title: "Delivery & Vendor",
             content: (

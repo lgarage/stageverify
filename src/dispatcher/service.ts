@@ -47,6 +47,7 @@ export interface DeliveryQuery {
   statuses?: DeliveryStatus[];
   vendorIds?: string[];
   stagingLocationIds?: string[];
+  jobId?: string;
   sortBy?: DeliverySortField;
   sortDirection?: SortDirection;
   page?: number;

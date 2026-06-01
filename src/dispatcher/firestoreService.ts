@@ -165,9 +165,13 @@ export class FirestoreDataService implements DispatcherDataService {
     const page = q.page ?? DEFAULT_PAGE;
     const pageSize = q.pageSize ?? DEFAULT_PAGE_SIZE;
 
+    const deliveriesPromise = q.jobId
+      ? fetchWhere<DeliveryOrder>("deliveries", "jobId", q.jobId)
+      : fetchAll<DeliveryOrder>("deliveries");
+
     const [deliveries, allJobs, allVendors, allLocations, allPOs, allItems] =
       await Promise.all([
-        fetchAll<DeliveryOrder>("deliveries"),
+        deliveriesPromise,
         fetchAll<Job>("jobs"),
         fetchAll<Vendor>("vendors"),
         fetchAll<StagingLocation>("stagingLocations"),
