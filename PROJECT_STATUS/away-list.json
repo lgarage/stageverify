@@ -1,76 +1,104 @@
-{
-  "queue": [
-    {
-      "id": "away-001",
-      "title": "Dispatcher dashboard: Refresh Now button + 30s auto-poll",
-      "scope": "In src/DispatcherDashboardPage.tsx, add a 'Refresh Now' button in the header that calls the existing fetchAllData(), and add a useEffect with setInterval(fetchAllData, 30000) that clears on unmount. Do not change fetch logic, styling, or the sidebar. Reuse existing data-fetch function only.",
-      "files": ["src/DispatcherDashboardPage.tsx"],
-      "tier": "T2",
-      "model": "composer-2.5",
-      "acceptance": "Header shows a Refresh Now button that refetches on click; dashboard auto-refetches every 30s; interval cleared on unmount (no duplicate timers); app builds clean (npm run build); existing styling unchanged.",
-      "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Steps 3.1 / Refresh Now)",
-      "preApproved": true,
-      "status": "done"
-    },
-    {
-      "id": "away-002",
-      "title": "Fix QR scan silent wrong-order fallback",
-      "scope": "In App.tsx QR onDecode handler (~lines 91-99), the no-match branch currently loads mockOrders[0], silently showing a wrong order. Replace that fallback with a clear 'No delivery found for this code' message/state instead of loading a random order. Keep the successful-match path unchanged.",
-      "files": ["src/App.tsx"],
-      "tier": "T1",
-      "model": "gpt-5.4-mini",
-      "acceptance": "Scanning/decoding an unknown code shows a visible 'No delivery found' message and does NOT load mockOrders[0]; a valid code still loads the correct order; app builds clean.",
-      "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.2 bug)",
-      "preApproved": true,
-      "status": "done"
-    },
-    {
-      "id": "away-003",
-      "title": "Fix frozen clock on Entry Display board",
-      "scope": "In EntryDisplayPage.tsx the displayed time is frozen at mount. Add a useEffect with setInterval (e.g. every 30s) that updates the displayed current time, cleared on unmount. Scope strictly to the clock/time display — do NOT touch the staging-zone data source or styling.",
-      "files": ["src/EntryDisplayPage.tsx"],
-      "tier": "T1",
-      "model": "gpt-5.4-mini",
-      "acceptance": "The board's displayed time advances over time without a manual refresh; interval cleared on unmount; no data-source or layout changes; app builds clean.",
-      "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.1 frozen clock)",
-      "preApproved": true,
-      "status": "done"
-    },
-    {
-      "id": "away-004",
-      "title": "Clear stagingLocationId on delivery picked_up transition",
-      "scope": "In src/dispatcher/firestoreService.ts, method updateDeliveryStatus (~line 300): when toStatus === 'picked_up', add stagingLocationId: '' to the updatedFields object before the batch.update call. This ensures the staging zone is freed on every pickup path (manual card tap, Done button, auto-submit timer all funnel through recordPickupEvent -> updateDeliveryStatus). No other changes — do NOT touch StagingLocation documents, other status transitions, or any UI file.",
-      "files": ["src/dispatcher/firestoreService.ts"],
-      "tier": "T1",
-      "model": "gpt-5.4-mini-medium",
-      "acceptance": "After the change, updateDeliveryStatus sets stagingLocationId to '' whenever toStatus is picked_up; existing batch.update already handles the write; app builds clean (npm run build passes); no other transitions affected.",
-      "capturedDuring": "Dan session 2026-05-31 — CURRENT_STATE.md Priority 1",
-      "preApproved": true,
-      "status": "done"
-    },
-    {
-      "id": "away-005",
-      "title": "Route-level code-splitting via React.lazy in main.tsx",
-      "scope": "In src/main.tsx, convert all 6 eager page-component imports (CheckInPage, EntryDisplayPage, DispatcherDashboardPage, SettingsPage, PickupPortalPage, and App) to React.lazy() dynamic imports. Wrap the <Routes> tree in a <Suspense fallback={<div style={{color:'#888',padding:'2rem',textAlign:'center'}}>Loading…</div>}> boundary. Do NOT change any Route paths, component names, or the seedFirestore() call. After changes run npm run build and confirm the 610 kB monolithic chunk warning is gone or meaningfully reduced (multiple smaller chunks visible in output). Then run npm run deploy.",
-      "files": ["src/main.tsx"],
-      "tier": "T1",
-      "model": "gemini-3-flash",
-      "acceptance": "npm run build output shows multiple JS chunks instead of one 610 kB chunk; no chunk-size warning or warning is reduced; app still routes correctly to all pages; Suspense fallback appears briefly on first navigation (not a blank screen); build passes clean.",
-      "capturedDuring": "Dan session 2026-05-31 — CURRENT_STATE.md Priority 2",
-      "preApproved": true,
-      "status": "done"
-    },
-    {
-      "id": "away-006",
-      "title": "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
-      "scope": "In src/PickupPortalPage.tsx, JobPickupScreen component, make ALL of the following changes: (1) Remove technicianName state, nameRequiredMsg state, and nameInputRef ref declarations. (2) Remove the name-required validation block from checkOffDelivery (the block that calls nameInputRef.current?.focus() and returns early when name is empty). (3) In all recordPickupEvent calls, replace technicianName.trim() or technicianName.trim() || 'Technician' / 'Auto-submitted' with the literal string 'Technician'. (4) Remove the entire 'Your name' label + input + error-message JSX block (~lines 676-698). (5) In the zone card, remove the icons.checkSquare / icons.square icon span entirely. Replace it with: when isChecked, show a green checkmark using <Svg d={icons.check} size={24} /> with className='shrink-0 mt-0.5 text-accent-green'; when NOT isChecked show nothing (remove the span). (6) Remove the 'Complete' / 'Partial' status badge span (the inline-block rounded-full badge) from the card — it shows receiving status and is misleading on the pickup screen. Remove the isPartial variable if it becomes unused. Keep all other logic: card tap triggers checkOffDelivery, error retry, expand/collapse, 'Scan to check off' link, auto-submit timer, Done button, notes field, and all Firestore writes. After implementing: run npm run build (must pass clean), then npm run deploy. Playwright verification (run as separate cheap subagent after deploy): (a) Before-state — navigate to https://lgarage.github.io/stageverify/#/pickup?job=test, screenshot to pw-before.png, record whether name input exists and whether square icon exists. (b) After-state — hard-reload same URL, assert: no element with id='technician-name' or label 'Your name' in DOM; no SVG with the square path rendered on cards; no text 'Complete' in a badge element; screenshot to pw-after.png. Report PASS or FAIL. Delete both screenshots.",
-      "files": ["src/PickupPortalPage.tsx"],
-      "tier": "T1",
-      "model": "gpt-5.4-mini-medium",
-      "acceptance": "'Your name' input not rendered; no square/checkbox icon on zone cards before pickup; after card tap, green checkmark shown on card; 'Complete'/'Partial' badge not shown on any card; tapping a card without entering any name successfully records pickup (no name gate blocks it); card error/retry state still works; app builds clean; Playwright after-state reports PASS.",
-      "capturedDuring": "Dan screenshot 2026-05-31 — pickup portal UX bugs reported",
-      "preApproved": true,
-      "status": "done"
-    }
-  ]
+﻿{
+    "queue":  [
+                  {
+                      "id":  "away-001",
+                      "title":  "Dispatcher dashboard: Refresh Now button + 30s auto-poll",
+                      "scope":  "In src/DispatcherDashboardPage.tsx, add a \u0027Refresh Now\u0027 button in the header that calls the existing fetchAllData(), and add a useEffect with setInterval(fetchAllData, 30000) that clears on unmount. Do not change fetch logic, styling, or the sidebar. Reuse existing data-fetch function only.",
+                      "files":  [
+                                    "src/DispatcherDashboardPage.tsx"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Header shows a Refresh Now button that refetches on click; dashboard auto-refetches every 30s; interval cleared on unmount (no duplicate timers); app builds clean (npm run build); existing styling unchanged.",
+                      "capturedDuring":  "stageverify gap-analysis review 2026-05-31 (roadmap.md Steps 3.1 / Refresh Now)",
+                      "preApproved":  true,
+                      "status":  "done"
+                  },
+                  {
+                      "id":  "away-002",
+                      "title":  "Fix QR scan silent wrong-order fallback",
+                      "scope":  "In App.tsx QR onDecode handler (~lines 91-99), the no-match branch currently loads mockOrders[0], silently showing a wrong order. Replace that fallback with a clear \u0027No delivery found for this code\u0027 message/state instead of loading a random order. Keep the successful-match path unchanged.",
+                      "files":  [
+                                    "src/App.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "gpt-5.4-mini",
+                      "acceptance":  "Scanning/decoding an unknown code shows a visible \u0027No delivery found\u0027 message and does NOT load mockOrders[0]; a valid code still loads the correct order; app builds clean.",
+                      "capturedDuring":  "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.2 bug)",
+                      "preApproved":  true,
+                      "status":  "done"
+                  },
+                  {
+                      "id":  "away-003",
+                      "title":  "Fix frozen clock on Entry Display board",
+                      "scope":  "In EntryDisplayPage.tsx the displayed time is frozen at mount. Add a useEffect with setInterval (e.g. every 30s) that updates the displayed current time, cleared on unmount. Scope strictly to the clock/time display â€” do NOT touch the staging-zone data source or styling.",
+                      "files":  [
+                                    "src/EntryDisplayPage.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "gpt-5.4-mini",
+                      "acceptance":  "The board\u0027s displayed time advances over time without a manual refresh; interval cleared on unmount; no data-source or layout changes; app builds clean.",
+                      "capturedDuring":  "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.1 frozen clock)",
+                      "preApproved":  true,
+                      "status":  "done"
+                  },
+                  {
+                      "id":  "away-004",
+                      "title":  "Clear stagingLocationId on delivery picked_up transition",
+                      "scope":  "In src/dispatcher/firestoreService.ts, method updateDeliveryStatus (~line 300): when toStatus === \u0027picked_up\u0027, add stagingLocationId: \u0027\u0027 to the updatedFields object before the batch.update call. This ensures the staging zone is freed on every pickup path (manual card tap, Done button, auto-submit timer all funnel through recordPickupEvent -\u003e updateDeliveryStatus). No other changes â€” do NOT touch StagingLocation documents, other status transitions, or any UI file.",
+                      "files":  [
+                                    "src/dispatcher/firestoreService.ts"
+                                ],
+                      "tier":  "T1",
+                      "model":  "gpt-5.4-mini-medium",
+                      "acceptance":  "After the change, updateDeliveryStatus sets stagingLocationId to \u0027\u0027 whenever toStatus is picked_up; existing batch.update already handles the write; app builds clean (npm run build passes); no other transitions affected.",
+                      "capturedDuring":  "Dan session 2026-05-31 â€” CURRENT_STATE.md Priority 1",
+                      "preApproved":  true,
+                      "status":  "done"
+                  },
+                  {
+                      "id":  "away-005",
+                      "title":  "Route-level code-splitting via React.lazy in main.tsx",
+                      "scope":  "In src/main.tsx, convert all 6 eager page-component imports (CheckInPage, EntryDisplayPage, DispatcherDashboardPage, SettingsPage, PickupPortalPage, and App) to React.lazy() dynamic imports. Wrap the \u003cRoutes\u003e tree in a \u003cSuspense fallback={\u003cdiv style={{color:\u0027#888\u0027,padding:\u00272rem\u0027,textAlign:\u0027center\u0027}}\u003eLoadingâ€¦\u003c/div\u003e}\u003e boundary. Do NOT change any Route paths, component names, or the seedFirestore() call. After changes run npm run build and confirm the 610 kB monolithic chunk warning is gone or meaningfully reduced (multiple smaller chunks visible in output). Then run npm run deploy.",
+                      "files":  [
+                                    "src/main.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "gemini-3-flash",
+                      "acceptance":  "npm run build output shows multiple JS chunks instead of one 610 kB chunk; no chunk-size warning or warning is reduced; app still routes correctly to all pages; Suspense fallback appears briefly on first navigation (not a blank screen); build passes clean.",
+                      "capturedDuring":  "Dan session 2026-05-31 â€” CURRENT_STATE.md Priority 2",
+                      "preApproved":  true,
+                      "status":  "done"
+                  },
+                  {
+                      "id":  "away-006",
+                      "title":  "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
+                      "scope":  "In src/PickupPortalPage.tsx, JobPickupScreen component, make ALL of the following changes: (1) Remove technicianName state, nameRequiredMsg state, and nameInputRef ref declarations. (2) Remove the name-required validation block from checkOffDelivery (the block that calls nameInputRef.current?.focus() and returns early when name is empty). (3) In all recordPickupEvent calls, replace technicianName.trim() or technicianName.trim() || \u0027Technician\u0027 / \u0027Auto-submitted\u0027 with the literal string \u0027Technician\u0027. (4) Remove the entire \u0027Your name\u0027 label + input + error-message JSX block (~lines 676-698). (5) In the zone card, remove the icons.checkSquare / icons.square icon span entirely. Replace it with: when isChecked, show a green checkmark using \u003cSvg d={icons.check} size={24} /\u003e with className=\u0027shrink-0 mt-0.5 text-accent-green\u0027; when NOT isChecked show nothing (remove the span). (6) Remove the \u0027Complete\u0027 / \u0027Partial\u0027 status badge span (the inline-block rounded-full badge) from the card â€” it shows receiving status and is misleading on the pickup screen. Remove the isPartial variable if it becomes unused. Keep all other logic: card tap triggers checkOffDelivery, error retry, expand/collapse, \u0027Scan to check off\u0027 link, auto-submit timer, Done button, notes field, and all Firestore writes. After implementing: run npm run build (must pass clean), then npm run deploy. Playwright verification (run as separate cheap subagent after deploy): (a) Before-state â€” navigate to https://lgarage.github.io/stageverify/#/pickup?job=test, screenshot to pw-before.png, record whether name input exists and whether square icon exists. (b) After-state â€” hard-reload same URL, assert: no element with id=\u0027technician-name\u0027 or label \u0027Your name\u0027 in DOM; no SVG with the square path rendered on cards; no text \u0027Complete\u0027 in a badge element; screenshot to pw-after.png. Report PASS or FAIL. Delete both screenshots.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "gpt-5.4-mini-medium",
+                      "acceptance":  "\u0027Your name\u0027 input not rendered; no square/checkbox icon on zone cards before pickup; after card tap, green checkmark shown on card; \u0027Complete\u0027/\u0027Partial\u0027 badge not shown on any card; tapping a card without entering any name successfully records pickup (no name gate blocks it); card error/retry state still works; app builds clean; Playwright after-state reports PASS.",
+                      "capturedDuring":  "Dan screenshot 2026-05-31 â€” pickup portal UX bugs reported",
+                      "preApproved":  true,
+                      "status":  "done"
+                  },
+                  {
+                      "acceptance":  "PROJECT_STATUS/security-report-2026-06-02.md exists and is committed to repo; report contains Gemini scanner output + Opus verdict; if SECURITY: BLOCK, fix-list with file:line refs is included; if SECURITY: PASS, summary of MED/LOW findings included.",
+                      "id":  "away-007",
+                      "status":  "queued",
+                      "preApproved":  true,
+                      "capturedDuring":  "Dan session 2026-06-01 — requested overnight security audit",
+                      "scope":  "Run a comprehensive security audit across the entire src/ directory of stageverify. Use Gemini 3 Flash as the scanner and Opus as the verifier (per agent-ops SKILL.md §11 security-review protocol). Scanner reads ALL .tsx and .ts files in src/ and src/dispatcher/. Checklist: open redirects, unprotected routes, auth bypass, Firestore exposure (direct imports outside service layer), XSS vectors, data validation gaps, secrets leak, DoS surface. Verifier (Opus) reviews scanner output, confirms/adds/downgrades findings, returns SECURITY: PASS or SECURITY: BLOCK verdict. Write full report to PROJECT_STATUS/security-report-2026-06-02.md. If SECURITY: BLOCK, also write a fix-list with exact file:line references. Commit the report to the stageverify repo.",
+                      "files":  [
+                                    "src/**/*.ts",
+                                    "src/**/*.tsx"
+                                ],
+                      "model":  "gemini-3-flash",
+                      "tier":  "T1",
+                      "title":  "Full repo security audit — all src/ files",
+                      "scheduledFor":  "2026-06-02T02:00:00-05:00"
+                  }
+              ]
 }
