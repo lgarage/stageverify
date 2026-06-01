@@ -15,6 +15,7 @@ interface CheckInLineItem {
   quantity: number;
   deliveredQty: number;
   missingQty: number;
+  damagedQty: number;
   status: DisplayItemStatus | null;
 }
 
@@ -149,6 +150,7 @@ export function CheckInPage() {
             quantity: it.qtyOrdered,
             deliveredQty: 0,
             missingQty: it.qtyOrdered,
+            damagedQty: 0,
             status: null,
           })),
         );
@@ -265,7 +267,7 @@ export function CheckInPage() {
         ) {
           status = "Partial";
         }
-        return { ...it, deliveredQty: newQty, missingQty, status };
+        return { ...it, deliveredQty: newQty, missingQty, status, damagedQty: Math.min(it.damagedQty, missingQty) };
       }),
     );
   };
@@ -275,9 +277,30 @@ export function CheckInPage() {
       prev.map((it) => {
         if (it.id !== itemId) return it;
         if (status === "Delivered") {
-          return { ...it, status, deliveredQty: it.quantity, missingQty: 0 };
+          return {
+            ...it,
+            status,
+            deliveredQty: it.quantity,
+            missingQty: 0,
+            damagedQty: 0,
+          };
+        }
+        if (status === "Backordered") {
+          return { ...it, status, damagedQty: 0 };
         }
         return { ...it, status };
+      }),
+    );
+  };
+
+  const handleDamagedQty = (itemId: string, raw: string) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        const parsed = Number.parseInt(raw, 10);
+        const next = Number.isNaN(parsed) ? 0 : parsed;
+        const clamped = Math.min(Math.max(0, next), it.missingQty);
+        return { ...it, damagedQty: clamped };
       }),
     );
   };
@@ -294,12 +317,15 @@ export function CheckInPage() {
     void firestoreDataService.submitCheckin(
       details.delivery.id,
       "Vendor",
-      items.map((it) => ({
-        id: it.id,
-        qtyReceived: it.deliveredQty,
-        qtyMissing: it.status === "Damaged" ? 0 : it.missingQty,
-        qtyDamaged: it.status === "Damaged" ? it.missingQty : 0,
-      })),
+      items.map((it) => {
+        const damaged = it.damagedQty ?? 0;
+        return {
+          id: it.id,
+          qtyReceived: it.deliveredQty,
+          qtyMissing: it.missingQty - damaged,
+          qtyDamaged: damaged,
+        };
+      }),
     );
     setStep("done");
   };
@@ -314,6 +340,7 @@ export function CheckInPage() {
         quantity: it.qtyOrdered,
         deliveredQty: 0,
         missingQty: it.qtyOrdered,
+        damagedQty: 0,
         status: null,
       })),
     );
@@ -486,6 +513,27 @@ export function CheckInPage() {
                     selected={item.status}
                     onSelect={(s) => handleStatusChange(item.id, s)}
                   />
+
+                  {(item.status === "Damaged" || item.status === "Partial") && (
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-2">
+                        Damaged qty
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={item.missingQty}
+                        value={item.damagedQty}
+                        onChange={(e) =>
+                          handleDamagedQty(item.id, e.target.value)
+                        }
+                        className="w-full rounded-xl border border-border bg-bg-surface px-4 py-3 text-base font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
+                      />
+                      <p className="text-xs text-text-secondary mt-1">
+                        Max {item.missingQty} (missing qty)
+                      </p>
+                    </div>
+                  )}
 
                   {/* Validation */}
                   {item.deliveredQty > item.quantity && (

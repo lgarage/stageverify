@@ -71,6 +71,7 @@ type CheckInItem = {
   description: string;
   qtyOrdered: number;
   deliveredQty: number;
+  damagedQty: number;
 };
 
 type CheckInDelivery = {
@@ -90,6 +91,7 @@ function ScanScreen() {
   const [driverName, setDriverName] = useState("");
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(0);
+  const [adjustDamagedQty, setAdjustDamagedQty] = useState<number>(0);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
@@ -113,6 +115,7 @@ function ScanScreen() {
         description: i.description,
         qtyOrdered: i.qtyOrdered,
         deliveredQty: 0,
+        damagedQty: 0,
       })),
     );
     setIsScanning(false);
@@ -233,6 +236,7 @@ function ScanScreen() {
           return {
             ...it,
             deliveredQty: currentlyChecked ? 0 : it.qtyOrdered,
+            damagedQty: 0,
           };
         }
         return it;
@@ -254,14 +258,27 @@ function ScanScreen() {
   const openAdjust = (it: CheckInItem) => {
     setAdjustingItemId(it.id);
     setAdjustQty(it.deliveredQty);
+    setAdjustDamagedQty(it.damagedQty);
   };
 
   const saveAdjust = () => {
     if (!adjustingItemId) return;
+    const adjItem = checkInItems.find((i) => i.id === adjustingItemId);
+    const missingAfterDeliver = adjItem
+      ? adjItem.qtyOrdered - adjustQty
+      : 0;
+    const clampedDamaged = Math.min(
+      Math.max(0, adjustDamagedQty),
+      missingAfterDeliver,
+    );
     setCheckInItems(
       checkInItems.map((it) => {
         if (it.id === adjustingItemId) {
-          return { ...it, deliveredQty: adjustQty };
+          return {
+            ...it,
+            deliveredQty: adjustQty,
+            damagedQty: clampedDamaged,
+          };
         }
         return it;
       }),
@@ -295,7 +312,7 @@ function ScanScreen() {
         id: i.id,
         qtyReceived: i.deliveredQty,
         qtyMissing: i.qtyOrdered - i.deliveredQty,
-        qtyDamaged: 0,
+        qtyDamaged: i.damagedQty ?? 0,
       })),
     );
     setSubmittedAt(now);
@@ -614,10 +631,22 @@ function ScanScreen() {
               <h3 className="text-xl font-bold text-text-primary mb-6 text-center">
                 Adjust Quantity
               </h3>
-              <div className="flex items-center justify-center gap-6 mb-8">
+              <div className="flex items-center justify-center gap-6 mb-6">
                 <button
                   className="stepper-btn"
-                  onClick={() => setAdjustQty(Math.max(0, adjustQty - 1))}
+                  onClick={() => {
+                    const next = Math.max(0, adjustQty - 1);
+                    setAdjustQty(next);
+                    const item = checkInItems.find(
+                      (i) => i.id === adjustingItemId,
+                    );
+                    if (item) {
+                      const maxDamaged = item.qtyOrdered - next;
+                      setAdjustDamagedQty((d) =>
+                        Math.min(d, maxDamaged),
+                      );
+                    }
+                  }}
                 >
                   −
                 </button>
@@ -630,13 +659,51 @@ function ScanScreen() {
                     const item = checkInItems.find(
                       (i) => i.id === adjustingItemId,
                     );
-                    if (item)
-                      setAdjustQty(Math.min(item.qtyOrdered, adjustQty + 1));
+                    if (item) {
+                      const next = Math.min(item.qtyOrdered, adjustQty + 1);
+                      setAdjustQty(next);
+                      const maxDamaged = item.qtyOrdered - next;
+                      setAdjustDamagedQty((d) =>
+                        Math.min(d, maxDamaged),
+                      );
+                    }
                   }}
                 >
                   +
                 </button>
               </div>
+              {(() => {
+                const item = checkInItems.find(
+                  (i) => i.id === adjustingItemId,
+                );
+                const maxDamaged = item
+                  ? item.qtyOrdered - adjustQty
+                  : 0;
+                return (
+                  <div className="mb-8">
+                    <label className="block text-sm font-medium text-text-secondary mb-2 text-center">
+                      Damaged qty
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={maxDamaged}
+                      value={adjustDamagedQty}
+                      onChange={(e) => {
+                        const raw = Number.parseInt(e.target.value, 10);
+                        const next = Number.isNaN(raw) ? 0 : raw;
+                        setAdjustDamagedQty(
+                          Math.min(Math.max(0, next), maxDamaged),
+                        );
+                      }}
+                      className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary text-center text-lg tabular-nums focus:outline-none focus:border-accent"
+                    />
+                    <p className="text-xs text-text-secondary text-center mt-2">
+                      Max {maxDamaged} (missing qty)
+                    </p>
+                  </div>
+                );
+              })()}
               <div className="flex gap-3">
                 <button
                   onClick={() => setAdjustingItemId(null)}
