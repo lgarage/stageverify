@@ -377,6 +377,7 @@ export function ReceivingPage() {
               <div className="flex gap-2">
                 <input
                   type="text"
+                  maxLength={64}
                   value={manualId}
                   onChange={(e) => setManualId(e.target.value)}
                   placeholder="Delivery ID"
