@@ -45,5 +45,6 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 
 ## Update Protocol
 - Touch Snapshot / Active Blocker / Immediate Next Step at end of every session.
+- **Also update `roadmap.md`** when any roadmap item ships: mark Done in the table + add a "What's Built" bullet. Do this in the same commit as CURRENT_STATE.md ? never leave them out of sync.
 - Hard size cap: if total lines = 55, collapse oldest entries into archives/.
 

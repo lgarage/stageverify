@@ -1,0 +1,22 @@
+# Roadmap Sync Rule
+
+**Every time a roadmap item ships, update `roadmap.md` in the same commit.**
+
+## What to update
+
+1. In the `## What's Still Missing` table: change the item's `Status` cell from `Not started` or `Queued` to `Done (<commit hash>)`.
+2. In the `## What's Built ✓` section: add a bullet (or new subsection) describing what was built. Be specific — name the component, the file, and what it does.
+
+## When this rule applies
+
+Any session where a feature, fix, or item from the `## What's Still Missing` table is completed.
+
+## How to enforce it
+
+The status-update subagent dispatched at the end of each feature MUST include `roadmap.md` in its file list alongside `PROJECT_STATUS/CURRENT_STATE.md`. Never dispatch a status commit that updates only `CURRENT_STATE.md` when a roadmap item was completed.
+
+## What NOT to do
+
+❌ Mark something Done in `CURRENT_STATE.md` but leave `roadmap.md` saying "Not started".
+❌ Add "What's Built" bullets only to `CURRENT_STATE.md`.
+✅ Both files updated in the same commit, every time.
