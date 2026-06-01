@@ -35,6 +35,42 @@
       "capturedDuring": "stageverify gap-analysis review 2026-05-31 (roadmap.md Step 2.1 frozen clock)",
       "preApproved": true,
       "status": "done"
+    },
+    {
+      "id": "away-004",
+      "title": "Clear stagingLocationId on delivery picked_up transition",
+      "scope": "In src/dispatcher/firestoreService.ts, method updateDeliveryStatus (~line 300): when toStatus === 'picked_up', add stagingLocationId: '' to the updatedFields object before the batch.update call. This ensures the staging zone is freed on every pickup path (manual card tap, Done button, auto-submit timer all funnel through recordPickupEvent -> updateDeliveryStatus). No other changes — do NOT touch StagingLocation documents, other status transitions, or any UI file.",
+      "files": ["src/dispatcher/firestoreService.ts"],
+      "tier": "T1",
+      "model": "gpt-5.4-mini-medium",
+      "acceptance": "After the change, updateDeliveryStatus sets stagingLocationId to '' whenever toStatus is picked_up; existing batch.update already handles the write; app builds clean (npm run build passes); no other transitions affected.",
+      "capturedDuring": "Dan session 2026-05-31 — CURRENT_STATE.md Priority 1",
+      "preApproved": true,
+      "status": "queued"
+    },
+    {
+      "id": "away-005",
+      "title": "Route-level code-splitting via React.lazy in main.tsx",
+      "scope": "In src/main.tsx, convert all 6 eager page-component imports (CheckInPage, EntryDisplayPage, DispatcherDashboardPage, SettingsPage, PickupPortalPage, and App) to React.lazy() dynamic imports. Wrap the <Routes> tree in a <Suspense fallback={<div style={{color:'#888',padding:'2rem',textAlign:'center'}}>Loading…</div>}> boundary. Do NOT change any Route paths, component names, or the seedFirestore() call. After changes run npm run build and confirm the 610 kB monolithic chunk warning is gone or meaningfully reduced (multiple smaller chunks visible in output). Then run npm run deploy.",
+      "files": ["src/main.tsx"],
+      "tier": "T1",
+      "model": "gemini-3-flash",
+      "acceptance": "npm run build output shows multiple JS chunks instead of one 610 kB chunk; no chunk-size warning or warning is reduced; app still routes correctly to all pages; Suspense fallback appears briefly on first navigation (not a blank screen); build passes clean.",
+      "capturedDuring": "Dan session 2026-05-31 — CURRENT_STATE.md Priority 2",
+      "preApproved": true,
+      "status": "queued"
+    },
+    {
+      "id": "away-006",
+      "title": "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
+      "scope": "In src/PickupPortalPage.tsx, JobPickupScreen component, make ALL of the following changes: (1) Remove technicianName state, nameRequiredMsg state, and nameInputRef ref declarations. (2) Remove the name-required validation block from checkOffDelivery (the block that calls nameInputRef.current?.focus() and returns early when name is empty). (3) In all recordPickupEvent calls, replace technicianName.trim() or technicianName.trim() || 'Technician' / 'Auto-submitted' with the literal string 'Technician'. (4) Remove the entire 'Your name' label + input + error-message JSX block (~lines 676-698). (5) In the zone card, remove the icons.checkSquare / icons.square icon span entirely. Replace it with: when isChecked, show a green checkmark using <Svg d={icons.check} size={24} /> with className='shrink-0 mt-0.5 text-accent-green'; when NOT isChecked show nothing (remove the span). (6) Remove the 'Complete' / 'Partial' status badge span (the inline-block rounded-full badge) from the card — it shows receiving status and is misleading on the pickup screen. Remove the isPartial variable if it becomes unused. Keep all other logic: card tap triggers checkOffDelivery, error retry, expand/collapse, 'Scan to check off' link, auto-submit timer, Done button, notes field, and all Firestore writes. After implementing: run npm run build (must pass clean), then npm run deploy. Playwright verification (run as separate cheap subagent after deploy): (a) Before-state — navigate to https://lgarage.github.io/stageverify/#/pickup?job=test, screenshot to pw-before.png, record whether name input exists and whether square icon exists. (b) After-state — hard-reload same URL, assert: no element with id='technician-name' or label 'Your name' in DOM; no SVG with the square path rendered on cards; no text 'Complete' in a badge element; screenshot to pw-after.png. Report PASS or FAIL. Delete both screenshots.",
+      "files": ["src/PickupPortalPage.tsx"],
+      "tier": "T1",
+      "model": "gpt-5.4-mini-medium",
+      "acceptance": "'Your name' input not rendered; no square/checkbox icon on zone cards before pickup; after card tap, green checkmark shown on card; 'Complete'/'Partial' badge not shown on any card; tapping a card without entering any name successfully records pickup (no name gate blocks it); card error/retry state still works; app builds clean; Playwright after-state reports PASS.",
+      "capturedDuring": "Dan screenshot 2026-05-31 — pickup portal UX bugs reported",
+      "preApproved": true,
+      "status": "queued"
     }
   ]
 }
