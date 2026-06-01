@@ -7,6 +7,7 @@ import { CheckInPage } from "./CheckInPage";
 import { EntryDisplayPage } from "./EntryDisplayPage";
 import { DispatcherDashboardPage } from "./DispatcherDashboardPage";
 import { SettingsPage } from "./SettingsPage";
+import PickupPortalPage from "./PickupPortalPage";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const root = createRoot(document.getElementById("root")!);
@@ -16,6 +17,7 @@ const renderApp = () => {
     <StrictMode>
       <HashRouter>
         <Routes>
+          <Route path="/pickup" element={<PickupPortalPage />} />
           <Route path="/*" element={<App />} />
           <Route path="/checkin/:orderId" element={<CheckInPage />} />
           <Route path="/display" element={<EntryDisplayPage />} />

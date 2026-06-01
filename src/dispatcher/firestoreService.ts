@@ -588,6 +588,31 @@ export class FirestoreDataService implements DispatcherDataService {
     });
     await batch.commit();
   }
+
+  async recordPickupEvent(
+    deliveryId: string,
+    technicianName: string,
+    itemsPickedSummary: string,
+    notes?: string,
+  ): Promise<void> {
+    const details = await this.getDeliveryDetails(deliveryId);
+    if (!details) return;
+
+    const eventId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const event: PickupEvent = {
+      id: eventId,
+      deliveryOrderId: deliveryId,
+      jobId: details.delivery.jobId,
+      technicianName: technicianName.trim() || "Tech",
+      pickedUpAt: now,
+      itemsPickedSummary,
+      notes,
+    };
+
+    await setDoc(doc(db, "pickupEvents", eventId), event);
+    await this.updateDeliveryStatus(deliveryId, "picked_up");
+  }
 }
 
 const APP_SETTINGS_DOC = doc(db, "appSettings", "config");

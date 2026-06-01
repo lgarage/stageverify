@@ -8,7 +8,7 @@ import type {
 export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   pending: ["arrived", "issue"],
   arrived: ["partial", "complete", "issue"],
-  partial: ["complete", "issue"],
+  partial: ["complete", "issue", "picked_up"],
   complete: ["picked_up"],
   issue: ["arrived", "partial", "complete"],
   picked_up: [],
