@@ -131,6 +131,7 @@ export function CheckInPage() {
   const [loading, setLoading] = useState(true);
 
   const [step, setStep] = useState<"checkoff" | "done">("checkoff");
+  const [driverName, setDriverName] = useState("");
   const [vendorNote, setVendorNote] = useState("");
   const [items, setItems] = useState<CheckInLineItem[]>([]);
 
@@ -309,14 +310,14 @@ export function CheckInPage() {
     (it) => it.deliveredQty === it.quantity && it.status === "Delivered",
   );
   const overallStatus: DisplayOrderStatus = allDelivered ? "Complete" : "Partial";
-  const canSubmit = items.every(
-    (it) => it.deliveredQty >= 0 && it.status !== null,
-  );
+  const canSubmit =
+    driverName.trim().length > 0 &&
+    items.every((it) => it.deliveredQty >= 0 && it.status !== null);
 
   const handleSubmit = () => {
     void firestoreDataService.submitCheckin(
       details.delivery.id,
-      "Vendor",
+      driverName.trim() || "Vendor",
       items.map((it) => {
         const damaged = it.damagedQty ?? 0;
         return {
@@ -332,6 +333,7 @@ export function CheckInPage() {
 
   const handleReset = () => {
     setStep("checkoff");
+    setDriverName("");
     setVendorNote("");
     setItems(
       details.items.map((it) => ({
@@ -546,6 +548,24 @@ export function CheckInPage() {
             ))}
           </div>
 
+          {/* Driver Name */}
+          <div className="rounded-2xl border border-border bg-bg-card p-6 mb-4">
+            <label
+              htmlFor="driver-name"
+              className="block text-[10px] uppercase tracking-widest text-text-secondary mb-3"
+            >
+              Driver Name <span className="text-accent-red">*</span>
+            </label>
+            <input
+              id="driver-name"
+              type="text"
+              value={driverName}
+              onChange={(e) => setDriverName(e.target.value)}
+              placeholder="e.g. John Smith"
+              className="w-full rounded-xl border border-border bg-bg-surface px-4 py-3 text-base text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent"
+            />
+          </div>
+
           {/* Vendor Note */}
           <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
             <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-3">
@@ -594,7 +614,9 @@ export function CheckInPage() {
               ? overallStatus === "Complete"
                 ? "Submit Confirmation — Complete"
                 : "Submit Confirmation — Partial"
-              : "Select a status for each item"}
+              : !driverName.trim()
+                ? "Enter driver name to continue"
+                : "Select a status for each item"}
           </button>
 
           <p className="text-center text-[10px] text-text-secondary mt-4 uppercase tracking-widest">
