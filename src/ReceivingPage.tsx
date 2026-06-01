@@ -183,7 +183,7 @@ export function ReceivingPage() {
 
       const scanner = new Html5Qrcode(
         "receive-qr-reader",
-      ) as Html5QrcodeInstance;
+      ) as unknown as Html5QrcodeInstance;
       scannerRef.current = scanner;
 
       void scanner
