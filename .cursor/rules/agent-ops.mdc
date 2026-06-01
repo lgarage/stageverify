@@ -19,6 +19,7 @@ Do NOT read archives or `outcomes/*.jsonl` during normal work.
 - Offer to queue qualifying side-tasks to `PROJECT_STATUS/away-list.json`
   (agent-ops triage rule §4) — pre-scoped, reversible, self-verifiable, ≥85% conf.
 - `backend-write-critical` stays on Opus 4.6 until this repo gains a backend.
+- **Windows shell**: always use `cmd /c dir` (not `Get-ChildItem` / `ls`) when listing directory contents in a Shell tool call. PowerShell object-pipeline output does not render reliably in Cursor's terminal capture on this machine.
 
 ## Session end (MANDATORY when work was substantive — do not skip)
 Append ONE outcome line to the brain repo, then commit+push it. Use the machine
