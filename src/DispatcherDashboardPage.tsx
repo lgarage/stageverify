@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
+import { auth } from "./firebase";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
@@ -164,6 +166,7 @@ const SETTINGS_ITEM = {
 
 export function DispatcherDashboardPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isDashboard = location.pathname === "/dispatcher";
   const isSettings = location.pathname === "/settings";
 
@@ -826,6 +829,28 @@ export function DispatcherDashboardPage() {
                 {lastUpdated ?? "Loading…"}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                void signOut(auth).then(() => {
+                  navigate("/login", { replace: true });
+                });
+              }}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 4,
+                border: `1.5px solid ${NAVY}`,
+                backgroundColor: "#fff",
+                color: NAVY,
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: FONT,
+                outline: "none",
+              }}
+            >
+              Sign Out
+            </button>
             <div
               style={{
                 width: 30,

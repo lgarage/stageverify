@@ -2,6 +2,9 @@ import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
+import { AuthProvider } from "./AuthContext";
+import { ProtectedRoute } from "./ProtectedRoute";
+import { LoginPage } from "./LoginPage";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const App = lazy(() => import("./App"));
@@ -16,18 +19,23 @@ const root = createRoot(document.getElementById("root")!);
 const renderApp = () => {
   root.render(
     <StrictMode>
-      <HashRouter>
-        <Suspense fallback={<div style={{ color: "#888", padding: "2rem", textAlign: "center" }}>Loading…</div>}>
-          <Routes>
-            <Route path="/pickup" element={<PickupPortalPage />} />
-            <Route path="/checkin/:orderId" element={<CheckInPage />} />
-            <Route path="/display" element={<EntryDisplayPage />} />
-            <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/" element={<App />} />
-          </Routes>
-        </Suspense>
-      </HashRouter>
+      <AuthProvider>
+        <HashRouter>
+          <Suspense fallback={<div style={{ color: "#888", padding: "2rem", textAlign: "center" }}>Loading…</div>}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/pickup" element={<PickupPortalPage />} />
+              <Route path="/checkin/:orderId" element={<CheckInPage />} />
+              <Route path="/display" element={<EntryDisplayPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
+              <Route path="/" element={<App />} />
+            </Routes>
+          </Suspense>
+        </HashRouter>
+      </AuthProvider>
     </StrictMode>,
   );
 };
