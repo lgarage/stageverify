@@ -19,7 +19,7 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 1. **ESL Cloud Function** (backend-write-critical) â†’ BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-01, this session)
-- feat: Need More Space? button in check-in flows; NeedMoreSpaceButton.tsx picker modal (shelf vs ground, closest-first by sortOrder); additionalStagingLocationIds on DeliveryOrder; addStagingLocation() arrayUnion; pickup portal shows all locations with primary emphasized (2a3d82c).
+- feat: Need More Space? tiered flow — Tier 1 shows closest shelf + ground cards (vendor picks); Tier 2 offers closest 4×10 oversized spot; widthFt/depthFt on StagingLocation; Zone form gains dimension inputs (1b3f8e3, bad8f07, 2a3d82c).
 - feat: Shipped/Installed delivery statuses; DELIVERY_STATUS_LABEL map; Mark Shipped + Mark Installed buttons; locationId? on Item (22e5415). Roadmap #6 complete.
 - feat: LocationStatus enum replaces active boolean; ZoneManagementPage badges + toggle (4df28e5). Roadmap #5 complete.
 - refactor: check-in flow consolidation; driver name + qtyDamaged inputs (03699ec, 880ba2f, 1ef1a67).
@@ -46,3 +46,4 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 ## Update Protocol
 - Touch Snapshot / Active Blocker / Immediate Next Step at end of every session.
 - Hard size cap: if total lines = 55, collapse oldest entries into archives/.
+
