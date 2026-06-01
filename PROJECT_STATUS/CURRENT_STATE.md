@@ -16,15 +16,15 @@
 See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 
 ## Immediate Next Step
-1. **Firebase Auth** ? already fully implemented (LoginPage, ProtectedRoute, AuthContext all present). DONE ? no work needed.
-2. **ESL Cloud Function** (backend-write-critical) ? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
-3. **Next roadmap item** ? check roadmap.md for next unshipped feature.
+1. **ESL Cloud Function** (backend-write-critical) ? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
+2. **Next roadmap item** ? roadmap #6 (Item Status Flow): extend delivery/item status to Ordered?Shipped?Received?Staged?Picked Up?Installed with location field.
 
 ## Last Session (2026-06-01, this session)
-- refactor: check-in flow consolidation ? delivery-ID QR scans in App.tsx now navigate to CheckInPage (richer UI); zone QRs stay in App.tsx inline flow; CheckInPage gains pending?arrived transition on load (03699ec).
-- fix: driver name input added to CheckInPage.tsx direct check-in route; replaces hardcoded "Vendor"; submit blocked until name entered (880ba2f).
-- fix: qtyDamaged numeric input added to App.tsx (adjust modal) and CheckInPage.tsx (inline when Damaged/Partial); replaces hardcoded 0 in both flows. Build clean, deployed (1ef1a67).
-- discovery: Firebase Auth already fully implemented ? LoginPage, ProtectedRoute, AuthContext, logout buttons all present.
+- feat: LocationStatus enum (Planned/Installed/Tagged/Active) replaces active boolean on StagingLocation; backward-compat parseStagingLocation helper added (4df28e5).
+- ZoneManagementPage gains status dropdown in form, colored status badge on cards, and Set Active/Set Planned quick-toggle.
+- firestoreService createZone now defaults to status: Planned; deactivateZone sets status: Planned.
+- refactor: check-in flow consolidation ? delivery-ID QR scans in App.tsx now navigate to CheckInPage; CheckInPage gains pending?arrived transition on load (03699ec).
+- fix: driver name input added to CheckInPage.tsx; qtyDamaged numeric input added to both flows (880ba2f, 1ef1a67).
 
 ## Prev Session (2026-06-01)
 - feat: Zone Management Page ? /zones route, ZoneManagementPage.tsx, zone CRUD, grouped cards, QR preview, Print All Active Labels, StagingLocation schema (eslTagId/notes/sortOrder), sidebar link activated (f769942)
