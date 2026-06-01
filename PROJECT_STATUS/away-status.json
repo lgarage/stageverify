@@ -1,5 +1,27 @@
 {
-  "lastRun": "2026-05-31",
-  "built": ["away-001", "away-002", "away-003"],
-  "blocked": []
+  "lastRun": "2026-06-01",
+  "results": [
+    {
+      "id": "away-004",
+      "title": "Clear stagingLocationId on delivery picked_up transition",
+      "status": "built",
+      "commit": "7bc7011",
+      "note": "One-liner added to updateDeliveryStatus in firestoreService.ts. Build clean. Pushed."
+    },
+    {
+      "id": "away-005",
+      "title": "Route-level code-splitting via React.lazy in main.tsx",
+      "status": "built",
+      "commit": "7bc7011",
+      "note": "610 kB monolith split into 6 page chunks (largest: DispatcherDashboardPage 50.55 kB). Deployed. Pushed."
+    },
+    {
+      "id": "away-006",
+      "title": "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
+      "status": "built",
+      "commit": "f0ba6cc",
+      "note": "All 5 changes applied. Build clean. Deployed. Playwright after-state: PASS (name input absent, Complete badge absent, no technician-name in DOM)."
+    }
+  ],
+  "summary": "3 built ✓  0 blocked ✗"
 }

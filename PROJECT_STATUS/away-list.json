@@ -46,7 +46,7 @@
       "acceptance": "After the change, updateDeliveryStatus sets stagingLocationId to '' whenever toStatus is picked_up; existing batch.update already handles the write; app builds clean (npm run build passes); no other transitions affected.",
       "capturedDuring": "Dan session 2026-05-31 — CURRENT_STATE.md Priority 1",
       "preApproved": true,
-      "status": "queued"
+      "status": "done"
     },
     {
       "id": "away-005",
@@ -58,7 +58,7 @@
       "acceptance": "npm run build output shows multiple JS chunks instead of one 610 kB chunk; no chunk-size warning or warning is reduced; app still routes correctly to all pages; Suspense fallback appears briefly on first navigation (not a blank screen); build passes clean.",
       "capturedDuring": "Dan session 2026-05-31 — CURRENT_STATE.md Priority 2",
       "preApproved": true,
-      "status": "queued"
+      "status": "done"
     },
     {
       "id": "away-006",
@@ -70,7 +70,7 @@
       "acceptance": "'Your name' input not rendered; no square/checkbox icon on zone cards before pickup; after card tap, green checkmark shown on card; 'Complete'/'Partial' badge not shown on any card; tapping a card without entering any name successfully records pickup (no name gate blocks it); card error/retry state still works; app builds clean; Playwright after-state reports PASS.",
       "capturedDuring": "Dan screenshot 2026-05-31 — pickup portal UX bugs reported",
       "preApproved": true,
-      "status": "queued"
+      "status": "done"
     }
   ]
 }
