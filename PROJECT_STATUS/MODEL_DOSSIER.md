@@ -12,6 +12,12 @@
 - **backend-write-critical: ACTIVE (Opus 4.6 floor).** Firebase Firestore + Cloud Functions live as of 2026-05-31.
   Any change to security rules, Cloud Function logic, or Firestore data schema → `backend-write-critical`. Locked at Opus until Phase 2b trial earns promotion.
 
+## Security review gate
+- Runs MANDATORY after every `backend-write-critical` commit and any `multi-file-feature` touching auth/routes/Firestore.
+- Scanner: Gemini 3 Flash (`read-only-analysis`). Verifier: Opus 4.6.
+- BLOCK deploy on any HIGH risk finding until fixed and re-scanned.
+- See agent-ops SKILL.md §11 for full protocol.
+
 ## Stack-specific archetype hints
 - Tailwind 4 is CSS-first (no config file) → css-restyle work edits utility classes / @theme.
 - src/types.ts is legacy and targeted for deletion → type-refactor toward src/dispatcher/models.ts.
