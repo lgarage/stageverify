@@ -13,13 +13,13 @@
 None.
 
 ## Immediate Next Step
-1. **Firebase Auth** ? protect /dispatcher + /settings routes with login screen. (multi-file-feature, Composer 2.5)
-2. **Check-in consolidation + qtyDamaged** ? App.tsx and CheckInPage.tsx parallel impls; qtyDamaged hardcoded to 0.
-3. **ESL Cloud Function** (backend-write-critical) ? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
+1. **Firebase Auth** ? already fully implemented (LoginPage, ProtectedRoute, AuthContext all present). DONE ? no work needed.
+2. **ESL Cloud Function** (backend-write-critical) ? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
+3. **Next roadmap item** ? check roadmap.md for next unshipped feature.
 
 ## Last Session (2026-06-01, this session)
-- fix: getDeliveryDetails split ? getDeliveryDetailsPublic() (public collections only); vendor PII + delivery notes stripped; firestore.rules deployed (cff7cd9)
-- Security gate: Gemini 3 Flash caught PII leakage HIGH; fixed before deploy. Composer 2.5 trial: 4/5 clean.
+- fix: qtyDamaged numeric input added to App.tsx (adjust modal) and CheckInPage.tsx (inline when Damaged/Partial); replaces hardcoded 0 in both flows. Build clean, deployed (1ef1a67).
+- discovery: Firebase Auth already fully implemented ? LoginPage, ProtectedRoute, AuthContext, logout buttons all present.
 
 ## Prev Session (2026-06-01)
 - feat: Zone Management Page ? /zones route, ZoneManagementPage.tsx, zone CRUD, grouped cards, QR preview, Print All Active Labels, StagingLocation schema (eslTagId/notes/sortOrder), sidebar link activated (f769942)
