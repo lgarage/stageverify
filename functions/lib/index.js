@@ -49,7 +49,9 @@ exports.autoSubmitDeliveries = (0, scheduler_1.onSchedule)({
         const items = itemsSnap.docs.map((d) => d.data());
         const allReceived = items.length > 0 &&
             items.every((i) => i.qtyReceived >= i.qtyOrdered);
-        const overallStatus = allReceived ? "complete" : "partial";
+        const overallStatus = allReceived
+            ? "ready_for_pickup"
+            : "partial";
         const eventId = `event-auto-${delivery.id}-${now}`;
         const batch = db.batch();
         batch.update(deliveryDoc.ref, {

@@ -24,6 +24,7 @@ const STATUS_ORDER: DeliveryStatus[] = [
   "pending",
   "arrived",
   "partial",
+  "ready_for_pickup",
   "complete",
   "issue",
   "picked_up",
@@ -51,6 +52,12 @@ const STATUS_BADGE: Record<
     border: "#ce93d8",
     dot: "#ab47bc",
   },
+  ready_for_pickup: {
+    bg: "#e8f5e9",
+    text: "#2e7d32",
+    border: "#a5d6a7",
+    dot: "#66bb6a",
+  },
   complete: {
     bg: "#e8f5e9",
     text: "#2e7d32",
@@ -73,15 +80,19 @@ const STATUS_COUNT_COLORS: Record<
   pending: { bg: "#fff8e1", text: "#f59104", accent: "#f59104" },
   arrived: { bg: "#e3f2fd", text: "#1565c0", accent: "#1976d2" },
   partial: { bg: "#f3e5f5", text: "#7b1fa2", accent: "#9c27b0" },
+  ready_for_pickup: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
   complete: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
   issue: { bg: "#ffebee", text: "#c62828", accent: "#d32f2f" },
   picked_up: { bg: "#f5f5f5", text: "#424242", accent: "#757575" },
 };
 
-const STATUS_LABEL = (status: DeliveryStatus): string =>
-  status === "picked_up"
-    ? "Picked Up"
-    : status.charAt(0).toUpperCase() + status.slice(1);
+const STATUS_LABEL = (status: DeliveryStatus): string => {
+  if (status === "picked_up") return "Picked Up";
+  if (status === "ready_for_pickup" || status === "complete") {
+    return "Ready for Pickup";
+  }
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 const SORT_COLUMNS: Array<{
   label: string;
@@ -1795,7 +1806,10 @@ function CopyPickupLinkButton({
       pageSize: 100,
     });
     const readyItems = result.items.filter(
-      (d) => d.status === "complete" || d.status === "partial",
+      (d) =>
+        d.status === "ready_for_pickup" ||
+        d.status === "complete" ||
+        d.status === "partial",
     );
     const zones = readyItems
       .map((d) => d.stagingLocationCode)

@@ -503,7 +503,9 @@ export class FirestoreDataService implements DispatcherDataService {
       });
     }
 
-    const overallStatus: DeliveryStatus = allReceived ? "complete" : "partial";
+    const overallStatus: DeliveryStatus = allReceived
+      ? "ready_for_pickup"
+      : "partial";
     const now = new Date().toISOString();
     const eventId = `event-${Date.now()}`;
 

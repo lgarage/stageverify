@@ -7,25 +7,28 @@ import type {
 
 export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   pending: ["arrived", "issue"],
-  arrived: ["partial", "complete", "issue"],
-  partial: ["complete", "issue", "picked_up"],
+  arrived: ["partial", "ready_for_pickup", "issue"],
+  partial: ["ready_for_pickup", "issue", "picked_up"],
+  ready_for_pickup: ["picked_up"],
   complete: ["picked_up"],
-  issue: ["arrived", "partial", "complete"],
+  issue: ["arrived", "partial", "ready_for_pickup"],
   picked_up: [],
 };
 
 /** Vendor revert: only undo a check-in submission (goes back to arrived) */
 export const VENDOR_REVERT_TARGETS: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
   partial: "arrived",
+  ready_for_pickup: "arrived",
   complete: "arrived",
 };
 
-/** Dispatcher revert: superset — can also undo arrived→pending and picked_up→complete */
+/** Dispatcher revert: superset — can also undo arrived→pending and picked_up→ready_for_pickup */
 export const DISPATCHER_REVERT_TARGETS: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
   arrived: "pending",
   partial: "arrived",
+  ready_for_pickup: "arrived",
   complete: "arrived",
-  picked_up: "complete",
+  picked_up: "ready_for_pickup",
 };
 
 export type DeliverySortField =

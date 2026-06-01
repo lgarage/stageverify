@@ -8,6 +8,7 @@ type DeliveryStatus =
   | "pending"
   | "arrived"
   | "partial"
+  | "ready_for_pickup"
   | "complete"
   | "issue"
   | "picked_up";
@@ -83,7 +84,9 @@ export const autoSubmitDeliveries = onSchedule(
       const allReceived =
         items.length > 0 &&
         items.every((i) => i.qtyReceived >= i.qtyOrdered);
-      const overallStatus: DeliveryStatus = allReceived ? "complete" : "partial";
+      const overallStatus: DeliveryStatus = allReceived
+        ? "ready_for_pickup"
+        : "partial";
       const eventId = `event-auto-${delivery.id}-${now}`;
 
       const batch = db.batch();

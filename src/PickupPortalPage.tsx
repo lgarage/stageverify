@@ -6,6 +6,9 @@ import {
 } from "./dispatcher/firestoreService";
 import type { DeliveryDetails, DeliveryStatus } from "./dispatcher/models";
 
+const normalizeZoneCode = (code: string): string =>
+  code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+
 const icons = {
   check: "M5 13l4 4L19 7",
   chevronDown: "M6 9l6 6 6-6",
@@ -33,7 +36,11 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
   );
 }
 
-const PICKUP_READY: DeliveryStatus[] = ["complete", "partial"];
+const PICKUP_READY: DeliveryStatus[] = [
+  "ready_for_pickup",
+  "complete",
+  "partial",
+];
 
 function isPickupReady(status: DeliveryStatus): boolean {
   return PICKUP_READY.includes(status);
@@ -98,8 +105,12 @@ async function resolveJobFromZoneCode(
   if (!trimmed) return null;
 
   const result = await firestoreDataService.listDeliveries({ pageSize: 100 });
+  const normalized = normalizeZoneCode(trimmed);
   const match = result.items.find(
-    (d) => d.stagingLocationCode === trimmed && isPickupReady(d.status),
+    (d) =>
+      d.stagingLocationCode &&
+      normalizeZoneCode(d.stagingLocationCode) === normalized &&
+      isPickupReady(d.status),
   );
   if (!match) return null;
 
@@ -238,7 +249,7 @@ function WalkUpEntry({
       }
 
       setResolving(true);
-      const resolved = await resolveJobFromZoneCode(trimmed);
+      const resolved = await resolveJobFromZoneCode(normalizeZoneCode(trimmed));
       setResolving(false);
       if (!resolved) {
         setNotFoundCode(trimmed);
@@ -550,9 +561,11 @@ function JobPickupScreen({
 
   const handleCheckOffScan = useCallback(
     (zoneCode: string) => {
-      const trimmed = zoneCode.trim();
+      const normalized = normalizeZoneCode(zoneCode.trim());
       const match = deliveries.find(
-        (d) => d.stagingLocation?.code === trimmed,
+        (d) =>
+          d.stagingLocation?.code &&
+          normalizeZoneCode(d.stagingLocation.code) === normalized,
       );
       setIsScanning(false);
       if (!match) {

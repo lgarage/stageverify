@@ -2,6 +2,7 @@ export type DeliveryStatus =
   | "pending"
   | "arrived"
   | "partial"
+  | "ready_for_pickup"
   | "complete"
   | "issue"
   | "picked_up";
