@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "./firebase";
 
 const NAVY = "#0a3161";
@@ -21,8 +21,16 @@ function authErrorMessage(code: string): string {
   }
 }
 
+function resolvePostLoginPath(next: string | null): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return "/dispatcher";
+  }
+  return next;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +43,7 @@ export function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      navigate("/dispatcher", { replace: true });
+      navigate(resolvePostLoginPath(searchParams.get("next")), { replace: true });
     } catch (err: unknown) {
       const code =
         err instanceof Error && "code" in err

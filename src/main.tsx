@@ -13,6 +13,7 @@ const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default:
 const EntryDisplayPage = lazy(() => import("./EntryDisplayPage").then(m => ({ default: m.EntryDisplayPage })));
 const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").then(m => ({ default: m.DispatcherDashboardPage })));
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
+const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
 
 const root = createRoot(document.getElementById("root")!);
@@ -32,6 +33,7 @@ const renderApp = () => {
               <Route element={<ProtectedRoute />}>
                 <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/hub" element={<MobileHubPage />} />
               </Route>
               <Route path="/" element={<App />} />
             </Routes>
