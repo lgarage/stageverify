@@ -112,7 +112,7 @@
                       "acceptance":  "The manual delivery ID input has maxLength={64}; app builds clean (npm run build passes); no other changes.",
                       "capturedDuring":  "Security scan 2026-06-01 — Opus LOW finding",
                       "preApproved":  true,
-                      "status":  "queued"
+                      "status":  "done"
                   }
               ]
 }
