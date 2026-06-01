@@ -74,28 +74,28 @@ const stagingLocations: StagingLocation[] = [
     code: "G1",
     label: "Ground Spot 1",
     type: "ground",
-    active: true,
+    status: "Active",
   },
   {
     id: "staging-2",
     code: "G2",
     label: "Ground Spot 2",
     type: "ground",
-    active: true,
+    status: "Active",
   },
   {
     id: "staging-3",
     code: "S1-A",
     label: "Shelf 1 - Bin A",
     type: "shelf",
-    active: true,
+    status: "Active",
   },
   {
     id: "staging-4",
     code: "S2-A",
     label: "Shelf 2 - Bin A",
     type: "shelf",
-    active: true,
+    status: "Active",
   },
 ];
 

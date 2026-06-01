@@ -23,7 +23,9 @@ import type {
   StagingLocation,
   StatusHistoryEvent,
   Vendor,
+  AppSettings,
 } from "./models";
+import { isLocationActive, parseStagingLocation } from "./models";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -32,9 +34,24 @@ import type {
   SortDirection,
 } from "./service";
 import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } from "./service";
-import type { AppSettings } from "./models";
 
 const COLLECTION_SAFETY_LIMIT = 500;
+
+async function fetchAllStagingLocations(): Promise<StagingLocation[]> {
+  const snap = await getDocs(
+    query(collection(db, "stagingLocations"), limit(COLLECTION_SAFETY_LIMIT)),
+  );
+  return snap.docs.map((d) =>
+    parseStagingLocation(d.id, d.data() as Record<string, unknown>),
+  );
+}
+
+function stagingLocationFromSnap(
+  snap: Awaited<ReturnType<typeof getDoc>>,
+): StagingLocation | undefined {
+  if (!snap.exists()) return undefined;
+  return parseStagingLocation(snap.id, snap.data() as Record<string, unknown>);
+}
 
 async function fetchAll<T>(colName: string): Promise<T[]> {
   const snap = await getDocs(query(collection(db, colName), limit(COLLECTION_SAFETY_LIMIT)));
@@ -177,7 +194,7 @@ export class FirestoreDataService implements DispatcherDataService {
         deliveriesPromise,
         fetchAll<Job>("jobs"),
         fetchAll<Vendor>("vendors"),
-        fetchAll<StagingLocation>("stagingLocations"),
+        fetchAllStagingLocations(),
         fetchAll<PurchaseOrder>("purchaseOrders"),
         fetchAll<Item>("items"),
       ]);
@@ -253,7 +270,7 @@ export class FirestoreDataService implements DispatcherDataService {
       const locSnap = await getDoc(
         doc(db, "stagingLocations", delivery.stagingLocationId),
       );
-      if (locSnap.exists()) stagingLocation = locSnap.data() as StagingLocation;
+      stagingLocation = stagingLocationFromSnap(locSnap);
     }
 
     const items = await fetchWhere<Item>("items", "deliveryOrderId", deliveryId);
@@ -364,8 +381,8 @@ export class FirestoreDataService implements DispatcherDataService {
   }
 
   async listStagingLocations(): Promise<StagingLocation[]> {
-    const all = await fetchAll<StagingLocation>("stagingLocations");
-    return all.filter((loc) => loc.active);
+    const all = await fetchAllStagingLocations();
+    return all.filter((loc) => isLocationActive(loc));
   }
 
   async updateStagingLocation(
@@ -380,8 +397,8 @@ export class FirestoreDataService implements DispatcherDataService {
     let prevCode = "unassigned";
     if (prevId) {
       const prevSnap = await getDoc(doc(db, "stagingLocations", prevId));
-      if (prevSnap.exists())
-        prevCode = (prevSnap.data() as StagingLocation).code;
+      const prevLoc = stagingLocationFromSnap(prevSnap);
+      if (prevLoc) prevCode = prevLoc.code;
     }
 
     let newCode = "unassigned";
@@ -389,8 +406,8 @@ export class FirestoreDataService implements DispatcherDataService {
       const newSnap = await getDoc(
         doc(db, "stagingLocations", stagingLocationId),
       );
-      if (newSnap.exists())
-        newCode = (newSnap.data() as StagingLocation).code;
+      const newLoc = stagingLocationFromSnap(newSnap);
+      if (newLoc) newCode = newLoc.code;
     }
 
     const now = new Date().toISOString();
@@ -675,7 +692,7 @@ export async function getDeliveryDetailsPublic(
     const locSnap = await getDoc(
       doc(db, "stagingLocations", delivery.stagingLocationId),
     );
-    if (locSnap.exists()) stagingLocation = locSnap.data() as StagingLocation;
+    stagingLocation = stagingLocationFromSnap(locSnap);
   }
 
   const items = await fetchWhere<Item>("items", "deliveryOrderId", deliveryId);
@@ -717,14 +734,18 @@ export async function updateVendor(vendor: Vendor): Promise<void> {
 }
 
 export async function listAllZones(): Promise<StagingLocation[]> {
-  return fetchAll<StagingLocation>("stagingLocations");
+  return fetchAllStagingLocations();
 }
 
 export async function createZone(
   data: Omit<StagingLocation, "id">,
 ): Promise<string> {
   const id = `zone-${crypto.randomUUID()}`;
-  const zone: StagingLocation = { ...data, id };
+  const zone: StagingLocation = {
+    ...data,
+    id,
+    status: data.status ?? "Planned",
+  };
   await setDoc(doc(db, "stagingLocations", id), zone);
   return id;
 }
@@ -737,7 +758,7 @@ export async function updateZone(
 }
 
 export async function deactivateZone(id: string): Promise<void> {
-  await updateZone(id, { active: false });
+  await updateZone(id, { status: "Planned" });
 }
 
 export async function listJobs(): Promise<Job[]> {

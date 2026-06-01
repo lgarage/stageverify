@@ -92,12 +92,52 @@ export interface Item {
   status: ItemStatus;
 }
 
+export type LocationStatus = "Planned" | "Installed" | "Tagged" | "Active";
+
+export const LOCATION_STATUSES: LocationStatus[] = [
+  "Planned",
+  "Installed",
+  "Tagged",
+  "Active",
+];
+
+export const isLocationActive = (loc: StagingLocation): boolean =>
+  loc.status === "Active";
+
+type StagingLocationRaw = Record<string, unknown> & {
+  id?: string;
+  active?: boolean;
+  status?: LocationStatus;
+};
+
+export function parseStagingLocation(
+  docId: string,
+  data: StagingLocationRaw,
+): StagingLocation {
+  const status: LocationStatus =
+    data.status !== undefined
+      ? data.status
+      : data.active === true
+        ? "Active"
+        : "Planned";
+  return {
+    id: typeof data.id === "string" ? data.id : docId,
+    code: String(data.code),
+    label: String(data.label),
+    type: data.type as StagingLocation["type"],
+    status,
+    notes: typeof data.notes === "string" ? data.notes : undefined,
+    sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : undefined,
+    eslTagId: typeof data.eslTagId === "string" ? data.eslTagId : undefined,
+  };
+}
+
 export interface StagingLocation {
   id: string;
   code: string;
   label: string;
   type: "ground" | "shelf" | "bin" | "other";
-  active: boolean;
+  status: LocationStatus;
   notes?: string;
   sortOrder?: number;
   eslTagId?: string;

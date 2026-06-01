@@ -9,7 +9,8 @@ import {
 } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import type { StagingLocation } from "./dispatcher/models";
+import type { LocationStatus, StagingLocation } from "./dispatcher/models";
+import { isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
 import {
   listAllZones,
   createZone,
@@ -125,6 +126,7 @@ interface ZoneFormState {
   code: string;
   label: string;
   type: ZoneType;
+  status: LocationStatus;
   notes: string;
   sortOrder: string;
   eslTagId: string;
@@ -134,6 +136,7 @@ const EMPTY_FORM: ZoneFormState = {
   code: "",
   label: "",
   type: "ground",
+  status: "Planned",
   notes: "",
   sortOrder: "",
   eslTagId: "",
@@ -144,6 +147,7 @@ function zoneToForm(zone: StagingLocation): ZoneFormState {
     code: zone.code,
     label: zone.label,
     type: zone.type,
+    status: zone.status,
     notes: zone.notes ?? "",
     sortOrder: zone.sortOrder != null ? String(zone.sortOrder) : "",
     eslTagId: zone.eslTagId ?? "",
@@ -158,10 +162,30 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
     code: form.code.trim(),
     label: form.label.trim(),
     type: form.type,
-    active: true,
+    status: form.status,
     notes: form.notes.trim() || undefined,
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
     eslTagId: form.eslTagId.trim() || undefined,
+  };
+}
+
+function statusBadgeStyle(status: LocationStatus): CSSProperties {
+  const colors: Record<LocationStatus, { bg: string; text: string }> = {
+    Planned: { bg: "#f3f4f6", text: "#6b7280" },
+    Installed: { bg: "#e3f2fd", text: "#1565c0" },
+    Tagged: { bg: "#fef3c7", text: "#b45309" },
+    Active: { bg: "#e8f4ea", text: "#2e7d32" },
+  };
+  const c = colors[status];
+  return {
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: 10,
+    fontSize: 11,
+    fontWeight: 700,
+    backgroundColor: c.bg,
+    color: c.text,
+    marginLeft: 6,
   };
 }
 
@@ -253,7 +277,7 @@ export function ZoneManagementPage() {
   }, [loadZones]);
 
   const visibleZones = useMemo(
-    () => (showInactive ? zones : zones.filter((z) => z.active)),
+    () => (showInactive ? zones : zones.filter(isLocationActive)),
     [zones, showInactive],
   );
 
@@ -274,7 +298,7 @@ export function ZoneManagementPage() {
   }, [visibleZones]);
 
   const activeZonesForPrint = useMemo(
-    () => zones.filter((z) => z.active).sort(sortZones),
+    () => zones.filter(isLocationActive).sort(sortZones),
     [zones],
   );
 
@@ -326,15 +350,25 @@ export function ZoneManagementPage() {
     }
   };
 
-  const handleDeactivate = async (zone: StagingLocation) => {
-    if (!zone.active) return;
+  const handleToggleActivePlanned = async (zone: StagingLocation) => {
+    const nextStatus: LocationStatus = isLocationActive(zone)
+      ? "Planned"
+      : "Active";
     try {
-      await deactivateZone(zone.id);
+      if (nextStatus === "Planned") {
+        await deactivateZone(zone.id);
+      } else {
+        await updateZone(zone.id, { status: "Active" });
+      }
       setZones((prev) =>
-        prev.map((z) => (z.id === zone.id ? { ...z, active: false } : z)),
+        prev.map((z) =>
+          z.id === zone.id ? { ...z, status: nextStatus } : z,
+        ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to deactivate zone");
+      setError(
+        err instanceof Error ? err.message : "Failed to update zone status",
+      );
     }
   };
 
@@ -353,7 +387,7 @@ export function ZoneManagementPage() {
     }
   };
 
-  const activeCount = zones.filter((z) => z.active).length;
+  const activeCount = zones.filter(isLocationActive).length;
 
   return (
     <div style={{ fontFamily: FONT }} className="min-h-screen flex">
@@ -763,6 +797,25 @@ export function ZoneManagementPage() {
                     </select>
                   </div>
                   <div>
+                    <label style={labelStyle}>Status</label>
+                    <select
+                      style={inputStyle}
+                      value={form.status}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          status: e.target.value as LocationStatus,
+                        }))
+                      }
+                    >
+                      {LOCATION_STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
                     <label style={labelStyle}>Sort Order</label>
                     <input
                       style={inputStyle}
@@ -920,8 +973,10 @@ export function ZoneManagementPage() {
                             border: "1px solid #eaecf0",
                             borderRadius: 8,
                             padding: 16,
-                            backgroundColor: zone.active ? "#fff" : "#fafafa",
-                            opacity: zone.active ? 1 : 0.75,
+                            backgroundColor: isLocationActive(zone)
+                              ? "#fff"
+                              : "#fafafa",
+                            opacity: isLocationActive(zone) ? 1 : 0.75,
                           }}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -943,27 +998,21 @@ export function ZoneManagementPage() {
                                   fontWeight: 600,
                                   color: "#374151",
                                   marginTop: 4,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  gap: 4,
                                 }}
                               >
                                 {zone.label}
+                                <span style={statusBadgeStyle(zone.status)}>
+                                  {zone.status}
+                                </span>
                               </div>
                               <div style={{ marginTop: 6 }}>
                                 <span style={typeBadgeStyle(zone.type)}>
                                   {TYPE_LABELS[zone.type]}
                                 </span>
-                                {!zone.active && (
-                                  <span
-                                    style={{
-                                      marginLeft: 6,
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      color: "#9ca3af",
-                                      textTransform: "uppercase",
-                                    }}
-                                  >
-                                    Inactive
-                                  </span>
-                                )}
                               </div>
                             </div>
                             <QRCodeSVG value={qrUrl} size={80} />
@@ -1039,25 +1088,27 @@ export function ZoneManagementPage() {
                             >
                               Edit
                             </button>
-                            {zone.active && (
-                              <button
-                                type="button"
-                                onClick={() => void handleDeactivate(zone)}
-                                style={{
-                                  padding: "4px 12px",
-                                  borderRadius: 4,
-                                  border: "1.5px solid #fca5a5",
-                                  backgroundColor: "#fff",
-                                  color: "#b91c1c",
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontFamily: FONT,
-                                }}
-                              >
-                                Deactivate
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => void handleToggleActivePlanned(zone)}
+                              style={{
+                                padding: "4px 12px",
+                                borderRadius: 4,
+                                border: isLocationActive(zone)
+                                  ? "1.5px solid #fca5a5"
+                                  : `1.5px solid ${NAVY}`,
+                                backgroundColor: "#fff",
+                                color: isLocationActive(zone) ? "#b91c1c" : NAVY,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontFamily: FONT,
+                              }}
+                            >
+                              {isLocationActive(zone)
+                                ? "Set Planned"
+                                : "Set Active"}
+                            </button>
                           </div>
                         </div>
                       );

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { Job, Vendor, StagingLocation } from "./dispatcher/models";
+import { isLocationActive } from "./dispatcher/models";
 import {
   createDelivery,
   firestoreDataService,
@@ -282,7 +283,7 @@ export function CreateDeliveryModal({
               >
                 <option value="">— Unassigned —</option>
                 {stagingLocations
-                  .filter((loc) => loc.active)
+                  .filter(isLocationActive)
                   .map((loc) => (
                     <option key={loc.id} value={loc.id}>
                       {loc.code} — {loc.label}
