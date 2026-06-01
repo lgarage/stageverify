@@ -4,8 +4,8 @@
 > Overflow ? migrate into PROJECT_STATUS/archives/. Read protocol: agent-ops skill S1.
 
 ## Snapshot
-- Active Phase: Backend wired ? Firebase Firestore live + Cloud Functions active
-- Last shipped: Zone Management Page (/zones) ? CRUD, QR preview, Print All Active Labels, sidebar link activated (f769942). Composer 2.5 at 3/5 clean passes.
+- Active Phase: MVP complete ? full delivery lifecycle live (Ordered?Shipped?Received?Staged?Picked Up?Installed)
+- Last shipped: Need More Space? tiered multi-location staging (1b3f8e3). Composer 2.5 at 3/5 clean passes on backend-write-critical trial.
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2, qrcode.react. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 
@@ -16,10 +16,10 @@
 See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 
 ## Immediate Next Step
-1. **ESL Cloud Function** (backend-write-critical) â†’ BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
+1. **ESL Cloud Function** (backend-write-critical) â?? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-01, this session)
-- feat: Need More Space? tiered flow — Tier 1 shows closest shelf + ground cards (vendor picks); Tier 2 offers closest 4×10 oversized spot; widthFt/depthFt on StagingLocation; Zone form gains dimension inputs (1b3f8e3, bad8f07, 2a3d82c).
+- feat: Need More Space? tiered flow ? Tier 1 shows closest shelf + ground cards (vendor picks); Tier 2 offers closest 4×10 oversized spot; widthFt/depthFt on StagingLocation; Zone form gains dimension inputs (1b3f8e3, bad8f07, 2a3d82c).
 - feat: Shipped/Installed delivery statuses; DELIVERY_STATUS_LABEL map; Mark Shipped + Mark Installed buttons; locationId? on Item (22e5415). Roadmap #6 complete.
 - feat: LocationStatus enum replaces active boolean; ZoneManagementPage badges + toggle (4df28e5). Roadmap #5 complete.
 - refactor: check-in flow consolidation; driver name + qtyDamaged inputs (03699ec, 880ba2f, 1ef1a67).

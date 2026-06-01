@@ -19,6 +19,8 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 - Detail drawer shows status history, staging assignment, and status transitions.
 - `Refresh Now` button and 30-second auto-refresh are working.
 - Print Label QR button in delivery detail drawer (`qrcode.react`).
+- **Mark Shipped** button in drawer (appears when status is Ordered); **Mark Installed** button in pickup portal.
+- Delivery lifecycle: `Ordered → Shipped → Received → Staged → Picked Up → Installed`.
 
 ### Delivery creation
 - `CreateDeliveryModal.tsx` writes jobs, vendors, purchase orders, and line items to Firestore.
@@ -32,20 +34,25 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 - `qtyDamaged` numeric input present in both `App.tsx` (adjust modal) and `CheckInPage.tsx` (inline when Damaged/Partial).
 - Manual delivery ID input capped at `maxLength={64}` in `ReceivingPage.tsx`.
 - URL-aware QR scan handlers accept full URLs with `?id=` or `?zone=` params.
+- **Need More Space?** tiered flow: Tier 1 shows closest shelf spot (3×3) and ground spot (4×4) side-by-side; Tier 2 offers closest oversized ground spot (4×10). Vendor picks; locations saved via `arrayUnion`.
+- Multiple staging locations per delivery (`additionalStagingLocationIds`); pickup portal shows all locations with primary emphasized.
 
 ### Staging zone management
 - `/zones` route with full CRUD UI (`ZoneManagementPage.tsx`).
 - Zones grouped by area, with QR preview per zone.
 - `Print All Active Labels` prints all zone QR labels at once.
-- `StagingLocation` schema includes `eslTagId`, `notes`, `sortOrder`.
+- `StagingLocation` schema includes `eslTagId`, `notes`, `sortOrder`, `widthFt`, `depthFt`.
+- `LocationStatus` enum (`Planned | Installed | Tagged | Active`) replaces `active` boolean; color-coded badge and quick-toggle on each zone card.
+- Zone form includes Width/Depth inputs for spot sizing (shelf = 3×3 ft, ground = 4×4 ft, oversized = 4×10 ft).
 - Sidebar link active.
 
 ### Display and pickup
 - `EntryDisplayPage.tsx` at `/display` shows live Firestore data with correct status labels and 30-second refresh; clock advances.
-- `PickupPortalPage.tsx` at `/pickup` filters `ready_for_pickup`, `complete`, and `partial` deliveries.
-- Technicians check off deliveries with `recordPickupEvent`; no name gate.
+- `PickupPortalPage.tsx` at `/pickup` filters `ready_for_pickup`, `complete`, `partial`, and `picked_up` deliveries.
+- Technicians check off deliveries with `recordPickupEvent`; **Mark Installed** button appears after pickup.
 - Fuzzy zone matching works (`s2a` resolves to `S2-A`).
 - `stagingLocationId` cleared on `picked_up` transition.
+- All status labels use `DELIVERY_STATUS_LABEL` map: Ordered / Shipped / Received / Staged / Picked Up / Installed.
 
 ### Platform state
 - Firebase Firestore and Cloud Functions (v2) deployed and live (Blaze plan, project: `stageverify-db`).
@@ -63,8 +70,8 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 | 2 | **Check-in flow consolidation** — `App.tsx` + `CheckInPage.tsx` overlap; unify or clearly separate | Done (03699ec) — ID QRs routed to CheckInPage; zone QRs stay in App.tsx |
 | 3 | **ESL Cloud Function** — MinewTag ESL tag integration via Cloud Function | Blocked: waiting on vendor API creds |
 | 4 | **Security audit (away-007)** — full `src/` scan, Gemini 3 Flash scanner + Sonnet verifier | Queued |
-| 5 | **Location status model** — add `Planned/Installed/Tagged/Active` status to `StagingLocation` schema; allow system to operate with partial tag deployment | Not started |
-| 6 | **Item status flow** — extend delivery/item status to include `Ordered → Shipped → Received → Staged → Picked Up → Installed` with location field | Not started |
+| 5 | **Location status model** — add `Planned/Installed/Tagged/Active` status to `StagingLocation` schema; allow system to operate with partial tag deployment | Done (4df28e5) |
+| 6 | **Item status flow** — extend delivery/item status to include `Ordered → Shipped → Received → Staged → Picked Up → Installed` with location field | Done (22e5415) |
 
 ---
 
