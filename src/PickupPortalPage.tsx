@@ -8,6 +8,7 @@ import type { DeliveryDetails, DeliveryStatus } from "./dispatcher/models";
 
 const icons = {
   check: "M5 13l4 4L19 7",
+  chevronDown: "M6 9l6 6 6-6",
   camera:
     "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z",
   square: "M4 4h16v16H4z",
@@ -373,6 +374,12 @@ function JobPickupScreen({
   const [isScanning, setIsScanning] = useState(false);
   const [zoneScanError, setZoneScanError] = useState<string | null>(null);
   const [checkingIds, setCheckingIds] = useState<Set<string>>(() => new Set());
+  const [expandedDeliveryIds, setExpandedDeliveryIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [cardErrors, setCardErrors] = useState<Map<string, string>>(
     () => new Map(),
   );
@@ -573,6 +580,27 @@ function JobPickupScreen({
     setIsScanning(false);
   }, []);
 
+  const allItems = deliveries.flatMap((d) => d.items);
+
+  const toggleExpandedDelivery = useCallback((deliveryId: string) => {
+    setExpandedDeliveryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(deliveryId)) {
+        next.delete(deliveryId);
+      } else {
+        next.add(deliveryId);
+      }
+      return next;
+    });
+  }, []);
+
+  const checkOffItem = useCallback((itemId: string) => {
+    setCheckedItemIds((prev) => {
+      if (prev.has(itemId)) return prev;
+      return new Set([...prev, itemId]);
+    });
+  }, []);
+
   const allChecked =
     deliveries.length > 0 &&
     deliveries.every((d) => checked.has(d.delivery.id));
@@ -677,17 +705,13 @@ function JobPickupScreen({
             const isPulsing = pulsingId === deliveryId;
             const cardError = cardErrors.get(deliveryId);
             const isPartial = d.delivery.status === "partial";
+            const isExpanded = expandedDeliveryIds.has(deliveryId);
+            const stagingCode = d.stagingLocation?.code ?? "—";
+            const stagingLabel = d.stagingLocation?.label ?? "—";
             return (
-              <button
+              <div
                 key={deliveryId}
-                ref={(el) => {
-                  if (el) cardRefs.current.set(deliveryId, el);
-                  else cardRefs.current.delete(deliveryId);
-                }}
-                type="button"
-                disabled={isChecked || isChecking}
-                onClick={() => void checkOffDelivery(d)}
-                className={`w-full text-left bg-bg-surface rounded-2xl border p-4 transition-colors disabled:cursor-default ${
+                className={`w-full text-left bg-bg-surface rounded-2xl border overflow-hidden transition-colors ${
                   isChecked
                     ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
                     : isPulsing
@@ -697,47 +721,176 @@ function JobPickupScreen({
                         : "border-border"
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`shrink-0 mt-0.5 ${
-                      isChecked ? "text-accent-green" : "text-text-secondary"
-                    }`}
+                <div className="flex items-stretch">
+                  <button
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(deliveryId, el);
+                      else cardRefs.current.delete(deliveryId);
+                    }}
+                    type="button"
+                    disabled={isChecked || isChecking}
+                    onClick={() => void checkOffDelivery(d)}
+                    className="flex-1 min-w-0 p-4 text-left disabled:cursor-default"
                   >
-                    <Svg
-                      d={isChecked ? icons.checkSquare : icons.square}
-                      size={24}
-                    />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-text-primary font-bold">
-                      Zone {d.stagingLocation?.code ?? "—"}
-                    </p>
-                    <p className="text-text-secondary text-sm">
-                      {d.vendor.name} ·{" "}
-                      {d.items.length === 1
-                        ? "1 item"
-                        : `${d.items.length} items`}
-                    </p>
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={`shrink-0 mt-0.5 ${
+                          isChecked ? "text-accent-green" : "text-text-secondary"
+                        }`}
+                      >
+                        <Svg
+                          d={isChecked ? icons.checkSquare : icons.square}
+                          size={24}
+                        />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary font-bold">
+                          Zone {stagingCode}
+                        </p>
+                        <p className="text-text-secondary text-sm">
+                          {d.vendor.name} ·{" "}
+                          {d.items.length === 1
+                            ? "1 item"
+                            : `${d.items.length} items`}
+                        </p>
+                        <span
+                          className={`inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full ${
+                            isPartial
+                              ? "bg-accent-amber/20 text-accent-amber"
+                              : "bg-accent-green/20 text-accent-green"
+                          }`}
+                        >
+                          {isPartial ? "Partial" : "Complete"}
+                        </span>
+                        {isChecking && (
+                          <p className="mt-2 text-xs text-text-secondary">
+                            Recording…
+                          </p>
+                        )}
+                        {cardError && (
+                          <p className="mt-2 text-xs text-accent-red">
+                            {cardError}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${isExpanded ? "Collapse" : "Expand"} zone ${stagingCode}`}
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleExpandedDelivery(deliveryId)}
+                    className="shrink-0 w-12 border-l border-border text-text-secondary flex items-center justify-center active:bg-bg-secondary transition-colors"
+                  >
                     <span
-                      className={`inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full ${
-                        isPartial
-                          ? "bg-accent-amber/20 text-accent-amber"
-                          : "bg-accent-green/20 text-accent-green"
+                      className={`transition-transform duration-200 ${
+                        isExpanded ? "rotate-180" : ""
                       }`}
                     >
-                      {isPartial ? "Partial" : "Complete"}
+                      <Svg d={icons.chevronDown} size={20} />
                     </span>
-                    {isChecking && (
-                      <p className="mt-2 text-xs text-text-secondary">
-                        Recording…
+                  </button>
+                </div>
+                <div
+                  className={`overflow-hidden transition-[max-height,opacity] duration-200 ${
+                    isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <div className="border-t border-border bg-bg-secondary/40 px-4 py-4">
+                    <div className="space-y-2 mb-4">
+                      {[
+                        ["Order #", d.delivery.orderNumber],
+                        ["Vendor", d.vendor.name],
+                        ["PO #", d.purchaseOrder?.poNumber ?? "—"],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="flex items-center justify-between gap-4 text-xs"
+                        >
+                          <span className="text-text-secondary">{label}</span>
+                          <span className="text-text-primary font-medium text-right">
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between gap-4 text-xs">
+                        <span className="text-text-secondary">Staging</span>
+                        <span className="text-text-primary font-medium text-right inline-flex items-center justify-end gap-2">
+                          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-bold text-accent">
+                            {stagingCode}
+                          </span>
+                          <span>{stagingLabel}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="mb-3 text-xs text-text-secondary">
+                      Mark off items as you pick them up — optional
+                    </p>
+
+                    {allItems.length === 0 ? (
+                      <p className="rounded-xl border border-border bg-bg-surface px-3 py-3 text-sm text-text-secondary">
+                        No items on record
                       </p>
-                    )}
-                    {cardError && (
-                      <p className="mt-2 text-xs text-accent-red">{cardError}</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allItems.map((item) => {
+                          const itemChecked = checkedItemIds.has(item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              disabled={itemChecked}
+                              onClick={() => checkOffItem(item.id)}
+                              className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left disabled:cursor-default"
+                            >
+                              <div className="flex items-start gap-3">
+                                <span
+                                  className={`mt-0.5 shrink-0 ${
+                                    itemChecked
+                                      ? "text-accent-green"
+                                      : "text-text-secondary"
+                                  }`}
+                                >
+                                  <Svg
+                                    d={
+                                      itemChecked
+                                        ? icons.checkSquare
+                                        : icons.square
+                                    }
+                                    size={22}
+                                  />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span
+                                    className={`block text-sm font-medium ${
+                                      itemChecked
+                                        ? "text-text-secondary line-through"
+                                        : "text-text-primary"
+                                    }`}
+                                  >
+                                    {item.description}
+                                  </span>
+                                  <span
+                                    className={`mt-1 block text-xs ${
+                                      itemChecked
+                                        ? "text-text-secondary/70 line-through"
+                                        : "text-text-secondary"
+                                    }`}
+                                  >
+                                    Qty {item.qtyOrdered}
+                                    {item.sku ? ` · SKU ${item.sku}` : ""}
+                                  </span>
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

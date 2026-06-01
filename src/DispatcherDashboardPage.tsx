@@ -1790,7 +1790,20 @@ function CopyPickupLinkButton({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    const link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}`;
+    const result = await firestoreDataService.listDeliveries({
+      jobId,
+      pageSize: 100,
+    });
+    const readyItems = result.items.filter(
+      (d) => d.status === "complete" || d.status === "partial",
+    );
+    const zones = readyItems
+      .map((d) => d.stagingLocationCode)
+      .filter(Boolean)
+      .join(",");
+    const link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}${
+      zones ? `&zones=${encodeURIComponent(zones)}` : ""
+    }`;
     await navigator.clipboard.writeText(link);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
