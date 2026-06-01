@@ -21,6 +21,7 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 3. **Next roadmap item** ? check roadmap.md for next unshipped feature.
 
 ## Last Session (2026-06-01, this session)
+- refactor: check-in flow consolidation ? delivery-ID QR scans in App.tsx now navigate to CheckInPage (richer UI); zone QRs stay in App.tsx inline flow; CheckInPage gains pending?arrived transition on load (03699ec).
 - fix: driver name input added to CheckInPage.tsx direct check-in route; replaces hardcoded "Vendor"; submit blocked until name entered (880ba2f).
 - fix: qtyDamaged numeric input added to App.tsx (adjust modal) and CheckInPage.tsx (inline when Damaged/Partial); replaces hardcoded 0 in both flows. Build clean, deployed (1ef1a67).
 - discovery: Firebase Auth already fully implemented ? LoginPage, ProtectedRoute, AuthContext, logout buttons all present.
