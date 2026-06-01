@@ -1,8 +1,8 @@
 import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { LoginPage } from "./LoginPage";
 import { seedFirestore } from "./dispatcher/seedFirestore";
@@ -15,6 +15,13 @@ const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").t
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
 const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
+
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+  if (loading) return <App />;
+  if (user) return <Navigate to="/hub" replace />;
+  return <App />;
+};
 
 const root = createRoot(document.getElementById("root")!);
 
@@ -35,7 +42,7 @@ const renderApp = () => {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/hub" element={<MobileHubPage />} />
               </Route>
-              <Route path="/" element={<App />} />
+              <Route path="/" element={<RootRedirect />} />
             </Routes>
           </Suspense>
         </HashRouter>
