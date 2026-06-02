@@ -14,6 +14,7 @@ const EntryDisplayPage = lazy(() => import("./EntryDisplayPage").then(m => ({ de
 const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").then(m => ({ default: m.DispatcherDashboardPage })));
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
 const ZoneManagementPage = lazy(() => import("./ZoneManagementPage").then(m => ({ default: m.ZoneManagementPage })));
+const VendorsPage = lazy(() => import("./VendorsPage").then(m => ({ default: m.VendorsPage })));
 const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
 
@@ -41,6 +42,7 @@ const renderApp = () => {
               <Route element={<ProtectedRoute />}>
                 <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/vendors" element={<VendorsPage />} />
                 <Route path="/zones" element={<ZoneManagementPage />} />
                 <Route path="/hub" element={<MobileHubPage />} />
               </Route>

@@ -19,7 +19,7 @@ export const PORTAL_NAV_ITEMS: PortalNavItem[] = [
   },
   {
     label: "Vendors",
-    to: "/settings?focus=vendors",
+    to: "/vendors",
     icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
   },
 ];
@@ -39,33 +39,15 @@ export function isPortalNavItemActive(
   pathname: string,
   search: string,
 ): boolean {
-  const focus = portalNavFocus(search);
+  void search;
   switch (item.label) {
     case "Dispatcher Dashboard":
       return pathname === "/dispatcher";
     case "Staging Map":
       return pathname === "/zones";
     case "Vendors":
-      return pathname === "/settings" && focus === "vendors";
+      return pathname === "/vendors";
     default:
       return false;
   }
-}
-
-/** Scroll the portal main pane to a focus section after navigation. */
-export function scrollPortalFocus(
-  focus: string | null,
-  scrollRoot: HTMLElement | null,
-): void {
-  if (!focus || !scrollRoot) return;
-  const targetId = focus === "vendors" ? "portal-vendors" : null;
-  if (!targetId) return;
-  const target = document.getElementById(targetId);
-  if (!target) return;
-  const rootTop = scrollRoot.getBoundingClientRect().top;
-  const targetTop = target.getBoundingClientRect().top;
-  scrollRoot.scrollTo({
-    top: scrollRoot.scrollTop + (targetTop - rootTop) - 12,
-    behavior: "smooth",
-  });
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
@@ -33,18 +33,11 @@ import {
 import { getAllStagingLocationIds } from "./dispatcher/models";
 import {
   PORTAL_SHELL_CLASS,
-  PORTAL_SIDEBAR_CLASS,
-  PORTAL_SIDEBAR_STYLE,
   PORTAL_MAIN_CLASS,
   PORTAL_TOPBAR_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
-import {
-  PORTAL_NAV_ITEMS,
-  PORTAL_SETTINGS_ITEM,
-  isPortalNavItemActive,
-} from "./dispatcherPortalNav";
-import { usePortalNavFocus } from "./usePortalNavFocus";
+import { PortalSidebar } from "./PortalSidebar";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -175,10 +168,7 @@ const INITIAL_PAGED: PagedResult<DeliveryListRow> = {
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
 export function DispatcherDashboardPage() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const mainScrollRef = usePortalNavFocus();
-  const isSettings = location.pathname === "/settings";
 
   const [query, setQuery] = useState<ListQueryState>({
     search: "",
@@ -570,233 +560,7 @@ export function DispatcherDashboardPage() {
   /* ── Render ── */
   return (
     <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside style={PORTAL_SIDEBAR_STYLE} className={PORTAL_SIDEBAR_CLASS}>
-        {/* Brand */}
-        <div
-          className="flex flex-col items-center px-6 pt-7 pb-5"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
-        >
-          <div
-            className="flex items-center justify-center rounded-full mb-3"
-            style={{
-              width: 60,
-              height: 60,
-              backgroundColor: "#fff",
-              border: `3px solid ${RED}`,
-              boxShadow: "0 2px 12px rgba(0,0,0,0.20)",
-            }}
-          >
-            <span
-              style={{
-                color: NAVY,
-                fontWeight: 900,
-                fontSize: 20,
-                letterSpacing: "-0.04em",
-              }}
-            >
-              SV
-            </span>
-          </div>
-          <span
-            style={{
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 14,
-              letterSpacing: "0.08em",
-            }}
-          >
-            STAGEVERIFY
-          </span>
-          <span
-            style={{
-              color: "rgba(255,255,255,0.45)",
-              fontSize: 11,
-              marginTop: 2,
-            }}
-          >
-            Dispatcher Portal
-          </span>
-        </div>
-
-        {/* Nav label */}
-        <div className="px-5 pt-5 pb-1">
-          <span
-            style={{
-              color: "rgba(255,255,255,0.35)",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}
-          >
-            Main Menu
-          </span>
-        </div>
-
-        {/* Nav links */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 space-y-0.5">
-          {PORTAL_NAV_ITEMS.map((item) => {
-            const active = isPortalNavItemActive(
-              item,
-              location.pathname,
-              location.search,
-            );
-
-            return (
-            <Link
-              key={item.label}
-              to={item.to}
-              style={
-                active
-                  ? {
-                      backgroundColor: RED,
-                      color: "#fff",
-                      borderRadius: 6,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "18px 20px",
-                      fontWeight: 700,
-                      fontSize: 15,
-                      textDecoration: "none",
-                      boxShadow: `0 2px 8px rgba(191,10,48,0.35)`,
-                    }
-                  : {
-                      color: "rgba(255,255,255,0.60)",
-                      borderRadius: 6,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "18px 20px",
-                      fontWeight: 700,
-                      fontSize: 15,
-                      textDecoration: "none",
-                      transition: "background 0.15s, color 0.15s",
-                    }
-              }
-              onMouseEnter={(e) => {
-                if (!active) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor =
-                    "rgba(255,255,255,0.08)";
-                  (e.currentTarget as HTMLElement).style.color = "#fff";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!active) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor =
-                    "transparent";
-                  (e.currentTarget as HTMLElement).style.color =
-                    "rgba(255,255,255,0.60)";
-                }
-              }}
-            >
-              <svg
-                width={16}
-                height={16}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.9}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-                style={{ flexShrink: 0 }}
-              >
-                {item.icon.split(" M").map((part, i) => (
-                  <path key={i} d={i === 0 ? part : "M" + part} />
-                ))}
-              </svg>
-              {item.label}
-            </Link>
-            );
-          })}
-        </nav>
-
-        {/* Settings — pinned to bottom */}
-        <div
-          className="px-3 pb-2 shrink-0"
-          style={{
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-            paddingTop: 8,
-          }}
-        >
-          <Link
-            to={PORTAL_SETTINGS_ITEM.to}
-            style={
-              isSettings
-                ? {
-                    backgroundColor: RED,
-                    color: "#fff",
-                    borderRadius: 6,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "18px 20px",
-                    fontWeight: 700,
-                    fontSize: 15,
-                    textDecoration: "none",
-                    boxShadow: "0 2px 8px rgba(191,10,48,0.35)",
-                  }
-                : {
-                    color: "rgba(255,255,255,0.60)",
-                    borderRadius: 6,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "18px 20px",
-                    fontWeight: 700,
-                    fontSize: 15,
-                    textDecoration: "none",
-                    transition: "background 0.15s, color 0.15s",
-                  }
-            }
-            onMouseEnter={(e) => {
-              if (!isSettings) {
-                (e.currentTarget as HTMLElement).style.backgroundColor =
-                  "rgba(255,255,255,0.08)";
-                (e.currentTarget as HTMLElement).style.color = "#fff";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isSettings) {
-                (e.currentTarget as HTMLElement).style.backgroundColor =
-                  "transparent";
-                (e.currentTarget as HTMLElement).style.color =
-                  "rgba(255,255,255,0.60)";
-              }
-            }}
-          >
-            <svg
-              width={16}
-              height={16}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.9}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-              style={{ flexShrink: 0 }}
-            >
-              {PORTAL_SETTINGS_ITEM.icon.split(" M").map((part, i) => (
-                <path key={i} d={i === 0 ? part : "M" + part} />
-              ))}
-            </svg>
-            {PORTAL_SETTINGS_ITEM.label}
-          </Link>
-        </div>
-
-        {/* Footer */}
-        <div
-          className="px-5 py-4 text-center shrink-0"
-          style={{
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.30)",
-            fontSize: 11,
-          }}
-        >
-          v1.0 &nbsp;·&nbsp; StageVerify
-        </div>
-      </aside>
+      <PortalSidebar />
 
       {/* ── Main Content ─────────────────────────────────────────── */}
       <div
@@ -907,7 +671,6 @@ export function DispatcherDashboardPage() {
 
         {/* Page content — scrolls independently of sidebar and top bar */}
         <div
-          ref={mainScrollRef}
           className={PORTAL_SCROLL_CLASS}
           style={{ backgroundColor: "#f0f2f5" }}
         >

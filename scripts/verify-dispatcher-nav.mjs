@@ -46,7 +46,7 @@ async function ensureAuthenticated(page) {
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/#\/(dispatcher|settings|hub|zones)/, {
+  await page.waitForURL(/\/#\/(dispatcher|settings|hub|zones|vendors)/, {
     timeout: 20_000,
   });
 
@@ -103,12 +103,11 @@ function sidebar(page) {
   console.log("Sidebar: Vendors…");
   await nav.getByRole("link", { name: "Vendors", exact: true }).click();
   await page.waitForTimeout(400);
-  assertUrl(page, /\/settings/, "Vendors");
-  if (!page.url().includes("focus=vendors")) {
-    throw new Error(`Vendors: expected focus=vendors in URL, got ${page.url()}`);
-  }
-  await page.locator("#portal-vendors").waitFor({
-    state: "visible",
+  assertUrl(page, /\/vendors/, "Vendors");
+  await page.getByRole("heading", { name: "Vendors", exact: true }).waitFor({
+    timeout: 15_000,
+  });
+  await page.getByRole("button", { name: "Add Vendor" }).waitFor({
     timeout: 15_000,
   });
 
@@ -129,6 +128,11 @@ function sidebar(page) {
   await page.getByRole("heading", { name: "Settings" }).waitFor({
     timeout: 15_000,
   });
+  if (
+    (await page.getByRole("button", { name: "Add Vendor" }).count()) > 0
+  ) {
+    throw new Error("Settings should not include Add Vendor form");
+  }
 
   console.log("Return to dispatcher for top bar…");
   await nav
