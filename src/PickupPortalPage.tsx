@@ -73,6 +73,21 @@ function isPickupReady(status: DeliveryStatus): boolean {
   );
 }
 
+function isStagedItemsCheckedOff(
+  delivery: DeliveryDetails,
+  checkedItemIds: Set<string>,
+): boolean {
+  return (
+    delivery.items.length === 0 ||
+    delivery.items.every((item) => checkedItemIds.has(item.id))
+  );
+}
+
+function isDeliveryAlreadyPickedUp(delivery: DeliveryDetails): boolean {
+  const status = delivery.delivery.status;
+  return status === "picked_up" || status === "installed";
+}
+
 function formatCountdown(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -677,27 +692,60 @@ function JobPickupScreen({
     [checkedShopStockKeys],
   );
 
-  const handleDone = useCallback(() => {
-    if (submittedRef.current) return;
-    const allChecked =
-      deliveries.length > 0 &&
-      deliveries.every((d) => checkedRef.current.has(d.delivery.id));
-    if (!allChecked) return;
+  const isDeliveryChecklistComplete = useCallback(
+    (d: DeliveryDetails): boolean =>
+      isStagedItemsCheckedOff(d, checkedItemIds) &&
+      isShopStockCompleteForDelivery(d),
+    [checkedItemIds, isShopStockCompleteForDelivery],
+  );
+
+  const readyToFinish =
+    deliveries.length > 0 &&
+    deliveries.every(isDeliveryChecklistComplete);
+
+  const handleDone = useCallback(async () => {
+    if (submittedRef.current || submitting || !readyToFinish) return;
+
     submittedRef.current = true;
-    setSubmitted(true);
-  }, [deliveries]);
+    setSubmitting(true);
+    setError(null);
+
+    const needsPickupRecord = deliveries.filter(
+      (d) =>
+        !checkedRef.current.has(d.delivery.id) &&
+        !isDeliveryAlreadyPickedUp(d),
+    );
+
+    try {
+      for (const d of needsPickupRecord) {
+        await firestoreDataService.recordPickupEvent(
+          d.delivery.id,
+          "Technician",
+          `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
+          notes || undefined,
+        );
+      }
+      setChecked(new Set(deliveries.map((d) => d.delivery.id)));
+      setSubmitted(true);
+    } catch {
+      submittedRef.current = false;
+      setError("Failed to record pickup. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [deliveries, notes, readyToFinish, submitting]);
 
   const handleAutoSubmit = useCallback(async () => {
     if (submittedRef.current || submitting) return;
 
-    const blockedByShopStock = deliveries.some(
+    const blockedByChecklist = deliveries.some(
       (d) =>
         !checkedRef.current.has(d.delivery.id) &&
-        !isShopStockCompleteForDelivery(d),
+        !isDeliveryChecklistComplete(d),
     );
-    if (blockedByShopStock) {
+    if (blockedByChecklist) {
       setError(
-        "Auto-submit cancelled — check all shop stock items before completing pickup.",
+        "Auto-submit cancelled — check off all staged items and shop stock first.",
       );
       setAutoSubmitSecondsLeft(null);
       return;
@@ -710,7 +758,7 @@ function JobPickupScreen({
     const unchecked = deliveries.filter(
       (d) =>
         !checkedRef.current.has(d.delivery.id) &&
-        isShopStockCompleteForDelivery(d),
+        isDeliveryChecklistComplete(d),
     );
 
     try {
@@ -730,7 +778,7 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, notes, submitting, isShopStockCompleteForDelivery]);
+  }, [deliveries, notes, submitting, isDeliveryChecklistComplete]);
 
   useEffect(() => {
     if (
@@ -803,15 +851,6 @@ function JobPickupScreen({
     });
   }, []);
 
-  const allChecked =
-    deliveries.length > 0 &&
-    deliveries.every(
-      (d) =>
-        checked.has(d.delivery.id) ||
-        d.delivery.status === "picked_up" ||
-        d.delivery.status === "installed",
-    );
-
   if (isScanning) {
     return (
       <QrScannerOverlay
@@ -837,9 +876,12 @@ function JobPickupScreen({
           <Svg d={icons.check} size={48} />
         </div>
         <h2 className="text-3xl font-bold text-text-primary mb-4">
-          Pickup recorded
+          All Items Picked Up!
         </h2>
-        <p className="text-base text-text-secondary mb-12">
+        <p className="text-base text-text-secondary mb-2">
+          Staged materials and shop stock are complete for this job.
+        </p>
+        <p className="text-sm text-text-secondary mb-12">
           {zoneSummary(deliveries)}
         </p>
         <button
@@ -1200,18 +1242,33 @@ function JobPickupScreen({
         )}
       </div>
 
-      <div className="shrink-0 px-6 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-2 border-t border-border bg-bg-primary">
+      <div
+        className={`shrink-0 px-6 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-3 border-t bg-bg-primary transition-colors ${
+          readyToFinish ? "border-accent-green/50 bg-accent-green/5" : "border-border"
+        }`}
+      >
+        {readyToFinish && (
+          <p className="text-center text-sm font-semibold text-accent-green mb-2">
+            All items picked up — tap Done to finish
+          </p>
+        )}
         {autoSubmitMinutes > 0 &&
           autoSubmitSecondsLeft !== null &&
-          autoSubmitSecondsLeft > 0 && (
+          autoSubmitSecondsLeft > 0 &&
+          !readyToFinish && (
             <p className="text-center text-xs text-text-secondary mb-2">
               Auto-submitting in {formatCountdown(autoSubmitSecondsLeft)}
             </p>
           )}
         <button
-          onClick={handleDone}
-          disabled={submitting || !allChecked}
-          className="action-btn action-btn-delivered w-full disabled:opacity-40"
+          type="button"
+          onClick={() => void handleDone()}
+          disabled={submitting || !readyToFinish}
+          className={`action-btn action-btn-delivered w-full transition-all duration-300 ${
+            readyToFinish
+              ? "ring-4 ring-accent-green/50 shadow-[0_0_28px_rgba(34,197,94,0.35)] scale-[1.02] animate-pulse"
+              : "opacity-50 cursor-not-allowed"
+          }`}
         >
           {submitting ? "Submitting…" : "Done — All Picked Up ✓"}
         </button>

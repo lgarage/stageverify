@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: MVP complete ? full delivery lifecycle live (Ordered?Shipped?Received?Staged?Picked Up?Installed)
-- Last shipped: Pickup portal UX ? toggle checkmarks; delivery details always visible (no collapse).
+- Last shipped: Pickup portal ? highlighted Done when all items checked; "All Items Picked Up!" finish screen.
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2, qrcode.react. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 
@@ -19,6 +19,8 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 1. **ESL Cloud Function** (backend-write-critical) ??? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-02, this session)
+- feat: Pickup portal Done button glows when staged + shop stock checked; Done records pickup; success screen "All Items Picked Up!".
+## Prev Session (2026-06-02)
 - fix: Pickup portal ? uncheck staged/shop-stock lines; order/vendor/PO/staging visible on job load (removed collapse).
 ## Prev Session (2026-06-02)
 - feat: Shop Stock Pick List ? `shopStockPickListItems` + location note on delivery; dispatcher drawer editor; pickup portal "Additional Shop Stock" checkboxes + completion gate (incl. auto-submit); Sonnet review fixes.
