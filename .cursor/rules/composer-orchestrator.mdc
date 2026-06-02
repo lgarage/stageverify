@@ -26,6 +26,7 @@ Pattern: state your interpretation first ("I'm reading this as X — is that rig
 - Do **exactly** what was asked. Nothing more.
 - If you notice a related improvement while working, mention it in your response but do **not** implement it unless the user explicitly confirms.
 - Do not add extra fields, buttons, columns, validations, or UI elements beyond what was requested.
+- **Stay streamlined:** learn via code fixes + at most one row in `USER_SCOPE_REJECTIONS.md` (≤8 rows). Do not add rules files, long checklists, or duplicate lessons across PROJECT_STATUS.
 
 ## Post-Edit Build Gate — MANDATORY
 After every set of file edits, run:

@@ -17,7 +17,7 @@
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
 | `billing` | model / tier pick | Composer 2.5 default; Sonnet 4.6 for gate/review only |
 | `agent-lessons` | repeating mistakes, "say fixed" too early | Read **§ agent-lessons** before public routes / UI pickup fixes |
-| `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | Read **PROJECT_STATUS/USER_SCOPE_REJECTIONS.md** — do not re-ship rejected UI |
+| `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, target)`.
