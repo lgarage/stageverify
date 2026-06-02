@@ -10,6 +10,7 @@ import {
   listAllZones,
   createZone,
 } from "./dispatcher/firestoreService";
+import { PORTAL_SIDEBAR_STYLE } from "./dispatcherPortalLayout";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -372,11 +373,7 @@ export function SettingsPage() {
     <div style={{ fontFamily: FONT }} className="min-h-screen flex">
       {/* Sidebar */}
       <aside
-        style={{
-          backgroundColor: NAVY,
-          minHeight: "100vh",
-          boxShadow: "rgba(0,0,0,0.15) 2px 0px 10px 0px",
-        }}
+        style={PORTAL_SIDEBAR_STYLE}
         className="w-60 flex-shrink-0 hidden md:flex flex-col z-20"
       >
         <div
@@ -439,7 +436,7 @@ export function SettingsPage() {
           </span>
         </div>
 
-        <nav className="flex-1 px-3 pb-4 space-y-0.5">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const active =
               item.label === "Dispatcher Dashboard" ? isDashboard : false;
@@ -477,7 +474,7 @@ export function SettingsPage() {
         </nav>
 
         <div
-          className="px-3 pb-2"
+          className="px-3 pb-2 shrink-0"
           style={{
             borderTop: "1px solid rgba(255,255,255,0.08)",
             paddingTop: 8,
@@ -508,7 +505,7 @@ export function SettingsPage() {
         </div>
 
         <div
-          className="px-5 py-4 text-center"
+          className="px-5 py-4 text-center shrink-0"
           style={{
             borderTop: "1px solid rgba(255,255,255,0.08)",
             color: "rgba(255,255,255,0.30)",
