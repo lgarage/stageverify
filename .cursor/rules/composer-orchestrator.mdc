@@ -60,10 +60,8 @@ Before adding a new React component or page, read 1–2 similar existing files f
 - The task involves non-obvious cross-file dependencies requiring deep architectural reasoning
 - You are genuinely unsure whether a change has security or data integrity implications
 
-### Escalate to Opus 4.6 via Task subagent when:
-- Any change to `firestore.rules`
-- Any Cloud Function write path or schema migration
-- Any change to authentication or authorization logic
+### Escalation triggers — Opus 4.6 (locked fallback only)
+Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review returns a HIGH risk finding that Composer cannot resolve. Do not dispatch Opus for the implementation of T3 work — Composer handles that inline during the trial.
 
 ## Session Defaults (user-confirmed preferences)
 
@@ -84,7 +82,11 @@ Both steps happen together in response to a single "push" or "deploy" instructio
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
 
 ### Security gate
-Run the security gate **automatically** after every `backend-write-critical` commit (any change to `firestore.rules`, Cloud Function write paths, or auth logic). Do not wait to be asked. Invoke Sonnet 4.6 as a Task subagent for the review.
+Run the Sonnet 4.6 security gate **automatically** (Task subagent) after:
+- Every `backend-write-critical` commit (firestore.rules, Cloud Function write paths, auth logic)
+- Every T2 commit that touches auth UI, route guards, or Firestore reads
+
+Do not wait to be asked. If Sonnet returns a HIGH risk finding, fix it before pushing.
 
 ### T3 / backend-write-critical during Composer trial
 Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` commit, automatically run the Sonnet 4.6 security gate as a Task subagent before declaring done. Do not dispatch Opus for the implementation unless Sonnet's security review finds a HIGH risk that Composer cannot resolve.
@@ -99,3 +101,8 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Use `any` in TypeScript — always resolve types correctly.
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
 ❌ Push to origin without being asked — commit locally, let the user decide when to deploy.
+
+## Rule File Self-Maintenance
+If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.
+
+Do not let stale wording accumulate — fix contradictions when you see them.
