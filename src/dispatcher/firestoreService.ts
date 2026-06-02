@@ -555,6 +555,8 @@ export class FirestoreDataService implements DispatcherDataService {
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
 
+    await assertDeliveryStagingLocationsAvailable(delivery);
+
     const existingItems = await fetchWhere<Item>(
       "items",
       "deliveryOrderId",
@@ -1068,6 +1070,15 @@ async function assertStagingLocationAvailable(
       occupant.locationCode,
       occupant.orderNumber,
     );
+  }
+}
+
+/** Re-check every staging spot on a delivery before commit (catches races / stale UI). */
+export async function assertDeliveryStagingLocationsAvailable(
+  delivery: DeliveryOrder,
+): Promise<void> {
+  for (const locId of getAllStagingLocationIds(delivery)) {
+    await assertStagingLocationAvailable(locId, delivery.id);
   }
 }
 

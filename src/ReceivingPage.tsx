@@ -24,6 +24,7 @@ import {
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
+import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import {
   shouldRouteScanToPickup,
   type DeliveryDetails,
@@ -495,7 +496,14 @@ export function ReceivingPage() {
       );
       if (updated) setDeliveryDetails(updated);
       setStep("done");
-    } catch {
+    } catch (err) {
+      if (isStagingLocationOccupiedError(err)) {
+        showToast(err.message);
+        void mapOccupancyByLocationId(deliveryDetails.delivery.id).then(
+          setZoneOccupancy,
+        );
+        return;
+      }
       setError("Failed to submit check-in");
     } finally {
       setLoading(false);
@@ -992,6 +1000,27 @@ export function ReceivingPage() {
               >
                 Skip (no zone)
               </button>
+
+              {stagingLocationId && (
+                <div className="mt-6">
+                  <NeedMoreSpaceButton
+                    delivery={{
+                      ...deliveryDetails.delivery,
+                      stagingLocationId:
+                        stagingLocationId ??
+                        deliveryDetails.delivery.stagingLocationId,
+                    }}
+                    onDeliveryUpdated={(updated) => {
+                      setDeliveryDetails((prev) =>
+                        prev ? { ...prev, delivery: updated } : prev,
+                      );
+                      void mapOccupancyByLocationId(updated.id).then(
+                        setZoneOccupancy,
+                      );
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="px-4 py-4 border-t border-border shrink-0 space-y-3">
@@ -1059,6 +1088,15 @@ export function ReceivingPage() {
               </p>
             </div>
             <div className="w-full max-w-sm space-y-3">
+              <NeedMoreSpaceButton
+                delivery={deliveryDetails.delivery}
+                onDeliveryUpdated={(updated) => {
+                  setDeliveryDetails((prev) =>
+                    prev ? { ...prev, delivery: updated } : prev,
+                  );
+                }}
+                className="mb-2"
+              />
               <button
                 type="button"
                 onClick={resetFlow}

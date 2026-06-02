@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { auth } from "./firebase";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
+import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import { DispatcherPortalLinks } from "./PortalNavBar";
 import {
   firestoreDataService,
@@ -22,12 +23,14 @@ import {
   VALID_TRANSITIONS,
   type DeliveryDetails,
   type DeliveryListRow,
+  type DeliveryOrder,
   type DeliverySortField,
   type DeliveryStatus,
   type PagedResult,
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
+import { getAllStagingLocationIds } from "./dispatcher/models";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -1823,6 +1826,12 @@ export function DispatcherDashboardPage() {
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
                 onUpdatePurchaseOrder={handleUpdatePurchaseOrder}
+                onDeliveryOrderUpdated={(delivery) => {
+                  setSelectedDetails((prev) =>
+                    prev ? { ...prev, delivery } : prev,
+                  );
+                  void fetchAllData();
+                }}
               />
             </div>
           </div>
@@ -2073,6 +2082,7 @@ function DetailContent({
   stagingLocations,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
+  onDeliveryOrderUpdated,
 }: {
   loading: boolean;
   error: string | null;
@@ -2093,6 +2103,7 @@ function DetailContent({
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
+  onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
 
@@ -2164,6 +2175,7 @@ function DetailContent({
         onUpdateShopStockPickList={onUpdateShopStockPickList}
         onUpdateStagingLocation={onUpdateStagingLocation}
         onUpdatePurchaseOrder={onUpdatePurchaseOrder}
+        onDeliveryOrderUpdated={onDeliveryOrderUpdated}
         stagingLocations={stagingLocations}
         navy={navy}
         font={font}
@@ -2762,6 +2774,7 @@ function StatusActionPanel({
   onUpdateShopStockPickList,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
+  onDeliveryOrderUpdated,
   stagingLocations,
   navy,
   font,
@@ -2780,6 +2793,7 @@ function StatusActionPanel({
   ) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
+  onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   stagingLocations: StagingLocation[];
   navy: string;
   font: string;
@@ -3441,6 +3455,17 @@ function StatusActionPanel({
             {loading ? "Saving…" : "Assign"}
           </button>
         </div>
+        {getAllStagingLocationIds(details.delivery).length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <NeedMoreSpaceButton
+              delivery={details.delivery}
+              onDeliveryUpdated={(updated) => {
+                onDeliveryOrderUpdated(updated);
+                void mapOccupancyByLocationId(updated.id).then(setZoneOccupancy);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: 16 }}>

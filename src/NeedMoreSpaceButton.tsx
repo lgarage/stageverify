@@ -5,66 +5,15 @@ import {
   mapOccupancyByLocationId,
 } from "./dispatcher/firestoreService";
 import {
-  getAllStagingLocationIds,
-  isLocationActive,
-  isOversizedSpot,
   type DeliveryOrder,
   type StagingLocation,
 } from "./dispatcher/models";
-import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
+import {
+  isStagingLocationOccupiedError,
+  recommendNeedMoreSpaceSpots,
+} from "./dispatcher/stagingOccupancy";
 
 type FlowState = "idle" | "suggesting" | "suggestingOversized" | "done";
-
-const sortByProximity = (a: StagingLocation, b: StagingLocation): number =>
-  (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
-
-const isShelfType = (type: StagingLocation["type"]): boolean =>
-  type === "shelf" || type === "bin";
-
-function pickShelfSpot(
-  locations: StagingLocation[],
-  blocked: Set<string>,
-): StagingLocation | undefined {
-  return locations
-    .filter(
-      (loc) =>
-        isLocationActive(loc) &&
-        !blocked.has(loc.id) &&
-        !isOversizedSpot(loc) &&
-        isShelfType(loc.type),
-    )
-    .sort(sortByProximity)[0];
-}
-
-function pickGroundSpot(
-  locations: StagingLocation[],
-  blocked: Set<string>,
-): StagingLocation | undefined {
-  return locations
-    .filter(
-      (loc) =>
-        isLocationActive(loc) &&
-        !blocked.has(loc.id) &&
-        !isOversizedSpot(loc) &&
-        loc.type === "ground",
-    )
-    .sort(sortByProximity)[0];
-}
-
-function pickOversizedGroundSpot(
-  locations: StagingLocation[],
-  blocked: Set<string>,
-): StagingLocation | undefined {
-  return locations
-    .filter(
-      (loc) =>
-        isLocationActive(loc) &&
-        !blocked.has(loc.id) &&
-        loc.type === "ground" &&
-        isOversizedSpot(loc),
-    )
-    .sort(sortByProximity)[0];
-}
 
 function formatSizeLine(
   loc: StagingLocation,
@@ -132,35 +81,59 @@ export function NeedMoreSpaceButton({
     setLocalDelivery(delivery);
   }, [delivery]);
 
-  const loadAndRecommend = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setNoLargerMessage(false);
-    try {
-      const all = await firestoreDataService.listStagingLocations();
-      const occupancy = await mapOccupancyByLocationId(localDelivery.id);
-      const blocked = new Set([
-        ...getAllStagingLocationIds(localDelivery),
-        ...Object.keys(occupancy),
-      ]);
-      const shelf = pickShelfSpot(all, blocked);
-      const ground = pickGroundSpot(all, blocked);
-      const oversized = pickOversizedGroundSpot(all, blocked);
+  const applyRecommendations = useCallback(
+    (
+      all: StagingLocation[],
+      forDelivery: DeliveryOrder,
+      occupiedIds: string[],
+    ): boolean => {
+      const { shelfSpot: shelf, groundSpot: ground, oversizedSpot: oversized } =
+        recommendNeedMoreSpaceSpots(all, forDelivery, occupiedIds);
       setShelfSpot(shelf);
       setGroundSpot(ground);
       setOversizedSpot(oversized);
 
       if (shelf || ground) {
         setFlowState("suggesting");
-      } else if (oversized) {
+        return true;
+      }
+      if (oversized) {
         setFlowState("suggestingOversized");
-      } else {
+        return true;
+      }
+      return false;
+    },
+    [],
+  );
+
+  const loadAndRecommend = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    setNoLargerMessage(false);
+    try {
+      const all = await firestoreDataService.listStagingLocations();
+      const occupancy = await mapOccupancyByLocationId(localDelivery.id);
+      const hasSpot = applyRecommendations(
+        all,
+        localDelivery,
+        Object.keys(occupancy),
+      );
+      if (!hasSpot) {
         setNoLargerMessage(true);
         window.setTimeout(() => setFlowState("done"), 2500);
       }
     } finally {
       setLoading(false);
     }
-  }, [localDelivery]);
+  }, [applyRecommendations, localDelivery]);
+
+  const refreshAfterOccupiedConflict = useCallback(async () => {
+    setConfirmLabel(null);
+    setNoLargerMessage(false);
+    window.alert(
+      "That spot was just taken by another order. Showing the next available options.",
+    );
+    await loadAndRecommend();
+  }, [loadAndRecommend]);
 
   const applyAddedLocation = (locationId: string, label: string) => {
     const updated: DeliveryOrder = {
@@ -193,15 +166,12 @@ export function NeedMoreSpaceButton({
         setConfirmLabel(null);
         void firestoreDataService.listStagingLocations().then(async (all) => {
           const occupancy = await mapOccupancyByLocationId(updated.id);
-          const blocked = new Set([
-            ...getAllStagingLocationIds(updated),
-            ...Object.keys(occupancy),
-          ]);
-          const oversized = pickOversizedGroundSpot(all, blocked);
-          setOversizedSpot(oversized);
-          if (oversized) {
-            setFlowState("suggestingOversized");
-          } else {
+          const hasSpot = applyRecommendations(
+            all,
+            updated,
+            Object.keys(occupancy),
+          );
+          if (!hasSpot) {
             setNoLargerMessage(true);
             window.setTimeout(() => setFlowState("done"), 2500);
           }
@@ -209,9 +179,7 @@ export function NeedMoreSpaceButton({
       }, 2000);
     } catch (err) {
       if (isStagingLocationOccupiedError(err)) {
-        setConfirmLabel(null);
-        setNoLargerMessage(false);
-        window.alert(err.message);
+        await refreshAfterOccupiedConflict();
       } else {
         throw err;
       }
@@ -231,7 +199,7 @@ export function NeedMoreSpaceButton({
       }, 2000);
     } catch (err) {
       if (isStagingLocationOccupiedError(err)) {
-        window.alert(err.message);
+        await refreshAfterOccupiedConflict();
       } else {
         throw err;
       }
