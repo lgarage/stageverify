@@ -5,6 +5,11 @@
 > unverified locally until rows accrue. Log outcomes per agent-ops skill §8
 > (append one line to cursor-agent-brain/outcomes/<machine>.jsonl, then push).
 
+## Billing profile (confirmed 2026-06-02)
+- **Auto + Composer quota**: ~5% used — Composer 2.5 Fast is essentially free within the plan.
+- **API quota**: 100% used + $262.53 on-demand overage — Sonnet 4.6 / Opus 4.6 cost real money.
+- **Policy**: Default every file edit to Composer 2.5 Fast. Reserve Sonnet 4.6 for orchestration, security gate, and T2 tasks that need deeper reasoning. Reserve Opus 4.6 for T3 backend-write-critical only.
+
 ## Local risk profile
 - **Mixed SPA + backend.** Firebase Firestore + Cloud Functions v2 are live (Blaze plan, project: stageverify-db).
   Frontend work (T0–T2): Tailwind restyles, React components, routing, TS model refactors.

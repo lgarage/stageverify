@@ -10,8 +10,9 @@ alwaysApply: true
 1. **Archetype** — classify the task (e.g. `ui-component`, `multi-file-feature`, `css-restyle`, `backend-write-critical`)
 2. **Recommended model** — look up the tier table; state tier (T0/T1/T2) and the default model
 3. **Dispatch decision** — are you dispatching a subagent, or doing it inline? Justify inline only if:
-   - The edit is a single line / trivial fix already mid-conversation, OR
    - You are already inside a subagent context
+
+> **Billing priority (stageverify):** Auto + Composer quota is largely unused; API (Sonnet/Opus) is at cap and burning on-demand spend. Default to Composer 2.5 Fast for **everything possible**. Sonnet 4.6 is reserved only for orchestration decisions, security-gate review, and T2 tasks that genuinely require it. Even git commits and changelog writes should be dispatched to Composer 2.5 Fast when they involve file edits.
 
 ## Tier defaults (stageverify)
 
@@ -19,10 +20,10 @@ alwaysApply: true
 |------|-----------|-------|
 | T0 | `ui-component`, `css-restyle`, `docs-update` | **Composer 2.5 Fast** |
 | T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** |
-| T2 | `multi-file-feature` with auth/routing/Firestore reads | **Sonnet 4.6** |
+| T2 | `multi-file-feature` with auth/routing/Firestore reads | **Composer 2.5 Fast** (prefer) · Sonnet 4.6 only if reasoning depth required |
 | T3 | `backend-write-critical` (rules, CF write paths, schema migrations) | **Opus 4.6** |
 
-## How to dispatch T0/T1 work
+## How to dispatch T0/T1/T2 work
 
 ```
 Task tool → subagent_type: "best-of-n-runner" or "generalPurpose", model: "composer-2.5-fast"
@@ -32,6 +33,8 @@ Provide the subagent with: file paths, exact goal, build command to verify (`npm
 
 ## What NOT to do
 
-❌ Classify a task, decide it's T1, then edit files directly because "I'm already here."
+❌ Classify a task, decide it's T1 or T2, then edit files directly because "I'm already here."
 ❌ Skip the archetype statement and jump straight to StrReplace.
+❌ Use Sonnet 4.6 for file edits when Composer 2.5 Fast can do the job.
 ✅ State archetype + tier + dispatch decision first, every time, no exceptions.
+✅ When in doubt, dispatch to Composer 2.5 Fast.
