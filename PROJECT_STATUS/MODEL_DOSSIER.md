@@ -31,8 +31,16 @@
 - QR/camera via html5-qrcode → device-integration (test on a real device; camera perms differ).
 
 ## Local gotchas
-- **Minew ESL zone QR** — `buildZoneEslQrUrl` / `formatZoneEslStatusLine` (`receiveQrUrls.ts`): occupied → `?id=`, empty → `?zone=`; not paper labels; `mapActiveZoneOccupancyByCode` for tag content.
+- **Minew ESL zone QR** — `buildZoneEslQrUrl`; occupied → `?id=`, empty → `?zone=`; `mapActiveZoneOccupancyByCode`.
 - **New `DeliveryStatus`** — if terminal, add to `RECEIVE_BLOCKED_DELIVERY_STATUSES` same change.
+
+## Composer quality bar (Sonnet audits — keep ≤6 bullets, rotate old to archives)
+- **zone-lookup-always-use-canonical-fn** — never inline `listDeliveries` + `stagingLocationCode`; use `getDeliveryDetailsPublicByStagingCode` everywhere (App + Receive).
+- **deep-link-three-layer** — `hasReceiveDeepLink` / `deepLinkPending` / `urlDeepLinkHandledRef` before starting camera on `/receive`.
+- **encodeURIComponent-on-qr-params** — all `?id=` / `?zone=` in `receiveQrUrls.ts`.
+- **no-any-mirror-typed-interface** — shared `qrScannerTypes.ts` for html5-qrcode.
+- **no-duplicate-collection-reads** — pass preloaded `stagingLocations` when building occupancy map on zone page (TODO when scaling).
+- **fn-name-must-match-behavior** — `deactivateZone` sets Planned; rename if behavior changes.
 
 ## Active outcome log (≤ ~15 rows, then rotate to archives/outcomes/YYYY-Www.md)
 | Date | Task | Archetype | Model | Conf→ | Outcome | Note |

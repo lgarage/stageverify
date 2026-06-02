@@ -4,7 +4,9 @@ import {
   firestoreDataService,
   getAppSettings,
   getDeliveryDetailsPublic,
+  getDeliveryDetailsPublicByStagingCode,
 } from "./dispatcher/firestoreService";
+import type { Html5QrcodeInstance } from "./qrScannerTypes";
 import type {
   DeliveryOrder,
   Item,
@@ -151,14 +153,15 @@ function ScanScreen() {
 
   useEffect(() => {
     let isMounted = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let html5QrCode: any = null;
+    let html5QrCode: Html5QrcodeInstance | null = null;
     let handledDecode = false;
 
     if (isScanning) {
       import("html5-qrcode").then(({ Html5Qrcode }) => {
         if (!isMounted) return;
-        html5QrCode = new Html5Qrcode("reader");
+        html5QrCode = new Html5Qrcode(
+          "reader",
+        ) as unknown as Html5QrcodeInstance;
         html5QrCode
           .start(
             { facingMode: "environment" },
@@ -175,30 +178,35 @@ function ScanScreen() {
                   return;
                 }
 
-                // Zone QRs → resolve delivery assigned to that zone
-                const lookupValue = extracted.value;
-                const result = await firestoreDataService.listDeliveries({
-                  pageSize: 100,
-                });
-                const match = result.items.find(
-                  (d) =>
-                    d.stagingLocationCode === lookupValue &&
-                    d.status !== "picked_up",
-                );
-
-                if (match) {
-                  if (match.status === "pending") {
-                    await firestoreDataService.updateDeliveryStatus(
-                      match.deliveryId,
-                      "arrived",
-                    );
-                  }
-                  if (isMounted) await handleDeliveryFound(match.deliveryId);
-                } else {
+                // Zone QRs → same lookup as ReceivingPage / ESL plan
+                const zoneCode =
+                  extracted.type === "zone" || extracted.type === "raw"
+                    ? extracted.value.trim()
+                    : "";
+                if (!zoneCode) {
                   if (isMounted) {
                     setIsScanning(false);
                     setNotFoundCode(decodedText);
                   }
+                  return;
+                }
+
+                const details =
+                  await getDeliveryDetailsPublicByStagingCode(zoneCode);
+
+                if (details) {
+                  if (details.delivery.status === "pending") {
+                    await firestoreDataService.updateDeliveryStatus(
+                      details.delivery.id,
+                      "arrived",
+                    );
+                  }
+                  if (isMounted) {
+                    await handleDeliveryFound(details.delivery.id);
+                  }
+                } else if (isMounted) {
+                  setIsScanning(false);
+                  setNotFoundCode(decodedText);
                 }
               })();
             },
@@ -215,13 +223,12 @@ function ScanScreen() {
 
     return () => {
       isMounted = false;
-      if (html5QrCode) {
+      const scanner = html5QrCode;
+      if (scanner) {
         try {
-          html5QrCode
+          void scanner
             .stop()
-            .then(() => {
-              html5QrCode.clear();
-            })
+            .then(() => scanner.clear())
             .catch(() => {});
         } catch {
           // ignore

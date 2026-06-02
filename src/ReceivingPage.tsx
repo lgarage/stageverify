@@ -20,6 +20,7 @@ import {
   type DeliveryDetails,
   type StagingLocation,
 } from "./dispatcher/models";
+import type { Html5QrcodeInstance } from "./qrScannerTypes";
 
 type Step = "scan" | "items" | "zone" | "done";
 
@@ -28,17 +29,6 @@ interface ItemQtyState {
   qtyOrdered: number;
   qtyReceived: number;
   qtyDamaged: number;
-}
-
-interface Html5QrcodeInstance {
-  start: (
-    cameraIdOrConfig: { facingMode: string },
-    configuration: { fps: number; qrbox: { width: number; height: number } },
-    qrCodeSuccessCallback: (decodedText: string) => void,
-    qrCodeErrorCallback: (errorMessage: string) => void,
-  ) => Promise<void>;
-  stop: () => Promise<void>;
-  clear: () => void;
 }
 
 function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
