@@ -11,6 +11,7 @@
 import { chromium } from "playwright";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
+import { resolveAppBase } from "./resolveAppBase.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -33,7 +34,7 @@ const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 const outDir = resolve(process.cwd(), "screenshots");
 mkdirSync(outDir, { recursive: true });
 
-const appBase = `${baseUrl.replace(/\/$/, "")}/stageverify`;
+const appBase = resolveAppBase(baseUrl);
 
 async function ensureAuthenticated(page) {
   await page.goto(`${appBase}/#/settings`, {
