@@ -7,11 +7,24 @@ alwaysApply: true
 
 After **every substantive task** (especially UI/Playwright work), run cleanup **before** reporting done. A clean workspace is part of "done."
 
+## Shutdown discipline (mandatory)
+
+**If the agent started it, the agent shuts it down** before declaring done — no exceptions.
+
+| Resource | Shut down when |
+|----------|----------------|
+| `npm run dev` / Vite | After Playwright or local verify finishes |
+| Background Shell (`block_until_ms: 0`) | Kill the shell / process as soon as the task no longer needs it |
+| Playwright browser | Script must `browser.close()`; no orphan chromium |
+| One-off watchers / pollers | Clear intervals, abort controllers, remove listeners |
+
+Do **not** leave background terminals running “just in case.” Start them only when needed; stop them in the same session.
+
 ## Dev servers
 
 If **you** started `npm run dev` (or any background Vite server) in this session:
 
-1. Stop it — kill the background shell task or `Stop-Process` the Node listener.
+1. Stop it — kill the background shell (preferred) or `Stop-Process` the Node listener.
 2. Confirm ports **5173–5176** have no `LISTENING` entry (Windows: `netstat -ano | findstr LISTENING | findstr :517`).
 
 Do **not** leave orphan dev servers running after Playwright passes.
@@ -32,16 +45,17 @@ Optional npm script: `npm run clean:verify-artifacts` (also deletes `screenshots
 
 ## Background terminals
 
-- Do not start a dev server unless Playwright/local verification requires it.
+- **Never** end a session with agent-started background shells still running.
+- When using `block_until_ms: 0`, track the `shell_id` and terminate that shell after verify/build completes.
 - If multiple dev servers were spawned (ports 5174, 5175, …), stop **all** agent-started instances — not just the latest.
-- Cursor may still show dead terminal tabs after kill; that is OK — note it briefly if Dan asks.
+- Cursor may still show **dead terminal tabs** after the process exits (UI ghost tabs). Tell Dan to dismiss them with the terminal trash icon — the agent cannot click Cursor UI, but must ensure **no live process** remains.
 
 ## Completion checklist (append to model audit or state in reply)
 
 When cleanup ran, include one line:
 
 ```
-Cleanup: dev servers stopped ✓ | verify PNGs removed ✓ | ports clear ✓
+Cleanup: dev servers stopped ✓ | background shells killed ✓ | verify PNGs removed ✓ | ports clear ✓
 ```
 
 If cleanup could not run (e.g. no shell access), say what was left and why.
