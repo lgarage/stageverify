@@ -31,6 +31,7 @@ import {
   isLocationActive,
   parseStagingLocation,
   RECEIVE_BLOCKED_DELIVERY_STATUSES,
+  ZONE_CLEARED_DELIVERY_STATUSES,
 } from "./models";
 import type {
   DeliveryQuery,
@@ -753,9 +754,9 @@ export async function getDeliveryByOrderNumber(
   return getDeliveryDetailsPublic(matches[0].id);
 }
 
-/** Delivery currently staged at a zone code (primary or additional location). */
-export async function getDeliveryDetailsPublicByStagingCode(
+async function findDeliveryDetailsByStagingCode(
   zoneCode: string,
+  options: { excludeReceiveBlocked: boolean },
 ): Promise<DeliveryDetails | null> {
   const code = zoneCode.trim();
   if (!code) return null;
@@ -769,7 +770,13 @@ export async function getDeliveryDetailsPublicByStagingCode(
 
   const deliveries = await fetchAll<DeliveryOrder>("deliveries");
   const candidates = deliveries.filter((delivery) => {
-    if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(delivery.status)) return false;
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) return false;
+    if (
+      options.excludeReceiveBlocked &&
+      RECEIVE_BLOCKED_DELIVERY_STATUSES.has(delivery.status)
+    ) {
+      return false;
+    }
     return getAllStagingLocationIds(delivery).includes(location.id);
   });
 
@@ -787,10 +794,30 @@ export async function getDeliveryDetailsPublicByStagingCode(
   return getDeliveryDetailsPublic(sorted[0].id);
 }
 
+/** Delivery currently staged at a zone code (vendor receive flow only). */
+export async function getDeliveryDetailsPublicByStagingCode(
+  zoneCode: string,
+): Promise<DeliveryDetails | null> {
+  return findDeliveryDetailsByStagingCode(zoneCode, {
+    excludeReceiveBlocked: true,
+  });
+}
+
+/** Delivery at a zone regardless of receive vs pickup status (for QR routing). */
+export async function getDeliveryDetailsByStagingCode(
+  zoneCode: string,
+): Promise<DeliveryDetails | null> {
+  return findDeliveryDetailsByStagingCode(zoneCode, {
+    excludeReceiveBlocked: false,
+  });
+}
+
 export interface ZoneOccupancySummary {
   deliveryId: string;
   orderNumber: string;
   vendorName: string;
+  jobId: string;
+  status: DeliveryOrder["status"];
 }
 
 /** Zone code → active delivery on that spot (for Minew ESL QR + status line). */
@@ -815,12 +842,14 @@ export async function mapActiveZoneOccupancyByCode(): Promise<
   };
 
   for (const delivery of deliveries) {
-    if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
     const vendor = vendors.find((v) => v.id === delivery.vendorId);
     const summary: ZoneOccupancySummary = {
       deliveryId: delivery.id,
       orderNumber: delivery.orderNumber,
       vendorName: vendor?.name ?? "Unknown vendor",
+      jobId: delivery.jobId,
+      status: delivery.status,
     };
 
     for (const locId of getAllStagingLocationIds(delivery)) {

@@ -4,19 +4,21 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   hasReceiveDeepLink,
   normalizeReceiveHash,
+  parseScannedQr,
+  pickupPath,
   readReceiveParams,
 } from "./receiveQrUrls";
 import {
   firestoreDataService,
+  getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
-  getDeliveryDetailsPublicByStagingCode,
 } from "./dispatcher/firestoreService";
 import {
-  RECEIVE_BLOCKED_DELIVERY_STATUSES,
+  shouldRouteScanToPickup,
   type DeliveryDetails,
   type StagingLocation,
 } from "./dispatcher/models";
@@ -31,26 +33,6 @@ interface ItemQtyState {
   qtyDamaged: number;
 }
 
-function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
-  if (raw.startsWith("http")) {
-    try {
-      const url = new URL(raw);
-      const hash = url.hash;
-      const qsStart = hash.indexOf("?");
-      if (qsStart !== -1) {
-        const params = new URLSearchParams(hash.slice(qsStart + 1));
-        const id = params.get("id");
-        const zone = params.get("zone");
-        if (id) return { type: "id", value: id };
-        if (zone) return { type: "zone", value: zone };
-      }
-    } catch {
-      // fall through to raw
-    }
-  }
-  return { type: "raw", value: raw };
-}
-
 function Toast({ message }: { message: string }) {
   return (
     <div className="fixed top-4 left-4 right-4 z-50 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm text-text-primary shadow-lg">
@@ -60,6 +42,7 @@ function Toast({ message }: { message: string }) {
 }
 
 export function ReceivingPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   normalizeReceiveHash();
 
@@ -152,8 +135,12 @@ export function ReceivingPage() {
 
   const loadDeliveryForReceive = useCallback(
     async (details: DeliveryDetails): Promise<boolean> => {
-      if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(details.delivery.status)) {
-        showToast("Already submitted — cannot re-check-in");
+      // Safety net for ?id= deep links and delivery-ID scans (zone path redirects earlier).
+      if (shouldRouteScanToPickup(details.delivery.status)) {
+        navigate(
+          pickupPath(details.delivery.jobId, details.delivery.id),
+          { replace: true },
+        );
         return false;
       }
 
@@ -173,7 +160,7 @@ export function ReceivingPage() {
       setStep("items");
       return true;
     },
-    [showToast],
+    [navigate],
   );
 
   const processDeliveryLookup = useCallback(
@@ -212,7 +199,7 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        const details = await getDeliveryDetailsPublicByStagingCode(trimmed);
+        const details = await getDeliveryDetailsByStagingCode(trimmed);
 
         if (!details) {
           setZoneMissCode(trimmed);
@@ -232,11 +219,21 @@ export function ReceivingPage() {
         setDeepLinkPending(false);
       }
     },
-    [showToast, loadDeliveryForReceive],
+    [showToast, loadDeliveryForReceive, navigate],
   );
 
   useEffect(() => {
     if (urlDeepLinkHandledRef.current) return;
+    const parsed = parseScannedQr(window.location.href);
+    if (parsed.kind === "pickup" && parsed.jobId) {
+      urlDeepLinkHandledRef.current = true;
+      navigate(
+        pickupPath(parsed.jobId, parsed.deliveryId),
+        { replace: true },
+      );
+      return;
+    }
+
     const { id, zone } = readReceiveParams(searchParams);
     if (!id && !zone) return;
     urlDeepLinkHandledRef.current = true;
@@ -273,15 +270,31 @@ export function ReceivingPage() {
           (decodedText: string) => {
             if (handledDecode || !isMounted) return;
             handledDecode = true;
-            const extracted = extractQrValue(decodedText);
+            const parsed = parseScannedQr(decodedText);
             void scanner.stop().then(() => {
               scanner.clear();
               scannerRef.current = null;
               if (!isMounted) return;
-              if (extracted.type === "zone") {
-                void processZoneLookup(extracted.value);
+              if (parsed.kind === "pickup" && parsed.jobId) {
+                navigate(pickupPath(parsed.jobId, parsed.deliveryId));
+                return;
+              }
+              if (parsed.kind === "receive-id") {
+                void processDeliveryLookup(parsed.deliveryId);
+                return;
+              }
+              const zoneCode =
+                parsed.kind === "receive-zone"
+                  ? parsed.zoneCode
+                  : parsed.kind === "pickup" && parsed.zoneCode
+                    ? parsed.zoneCode
+                    : parsed.kind === "raw"
+                      ? parsed.value.trim()
+                      : "";
+              if (zoneCode) {
+                void processZoneLookup(zoneCode);
               } else {
-                void processDeliveryLookup(extracted.value);
+                showToast("Unrecognized QR code");
               }
             });
           },
@@ -305,7 +318,15 @@ export function ReceivingPage() {
         scannerRef.current = null;
       }
     };
-  }, [step, scanMode, deepLinkPending, processDeliveryLookup, processZoneLookup]);
+  }, [
+    step,
+    scanMode,
+    deepLinkPending,
+    processDeliveryLookup,
+    processZoneLookup,
+    navigate,
+    showToast,
+  ]);
 
   const updateItemReceived = (itemId: string, delta: number) => {
     if (!deliveryDetails) return;

@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
+  getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
   markDeliveryInstalled,
 } from "./dispatcher/firestoreService";
 import {
   DELIVERY_STATUS_LABEL,
   getAllStagingLocationIds,
+  shouldRouteScanToPickup,
   type DeliveryDetails,
   type DeliveryStatus,
   type StagingLocation,
 } from "./dispatcher/models";
+import { parseScannedQr } from "./receiveQrUrls";
+import type { Html5QrcodeInstance } from "./qrScannerTypes";
 
 const normalizeZoneCode = (code: string): string =>
   code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -191,26 +195,23 @@ async function loadPickupReadyDeliveries(
   return detailsList.filter((d): d is DeliveryDetails => d !== null);
 }
 
-async function resolveJobFromZoneCode(
+async function resolveZoneScan(
   zoneCode: string,
-): Promise<{ jobId: string; deliveryId: string } | null> {
-  const trimmed = zoneCode.trim();
-  if (!trimmed) return null;
-
-  const result = await firestoreDataService.listDeliveries({ pageSize: 100 });
-  const normalized = normalizeZoneCode(trimmed);
-  const match = result.items.find(
-    (d) =>
-      d.stagingLocationCode &&
-      normalizeZoneCode(d.stagingLocationCode) === normalized &&
-      isPickupReady(d.status),
-  );
-  if (!match) return null;
-
-  const details = await getDeliveryDetailsPublic(match.deliveryId);
+): Promise<
+  | { kind: "pickup"; jobId: string; deliveryId: string }
+  | { kind: "receive"; deliveryId: string }
+  | null
+> {
+  const details = await getDeliveryDetailsByStagingCode(zoneCode);
   if (!details) return null;
-
-  return { jobId: details.delivery.jobId, deliveryId: details.delivery.id };
+  if (shouldRouteScanToPickup(details.delivery.status)) {
+    return {
+      kind: "pickup",
+      jobId: details.delivery.jobId,
+      deliveryId: details.delivery.id,
+    };
+  }
+  return { kind: "receive", deliveryId: details.delivery.id };
 }
 
 function QrScannerOverlay({
@@ -224,13 +225,14 @@ function QrScannerOverlay({
 }) {
   useEffect(() => {
     let isMounted = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let html5QrCode: any = null;
+    let html5QrCode: Html5QrcodeInstance | null = null;
     let handledDecode = false;
 
     import("html5-qrcode").then(({ Html5Qrcode }) => {
       if (!isMounted) return;
-      html5QrCode = new Html5Qrcode(readerId);
+      html5QrCode = new Html5Qrcode(
+        readerId,
+      ) as unknown as Html5QrcodeInstance;
       html5QrCode
         .start(
           { facingMode: "environment" },
@@ -252,13 +254,12 @@ function QrScannerOverlay({
 
     return () => {
       isMounted = false;
-      if (html5QrCode) {
+      const scanner = html5QrCode;
+      if (scanner) {
         try {
-          html5QrCode
+          void scanner
             .stop()
-            .then(() => {
-              html5QrCode.clear();
-            })
+            .then(() => scanner.clear())
             .catch(() => {});
         } catch {
           // ignore
@@ -317,17 +318,32 @@ function QrScannerOverlay({
 
 function WalkUpEntry({
   onJobResolved,
+  initialNotFoundCode = null,
 }: {
   onJobResolved: (jobId: string, highlightDeliveryId: string | null) => void;
+  initialNotFoundCode?: string | null;
 }) {
+  const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
-  const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
+  const [notFoundCode, setNotFoundCode] = useState<string | null>(
+    initialNotFoundCode,
+  );
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualZoneCode, setManualZoneCode] = useState("");
   const [resolving, setResolving] = useState(false);
 
   const handleDecodedText = useCallback(
     async (text: string) => {
+      const parsed = parseScannedQr(text);
+      if (parsed.kind === "pickup" && parsed.jobId) {
+        setNotFoundCode(null);
+        setIsScanning(false);
+        setShowManualEntry(false);
+        setManualZoneCode("");
+        onJobResolved(parsed.jobId, parsed.deliveryId);
+        return;
+      }
+
       const trimmed = text.trim();
       const jobId = extractJobIdFromPickupUrl(trimmed);
       if (jobId) {
@@ -340,11 +356,23 @@ function WalkUpEntry({
       }
 
       setResolving(true);
-      const resolved = await resolveJobFromZoneCode(normalizeZoneCode(trimmed));
+      const zoneCode =
+        parsed.kind === "receive-zone"
+          ? parsed.zoneCode
+          : parsed.kind === "pickup" && parsed.zoneCode
+            ? parsed.zoneCode
+            : normalizeZoneCode(trimmed);
+      const resolved = await resolveZoneScan(zoneCode);
       setResolving(false);
       if (!resolved) {
         setNotFoundCode(trimmed);
         setIsScanning(false);
+        return;
+      }
+      if (resolved.kind === "receive") {
+        navigate(`/receive?id=${encodeURIComponent(resolved.deliveryId)}`, {
+          replace: true,
+        });
         return;
       }
       setNotFoundCode(null);
@@ -353,7 +381,7 @@ function WalkUpEntry({
       setManualZoneCode("");
       onJobResolved(resolved.jobId, resolved.deliveryId);
     },
-    [onJobResolved],
+    [onJobResolved, navigate],
   );
 
   const handleScanDecode = useCallback(
@@ -712,11 +740,18 @@ function JobPickupScreen({
   const handleCheckOffScan = useCallback(
     (zoneCode: string) => {
       const normalized = normalizeZoneCode(zoneCode.trim());
-      const match = deliveries.find(
-        (d) =>
-          d.stagingLocation?.code &&
-          normalizeZoneCode(d.stagingLocation.code) === normalized,
-      );
+      const match = deliveries.find((d) => {
+        const ids = getAllStagingLocationIds(d.delivery);
+        return ids.some((locId) => {
+          const loc =
+            allStagingLocations.find((l) => l.id === locId) ??
+            (d.stagingLocation?.id === locId ? d.stagingLocation : undefined);
+          return (
+            loc?.code !== undefined &&
+            normalizeZoneCode(loc.code) === normalized
+          );
+        });
+      });
       setIsScanning(false);
       if (!match) {
         setZoneScanError("Zone not in this job");
@@ -726,7 +761,7 @@ function JobPickupScreen({
       setZoneScanError(null);
       highlightCard(match.delivery.id);
     },
-    [deliveries, highlightCard],
+    [deliveries, allStagingLocations, highlightCard],
   );
 
   const handleCancelScan = useCallback(() => {
@@ -1124,21 +1159,67 @@ function JobPickupScreen({
 }
 
 export default function PickupPortalPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const jobIdFromUrl = searchParams.get("job");
+  const deliveryFromUrl = searchParams.get("delivery");
+  const zoneFromUrl = searchParams.get("zone");
   const [discoveredJobId, setDiscoveredJobId] = useState<string | null>(null);
   const [highlightDeliveryId, setHighlightDeliveryId] = useState<
     string | null
-  >(null);
+  >(deliveryFromUrl);
+  const [zoneDeepLinkPending, setZoneDeepLinkPending] = useState(
+    Boolean(zoneFromUrl && !jobIdFromUrl),
+  );
+  const [zoneDeepLinkError, setZoneDeepLinkError] = useState<string | null>(
+    null,
+  );
 
   const activeJobId = jobIdFromUrl ?? discoveredJobId;
+
+  useEffect(() => {
+    if (!zoneFromUrl || jobIdFromUrl) return;
+    let cancelled = false;
+    void (async () => {
+      const resolved = await resolveZoneScan(zoneFromUrl);
+      if (cancelled) return;
+      if (resolved?.kind === "receive") {
+        navigate(`/receive?id=${encodeURIComponent(resolved.deliveryId)}`, {
+          replace: true,
+        });
+        return;
+      }
+      if (resolved?.kind === "pickup") {
+        setDiscoveredJobId(resolved.jobId);
+        setHighlightDeliveryId(resolved.deliveryId);
+        setSearchParams(
+          {
+            job: resolved.jobId,
+            delivery: resolved.deliveryId,
+          },
+          { replace: true },
+        );
+      } else {
+        setZoneDeepLinkError(`No active delivery at zone ${zoneFromUrl}`);
+      }
+      setZoneDeepLinkPending(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [zoneFromUrl, jobIdFromUrl, setSearchParams, navigate]);
 
   const handleJobResolved = useCallback(
     (jobId: string, deliveryId: string | null) => {
       setDiscoveredJobId(jobId);
       setHighlightDeliveryId(deliveryId);
+      if (deliveryId) {
+        setSearchParams({ job: jobId, delivery: deliveryId }, { replace: true });
+      } else {
+        setSearchParams({ job: jobId }, { replace: true });
+      }
     },
-    [],
+    [setSearchParams],
   );
 
   const handleStartOver = useCallback(() => {
@@ -1149,7 +1230,11 @@ export default function PickupPortalPage() {
 
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
-      {activeJobId ? (
+      {zoneDeepLinkPending ? (
+        <div className="flex flex-1 items-center justify-center text-text-secondary text-sm">
+          Loading pickup for zone {zoneFromUrl}…
+        </div>
+      ) : activeJobId ? (
         <JobPickupScreen
           key={`${activeJobId}-${highlightDeliveryId ?? "link"}`}
           jobId={activeJobId}
@@ -1157,7 +1242,10 @@ export default function PickupPortalPage() {
           onStartOver={handleStartOver}
         />
       ) : (
-        <WalkUpEntry onJobResolved={handleJobResolved} />
+        <WalkUpEntry
+          onJobResolved={handleJobResolved}
+          initialNotFoundCode={zoneDeepLinkError}
+        />
       )}
     </div>
   );

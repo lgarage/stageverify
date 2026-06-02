@@ -31,11 +31,11 @@
 - QR/camera via html5-qrcode → device-integration (test on a real device; camera perms differ).
 
 ## Local gotchas
-- **Minew ESL zone QR** — `buildZoneEslQrUrl`; occupied → `?id=`, empty → `?zone=`; `mapActiveZoneOccupancyByCode`.
+- **Minew ESL zone QR** — `buildZoneEslQrUrl`; pickup-ready occupied → `#/pickup?job=`, vendor-flow occupied → `#/receive?id=`, empty → `#/receive?zone=`; `mapActiveZoneOccupancyByCode`.
 - **New `DeliveryStatus`** — if terminal, add to `RECEIVE_BLOCKED_DELIVERY_STATUSES` same change.
 
 ## Composer quality bar (Sonnet audits — keep ≤6 bullets, rotate old to archives)
-- **zone-lookup-always-use-canonical-fn** — never inline `listDeliveries` + `stagingLocationCode`; use `getDeliveryDetailsPublicByStagingCode` everywhere (App + Receive).
+- **zone-lookup-always-use-canonical-fn** — never inline `listDeliveries` + `stagingLocationCode`; use `getDeliveryDetailsByStagingCode` for QR routing (App + Receive + Pickup); use `getDeliveryDetailsPublicByStagingCode` only when receive-blocked statuses must be excluded.
 - **deep-link-three-layer** — `hasReceiveDeepLink` / `deepLinkPending` / `urlDeepLinkHandledRef` before starting camera on `/receive`.
 - **encodeURIComponent-on-qr-params** — all `?id=` / `?zone=` in `receiveQrUrls.ts`.
 - **no-any-mirror-typed-interface** — shared `qrScannerTypes.ts` for html5-qrcode.

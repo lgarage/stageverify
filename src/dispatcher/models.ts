@@ -38,6 +38,16 @@ export const RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
   "installed",
 ]);
 
+/** Zone is vacant for ESL/QR once pickup is finished. */
+export const ZONE_CLEARED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
+  "picked_up",
+  "installed",
+]);
+
+export function shouldRouteScanToPickup(status: DeliveryStatus): boolean {
+  return RECEIVE_BLOCKED_DELIVERY_STATUSES.has(status);
+}
+
 export type JobStatus = "active" | "on_hold" | "closed";
 
 export type PurchaseOrderStatus =

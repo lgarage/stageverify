@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
+  getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
-  getDeliveryDetailsPublicByStagingCode,
 } from "./dispatcher/firestoreService";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
+import { parseScannedQr, pickupPath } from "./receiveQrUrls";
+import { shouldRouteScanToPickup } from "./dispatcher/models";
 import type {
   DeliveryOrder,
   Item,
@@ -30,26 +32,6 @@ const icons = {
   checkSquare:
     "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",
 };
-
-function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
-  if (raw.startsWith("http")) {
-    try {
-      const url = new URL(raw);
-      const hash = url.hash;
-      const qsStart = hash.indexOf("?");
-      if (qsStart !== -1) {
-        const params = new URLSearchParams(hash.slice(qsStart + 1));
-        const id = params.get("id");
-        const zone = params.get("zone");
-        if (id) return { type: "id", value: id };
-        if (zone) return { type: "zone", value: zone };
-      }
-    } catch {
-      // fall through to raw
-    }
-  }
-  return { type: "raw", value: raw };
-}
 
 function Svg({ d, size = 24 }: { d: string; size?: number }) {
   return (
@@ -170,19 +152,44 @@ function ScanScreen() {
               if (handledDecode || !isMounted) return;
               handledDecode = true;
               void (async () => {
-                const extracted = extractQrValue(decodedText);
+                const extracted = parseScannedQr(decodedText);
 
-                // Delivery-ID QRs (packing slip labels) → route to CheckInPage
-                if (extracted.type === "id") {
-                  if (isMounted) navigate(`/checkin/${extracted.value}`);
+                if (extracted.kind === "pickup" && extracted.jobId) {
+                  if (isMounted) {
+                    navigate(
+                      pickupPath(extracted.jobId, extracted.deliveryId),
+                    );
+                  }
                   return;
                 }
 
-                // Zone QRs → same lookup as ReceivingPage / ESL plan
+                if (extracted.kind === "receive-id") {
+                  const details = await getDeliveryDetailsPublic(
+                    extracted.deliveryId,
+                  );
+                  if (details && shouldRouteScanToPickup(details.delivery.status)) {
+                    if (isMounted) {
+                      navigate(
+                        pickupPath(
+                          details.delivery.jobId,
+                          details.delivery.id,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                  if (isMounted) navigate(`/checkin/${extracted.deliveryId}`);
+                  return;
+                }
+
                 const zoneCode =
-                  extracted.type === "zone" || extracted.type === "raw"
-                    ? extracted.value.trim()
-                    : "";
+                  extracted.kind === "receive-zone" || extracted.kind === "raw"
+                    ? extracted.kind === "receive-zone"
+                      ? extracted.zoneCode
+                      : extracted.value.trim()
+                    : extracted.kind === "pickup" && extracted.zoneCode
+                      ? extracted.zoneCode
+                      : "";
                 if (!zoneCode) {
                   if (isMounted) {
                     setIsScanning(false);
@@ -192,9 +199,20 @@ function ScanScreen() {
                 }
 
                 const details =
-                  await getDeliveryDetailsPublicByStagingCode(zoneCode);
+                  await getDeliveryDetailsByStagingCode(zoneCode);
 
                 if (details) {
+                  if (shouldRouteScanToPickup(details.delivery.status)) {
+                    if (isMounted) {
+                      navigate(
+                        pickupPath(
+                          details.delivery.jobId,
+                          details.delivery.id,
+                        ),
+                      );
+                    }
+                    return;
+                  }
                   if (details.delivery.status === "pending") {
                     await firestoreDataService.updateDeliveryStatus(
                       details.delivery.id,
