@@ -14,7 +14,8 @@
     "verify:pickup": "node scripts/verify-pickup-portal.mjs",
     "verify:pickup:prod": "node scripts/verify-pickup-portal.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:receive": "node scripts/verify-receive.mjs",
-    "verify:receive:prod": "node scripts/verify-receive.mjs --base-url=https://lgarage.github.io/stageverify"
+    "verify:receive:prod": "node scripts/verify-receive.mjs --base-url=https://lgarage.github.io/stageverify",
+    "seed:vendor-demo": "node scripts/seed-vendor-demo-deliveries.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
