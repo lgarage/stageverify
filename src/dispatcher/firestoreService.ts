@@ -317,6 +317,7 @@ export class FirestoreDataService implements DispatcherDataService {
 
     const fromStatus = delivery.status;
     if (!VALID_TRANSITIONS[fromStatus]?.includes(toStatus)) {
+      if (actorType === "technician") return null;
       return this.getDeliveryDetails(deliveryId);
     }
 
@@ -353,6 +354,7 @@ export class FirestoreDataService implements DispatcherDataService {
     });
 
     await batch.commit();
+    if (actorType === "technician") return null;
     return this.getDeliveryDetails(deliveryId);
   }
 
@@ -662,15 +664,18 @@ export class FirestoreDataService implements DispatcherDataService {
     itemsPickedSummary: string,
     notes?: string,
   ): Promise<void> {
-    const details = await this.getDeliveryDetails(deliveryId);
-    if (!details) return;
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) {
+      throw new Error("Delivery not found");
+    }
+    const delivery = deliverySnap.data() as DeliveryOrder;
 
     const eventId = crypto.randomUUID();
     const now = new Date().toISOString();
     const event: PickupEvent = {
       id: eventId,
       deliveryOrderId: deliveryId,
-      jobId: details.delivery.jobId,
+      jobId: delivery.jobId,
       technicianName,
       pickedUpAt: now,
       itemsPickedSummary,
