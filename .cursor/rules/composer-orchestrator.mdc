@@ -105,7 +105,7 @@ Before adding a new React component or page, read 1–2 similar existing files f
 - Use conventional commit prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`.
 - Do not commit `.cursor/rules/` files unless the task is explicitly about them.
 - Always commit `PROJECT_STATUS/CURRENT_STATE.md` and `roadmap.md` in the same commit as shipped feature code (see Session Defaults). These are the exception to the "don't commit PROJECT_STATUS/" pattern.
-- Do not `git push` unless the user asks to deploy or explicitly says to push.
+- After substantive commits, **always push to `origin/main` and run `npm run deploy`** so Dan can test on GitHub Pages (see Session Defaults).
 
 ## Escalation Triggers
 
@@ -124,14 +124,15 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 **Announce-and-go.** State archetype + tier + model, then immediately start editing. Do not wait for a "go ahead" reply.
 
 ### Git commits
-**Auto-commit** after completing a feature or task — stage only the changed files and commit with a conventional message. Do NOT push unless the user explicitly says "push" or "deploy."
+**Auto-commit** after completing a feature or task — stage only the changed files and commit with a conventional message.
 
-### GitHub Pages deploy
-When the user asks to push or deploy, push to `origin/main` AND run the deploy command:
+### Push and deploy (default after substantive work)
+After every substantive commit, **push to `origin/main` and run `npm run deploy`** so the live site matches main. Do this without waiting to be asked.
 ```
+git push origin main
 npm run deploy
 ```
-Both steps happen together in response to a single "push" or "deploy" instruction.
+Skip push/deploy only when Dan says to hold off or the change is WIP on a branch.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
@@ -155,7 +156,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Skip the build gate — a broken build is worse than no change.
 ❌ Use `any` in TypeScript — always resolve types correctly.
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
-❌ Push to origin without being asked — commit locally, let the user decide when to deploy.
+❌ Leave main unpushed after substantive work when Dan expects to test on gh-pages.
 
 ## Rule File Self-Maintenance
 If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.

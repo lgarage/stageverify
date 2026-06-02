@@ -16,9 +16,13 @@ import {
   createZone,
   updateZone,
   deactivateZone,
-  mapActiveDeliveryIdsByZoneCode,
+  mapActiveZoneOccupancyByCode,
+  type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
-import { buildReceiveDeepLink } from "./receiveQrUrls";
+import {
+  buildZoneEslQrUrl,
+  formatZoneEslStatusLine,
+} from "./receiveQrUrls";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -62,15 +66,18 @@ const SETTINGS_ITEM = {
   icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
 };
 
-function zoneQrUrl(
+const ESL_TAG_HINT: Record<ZoneType, string> = {
+  ground: "4.2\" Minew DS042Q — scan barcode on physical tag",
+  shelf: "3.5\" Minew DS035Q — scan barcode on physical tag",
+  bin: "Minew ESL tag barcode",
+  other: "Minew ESL tag barcode",
+};
+
+function zoneOccupancy(
   code: string,
-  deliveryIdByZoneCode: Record<string, string>,
-): string {
-  const deliveryId = deliveryIdByZoneCode[code.trim().toUpperCase()];
-  return buildReceiveDeepLink({
-    deliveryId: deliveryId ?? null,
-    zoneCode: deliveryId ? null : code,
-  });
+  byCode: Record<string, ZoneOccupancySummary>,
+): ZoneOccupancySummary | undefined {
+  return byCode[code.trim().toUpperCase()];
 }
 
 function navLinkStyle(active: boolean): CSSProperties {
@@ -274,8 +281,8 @@ export function ZoneManagementPage() {
   const isSettings = location.pathname === "/settings";
 
   const [zones, setZones] = useState<StagingLocation[]>([]);
-  const [deliveryIdByZoneCode, setDeliveryIdByZoneCode] = useState<
-    Record<string, string>
+  const [occupancyByZoneCode, setOccupancyByZoneCode] = useState<
+    Record<string, ZoneOccupancySummary>
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -290,12 +297,12 @@ export function ZoneManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const [loaded, deliveryByZone] = await Promise.all([
+      const [loaded, occupancy] = await Promise.all([
         listAllZones(),
-        mapActiveDeliveryIdsByZoneCode(),
+        mapActiveZoneOccupancyByCode(),
       ]);
       setZones(loaded);
-      setDeliveryIdByZoneCode(deliveryByZone);
+      setOccupancyByZoneCode(occupancy);
       setEslDrafts(
         Object.fromEntries(
           loaded.map((z) => [z.id, z.eslTagId ?? ""]),
@@ -332,11 +339,6 @@ export function ZoneManagementPage() {
     }
     return groups;
   }, [visibleZones]);
-
-  const activeZonesForPrint = useMemo(
-    () => zones.filter(isLocationActive).sort(sortZones),
-    [zones],
-  );
 
   const openAddForm = () => {
     setEditingId(null);
@@ -427,19 +429,6 @@ export function ZoneManagementPage() {
 
   return (
     <div style={{ fontFamily: FONT }} className="min-h-screen flex">
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          #zone-print-labels, #zone-print-labels * { visibility: visible !important; }
-          #zone-print-labels {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 0.5in;
-          }
-        }
-      `}</style>
 
       {/* Sidebar */}
       <aside
@@ -661,29 +650,12 @@ export function ZoneManagementPage() {
                 Zone Management
               </h1>
               <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                Manage staging zones, ESL tags, and printable QR labels.
+                Link each staging spot to a Minew e-ink tag. QR and status text
+                on the tag open receive for that zone or job (pushed via Minew
+                API when connected).
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                disabled={activeCount === 0}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: `1.5px solid ${NAVY}`,
-                  backgroundColor: "#fff",
-                  color: NAVY,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: activeCount === 0 ? "not-allowed" : "pointer",
-                  fontFamily: FONT,
-                  opacity: activeCount === 0 ? 0.5 : 1,
-                }}
-              >
-                Print All Active Labels
-              </button>
               <button
                 type="button"
                 onClick={openAddForm}
@@ -868,7 +840,7 @@ export function ZoneManagementPage() {
                     />
                   </div>
                   <div>
-                    <label style={labelStyle}>ESL Tag ID</label>
+                    <label style={labelStyle}>Minew ESL Tag ID</label>
                     <input
                       style={inputStyle}
                       value={form.eslTagId}
@@ -877,6 +849,9 @@ export function ZoneManagementPage() {
                       }
                       placeholder="E0000001BC48"
                     />
+                    <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
+                      {ESL_TAG_HINT[form.type]}
+                    </p>
                   </div>
                   <div>
                     <label style={labelStyle}>Width (ft)</label>
@@ -1036,7 +1011,13 @@ export function ZoneManagementPage() {
                     }}
                   >
                     {typeZones.map((zone) => {
-                      const qrUrl = zoneQrUrl(zone.code, deliveryIdByZoneCode);
+                      const occupancy = zoneOccupancy(
+                        zone.code,
+                        occupancyByZoneCode,
+                      );
+                      const qrUrl = buildZoneEslQrUrl(zone.code, occupancy);
+                      const eslStatus = formatZoneEslStatusLine(occupancy);
+                      const tagLinked = Boolean(zone.eslTagId?.trim());
                       return (
                         <div
                           key={zone.id}
@@ -1051,7 +1032,7 @@ export function ZoneManagementPage() {
                           }}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
                               <div
                                 style={{
                                   fontSize: 28,
@@ -1086,7 +1067,53 @@ export function ZoneManagementPage() {
                                 </span>
                               </div>
                             </div>
-                            <QRCodeSVG value={qrUrl} size={80} />
+                            <div style={{ textAlign: "center", flexShrink: 0 }}>
+                              <p
+                                style={{
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  color: "#6b7280",
+                                  margin: "0 0 4px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                }}
+                              >
+                                E-ink QR preview
+                              </p>
+                              <QRCodeSVG value={qrUrl} size={80} />
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 12,
+                              padding: "10px 12px",
+                              borderRadius: 6,
+                              backgroundColor: occupancy ? "#e8f4ea" : "#f3f4f6",
+                              border: `1px solid ${occupancy ? "#a5d6a7" : "#e5e7eb"}`,
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: occupancy ? "#2e7d32" : "#6b7280",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              {occupancy ? "Occupied on tag" : "Available on tag"}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "#111827",
+                                marginTop: 4,
+                              }}
+                            >
+                              {eslStatus}
+                            </div>
                           </div>
 
                           {zone.notes && (
@@ -1104,7 +1131,7 @@ export function ZoneManagementPage() {
 
                           <div style={{ marginTop: 12 }}>
                             <label style={{ ...labelStyle, fontSize: 11 }}>
-                              ESL Tag ID
+                              Minew ESL Tag ID
                             </label>
                             <input
                               style={{
@@ -1122,6 +1149,10 @@ export function ZoneManagementPage() {
                               onBlur={() => void saveEslTagId(zone)}
                               placeholder="E0000001BC48"
                             />
+                            <p style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+                              {ESL_TAG_HINT[zone.type]}
+                              {!tagLinked && " · Required to push to Minew"}
+                            </p>
                           </div>
 
                           <p
@@ -1132,7 +1163,7 @@ export function ZoneManagementPage() {
                               wordBreak: "break-all",
                             }}
                           >
-                            {qrUrl}
+                            Tag QR: {qrUrl}
                           </p>
 
                           <div
@@ -1189,82 +1220,6 @@ export function ZoneManagementPage() {
               );
             })
           )}
-        </div>
-      </div>
-
-      {/* Print-only label grid */}
-      <div
-        id="zone-print-labels"
-        className="hidden print:block"
-        style={{ fontFamily: FONT }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 24,
-          }}
-        >
-          {activeZonesForPrint.map((zone) => {
-            const qrUrl = zoneQrUrl(zone.code, deliveryIdByZoneCode);
-            return (
-              <div
-                key={zone.id}
-                style={{
-                  border: "2px solid #333",
-                  borderRadius: 8,
-                  padding: 20,
-                  textAlign: "center",
-                  pageBreakInside: "avoid",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 36,
-                    fontWeight: 900,
-                    color: "#000",
-                    lineHeight: 1,
-                  }}
-                >
-                  {zone.code}
-                </div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    marginTop: 6,
-                    color: "#333",
-                  }}
-                >
-                  {zone.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    marginTop: 4,
-                    color: "#666",
-                  }}
-                >
-                  {TYPE_LABELS[zone.type]}
-                </div>
-                <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
-                  <QRCodeSVG value={qrUrl} size={128} />
-                </div>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: "#666",
-                    marginTop: 10,
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {qrUrl}
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
     </div>

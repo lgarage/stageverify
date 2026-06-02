@@ -31,7 +31,7 @@
 - QR/camera via html5-qrcode → device-integration (test on a real device; camera perms differ).
 
 ## Local gotchas
-- **Zone/receive QR** — use `buildReceiveDeepLink` (`src/receiveQrUrls.ts`): `?id=` when zone has a job (zone cards), else `?zone=`; `normalizeReceiveHash` for `#receive` without `/`; shared `RECEIVE_BLOCKED_DELIVERY_STATUSES`; Sonnet review before deploy.
+- **Minew ESL zone QR** — `buildZoneEslQrUrl` / `formatZoneEslStatusLine` (`receiveQrUrls.ts`): occupied → `?id=`, empty → `?zone=`; not paper labels; `mapActiveZoneOccupancyByCode` for tag content.
 - **New `DeliveryStatus`** — if terminal, add to `RECEIVE_BLOCKED_DELIVERY_STATUSES` same change.
 
 ## Active outcome log (≤ ~15 rows, then rotate to archives/outcomes/YYYY-Www.md)

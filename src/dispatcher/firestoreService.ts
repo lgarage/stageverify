@@ -787,37 +787,64 @@ export async function getDeliveryDetailsPublicByStagingCode(
   return getDeliveryDetailsPublic(sorted[0].id);
 }
 
-/** Zone code → active delivery id (for zone label QR URLs). Newest updated wins. */
-export async function mapActiveDeliveryIdsByZoneCode(): Promise<
-  Record<string, string>
+export interface ZoneOccupancySummary {
+  deliveryId: string;
+  orderNumber: string;
+  vendorName: string;
+}
+
+/** Zone code → active delivery on that spot (for Minew ESL QR + status line). */
+export async function mapActiveZoneOccupancyByCode(): Promise<
+  Record<string, ZoneOccupancySummary>
 > {
   const locations = await fetchAllStagingLocations();
-  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
-  const byCode: Record<string, string> = {};
+  const [deliveries, vendors] = await Promise.all([
+    fetchAll<DeliveryOrder>("deliveries"),
+    fetchAll<Vendor>("vendors"),
+  ]);
+  const byCode: Record<string, ZoneOccupancySummary> = {};
+
+  const shouldReplace = (
+    existing: ZoneOccupancySummary,
+    candidate: DeliveryOrder,
+  ): boolean => {
+    const prev = deliveries.find((d) => d.id === existing.deliveryId);
+    return Boolean(
+      prev && candidate.updatedAt.localeCompare(prev.updatedAt) > 0,
+    );
+  };
 
   for (const delivery of deliveries) {
     if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    const vendor = vendors.find((v) => v.id === delivery.vendorId);
+    const summary: ZoneOccupancySummary = {
+      deliveryId: delivery.id,
+      orderNumber: delivery.orderNumber,
+      vendorName: vendor?.name ?? "Unknown vendor",
+    };
 
     for (const locId of getAllStagingLocationIds(delivery)) {
       const location = locations.find((loc) => loc.id === locId);
       if (!location) continue;
       const key = location.code.trim().toUpperCase();
-      const existingId = byCode[key];
-      if (!existingId) {
-        byCode[key] = delivery.id;
-        continue;
-      }
-      const existing = deliveries.find((d) => d.id === existingId);
-      if (
-        existing &&
-        delivery.updatedAt.localeCompare(existing.updatedAt) > 0
-      ) {
-        byCode[key] = delivery.id;
+      const existing = byCode[key];
+      if (!existing || shouldReplace(existing, delivery)) {
+        byCode[key] = summary;
       }
     }
   }
 
   return byCode;
+}
+
+/** @deprecated Use mapActiveZoneOccupancyByCode */
+export async function mapActiveDeliveryIdsByZoneCode(): Promise<
+  Record<string, string>
+> {
+  const byZone = await mapActiveZoneOccupancyByCode();
+  return Object.fromEntries(
+    Object.entries(byZone).map(([code, o]) => [code, o.deliveryId]),
+  );
 }
 
 export async function listVendors(): Promise<Vendor[]> {

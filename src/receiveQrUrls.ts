@@ -1,7 +1,35 @@
-/** Production receive URLs printed on zone labels (GitHub Pages). */
+/**
+ * Receive deep links encoded on Minew e-ink ESL tags (not paper labels).
+ * See PROJECT_STATUS/ESL_INTEGRATION_PLAN.md — QR routing on zone tags.
+ */
 const PROD_RECEIVE_BASE = "https://lgarage.github.io/stageverify/#/receive";
 
-/** Deep link that opens a delivery directly (bypasses scanner). Prefer id when known. */
+export type ZoneEslOccupancy = {
+  deliveryId: string;
+  orderNumber: string;
+  vendorName: string;
+};
+
+/** Deep link for a Minew zone tag: job URL when occupied, zone URL when empty. */
+export function buildZoneEslQrUrl(
+  zoneCode: string,
+  occupancy: ZoneEslOccupancy | null | undefined,
+): string {
+  if (occupancy?.deliveryId) {
+    return `${PROD_RECEIVE_BASE}?id=${encodeURIComponent(occupancy.deliveryId)}`;
+  }
+  return `${PROD_RECEIVE_BASE}?zone=${encodeURIComponent(zoneCode)}`;
+}
+
+/** Dynamic line shown on the e-ink tag below the zone code. */
+export function formatZoneEslStatusLine(
+  occupancy: ZoneEslOccupancy | null | undefined,
+): string {
+  if (!occupancy) return "AVAILABLE";
+  return `${occupancy.orderNumber} — ${occupancy.vendorName}`;
+}
+
+/** @deprecated Prefer buildZoneEslQrUrl — kept for non-zone receive links */
 export function buildReceiveDeepLink(options: {
   deliveryId?: string | null;
   zoneCode?: string | null;
