@@ -36,6 +36,13 @@ const NAV_ITEMS = [
   },
 ];
 
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 10);
+  if (digits.length < 4) return digits.length ? `(${digits}` : "";
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 const SETTINGS_ITEM = {
   label: "Settings",
   to: "/settings",
@@ -102,6 +109,9 @@ export function SettingsPage() {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [supplies, setSupplies] = useState("");
+  const [notes, setNotes] = useState("");
 
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [savingRevert, setSavingRevert] = useState(false);
@@ -113,7 +123,10 @@ export function SettingsPage() {
     contactName: string;
     contactPhone: string;
     email: string;
-  }>({ name: "", contactName: "", contactPhone: "", email: "" });
+    address: string;
+    supplies: string;
+    notes: string;
+  }>({ name: "", contactName: "", contactPhone: "", email: "", address: "", supplies: "", notes: "" });
 
   const startEdit = (vendor: Vendor) => {
     setEditingId(vendor.id);
@@ -122,6 +135,9 @@ export function SettingsPage() {
       contactName: vendor.contactName ?? "",
       contactPhone: vendor.contactPhone ?? "",
       email: vendor.email ?? "",
+      address: vendor.address ?? "",
+      supplies: vendor.supplies ?? "",
+      notes: vendor.notes ?? "",
     });
   };
 
@@ -137,6 +153,9 @@ export function SettingsPage() {
       contactName: editDraft.contactName.trim() || undefined,
       contactPhone: editDraft.contactPhone.trim() || undefined,
       email: editDraft.email.trim() || undefined,
+      address: editDraft.address.trim() || undefined,
+      supplies: editDraft.supplies.trim() || undefined,
+      notes: editDraft.notes.trim() || undefined,
     };
     await updateVendor(updated);
     setVendors((prev) =>
@@ -180,6 +199,9 @@ export function SettingsPage() {
       contactName: contactName.trim() || undefined,
       contactPhone: contactPhone.trim() || undefined,
       email: email.trim() || undefined,
+      address: address.trim() || undefined,
+      supplies: supplies.trim() || undefined,
+      notes: notes.trim() || undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -190,6 +212,9 @@ export function SettingsPage() {
     setContactName("");
     setContactPhone("");
     setEmail("");
+    setAddress("");
+    setSupplies("");
+    setNotes("");
   };
 
   const cardStyle = {
@@ -455,7 +480,7 @@ export function SettingsPage() {
               >
                 <thead>
                   <tr style={{ backgroundColor: NAVY }}>
-                    {["Name", "Contact Name", "Contact Phone", "Email", ""].map(
+                    {["Name", "Contact Name", "Contact Phone", "Email", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
                           key={i}
@@ -530,8 +555,12 @@ export function SettingsPage() {
                             <input
                               style={inlineInput}
                               value={editDraft.contactPhone}
+                              placeholder="(920) 555-1212"
                               onChange={(e) =>
-                                setEditDraft((d) => ({ ...d, contactPhone: e.target.value }))
+                                setEditDraft((d) => ({
+                                  ...d,
+                                  contactPhone: formatPhone(e.target.value),
+                                }))
                               }
                             />
                           ) : (
@@ -549,6 +578,51 @@ export function SettingsPage() {
                             />
                           ) : (
                             vendor.email ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.address}
+                              placeholder="123 Main St, City, ST 12345"
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, address: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            vendor.address ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.supplies}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, supplies: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            vendor.supplies ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <textarea
+                              style={{ ...inlineInput, resize: "none" }}
+                              rows={2}
+                              value={editDraft.notes}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, notes: e.target.value }))
+                              }
+                            />
+                          ) : vendor.notes ? (
+                            vendor.notes.length > 60
+                              ? `${vendor.notes.slice(0, 60)}…`
+                              : vendor.notes
+                          ) : (
+                            "—"
                           )}
                         </td>
                         <td style={{ ...tdBase, whiteSpace: "nowrap" }}>
@@ -712,7 +786,8 @@ export function SettingsPage() {
                   <input
                     type="text"
                     value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="(920) 555-1212"
+                    onChange={(e) => setContactPhone(formatPhone(e.target.value))}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -754,6 +829,92 @@ export function SettingsPage() {
                       backgroundColor: "#fff",
                       fontFamily: FONT,
                       boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="123 Main St, City, ST 12345"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      color: "#333",
+                      outline: "none",
+                      backgroundColor: "#fff",
+                      fontFamily: FONT,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Supplies
+                  </label>
+                  <input
+                    type="text"
+                    value={supplies}
+                    onChange={(e) => setSupplies(e.target.value)}
+                    placeholder="e.g. HVAC parts, copper pipe"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      color: "#333",
+                      outline: "none",
+                      backgroundColor: "#fff",
+                      fontFamily: FONT,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Notes
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional notes for this vendor"
+                    rows={3}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      color: "#333",
+                      outline: "none",
+                      backgroundColor: "#fff",
+                      fontFamily: FONT,
+                      boxSizing: "border-box",
+                      resize: "none",
                     }}
                   />
                 </div>
