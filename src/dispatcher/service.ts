@@ -97,6 +97,11 @@ export interface DispatcherDataService {
     deliveryId: string,
     poNumber: string,
   ): Promise<DeliveryDetails | null>;
+  updateShopStockPickList(
+    deliveryId: string,
+    items: string[],
+    locationNote: string,
+  ): Promise<DeliveryDetails | null>;
   submitCheckin(
     deliveryId: string,
     driverName: string,

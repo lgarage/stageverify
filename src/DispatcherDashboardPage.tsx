@@ -9,6 +9,10 @@ import {
   markDeliveryShipped,
 } from "./dispatcher/firestoreService";
 import {
+  formatShopStockPickListForEditor,
+  parseShopStockPickListLines,
+} from "./dispatcher/shopStockPickList";
+import {
   DELIVERY_STATUS_LABEL,
   DISPATCHER_REVERT_TARGETS,
   VALID_TRANSITIONS,
@@ -486,6 +490,32 @@ export function DispatcherDashboardPage() {
     } catch (err) {
       setMutationError(
         err instanceof Error ? err.message : "Failed to update issue",
+      );
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleUpdateShopStockPickList = async (
+    items: string[],
+    locationNote: string,
+  ): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await firestoreDataService.updateShopStockPickList(
+        selectedDeliveryId,
+        items,
+        locationNote,
+      );
+      if (updated) setSelectedDetails(updated);
+      await fetchAllData();
+    } catch (err) {
+      setMutationError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update shop stock pick list",
       );
     } finally {
       setMutationLoading(false);
@@ -1799,6 +1829,7 @@ export function DispatcherDashboardPage() {
                 onRevertStatus={handleRevertStatus}
                 onMarkShipped={handleMarkShipped}
                 onUpdateIssueSummary={handleUpdateIssueSummary}
+                onUpdateShopStockPickList={handleUpdateShopStockPickList}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
                 onUpdatePurchaseOrder={handleUpdatePurchaseOrder}
@@ -2048,6 +2079,7 @@ function DetailContent({
   onRevertStatus,
   onMarkShipped,
   onUpdateIssueSummary,
+  onUpdateShopStockPickList,
   stagingLocations,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
@@ -2064,6 +2096,10 @@ function DetailContent({
   onRevertStatus: () => Promise<void>;
   onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
+  onUpdateShopStockPickList: (
+    items: string[],
+    locationNote: string,
+  ) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
@@ -2135,6 +2171,7 @@ function DetailContent({
         onRevertStatus={onRevertStatus}
         onMarkShipped={onMarkShipped}
         onUpdateIssueSummary={onUpdateIssueSummary}
+        onUpdateShopStockPickList={onUpdateShopStockPickList}
         onUpdateStagingLocation={onUpdateStagingLocation}
         onUpdatePurchaseOrder={onUpdatePurchaseOrder}
         stagingLocations={stagingLocations}
@@ -2732,6 +2769,7 @@ function StatusActionPanel({
   onRevertStatus,
   onMarkShipped,
   onUpdateIssueSummary,
+  onUpdateShopStockPickList,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
   stagingLocations,
@@ -2746,6 +2784,10 @@ function StatusActionPanel({
   onRevertStatus: () => Promise<void>;
   onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
+  onUpdateShopStockPickList: (
+    items: string[],
+    locationNote: string,
+  ) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   stagingLocations: StagingLocation[];
@@ -2767,10 +2809,24 @@ function StatusActionPanel({
   const [pendingPoNumber, setPendingPoNumber] = useState(
     details.purchaseOrder?.poNumber ?? "",
   );
+  const [pickListText, setPickListText] = useState(() =>
+    formatShopStockPickListForEditor(details.delivery.shopStockPickListItems),
+  );
+  const [shopStockLocationNote, setShopStockLocationNote] = useState(
+    details.delivery.shopStockLocationNote ?? "",
+  );
   const isDirty = pendingLocationId !== (details.stagingLocation?.id ?? "");
   const originalPoNumber = details.purchaseOrder?.poNumber ?? "";
   const isPoDirty =
     pendingPoNumber.trim() !== originalPoNumber.trim();
+  const savedShopStockLocationNote =
+    details.delivery.shopStockLocationNote ?? "";
+  const parsedPickList = parseShopStockPickListLines(pickListText);
+  const savedPickList = details.delivery.shopStockPickListItems ?? [];
+  const isPickListDirty =
+    parsedPickList.length !== savedPickList.length ||
+    parsedPickList.some((line, i) => line !== savedPickList[i]) ||
+    shopStockLocationNote.trim() !== savedShopStockLocationNote.trim();
 
   useEffect(() => {
     setPendingLocationId(details.stagingLocation?.id ?? "");
@@ -2779,6 +2835,17 @@ function StatusActionPanel({
   useEffect(() => {
     setPendingPoNumber(details.purchaseOrder?.poNumber ?? "");
   }, [details.purchaseOrder?.poNumber, details.delivery.id]);
+
+  useEffect(() => {
+    setPickListText(
+      formatShopStockPickListForEditor(details.delivery.shopStockPickListItems),
+    );
+    setShopStockLocationNote(details.delivery.shopStockLocationNote ?? "");
+  }, [
+    details.delivery.id,
+    details.delivery.shopStockPickListItems,
+    details.delivery.shopStockLocationNote,
+  ]);
 
   useEffect(() => {
     if (showReasonInput) {
@@ -3372,6 +3439,128 @@ function StatusActionPanel({
             {loading ? "Saving…" : "Assign"}
           </button>
         </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <h3
+          style={{
+            margin: "0 0 8px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#9ca3af",
+            textTransform: "uppercase",
+            letterSpacing: "0.10em",
+          }}
+        >
+          Shop Stock Pick List
+        </h3>
+        <p
+          style={{
+            margin: "0 0 8px",
+            fontSize: 12,
+            color: "#6b7280",
+            lineHeight: 1.45,
+            fontFamily: font,
+          }}
+        >
+          One extra shop-stock item per line for the technician pickup screen.
+          Not inventory — free text only.
+        </p>
+        <label
+          htmlFor="shop-stock-pick-list"
+          style={{
+            display: "block",
+            marginBottom: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#374151",
+            fontFamily: font,
+          }}
+        >
+          Pick list items
+        </label>
+        <textarea
+          id="shop-stock-pick-list"
+          value={pickListText}
+          onChange={(e) => setPickListText(e.target.value)}
+          disabled={loading}
+          placeholder={'1 stick 2" PVC\n2 cans PVC glue\n1 roll foil tape'}
+          rows={5}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "8px 12px",
+            border: isPickListDirty ? `1.5px solid ${navy}` : "1.5px solid #ccd0d7",
+            borderRadius: 6,
+            fontSize: 13,
+            fontFamily: font,
+            color: "#111",
+            backgroundColor: loading ? "#f9fafb" : "#fff",
+            outline: "none",
+            marginBottom: 10,
+            lineHeight: 1.45,
+          }}
+        />
+        <label
+          htmlFor="shop-stock-location-note"
+          style={{
+            display: "block",
+            marginBottom: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#374151",
+            fontFamily: font,
+          }}
+        >
+          Location note (optional)
+        </label>
+        <input
+          id="shop-stock-location-note"
+          type="text"
+          value={shopStockLocationNote}
+          onChange={(e) => setShopStockLocationNote(e.target.value)}
+          disabled={loading}
+          placeholder="Main shop stock area"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "7px 10px",
+            border: isPickListDirty
+              ? `1.5px solid ${navy}`
+              : "1.5px solid #ccd0d7",
+            borderRadius: 6,
+            fontSize: 13,
+            fontFamily: font,
+            color: "#333",
+            backgroundColor: loading ? "#f9fafb" : "#fff",
+            outline: "none",
+            marginBottom: 8,
+          }}
+        />
+        <button
+          type="button"
+          onClick={() =>
+            void onUpdateShopStockPickList(
+              parseShopStockPickListLines(pickListText),
+              shopStockLocationNote,
+            )
+          }
+          disabled={loading || !isPickListDirty}
+          style={{
+            padding: "7px 14px",
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: font,
+            cursor: loading || !isPickListDirty ? "not-allowed" : "pointer",
+            backgroundColor: loading || !isPickListDirty ? "#f3f4f6" : navy,
+            color: loading || !isPickListDirty ? "#9ca3af" : "#fff",
+            border: `1.5px solid ${loading || !isPickListDirty ? "#d1d5db" : navy}`,
+            transition: "all 0.13s",
+          }}
+        >
+          {loading ? "Saving…" : "Save Pick List"}
+        </button>
       </div>
 
       <div style={{ marginTop: 16 }}>

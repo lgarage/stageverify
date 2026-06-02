@@ -441,6 +441,33 @@ export class FirestoreDataService implements DispatcherDataService {
     return this.getDeliveryDetails(deliveryId);
   }
 
+  async updateShopStockPickList(
+    deliveryId: string,
+    items: string[],
+    locationNote: string,
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+    const delivery = deliverySnap.data() as DeliveryOrder;
+    if (delivery.status === "picked_up" || delivery.status === "installed") {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const trimmedNote = locationNote.trim();
+
+    await setDoc(
+      doc(db, "deliveries", deliveryId),
+      {
+        shopStockPickListItems: items,
+        shopStockLocationNote: trimmedNote,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    return this.getDeliveryDetails(deliveryId);
+  }
+
   async updatePurchaseOrder(
     deliveryId: string,
     poNumber: string,

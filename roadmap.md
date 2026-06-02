@@ -37,6 +37,7 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 - **Status-aware zone QR routing** — scan routes to vendor receive (`/receive`) or tech pickup (`/pickup`) based on delivery status; zone tags encode pickup URL when staged/complete.
 - **Need More Space?** tiered flow: Tier 1 shows closest shelf spot (3×3) and ground spot (4×4) side-by-side; Tier 2 offers closest oversized ground spot (4×10). Vendor picks; locations saved via `arrayUnion`.
 - Multiple staging locations per delivery (`additionalStagingLocationIds`); pickup portal shows all locations with primary emphasized.
+- **Shop Stock Pick List** — dispatcher adds free-text extra shop-stock lines + optional location note per delivery; technicians check off items on pickup before confirming staged pickup (not inventory).
 
 ### Staging zone management
 - `/zones` route with full CRUD UI (`ZoneManagementPage.tsx`).

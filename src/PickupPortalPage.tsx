@@ -14,6 +14,10 @@ import {
   type StagingLocation,
 } from "./dispatcher/models";
 import {
+  hasShopStockPickList,
+  shopStockItemKey,
+} from "./dispatcher/shopStockPickList";
+import {
   resolveZoneScanDisposition,
   syncScanIntent,
 } from "./scanRouting";
@@ -498,6 +502,9 @@ function JobPickupScreen({
   const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [checkedShopStockKeys, setCheckedShopStockKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [cardErrors, setCardErrors] = useState<Map<string, string>>(
     () => new Map(),
   );
@@ -652,6 +659,24 @@ function JobPickupScreen({
     }
   }, []);
 
+  const checkOffShopStockItem = useCallback((key: string) => {
+    setCheckedShopStockKeys((prev) => {
+      if (prev.has(key)) return prev;
+      return new Set([...prev, key]);
+    });
+  }, []);
+
+  const isShopStockCompleteForDelivery = useCallback(
+    (d: DeliveryDetails): boolean => {
+      const items = d.delivery.shopStockPickListItems ?? [];
+      if (items.length === 0) return true;
+      return items.every((_, index) =>
+        checkedShopStockKeys.has(shopStockItemKey(d.delivery.id, index)),
+      );
+    },
+    [checkedShopStockKeys],
+  );
+
   const handleDone = useCallback(() => {
     if (submittedRef.current) return;
     const allChecked =
@@ -664,12 +689,28 @@ function JobPickupScreen({
 
   const handleAutoSubmit = useCallback(async () => {
     if (submittedRef.current || submitting) return;
+
+    const blockedByShopStock = deliveries.some(
+      (d) =>
+        !checkedRef.current.has(d.delivery.id) &&
+        !isShopStockCompleteForDelivery(d),
+    );
+    if (blockedByShopStock) {
+      setError(
+        "Auto-submit cancelled — check all shop stock items before completing pickup.",
+      );
+      setAutoSubmitSecondsLeft(null);
+      return;
+    }
+
     submittedRef.current = true;
     setSubmitting(true);
     setError(null);
 
     const unchecked = deliveries.filter(
-      (d) => !checkedRef.current.has(d.delivery.id),
+      (d) =>
+        !checkedRef.current.has(d.delivery.id) &&
+        isShopStockCompleteForDelivery(d),
     );
 
     try {
@@ -689,7 +730,7 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, notes, submitting]);
+  }, [deliveries, notes, submitting, isShopStockCompleteForDelivery]);
 
   useEffect(() => {
     if (
@@ -752,8 +793,6 @@ function JobPickupScreen({
   const handleCancelScan = useCallback(() => {
     setIsScanning(false);
   }, []);
-
-  const allItems = deliveries.flatMap((d) => d.items);
 
   const toggleExpandedDelivery = useCallback((deliveryId: string) => {
     setExpandedDeliveryIds((prev) => {
@@ -870,7 +909,13 @@ function JobPickupScreen({
             );
             const primaryStaging = stagingLocations[0];
             const stagingCode = primaryStaging?.code ?? "—";
-            const canCheckOff = isPickupReady(deliveryStatus) && !isChecked;
+            const shopStockItems = d.delivery.shopStockPickListItems ?? [];
+            const showShopStock = hasShopStockPickList(d.delivery);
+            const shopStockComplete = isShopStockCompleteForDelivery(d);
+            const canCheckOff =
+              isPickupReady(deliveryStatus) &&
+              !isChecked &&
+              shopStockComplete;
             return (
               <div
                 key={deliveryId}
@@ -952,6 +997,12 @@ function JobPickupScreen({
                             {cardError}
                           </p>
                         )}
+                        {showShopStock && !isChecked && !shopStockComplete && (
+                          <p className="mt-2 text-xs text-accent">
+                            Check all shop stock items below before confirming
+                            pickup.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -1015,13 +1066,13 @@ function JobPickupScreen({
                       Mark off items as you pick them up — optional
                     </p>
 
-                    {allItems.length === 0 ? (
+                    {d.items.length === 0 ? (
                       <p className="rounded-xl border border-border bg-bg-surface px-3 py-3 text-sm text-text-secondary">
                         No items on record
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {allItems.map((item) => {
+                        {d.items.map((item) => {
                           const itemChecked = checkedItemIds.has(item.id);
                           return (
                             <button
@@ -1073,6 +1124,70 @@ function JobPickupScreen({
                             </button>
                           );
                         })}
+                      </div>
+                    )}
+
+                    {showShopStock && (
+                      <div className="mt-5 pt-4 border-t border-border">
+                        <p className="mb-1 text-sm font-semibold text-text-primary">
+                          Additional Shop Stock
+                        </p>
+                        <p className="mb-3 text-xs text-text-secondary">
+                          Check each item as you grab it from shop stock.
+                        </p>
+                        <div className="space-y-2">
+                          {shopStockItems.map((label, index) => {
+                            const key = shopStockItemKey(deliveryId, index);
+                            const stockChecked = checkedShopStockKeys.has(key);
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                disabled={stockChecked}
+                                onClick={() => checkOffShopStockItem(key)}
+                                className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left disabled:cursor-default"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <span
+                                    className={`mt-0.5 shrink-0 ${
+                                      stockChecked
+                                        ? "text-accent-green"
+                                        : "text-text-secondary"
+                                    }`}
+                                  >
+                                    <Svg
+                                      d={
+                                        stockChecked
+                                          ? icons.checkSquare
+                                          : icons.square
+                                      }
+                                      size={22}
+                                    />
+                                  </span>
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      stockChecked
+                                        ? "text-text-secondary line-through"
+                                        : "text-text-primary"
+                                    }`}
+                                  >
+                                    {label}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {d.delivery.shopStockLocationNote?.trim() && (
+                          <p className="mt-3 text-xs text-text-secondary">
+                            Location: {d.delivery.shopStockLocationNote.trim()}
+                          </p>
+                        )}
+                        {shopStockComplete && (
+                          <p className="mt-3 text-sm font-semibold text-accent-green">
+                            Shop Stock Complete ✓
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

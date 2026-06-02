@@ -103,6 +103,9 @@ export interface DeliveryOrder {
   additionalStagingLocationIds?: string[];
   status: DeliveryStatus;
   issueSummary?: string;
+  /** Free-text shop-stock lines for technician pickup (not inventory). */
+  shopStockPickListItems?: string[];
+  shopStockLocationNote?: string;
   notes?: string;
   submittedAt?: string;
   lastCheckmarkAt?: string;
