@@ -4,7 +4,12 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  hasReceiveDeepLink,
+  normalizeReceiveHash,
+  readReceiveParams,
+} from "./receiveQrUrls";
 import {
   firestoreDataService,
   getDeliveryDetailsPublic,
@@ -36,14 +41,6 @@ interface Html5QrcodeInstance {
   clear: () => void;
 }
 
-function parseReceiveHashParams(): { id: string | null; zone: string | null } {
-  const hash = window.location.hash;
-  const qsStart = hash.indexOf("?");
-  if (qsStart === -1) return { id: null, zone: null };
-  const params = new URLSearchParams(hash.slice(qsStart + 1));
-  return { id: params.get("id"), zone: params.get("zone") };
-}
-
 function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
   if (raw.startsWith("http")) {
     try {
@@ -73,6 +70,9 @@ function Toast({ message }: { message: string }) {
 }
 
 export function ReceivingPage() {
+  const [searchParams] = useSearchParams();
+  normalizeReceiveHash();
+
   const [step, setStep] = useState<Step>("scan");
   const [deliveryDetails, setDeliveryDetails] =
     useState<DeliveryDetails | null>(null);
@@ -90,10 +90,7 @@ export function ReceivingPage() {
   const [cameraFailed, setCameraFailed] = useState(false);
   const [scanMode, setScanMode] = useState<"camera" | "zone-miss">("camera");
   const [zoneMissCode, setZoneMissCode] = useState<string | null>(null);
-  const [deepLinkPending, setDeepLinkPending] = useState(() => {
-    const { id, zone } = parseReceiveHashParams();
-    return Boolean(id || zone);
-  });
+  const [deepLinkPending, setDeepLinkPending] = useState(hasReceiveDeepLink);
 
   const scannerRef = useRef<Html5QrcodeInstance | null>(null);
   const urlDeepLinkHandledRef = useRef(false);
@@ -250,7 +247,7 @@ export function ReceivingPage() {
 
   useEffect(() => {
     if (urlDeepLinkHandledRef.current) return;
-    const { id, zone } = parseReceiveHashParams();
+    const { id, zone } = readReceiveParams(searchParams);
     if (!id && !zone) return;
     urlDeepLinkHandledRef.current = true;
 
@@ -263,7 +260,7 @@ export function ReceivingPage() {
     if (zone) {
       void processZoneLookup(zone);
     }
-  }, [processDeliveryLookup, processZoneLookup]);
+  }, [searchParams, processDeliveryLookup, processZoneLookup]);
 
   useEffect(() => {
     if (step !== "scan" || scanMode !== "camera" || deepLinkPending) return;

@@ -787,6 +787,39 @@ export async function getDeliveryDetailsPublicByStagingCode(
   return getDeliveryDetailsPublic(sorted[0].id);
 }
 
+/** Zone code → active delivery id (for zone label QR URLs). Newest updated wins. */
+export async function mapActiveDeliveryIdsByZoneCode(): Promise<
+  Record<string, string>
+> {
+  const locations = await fetchAllStagingLocations();
+  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
+  const byCode: Record<string, string> = {};
+
+  for (const delivery of deliveries) {
+    if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(delivery.status)) continue;
+
+    for (const locId of getAllStagingLocationIds(delivery)) {
+      const location = locations.find((loc) => loc.id === locId);
+      if (!location) continue;
+      const key = location.code.trim().toUpperCase();
+      const existingId = byCode[key];
+      if (!existingId) {
+        byCode[key] = delivery.id;
+        continue;
+      }
+      const existing = deliveries.find((d) => d.id === existingId);
+      if (
+        existing &&
+        delivery.updatedAt.localeCompare(existing.updatedAt) > 0
+      ) {
+        byCode[key] = delivery.id;
+      }
+    }
+  }
+
+  return byCode;
+}
+
 export async function listVendors(): Promise<Vendor[]> {
   return fetchAll<Vendor>("vendors");
 }

@@ -16,13 +16,13 @@ import {
   createZone,
   updateZone,
   deactivateZone,
+  mapActiveDeliveryIdsByZoneCode,
 } from "./dispatcher/firestoreService";
+import { buildReceiveDeepLink } from "./receiveQrUrls";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const QR_BASE = "https://lgarage.github.io/stageverify/#/receive?zone=";
-
 const ZONE_TYPES = ["ground", "shelf", "bin", "other"] as const;
 type ZoneType = (typeof ZONE_TYPES)[number];
 
@@ -62,8 +62,15 @@ const SETTINGS_ITEM = {
   icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
 };
 
-function zoneQrUrl(code: string): string {
-  return `${QR_BASE}${encodeURIComponent(code)}`;
+function zoneQrUrl(
+  code: string,
+  deliveryIdByZoneCode: Record<string, string>,
+): string {
+  const deliveryId = deliveryIdByZoneCode[code.trim().toUpperCase()];
+  return buildReceiveDeepLink({
+    deliveryId: deliveryId ?? null,
+    zoneCode: deliveryId ? null : code,
+  });
 }
 
 function navLinkStyle(active: boolean): CSSProperties {
@@ -267,6 +274,9 @@ export function ZoneManagementPage() {
   const isSettings = location.pathname === "/settings";
 
   const [zones, setZones] = useState<StagingLocation[]>([]);
+  const [deliveryIdByZoneCode, setDeliveryIdByZoneCode] = useState<
+    Record<string, string>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
@@ -280,8 +290,12 @@ export function ZoneManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const loaded = await listAllZones();
+      const [loaded, deliveryByZone] = await Promise.all([
+        listAllZones(),
+        mapActiveDeliveryIdsByZoneCode(),
+      ]);
       setZones(loaded);
+      setDeliveryIdByZoneCode(deliveryByZone);
       setEslDrafts(
         Object.fromEntries(
           loaded.map((z) => [z.id, z.eslTagId ?? ""]),
@@ -1022,7 +1036,7 @@ export function ZoneManagementPage() {
                     }}
                   >
                     {typeZones.map((zone) => {
-                      const qrUrl = zoneQrUrl(zone.code);
+                      const qrUrl = zoneQrUrl(zone.code, deliveryIdByZoneCode);
                       return (
                         <div
                           key={zone.id}
@@ -1192,7 +1206,7 @@ export function ZoneManagementPage() {
           }}
         >
           {activeZonesForPrint.map((zone) => {
-            const qrUrl = zoneQrUrl(zone.code);
+            const qrUrl = zoneQrUrl(zone.code, deliveryIdByZoneCode);
             return (
               <div
                 key={zone.id}
