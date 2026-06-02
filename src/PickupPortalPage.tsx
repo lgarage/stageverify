@@ -29,7 +29,6 @@ const normalizeZoneCode = (code: string): string =>
 
 const icons = {
   check: "M5 13l4 4L19 7",
-  chevronDown: "M6 9l6 6 6-6",
   camera:
     "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z",
   square: "M4 4h16v16H4z",
@@ -496,9 +495,6 @@ function JobPickupScreen({
   const [zoneScanError, setZoneScanError] = useState<string | null>(null);
   const [checkingIds, setCheckingIds] = useState<Set<string>>(() => new Set());
   const [installingIds, setInstallingIds] = useState<Set<string>>(() => new Set());
-  const [expandedDeliveryIds, setExpandedDeliveryIds] = useState<Set<string>>(
-    () => new Set(),
-  );
   const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -543,6 +539,8 @@ function JobPickupScreen({
           setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
         }
         setDeliveries(loaded);
+        setCheckedItemIds(new Set());
+        setCheckedShopStockKeys(new Set());
         setChecked(
           new Set(
             loaded
@@ -659,10 +657,12 @@ function JobPickupScreen({
     }
   }, []);
 
-  const checkOffShopStockItem = useCallback((key: string) => {
+  const toggleShopStockItem = useCallback((key: string) => {
     setCheckedShopStockKeys((prev) => {
-      if (prev.has(key)) return prev;
-      return new Set([...prev, key]);
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
     });
   }, []);
 
@@ -794,22 +794,12 @@ function JobPickupScreen({
     setIsScanning(false);
   }, []);
 
-  const toggleExpandedDelivery = useCallback((deliveryId: string) => {
-    setExpandedDeliveryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(deliveryId)) {
-        next.delete(deliveryId);
-      } else {
-        next.add(deliveryId);
-      }
-      return next;
-    });
-  }, []);
-
-  const checkOffItem = useCallback((itemId: string) => {
+  const toggleCheckedItem = useCallback((itemId: string) => {
     setCheckedItemIds((prev) => {
-      if (prev.has(itemId)) return prev;
-      return new Set([...prev, itemId]);
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
     });
   }, []);
 
@@ -902,13 +892,10 @@ function JobPickupScreen({
             const isInstalling = installingIds.has(deliveryId);
             const isPulsing = pulsingId === deliveryId;
             const cardError = cardErrors.get(deliveryId);
-            const isExpanded = expandedDeliveryIds.has(deliveryId);
             const stagingLocations = resolveStagingLocations(
               d,
               allStagingLocations,
             );
-            const primaryStaging = stagingLocations[0];
-            const stagingCode = primaryStaging?.code ?? "—";
             const shopStockItems = d.delivery.shopStockPickListItems ?? [];
             const showShopStock = hasShopStockPickList(d.delivery);
             const shopStockComplete = isShopStockCompleteForDelivery(d);
@@ -931,17 +918,16 @@ function JobPickupScreen({
                           : "border-border"
                 }`}
               >
-                <div className="flex items-stretch">
-                  <button
-                    ref={(el) => {
-                      if (el) cardRefs.current.set(deliveryId, el);
-                      else cardRefs.current.delete(deliveryId);
-                    }}
-                    type="button"
-                    disabled={!canCheckOff || isChecking}
-                    onClick={() => void checkOffDelivery(d)}
-                    className="flex-1 min-w-0 p-4 text-left disabled:cursor-default"
-                  >
+                <button
+                  ref={(el) => {
+                    if (el) cardRefs.current.set(deliveryId, el);
+                    else cardRefs.current.delete(deliveryId);
+                  }}
+                  type="button"
+                  disabled={!canCheckOff || isChecking}
+                  onClick={() => void checkOffDelivery(d)}
+                  className="w-full p-4 text-left disabled:cursor-default"
+                >
                     <div className="flex items-start gap-3">
                       {(isChecked || isInstalled) && (
                         <span
@@ -1005,23 +991,7 @@ function JobPickupScreen({
                         )}
                       </div>
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${isExpanded ? "Collapse" : "Expand"} zone ${stagingCode}`}
-                    aria-expanded={isExpanded}
-                    onClick={() => toggleExpandedDelivery(deliveryId)}
-                    className="shrink-0 w-12 border-l border-border text-text-secondary flex items-center justify-center active:bg-bg-secondary transition-colors"
-                  >
-                    <span
-                      className={`transition-transform duration-200 ${
-                        isExpanded ? "rotate-180" : ""
-                      }`}
-                    >
-                      <Svg d={icons.chevronDown} size={20} />
-                    </span>
-                  </button>
-                </div>
+                </button>
                 {deliveryStatus === "picked_up" && (
                   <div className="border-t border-border px-4 py-3">
                     <button
@@ -1034,12 +1004,7 @@ function JobPickupScreen({
                     </button>
                   </div>
                 )}
-                <div
-                  className={`overflow-hidden transition-[max-height,opacity] duration-200 ${
-                    isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-                  }`}
-                >
-                  <div className="border-t border-border bg-bg-secondary/40 px-4 py-4">
+                <div className="border-t border-border bg-bg-secondary/40 px-4 py-4">
                     <div className="space-y-2 mb-4">
                       {[
                         ["Order #", d.delivery.orderNumber],
@@ -1078,9 +1043,8 @@ function JobPickupScreen({
                             <button
                               key={item.id}
                               type="button"
-                              disabled={itemChecked}
-                              onClick={() => checkOffItem(item.id)}
-                              className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left disabled:cursor-default"
+                              onClick={() => toggleCheckedItem(item.id)}
+                              className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
                             >
                               <div className="flex items-start gap-3">
                                 <span
@@ -1143,9 +1107,8 @@ function JobPickupScreen({
                               <button
                                 key={key}
                                 type="button"
-                                disabled={stockChecked}
-                                onClick={() => checkOffShopStockItem(key)}
-                                className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left disabled:cursor-default"
+                                onClick={() => toggleShopStockItem(key)}
+                                className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
                               >
                                 <div className="flex items-start gap-3">
                                   <span
@@ -1190,7 +1153,6 @@ function JobPickupScreen({
                         )}
                       </div>
                     )}
-                  </div>
                 </div>
               </div>
             );

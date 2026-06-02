@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: MVP complete ? full delivery lifecycle live (Ordered?Shipped?Received?Staged?Picked Up?Installed)
-- Last shipped: Shop Stock Pick List MVP ? dispatcher free-text pick list + technician checkbox gate on pickup (this session).
+- Last shipped: Pickup portal UX ? toggle checkmarks; delivery details always visible (no collapse).
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2, qrcode.react. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 
@@ -19,8 +19,10 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 1. **ESL Cloud Function** (backend-write-critical) ??? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-02, this session)
-- feat: Shop Stock Pick List ? `shopStockPickListItems` + location note on delivery; dispatcher drawer editor; pickup portal "Additional Shop Stock" checkboxes + completion gate (incl. auto-submit); Sonnet review fixes.
+- fix: Pickup portal ? uncheck staged/shop-stock lines; order/vendor/PO/staging visible on job load (removed collapse).
 ## Prev Session (2026-06-02)
+- feat: Shop Stock Pick List ? `shopStockPickListItems` + location note on delivery; dispatcher drawer editor; pickup portal "Additional Shop Stock" checkboxes + completion gate (incl. auto-submit); Sonnet review fixes.
+## Prev Session (2026-06-02, earlier)
 - feat: Status-aware zone QR routing ? `getDeliveryDetailsByStagingCode`, `buildZoneEslQrUrl` pickup URLs, receive/pickup redirects; Sonnet review fixes (camera pickup scan, secondary zones, dossier gotcha).
 ## Prev Session (2026-06-01, this session)
 - feat: Need More Space? tiered flow ? Tier 1 shows closest shelf + ground cards (vendor picks); Tier 2 offers closest 4?10 oversized spot; widthFt/depthFt on StagingLocation; Zone form gains dimension inputs (1b3f8e3, bad8f07, 2a3d82c).
