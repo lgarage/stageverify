@@ -123,16 +123,21 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 ### Pre-edit gate
 **Announce-and-go.** State archetype + tier + model, then immediately start editing. Do not wait for a "go ahead" reply.
 
-### Git commits
-**Auto-commit** after completing a feature or task — stage only the changed files and commit with a conventional message.
+### Git commits + push (mandatory — user standing preference)
+**Always commit and push** after any code or project-status changes in this repo. Do not wait to be asked. This overrides generic "commit only when requested" guidance for stageverify.
 
-### Push and deploy (default after substantive work)
-After every substantive commit, **push to `origin/main` and run `npm run deploy`** so the live site matches main. Do this without waiting to be asked.
+1. Stage only files changed for the task.
+2. Commit with a conventional message (`feat:`, `fix:`, `chore:`, etc.).
+3. **Immediately** `git push origin main`.
+
+Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
+
+### Deploy (default after substantive UI/backend changes)
+After pushes that ship user-visible or testable behavior, **run `npm run deploy`** so GitHub Pages matches main. Do this without waiting to be asked.
 ```
-git push origin main
 npm run deploy
 ```
-Skip push/deploy only when Dan says to hold off or the change is WIP on a branch.
+Skip deploy only when Dan says to hold off.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
@@ -156,7 +161,8 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Skip the build gate — a broken build is worse than no change.
 ❌ Use `any` in TypeScript — always resolve types correctly.
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
-❌ Leave main unpushed after substantive work when Dan expects to test on gh-pages.
+❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
+❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.
 
 ## Rule File Self-Maintenance
 If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.
