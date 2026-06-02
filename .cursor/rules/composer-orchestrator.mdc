@@ -33,6 +33,36 @@ npm run build
 ```
 Fix all TypeScript errors before declaring the task done. Never report success without a clean build.
 
+## UI Verification Protocol (visible UI changes)
+
+For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affects what the user sees in the browser, run visual verification **in addition to** the build gate:
+
+### Steps
+1. **Before screenshot** — start the local dev server (`npm run dev`, default port 5173), navigate to the affected route, take a Playwright screenshot. Save as `before.png`.
+2. **Make the code changes.**
+3. **Build gate** — run `npm run build`; fix all errors.
+4. **After screenshot** — with dev server still running (hot-reload), navigate to the same route, take a Playwright screenshot. Save as `after.png`.
+5. **Assert** — confirm the intended change is visible in `after.png` and no obvious regressions exist in surrounding UI.
+6. **Clean up** — stop the dev server; delete `before.png` and `after.png`.
+
+### When to apply
+- **Always:** any change to a component's layout, colors, columns, inputs, or visible text
+- **Always:** adding or removing UI elements (buttons, fields, table columns)
+- **Skip:** changes that are purely TypeScript types, service logic, or rule files with no rendered output
+
+### Playwright command reference (stageverify)
+```bash
+# Install if not already present
+npx playwright install chromium --with-deps
+
+# Take a screenshot
+npx playwright screenshot --browser chromium http://localhost:5173/#/settings before.png
+```
+Replace `#/settings` with the affected route.
+
+### Failure behavior
+If `after.png` does not show the expected change, do NOT commit. Debug and re-run the verification loop. Only commit once visual output confirms the feature.
+
 ## TypeScript Discipline
 - Never use `any` type — find the correct type or add it to `src/dispatcher/models.ts`.
 - New shared interfaces and types belong in `src/dispatcher/models.ts`, following existing patterns.
