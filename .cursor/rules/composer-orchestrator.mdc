@@ -11,6 +11,7 @@ You are the default orchestrator and worker for this project. Follow these proto
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Check Active Blockers. If the task touches a blocker, flag it before acting.
 3. Read `PROJECT_STATUS/MODEL_DOSSIER.md` **index** (match task to tag; open § only if needed) for model routing, QR/zones, or backend-critical work.
+4. For **public routes**, **pickup portal**, or **UI fixes**, open `MODEL_DOSSIER.md` **§ agent-lessons** — do not repeat 2026-06-02 pickup mistakes.
 
 ## Pre-Action Clarification Gate
 Before writing any code, STOP and ask ONE focused question if ANY of these are true:
@@ -165,10 +166,14 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
 
 ### Deploy (default after substantive UI/backend changes)
-After pushes that ship user-visible or testable behavior, **run `npm run deploy`** so GitHub Pages matches main. Do this without waiting to be asked.
-```
-npm run deploy
-```
+After pushes that ship user-visible or testable behavior:
+
+1. **`npm run deploy`** — GitHub Pages (frontend).
+2. If the change touches **Firestore rules** or **public unauthenticated writes**, also run:
+   ```
+   firebase deploy --only firestore:rules --project stageverify-db
+   ```
+
 Skip deploy only when Dan says to hold off.
 
 ### PROJECT_STATUS updates
