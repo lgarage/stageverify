@@ -8,7 +8,7 @@
 ## Billing profile (confirmed 2026-06-02)
 - **Auto + Composer quota**: ~5% used — Composer 2.5 Fast is essentially free within the plan.
 - **API quota**: 100% used + $262.53 on-demand overage — Sonnet 4.6 / Opus 4.6 cost real money.
-- **Policy**: Default every file edit to Composer 2.5 Fast. Reserve Sonnet 4.6 for orchestration, security gate, and T2 tasks that need deeper reasoning. Reserve Opus 4.6 for T3 backend-write-critical only.
+- **Policy**: Composer 2.5 Fast is the orchestrator AND default worker — do T0/T1/T2 inline. Escalate to Sonnet 4.6 (Task subagent) only for security gate or high-stakes ambiguous decisions. Opus 4.6 for T3 only.
 
 ## Local risk profile
 - **Mixed SPA + backend.** Firebase Firestore + Cloud Functions v2 are live (Blaze plan, project: stageverify-db).

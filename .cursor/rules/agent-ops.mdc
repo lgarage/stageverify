@@ -15,13 +15,14 @@ Do NOT read archives or `outcomes/*.jsonl` during normal work.
 
 ## During work
 - Classify each task into an archetype and route to the tier-table default model.
-  Orchestrate on Sonnet 4.6; dispatch cheaper workers as subagents when independent.
+  **Composer 2.5 Fast is the orchestrator and default worker.** Do T0/T1/T2 edits inline.
+  Escalate to Sonnet 4.6 (via Task subagent) only for security gate review or genuinely ambiguous high-stakes decisions.
+  Escalate to Opus 4.6 (via Task subagent) only for `backend-write-critical` work.
 - **PRE-EDIT GATE (mandatory)**: Before any file edit, state archetype + tier + dispatch decision.
   See `.cursor/rules/model-dispatch-gate.mdc` for the full gate protocol and tier defaults.
-  T0/T1 edits MUST be dispatched to Composer 2.5 Fast via Task tool — never done inline in Sonnet 4.6.
 - Offer to queue qualifying side-tasks to `PROJECT_STATUS/away-list.json`
   (agent-ops triage rule §4) — pre-scoped, reversible, self-verifiable, ≥85% conf.
-- `backend-write-critical` stays on Opus 4.6 until this repo gains a backend.
+- `backend-write-critical` stays on Opus 4.6.
 - **Windows shell**: always use `cmd /c dir` (not `Get-ChildItem` / `ls`) when listing directory contents in a Shell tool call. PowerShell object-pipeline output does not render reliably in Cursor's terminal capture on this machine.
 - **STATS.md is stale**: `cursor-agent-brain/STATS.md` is regenerated nightly and may be hours behind. When making a Phase-2 readiness decision, do NOT trust its outcome count — instead run `cmd /c dir C:\Projects\cursor-agent-brain\outcomes\` and count the actual `.jsonl` files / lines to get the real total.
 
