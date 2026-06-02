@@ -20,7 +20,10 @@ import {
   firestoreDataService,
   getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
+  mapOccupancyByLocationId,
+  type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
+import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import {
   shouldRouteScanToPickup,
   type DeliveryDetails,
@@ -85,6 +88,9 @@ export function ReceivingPage() {
   const [stagingLocations, setStagingLocations] = useState<StagingLocation[]>(
     [],
   );
+  const [zoneOccupancy, setZoneOccupancy] = useState<
+    Record<string, StagingLocationOccupant>
+  >({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -136,6 +142,13 @@ export function ReceivingPage() {
         setLoading(false);
       });
   }, [step]);
+
+  useEffect(() => {
+    if (step !== "zone" || !deliveryDetails) return;
+    void mapOccupancyByLocationId(deliveryDetails.delivery.id).then(
+      setZoneOccupancy,
+    );
+  }, [step, deliveryDetails]);
 
   const debouncedUpdateItemQty = useCallback(
     (
@@ -440,11 +453,25 @@ export function ReceivingPage() {
 
   const handleZoneSelect = (locationId: string | null) => {
     if (!deliveryDetails) return;
+    setError(null);
     setStagingLocationId(locationId);
     void firestoreDataService
       .updateStagingLocation(deliveryDetails.delivery.id, locationId)
       .then((updated) => {
         if (updated) setDeliveryDetails(updated);
+        void mapOccupancyByLocationId(deliveryDetails.delivery.id).then(
+          setZoneOccupancy,
+        );
+      })
+      .catch((err: unknown) => {
+        if (isStagingLocationOccupiedError(err)) {
+          showToast(err.message);
+          setStagingLocationId(
+            deliveryDetails.delivery.stagingLocationId ?? null,
+          );
+          return;
+        }
+        setError("Failed to assign staging zone");
       });
   };
 
@@ -919,15 +946,20 @@ export function ReceivingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   {stagingLocations.map((loc) => {
                     const selected = stagingLocationId === loc.id;
+                    const occupant = zoneOccupancy[loc.id];
+                    const isOccupied = Boolean(occupant);
                     return (
                       <button
                         key={loc.id}
                         type="button"
+                        disabled={isOccupied}
                         onClick={() => handleZoneSelect(loc.id)}
-                        className={`min-h-[44px] rounded-xl border px-4 py-4 text-left transition-colors ${
+                        className={`min-h-[44px] rounded-xl border px-4 py-4 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           selected
                             ? "border-accent bg-accent/10 text-accent"
-                            : "border-border bg-bg-card text-text-primary"
+                            : isOccupied
+                              ? "border-accent-red/40 bg-accent-red/5 text-text-secondary"
+                              : "border-border bg-bg-card text-text-primary"
                         }`}
                       >
                         <span className="text-2xl font-bold font-mono">
@@ -936,6 +968,11 @@ export function ReceivingPage() {
                         {loc.label && (
                           <span className="block text-xs text-text-secondary mt-1">
                             {loc.label}
+                          </span>
+                        )}
+                        {isOccupied && (
+                          <span className="block text-xs text-accent-red mt-1">
+                            In use — {occupant.orderNumber}
                           </span>
                         )}
                       </button>

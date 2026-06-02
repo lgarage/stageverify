@@ -41,6 +41,16 @@ import type {
   SortDirection,
 } from "./service";
 import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } from "./service";
+import {
+  StagingLocationOccupiedError,
+  deliveryUsesStagingLocation,
+} from "./stagingOccupancy";
+
+export {
+  StagingLocationOccupiedError,
+  deliveryUsesStagingLocation,
+  isStagingLocationOccupiedError,
+} from "./stagingOccupancy";
 
 const COLLECTION_SAFETY_LIMIT = 500;
 
@@ -424,6 +434,9 @@ export class FirestoreDataService implements DispatcherDataService {
       );
       const newLoc = stagingLocationFromSnap(newSnap);
       if (newLoc) newCode = newLoc.code;
+      if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
+        await assertStagingLocationAvailable(stagingLocationId, deliveryId);
+      }
     }
 
     const now = new Date().toISOString();
@@ -752,6 +765,13 @@ export async function addStagingLocation(
   deliveryId: string,
   locationId: string,
 ): Promise<void> {
+  const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+  if (!deliverySnap.exists()) return;
+  const delivery = deliverySnap.data() as DeliveryOrder;
+
+  if (deliveryUsesStagingLocation(delivery, locationId)) return;
+  await assertStagingLocationAvailable(locationId, deliveryId);
+
   const now = new Date().toISOString();
   const eventId = `event-${crypto.randomUUID()}`;
   const batch = writeBatch(db);
@@ -974,6 +994,83 @@ export async function mapActiveZoneOccupancyByCode(): Promise<
   return byCode;
 }
 
+export interface StagingLocationOccupant {
+  deliveryId: string;
+  orderNumber: string;
+  vendorName: string;
+  locationId: string;
+  locationCode: string;
+}
+
+/** Staging location id → active delivery occupying that spot (excludes picked_up / installed). */
+export async function mapOccupancyByLocationId(
+  excludeDeliveryId?: string,
+): Promise<Record<string, StagingLocationOccupant>> {
+  const locations = await fetchAllStagingLocations();
+  const [deliveries, vendors] = await Promise.all([
+    fetchAll<DeliveryOrder>("deliveries"),
+    fetchAll<Vendor>("vendors"),
+  ]);
+  const byLocationId: Record<string, StagingLocationOccupant> = {};
+
+  const shouldReplace = (
+    existing: StagingLocationOccupant,
+    candidate: DeliveryOrder,
+  ): boolean => {
+    const prev = deliveries.find((d) => d.id === existing.deliveryId);
+    return Boolean(
+      prev && candidate.updatedAt.localeCompare(prev.updatedAt) > 0,
+    );
+  };
+
+  for (const delivery of deliveries) {
+    if (excludeDeliveryId && delivery.id === excludeDeliveryId) continue;
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    const vendor = vendors.find((v) => v.id === delivery.vendorId);
+
+    for (const locId of getAllStagingLocationIds(delivery)) {
+      const location = locations.find((loc) => loc.id === locId);
+      const occupant: StagingLocationOccupant = {
+        deliveryId: delivery.id,
+        orderNumber: delivery.orderNumber,
+        vendorName: vendor?.name ?? "Unknown vendor",
+        locationId: locId,
+        locationCode: location?.code ?? locId,
+      };
+      const existing = byLocationId[locId];
+      if (!existing || shouldReplace(existing, delivery)) {
+        byLocationId[locId] = occupant;
+      }
+    }
+  }
+
+  return byLocationId;
+}
+
+export async function findStagingLocationOccupant(
+  locationId: string,
+  excludeDeliveryId?: string,
+): Promise<StagingLocationOccupant | null> {
+  const map = await mapOccupancyByLocationId(excludeDeliveryId);
+  return map[locationId] ?? null;
+}
+
+async function assertStagingLocationAvailable(
+  locationId: string,
+  excludeDeliveryId: string,
+): Promise<void> {
+  const occupant = await findStagingLocationOccupant(
+    locationId,
+    excludeDeliveryId,
+  );
+  if (occupant) {
+    throw new StagingLocationOccupiedError(
+      occupant.locationCode,
+      occupant.orderNumber,
+    );
+  }
+}
+
 /** @deprecated Use mapActiveZoneOccupancyByCode */
 export async function mapActiveDeliveryIdsByZoneCode(): Promise<
   Record<string, string>
@@ -1044,6 +1141,11 @@ export async function createDelivery(
   const deliveryId = `delivery-${crypto.randomUUID()}`;
   const allDeliveries = await fetchAll<DeliveryOrder>("deliveries");
   const orderNumber = `ORD-${String(allDeliveries.length + 1).padStart(3, "0")}`;
+
+  if (input.stagingLocationId?.trim()) {
+    await assertStagingLocationAvailable(input.stagingLocationId, deliveryId);
+  }
+
   const batch = writeBatch(db);
 
   let purchaseOrderId: string | undefined;

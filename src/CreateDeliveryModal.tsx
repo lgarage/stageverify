@@ -6,7 +6,9 @@ import {
   firestoreDataService,
   listJobs,
   listVendors,
+  mapOccupancyByLocationId,
 } from "./dispatcher/firestoreService";
+import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -69,6 +71,10 @@ export function CreateDeliveryModal({
   const [stagingLocations, setStagingLocations] = useState<StagingLocation[]>(
     [],
   );
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [zoneOccupancy, setZoneOccupancy] = useState<
+    Record<string, { orderNumber: string }>
+  >({});
 
   useEffect(() => {
     if (!open) return;
@@ -76,10 +82,12 @@ export function CreateDeliveryModal({
       listVendors(),
       listJobs(),
       firestoreDataService.listStagingLocations(),
-    ]).then(([loadedVendors, loadedJobs, loadedLocations]) => {
+      mapOccupancyByLocationId(),
+    ]).then(([loadedVendors, loadedJobs, loadedLocations, occupancy]) => {
       setVendors(loadedVendors);
       setJobs(loadedJobs);
       setStagingLocations(loadedLocations);
+      setZoneOccupancy(occupancy);
     });
   }, [open]);
 
@@ -91,6 +99,7 @@ export function CreateDeliveryModal({
     setDeliveryDate("");
     setStagingLocationId("");
     setLineItems([{ ...EMPTY_LINE_ITEM }]);
+    setSubmitError(null);
   }, [open]);
 
   useEffect(() => {
@@ -138,22 +147,31 @@ export function CreateDeliveryModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
+    setSubmitError(null);
 
-    await createDelivery({
-      vendorId,
-      jobId,
-      poNumber: poNumber.trim() || undefined,
-      deliveryDate,
-      stagingLocationId: stagingLocationId || undefined,
-      lineItems: validLineItems.map((row) => ({
-        sku: row.sku.trim() || undefined,
-        description: row.description.trim(),
-        qtyOrdered: row.qtyOrdered,
-      })),
-    });
+    try {
+      await createDelivery({
+        vendorId,
+        jobId,
+        poNumber: poNumber.trim() || undefined,
+        deliveryDate,
+        stagingLocationId: stagingLocationId || undefined,
+        lineItems: validLineItems.map((row) => ({
+          sku: row.sku.trim() || undefined,
+          description: row.description.trim(),
+          qtyOrdered: row.qtyOrdered,
+        })),
+      });
 
-    onCreated();
-    onClose();
+      onCreated();
+      onClose();
+    } catch (err) {
+      if (isStagingLocationOccupiedError(err)) {
+        setSubmitError(err.message);
+        return;
+      }
+      throw err;
+    }
   };
 
   if (!open) return null;
@@ -284,11 +302,16 @@ export function CreateDeliveryModal({
                 <option value="">— Unassigned —</option>
                 {stagingLocations
                   .filter(isLocationActive)
-                  .map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.code} — {loc.label}
-                    </option>
-                  ))}
+                  .map((loc) => {
+                    const occupant = zoneOccupancy[loc.id];
+                    const inUse = Boolean(occupant);
+                    return (
+                      <option key={loc.id} value={loc.id} disabled={inUse}>
+                        {loc.code} — {loc.label}
+                        {inUse ? ` (in use: ${occupant.orderNumber})` : ""}
+                      </option>
+                    );
+                  })}
               </select>
             </div>
           </div>
@@ -440,6 +463,18 @@ export function CreateDeliveryModal({
               borderTop: "1px solid #e0e3e8",
             }}
           >
+            {submitError && (
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 13,
+                  color: RED,
+                  fontFamily: FONT,
+                }}
+              >
+                {submitError}
+              </p>
+            )}
             <button
               type="button"
               onClick={onClose}

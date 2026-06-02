@@ -8,7 +8,10 @@ import { DispatcherPortalLinks } from "./PortalNavBar";
 import {
   firestoreDataService,
   markDeliveryShipped,
+  mapOccupancyByLocationId,
+  type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
+import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import {
   formatShopStockPickListForEditor,
   parseShopStockPickListLines,
@@ -325,10 +328,14 @@ export function DispatcherDashboardPage() {
         setMutationError("Failed to update staging location.");
       }
     } catch (e) {
-      setMutationError(
-        "An unexpected error occurred while updating staging location.",
-      );
-      console.error(e);
+      if (isStagingLocationOccupiedError(e)) {
+        setMutationError(e.message);
+      } else {
+        setMutationError(
+          "An unexpected error occurred while updating staging location.",
+        );
+        console.error(e);
+      }
     } finally {
       setMutationLoading(false);
     }
@@ -2792,6 +2799,13 @@ function StatusActionPanel({
   const [pendingPoNumber, setPendingPoNumber] = useState(
     details.purchaseOrder?.poNumber ?? "",
   );
+  const [zoneOccupancy, setZoneOccupancy] = useState<
+    Record<string, StagingLocationOccupant>
+  >({});
+
+  useEffect(() => {
+    void mapOccupancyByLocationId(details.delivery.id).then(setZoneOccupancy);
+  }, [details.delivery.id]);
   const [pickListText, setPickListText] = useState(() =>
     formatShopStockPickListForEditor(details.delivery.shopStockPickListItems),
   );
@@ -3394,11 +3408,16 @@ function StatusActionPanel({
             }}
           >
             <option value="">— Unassigned —</option>
-            {stagingLocations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.code} — {loc.label}
-              </option>
-            ))}
+            {stagingLocations.map((loc) => {
+              const occupant = zoneOccupancy[loc.id];
+              const inUse = Boolean(occupant);
+              return (
+                <option key={loc.id} value={loc.id} disabled={inUse}>
+                  {loc.code} — {loc.label}
+                  {inUse ? ` (in use: ${occupant.orderNumber})` : ""}
+                </option>
+              );
+            })}
           </select>
           <button
             onClick={() =>

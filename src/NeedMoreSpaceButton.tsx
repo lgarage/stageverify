@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   addStagingLocation,
   firestoreDataService,
+  mapOccupancyByLocationId,
 } from "./dispatcher/firestoreService";
 import {
   getAllStagingLocationIds,
@@ -10,6 +11,7 @@ import {
   type DeliveryOrder,
   type StagingLocation,
 } from "./dispatcher/models";
+import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 
 type FlowState = "idle" | "suggesting" | "suggestingOversized" | "done";
 
@@ -21,13 +23,13 @@ const isShelfType = (type: StagingLocation["type"]): boolean =>
 
 function pickShelfSpot(
   locations: StagingLocation[],
-  assigned: Set<string>,
+  blocked: Set<string>,
 ): StagingLocation | undefined {
   return locations
     .filter(
       (loc) =>
         isLocationActive(loc) &&
-        !assigned.has(loc.id) &&
+        !blocked.has(loc.id) &&
         !isOversizedSpot(loc) &&
         isShelfType(loc.type),
     )
@@ -36,13 +38,13 @@ function pickShelfSpot(
 
 function pickGroundSpot(
   locations: StagingLocation[],
-  assigned: Set<string>,
+  blocked: Set<string>,
 ): StagingLocation | undefined {
   return locations
     .filter(
       (loc) =>
         isLocationActive(loc) &&
-        !assigned.has(loc.id) &&
+        !blocked.has(loc.id) &&
         !isOversizedSpot(loc) &&
         loc.type === "ground",
     )
@@ -51,13 +53,13 @@ function pickGroundSpot(
 
 function pickOversizedGroundSpot(
   locations: StagingLocation[],
-  assigned: Set<string>,
+  blocked: Set<string>,
 ): StagingLocation | undefined {
   return locations
     .filter(
       (loc) =>
         isLocationActive(loc) &&
-        !assigned.has(loc.id) &&
+        !blocked.has(loc.id) &&
         loc.type === "ground" &&
         isOversizedSpot(loc),
     )
@@ -135,10 +137,14 @@ export function NeedMoreSpaceButton({
     setNoLargerMessage(false);
     try {
       const all = await firestoreDataService.listStagingLocations();
-      const assigned = new Set(getAllStagingLocationIds(localDelivery));
-      const shelf = pickShelfSpot(all, assigned);
-      const ground = pickGroundSpot(all, assigned);
-      const oversized = pickOversizedGroundSpot(all, assigned);
+      const occupancy = await mapOccupancyByLocationId(localDelivery.id);
+      const blocked = new Set([
+        ...getAllStagingLocationIds(localDelivery),
+        ...Object.keys(occupancy),
+      ]);
+      const shelf = pickShelfSpot(all, blocked);
+      const ground = pickGroundSpot(all, blocked);
+      const oversized = pickOversizedGroundSpot(all, blocked);
       setShelfSpot(shelf);
       setGroundSpot(ground);
       setOversizedSpot(oversized);
@@ -185,9 +191,13 @@ export function NeedMoreSpaceButton({
       setConfirmLabel(loc.label);
       window.setTimeout(() => {
         setConfirmLabel(null);
-        void firestoreDataService.listStagingLocations().then((all) => {
-          const assigned = new Set(getAllStagingLocationIds(updated));
-          const oversized = pickOversizedGroundSpot(all, assigned);
+        void firestoreDataService.listStagingLocations().then(async (all) => {
+          const occupancy = await mapOccupancyByLocationId(updated.id);
+          const blocked = new Set([
+            ...getAllStagingLocationIds(updated),
+            ...Object.keys(occupancy),
+          ]);
+          const oversized = pickOversizedGroundSpot(all, blocked);
           setOversizedSpot(oversized);
           if (oversized) {
             setFlowState("suggestingOversized");
@@ -197,6 +207,14 @@ export function NeedMoreSpaceButton({
           }
         });
       }, 2000);
+    } catch (err) {
+      if (isStagingLocationOccupiedError(err)) {
+        setConfirmLabel(null);
+        setNoLargerMessage(false);
+        window.alert(err.message);
+      } else {
+        throw err;
+      }
     } finally {
       setAdding(false);
     }
@@ -211,6 +229,12 @@ export function NeedMoreSpaceButton({
         setConfirmLabel(null);
         setFlowState("done");
       }, 2000);
+    } catch (err) {
+      if (isStagingLocationOccupiedError(err)) {
+        window.alert(err.message);
+      } else {
+        throw err;
+      }
     } finally {
       setAdding(false);
     }
