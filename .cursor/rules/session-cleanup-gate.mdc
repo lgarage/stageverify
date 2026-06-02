@@ -70,7 +70,10 @@ When cleanup ran, include one line:
 
 ```
 Cleanup: dev servers stopped ✓ | background shells killed ✓ | verify PNGs removed ✓ | git status clean ✓ | ports clear ✓
+Ship: committed ✓ | pushed ✓ | gh-pages deployed ✓
 ```
+
+Add `| firestore rules deployed ✓` when rules or public unauthenticated writes shipped.
 
 If cleanup could not run (e.g. no shell access), say what was left and why.
 

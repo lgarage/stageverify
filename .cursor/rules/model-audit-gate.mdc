@@ -33,6 +33,8 @@ Run a short review **only if** the shipped change touched any of:
 
 ## Audit output (mandatory in assistant reply)
 
+Complete the **ship loop** (`ship-loop.mdc`) before declaring done — commit, push, and deploy must succeed (or deploy failure reported clearly).
+
 End substantive work with a compact block:
 
 ```

@@ -1,0 +1,42 @@
+---
+description: Mandatory commit, push, and deploy after substantive stageverify changes.
+alwaysApply: true
+---
+
+# Ship Loop (stageverify)
+
+After **any** substantive code or config change in this repo, complete the ship loop before declaring done.
+
+## Sequence
+
+1. `git status` — stage **only** task-related files.
+2. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
+3. `git push origin main` — must succeed.
+4. `npm run deploy` — GitHub Pages; must succeed or report failure clearly.
+
+If **Firestore rules** or **public unauthenticated writes** changed, also:
+
+```
+firebase deploy --only firestore:rules --project stageverify-db
+```
+
+## When to skip
+
+Skip commit, push, and deploy **only** when Dan explicitly says hold off or work is WIP on a branch.
+
+## Overrides
+
+This workspace rule **overrides** the generic Cursor user rule “only commit when requested.” In stageverify, ship unless Dan says otherwise.
+
+## Done gate
+
+Do **not** declare done until push succeeded and deploy succeeded (or you clearly report deploy failure and next steps).
+
+## UI changes
+
+- Playwright verify **before** commit (build + local verify per `composer-orchestrator.mdc`).
+- After deploy, run `:prod` verify scripts when they exist (e.g. `verify:pickup:prod`).
+
+## PROJECT_STATUS
+
+When a feature ships, include `PROJECT_STATUS/CURRENT_STATE.md` (and `roadmap.md` when applicable) in the **same** commit as the feature code.
