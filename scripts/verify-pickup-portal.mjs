@@ -54,9 +54,18 @@ async function waitForDoneEnabled(page, timeoutMs = 30_000) {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
   await page.waitForSelector("text=Pickup Portal", { timeout: 20_000 });
-  await page
-    .waitForSelector("text=Staging:", { timeout: 25_000 })
-    .catch(() => page.waitForSelector("text=Johnstone", { timeout: 25_000 }));
+  try {
+    await page.waitForSelector("text=Staging:", { timeout: 30_000 });
+  } catch {
+    const bodyText = await page.locator("body").innerText();
+    await page.screenshot({
+      path: resolve(outDir, "pickup-verify-load-fail.png"),
+      fullPage: true,
+    });
+    console.error("FAIL: Pickup list did not load. Page text:\n", bodyText.slice(0, 800));
+    await browser.close();
+    process.exit(1);
+  }
 
   const empty = await page
     .getByText("No pickup-ready deliveries", { exact: false })
