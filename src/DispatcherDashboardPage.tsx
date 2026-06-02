@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { auth } from "./firebase";
+import { signOutWithConfirm } from "./signOutWithConfirm";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import { DispatcherPortalLinks } from "./PortalNavBar";
@@ -899,11 +899,7 @@ export function DispatcherDashboardPage() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                void signOut(auth).then(() => {
-                  navigate("/login", { replace: true });
-                });
-              }}
+              onClick={() => signOutWithConfirm(auth, navigate)}
               style={{
                 padding: "5px 12px",
                 borderRadius: 4,

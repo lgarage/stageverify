@@ -1,7 +1,7 @@
-import { signOut } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { auth } from "./firebase";
+import { signOutWithConfirm } from "./signOutWithConfirm";
 
 function abbreviateEmail(email: string): string {
   const at = email.indexOf("@");
@@ -46,9 +46,7 @@ export function MobileHubPage() {
   const displayEmail = user?.email ? abbreviateEmail(user.email) : "Staff";
 
   const handleSignOut = () => {
-    void signOut(auth).then(() => {
-      navigate("/login", { replace: true });
-    });
+    signOutWithConfirm(auth, navigate);
   };
 
   return (

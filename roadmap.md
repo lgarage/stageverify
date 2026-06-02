@@ -34,7 +34,8 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 - `qtyDamaged` numeric input present in both `App.tsx` (adjust modal) and `CheckInPage.tsx` (inline when Damaged/Partial).
 - Manual delivery ID input capped at `maxLength={64}` in `ReceivingPage.tsx`.
 - **`ReceivingPage` check-in items step** restyled to match pickup portal (card layout, checkbox rows); **Adjust** button per line opens qty/damaged modal; partial delivery badges + footer partial-order warning; `npm run verify:receive` Playwright script.
-- **Staging zone occupancy** — assigning a spot already held by another active delivery is blocked everywhere (vendor receive, dispatcher assign/create, Need More Space recommendations + add); occupied zones disabled with order number; submit re-validates.
+- **Settings → Workflow** — list staging spots and add new ones (code, label, type); full zone map/QR remains on `/zones`.
+- **Staging zone occupancy** — block double-booking on assign, Need More Space, and check-in submit.
 - URL-aware QR scan handlers accept full URLs with `?id=` or `?zone=` params.
 - **Status-aware zone QR routing** — scan routes to vendor receive (`/receive`) or tech pickup (`/pickup`) based on delivery status; zone tags encode pickup URL when staged/complete.
 - **Need More Space?** tiered flow: Tier 1 shows closest shelf spot (3×3) and ground spot (4×4) side-by-side; Tier 2 offers closest oversized ground spot (4×10). Vendor picks; locations saved via `arrayUnion`.
