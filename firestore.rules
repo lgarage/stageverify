@@ -37,12 +37,14 @@ service cloud.firestore {
     function isValidDeliveryStatus(status) {
       return status in [
         'pending',
+        'shipped',
         'arrived',
         'partial',
         'ready_for_pickup',
         'complete',
         'issue',
         'picked_up',
+        'installed',
       ];
     }
 
@@ -54,6 +56,7 @@ service cloud.firestore {
         'missing',
         'damaged',
         'backordered',
+        'installed',
       ];
     }
 

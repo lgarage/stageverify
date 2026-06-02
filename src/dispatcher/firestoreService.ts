@@ -670,26 +670,53 @@ export class FirestoreDataService implements DispatcherDataService {
     }
     const delivery = deliverySnap.data() as DeliveryOrder;
 
+    if (
+      delivery.status === "picked_up" ||
+      delivery.status === "installed"
+    ) {
+      return;
+    }
+
+    if (!VALID_TRANSITIONS[delivery.status]?.includes("picked_up")) {
+      throw new Error(
+        `Cannot record pickup while delivery status is "${delivery.status}"`,
+      );
+    }
+
     const eventId = crypto.randomUUID();
+    const historyId = `event-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
-    const event: PickupEvent = {
+    const trimmedNotes = notes?.trim();
+
+    const pickupEvent: PickupEvent = {
       id: eventId,
       deliveryOrderId: deliveryId,
       jobId: delivery.jobId,
       technicianName,
       pickedUpAt: now,
       itemsPickedSummary,
-      notes,
+      ...(trimmedNotes ? { notes: trimmedNotes } : {}),
     };
 
-    await setDoc(doc(db, "pickupEvents", eventId), event);
-    await this.updateDeliveryStatus(
-      deliveryId,
-      "picked_up",
-      undefined,
-      "technician",
-      technicianName,
-    );
+    const batch = writeBatch(db);
+    batch.set(doc(db, "pickupEvents", eventId), pickupEvent);
+    batch.update(doc(db, "deliveries", deliveryId), {
+      status: "picked_up",
+      updatedAt: now,
+      stagingLocationId: "",
+    });
+    batch.set(doc(db, "statusHistory", historyId), {
+      id: historyId,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus: delivery.status,
+      toStatus: "picked_up",
+      actorType: "technician",
+      actorName: technicianName,
+      createdAt: now,
+    });
+
+    await batch.commit();
   }
 }
 

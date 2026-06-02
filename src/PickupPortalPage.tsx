@@ -17,6 +17,7 @@ import {
   hasShopStockPickList,
   shopStockItemKey,
 } from "./dispatcher/shopStockPickList";
+import { formatPickupError } from "./dispatcher/pickupErrors";
 import {
   resolveZoneScanDisposition,
   syncScanIntent,
@@ -620,12 +621,9 @@ function JobPickupScreen({
             ),
           );
         }
-      } catch {
+      } catch (err) {
         setCardErrors((prev) =>
-          new Map(prev).set(
-            deliveryId,
-            "Failed to record pickup. Tap to retry.",
-          ),
+          new Map(prev).set(deliveryId, formatPickupError(err)),
         );
       } finally {
         setCheckingIds((prev) => {
@@ -727,9 +725,9 @@ function JobPickupScreen({
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
       setSubmitted(true);
-    } catch {
+    } catch (err) {
       submittedRef.current = false;
-      setError("Failed to record pickup. Please try again.");
+      setError(formatPickupError(err));
     } finally {
       setSubmitting(false);
     }
@@ -772,9 +770,9 @@ function JobPickupScreen({
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
       setSubmitted(true);
-    } catch {
+    } catch (err) {
       submittedRef.current = false;
-      setError("Failed to auto-submit pickups. Please check off remaining items.");
+      setError(formatPickupError(err));
     } finally {
       setSubmitting(false);
     }
