@@ -33,11 +33,32 @@ npm run build
 ```
 Fix all TypeScript errors before declaring the task done. Never report success without a clean build.
 
-## UI Verification Protocol (visible UI changes)
+## UI Verification Protocol (visible UI changes) — MANDATORY
 
-For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affects what the user sees in the browser, run visual verification **in addition to** the build gate:
+**Never tell Dan a UI/UX fix is done until Playwright verification passes.** `npm run build` alone is not enough.
 
-### Steps
+For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affects what the user sees in the browser, run Playwright verification **in addition to** the build gate.
+
+### Completion gate (required before "fixed" / commit / deploy)
+
+1. **Build** — `npm run build` clean.
+2. **Playwright** — exercise the changed UI (see below). Must pass locally; run `:prod` after `npm run deploy` when the fix is user-facing on gh-pages.
+3. **Only then** — commit, push, deploy, and report success.
+
+If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify first.
+
+### What to run
+
+| Change type | Playwright requirement |
+|-------------|------------------------|
+| Layout, colors, copy, visibility | Before/after screenshots on every affected route (steps below) |
+| Buttons, forms, checkboxes, multi-step flows | **Interactive script** — click/type through the real flow; assert end state (not screenshot-only) |
+| Pickup portal | `npm run verify:pickup` (+ `verify:pickup:prod` after deploy) |
+| Other routes (no script yet) | Add or extend a `scripts/verify-<route>.mjs` that performs the critical clicks; run it before declaring done |
+
+Static screenshots prove appearance; **interaction scripts prove behavior** (enabled buttons, success screens, no error banners).
+
+### Screenshot steps (visual regressions)
 1. **Before screenshot(s)** — start the local dev server (`npm run dev`, default port 5173). For each affected route, take a Playwright screenshot named `before-<route>.png` (e.g. `before-settings.png`, `before-dispatcher.png`).
 2. **Make the code changes.**
 3. **Build gate** — run `npm run build`; fix all errors.
@@ -63,13 +84,16 @@ The app's dispatcher, settings, and zone screens require Firebase login. Use a s
 
 3. If `state.json` does not exist or is expired (Firebase tokens last ~1 hour), re-run the setup script before taking screenshots.
 
-### Pickup portal (public route)
-After pickup portal flow changes, run:
+### Route scripts (interactive flows)
+
+**Pickup portal** (`scripts/verify-pickup-portal.mjs`):
 ```
 npm run verify:pickup
-npm run verify:pickup:prod
+npm run verify:pickup:prod   # after deploy
 ```
-Script clicks every pick-list row, taps **Done**, asserts **All Items Picked Up!** Screenshots: `screenshots/pickup-verify-*.png`.
+Clicks every pick-list row → **Done** → asserts **All Items Picked Up!** Screenshots: `screenshots/pickup-verify-*.png`.
+
+When you add or change another interactive flow, add a matching `scripts/verify-*.mjs` and `package.json` script — do not rely on manual testing alone.
 
 ### When to apply
 - **Always:** any change to a component's layout, colors, columns, inputs, or visible text
@@ -94,7 +118,7 @@ npx playwright screenshot --browser chromium \
 Replace `#/settings` with the affected route.
 
 ### Failure behavior
-If `after.png` does not show the expected change, do NOT commit. Debug and re-run the verification loop. Only commit once visual output confirms the feature.
+If screenshots or an interactive verify script fails, do NOT commit or say the task is fixed. Debug and re-run the full loop (build → Playwright → commit).
 
 ## TypeScript Discipline
 - Never use `any` type — find the correct type or add it to `src/dispatcher/models.ts`.
@@ -167,6 +191,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Skip reading CURRENT_STATE.md — never act on assumptions about project state.
 ❌ Implement more than what was asked — scope creep erodes trust.
 ❌ Skip the build gate — a broken build is worse than no change.
+❌ Declare a UI/UX fix "done" without Playwright passing (screenshots and/or route verify script).
 ❌ Use `any` in TypeScript — always resolve types correctly.
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
 ❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
