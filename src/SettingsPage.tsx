@@ -341,6 +341,12 @@ export function SettingsPage() {
     spotCode.trim().length > 0 &&
     existingCodeKeys.has(spotCode.trim().toUpperCase());
 
+  const conflictingSpot = useMemo(() => {
+    const key = spotCode.trim().toUpperCase();
+    if (!key) return undefined;
+    return stagingSpots.find((s) => s.code.trim().toUpperCase() === key);
+  }, [spotCode, stagingSpots]);
+
   const inputStyle: CSSProperties = {
     width: "100%",
     padding: "10px 12px",
@@ -1353,7 +1359,7 @@ export function SettingsPage() {
                 </div>
               )}
 
-              {!loadingSpots && existingSpotCodes.length > 0 && (
+              {!loadingSpots && stagingSpots.length > 0 && (
                 <div
                   style={{
                     marginBottom: 20,
@@ -1371,19 +1377,69 @@ export function SettingsPage() {
                       color: NAVY,
                     }}
                   >
-                    Codes already in use
+                    {stagingSpots.length}{" "}
+                    {stagingSpots.length === 1 ? "spot" : "spots"} already listed
                   </p>
                   <p
                     style={{
-                      margin: "6px 0 0",
-                      fontSize: 13,
-                      color: "#374151",
-                      lineHeight: 1.5,
-                      fontFamily: "monospace",
+                      margin: "4px 0 10px",
+                      fontSize: 11,
+                      color: "#6b7280",
+                      lineHeight: 1.45,
                     }}
                   >
-                    {existingSpotCodes.join(" · ")}
+                    Use a new code when adding — duplicates are blocked.
                   </p>
+                  <ul
+                    style={{
+                      margin: 0,
+                      padding: 0,
+                      listStyle: "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    {stagingSpots.map((spot) => (
+                      <li
+                        key={spot.id}
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "baseline",
+                          gap: "6px 10px",
+                          fontSize: 13,
+                          color: "#374151",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                            color: NAVY,
+                            minWidth: 48,
+                          }}
+                        >
+                          {spot.code}
+                        </span>
+                        <span style={{ color: "#6b7280" }}>—</span>
+                        <span>{spot.label}</span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "#9ca3af",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {STAGING_TYPE_LABELS[spot.type]}
+                          {spot.status !== "Active" ? ` · ${spot.status}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -1443,7 +1499,20 @@ export function SettingsPage() {
                         <option key={code} value={code} />
                       ))}
                     </datalist>
-                    {spotCodeConflict ? (
+                    {spotCodeConflict && conflictingSpot ? (
+                      <p
+                        id="staging-spot-code-hint"
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: 12,
+                          color: RED,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {conflictingSpot.code} is already listed as &ldquo;
+                        {conflictingSpot.label}&rdquo; — pick another code.
+                      </p>
+                    ) : spotCodeConflict ? (
                       <p
                         id="staging-spot-code-hint"
                         style={{
@@ -1454,6 +1523,21 @@ export function SettingsPage() {
                         }}
                       >
                         {spotCode.trim()} is already listed — pick another code.
+                      </p>
+                    ) : existingSpotCodes.length > 0 ? (
+                      <p
+                        id="staging-spot-code-hint"
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: 11,
+                          color: "#9ca3af",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Listed codes:{" "}
+                        <span style={{ fontFamily: "monospace", color: "#6b7280" }}>
+                          {existingSpotCodes.join(", ")}
+                        </span>
                       </p>
                     ) : (
                       <p

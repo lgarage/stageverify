@@ -79,6 +79,7 @@ async function ensureAuthenticated(page) {
     timeout: 30_000,
   });
   await page.waitForSelector("text=Already listed", { timeout: 10_000 });
+  await page.waitForSelector("text=already listed", { timeout: 10_000 });
   await page.waitForSelector("text=Add Staging Spot", { timeout: 10_000 });
   await page.waitForSelector('input[placeholder="e.g. G4"]', { timeout: 10_000 });
 

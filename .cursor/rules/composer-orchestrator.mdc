@@ -153,6 +153,9 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 
 ## Session Defaults (user-confirmed preferences)
 
+### Post-change model audit (mandatory)
+After every substantive change, run the **model audit** protocol in `.cursor/rules/model-audit-gate.mdc` and include the audit table in your reply before declaring done.
+
 ### Pre-edit gate
 **Announce-and-go.** State archetype + tier + model, then immediately start editing. Do not wait for a "go ahead" reply.
 

@@ -1,0 +1,51 @@
+---
+description: After every substantive change, audit that the correct model tier was used; escalate review when warranted.
+alwaysApply: true
+---
+
+# Post-Change Model Audit (Dan standing preference)
+
+After **every substantive code or config change** in this session, perform a **brief model audit** before reporting done. Dan wants confidence the cheapest capable model was used — and verification when a higher tier was warranted.
+
+## Default worker
+
+**Composer 2.5 Fast** implements all T0/T1/T2 work inline. Do not escalate for routine UI, service logic, or multi-file features unless a trigger below applies.
+
+## When to audit with a higher model (Sonnet 4.6 via Task subagent)
+
+Run a short review **only if** the shipped change touched any of:
+
+| Trigger | Review focus |
+|---------|----------------|
+| `backend-write-critical` (Firestore rules, CF write paths, schema migrations) | Security, authz, data integrity |
+| Auth / route guards / Firestore read paths on protected routes | Leaks, bypass, wrong actorType |
+| Genuinely ambiguous high-stakes decision already implemented | Correctness vs intent |
+| Composer uncertainty or failed first fix on T2+ work | Root cause + fix quality |
+
+**Opus 4.6** — locked fallback only if Sonnet flags HIGH risk Composer cannot resolve.
+
+## When Composer 2.5 alone is sufficient (no Sonnet pass)
+
+- T0: `ui-component`, `css-restyle`, `docs-update`
+- T1: `multi-file-feature`, `type-refactor`, `service-logic` **without** rules/auth changes
+- T2: same as T1 when no auth/Firestore-read escalation trigger fired
+- Pure Q&A, typos, read-only investigation
+
+## Audit output (mandatory in assistant reply)
+
+End substantive work with a compact block:
+
+```
+### Model audit
+| Change | Archetype | Tier | Worker | Escalation review? | Verdict |
+|--------|-----------|------|--------|-------------------|---------|
+| … | … | … | Composer 2.5 | No / Sonnet → PASS | OK / note |
+```
+
+- **Verdict OK** — tier and worker matched the work; no review needed.
+- **Verdict note** — Sonnet (or self) found an issue; fix or document before done.
+- If escalation review was required but not run, **do not declare done** — run it first.
+
+## Session log (optional)
+
+When agent-ops outcome logging applies, include tier + whether audit escalated in the `note` field.

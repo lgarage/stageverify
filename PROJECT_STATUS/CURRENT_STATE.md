@@ -19,7 +19,7 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 1. **ESL Cloud Function** (backend-write-critical) ??? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-02, this session)
-- feat: Settings → Workflow staging spots list + add form; sign-out confirmation prompt.
+- chore: post-change model audit rule; Settings staging spots show full already-listed summary.
 ## Prev Session (2026-06-02, this session)
 - feat: staging zone occupancy guard ? block two active deliveries on same spot (service + UI).
 - fix: vendor portal loads Ordered deliveries (vendor actorType + public job/PO read); verify:vendor-demo PASS.
