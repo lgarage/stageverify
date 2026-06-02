@@ -13,6 +13,10 @@ import {
   readReceiveParams,
 } from "./receiveQrUrls";
 import {
+  resolveSyncScanIntent,
+  syncScanIntent,
+} from "./scanRouting";
+import {
   firestoreDataService,
   getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
@@ -271,31 +275,37 @@ export function ReceivingPage() {
             if (handledDecode || !isMounted) return;
             handledDecode = true;
             const parsed = parseScannedQr(decodedText);
+            const intent = syncScanIntent(parsed);
             void scanner.stop().then(() => {
               scanner.clear();
               scannerRef.current = null;
               if (!isMounted) return;
-              if (parsed.kind === "pickup" && parsed.jobId) {
-                navigate(pickupPath(parsed.jobId, parsed.deliveryId));
-                return;
-              }
-              if (parsed.kind === "receive-id") {
-                void processDeliveryLookup(parsed.deliveryId);
-                return;
-              }
-              const zoneCode =
-                parsed.kind === "receive-zone"
-                  ? parsed.zoneCode
-                  : parsed.kind === "pickup" && parsed.zoneCode
-                    ? parsed.zoneCode
-                    : parsed.kind === "raw"
-                      ? parsed.value.trim()
-                      : "";
-              if (zoneCode) {
-                void processZoneLookup(zoneCode);
-              } else {
-                showToast("Unrecognized QR code");
-              }
+              void (async () => {
+                const result = await resolveSyncScanIntent(
+                  intent,
+                  "receive-page",
+                );
+                if (!isMounted) return;
+                if (result.action === "navigate") {
+                  navigate(result.path);
+                  return;
+                }
+                if (result.action === "load-receive") {
+                  void processDeliveryLookup(result.deliveryId);
+                  return;
+                }
+                if (intent.kind === "resolve-zone") {
+                  setZoneMissCode(intent.zoneCode);
+                  setScanMode("zone-miss");
+                  showToast(`No active delivery at zone ${intent.zoneCode}`);
+                  return;
+                }
+                showToast(
+                  intent.kind === "resolve-delivery"
+                    ? "Delivery not found"
+                    : "Unrecognized QR code",
+                );
+              })();
             });
           },
           () => {

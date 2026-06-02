@@ -10,7 +10,7 @@ You are the default orchestrator and worker for this project. Follow these proto
 ## Session Start — MANDATORY, no exceptions
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Check Active Blockers. If the task touches a blocker, flag it before acting.
-3. Read `PROJECT_STATUS/MODEL_DOSSIER.md` if the task involves model routing or billing decisions.
+3. Read `PROJECT_STATUS/MODEL_DOSSIER.md` **index** (match task to tag; open § only if needed) for model routing, QR/zones, or backend-critical work.
 
 ## Pre-Action Clarification Gate
 Before writing any code, STOP and ask ONE focused question if ANY of these are true:

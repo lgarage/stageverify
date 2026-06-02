@@ -1,6 +1,6 @@
 /**
- * QR deep links for zone tags, packing slips, and pickup portal.
- * See PROJECT_STATUS/ESL_INTEGRATION_PLAN.md — QR routing on zone tags.
+ * QR URL builders and parsers. Routing logic lives in scanRouting.ts.
+ * See PROJECT_STATUS/MODEL_DOSSIER.md tag: qr-routing
  */
 import {
   shouldRouteScanToPickup,

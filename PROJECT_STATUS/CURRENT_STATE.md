@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: MVP complete ? full delivery lifecycle live (Ordered?Shipped?Received?Staged?Picked Up?Installed)
-- Last shipped: Status-aware zone QR routing ? scan ? receive or pickup by delivery status (this session).
+- Last shipped: QR scan router (`scanRouting.ts`) + indexed MODEL_DOSSIER for agent lookup (this session).
 - Stack: React 19 + TS (strict, ES2023), Vite 8, React Router 7, Tailwind 4, html5-qrcode 2.3.8, firebase 11.x, firebase-functions v2, qrcode.react. Deploy: GitHub Pages - https://lgarage.github.io/stageverify
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 

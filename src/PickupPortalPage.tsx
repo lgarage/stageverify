@@ -3,18 +3,20 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
-  getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
   markDeliveryInstalled,
 } from "./dispatcher/firestoreService";
 import {
   DELIVERY_STATUS_LABEL,
   getAllStagingLocationIds,
-  shouldRouteScanToPickup,
   type DeliveryDetails,
   type DeliveryStatus,
   type StagingLocation,
 } from "./dispatcher/models";
+import {
+  resolveZoneScanDisposition,
+  syncScanIntent,
+} from "./scanRouting";
 import { parseScannedQr } from "./receiveQrUrls";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
 
@@ -195,25 +197,6 @@ async function loadPickupReadyDeliveries(
   return detailsList.filter((d): d is DeliveryDetails => d !== null);
 }
 
-async function resolveZoneScan(
-  zoneCode: string,
-): Promise<
-  | { kind: "pickup"; jobId: string; deliveryId: string }
-  | { kind: "receive"; deliveryId: string }
-  | null
-> {
-  const details = await getDeliveryDetailsByStagingCode(zoneCode);
-  if (!details) return null;
-  if (shouldRouteScanToPickup(details.delivery.status)) {
-    return {
-      kind: "pickup",
-      jobId: details.delivery.jobId,
-      deliveryId: details.delivery.id,
-    };
-  }
-  return { kind: "receive", deliveryId: details.delivery.id };
-}
-
 function QrScannerOverlay({
   readerId,
   onDecode,
@@ -335,7 +318,8 @@ function WalkUpEntry({
   const handleDecodedText = useCallback(
     async (text: string) => {
       const parsed = parseScannedQr(text);
-      if (parsed.kind === "pickup" && parsed.jobId) {
+      const intent = syncScanIntent(parsed);
+      if (intent.kind === "navigate" && parsed.kind === "pickup" && parsed.jobId) {
         setNotFoundCode(null);
         setIsScanning(false);
         setShowManualEntry(false);
@@ -357,12 +341,13 @@ function WalkUpEntry({
 
       setResolving(true);
       const zoneCode =
-        parsed.kind === "receive-zone"
-          ? parsed.zoneCode
-          : parsed.kind === "pickup" && parsed.zoneCode
-            ? parsed.zoneCode
-            : normalizeZoneCode(trimmed);
-      const resolved = await resolveZoneScan(zoneCode);
+        intent.kind === "resolve-zone"
+          ? intent.zoneCode
+          : normalizeZoneCode(trimmed);
+      const resolved =
+        intent.kind === "resolve-zone" || trimmed
+          ? await resolveZoneScanDisposition(zoneCode)
+          : null;
       setResolving(false);
       if (!resolved) {
         setNotFoundCode(trimmed);
@@ -1181,7 +1166,7 @@ export default function PickupPortalPage() {
     if (!zoneFromUrl || jobIdFromUrl) return;
     let cancelled = false;
     void (async () => {
-      const resolved = await resolveZoneScan(zoneFromUrl);
+      const resolved = await resolveZoneScanDisposition(zoneFromUrl);
       if (cancelled) return;
       if (resolved?.kind === "receive") {
         navigate(`/receive?id=${encodeURIComponent(resolved.deliveryId)}`, {

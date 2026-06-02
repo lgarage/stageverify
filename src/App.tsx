@@ -3,12 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
-  getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
 } from "./dispatcher/firestoreService";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
-import { parseScannedQr, pickupPath } from "./receiveQrUrls";
-import { shouldRouteScanToPickup } from "./dispatcher/models";
+import { handleScannedQr } from "./scanRouting";
 import type {
   DeliveryOrder,
   Item,
@@ -152,79 +150,25 @@ function ScanScreen() {
               if (handledDecode || !isMounted) return;
               handledDecode = true;
               void (async () => {
-                const extracted = parseScannedQr(decodedText);
+                const result = await handleScannedQr(decodedText, "app-checkin");
+                if (!isMounted) return;
 
-                if (extracted.kind === "pickup" && extracted.jobId) {
-                  if (isMounted) {
-                    navigate(
-                      pickupPath(extracted.jobId, extracted.deliveryId),
-                    );
-                  }
-                  return;
-                }
-
-                if (extracted.kind === "receive-id") {
-                  const details = await getDeliveryDetailsPublic(
-                    extracted.deliveryId,
-                  );
-                  if (details && shouldRouteScanToPickup(details.delivery.status)) {
-                    if (isMounted) {
-                      navigate(
-                        pickupPath(
-                          details.delivery.jobId,
-                          details.delivery.id,
-                        ),
+                switch (result.action) {
+                  case "navigate":
+                    navigate(result.path);
+                    return;
+                  case "load-checkin-app":
+                    if (result.markArrived) {
+                      await firestoreDataService.updateDeliveryStatus(
+                        result.deliveryId,
+                        "arrived",
                       );
                     }
+                    await handleDeliveryFound(result.deliveryId);
                     return;
-                  }
-                  if (isMounted) navigate(`/checkin/${extracted.deliveryId}`);
-                  return;
-                }
-
-                const zoneCode =
-                  extracted.kind === "receive-zone" || extracted.kind === "raw"
-                    ? extracted.kind === "receive-zone"
-                      ? extracted.zoneCode
-                      : extracted.value.trim()
-                    : extracted.kind === "pickup" && extracted.zoneCode
-                      ? extracted.zoneCode
-                      : "";
-                if (!zoneCode) {
-                  if (isMounted) {
+                  case "not-found":
                     setIsScanning(false);
                     setNotFoundCode(decodedText);
-                  }
-                  return;
-                }
-
-                const details =
-                  await getDeliveryDetailsByStagingCode(zoneCode);
-
-                if (details) {
-                  if (shouldRouteScanToPickup(details.delivery.status)) {
-                    if (isMounted) {
-                      navigate(
-                        pickupPath(
-                          details.delivery.jobId,
-                          details.delivery.id,
-                        ),
-                      );
-                    }
-                    return;
-                  }
-                  if (details.delivery.status === "pending") {
-                    await firestoreDataService.updateDeliveryStatus(
-                      details.delivery.id,
-                      "arrived",
-                    );
-                  }
-                  if (isMounted) {
-                    await handleDeliveryFound(details.delivery.id);
-                  }
-                } else if (isMounted) {
-                  setIsScanning(false);
-                  setNotFoundCode(decodedText);
                 }
               })();
             },

@@ -1,47 +1,40 @@
 # stageverify Model Dossier (local)
 
-> Local overrides + gotchas only. Universal task→model wisdom lives in the
-> agent-ops skill's Global Tier Table. Confidence below is INHERITED from global —
-> unverified locally until rows accrue. Log outcomes per agent-ops skill §8
-> (append one line to cursor-agent-brain/outcomes/<machine>.jsonl, then push).
+> **Hot tier — read index first.** Match your task to a tag; open § detail only if needed.
+> Universal model wisdom: agent-ops skill §2. Outcome write-back: skill §8.
+> Cold detail: `PROJECT_STATUS/archives/dossier-notes.md`
 
-## Billing profile (confirmed 2026-06-02)
-- **Auto + Composer quota**: ~5% used — Composer 2.5 Fast is essentially free within the plan.
-- **API quota**: 100% used + $262.53 on-demand overage — Sonnet 4.6 / Opus 4.6 cost real money.
-- **Policy**: Composer 2.5 Fast is the orchestrator AND default worker — do T0/T1/T2 inline. Escalate to Sonnet 4.6 (Task subagent) only for security gate or high-stakes ambiguous decisions. Opus 4.6 for T3 only.
+## Index
 
-## Local risk profile
-- **Mixed SPA + backend.** Firebase Firestore + Cloud Functions v2 are live (Blaze plan, project: stageverify-db).
-  Frontend work (T0–T2): Tailwind restyles, React components, routing, TS model refactors.
-  Backend work: classify as `backend-write-critical` for any Firestore security rules, Cloud Function write paths, or schema migrations.
-- **backend-write-critical: ACTIVE (trial in progress).** Firebase Firestore + Cloud Functions live as of 2026-05-31.
-  Any change to security rules, Cloud Function logic, or Firestore data schema → `backend-write-critical`.
-  Active trial: Composer 2.5 (3/5 clean passes). Grader: Sonnet 4.6. Locked fallback (if all candidates fail): Opus 4.6.
+| Tag | Open when task touches… | One-line rule |
+|-----|-------------------------|---------------|
+| `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in App/Receive/Pickup |
+| `zone-lookup` | staging code → delivery | `getDeliveryDetailsByStagingCode`; match zones via `getAllStagingLocationIds` |
+| `receive-deep-link` | `/receive` URL params or camera | `deepLinkPending` before camera; failed lookup → show error (no silent empty screen) |
+| `encode-qr` | building QR URLs | `receiveQrUrls.ts`; always `encodeURIComponent` on params |
+| `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
+| `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
+| `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
+| `billing` | model / tier pick | Composer 2.5 default; Sonnet 4.6 for gate/review only |
 
-## Security review gate
-- Runs MANDATORY after every `backend-write-critical` commit and any `multi-file-feature` touching auth/routes/Firestore.
-- Scanner: Gemini 3 Flash (`read-only-analysis`). Verifier: Sonnet 4.6.
-- BLOCK deploy on any HIGH risk finding until fixed and re-scanned.
-- See agent-ops SKILL.md §11 for full protocol.
+## § qr-routing
+- Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, target)`.
+- Targets: `"receive-page"` \| `"checkin-page"` \| `"app-checkin"`.
+- Zone tags: `buildZoneEslQrUrl` — pickup-ready → `#/pickup?job=`, vendor flow → `#/receive?id=`, empty → `#/receive?zone=`.
 
-## Stack-specific archetype hints
-- Tailwind 4 is CSS-first (no config file) → css-restyle work edits utility classes / @theme.
-- src/types.ts is legacy and targeted for deletion → type-refactor toward src/dispatcher/models.ts.
-- Service layer (src/dispatcher/service.ts) currently wraps mocks → service-logic.
-- QR/camera via html5-qrcode → device-integration (test on a real device; camera perms differ).
+## § zone-lookup
+- QR routing: `getDeliveryDetailsByStagingCode` (includes pickup-ready).
+- Receive-only (exclude blocked): `getDeliveryDetailsPublicByStagingCode`.
+- Occupancy map: `mapActiveZoneOccupancyByCode`.
 
-## Local gotchas
-- **Minew ESL zone QR** — `buildZoneEslQrUrl`; pickup-ready occupied → `#/pickup?job=`, vendor-flow occupied → `#/receive?id=`, empty → `#/receive?zone=`; `mapActiveZoneOccupancyByCode`.
-- **New `DeliveryStatus`** — if terminal, add to `RECEIVE_BLOCKED_DELIVERY_STATUSES` same change.
+## § billing
+- Composer 2.5 = orchestrator + default worker (included quota).
+- Sonnet 4.6 = security gate + authority review only (on-demand cost).
 
-## Composer quality bar (Sonnet audits — keep ≤6 bullets, rotate old to archives)
-- **zone-lookup-always-use-canonical-fn** — never inline `listDeliveries` + `stagingLocationCode`; use `getDeliveryDetailsByStagingCode` for QR routing (App + Receive + Pickup); use `getDeliveryDetailsPublicByStagingCode` only when receive-blocked statuses must be excluded.
-- **deep-link-three-layer** — `hasReceiveDeepLink` / `deepLinkPending` / `urlDeepLinkHandledRef` before starting camera on `/receive`.
-- **encodeURIComponent-on-qr-params** — all `?id=` / `?zone=` in `receiveQrUrls.ts`.
-- **no-any-mirror-typed-interface** — shared `qrScannerTypes.ts` for html5-qrcode.
-- **no-duplicate-collection-reads** — pass preloaded `stagingLocations` when building occupancy map on zone page (TODO when scaling).
-- **fn-name-must-match-behavior** — `deactivateZone` sets Planned; rename if behavior changes.
+## § backend-critical
+- Trial: Composer implements; Sonnet grades. 3/5 clean passes.
+- Mandatory Sonnet gate after rules/CF/schema **and** multi-file route/Firestore read changes.
 
-## Active outcome log (≤ ~15 rows, then rotate to archives/outcomes/YYYY-Www.md)
+## Active outcome log (≤15 rows → rotate to archives/outcomes/)
 | Date | Task | Archetype | Model | Conf→ | Outcome | Note |
 |------|------|-----------|-------|-------|---------|------|
