@@ -30,6 +30,14 @@ export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
   installed: "Installed",
 };
 
+/** Deliveries in these statuses must not open on /receive (zone or id QR deep links). */
+export const RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
+  "ready_for_pickup",
+  "complete",
+  "picked_up",
+  "installed",
+]);
+
 export type JobStatus = "active" | "on_hold" | "closed";
 
 export type PurchaseOrderStatus =

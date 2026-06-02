@@ -30,6 +30,7 @@ import {
   getAllStagingLocationIds,
   isLocationActive,
   parseStagingLocation,
+  RECEIVE_BLOCKED_DELIVERY_STATUSES,
 } from "./models";
 import type {
   DeliveryQuery,
@@ -752,26 +753,23 @@ export async function getDeliveryByOrderNumber(
   return getDeliveryDetailsPublic(matches[0].id);
 }
 
-const RECEIVE_INACTIVE_STATUSES = new Set<DeliveryStatus>([
-  "ready_for_pickup",
-  "complete",
-  "picked_up",
-]);
-
 /** Delivery currently staged at a zone code (primary or additional location). */
 export async function getDeliveryDetailsPublicByStagingCode(
   zoneCode: string,
 ): Promise<DeliveryDetails | null> {
   const code = zoneCode.trim();
   if (!code) return null;
+  const codeKey = code.toUpperCase();
 
   const locations = await fetchAllStagingLocations();
-  const location = locations.find((loc) => loc.code === code);
+  const location = locations.find(
+    (loc) => loc.code.trim().toUpperCase() === codeKey,
+  );
   if (!location) return null;
 
   const deliveries = await fetchAll<DeliveryOrder>("deliveries");
   const candidates = deliveries.filter((delivery) => {
-    if (RECEIVE_INACTIVE_STATUSES.has(delivery.status)) return false;
+    if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(delivery.status)) return false;
     return getAllStagingLocationIds(delivery).includes(location.id);
   });
 
@@ -780,6 +778,12 @@ export async function getDeliveryDetailsPublicByStagingCode(
   const sorted = [...candidates].sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   );
+  if (candidates.length > 1) {
+    console.warn(
+      `[stageverify] Zone "${location.code}": ${candidates.length} active deliveries; ` +
+        `using most recently updated (${sorted[0].orderNumber}).`,
+    );
+  }
   return getDeliveryDetailsPublic(sorted[0].id);
 }
 

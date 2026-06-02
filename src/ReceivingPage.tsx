@@ -10,7 +10,11 @@ import {
   getDeliveryDetailsPublic,
   getDeliveryDetailsPublicByStagingCode,
 } from "./dispatcher/firestoreService";
-import type { DeliveryDetails, StagingLocation } from "./dispatcher/models";
+import {
+  RECEIVE_BLOCKED_DELIVERY_STATUSES,
+  type DeliveryDetails,
+  type StagingLocation,
+} from "./dispatcher/models";
 
 type Step = "scan" | "items" | "zone" | "done";
 
@@ -31,12 +35,6 @@ interface Html5QrcodeInstance {
   stop: () => Promise<void>;
   clear: () => void;
 }
-
-const TERMINAL_STATUSES = new Set([
-  "ready_for_pickup",
-  "complete",
-  "picked_up",
-]);
 
 function parseReceiveHashParams(): { id: string | null; zone: string | null } {
   const hash = window.location.hash;
@@ -167,7 +165,7 @@ export function ReceivingPage() {
 
   const loadDeliveryForReceive = useCallback(
     async (details: DeliveryDetails): Promise<boolean> => {
-      if (TERMINAL_STATUSES.has(details.delivery.status)) {
+      if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(details.delivery.status)) {
         showToast("Already submitted — cannot re-check-in");
         return false;
       }

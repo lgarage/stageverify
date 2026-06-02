@@ -31,7 +31,14 @@
 - QR/camera via html5-qrcode → device-integration (test on a real device; camera perms differ).
 
 ## Local gotchas
-- (add as discovered — one bullet per hard-won lesson)
+- **Zone QR / `#/receive?zone=` deep links** — checklist when touching receive flow or `getDeliveryDetailsPublicByStagingCode`:
+  1. **Blocked statuses** — use shared `RECEIVE_BLOCKED_DELIVERY_STATUSES` in `models.ts` (includes `installed`, `picked_up`, `complete`, `ready_for_pickup`); never duplicate a partial list in one file.
+  2. **Case-insensitive zone code** — match `loc.code` with `.trim().toUpperCase()` (URLs/manual entry may use `g2` vs `G2`).
+  3. **Multiple deliveries per zone** — `console.warn` when >1 candidate; prefer enforcing 1:1 in dispatcher UI long-term.
+  4. **Deep link vs scanner** — parse hash `id` / `zone` on mount; suppress camera until lookup finishes (`deepLinkPending`).
+  5. **Additional locations** — filter with `getAllStagingLocationIds`, not only `stagingLocationId`.
+  6. **After implementation** — run Sonnet 4.6 read-only review (Task subagent) before deploy; fix MED findings before push.
+- **Delivery status enum** — when adding a new terminal/end-state status in `DeliveryStatus`, ask whether `/receive` should block it and update `RECEIVE_BLOCKED_DELIVERY_STATUSES` in the same change.
 
 ## Active outcome log (≤ ~15 rows, then rotate to archives/outcomes/YYYY-Www.md)
 | Date | Task | Archetype | Model | Conf→ | Outcome | Note |
