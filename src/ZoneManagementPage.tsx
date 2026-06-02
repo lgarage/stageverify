@@ -132,6 +132,13 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
   };
 }
 
+const LOCATION_STATUS_LABEL: Record<LocationStatus, string> = {
+  Planned: "Space Assigned",
+  Installed: "Installed",
+  Tagged: "Tagged",
+  Active: "Active",
+};
+
 function statusBadgeStyle(status: LocationStatus): CSSProperties {
   const colors: Record<LocationStatus, { bg: string; text: string }> = {
     Planned: { bg: "#f3f4f6", text: "#6b7280" },
@@ -597,7 +604,7 @@ export function ZoneManagementPage() {
                     >
                       {LOCATION_STATUSES.map((s) => (
                         <option key={s} value={s}>
-                          {s}
+                          {LOCATION_STATUS_LABEL[s]}
                         </option>
                       ))}
                     </select>
@@ -833,7 +840,7 @@ export function ZoneManagementPage() {
                               >
                                 {zone.label}
                                 <span style={statusBadgeStyle(zone.status)}>
-                                  {zone.status}
+                                  {LOCATION_STATUS_LABEL[zone.status]}
                                 </span>
                               </div>
                               <div style={{ marginTop: 6 }}>
@@ -983,7 +990,7 @@ export function ZoneManagementPage() {
                               }}
                             >
                               {isLocationActive(zone)
-                                ? "Set Planned"
+                                ? "Space Assigned"
                                 : "Set Active"}
                             </button>
                           </div>
