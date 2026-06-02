@@ -13,11 +13,6 @@ export const PORTAL_NAV_ITEMS: PortalNavItem[] = [
     icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
   },
   {
-    label: "Deliveries",
-    to: "/dispatcher?focus=deliveries",
-    icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
-  },
-  {
     label: "Staging Map",
     to: "/zones",
     icon: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
@@ -47,9 +42,7 @@ export function isPortalNavItemActive(
   const focus = portalNavFocus(search);
   switch (item.label) {
     case "Dispatcher Dashboard":
-      return pathname === "/dispatcher" && focus !== "deliveries";
-    case "Deliveries":
-      return pathname === "/dispatcher" && focus === "deliveries";
+      return pathname === "/dispatcher";
     case "Staging Map":
       return pathname === "/zones";
     case "Vendors":
@@ -65,12 +58,7 @@ export function scrollPortalFocus(
   scrollRoot: HTMLElement | null,
 ): void {
   if (!focus || !scrollRoot) return;
-  const targetId =
-    focus === "deliveries"
-      ? "portal-deliveries"
-      : focus === "vendors"
-        ? "portal-vendors"
-        : null;
+  const targetId = focus === "vendors" ? "portal-vendors" : null;
   if (!targetId) return;
   const target = document.getElementById(targetId);
   if (!target) return;

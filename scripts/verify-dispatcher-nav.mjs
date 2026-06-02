@@ -85,17 +85,12 @@ function sidebar(page) {
 
   const nav = sidebar(page);
 
-  console.log("Sidebar: Deliveries…");
-  await nav.getByRole("link", { name: "Deliveries", exact: true }).click();
-  await page.waitForTimeout(400);
-  assertUrl(page, /\/dispatcher/, "Deliveries");
-  if (!page.url().includes("focus=deliveries")) {
-    throw new Error(`Deliveries: expected focus=deliveries in URL, got ${page.url()}`);
+  if (
+    (await nav.getByRole("link", { name: "Deliveries", exact: true }).count()) >
+    0
+  ) {
+    throw new Error("Deliveries sidebar link should be removed");
   }
-  await page.locator("#portal-deliveries").waitFor({
-    state: "visible",
-    timeout: 15_000,
-  });
 
   console.log("Sidebar: Staging Map…");
   await nav.getByRole("link", { name: "Staging Map", exact: true }).click();
@@ -123,11 +118,6 @@ function sidebar(page) {
     .click();
   await page.waitForTimeout(400);
   assertUrl(page, /\/dispatcher/, "Dispatcher Dashboard");
-  if (page.url().includes("focus=deliveries")) {
-    throw new Error(
-      `Dispatcher Dashboard: should not keep focus=deliveries, got ${page.url()}`,
-    );
-  }
   await page
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 15_000 });
