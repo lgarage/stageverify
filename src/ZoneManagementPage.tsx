@@ -23,7 +23,14 @@ import {
   buildZoneEslQrUrl,
   formatZoneEslStatusLine,
 } from "./receiveQrUrls";
-import { PORTAL_SIDEBAR_STYLE } from "./dispatcherPortalLayout";
+import {
+  PORTAL_SHELL_CLASS,
+  PORTAL_SIDEBAR_CLASS,
+  PORTAL_SIDEBAR_STYLE,
+  PORTAL_MAIN_CLASS,
+  PORTAL_TOPBAR_CLASS,
+  PORTAL_SCROLL_CLASS,
+} from "./dispatcherPortalLayout";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -429,12 +436,12 @@ export function ZoneManagementPage() {
   const activeCount = zones.filter(isLocationActive).length;
 
   return (
-    <div style={{ fontFamily: FONT }} className="min-h-screen flex">
+    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
 
       {/* Sidebar */}
       <aside
         style={PORTAL_SIDEBAR_STYLE}
-        className="w-60 flex-shrink-0 hidden md:flex flex-col z-20 print:hidden"
+        className={`${PORTAL_SIDEBAR_CLASS} print:hidden`}
       >
         <div
           className="flex flex-col items-center px-6 pt-7 pb-5"
@@ -582,11 +589,11 @@ export function ZoneManagementPage() {
 
       {/* Main content */}
       <div
-        className="flex-1 flex flex-col min-w-0 overflow-y-auto print:hidden"
+        className={`${PORTAL_MAIN_CLASS} print:hidden`}
         style={{ backgroundColor: "#f0f2f5" }}
       >
         <div
-          className="sticky top-0 z-10 flex items-center justify-between"
+          className={PORTAL_TOPBAR_CLASS}
           style={{
             backgroundColor: "#fff",
             borderBottom: "1px solid #e0e3e8",
@@ -622,6 +629,10 @@ export function ZoneManagementPage() {
           </div>
         </div>
 
+        <div
+          className={PORTAL_SCROLL_CLASS}
+          style={{ backgroundColor: "#f0f2f5" }}
+        >
         <div
           style={{
             padding: "30px",
@@ -1217,6 +1228,7 @@ export function ZoneManagementPage() {
               );
             })
           )}
+        </div>
         </div>
       </div>
     </div>

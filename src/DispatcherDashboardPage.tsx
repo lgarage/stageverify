@@ -31,7 +31,14 @@ import {
   type StagingLocation,
 } from "./dispatcher";
 import { getAllStagingLocationIds } from "./dispatcher/models";
-import { PORTAL_SIDEBAR_STYLE } from "./dispatcherPortalLayout";
+import {
+  PORTAL_SHELL_CLASS,
+  PORTAL_SIDEBAR_CLASS,
+  PORTAL_SIDEBAR_STYLE,
+  PORTAL_MAIN_CLASS,
+  PORTAL_TOPBAR_CLASS,
+  PORTAL_SCROLL_CLASS,
+} from "./dispatcherPortalLayout";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -588,12 +595,9 @@ export function DispatcherDashboardPage() {
 
   /* ── Render ── */
   return (
-    <div style={{ fontFamily: FONT }} className="min-h-screen flex">
+    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
       {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside
-        style={PORTAL_SIDEBAR_STYLE}
-        className="w-60 flex-shrink-0 hidden md:flex flex-col z-20"
-      >
+      <aside style={PORTAL_SIDEBAR_STYLE} className={PORTAL_SIDEBAR_CLASS}>
         {/* Brand */}
         <div
           className="flex flex-col items-center px-6 pt-7 pb-5"
@@ -827,12 +831,12 @@ export function DispatcherDashboardPage() {
 
       {/* ── Main Content ─────────────────────────────────────────── */}
       <div
-        className="flex-1 flex flex-col min-w-0 overflow-y-auto"
+        className={PORTAL_MAIN_CLASS}
         style={{ backgroundColor: "#f0f2f5" }}
       >
         {/* Top bar */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between"
+          className={PORTAL_TOPBAR_CLASS}
           style={{
             backgroundColor: "#fff",
             borderBottom: "1px solid #e0e3e8",
@@ -932,7 +936,11 @@ export function DispatcherDashboardPage() {
           </div>
         </div>
 
-        {/* Page content */}
+        {/* Page content — scrolls independently of sidebar and top bar */}
+        <div
+          className={PORTAL_SCROLL_CLASS}
+          style={{ backgroundColor: "#f0f2f5" }}
+        >
         <div
           style={{
             padding: "30px",
@@ -1698,6 +1706,7 @@ export function DispatcherDashboardPage() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
