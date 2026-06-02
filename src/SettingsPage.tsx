@@ -360,75 +360,67 @@ export function SettingsPage() {
                 </span>
               )}
             </div>
+          </div>
 
+          {/* Staging spots */}
+          <div style={{ ...cardStyle, overflow: "hidden" }}>
             <div
               style={{
-                borderTop: "1px solid #eaecf0",
-                padding: "20px",
+                padding: "15px 20px",
+                borderBottom: "1px solid #eaecf0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
               }}
             >
-              <div
+              <div>
+                <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                  Staging Spots
+                </span>
+                {!loadingSpots && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 12,
+                      color: "#9ca3af",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {stagingSpots.length}{" "}
+                    {stagingSpots.length === 1 ? "spot" : "spots"} listed
+                  </span>
+                )}
+              </div>
+              <Link
+                to="/zones"
                 style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  marginBottom: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: NAVY,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
                 }}
               >
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: NAVY,
-                    }}
-                  >
-                    Staging Spots
-                    {!loadingSpots && (
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          fontSize: 12,
-                          color: "#9ca3af",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {stagingSpots.length}{" "}
-                        {stagingSpots.length === 1 ? "spot" : "spots"} listed
-                      </span>
-                    )}
-                  </h3>
-                  <p
-                    style={{
-                      margin: "6px 0 0",
-                      fontSize: 12,
-                      color: "#6b7280",
-                      lineHeight: 1.45,
-                      maxWidth: 560,
-                    }}
-                  >
-                    Spots already in the system appear below. Add new ones with
-                    a code that is not already listed. A top-down shop map will
-                    come later — for now spots appear in vendor check-in and
-                    dispatcher assignment.
-                  </p>
-                </div>
-                <Link
-                  to="/zones"
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: NAVY,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Zone map &amp; QR labels →
-                </Link>
-              </div>
+                Zone map &amp; QR labels →
+              </Link>
+            </div>
+            <div style={{ padding: "20px" }}>
+              <p
+                style={{
+                  margin: "0 0 16px",
+                  fontSize: 12,
+                  color: "#6b7280",
+                  lineHeight: 1.45,
+                  maxWidth: 560,
+                }}
+              >
+                Spots already in the system appear below. Add new ones with a
+                code that is not already listed. A top-down shop map will come
+                later — for now spots appear in vendor check-in and dispatcher
+                assignment.
+              </p>
 
               <p
                 style={{
