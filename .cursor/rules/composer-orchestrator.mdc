@@ -38,12 +38,12 @@ Fix all TypeScript errors before declaring the task done. Never report success w
 For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affects what the user sees in the browser, run visual verification **in addition to** the build gate:
 
 ### Steps
-1. **Before screenshot** — start the local dev server (`npm run dev`, default port 5173), navigate to the affected route, take a Playwright screenshot. Save as `before.png`.
+1. **Before screenshot(s)** — start the local dev server (`npm run dev`, default port 5173). For each affected route, take a Playwright screenshot named `before-<route>.png` (e.g. `before-settings.png`, `before-dispatcher.png`).
 2. **Make the code changes.**
 3. **Build gate** — run `npm run build`; fix all errors.
-4. **After screenshot** — with dev server still running (hot-reload), navigate to the same route, take a Playwright screenshot. Save as `after.png`.
-5. **Assert** — confirm the intended change is visible in `after.png` and no obvious regressions exist in surrounding UI.
-6. **Clean up** — stop the dev server; delete `before.png` and `after.png`.
+4. **After screenshot(s)** — with dev server still running (hot-reload), take a matching `after-<route>.png` for every route captured in step 1.
+5. **Assert** — for each route pair, confirm the intended change is visible in `after-<route>.png` and no obvious regressions exist in surrounding UI. If any route fails, do NOT commit — debug and repeat from step 2.
+6. **Clean up** — stop the dev server; delete all `before-*.png` and `after-*.png` files.
 
 ### Authentication for protected routes
 The app's dispatcher, settings, and zone screens require Firebase login. Use a saved Playwright auth state:
@@ -74,8 +74,14 @@ The app's dispatcher, settings, and zone screens require Firebase login. Use a s
 # Install if not already present
 npx playwright install chromium --with-deps
 
-# Take a screenshot
-npx playwright screenshot --browser chromium http://localhost:5173/#/settings before.png
+# Public route (no auth needed)
+npx playwright screenshot --browser chromium \
+  "http://localhost:5173/#/login" before-login.png
+
+# Protected route (requires auth state)
+npx playwright screenshot --browser chromium \
+  --storage-state playwright/.auth/state.json \
+  "http://localhost:5173/#/settings" before-settings.png
 ```
 Replace `#/settings` with the affected route.
 
