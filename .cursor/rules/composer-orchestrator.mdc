@@ -48,7 +48,8 @@ Before adding a new React component or page, read 1–2 similar existing files f
 ## Commit Hygiene
 - Stage only the files changed for the current task.
 - Use conventional commit prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`.
-- Do not commit `.cursor/rules/` or `PROJECT_STATUS/` files unless the task is explicitly about them.
+- Do not commit `.cursor/rules/` files unless the task is explicitly about them.
+- Always commit `PROJECT_STATUS/CURRENT_STATE.md` and `roadmap.md` in the same commit as shipped feature code (see Session Defaults). These are the exception to the "don't commit PROJECT_STATUS/" pattern.
 - Do not `git push` unless the user asks to deploy or explicitly says to push.
 
 ## Escalation Triggers
@@ -80,10 +81,13 @@ npm run deploy
 Both steps happen together in response to a single "push" or "deploy" instruction.
 
 ### PROJECT_STATUS updates
-When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state.
+When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
 
 ### Security gate
 Run the security gate **automatically** after every `backend-write-critical` commit (any change to `firestore.rules`, Cloud Function write paths, or auth logic). Do not wait to be asked. Invoke Sonnet 4.6 as a Task subagent for the review.
+
+### T3 / backend-write-critical during Composer trial
+Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` commit, automatically run the Sonnet 4.6 security gate as a Task subagent before declaring done. Do not dispatch Opus for the implementation unless Sonnet's security review finds a HIGH risk that Composer cannot resolve.
 
 ### Workspace rules override global skill
 stageverify workspace rules (`.cursor/rules/`) override the global agent-ops skill where they conflict. When in doubt, follow the workspace rule.
