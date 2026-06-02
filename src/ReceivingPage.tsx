@@ -27,6 +27,7 @@ import {
   type StagingLocation,
 } from "./dispatcher/models";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
+import { PortalNavBar } from "./PortalNavBar";
 
 type Step = "scan" | "items" | "zone" | "done";
 
@@ -530,7 +531,10 @@ export function ReceivingPage() {
 
         {step === "scan" && scanMode === "camera" && !deepLinkPending && (
           <div className="flex flex-col h-full">
-            <div className="px-4 py-4 border-b border-border">
+            <div className="px-4 py-3 border-b border-border shrink-0">
+              <PortalNavBar active="receive" />
+            </div>
+            <div className="px-4 py-3 border-b border-border">
               <h1 className="text-xl font-bold">Receive Delivery</h1>
               <p className="text-sm text-text-secondary mt-1">
                 Scan the QR tag on the package
@@ -605,10 +609,10 @@ export function ReceivingPage() {
 
         {step === "items" && deliveryDetails && (
           <div className="flex flex-col h-full relative">
-            <div className="flex-1 overflow-y-auto px-6 py-8">
-              <p className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase text-center mb-2">
-                Vendor Check-In
-              </p>
+            <div className="shrink-0 px-6 pt-4 pb-2">
+              <PortalNavBar active="receive" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               <p className="text-center text-text-secondary text-sm mb-6">
                 {deliveryDetails.job?.jobName ?? "Delivery"}
               </p>

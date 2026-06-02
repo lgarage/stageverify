@@ -77,25 +77,27 @@ export function MobileHubPage() {
         </header>
 
         <main className="flex flex-1 flex-col justify-center gap-5 px-5 py-8">
+          <div className="grid grid-cols-2 gap-3">
+            <HubButton
+              href="/#/pickup"
+              icon="🔧"
+              title="Pickup Portal"
+              subtitle="Technician checkout"
+              colorClass="bg-emerald-600 text-white"
+            />
+            <HubButton
+              href="/#/receive"
+              icon="📋"
+              title="Vendor Portal"
+              subtitle="Receive deliveries"
+              colorClass="bg-blue-600 text-white"
+            />
+          </div>
           <HubButton
             href="/#/"
             icon="📦"
-            title="Vendor Check-In"
-            subtitle="Scan incoming deliveries"
-            colorClass="bg-blue-600 text-white"
-          />
-          <HubButton
-            href="/#/pickup"
-            icon="🔧"
-            title="Tech Parts Checkout"
-            subtitle="Check out job materials"
-            colorClass="bg-emerald-600 text-white"
-          />
-          <HubButton
-            href="/#/receive"
-            icon="📋"
-            title="Manual Supplies Check-In"
-            subtitle="Receive & stage new supplies"
+            title="Vendor QR Scanner"
+            subtitle="Legacy scan check-in"
             colorClass="bg-amber-600 text-white"
           />
         </main>

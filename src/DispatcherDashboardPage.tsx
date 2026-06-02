@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { auth } from "./firebase";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
+import { DispatcherPortalLinks } from "./PortalNavBar";
 import {
   firestoreDataService,
   markDeliveryShipped,
@@ -841,45 +842,8 @@ export function DispatcherDashboardPage() {
               / Delivery Overview
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              to="/pickup"
-              target="_blank"
-              style={{
-                padding: "5px 12px",
-                borderRadius: 4,
-                border: `1.5px solid ${NAVY}`,
-                backgroundColor: "#fff",
-                color: NAVY,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: FONT,
-                textDecoration: "none",
-                outline: "none",
-              }}
-            >
-              Pickup Portal ↗
-            </Link>
-            <Link
-              to="/receive"
-              target="_blank"
-              style={{
-                padding: "5px 12px",
-                borderRadius: 4,
-                border: `1.5px solid ${NAVY}`,
-                backgroundColor: "#fff",
-                color: NAVY,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: FONT,
-                textDecoration: "none",
-                outline: "none",
-              }}
-            >
-              Vendor Portal ↗
-            </Link>
+          <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
+            <DispatcherPortalLinks />
             <button
               type="button"
               onClick={() => setShowCreateModal(true)}

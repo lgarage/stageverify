@@ -11,7 +11,7 @@ StageVerify helps USA Heating & Cooling track deliveries from dispatcher creatio
 ### Auth & routing
 - Firebase Auth fully implemented: `LoginPage`, `ProtectedRoute`, `AuthContext`, logout buttons.
 - `/dispatcher` and `/settings` are protected; hub/receive/display/pickup are public.
-- Logged-in users at `/` are redirected to `/hub`.
+- Logged-in users at `/` are redirected to `/hub`; hub shows **Pickup Portal** and **Vendor Portal** side by side.
 
 ### Dispatcher workflow
 - Real Firestore-backed dispatcher dashboard.

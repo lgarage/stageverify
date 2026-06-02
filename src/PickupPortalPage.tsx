@@ -25,6 +25,7 @@ import {
 } from "./scanRouting";
 import { parseScannedQr } from "./receiveQrUrls";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
+import { PortalNavBar } from "./PortalNavBar";
 
 const normalizeZoneCode = (code: string): string =>
   code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -386,9 +387,9 @@ function WalkUpEntry({
 
   return (
     <div className="flex-1 flex flex-col px-6 py-12">
-      <p className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase text-center mb-12">
-        Pickup Portal
-      </p>
+      <div className="mb-8">
+        <PortalNavBar active="pickup" />
+      </div>
 
       {notFoundCode && (
         <div className="mb-6 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red">
@@ -870,9 +871,9 @@ function JobPickupScreen({
   if (deliveries.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-        <p className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase mb-8">
-          Pickup Portal
-        </p>
+        <div className="mb-8 w-full max-w-sm">
+          <PortalNavBar active="pickup" />
+        </div>
         <p className="text-text-primary font-medium mb-6">
           No pickup-ready deliveries for this job. Check with your dispatcher.
         </p>
@@ -887,10 +888,10 @@ function JobPickupScreen({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        <p className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase text-center mb-2">
-          Pickup Portal
-        </p>
+      <div className="shrink-0 px-6 pt-6 pb-2">
+        <PortalNavBar active="pickup" />
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-4">
         <p className="text-center text-text-secondary text-sm mb-6">
           {jobName}
         </p>

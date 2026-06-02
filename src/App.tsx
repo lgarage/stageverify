@@ -15,6 +15,7 @@ import type {
   Job,
 } from "./dispatcher/models";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
+import { PortalNavBar } from "./PortalNavBar";
 
 // --- Icons ---
 const icons = {
@@ -820,13 +821,8 @@ export default function App() {
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
       <ScanScreen />
-      <div className="px-6 py-4 text-center">
-        <a
-          href="#/pickup"
-          className="text-text-secondary text-sm underline"
-        >
-          Tech Pickup →
-        </a>
+      <div className="px-6 py-4">
+        <PortalNavBar />
       </div>
     </div>
   );

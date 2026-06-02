@@ -37,7 +37,7 @@ mkdirSync(outDir, { recursive: true });
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector("text=Vendor Check-In", { timeout: 30_000 });
+  await page.waitForSelector("text=Vendor Portal", { timeout: 30_000 });
   await page.screenshot({
     path: resolve(outDir, "receive-verify-loaded.png"),
     fullPage: true,
