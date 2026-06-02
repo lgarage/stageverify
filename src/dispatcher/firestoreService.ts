@@ -26,7 +26,11 @@ import type {
   Vendor,
   AppSettings,
 } from "./models";
-import { isLocationActive, parseStagingLocation } from "./models";
+import {
+  getAllStagingLocationIds,
+  isLocationActive,
+  parseStagingLocation,
+} from "./models";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -746,6 +750,37 @@ export async function getDeliveryByOrderNumber(
   );
   if (matches.length === 0) return null;
   return getDeliveryDetailsPublic(matches[0].id);
+}
+
+const RECEIVE_INACTIVE_STATUSES = new Set<DeliveryStatus>([
+  "ready_for_pickup",
+  "complete",
+  "picked_up",
+]);
+
+/** Delivery currently staged at a zone code (primary or additional location). */
+export async function getDeliveryDetailsPublicByStagingCode(
+  zoneCode: string,
+): Promise<DeliveryDetails | null> {
+  const code = zoneCode.trim();
+  if (!code) return null;
+
+  const locations = await fetchAllStagingLocations();
+  const location = locations.find((loc) => loc.code === code);
+  if (!location) return null;
+
+  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
+  const candidates = deliveries.filter((delivery) => {
+    if (RECEIVE_INACTIVE_STATUSES.has(delivery.status)) return false;
+    return getAllStagingLocationIds(delivery).includes(location.id);
+  });
+
+  if (candidates.length === 0) return null;
+
+  const sorted = [...candidates].sort((a, b) =>
+    b.updatedAt.localeCompare(a.updatedAt),
+  );
+  return getDeliveryDetailsPublic(sorted[0].id);
 }
 
 export async function listVendors(): Promise<Vendor[]> {

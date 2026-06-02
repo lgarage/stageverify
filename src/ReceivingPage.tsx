@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import {
   firestoreDataService,
   getDeliveryDetailsPublic,
+  getDeliveryDetailsPublicByStagingCode,
 } from "./dispatcher/firestoreService";
 import type { DeliveryDetails, StagingLocation } from "./dispatcher/models";
 
@@ -36,6 +37,14 @@ const TERMINAL_STATUSES = new Set([
   "complete",
   "picked_up",
 ]);
+
+function parseReceiveHashParams(): { id: string | null; zone: string | null } {
+  const hash = window.location.hash;
+  const qsStart = hash.indexOf("?");
+  if (qsStart === -1) return { id: null, zone: null };
+  const params = new URLSearchParams(hash.slice(qsStart + 1));
+  return { id: params.get("id"), zone: params.get("zone") };
+}
 
 function extractQrValue(raw: string): { type: "id" | "zone" | "raw"; value: string } {
   if (raw.startsWith("http")) {
@@ -81,8 +90,15 @@ export function ReceivingPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [manualId, setManualId] = useState("");
   const [cameraFailed, setCameraFailed] = useState(false);
+  const [scanMode, setScanMode] = useState<"camera" | "zone-miss">("camera");
+  const [zoneMissCode, setZoneMissCode] = useState<string | null>(null);
+  const [deepLinkPending, setDeepLinkPending] = useState(() => {
+    const { id, zone } = parseReceiveHashParams();
+    return Boolean(id || zone);
+  });
 
   const scannerRef = useRef<Html5QrcodeInstance | null>(null);
+  const urlDeepLinkHandledRef = useRef(false);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
@@ -149,6 +165,32 @@ export function ReceivingPage() {
     [deliveryDetails],
   );
 
+  const loadDeliveryForReceive = useCallback(
+    async (details: DeliveryDetails): Promise<boolean> => {
+      if (TERMINAL_STATUSES.has(details.delivery.status)) {
+        showToast("Already submitted — cannot re-check-in");
+        return false;
+      }
+
+      let resolved = details;
+      if (resolved.delivery.status === "pending") {
+        const updated = await firestoreDataService.updateDeliveryStatus(
+          resolved.delivery.id,
+          "arrived",
+          undefined,
+          "dispatcher",
+          "Receiver",
+        );
+        resolved = updated ?? resolved;
+      }
+
+      setDeliveryDetails(resolved);
+      setStep("items");
+      return true;
+    },
+    [showToast],
+  );
+
   const processDeliveryLookup = useCallback(
     async (lookupId: string) => {
       const trimmed = lookupId.trim();
@@ -158,44 +200,75 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        let details = await getDeliveryDetailsPublic(trimmed);
+        const details = await getDeliveryDetailsPublic(trimmed);
 
         if (!details) {
           showToast("Delivery not found");
-          setLoading(false);
           return;
         }
 
-        if (TERMINAL_STATUSES.has(details.delivery.status)) {
-          showToast("Already submitted — cannot re-check-in");
-          setLoading(false);
-          return;
-        }
-
-        if (details.delivery.status === "pending") {
-          const updated = await firestoreDataService.updateDeliveryStatus(
-            details.delivery.id,
-            "arrived",
-            undefined,
-            "dispatcher",
-            "Receiver",
-          );
-          details = updated ?? details;
-        }
-
-        setDeliveryDetails(details);
-        setStep("items");
+        await loadDeliveryForReceive(details);
       } catch {
         setError("Failed to load delivery");
       } finally {
         setLoading(false);
+        setDeepLinkPending(false);
       }
     },
-    [showToast],
+    [showToast, loadDeliveryForReceive],
+  );
+
+  const processZoneLookup = useCallback(
+    async (zoneCode: string) => {
+      const trimmed = zoneCode.trim();
+      if (!trimmed) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const details = await getDeliveryDetailsPublicByStagingCode(trimmed);
+
+        if (!details) {
+          setZoneMissCode(trimmed);
+          setScanMode("zone-miss");
+          showToast(`No active delivery at zone ${trimmed}`);
+          return;
+        }
+
+        const loaded = await loadDeliveryForReceive(details);
+        if (loaded) {
+          window.history.replaceState(null, "", "#/receive");
+        }
+      } catch {
+        setError("Failed to load delivery for this zone");
+      } finally {
+        setLoading(false);
+        setDeepLinkPending(false);
+      }
+    },
+    [showToast, loadDeliveryForReceive],
   );
 
   useEffect(() => {
-    if (step !== "scan") return;
+    if (urlDeepLinkHandledRef.current) return;
+    const { id, zone } = parseReceiveHashParams();
+    if (!id && !zone) return;
+    urlDeepLinkHandledRef.current = true;
+
+    if (id) {
+      void processDeliveryLookup(id).then(() => {
+        window.history.replaceState(null, "", "#/receive");
+      });
+      return;
+    }
+    if (zone) {
+      void processZoneLookup(zone);
+    }
+  }, [processDeliveryLookup, processZoneLookup]);
+
+  useEffect(() => {
+    if (step !== "scan" || scanMode !== "camera" || deepLinkPending) return;
 
     let isMounted = true;
     let handledDecode = false;
@@ -216,12 +289,15 @@ export function ReceivingPage() {
             if (handledDecode || !isMounted) return;
             handledDecode = true;
             const extracted = extractQrValue(decodedText);
-            const lookupValue =
-              extracted.type === "zone" ? decodedText : extracted.value;
             void scanner.stop().then(() => {
               scanner.clear();
               scannerRef.current = null;
-              if (isMounted) void processDeliveryLookup(lookupValue);
+              if (!isMounted) return;
+              if (extracted.type === "zone") {
+                void processZoneLookup(extracted.value);
+              } else {
+                void processDeliveryLookup(extracted.value);
+              }
             });
           },
           () => {
@@ -244,7 +320,7 @@ export function ReceivingPage() {
         scannerRef.current = null;
       }
     };
-  }, [step, processDeliveryLookup]);
+  }, [step, scanMode, deepLinkPending, processDeliveryLookup, processZoneLookup]);
 
   const updateItemReceived = (itemId: string, delta: number) => {
     if (!deliveryDetails) return;
@@ -333,6 +409,8 @@ export function ReceivingPage() {
 
   const resetFlow = () => {
     setStep("scan");
+    setScanMode("camera");
+    setZoneMissCode(null);
     setDeliveryDetails(null);
     setItemQtys([]);
     setStagingLocationId(null);
@@ -341,6 +419,8 @@ export function ReceivingPage() {
     setError(null);
     setManualId("");
     setCameraFailed(false);
+    setDeepLinkPending(false);
+    window.history.replaceState(null, "", "#/receive");
   };
 
   const selectedZone = stagingLocations.find(
@@ -360,7 +440,36 @@ export function ReceivingPage() {
       <div className="flex flex-col h-full pb-[env(safe-area-inset-bottom)]">
         {toast && <Toast message={toast} />}
 
-        {step === "scan" && (
+        {step === "scan" && scanMode === "zone-miss" && (
+          <div className="flex flex-col h-full">
+            <div className="px-4 py-4 border-b border-border">
+              <h1 className="text-xl font-bold">Zone {zoneMissCode}</h1>
+              <p className="text-sm text-text-secondary mt-1">
+                No active delivery is assigned to this staging spot.
+              </p>
+            </div>
+            <div className="flex-1 flex items-center justify-center px-6 text-center">
+              <p className="text-sm text-text-secondary">
+                Assign a delivery to this zone in the dispatcher, or scan a
+                package label instead.
+              </p>
+            </div>
+            <div className="px-4 py-4 border-t border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMode("camera");
+                  setZoneMissCode(null);
+                }}
+                className="w-full min-h-[44px] rounded-xl bg-accent text-bg-primary font-medium"
+              >
+                Scan another tag
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "scan" && scanMode === "camera" && !deepLinkPending && (
           <div className="flex flex-col h-full">
             <div className="px-4 py-4 border-b border-border">
               <h1 className="text-xl font-bold">Receive Delivery</h1>
@@ -371,9 +480,14 @@ export function ReceivingPage() {
 
             <div className="relative flex-1 min-h-0 bg-black">
               <div id="receive-qr-reader" className="w-full h-full" />
-              {!cameraFailed && (
+              {!cameraFailed && !loading && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <div className="size-[250px] border-2 border-accent/80 rounded-lg" />
+                </div>
+              )}
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                  <p className="text-sm text-white">Loading delivery…</p>
                 </div>
               )}
               {cameraFailed && (
@@ -421,6 +535,12 @@ export function ReceivingPage() {
                 <p className="text-xs text-accent-red mt-2">{error}</p>
               )}
             </div>
+          </div>
+        )}
+
+        {step === "scan" && scanMode === "camera" && deepLinkPending && (
+          <div className="flex flex-col h-full items-center justify-center px-6">
+            <p className="text-sm text-text-secondary">Opening delivery…</p>
           </div>
         )}
 
