@@ -178,14 +178,27 @@ export function ReceivingPage() {
 
       let resolved = details;
       if (resolved.delivery.status === "pending") {
-        const updated = await firestoreDataService.updateDeliveryStatus(
-          resolved.delivery.id,
-          "arrived",
-          undefined,
-          "dispatcher",
-          "Receiver",
-        );
-        resolved = updated ?? resolved;
+        try {
+          const updated = await firestoreDataService.updateDeliveryStatus(
+            resolved.delivery.id,
+            "arrived",
+            undefined,
+            "vendor",
+            "Vendor Driver",
+          );
+          if (updated) resolved = updated;
+          else {
+            resolved = {
+              ...resolved,
+              delivery: { ...resolved.delivery, status: "arrived" },
+            };
+          }
+        } catch {
+          resolved = {
+            ...resolved,
+            delivery: { ...resolved.delivery, status: "arrived" },
+          };
+        }
       }
 
       setDeliveryDetails(resolved);

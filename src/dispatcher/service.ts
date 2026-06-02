@@ -75,7 +75,7 @@ export interface DispatcherDataService {
     deliveryId: string,
     toStatus: DeliveryStatus,
     reason?: string,
-    actorType?: "dispatcher" | "technician",
+    actorType?: "dispatcher" | "technician" | "vendor",
     actorName?: string,
   ): Promise<DeliveryDetails | null>;
   recordPickupEvent(

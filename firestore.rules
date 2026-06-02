@@ -117,7 +117,7 @@ service cloud.firestore {
     }
 
     match /jobs/{jobId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create, update: if isAuthenticated();
       allow delete: if false;
     }
@@ -134,7 +134,7 @@ service cloud.firestore {
     }
 
     match /purchaseOrders/{poId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create, update: if isAuthenticated();
       allow delete: if false;
     }

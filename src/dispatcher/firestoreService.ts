@@ -308,7 +308,7 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     toStatus: DeliveryStatus,
     reason?: string,
-    actorType: "dispatcher" | "technician" = "dispatcher",
+    actorType: "dispatcher" | "technician" | "vendor" = "dispatcher",
     actorName?: string,
   ): Promise<DeliveryDetails | null> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
@@ -349,12 +349,19 @@ export class FirestoreDataService implements DispatcherDataService {
       actorType,
       actorName:
         actorName ??
-        (actorType === "technician" ? "Technician" : "Dispatcher"),
+        (actorType === "technician"
+          ? "Technician"
+          : actorType === "vendor"
+            ? "Vendor Driver"
+            : "Dispatcher"),
       createdAt: now,
     });
 
     await batch.commit();
     if (actorType === "technician") return null;
+    if (actorType === "vendor") {
+      return getDeliveryDetailsPublic(deliveryId);
+    }
     return this.getDeliveryDetails(deliveryId);
   }
 
@@ -805,6 +812,20 @@ export async function getDeliveryDetailsPublic(
   const { contactName: _c, contactPhone: _p, email: _e, ...publicVendor } =
     vendorSnap.data() as Vendor;
 
+  let job: Job | undefined;
+  const jobSnap = await getDoc(doc(db, "jobs", delivery.jobId));
+  if (jobSnap.exists()) {
+    job = jobSnap.data() as Job;
+  }
+
+  let purchaseOrder: PurchaseOrder | undefined;
+  if (delivery.purchaseOrderId) {
+    const poSnap = await getDoc(
+      doc(db, "purchaseOrders", delivery.purchaseOrderId),
+    );
+    if (poSnap.exists()) purchaseOrder = poSnap.data() as PurchaseOrder;
+  }
+
   let stagingLocation: StagingLocation | undefined;
   if (delivery.stagingLocationId) {
     const locSnap = await getDoc(
@@ -819,7 +840,9 @@ export async function getDeliveryDetailsPublic(
 
   return {
     delivery: publicDelivery as DeliveryOrder,
+    job,
     vendor: publicVendor as Vendor,
+    purchaseOrder,
     stagingLocation,
     items,
     statusHistory: [],
