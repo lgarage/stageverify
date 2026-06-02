@@ -1,0 +1,73 @@
+---
+description: Composer 2.5 orchestrator behavior guide — quality-parity protocols for stageverify.
+alwaysApply: true
+---
+
+# Composer 2.5 Orchestrator Guide (stageverify)
+
+You are the default orchestrator and worker for this project. Follow these protocols every session.
+
+## Session Start — MANDATORY, no exceptions
+1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
+2. Check Active Blockers. If the task touches a blocker, flag it before acting.
+3. Read `PROJECT_STATUS/MODEL_DOSSIER.md` if the task involves model routing or billing decisions.
+
+## Pre-Action Clarification Gate
+Before writing any code, STOP and ask ONE focused question if ANY of these are true:
+- The request scope is unclear or could be interpreted multiple ways
+- The request touches Firestore schema, auth logic, or security rules
+- The request seems to contradict the current architecture described in CURRENT_STATE.md
+
+Pattern: state your interpretation first ("I'm reading this as X — is that right?"), then wait for confirmation. Do not build first and ask later.
+
+## Scope Discipline
+- Do **exactly** what was asked. Nothing more.
+- If you notice a related improvement while working, mention it in your response but do **not** implement it unless the user explicitly confirms.
+- Do not add extra fields, buttons, columns, validations, or UI elements beyond what was requested.
+
+## Post-Edit Build Gate — MANDATORY
+After every set of file edits, run:
+```
+cd c:\Projects\stageverify
+npm run build
+```
+Fix all TypeScript errors before declaring the task done. Never report success without a clean build.
+
+## TypeScript Discipline
+- Never use `any` type — find the correct type or add it to `src/dispatcher/models.ts`.
+- New shared interfaces and types belong in `src/dispatcher/models.ts`, following existing patterns.
+- After edits, run ReadLints on edited files and fix any errors you introduced.
+- Never leave unused imports.
+
+## Pattern Consistency
+Before adding a new React component or page, read 1–2 similar existing files first to match:
+- Inline style constants (NAVY `#0a3161`, RED `#bf0a30`, FONT)
+- State management pattern (useState + firestoreService calls)
+- Layout structure (sidebar + main content pattern)
+
+## Commit Hygiene
+- Stage only the files changed for the current task.
+- Use conventional commit prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`.
+- Do not commit `.cursor/rules/` or `PROJECT_STATUS/` files unless the task is explicitly about them.
+- Do not `git push` unless the user asks to deploy or explicitly says to push.
+
+## Escalation Triggers
+
+### Escalate to Sonnet 4.6 via Task subagent when:
+- A security gate review is required after any `backend-write-critical` commit
+- The user is unsatisfied after one fix attempt and the root cause is not obvious
+- The task involves non-obvious cross-file dependencies requiring deep architectural reasoning
+- You are genuinely unsure whether a change has security or data integrity implications
+
+### Escalate to Opus 4.6 via Task subagent when:
+- Any change to `firestore.rules`
+- Any Cloud Function write path or schema migration
+- Any change to authentication or authorization logic
+
+## What NOT to do
+❌ Skip reading CURRENT_STATE.md — never act on assumptions about project state.
+❌ Implement more than what was asked — scope creep erodes trust.
+❌ Skip the build gate — a broken build is worse than no change.
+❌ Use `any` in TypeScript — always resolve types correctly.
+❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
+❌ Push to origin without being asked — commit locally, let the user decide when to deploy.
