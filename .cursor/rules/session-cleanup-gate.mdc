@@ -43,6 +43,18 @@ Delete ephemeral files created during verification:
 
 Optional npm script: `npm run clean:verify-artifacts` (also deletes `screenshots/**/*.png`).
 
+## Git hygiene (commit / push area)
+
+`screenshots/` is gitignored, but legacy files may still be **tracked**. Deleting them locally without `git rm` leaves a dirty tree.
+
+After artifact cleanup:
+
+1. Run `git status` — if anything under `screenshots/` is modified/deleted, stage:  
+   `git rm --cached screenshots/<file>` or `git add -u screenshots/`.
+2. **Do not push** with unstaged cleanup deletions sitting in the working tree.
+3. Never `git add` new verify PNGs or `measurements.json` under `screenshots/`.
+4. Before push: `git status` must be clean (or only intentional staged changes).
+
 ## Background terminals
 
 - **Never** end a session with agent-started background shells still running.
@@ -55,7 +67,7 @@ Optional npm script: `npm run clean:verify-artifacts` (also deletes `screenshots
 When cleanup ran, include one line:
 
 ```
-Cleanup: dev servers stopped ✓ | background shells killed ✓ | verify PNGs removed ✓ | ports clear ✓
+Cleanup: dev servers stopped ✓ | background shells killed ✓ | verify PNGs removed ✓ | git status clean ✓ | ports clear ✓
 ```
 
 If cleanup could not run (e.g. no shell access), say what was left and why.
