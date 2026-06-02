@@ -157,7 +157,7 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 After every substantive change, run the **model audit** protocol in `.cursor/rules/model-audit-gate.mdc` and include the audit table in your reply before declaring done.
 
 ### Session cleanup (mandatory)
-After every substantive task, run the **cleanup** protocol in `.cursor/rules/session-cleanup-gate.mdc` (stop dev servers, delete ephemeral Playwright PNGs, confirm ports clear).
+**Always clean up your messes.** After every substantive task, run the **cleanup** protocol in `.cursor/rules/session-cleanup-gate.mdc` (stop dev servers, kill background shells, delete ephemeral Playwright PNGs, fix dirty git status, confirm ports clear).
 
 ### Pre-edit gate
 **Announce-and-go.** State archetype + tier + model, then immediately start editing. Do not wait for a "go ahead" reply.

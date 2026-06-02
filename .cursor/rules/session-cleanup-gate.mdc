@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Session Cleanup Gate (Dan standing preference)
 
+> **Always clean up your messes.** If the agent created it (dev server, shell, PNG, git noise), the agent removes it before saying done.
+
 After **every substantive task** (especially UI/Playwright work), run cleanup **before** reporting done. A clean workspace is part of "done."
 
 ## Shutdown discipline (mandatory)
