@@ -25,3 +25,7 @@ hvac-repair-quoting-tool-clone/
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright auth state and local env
+playwright/.auth/
+.env.local

@@ -45,9 +45,28 @@ For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affect
 5. **Assert** — confirm the intended change is visible in `after.png` and no obvious regressions exist in surrounding UI.
 6. **Clean up** — stop the dev server; delete `before.png` and `after.png`.
 
+### Authentication for protected routes
+The app's dispatcher, settings, and zone screens require Firebase login. Use a saved Playwright auth state:
+
+1. **One-time setup (or when token expires):** ensure `npm run dev` is running, then run:
+   ```bash
+   node scripts/playwright-auth-setup.mjs
+   ```
+   This reads `STAGEVERIFY_TEST_EMAIL` / `STAGEVERIFY_TEST_PASSWORD` from `.env.local` and saves `playwright/.auth/state.json` (gitignored).
+
+2. **All screenshot commands for protected routes** must pass the storage state:
+   ```bash
+   npx playwright screenshot --browser chromium \
+     --storage-state playwright/.auth/state.json \
+     "http://localhost:5173/#/settings" before.png
+   ```
+
+3. If `state.json` does not exist or is expired (Firebase tokens last ~1 hour), re-run the setup script before taking screenshots.
+
 ### When to apply
 - **Always:** any change to a component's layout, colors, columns, inputs, or visible text
 - **Always:** adding or removing UI elements (buttons, fields, table columns)
+- **All affected routes:** if one task changes multiple pages (e.g. settings + dispatcher), screenshot every route that had a visible change — not just the primary one
 - **Skip:** changes that are purely TypeScript types, service logic, or rule files with no rendered output
 
 ### Playwright command reference (stageverify)
