@@ -63,6 +63,14 @@ The app's dispatcher, settings, and zone screens require Firebase login. Use a s
 
 3. If `state.json` does not exist or is expired (Firebase tokens last ~1 hour), re-run the setup script before taking screenshots.
 
+### Pickup portal (public route)
+After pickup portal flow changes, run:
+```
+npm run verify:pickup
+npm run verify:pickup:prod
+```
+Script clicks every pick-list row, taps **Done**, asserts **All Items Picked Up!** Screenshots: `screenshots/pickup-verify-*.png`.
+
 ### When to apply
 - **Always:** any change to a component's layout, colors, columns, inputs, or visible text
 - **Always:** adding or removing UI elements (buttons, fields, table columns)

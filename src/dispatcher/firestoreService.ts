@@ -767,6 +767,32 @@ export async function addStagingLocation(
   await batch.commit();
 }
 
+/** Statuses shown on the public pickup portal (no auth / jobs read). */
+const PICKUP_PORTAL_DELIVERY_STATUSES: DeliveryStatus[] = [
+  "ready_for_pickup",
+  "complete",
+  "partial",
+  "picked_up",
+  "installed",
+];
+
+export async function loadPickupReadyDeliveriesPublic(
+  jobId: string,
+): Promise<DeliveryDetails[]> {
+  const deliveries = await fetchWhere<DeliveryOrder>(
+    "deliveries",
+    "jobId",
+    jobId,
+  );
+  const pickupReady = deliveries.filter((d) =>
+    PICKUP_PORTAL_DELIVERY_STATUSES.includes(d.status),
+  );
+  const detailsList = await Promise.all(
+    pickupReady.map((d) => getDeliveryDetailsPublic(d.id)),
+  );
+  return detailsList.filter((d): d is DeliveryDetails => d !== null);
+}
+
 export async function getDeliveryDetailsPublic(
   deliveryId: string,
 ): Promise<DeliveryDetails | null> {

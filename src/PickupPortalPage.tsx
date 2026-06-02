@@ -4,6 +4,7 @@ import {
   firestoreDataService,
   getAppSettings,
   getDeliveryDetailsPublic,
+  loadPickupReadyDeliveriesPublic,
   markDeliveryInstalled,
 } from "./dispatcher/firestoreService";
 import {
@@ -52,18 +53,6 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
       <path d={d} />
     </svg>
   );
-}
-
-const PORTAL_STATUSES: DeliveryStatus[] = [
-  "ready_for_pickup",
-  "complete",
-  "partial",
-  "picked_up",
-  "installed",
-];
-
-function isPortalDelivery(status: DeliveryStatus): boolean {
-  return PORTAL_STATUSES.includes(status);
 }
 
 function isPickupReady(status: DeliveryStatus): boolean {
@@ -200,20 +189,6 @@ function extractJobIdFromPickupUrl(text: string): string | null {
 
   const match = trimmed.match(/[#?&]job=([^&]+)/);
   return match ? decodeURIComponent(match[1]) : null;
-}
-
-async function loadPickupReadyDeliveries(
-  jobId: string,
-): Promise<DeliveryDetails[]> {
-  const result = await firestoreDataService.listDeliveries({
-    jobId,
-    pageSize: 100,
-  });
-  const pickupReady = result.items.filter((d) => isPortalDelivery(d.status));
-  const detailsList = await Promise.all(
-    pickupReady.map((d) => getDeliveryDetailsPublic(d.deliveryId)),
-  );
-  return detailsList.filter((d): d is DeliveryDetails => d !== null);
 }
 
 function QrScannerOverlay({
@@ -545,7 +520,7 @@ function JobPickupScreen({
       try {
         const [settings, loaded, stagingLocs] = await Promise.all([
           getAppSettings(),
-          loadPickupReadyDeliveries(jobId),
+          loadPickupReadyDeliveriesPublic(jobId),
           firestoreDataService.listStagingLocations(),
         ]);
         if (cancelled) return;

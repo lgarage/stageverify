@@ -10,7 +10,9 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:pickup": "node scripts/verify-pickup-portal.mjs",
+    "verify:pickup:prod": "node scripts/verify-pickup-portal.mjs --base-url=https://lgarage.github.io/stageverify"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
