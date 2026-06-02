@@ -861,6 +861,25 @@ export function DispatcherDashboardPage() {
             >
               Pickup Portal ↗
             </Link>
+            <Link
+              to="/receive"
+              target="_blank"
+              style={{
+                padding: "5px 12px",
+                borderRadius: 4,
+                border: `1.5px solid ${NAVY}`,
+                backgroundColor: "#fff",
+                color: NAVY,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: FONT,
+                textDecoration: "none",
+                outline: "none",
+              }}
+            >
+              Vendor Portal ↗
+            </Link>
             <button
               type="button"
               onClick={() => setShowCreateModal(true)}
