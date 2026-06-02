@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties, type FormEvent, type MouseEvent } from "react";
+import { useState, useEffect, useMemo, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Vendor, StagingLocation } from "./dispatcher/models";
 import {
@@ -326,6 +326,20 @@ export function SettingsPage() {
     borderRadius: 8,
     boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
   };
+
+  const existingSpotCodes = useMemo(
+    () => stagingSpots.map((s) => s.code.trim()).filter(Boolean),
+    [stagingSpots],
+  );
+
+  const existingCodeKeys = useMemo(
+    () => new Set(existingSpotCodes.map((c) => c.toUpperCase())),
+    [existingSpotCodes],
+  );
+
+  const spotCodeConflict =
+    spotCode.trim().length > 0 &&
+    existingCodeKeys.has(spotCode.trim().toUpperCase());
 
   const inputStyle: CSSProperties = {
     width: "100%",
@@ -1175,6 +1189,19 @@ export function SettingsPage() {
                     }}
                   >
                     Staging Spots
+                    {!loadingSpots && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 12,
+                          color: "#9ca3af",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {stagingSpots.length}{" "}
+                        {stagingSpots.length === 1 ? "spot" : "spots"} listed
+                      </span>
+                    )}
                   </h3>
                   <p
                     style={{
@@ -1185,7 +1212,8 @@ export function SettingsPage() {
                       maxWidth: 560,
                     }}
                   >
-                    Add physical staging locations here. A top-down shop map will
+                    Spots already in the system appear below. Add new ones with
+                    a code that is not already listed. A top-down shop map will
                     come later — for now spots appear in vendor check-in and
                     dispatcher assignment.
                   </p>
@@ -1204,19 +1232,42 @@ export function SettingsPage() {
                 </Link>
               </div>
 
+              <p
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#374151",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Already listed
+              </p>
+
               {loadingSpots ? (
-                <p style={{ fontSize: 13, color: "#9ca3af", margin: "12px 0" }}>
+                <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 16px" }}>
                   Loading spots…
                 </p>
               ) : stagingSpots.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#9ca3af", margin: "12px 0" }}>
-                  No staging spots yet. Add one below.
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "#9ca3af",
+                    margin: "0 0 16px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #eaecf0",
+                    borderRadius: 6,
+                  }}
+                >
+                  No staging spots listed yet. Add the first one below.
                 </p>
               ) : (
                 <div
                   style={{
                     overflowX: "auto",
-                    marginBottom: 16,
+                    marginBottom: 12,
                     border: "1px solid #eaecf0",
                     borderRadius: 6,
                   }}
@@ -1302,9 +1353,43 @@ export function SettingsPage() {
                 </div>
               )}
 
+              {!loadingSpots && existingSpotCodes.length > 0 && (
+                <div
+                  style={{
+                    marginBottom: 20,
+                    padding: "12px 14px",
+                    backgroundColor: "#f0f4fa",
+                    border: "1px solid #c5d4e8",
+                    borderRadius: 6,
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: NAVY,
+                    }}
+                  >
+                    Codes already in use
+                  </p>
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      fontSize: 13,
+                      color: "#374151",
+                      lineHeight: 1.5,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {existingSpotCodes.join(" · ")}
+                  </p>
+                </div>
+              )}
+
               <h4
                 style={{
-                  margin: "0 0 12px",
+                  margin: "0 0 8px",
                   fontSize: 13,
                   fontWeight: 700,
                   color: NAVY,
@@ -1312,6 +1397,16 @@ export function SettingsPage() {
               >
                 Add Staging Spot
               </h4>
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 12,
+                  color: "#6b7280",
+                  lineHeight: 1.45,
+                }}
+              >
+                Choose a new code that does not appear in the list above.
+              </p>
               <form onSubmit={handleAddStagingSpot}>
                 <div
                   style={{
@@ -1334,8 +1429,44 @@ export function SettingsPage() {
                       }}
                       placeholder="e.g. G4"
                       required
-                      style={inputStyle}
+                      list="existing-staging-spot-codes"
+                      aria-describedby="staging-spot-code-hint"
+                      style={{
+                        ...inputStyle,
+                        border: spotCodeConflict
+                          ? `1.5px solid ${RED}`
+                          : "1.5px solid #ccd0d7",
+                      }}
                     />
+                    <datalist id="existing-staging-spot-codes">
+                      {existingSpotCodes.map((code) => (
+                        <option key={code} value={code} />
+                      ))}
+                    </datalist>
+                    {spotCodeConflict ? (
+                      <p
+                        id="staging-spot-code-hint"
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: 12,
+                          color: RED,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {spotCode.trim()} is already listed — pick another code.
+                      </p>
+                    ) : (
+                      <p
+                        id="staging-spot-code-hint"
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: 11,
+                          color: "#9ca3af",
+                        }}
+                      >
+                        Must differ from codes already listed above.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={labelStyle}>
@@ -1397,24 +1528,36 @@ export function SettingsPage() {
                   <button
                     type="submit"
                     disabled={
-                      savingSpot || !spotCode.trim() || !spotLabel.trim()
+                      savingSpot ||
+                      !spotCode.trim() ||
+                      !spotLabel.trim() ||
+                      spotCodeConflict
                     }
                     style={{
                       padding: "8px 18px",
                       borderRadius: 4,
                       border: "none",
                       backgroundColor:
-                        savingSpot || !spotCode.trim() || !spotLabel.trim()
+                        savingSpot ||
+                        !spotCode.trim() ||
+                        !spotLabel.trim() ||
+                        spotCodeConflict
                           ? "#f3f4f6"
                           : NAVY,
                       color:
-                        savingSpot || !spotCode.trim() || !spotLabel.trim()
+                        savingSpot ||
+                        !spotCode.trim() ||
+                        !spotLabel.trim() ||
+                        spotCodeConflict
                           ? "#9ca3af"
                           : "#fff",
                       fontWeight: 700,
                       fontSize: 13,
                       cursor:
-                        savingSpot || !spotCode.trim() || !spotLabel.trim()
+                        savingSpot ||
+                        !spotCode.trim() ||
+                        !spotLabel.trim() ||
+                        spotCodeConflict
                           ? "not-allowed"
                           : "pointer",
                       fontFamily: FONT,
