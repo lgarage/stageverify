@@ -133,7 +133,7 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
 }
 
 const LOCATION_STATUS_LABEL: Record<LocationStatus, string> = {
-  Planned: "Space Assigned",
+  Planned: "Space is assigned",
   Installed: "Installed",
   Tagged: "Tagged",
   Active: "Active",
@@ -990,7 +990,7 @@ export function ZoneManagementPage() {
                               }}
                             >
                               {isLocationActive(zone)
-                                ? "Space Assigned"
+                                ? "Space is assigned"
                                 : "Set Active"}
                             </button>
                           </div>
