@@ -17,7 +17,9 @@
     "verify:receive:prod": "node scripts/verify-receive.mjs --base-url=https://lgarage.github.io/stageverify",
     "seed:vendor-demo": "node scripts/seed-vendor-demo-deliveries.mjs",
     "verify:vendor-demo": "node scripts/verify-vendor-demo.mjs",
-    "verify:vendor-demo:prod": "node scripts/verify-vendor-demo.mjs --base-url=https://lgarage.github.io/stageverify"
+    "verify:vendor-demo:prod": "node scripts/verify-vendor-demo.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
+    "verify:settings-staging:prod": "node scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

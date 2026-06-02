@@ -1,0 +1,96 @@
+/**
+ * Playwright: Settings → Workflow → Staging Spots section visible.
+ *
+ * Usage:
+ *   npm run dev   (another terminal)
+ *   npm run verify:settings-staging
+ *
+ * Credentials from .env.local (STAGEVERIFY_TEST_EMAIL / STAGEVERIFY_TEST_PASSWORD).
+ */
+
+import { chromium } from "playwright";
+import { existsSync, mkdirSync, readFileSync } from "fs";
+import { resolve } from "path";
+
+const args = process.argv.slice(2);
+const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
+const baseUrl =
+  (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
+  process.env.STAGEVERIFY_BASE_URL ??
+  "http://localhost:5173";
+
+const envPath = resolve(process.cwd(), ".env.local");
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const [k, ...v] = line.split("=");
+    if (k && v.length) process.env[k.trim()] = v.join("=").trim();
+  }
+}
+
+const email = process.env.STAGEVERIFY_TEST_EMAIL;
+const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+const authState = resolve(process.cwd(), "playwright/.auth/state.json");
+const outDir = resolve(process.cwd(), "screenshots");
+mkdirSync(outDir, { recursive: true });
+
+const appBase = `${baseUrl.replace(/\/$/, "")}/stageverify`;
+
+async function ensureAuthenticated(page) {
+  await page.goto(`${appBase}/#/settings`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForTimeout(1500);
+
+  if (!page.url().includes("/login")) return;
+
+  if (!email || !password) {
+    throw new Error(
+      "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
+    );
+  }
+
+  await page.fill("#email", email);
+  await page.fill("#password", password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(/\/#\/(settings|dispatcher|hub)/, { timeout: 20_000 });
+
+  if (!page.url().includes("/settings")) {
+    await page.goto(`${appBase}/#/settings`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+  }
+}
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const contextOptions = {
+    viewport: { width: 1280, height: 900 },
+    ...(existsSync(authState) ? { storageState: authState } : {}),
+  };
+  const context = await browser.newContext(contextOptions);
+  const page = await context.newPage();
+
+  console.log(`Opening ${appBase}/#/settings`);
+  await ensureAuthenticated(page);
+
+  await page.getByRole("heading", { name: "Staging Spots" }).waitFor({
+    timeout: 30_000,
+  });
+  await page.waitForSelector("text=Add Staging Spot", { timeout: 10_000 });
+  await page.waitForSelector('input[placeholder="e.g. G4"]', { timeout: 10_000 });
+
+  await page.getByRole("heading", { name: "Staging Spots" }).scrollIntoViewIfNeeded();
+
+  await page.screenshot({
+    path: resolve(outDir, "settings-staging-spots.png"),
+    fullPage: true,
+  });
+
+  console.log("PASS: Settings workflow staging spots section verified.");
+  await browser.close();
+})().catch(async (err) => {
+  console.error("FAIL:", err.message ?? err);
+  process.exit(1);
+});

@@ -1,17 +1,45 @@
 import { useState, useEffect, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { Vendor } from "./dispatcher/models";
+import type { Vendor, StagingLocation } from "./dispatcher/models";
 import {
   getAppSettings,
   updateAppSettings,
   listVendors,
   createVendor,
   updateVendor,
+  listAllZones,
+  createZone,
 } from "./dispatcher/firestoreService";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+const STAGING_SPOT_TYPES = ["ground", "shelf", "bin", "other"] as const;
+type StagingSpotType = (typeof STAGING_SPOT_TYPES)[number];
+
+const STAGING_TYPE_LABELS: Record<StagingSpotType, string> = {
+  ground: "Ground",
+  shelf: "Shelf",
+  bin: "Bin",
+  other: "Other",
+};
+
+function defaultDimensionsForSpotType(type: StagingSpotType): {
+  widthFt?: number;
+  depthFt?: number;
+} {
+  if (type === "shelf" || type === "bin") return { widthFt: 3, depthFt: 3 };
+  if (type === "ground") return { widthFt: 4, depthFt: 4 };
+  return {};
+}
+
+function sortStagingSpots(a: StagingLocation, b: StagingLocation): number {
+  const orderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const orderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  if (orderA !== orderB) return orderA - orderB;
+  return a.code.localeCompare(b.code, undefined, { numeric: true });
+}
 
 const NAV_ITEMS = [
   {
@@ -117,6 +145,16 @@ export function SettingsPage() {
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
 
+  const [stagingSpots, setStagingSpots] = useState<StagingLocation[]>([]);
+  const [loadingSpots, setLoadingSpots] = useState(true);
+  const [spotCode, setSpotCode] = useState("");
+  const [spotLabel, setSpotLabel] = useState("");
+  const [spotType, setSpotType] = useState<StagingSpotType>("ground");
+  const [spotSortOrder, setSpotSortOrder] = useState("");
+  const [savingSpot, setSavingSpot] = useState(false);
+  const [spotError, setSpotError] = useState<string | null>(null);
+  const [spotSaved, setSpotSaved] = useState(false);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     name: string;
@@ -170,6 +208,13 @@ export function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    setLoadingSpots(true);
+    void listAllZones()
+      .then((spots) => setStagingSpots([...spots].sort(sortStagingSpots)))
+      .finally(() => setLoadingSpots(false));
+  }, []);
+
+  useEffect(() => {
     void getAppSettings().then((settings) => {
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
     });
@@ -217,11 +262,90 @@ export function SettingsPage() {
     setNotes("");
   };
 
+  const handleAddStagingSpot = async (e: FormEvent) => {
+    e.preventDefault();
+    const code = spotCode.trim();
+    const label = spotLabel.trim();
+    if (!code || !label || savingSpot) return;
+
+    const codeKey = code.toUpperCase();
+    if (
+      stagingSpots.some((s) => s.code.trim().toUpperCase() === codeKey)
+    ) {
+      setSpotError(`Spot code "${code}" already exists.`);
+      return;
+    }
+
+    setSavingSpot(true);
+    setSpotError(null);
+    setSpotSaved(false);
+
+    try {
+      const sortOrder = spotSortOrder.trim()
+        ? Number(spotSortOrder)
+        : undefined;
+      const dims = defaultDimensionsForSpotType(spotType);
+      const id = await createZone({
+        code,
+        label,
+        type: spotType,
+        status: "Active",
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
+        ...dims,
+      });
+      const newSpot: StagingLocation = {
+        id,
+        code,
+        label,
+        type: spotType,
+        status: "Active",
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
+        ...dims,
+      };
+      setStagingSpots((prev) =>
+        [...prev, newSpot].sort(sortStagingSpots),
+      );
+      setSpotCode("");
+      setSpotLabel("");
+      setSpotType("ground");
+      setSpotSortOrder("");
+      setSpotSaved(true);
+      window.setTimeout(() => setSpotSaved(false), 2500);
+    } catch (err) {
+      setSpotError(
+        err instanceof Error ? err.message : "Failed to add staging spot.",
+      );
+    } finally {
+      setSavingSpot(false);
+    }
+  };
+
   const cardStyle = {
     backgroundColor: "#fff",
     border: "1px solid #dde1e7",
     borderRadius: 8,
     boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
+  };
+
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    border: "1.5px solid #ccd0d7",
+    borderRadius: 6,
+    fontSize: 14,
+    color: "#333",
+    outline: "none",
+    backgroundColor: "#fff",
+    fontFamily: FONT,
+    boxSizing: "border-box",
+  };
+
+  const labelStyle: CSSProperties = {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#6b7280",
+    marginBottom: 6,
   };
 
   return (
@@ -441,7 +565,7 @@ export function SettingsPage() {
               Settings
             </h1>
             <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-              Manage vendors and system configuration.
+              Manage vendors, staging spots, and workflow configuration.
             </p>
           </div>
 
@@ -1023,6 +1147,294 @@ export function SettingsPage() {
                   Saved ✓
                 </span>
               )}
+            </div>
+
+            <div
+              style={{
+                borderTop: "1px solid #eaecf0",
+                padding: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  marginBottom: 8,
+                }}
+              >
+                <div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: NAVY,
+                    }}
+                  >
+                    Staging Spots
+                  </h3>
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      fontSize: 12,
+                      color: "#6b7280",
+                      lineHeight: 1.45,
+                      maxWidth: 560,
+                    }}
+                  >
+                    Add physical staging locations here. A top-down shop map will
+                    come later — for now spots appear in vendor check-in and
+                    dispatcher assignment.
+                  </p>
+                </div>
+                <Link
+                  to="/zones"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: NAVY,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Zone map &amp; QR labels →
+                </Link>
+              </div>
+
+              {loadingSpots ? (
+                <p style={{ fontSize: 13, color: "#9ca3af", margin: "12px 0" }}>
+                  Loading spots…
+                </p>
+              ) : stagingSpots.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#9ca3af", margin: "12px 0" }}>
+                  No staging spots yet. Add one below.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    overflowX: "auto",
+                    marginBottom: 16,
+                    border: "1px solid #eaecf0",
+                    borderRadius: 6,
+                  }}
+                >
+                  <table
+                    style={{
+                      width: "100%",
+                      minWidth: 420,
+                      borderCollapse: "collapse",
+                      fontSize: 13,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ backgroundColor: "#f8fafc" }}>
+                        {["Code", "Label", "Type", "Status"].map((col) => (
+                          <th
+                            key={col}
+                            style={{
+                              padding: "10px 12px",
+                              textAlign: "left",
+                              fontWeight: 700,
+                              color: "#6b7280",
+                              borderBottom: "1px solid #eaecf0",
+                            }}
+                          >
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stagingSpots.map((spot, idx) => (
+                        <tr
+                          key={spot.id}
+                          style={{
+                            backgroundColor: idx % 2 === 0 ? "#fff" : "#fafbfc",
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              fontWeight: 700,
+                              fontFamily: "monospace",
+                              color: NAVY,
+                              borderBottom: "1px solid #eaecf0",
+                            }}
+                          >
+                            {spot.code}
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              color: "#333",
+                              borderBottom: "1px solid #eaecf0",
+                            }}
+                          >
+                            {spot.label}
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              color: "#333",
+                              borderBottom: "1px solid #eaecf0",
+                            }}
+                          >
+                            {STAGING_TYPE_LABELS[spot.type]}
+                          </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              color: spot.status === "Active" ? "#2e7d32" : "#6b7280",
+                              fontWeight: 600,
+                              borderBottom: "1px solid #eaecf0",
+                            }}
+                          >
+                            {spot.status}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <h4
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: NAVY,
+                }}
+              >
+                Add Staging Spot
+              </h4>
+              <form onSubmit={handleAddStagingSpot}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 12,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div>
+                    <label style={labelStyle}>
+                      Code <span style={{ color: RED }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={spotCode}
+                      onChange={(e) => {
+                        setSpotCode(e.target.value);
+                        setSpotError(null);
+                      }}
+                      placeholder="e.g. G4"
+                      required
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>
+                      Label <span style={{ color: RED }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={spotLabel}
+                      onChange={(e) => {
+                        setSpotLabel(e.target.value);
+                        setSpotError(null);
+                      }}
+                      placeholder="Ground Spot 4"
+                      required
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Type</label>
+                    <select
+                      value={spotType}
+                      onChange={(e) =>
+                        setSpotType(e.target.value as StagingSpotType)
+                      }
+                      style={inputStyle}
+                    >
+                      {STAGING_SPOT_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {STAGING_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Sort order</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={spotSortOrder}
+                      onChange={(e) => setSpotSortOrder(e.target.value)}
+                      placeholder="Optional"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+                {spotError && (
+                  <p
+                    style={{
+                      margin: "0 0 12px",
+                      fontSize: 13,
+                      color: RED,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {spotError}
+                  </p>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    type="submit"
+                    disabled={
+                      savingSpot || !spotCode.trim() || !spotLabel.trim()
+                    }
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 4,
+                      border: "none",
+                      backgroundColor:
+                        savingSpot || !spotCode.trim() || !spotLabel.trim()
+                          ? "#f3f4f6"
+                          : NAVY,
+                      color:
+                        savingSpot || !spotCode.trim() || !spotLabel.trim()
+                          ? "#9ca3af"
+                          : "#fff",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor:
+                        savingSpot || !spotCode.trim() || !spotLabel.trim()
+                          ? "not-allowed"
+                          : "pointer",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {savingSpot ? "Adding…" : "Add Spot"}
+                  </button>
+                  {spotSaved && (
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#2e7d32",
+                      }}
+                    >
+                      Spot added ✓
+                    </span>
+                  )}
+                </div>
+              </form>
             </div>
           </div>
         </div>
