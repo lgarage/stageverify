@@ -1,0 +1,53 @@
+---
+description: Mandatory session cleanup — dev servers, Playwright artifacts, and stray terminals after substantive work.
+alwaysApply: true
+---
+
+# Session Cleanup Gate (Dan standing preference)
+
+After **every substantive task** (especially UI/Playwright work), run cleanup **before** reporting done. A clean workspace is part of "done."
+
+## Dev servers
+
+If **you** started `npm run dev` (or any background Vite server) in this session:
+
+1. Stop it — kill the background shell task or `Stop-Process` the Node listener.
+2. Confirm ports **5173–5176** have no `LISTENING` entry (Windows: `netstat -ano | findstr LISTENING | findstr :517`).
+
+Do **not** leave orphan dev servers running after Playwright passes.
+
+## Playwright / screenshot artifacts
+
+Delete ephemeral files created during verification:
+
+| Pattern | Location | When to delete |
+|---------|----------|----------------|
+| `before-*.png`, `after-*.png` | repo root or CWD | Always after screenshot compare |
+| `screenshots/**/*.png` | `screenshots/` | After verify scripts pass (folder is gitignored) |
+| `receive-verify-*.png`, `pickup-verify-*.png`, `settings-*.png`, etc. | `screenshots/` | Same — unless Dan asked to keep for review |
+
+**Keep:** `playwright/.auth/state.json` (reusable auth; gitignored).
+
+Optional npm script: `npm run clean:verify-artifacts` (also deletes `screenshots/**/*.png`).
+
+## Background terminals
+
+- Do not start a dev server unless Playwright/local verification requires it.
+- If multiple dev servers were spawned (ports 5174, 5175, …), stop **all** agent-started instances — not just the latest.
+- Cursor may still show dead terminal tabs after kill; that is OK — note it briefly if Dan asks.
+
+## Completion checklist (append to model audit or state in reply)
+
+When cleanup ran, include one line:
+
+```
+Cleanup: dev servers stopped ✓ | verify PNGs removed ✓ | ports clear ✓
+```
+
+If cleanup could not run (e.g. no shell access), say what was left and why.
+
+## What NOT to clean
+
+- Committed assets, user-deliberate screenshots outside `screenshots/`
+- `.env.local`, `playwright/.auth/state.json`
+- Brain outcome logs, PROJECT_STATUS (unless task updates them)
