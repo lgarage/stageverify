@@ -37,6 +37,30 @@ interface ItemQtyState {
   qtyDamaged: number;
 }
 
+const icons = {
+  check: "M5 13l4 4L19 7",
+  square: "M4 4h16v16H4z",
+  checkSquare:
+    "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",
+};
+
+function Svg({ d, size = 24 }: { d: string; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
 function Toast({ message }: { message: string }) {
   return (
     <div className="fixed top-4 left-4 right-4 z-50 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm text-text-primary shadow-lg">
@@ -68,6 +92,9 @@ export function ReceivingPage() {
   const [scanMode, setScanMode] = useState<"camera" | "zone-miss">("camera");
   const [zoneMissCode, setZoneMissCode] = useState<string | null>(null);
   const [deepLinkPending, setDeepLinkPending] = useState(hasReceiveDeepLink);
+  const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
+  const [adjustQty, setAdjustQty] = useState(0);
+  const [adjustDamagedQty, setAdjustDamagedQty] = useState(0);
 
   const scannerRef = useRef<Html5QrcodeInstance | null>(null);
   const urlDeepLinkHandledRef = useRef(false);
@@ -338,52 +365,63 @@ export function ReceivingPage() {
     showToast,
   ]);
 
-  const updateItemReceived = (itemId: string, delta: number) => {
-    if (!deliveryDetails) return;
+  const applyItemQty = useCallback(
+    (itemId: string, qtyReceived: number, qtyDamaged: number) => {
+      if (!deliveryDetails) return;
 
-    setItemQtys((prev) =>
-      prev.map((item) => {
-        if (item.id !== itemId) return item;
-        const maxReceivable = item.qtyOrdered - item.qtyDamaged;
-        const nextReceived = Math.max(
-          0,
-          Math.min(item.qtyReceived + delta, maxReceivable),
-        );
-        const qtyMissing = item.qtyOrdered - nextReceived - item.qtyDamaged;
-        debouncedUpdateItemQty(
-          item.id,
-          item.qtyOrdered,
-          nextReceived,
-          qtyMissing,
-        );
-        return { ...item, qtyReceived: nextReceived };
-      }),
-    );
+      setItemQtys((prev) =>
+        prev.map((item) => {
+          if (item.id !== itemId) return item;
+          const clampedDamaged = Math.min(
+            Math.max(0, qtyDamaged),
+            item.qtyOrdered,
+          );
+          const clampedReceived = Math.min(
+            Math.max(0, qtyReceived),
+            item.qtyOrdered - clampedDamaged,
+          );
+          const qtyMissing =
+            item.qtyOrdered - clampedReceived - clampedDamaged;
+          debouncedUpdateItemQty(
+            item.id,
+            item.qtyOrdered,
+            clampedReceived,
+            qtyMissing,
+          );
+          return {
+            ...item,
+            qtyReceived: clampedReceived,
+            qtyDamaged: clampedDamaged,
+          };
+        }),
+      );
+    },
+    [deliveryDetails, debouncedUpdateItemQty],
+  );
+
+  const toggleItemCheck = (itemId: string) => {
+    const item = itemQtys.find((i) => i.id === itemId);
+    if (!item) return;
+    const isAccounted =
+      item.qtyReceived + item.qtyDamaged >= item.qtyOrdered &&
+      item.qtyOrdered > 0;
+    if (isAccounted) {
+      applyItemQty(itemId, 0, 0);
+    } else {
+      applyItemQty(itemId, item.qtyOrdered, 0);
+    }
   };
 
-  const toggleDamaged = (itemId: string) => {
-    if (!deliveryDetails) return;
+  const openAdjust = (item: ItemQtyState) => {
+    setAdjustingItemId(item.id);
+    setAdjustQty(item.qtyReceived);
+    setAdjustDamagedQty(item.qtyDamaged);
+  };
 
-    setItemQtys((prev) =>
-      prev.map((item) => {
-        if (item.id !== itemId) return item;
-        if (item.qtyReceived <= 0) return item;
-        const nextReceived = item.qtyReceived - 1;
-        const nextDamaged = item.qtyDamaged + 1;
-        const qtyMissing = item.qtyOrdered - nextReceived - nextDamaged;
-        debouncedUpdateItemQty(
-          item.id,
-          item.qtyOrdered,
-          nextReceived,
-          qtyMissing,
-        );
-        return {
-          ...item,
-          qtyReceived: nextReceived,
-          qtyDamaged: nextDamaged,
-        };
-      }),
-    );
+  const saveAdjust = () => {
+    if (!adjustingItemId) return;
+    applyItemQty(adjustingItemId, adjustQty, adjustDamagedQty);
+    setAdjustingItemId(null);
   };
 
   const handleZoneSelect = (locationId: string | null) => {
@@ -436,6 +474,7 @@ export function ReceivingPage() {
     setManualId("");
     setCameraFailed(false);
     setDeepLinkPending(false);
+    setAdjustingItemId(null);
     window.history.replaceState(null, "", "#/receive");
   };
 
@@ -446,6 +485,10 @@ export function ReceivingPage() {
   const totalReceived = itemQtys.reduce(
     (sum, item) => sum + item.qtyReceived + item.qtyDamaged,
     0,
+  );
+
+  const hasPartialOrder = itemQtys.some(
+    (item) => item.qtyReceived + item.qtyDamaged < item.qtyOrdered,
   );
 
   return (
@@ -561,146 +604,285 @@ export function ReceivingPage() {
         )}
 
         {step === "items" && deliveryDetails && (
-          <div className="flex flex-col h-full">
-            <div className="px-4 py-4 border-b border-border shrink-0">
-              <h1 className="text-xl font-bold">Check In Items</h1>
-              <div className="mt-3 space-y-1 text-sm">
-                <p>
-                  <span className="text-text-secondary">Vendor: </span>
-                  {deliveryDetails.vendor.name}
-                </p>
-                <p>
-                  <span className="text-text-secondary">PO#: </span>
-                  {deliveryDetails.purchaseOrder?.poNumber ?? "—"}
-                </p>
-                <p>
-                  <span className="text-text-secondary">Job: </span>
-                  {deliveryDetails.job?.jobName ?? ""}
-                </p>
-                <p>
-                  <span className="text-text-secondary">Date: </span>
-                  {deliveryDetails.delivery.deliveryDate}
-                </p>
+          <div className="flex flex-col h-full relative">
+            <div className="flex-1 overflow-y-auto px-6 py-8">
+              <p className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase text-center mb-2">
+                Vendor Check-In
+              </p>
+              <p className="text-center text-text-secondary text-sm mb-6">
+                {deliveryDetails.job?.jobName ?? "Delivery"}
+              </p>
+
+              <div className="w-full bg-bg-surface rounded-2xl border border-border overflow-hidden">
+                <div className="p-4 border-b border-border">
+                  <p className="font-bold text-text-primary mb-1">
+                    {deliveryDetails.vendor.name}
+                  </p>
+                  <p className="text-text-secondary text-sm">
+                    {deliveryDetails.items.length === 1
+                      ? "1 item"
+                      : `${deliveryDetails.items.length} items`}
+                  </p>
+                </div>
+
+                <div className="border-t border-border bg-bg-secondary/40 px-4 py-4">
+                  <div className="space-y-2 mb-4">
+                    {[
+                      ["Order #", deliveryDetails.delivery.orderNumber],
+                      ["Vendor", deliveryDetails.vendor.name],
+                      ["PO #", deliveryDetails.purchaseOrder?.poNumber ?? "—"],
+                      ["Date", deliveryDetails.delivery.deliveryDate],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between gap-4 text-xs"
+                      >
+                        <span className="text-text-secondary">{label}</span>
+                        <span className="text-text-primary font-medium text-right">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="mb-3 text-xs text-text-secondary">
+                    Check off items as delivered — tap Adjust for partial qty
+                  </p>
+
+                  <div className="space-y-2">
+                    {deliveryDetails.items.map((item) => {
+                      const qtyState = itemQtys.find((q) => q.id === item.id);
+                      const qtyReceived = qtyState?.qtyReceived ?? 0;
+                      const qtyDamaged = qtyState?.qtyDamaged ?? 0;
+                      const qtyOrdered = item.qtyOrdered;
+                      const qtyAccounted = qtyReceived + qtyDamaged;
+                      const isFullyAccounted =
+                        qtyAccounted >= qtyOrdered && qtyOrdered > 0;
+                      const isPartialDelivery =
+                        qtyAccounted > 0 && qtyAccounted < qtyOrdered;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-border bg-bg-surface px-3 py-3"
+                        >
+                          <div className="flex items-start gap-3">
+                            <button
+                              type="button"
+                              onClick={() => toggleItemCheck(item.id)}
+                              className={`mt-0.5 shrink-0 ${
+                                isPartialDelivery
+                                  ? "text-accent-amber"
+                                  : isFullyAccounted
+                                    ? "text-accent-green"
+                                    : "text-text-secondary"
+                              }`}
+                              aria-label={`Toggle ${item.description}`}
+                            >
+                              <Svg
+                                d={
+                                  isFullyAccounted || isPartialDelivery
+                                    ? icons.checkSquare
+                                    : icons.square
+                                }
+                                size={22}
+                              />
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className={`text-sm font-medium ${
+                                  isFullyAccounted
+                                    ? "text-text-secondary line-through"
+                                    : "text-text-primary"
+                                }`}
+                              >
+                                {item.description}
+                              </p>
+                              <p
+                                className={`mt-1 text-xs ${
+                                  isFullyAccounted
+                                    ? "text-text-secondary/70 line-through"
+                                    : "text-text-secondary"
+                                }`}
+                              >
+                                Qty {qtyOrdered}
+                                {item.sku ? ` · SKU ${item.sku}` : ""}
+                              </p>
+                              {(qtyReceived > 0 || qtyDamaged > 0) && (
+                                <p className="mt-1 text-xs text-text-secondary">
+                                  Delivered: {qtyReceived}
+                                  {qtyDamaged > 0
+                                    ? ` good · ${qtyDamaged} damaged`
+                                    : ""}
+                                  {" / "}
+                                  {qtyOrdered}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-2 pl-[34px] flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const state = itemQtys.find(
+                                  (q) => q.id === item.id,
+                                );
+                                if (state) openAdjust(state);
+                              }}
+                              className="bg-accent text-white font-medium py-1.5 px-5 rounded-full active:scale-[0.98] transition-transform text-[13px]"
+                            >
+                              Adjust
+                            </button>
+                            {isPartialDelivery && (
+                              <span className="text-[12px] font-bold text-accent-red bg-accent-red/10 px-2 py-0.5 rounded">
+                                Partial Delivery
+                              </span>
+                            )}
+                            {qtyDamaged > 0 && (
+                              <span className="text-[12px] text-accent-red">
+                                {qtyDamaged} damaged
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              {deliveryDetails.items.map((item, idx) => {
-                const qtyState = itemQtys.find((q) => q.id === item.id);
-                const qtyReceived = qtyState?.qtyReceived ?? 0;
-                const qtyDamaged = qtyState?.qtyDamaged ?? 0;
-                const qtyOrdered = item.qtyOrdered;
-                const statusColor =
-                  qtyReceived === qtyOrdered
-                    ? "border-accent-green/30 bg-accent-green/5"
-                    : qtyReceived === 0
-                      ? "border-accent-red/30 bg-accent-red/5"
-                      : "border-accent-amber/30 bg-accent-amber/5";
-
-                return (
-                  <div
-                    key={item.id}
-                    className={`rounded-2xl border p-4 ${statusColor}`}
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{item.description}</p>
-                        {item.sku && (
-                          <p className="text-xs text-text-secondary font-mono mt-1">
-                            SKU: {item.sku}
-                          </p>
-                        )}
-                        <p className="text-sm text-text-secondary mt-1">
-                          Ordered: {qtyOrdered}
-                        </p>
-                      </div>
-                      {qtyReceived === qtyOrdered ? (
-                        <span className="text-accent-green shrink-0">
-                          <svg
-                            className="size-6"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => updateItemReceived(item.id, -1)}
-                        disabled={qtyReceived <= 0}
-                        className="stepper-btn w-14 min-h-[44px] shrink-0"
-                        aria-label={`Decrease received quantity for item ${idx + 1}`}
-                      >
-                        −
-                      </button>
-                      <div className="flex-1 text-center">
-                        <span className="text-2xl font-bold tabular-nums">
-                          {qtyReceived}
-                        </span>
-                        <span className="text-sm text-text-secondary ml-1">
-                          / {qtyOrdered}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => updateItemReceived(item.id, 1)}
-                        disabled={
-                          qtyReceived >= qtyOrdered - qtyDamaged
-                        }
-                        className="stepper-btn w-14 min-h-[44px] shrink-0"
-                        aria-label={`Increase received quantity for item ${idx + 1}`}
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => toggleDamaged(item.id)}
-                        disabled={qtyReceived <= 0}
-                        className="min-h-[44px] px-3 rounded-lg border border-accent-red/30 bg-accent-red/10 text-xs font-medium text-accent-red disabled:opacity-40"
-                      >
-                        Mark damaged
-                        {qtyDamaged > 0 ? ` (${qtyDamaged})` : ""}
-                      </button>
-                      {qtyDamaged > 0 && (
-                        <span className="text-xs text-accent-red">
-                          {qtyDamaged} damaged
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="px-4 py-4 border-t border-border shrink-0 space-y-3">
+            <div className="px-6 py-4 border-t border-border shrink-0 space-y-3 pb-[calc(env(safe-area-inset-bottom,16px)+16px)]">
+              {hasPartialOrder && (
+                <p className="text-center text-sm font-medium text-accent-amber">
+                  Partial order — not all items fully delivered
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => setStep("zone")}
-                className="w-full min-h-[44px] rounded-xl bg-accent text-bg-primary font-medium"
+                className="action-btn action-btn-primary w-full"
               >
                 Next: Assign Zone →
               </button>
               <button
                 type="button"
                 onClick={resetFlow}
-                className="w-full min-h-[44px] rounded-xl border border-border bg-bg-card text-text-primary"
+                className="action-btn action-btn-secondary w-full"
               >
                 ← Back
               </button>
             </div>
+
+            {adjustingItemId && (
+              <div
+                className="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+                onClick={() => setAdjustingItemId(null)}
+              >
+                <div
+                  className="bg-bg-surface rounded-xl p-6 w-full max-w-xs border border-border"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="text-xl font-bold text-text-primary mb-6 text-center">
+                    Adjust Quantity
+                  </h3>
+                  <div className="flex items-center justify-center gap-6 mb-6">
+                    <button
+                      type="button"
+                      className="stepper-btn"
+                      onClick={() => {
+                        const next = Math.max(0, adjustQty - 1);
+                        setAdjustQty(next);
+                        const item = itemQtys.find(
+                          (i) => i.id === adjustingItemId,
+                        );
+                        if (item) {
+                          const maxDamaged = item.qtyOrdered - next;
+                          setAdjustDamagedQty((d) =>
+                            Math.min(d, maxDamaged),
+                          );
+                        }
+                      }}
+                    >
+                      −
+                    </button>
+                    <span className="text-3xl font-bold text-text-primary tabular-nums w-16 text-center">
+                      {adjustQty}
+                    </span>
+                    <button
+                      type="button"
+                      className="stepper-btn"
+                      onClick={() => {
+                        const item = itemQtys.find(
+                          (i) => i.id === adjustingItemId,
+                        );
+                        if (item) {
+                          const next = Math.min(
+                            item.qtyOrdered - adjustDamagedQty,
+                            adjustQty + 1,
+                          );
+                          setAdjustQty(next);
+                          const maxDamaged = item.qtyOrdered - next;
+                          setAdjustDamagedQty((d) =>
+                            Math.min(d, maxDamaged),
+                          );
+                        }
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {(() => {
+                    const item = itemQtys.find(
+                      (i) => i.id === adjustingItemId,
+                    );
+                    const maxDamaged = item
+                      ? item.qtyOrdered - adjustQty
+                      : 0;
+                    return (
+                      <div className="mb-8">
+                        <label className="block text-sm font-medium text-text-secondary mb-2 text-center">
+                          Damaged qty
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={maxDamaged}
+                          value={adjustDamagedQty}
+                          onChange={(e) => {
+                            const raw = Number.parseInt(e.target.value, 10);
+                            const next = Number.isNaN(raw) ? 0 : raw;
+                            setAdjustDamagedQty(
+                              Math.min(Math.max(0, next), maxDamaged),
+                            );
+                          }}
+                          className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary text-center text-lg tabular-nums focus:outline-none focus:border-accent"
+                        />
+                        <p className="text-xs text-text-secondary text-center mt-2">
+                          Max {maxDamaged} (missing qty)
+                        </p>
+                      </div>
+                    );
+                  })()}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAdjustingItemId(null)}
+                      className="flex-1 py-3 text-text-secondary font-medium text-sm bg-bg-secondary rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveAdjust}
+                      className="flex-1 py-3 bg-accent text-white font-medium text-sm rounded-lg"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -799,6 +981,11 @@ export function ReceivingPage() {
               </svg>
             </div>
             <h2 className="text-2xl font-bold mb-4">Check-in Complete</h2>
+            {deliveryDetails.delivery.status === "partial" && (
+              <p className="text-sm font-medium text-accent-amber mb-4">
+                Recorded as partial order
+              </p>
+            )}
             <div className="space-y-2 text-sm text-text-secondary mb-8">
               <p>
                 <span className="text-text-primary font-medium">

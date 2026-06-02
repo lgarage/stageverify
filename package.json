@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "verify:pickup": "node scripts/verify-pickup-portal.mjs",
-    "verify:pickup:prod": "node scripts/verify-pickup-portal.mjs --base-url=https://lgarage.github.io/stageverify"
+    "verify:pickup:prod": "node scripts/verify-pickup-portal.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:receive": "node scripts/verify-receive.mjs",
+    "verify:receive:prod": "node scripts/verify-receive.mjs --base-url=https://lgarage.github.io/stageverify"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
