@@ -18,6 +18,7 @@
 | `billing` | model / tier pick | Composer 2.5 default; Sonnet 4.6 for gate/review only |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
+| `composer-trace` | 2nd fix failed, “still broken”, QR/scan/async | **§ Composer without Sonnet** — self-trace before more code or Sonnet |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, target)`.
@@ -49,6 +50,9 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 5. **Logged-in browser ≠ Playwright.** Dan may see data while headless test sees empty list — always verify unauthenticated or with the verify script.
 6. **Confidence downgrade when user still sees the bug.** Code-only fix that doesn't deploy rules or pass E2E → lower conf, do not mark ok until Playwright + user path green.
 7. **Auto-submit and Done must share the same gates** (shop stock + staged item checklists) — any second code path bypassing a gate will reproduce the bug.
+8. **Scope:** do not add portal pickers, cross-links, or hub buttons unless Dan asked. Check `USER_SCOPE_REJECTIONS.md` before `PortalNavBar` / `MobileHubPage` edits.
+9. **Second fix failed → § Composer without Sonnet** (symptom block in reply); Sonnet is not a substitute for grep + appear/tap table on QR/async flows.
+10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 
 ### Diagnose before tweak (2026-06-02 QR)
 
@@ -88,9 +92,76 @@ Composer **over-scored** several QR passes; user still saw bugs until Sonnet tra
 
 **How agents get better here:** one row in this table when QR ships; grep `applyHashFromScannedQr` before any prefetch change; reuse `verify:pickup` / add route-specific verify; downgrade conf in brain `outcomes/*.jsonl` when Dan says “still not fixed” (see pickup `90→65` pattern).
 
+### Session confidence — full thread (2026-06-02)
+
+Dan should not have needed Sonnet for QR routing/perf; Composer can own those **if** it runs the self-trace protocol below instead of another tweak pass.
+
+| Topic | What happened | Composer start | Honest conf after | Composer solo target |
+|-------|----------------|----------------|-------------------|----------------------|
+| Portal sidebar dead links | `#` + `preventDefault` | 90 | **92** after wire + `verify:dispatcher-nav` | **95** — good pattern |
+| Deliveries sidebar duplicate | Same page as dashboard | 85 | **90** after remove (scope rejection logged) | **95** if read `USER_SCOPE_REJECTIONS` first |
+| Vendors on Settings `?focus=` | Wrong IA | 80 | **88** after `/vendors` route | **90** — ask once if label = own page |
+| Settings Workflow vs Staging cards | UI split | 88 | **90** | **92** T0 |
+| Settings staging **edit** | View/add only → user asked edit | 85 | **TBD** until verify ships | **88** with `updateZone` + verify |
+| Scope: hub Pickup/Vendor portal picker | Built without ask; user angry | 70 | **50** (trust hit) | **85** only when requested; grep `PortalNavBar` / `MobileHubPage` |
+| QR iOS in-app decode | Native Camera worked, SV didn’t | 85 | **75** | **80** — symptom (a) only |
+| QR yellow pill UX | iOS-style preview | 82 | **85** appearance; routing separate | **88** |
+| QR pill tap / wrong route | Hash on prefetch | 82 | **45** mid-loop | **88** with appear-vs-tap **before** code |
+| QR slow open | Full lookup + serial reads | 80 | **85** after audit-driven fix | **88** if Composer runs network/Firestore trace first |
+| QR compact + print = e-tag | Density + unified builder | 88 | **85** encode; **not** scan fix | **90** |
+| Deploy vs Firestore rules | gh-pages only | 90 | **65** when user still sees permission error | **93** when rules in same session |
+| “Fixed” without device/Playwright | Repeated in QR arc | 85 | **40** when Dan says still broken | **90** only after verify or explicit symptom column |
+
+**Billing takeaway:** Sonnet cost on this thread was mostly **diagnosis** (appear vs tap, Firestore waterfall), not implementation. Composer should do that diagnosis in-chat **before** Sonnet is invoked.
+
+## § Composer without Sonnet (make Composer “best”)
+
+**Goal:** Sonnet only for (1) security gate / `backend-write-critical`, (2) Composer posted a trace and is still stuck after one targeted fix.
+
+### Before any code (session start on scan/nav/async)
+
+1. Read `§ agent-lessons` + symptom table if task touches QR, pickup, receive, or portal.
+2. State **one sentence**: what Dan asked vs what you will not add.
+
+### On second failed fix OR “still broken” (mandatory — no exceptions)
+
+Composer stops coding and posts this block **in the reply** (not only in docs):
+
+```
+Symptom: (a) decode | (b) slow after decode | (c) wrong route after tap
+Appear: [hooks that run on decode/preview — hash? prefetch?]
+Tap: [hooks on confirm — hash? navigate?]
+Grep: applyHashFromScannedQr, location.hash, *DeepLink*, confirmingRef
+Hypothesis: one sentence
+Next change: one file/behavior only
+```
+
+Only after that: one fix + one verify script run. **Do not** call Sonnet until this block exists unless rules require security gate.
+
+### What Dan can do (high leverage)
+
+| You say | Composer must |
+|---------|----------------|
+| “Column (a)” / “won’t scan” | Camera/config only — no hash/prefetch |
+| “Column (b)” / “slow loading” | Firestore trace — no pill/camera |
+| “Column (c)” / “tap broken” | appear-vs-tap grep — no fps/URL density |
+| “Log scope rejection: …” | Row in `USER_SCOPE_REJECTIONS.md` + remove UI same commit |
+| “Still not fixed” | `confAfter` ≤ 50 in brain log; no “done” |
+
+### Confidence logging (agent-ops)
+
+- **confStart** = tier table default.
+- **confAfter** = after verify + Dan signal; downgrade ≥15 if “still broken” without new hypothesis.
+- Tag `composer-trace` when avoiding Sonnet via self-trace; `outcome: escalate` only if Sonnet ran for diagnosis.
+
+### Rule file alignment
+
+`composer-orchestrator.mdc`: Sonnet for QR **diagnosis** is a **failure mode** — Composer should have run § Composer without Sonnet first. Sonnet stays mandatory for rules/auth gate, not for “third camera tweak.”
+
 ## Active outcome log (≤15 rows → rotate to archives/outcomes/)
 | Date | Task | Archetype | Model | Conf→ | Outcome | Note |
 |------|------|-----------|-------|-------|---------|------|
+| 2026-06-02 | Full thread conf + Composer-without-Sonnet protocol | composer-trace | Composer 2.5 | — | ok | § session confidence; self-trace gate |
 | 2026-06-02 | QR scan circular fixes — conf scoring + Sonnet trace | qr-routing | Composer→Sonnet | 88→45→88 | partial→ok | appear≠tap; dossier § QR confidence |
 | 2026-06-02 | agent-lessons + Playwright gate in rules | docs-update | Composer 2.5 | — | ok | § agent-lessons; mandatory verify before "fixed" |
 | 2026-06-02 | Public pickup E2E + loadPickupReadyDeliveriesPublic | service-logic | Composer 2.5 | 93→**96** | ok | Playwright verify:pickup PASS local; prod after deploy |

@@ -146,9 +146,13 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 ### Escalate to Sonnet 4.6 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
-- The user is unsatisfied after one fix attempt and the root cause is not obvious
-- The task involves non-obvious cross-file dependencies requiring deep architectural reasoning
+- The task involves non-obvious cross-file dependencies requiring deep architectural reasoning **after** you posted `MODEL_DOSSIER.md` § **Composer without Sonnet** symptom trace
 - You are genuinely unsure whether a change has security or data integrity implications
+
+**Do not escalate Sonnet for QR/scan/slow-load bugs** until Composer posts the symptom block (appear vs tap; grep `applyHashFromScannedQr`) in the **same session** — Dan should not need Sonnet for diagnosis Composer can grep.
+
+### Composer self-trace (mandatory on 2nd failed fix — before Sonnet)
+Read `MODEL_DOSSIER.md` tag `composer-trace`. Post symptom column (a|b|c), appear vs tap hooks, one hypothesis, one next change. Then implement once + Playwright. Downgrade confidence if Dan says still broken.
 
 ### Escalation triggers — Opus 4.6 (locked fallback only)
 Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review returns a HIGH risk finding that Composer cannot resolve. Do not dispatch Opus for the implementation of T3 work — Composer handles that inline during the trial.
