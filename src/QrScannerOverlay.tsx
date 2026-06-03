@@ -16,6 +16,8 @@ export type QrScannerOverlayProps = {
   onCameraError?: () => void;
   /** fullscreen = centered card (pickup/hub); fill = parent sizes the viewport */
   layout?: "fullscreen" | "fill";
+  /** Skip preview pill for https QRs — open route immediately (like Camera app). */
+  instantOpenUrls?: boolean;
   /** Small mono label above viewfinder (e.g. Pickup Portal) */
   title?: string;
   heading?: string;
@@ -119,6 +121,7 @@ export function QrScannerOverlay({
   onCancel,
   onCameraError,
   layout = "fullscreen",
+  instantOpenUrls = false,
   title,
   heading,
   subtitle,
@@ -165,6 +168,13 @@ export function QrScannerOverlay({
           buildMobileScanConfig(),
           (decodedText: string) => {
             if (!isMounted || confirmingRef.current || previewRef.current) return;
+            const trimmed = decodedText.trim();
+            if (instantOpenUrls && trimmed.startsWith("http")) {
+              confirmingRef.current = true;
+              stopScanner();
+              onDecode(trimmed);
+              return;
+            }
             setPreview({
               raw: decodedText,
               label: formatQrScanPreviewLabel(decodedText),
@@ -187,7 +197,7 @@ export function QrScannerOverlay({
       isMounted = false;
       stopScanner();
     };
-  }, [readerId, onCancel, onCameraError]);
+  }, [readerId, onCancel, onCameraError, instantOpenUrls, onDecode]);
 
   useEffect(() => {
     if (!onCancel) return;

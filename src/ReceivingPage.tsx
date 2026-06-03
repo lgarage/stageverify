@@ -8,13 +8,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   hasReceiveDeepLink,
   normalizeReceiveHash,
+  applyHashFromScannedQr,
   parseScannedQr,
   readReceiveParams,
 } from "./receiveQrUrls";
-import {
-  resolveSyncScanIntent,
-  syncScanIntent,
-} from "./scanRouting";
 import {
   firestoreDataService,
   getDeliveryDetailsByStagingCode,
@@ -186,27 +183,22 @@ export function ReceivingPage() {
 
       let resolved = details;
       if (resolved.delivery.status === "pending") {
-        try {
-          const updated = await firestoreDataService.updateDeliveryStatus(
-            resolved.delivery.id,
+        resolved = {
+          ...resolved,
+          delivery: { ...resolved.delivery, status: "arrived" },
+        };
+        void firestoreDataService
+          .updateDeliveryStatus(
+            details.delivery.id,
             "arrived",
             undefined,
             "vendor",
             "Vendor Driver",
-          );
-          if (updated) resolved = updated;
-          else {
-            resolved = {
-              ...resolved,
-              delivery: { ...resolved.delivery, status: "arrived" },
-            };
-          }
-        } catch {
-          resolved = {
-            ...resolved,
-            delivery: { ...resolved.delivery, status: "arrived" },
-          };
-        }
+          )
+          .then((updated) => {
+            if (updated) setDeliveryDetails(updated);
+          })
+          .catch(() => {});
       }
 
       setDeliveryDetails(resolved);
@@ -217,11 +209,13 @@ export function ReceivingPage() {
   );
 
   const processDeliveryLookup = useCallback(
-    async (lookupId: string) => {
+    async (lookupId: string, options?: { quiet?: boolean }) => {
       const trimmed = lookupId.trim();
       if (!trimmed) return;
 
-      setLoading(true);
+      if (!options?.quiet) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -244,11 +238,13 @@ export function ReceivingPage() {
   );
 
   const processZoneLookup = useCallback(
-    async (zoneCode: string) => {
+    async (zoneCode: string, options?: { quiet?: boolean }) => {
       const trimmed = zoneCode.trim();
       if (!trimmed) return;
 
-      setLoading(true);
+      if (!options?.quiet) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -277,37 +273,34 @@ export function ReceivingPage() {
 
   const handleQrFromCamera = useCallback(
     async (decodedText: string) => {
-      setLoading(true);
       const parsed = parseScannedQr(decodedText);
-      const intent = syncScanIntent(parsed);
-      try {
-        const result = await resolveSyncScanIntent(intent, "receive-page");
-        if (result.action === "navigate") {
-          showToast(
-            "This QR is for pickup — scan the vendor receive QR on the zone tag.",
-          );
-          return;
-        }
-        if (result.action === "load-receive") {
-          await processDeliveryLookup(result.deliveryId);
-          return;
-        }
-        if (intent.kind === "resolve-zone") {
-          setZoneMissCode(intent.zoneCode);
-          setScanMode("zone-miss");
-          showToast(`No active delivery at zone ${intent.zoneCode}`);
-          return;
-        }
-        showToast(
-          intent.kind === "resolve-delivery"
-            ? "Delivery not found"
-            : "Unrecognized QR code",
-        );
-      } finally {
-        setLoading(false);
+      applyHashFromScannedQr(decodedText);
+      urlDeepLinkHandledRef.current = true;
+
+      if (parsed.kind === "pickup" && parsed.jobId) {
+        return;
       }
+
+      const quiet = { quiet: true };
+
+      if (parsed.kind === "receive-id") {
+        await processDeliveryLookup(parsed.deliveryId, quiet);
+        return;
+      }
+
+      if (parsed.kind === "receive-zone") {
+        await processZoneLookup(parsed.zoneCode, quiet);
+        return;
+      }
+
+      if (parsed.kind === "raw") {
+        await processZoneLookup(parsed.value, quiet);
+        return;
+      }
+
+      showToast("Unrecognized QR code");
     },
-    [processDeliveryLookup, showToast],
+    [processDeliveryLookup, processZoneLookup, showToast],
   );
 
   useEffect(() => {
@@ -526,16 +519,12 @@ export function ReceivingPage() {
                 <QrScannerOverlay
                   layout="fill"
                   readerId="receive-qr-reader"
+                  instantOpenUrls
                   onDecode={(text) => {
                     void handleQrFromCamera(text);
                   }}
                   onCameraError={() => setCameraFailed(true)}
                 />
-              )}
-              {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                  <p className="text-sm text-white">Loading delivery…</p>
-                </div>
               )}
               {cameraFailed && (
                 <div className="absolute inset-0 flex items-center justify-center p-6 text-center">

@@ -160,6 +160,40 @@ export function parseScannedQr(raw: string): ParsedQrScan {
   return { kind: "raw", value: trimmed };
 }
 
+/** App hash route from a scanned https QR (receive, pickup, check-in). */
+export function hashFromScannedQrUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("http")) return null;
+  try {
+    const url = new URL(trimmed);
+    const hash = url.hash;
+    if (!hash) return null;
+    const path = hash.split("?")[0] ?? "";
+    if (
+      path.includes("/pickup") ||
+      path.includes("/receive") ||
+      path.includes("/checkin")
+    ) {
+      if (hash.startsWith("#/")) return hash;
+      if (hash.startsWith("#")) return `#/${hash.slice(1)}`;
+      return hash;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/** Navigate to the scanned QR destination hash immediately (before Firestore). */
+export function applyHashFromScannedQr(raw: string): boolean {
+  const hash = hashFromScannedQrUrl(raw);
+  if (!hash) return false;
+  if (window.location.hash !== hash) {
+    window.location.hash = hash;
+  }
+  return true;
+}
+
 export function pickupPath(jobId: string, deliveryId?: string | null): string {
   const params = new URLSearchParams({ job: jobId });
   if (deliveryId) params.set("delivery", deliveryId);
