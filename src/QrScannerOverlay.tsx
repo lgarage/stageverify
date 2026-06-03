@@ -19,6 +19,8 @@ export type QrScannerOverlayProps = {
   onCameraError?: () => void;
   /** fullscreen = centered card (pickup/hub); fill = parent sizes the viewport */
   layout?: "fullscreen" | "fill";
+  /** While true, ignore new decodes (parent is opening the delivery). */
+  scanLocked?: boolean;
   /** Small mono label above viewfinder (e.g. Pickup Portal) */
   title?: string;
   heading?: string;
@@ -124,6 +126,7 @@ export function QrScannerOverlay({
   onCancel,
   onCameraError,
   layout = "fullscreen",
+  scanLocked = false,
   title,
   heading,
   subtitle,
@@ -138,6 +141,13 @@ export function QrScannerOverlay({
   previewRef.current = preview;
   const html5QrCodeRef = useRef<Html5QrcodeInstance | null>(null);
   const confirmingRef = useRef(false);
+  const scanLockedRef = useRef(scanLocked);
+  scanLockedRef.current = scanLocked;
+  const onQrPreviewRef = useRef(onQrPreview);
+  const onQrPreviewClearRef = useRef(onQrPreviewClear);
+  onQrPreviewRef.current = onQrPreview;
+  onQrPreviewClearRef.current = onQrPreviewClear;
+  const lastPreviewRawRef = useRef<string | null>(null);
 
   const stopScanner = () => {
     const scanner = html5QrCodeRef.current;
@@ -169,13 +179,24 @@ export function QrScannerOverlay({
           { facingMode: "environment" },
           buildMobileScanConfig(),
           (decodedText: string) => {
-            if (!isMounted || confirmingRef.current || previewRef.current) return;
+            if (!isMounted || confirmingRef.current || scanLockedRef.current) {
+              return;
+            }
+            const trimmed = decodedText.trim();
+            if (!trimmed) return;
+            if (
+              previewRef.current &&
+              lastPreviewRawRef.current === trimmed
+            ) {
+              return;
+            }
+            lastPreviewRawRef.current = trimmed;
             setPreview({
-              raw: decodedText,
-              label: formatQrScanPreviewLabel(decodedText),
-              detail: formatQrScanPreviewDetail(decodedText),
+              raw: trimmed,
+              label: formatQrScanPreviewLabel(trimmed),
+              detail: formatQrScanPreviewDetail(trimmed),
             });
-            onQrPreview?.(decodedText);
+            onQrPreviewRef.current?.(trimmed);
           },
           () => {
             // ignore continuous scan errors
@@ -193,7 +214,7 @@ export function QrScannerOverlay({
       isMounted = false;
       stopScanner();
     };
-  }, [readerId, onCancel, onCameraError, onQrPreview, onQrPreviewClear]);
+  }, [readerId, onCancel, onCameraError]);
 
   useEffect(() => {
     if (!onCancel) return;
@@ -201,7 +222,8 @@ export function QrScannerOverlay({
       if (e.key === "Escape") {
         if (previewRef.current) {
           setPreview(null);
-          onQrPreviewClear?.();
+          lastPreviewRawRef.current = null;
+          onQrPreviewClearRef.current?.();
           return;
         }
         onCancel();
@@ -212,11 +234,11 @@ export function QrScannerOverlay({
   }, [onCancel]);
 
   const confirmPreview = () => {
-    if (!preview || confirmingRef.current) return;
+    if (!preview || confirmingRef.current || scanLockedRef.current) return;
     confirmingRef.current = true;
     const raw = preview.raw;
     setPreview(null);
-    stopScanner();
+    lastPreviewRawRef.current = null;
     onDecode(raw);
     confirmingRef.current = false;
   };
@@ -298,7 +320,8 @@ export function QrScannerOverlay({
           onOpen={confirmPreview}
           onDismiss={() => {
             setPreview(null);
-            onQrPreviewClear?.();
+            lastPreviewRawRef.current = null;
+            onQrPreviewClearRef.current?.();
           }}
         />
       )}

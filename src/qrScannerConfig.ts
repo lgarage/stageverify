@@ -11,22 +11,27 @@ export function isIosDevice(): boolean {
 
 /** Larger scan region + rear camera resolution — helps ESL tags on monitors. */
 export function buildMobileScanConfig(): Html5QrcodeCameraScanConfiguration {
+  const videoConstraints: MediaTrackConstraints = {
+    facingMode: { ideal: "environment" },
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  };
+  if (isIosDevice()) {
+    Object.assign(videoConstraints, {
+      focusMode: { ideal: "continuous" },
+    });
+  }
+
   return {
-    fps: 10,
+    fps: 12,
     qrbox: (viewfinderWidth, viewfinderHeight) => {
-      const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.88);
-      const capped = Math.min(edge, 420);
+      const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.92);
+      const capped = Math.min(edge, 480);
       return { width: capped, height: capped };
     },
     aspectRatio: 1.777778,
     disableFlip: false,
-    videoConstraints: {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      // Safari may honor via advanced / applyVideoConstraints
-      focusMode: { ideal: "continuous" },
-    } as MediaTrackConstraints,
+    videoConstraints: videoConstraints as MediaTrackConstraints,
   };
 }
 

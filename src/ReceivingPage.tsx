@@ -96,6 +96,7 @@ export function ReceivingPage() {
   const [scanMode, setScanMode] = useState<"camera" | "zone-miss">("camera");
   const [zoneMissCode, setZoneMissCode] = useState<string | null>(null);
   const [deepLinkPending, setDeepLinkPending] = useState(hasReceiveDeepLink);
+  const [scanOpening, setScanOpening] = useState(false);
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustDamagedQty, setAdjustDamagedQty] = useState(0);
@@ -111,6 +112,7 @@ export function ReceivingPage() {
   }, []);
 
   const startScanPrefetch = useCallback((raw: string) => {
+    applyHashFromScannedQr(raw);
     const parsed = parseScannedQr(raw);
     if (parsed.kind === "pickup") {
       scanPrefetchRef.current = null;
@@ -139,9 +141,10 @@ export function ReceivingPage() {
       scanPrefetchRef.current = null;
       if (prefetched) {
         try {
-          return await prefetched;
+          const cached = await prefetched;
+          if (cached) return cached;
         } catch {
-          return fetchLive();
+          // fall through to live fetch
         }
       }
       return fetchLive();
@@ -324,32 +327,37 @@ export function ReceivingPage() {
 
   const handleQrFromCamera = useCallback(
     async (decodedText: string) => {
+      setScanOpening(true);
       const parsed = parseScannedQr(decodedText);
       applyHashFromScannedQr(decodedText);
       urlDeepLinkHandledRef.current = true;
 
-      if (parsed.kind === "pickup" && parsed.jobId) {
-        return;
+      try {
+        if (parsed.kind === "pickup" && parsed.jobId) {
+          return;
+        }
+
+        const quiet = { quiet: true };
+
+        if (parsed.kind === "receive-id") {
+          await processDeliveryLookup(parsed.deliveryId, quiet);
+          return;
+        }
+
+        if (parsed.kind === "receive-zone") {
+          await processZoneLookup(parsed.zoneCode, quiet);
+          return;
+        }
+
+        if (parsed.kind === "raw") {
+          await processZoneLookup(parsed.value, quiet);
+          return;
+        }
+
+        showToast("Unrecognized QR code");
+      } finally {
+        setScanOpening(false);
       }
-
-      const quiet = { quiet: true };
-
-      if (parsed.kind === "receive-id") {
-        await processDeliveryLookup(parsed.deliveryId, quiet);
-        return;
-      }
-
-      if (parsed.kind === "receive-zone") {
-        await processZoneLookup(parsed.zoneCode, quiet);
-        return;
-      }
-
-      if (parsed.kind === "raw") {
-        await processZoneLookup(parsed.value, quiet);
-        return;
-      }
-
-      showToast("Unrecognized QR code");
     },
     [processDeliveryLookup, processZoneLookup, showToast],
   );
@@ -570,6 +578,7 @@ export function ReceivingPage() {
                 <QrScannerOverlay
                   layout="fill"
                   readerId="receive-qr-reader"
+                  scanLocked={scanOpening}
                   onQrPreview={startScanPrefetch}
                   onQrPreviewClear={clearScanPrefetch}
                   onDecode={(text) => {
@@ -577,6 +586,11 @@ export function ReceivingPage() {
                   }}
                   onCameraError={() => setCameraFailed(true)}
                 />
+              )}
+              {scanOpening && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-40 pointer-events-none">
+                  <p className="text-sm text-white font-medium">Opening…</p>
+                </div>
               )}
               {cameraFailed && (
                 <div className="absolute inset-0 flex items-center justify-center p-6 text-center">

@@ -55,6 +55,36 @@ export {
 
 const COLLECTION_SAFETY_LIMIT = 500;
 
+/** Short TTL cache so back-to-back zone QR scans do not re-download full collections. */
+const SCAN_LOOKUP_CACHE_MS = 8000;
+let scanLookupCache: {
+  at: number;
+  locations: StagingLocation[];
+  deliveries: DeliveryOrder[];
+} | null = null;
+
+async function fetchScanLookupData(): Promise<{
+  locations: StagingLocation[];
+  deliveries: DeliveryOrder[];
+}> {
+  const now = Date.now();
+  if (
+    scanLookupCache &&
+    now - scanLookupCache.at < SCAN_LOOKUP_CACHE_MS
+  ) {
+    return {
+      locations: scanLookupCache.locations,
+      deliveries: scanLookupCache.deliveries,
+    };
+  }
+  const [locations, deliveries] = await Promise.all([
+    fetchAllStagingLocations(),
+    fetchAll<DeliveryOrder>("deliveries"),
+  ]);
+  scanLookupCache = { at: now, locations, deliveries };
+  return { locations, deliveries };
+}
+
 async function fetchAllStagingLocations(): Promise<StagingLocation[]> {
   const snap = await getDocs(
     query(collection(db, "stagingLocations"), limit(COLLECTION_SAFETY_LIMIT)),
@@ -892,11 +922,9 @@ async function findDeliveryDetailsByStagingCode(
   const code = zoneCode.trim();
   if (!code) return null;
 
-  const locations = await fetchAllStagingLocations();
+  const { locations, deliveries } = await fetchScanLookupData();
   const location = findStagingLocationByCode(locations, code);
   if (!location) return null;
-
-  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
   const candidates = deliveries.filter((delivery) => {
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) return false;
     if (
