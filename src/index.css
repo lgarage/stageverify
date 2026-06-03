@@ -211,3 +211,15 @@ button:active {
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
   }
 }
+
+/* html5-qrcode injects <video> into the reader div — fill viewport on phones */
+.qr-scanner-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.qr-scanner-reader > div {
+  width: 100% !important;
+  height: 100% !important;
+}

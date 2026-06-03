@@ -1,4 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  buildMobileScanConfig,
+  isIosDevice,
+  tuneIosCamera,
+} from "./qrScannerConfig";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
 import {
   formatQrScanPreviewDetail,
@@ -150,14 +155,18 @@ export function QrScannerOverlay({
   useEffect(() => {
     let isMounted = true;
 
-    import("html5-qrcode").then(({ Html5Qrcode }) => {
+    import("html5-qrcode").then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
       if (!isMounted || confirmingRef.current) return;
-      const scanner = new Html5Qrcode(readerId) as unknown as Html5QrcodeInstance;
+      const scanner = new Html5Qrcode(readerId, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        useBarCodeDetectorIfSupported: true,
+        verbose: false,
+      }) as unknown as Html5QrcodeInstance;
       html5QrCodeRef.current = scanner;
       void scanner
         .start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          buildMobileScanConfig(),
           (decodedText: string) => {
             if (!isMounted || confirmingRef.current || previewRef.current) return;
             setPreview({
@@ -170,6 +179,10 @@ export function QrScannerOverlay({
             // ignore continuous scan errors
           },
         )
+        .then(() => {
+          if (!isMounted) return;
+          return tuneIosCamera(scanner);
+        })
         .catch((err: unknown) => {
           console.error("Error starting scanner", err);
           if (!isMounted) return;
@@ -226,7 +239,10 @@ export function QrScannerOverlay({
         }
         style={layout === "fill" ? undefined : { borderColor: frameBorder }}
       >
-        <div id={readerId} className="w-full h-full overflow-hidden" />
+        <div
+          id={readerId}
+          className="qr-scanner-reader w-full h-full overflow-hidden"
+        />
 
         {layout === "fullscreen" && (
           <div
@@ -253,13 +269,26 @@ export function QrScannerOverlay({
         />
 
         {layout === "fullscreen" && !preview && (
-          <div className="absolute bottom-4 left-0 right-0 text-center z-20 pointer-events-none">
+          <div className="absolute bottom-4 left-0 right-0 text-center z-20 pointer-events-none px-3">
             <span className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase">
               Align QR
             </span>
+            {isIosDevice() && (
+              <p className="text-[10px] text-text-secondary mt-1 leading-snug">
+                Hold 8–12 in. from the tag. Tap the yellow pill when it appears.
+              </p>
+            )}
           </div>
         )}
       </div>
+
+      {layout === "fill" && !preview && isIosDevice() && (
+        <div className="absolute bottom-2 left-0 right-0 text-center z-20 pointer-events-none px-2">
+          <p className="text-[10px] text-text-secondary leading-snug">
+            Hold 8–12 in. from tag · tap yellow pill when shown
+          </p>
+        </div>
+      )}
 
       {preview && (
         <ScanPreviewPill
