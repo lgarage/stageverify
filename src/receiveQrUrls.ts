@@ -1,6 +1,9 @@
 /**
  * QR URL builders and parsers. Routing logic lives in scanRouting.ts.
  * See PROJECT_STATUS/MODEL_DOSSIER.md tag: qr-routing
+ *
+ * New tags use **compact** hashes (#/r?i=, #/r?z=, #/p?j=&d=) for simpler QR modules.
+ * Long hashes and SV:z: tokens still parse for older labels.
  */
 import {
   shouldRouteScanToPickup,
@@ -8,6 +11,12 @@ import {
 } from "./dispatcher/models";
 
 const PROD_APP_BASE = "https://lgarage.github.io/stageverify";
+
+/** Easier for phone cameras — not lowest EC (L), not highest (H). */
+export const ESL_QR_RENDER_PROPS = {
+  level: "M" as const,
+  marginSize: 2,
+};
 
 function appBaseUrl(): string {
   if (typeof window !== "undefined" && window.location.origin) {
@@ -24,6 +33,22 @@ export type ZoneEslOccupancy = {
   status: DeliveryStatus;
 };
 
+export function buildPickupDeepLink(options: {
+  jobId: string;
+  deliveryId?: string | null;
+  zoneCode?: string | null;
+}): string {
+  const base = appBaseUrl();
+  const params = new URLSearchParams({ j: options.jobId });
+  if (options.deliveryId) {
+    params.set("d", options.deliveryId);
+  }
+  if (options.zoneCode) {
+    params.set("z", options.zoneCode);
+  }
+  return `${base}#/p?${params.toString()}`;
+}
+
 /** Deep link for a zone tag: pickup when staged, receive when in vendor flow, zone when empty. */
 export function buildZoneEslQrUrl(
   zoneCode: string,
@@ -37,25 +62,9 @@ export function buildZoneEslQrUrl(
         deliveryId: occupancy.deliveryId,
       });
     }
-    return `${base}#/receive?id=${encodeURIComponent(occupancy.deliveryId)}`;
+    return `${base}#/r?i=${encodeURIComponent(occupancy.deliveryId)}`;
   }
-  return `${base}#/receive?zone=${encodeURIComponent(zoneCode)}`;
-}
-
-export function buildPickupDeepLink(options: {
-  jobId: string;
-  deliveryId?: string | null;
-  zoneCode?: string | null;
-}): string {
-  const base = appBaseUrl();
-  const params = new URLSearchParams({ job: options.jobId });
-  if (options.deliveryId) {
-    params.set("delivery", options.deliveryId);
-  }
-  if (options.zoneCode) {
-    params.set("zone", options.zoneCode);
-  }
-  return `${base}#/pickup?${params.toString()}`;
+  return `${base}#/r?z=${encodeURIComponent(zoneCode)}`;
 }
 
 /** Dynamic line shown on the e-ink tag below the zone code. */
@@ -66,41 +75,91 @@ export function formatZoneEslStatusLine(
   return `${occupancy.orderNumber} — ${occupancy.vendorName}`;
 }
 
-/** @deprecated Prefer buildZoneEslQrUrl — kept for non-zone receive links */
 export function buildReceiveDeepLink(options: {
   deliveryId?: string | null;
   zoneCode?: string | null;
 }): string {
   const base = appBaseUrl();
   if (options.deliveryId) {
-    return `${base}#/receive?id=${encodeURIComponent(options.deliveryId)}`;
+    return `${base}#/r?i=${encodeURIComponent(options.deliveryId)}`;
   }
   if (options.zoneCode) {
-    return `${base}#/receive?zone=${encodeURIComponent(options.zoneCode)}`;
+    return `${base}#/r?z=${encodeURIComponent(options.zoneCode)}`;
   }
   return `${base}#/receive`;
 }
 
-/** Fix `#receive?…` → `#/receive?…` so HashRouter and search params work. */
+/** Dispatcher delivery label QR (compact receive deep link). */
+export function buildDeliveryLabelQrUrl(deliveryId: string): string {
+  return buildReceiveDeepLink({ deliveryId });
+}
+
+/** Fix legacy and compact hashes so HashRouter routes match. */
 export function normalizeReceiveHash(): void {
-  const hash = window.location.hash;
+  let hash = window.location.hash;
+
+  if (/^#\/?r(\?|$)/i.test(hash) && !hash.includes("receive")) {
+    const qsStart = hash.indexOf("?");
+    const params =
+      qsStart !== -1
+        ? new URLSearchParams(hash.slice(qsStart + 1))
+        : new URLSearchParams();
+    const canonical = new URLSearchParams();
+    const id = params.get("i") ?? params.get("id");
+    const zone = params.get("z") ?? params.get("zone");
+    if (id) canonical.set("id", id);
+    if (zone) canonical.set("zone", zone);
+    window.location.hash = canonical.toString()
+      ? `#/receive?${canonical.toString()}`
+      : "#/receive";
+    return;
+  }
+
   if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {
     window.location.hash = hash.replace("#receive", "#/receive");
   }
 }
 
+/** Compact #/p?j= → #/pickup?job= for pickup portal. */
+export function normalizePickupHash(): void {
+  const hash = window.location.hash;
+  if (!/^#\/?p(\?|$)/i.test(hash) || hash.includes("pickup")) {
+    return;
+  }
+  const qsStart = hash.indexOf("?");
+  const params =
+    qsStart !== -1
+      ? new URLSearchParams(hash.slice(qsStart + 1))
+      : new URLSearchParams();
+  const canonical = new URLSearchParams();
+  const job = params.get("j") ?? params.get("job");
+  const delivery = params.get("d") ?? params.get("delivery");
+  const zone = params.get("z") ?? params.get("zone");
+  if (job) canonical.set("job", job);
+  if (delivery) canonical.set("delivery", delivery);
+  if (zone) canonical.set("zone", zone);
+  if (!canonical.toString()) {
+    window.location.hash = "#/pickup";
+    return;
+  }
+  window.location.hash = `#/pickup?${canonical.toString()}`;
+}
+
 export function readReceiveParams(
   searchParams: URLSearchParams,
 ): { id: string | null; zone: string | null } {
-  const id = searchParams.get("id");
-  const zone = searchParams.get("zone");
+  const id = searchParams.get("id") ?? searchParams.get("i");
+  const zone = searchParams.get("zone") ?? searchParams.get("z");
   if (id || zone) return { id, zone };
 
   const hash = window.location.hash;
   const qs = hash.indexOf("?");
   if (qs === -1) return { id: null, zone: null };
   const fromHash = new URLSearchParams(hash.slice(qs + 1));
-  return { id: fromHash.get("id"), zone: fromHash.get("zone") };
+  return {
+    id: fromHash.get("id") ?? fromHash.get("i"),
+    zone: fromHash.get("zone") ?? fromHash.get("z"),
+  };
 }
 
 export function hasReceiveDeepLink(): boolean {
@@ -109,7 +168,9 @@ export function hasReceiveDeepLink(): boolean {
   const qs = hash.indexOf("?");
   if (qs === -1) return false;
   const p = new URLSearchParams(hash.slice(qs + 1));
-  return Boolean(p.get("id") || p.get("zone"));
+  return Boolean(
+    p.get("id") || p.get("i") || p.get("zone") || p.get("z"),
+  );
 }
 
 export type ParsedQrScan =
@@ -118,7 +179,7 @@ export type ParsedQrScan =
   | { kind: "pickup"; jobId: string | null; deliveryId: string | null; zoneCode: string | null }
   | { kind: "raw"; value: string };
 
-/** `#receive?…` → `#/receive?…` so HashRouter and parsers agree. */
+/** `#receive?…` → `#/receive?…`; leaves compact routes as-is for parseHashRoute. */
 export function normalizeAppHash(hash: string): string {
   if (!hash.startsWith("#")) return hash;
   if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {
@@ -130,40 +191,113 @@ export function normalizeAppHash(hash: string): string {
   return hash;
 }
 
-/** Parse a scanned QR payload (URL or raw zone code). */
+function parseHashRoute(
+  hash: string,
+  params: URLSearchParams,
+): ParsedQrScan | null {
+  const path = hash.split("?")[0] ?? "";
+
+  if (
+    /\/p($|\?)/i.test(path) ||
+    path.endsWith("/pickup") ||
+    path.includes("/pickup")
+  ) {
+    return {
+      kind: "pickup",
+      jobId: params.get("j") ?? params.get("job"),
+      deliveryId: params.get("d") ?? params.get("delivery"),
+      zoneCode: params.get("z") ?? params.get("zone"),
+    };
+  }
+
+  const checkinMatch = path.match(/\/checkin\/([^/?]+)/);
+  if (checkinMatch) {
+    return {
+      kind: "receive-id",
+      deliveryId: decodeURIComponent(checkinMatch[1]),
+    };
+  }
+
+  if (/\/r($|\?)/i.test(path) && !path.includes("receive")) {
+    const id = params.get("i") ?? params.get("id");
+    const zone = params.get("z") ?? params.get("zone");
+    if (id) return { kind: "receive-id", deliveryId: id };
+    if (zone) return { kind: "receive-zone", zoneCode: zone };
+  }
+
+  if (path.includes("/receive") || path.includes("receive")) {
+    const id = params.get("id") ?? params.get("i");
+    const zone = params.get("zone") ?? params.get("z");
+    if (id) return { kind: "receive-id", deliveryId: id };
+    if (zone) return { kind: "receive-zone", zoneCode: zone };
+  }
+
+  return null;
+}
+
+function parseSvCompactToken(trimmed: string): ParsedQrScan | null {
+  const match = /^SV:([zrp]):(.+)$/i.exec(trimmed);
+  if (!match) return null;
+  const type = match[1].toLowerCase();
+  const rest = match[2].trim();
+  if (!rest) return null;
+
+  switch (type) {
+    case "z":
+      return { kind: "receive-zone", zoneCode: rest };
+    case "r":
+      return { kind: "receive-id", deliveryId: rest };
+    case "p": {
+      const [jobId, deliveryId] = rest.split("|");
+      if (!jobId) return null;
+      return {
+        kind: "pickup",
+        jobId,
+        deliveryId: deliveryId ?? null,
+        zoneCode: null,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+export function canonicalHashFromParsed(parsed: ParsedQrScan): string | null {
+  switch (parsed.kind) {
+    case "receive-id":
+      return `#/receive?id=${encodeURIComponent(parsed.deliveryId)}`;
+    case "receive-zone":
+      return `#/receive?zone=${encodeURIComponent(parsed.zoneCode)}`;
+    case "pickup": {
+      if (!parsed.jobId) return null;
+      const params = new URLSearchParams({ job: parsed.jobId });
+      if (parsed.deliveryId) params.set("delivery", parsed.deliveryId);
+      if (parsed.zoneCode) params.set("zone", parsed.zoneCode);
+      return `#/pickup?${params.toString()}`;
+    }
+    default:
+      return null;
+  }
+}
+
+/** Parse a scanned QR payload (URL, compact token, or raw zone code). */
 export function parseScannedQr(raw: string): ParsedQrScan {
   const trimmed = raw.trim();
+
+  const svParsed = parseSvCompactToken(trimmed);
+  if (svParsed) return svParsed;
+
   if (trimmed.startsWith("http")) {
     try {
       const url = new URL(trimmed);
       const hash = normalizeAppHash(url.hash);
-      const path = hash.split("?")[0] ?? "";
       const qsStart = hash.indexOf("?");
       const params =
         qsStart !== -1
           ? new URLSearchParams(hash.slice(qsStart + 1))
           : new URLSearchParams();
-
-      if (path.includes("/pickup") || path.includes("pickup")) {
-        return {
-          kind: "pickup",
-          jobId: params.get("job"),
-          deliveryId: params.get("delivery"),
-          zoneCode: params.get("zone"),
-        };
-      }
-
-      const checkinMatch = path.match(/\/checkin\/([^/?]+)/);
-      if (checkinMatch) {
-        return { kind: "receive-id", deliveryId: decodeURIComponent(checkinMatch[1]) };
-      }
-
-      if (path.includes("/receive") || path.includes("receive")) {
-        const id = params.get("id");
-        const zone = params.get("zone");
-        if (id) return { kind: "receive-id", deliveryId: id };
-        if (zone) return { kind: "receive-zone", zoneCode: zone };
-      }
+      const fromHash = parseHashRoute(hash, params);
+      if (fromHash) return fromHash;
     } catch {
       // fall through
     }
@@ -172,31 +306,13 @@ export function parseScannedQr(raw: string): ParsedQrScan {
   return { kind: "raw", value: trimmed };
 }
 
-/** App hash route from a scanned https QR (receive, pickup, check-in). */
+/** Canonical app hash for HashRouter after scanning a URL or token. */
 export function hashFromScannedQrUrl(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("http")) return null;
-  try {
-    const url = new URL(trimmed);
-    const hash = normalizeAppHash(url.hash);
-    if (!hash) return null;
-    const path = hash.split("?")[0] ?? "";
-    if (
-      path.includes("/pickup") ||
-      path.includes("pickup") ||
-      path.includes("/receive") ||
-      path.includes("receive") ||
-      path.includes("/checkin")
-    ) {
-      return hash.startsWith("#/") ? hash : `#/${hash.slice(1)}`;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
+  const parsed = parseScannedQr(raw);
+  return canonicalHashFromParsed(parsed);
 }
 
-/** Navigate to the scanned QR destination hash immediately (before Firestore). */
+/** Navigate to the scanned QR destination (canonical hash) on confirm. */
 export function applyHashFromScannedQr(raw: string): boolean {
   const hash = hashFromScannedQrUrl(raw);
   if (!hash) return false;

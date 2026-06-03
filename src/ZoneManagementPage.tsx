@@ -23,6 +23,7 @@ import {
 } from "./dispatcher/firestoreService";
 import {
   buildZoneEslQrUrl,
+  ESL_QR_RENDER_PROPS,
   formatZoneEslStatusLine,
 } from "./receiveQrUrls";
 import {
@@ -866,7 +867,11 @@ export function ZoneManagementPage() {
                               >
                                 E-ink QR preview
                               </p>
-                              <QRCodeSVG value={qrUrl} size={80} />
+                              <QRCodeSVG
+                                value={qrUrl}
+                                size={96}
+                                {...ESL_QR_RENDER_PROPS}
+                              />
                             </div>
                           </div>
 

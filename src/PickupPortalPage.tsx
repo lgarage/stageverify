@@ -23,7 +23,7 @@ import {
   resolveZoneScanDisposition,
   syncScanIntent,
 } from "./scanRouting";
-import { parseScannedQr } from "./receiveQrUrls";
+import { normalizePickupHash, parseScannedQr } from "./receiveQrUrls";
 import { QrScannerOverlay } from "./QrScannerOverlay";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 
@@ -1155,6 +1155,10 @@ export default function PickupPortalPage() {
   );
 
   const activeJobId = jobIdFromUrl ?? discoveredJobId;
+
+  useEffect(() => {
+    normalizePickupHash();
+  }, []);
 
   useEffect(() => {
     if (!zoneFromUrl || jobIdFromUrl) return;

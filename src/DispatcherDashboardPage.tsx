@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
+import { buildDeliveryLabelQrUrl, ESL_QR_RENDER_PROPS } from "./receiveQrUrls";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
@@ -1697,7 +1698,7 @@ function PrintLabelModal({
   vendorName: string;
   onClose: () => void;
 }) {
-  const qrUrl = `${window.location.origin}${window.location.pathname}#/receive?id=${deliveryId}`;
+  const qrUrl = buildDeliveryLabelQrUrl(deliveryId);
 
   return (
     <div
@@ -1745,7 +1746,7 @@ function PrintLabelModal({
             border: "1px solid #e5e7eb",
           }}
         >
-          <QRCodeSVG value={qrUrl} size={200} />
+          <QRCodeSVG value={qrUrl} size={200} {...ESL_QR_RENDER_PROPS} />
         </div>
         <div
           style={{
