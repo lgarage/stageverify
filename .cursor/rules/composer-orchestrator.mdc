@@ -28,6 +28,13 @@ Pattern: state your interpretation first ("I'm reading this as X — is that rig
 - Do not add extra fields, buttons, columns, validations, or UI elements beyond what was requested.
 - **Stay streamlined:** learn via code fixes + at most one row in `USER_SCOPE_REJECTIONS.md` (≤8 rows). Do not add rules files, long checklists, or duplicate lessons across PROJECT_STATUS.
 
+### Tight scope (always)
+
+- Do exactly what Dan asked; no deploy, verify, docs, or multitask extras unless he asked or they are required to complete the stated task.
+- If Dan says "commit and push only" (or similar), that overrides ship-loop, Playwright, deploy, and background-worker breadth.
+- Before tools: one-line scope echo ("I will … / I will not …").
+- Multitask workers: copy Dan's scope verbatim; no widening.
+
 ## Post-Edit Build Gate — MANDATORY
 After every set of file edits, run:
 ```
