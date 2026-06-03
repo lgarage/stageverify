@@ -112,7 +112,6 @@ export function ReceivingPage() {
   }, []);
 
   const startScanPrefetch = useCallback((raw: string) => {
-    applyHashFromScannedQr(raw);
     const parsed = parseScannedQr(raw);
     if (parsed.kind === "pickup") {
       scanPrefetchRef.current = null;
@@ -498,6 +497,8 @@ export function ReceivingPage() {
   };
 
   const resetFlow = () => {
+    urlDeepLinkHandledRef.current = false;
+    scanPrefetchRef.current = null;
     setStep("scan");
     setScanMode("camera");
     setZoneMissCode(null);

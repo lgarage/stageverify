@@ -184,10 +184,7 @@ export function QrScannerOverlay({
             }
             const trimmed = decodedText.trim();
             if (!trimmed) return;
-            if (
-              previewRef.current &&
-              lastPreviewRawRef.current === trimmed
-            ) {
+            if (lastPreviewRawRef.current === trimmed) {
               return;
             }
             lastPreviewRawRef.current = trimmed;
@@ -233,14 +230,22 @@ export function QrScannerOverlay({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onCancel]);
 
+  useEffect(() => {
+    if (!scanLocked) {
+      confirmingRef.current = false;
+      if (!previewRef.current) {
+        lastPreviewRawRef.current = null;
+      }
+    }
+  }, [scanLocked]);
+
   const confirmPreview = () => {
     if (!preview || confirmingRef.current || scanLockedRef.current) return;
     confirmingRef.current = true;
     const raw = preview.raw;
     setPreview(null);
-    lastPreviewRawRef.current = null;
+    lastPreviewRawRef.current = raw;
     onDecode(raw);
-    confirmingRef.current = false;
   };
 
   const frameBorder = preview ? IOS_YELLOW : "rgba(59,130,246,0.8)";
