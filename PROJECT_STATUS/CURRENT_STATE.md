@@ -19,6 +19,8 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 1. **ESL Cloud Function** (backend-write-critical) ??? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-02, this session)
+- perf: faster QR open job — parallel Firestore hydrate, zone path skips re-read delivery doc, 60s scan lookup cache (Sonnet audit).
+## Prev Session (2026-06-02, this session)
 - docs: QR scan diagnose playbook in MODEL_DOSSIER § agent-lessons (appear/tap table, hash grep, prefetch rule).
 - fix: QR/status-only portals — no pickup↔vendor tabs or cross-redirects; zone tag URL follows job status; removed iPhone scan auto-zoom (preview pill kept).
 ## Prev Session (2026-06-02, this session)
