@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo, type CSSProperties, type FormEvent } from "react";
 import { Navigate, Link, useLocation } from "react-router-dom";
-import type { StagingLocation } from "./dispatcher/models";
+import {
+  LOCATION_STATUSES,
+  type LocationStatus,
+  type StagingLocation,
+} from "./dispatcher/models";
 import {
   findStagingLocationByCode,
   formatStagingCodeCanonical,
@@ -10,6 +14,7 @@ import {
   updateAppSettings,
   listAllZones,
   createZone,
+  updateZone,
 } from "./dispatcher/firestoreService";
 import {
   PORTAL_SHELL_CLASS,
@@ -33,6 +38,41 @@ const STAGING_TYPE_LABELS: Record<StagingSpotType, string> = {
   bin: "Bin",
   other: "Other",
 };
+
+const LOCATION_STATUS_LABEL: Record<LocationStatus, string> = {
+  Planned: "Planned (inactive)",
+  Installed: "Installed",
+  Tagged: "Tagged",
+  Active: "Active",
+};
+
+type StagingSpotEditForm = {
+  code: string;
+  label: string;
+  type: StagingSpotType;
+  status: LocationStatus;
+  sortOrder: string;
+};
+
+function spotToEditForm(spot: StagingLocation): StagingSpotEditForm {
+  return {
+    code: spot.code,
+    label: spot.label,
+    type: spot.type as StagingSpotType,
+    status: spot.status,
+    sortOrder: spot.sortOrder != null ? String(spot.sortOrder) : "",
+  };
+}
+
+function findOtherSpotByCode(
+  spots: StagingLocation[],
+  code: string,
+  excludeId: string,
+): StagingLocation | undefined {
+  const found = findStagingLocationByCode(spots, code);
+  if (!found || found.id === excludeId) return undefined;
+  return found;
+}
 
 function defaultDimensionsForSpotType(type: StagingSpotType): {
   widthFt?: number;
@@ -65,6 +105,12 @@ export function SettingsPage() {
   const [savingSpot, setSavingSpot] = useState(false);
   const [spotError, setSpotError] = useState<string | null>(null);
   const [spotSaved, setSpotSaved] = useState(false);
+
+  const [editingSpotId, setEditingSpotId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<StagingSpotEditForm | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaved, setEditSaved] = useState(false);
 
   useEffect(() => {
     setLoadingSpots(true);
@@ -171,6 +217,89 @@ export function SettingsPage() {
         : undefined,
     [spotCode, stagingSpots],
   );
+
+  const editingSpot = useMemo(
+    () =>
+      editingSpotId
+        ? stagingSpots.find((s) => s.id === editingSpotId)
+        : undefined,
+    [editingSpotId, stagingSpots],
+  );
+
+  const editCodeConflict =
+    Boolean(editingSpotId && editForm?.code.trim()) &&
+    findOtherSpotByCode(stagingSpots, editForm!.code, editingSpotId!) !==
+      undefined;
+
+  const editConflictingSpot = useMemo(() => {
+    if (!editingSpotId || !editForm?.code.trim()) return undefined;
+    return findOtherSpotByCode(stagingSpots, editForm.code, editingSpotId);
+  }, [editForm?.code, editingSpotId, stagingSpots]);
+
+  const openEditSpot = (spot: StagingLocation) => {
+    setEditingSpotId(spot.id);
+    setEditForm(spotToEditForm(spot));
+    setEditError(null);
+    setEditSaved(false);
+    setSpotError(null);
+  };
+
+  const cancelEditSpot = () => {
+    setEditingSpotId(null);
+    setEditForm(null);
+    setEditError(null);
+    setEditSaved(false);
+  };
+
+  const handleSaveEditSpot = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingSpotId || !editForm || savingEdit) return;
+
+    const label = editForm.label.trim();
+    if (!editForm.code.trim() || !label) return;
+
+    const canonicalCode = formatStagingCodeCanonical(editForm.code);
+    if (findOtherSpotByCode(stagingSpots, editForm.code, editingSpotId)) {
+      setEditError(`Spot code "${canonicalCode}" is already used.`);
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError(null);
+    setEditSaved(false);
+
+    try {
+      const sortOrder = editForm.sortOrder.trim()
+        ? Number(editForm.sortOrder)
+        : undefined;
+      const patch = {
+        code: canonicalCode,
+        label,
+        type: editForm.type,
+        status: editForm.status,
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
+      };
+      await updateZone(editingSpotId, patch);
+      setStagingSpots((prev) =>
+        prev
+          .map((s) =>
+            s.id === editingSpotId ? { ...s, ...patch, id: editingSpotId } : s,
+          )
+          .sort(sortStagingSpots),
+      );
+      setEditSaved(true);
+      window.setTimeout(() => {
+        setEditSaved(false);
+        cancelEditSpot();
+      }, 1200);
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Failed to save staging spot.",
+      );
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const inputStyle: CSSProperties = {
     width: "100%",
@@ -414,10 +543,11 @@ export function SettingsPage() {
                   maxWidth: 560,
                 }}
               >
-                Spots already in the system appear below. Add new ones with a
-                code that is not already listed. A top-down shop map will come
-                later — for now spots appear in vendor check-in and dispatcher
-                assignment.
+                Spots already in the system appear below. Use{" "}
+                <strong style={{ fontWeight: 700 }}>Edit</strong> to change label,
+                type, status, or sort order. Add new ones with a code that is not
+                already listed. A top-down shop map will come later — for now spots
+                appear in vendor check-in and dispatcher assignment.
               </p>
 
               <p
@@ -471,7 +601,7 @@ export function SettingsPage() {
                   >
                     <thead>
                       <tr style={{ backgroundColor: "#f8fafc" }}>
-                        {["Code", "Label", "Type", "Status"].map((col) => (
+                        {["Code", "Label", "Type", "Status", ""].map((col) => (
                           <th
                             key={col}
                             style={{
@@ -507,6 +637,7 @@ export function SettingsPage() {
                             {spot.code}
                           </td>
                           <td
+                            data-testid={`spot-label-${spot.code}`}
                             style={{
                               padding: "10px 12px",
                               color: "#333",
@@ -534,10 +665,280 @@ export function SettingsPage() {
                           >
                             {spot.status}
                           </td>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid #eaecf0",
+                              textAlign: "right",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              data-testid={`edit-spot-${spot.code}`}
+                              onClick={() => openEditSpot(spot)}
+                              style={{
+                                padding: "4px 10px",
+                                borderRadius: 4,
+                                border: `1.5px solid ${NAVY}`,
+                                backgroundColor:
+                                  editingSpotId === spot.id ? NAVY : "#fff",
+                                color:
+                                  editingSpotId === spot.id ? "#fff" : NAVY,
+                                fontWeight: 700,
+                                fontSize: 12,
+                                cursor: "pointer",
+                                fontFamily: FONT,
+                              }}
+                            >
+                              Edit
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {editingSpot && editForm && (
+                <div
+                  data-testid="staging-spot-edit-panel"
+                  style={{
+                    marginBottom: 20,
+                    padding: "16px",
+                    backgroundColor: "#fffbeb",
+                    border: `1.5px solid ${NAVY}`,
+                    borderRadius: 8,
+                  }}
+                >
+                  <h4
+                    style={{
+                      margin: "0 0 12px",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: NAVY,
+                    }}
+                  >
+                    Edit staging spot — {editingSpot.code}
+                  </h4>
+                  <form onSubmit={handleSaveEditSpot}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(160px, 1fr))",
+                        gap: 12,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div>
+                        <label style={labelStyle}>
+                          Code <span style={{ color: RED }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.code}
+                          onChange={(e) => {
+                            setEditForm((f) =>
+                              f ? { ...f, code: e.target.value } : f,
+                            );
+                            setEditError(null);
+                          }}
+                          required
+                          style={{
+                            ...inputStyle,
+                            border: editCodeConflict
+                              ? `1.5px solid ${RED}`
+                              : "1.5px solid #ccd0d7",
+                          }}
+                        />
+                        {editCodeConflict && editConflictingSpot ? (
+                          <p
+                            style={{
+                              margin: "6px 0 0",
+                              fontSize: 12,
+                              color: RED,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {editConflictingSpot.code} is already listed — pick
+                            another code.
+                          </p>
+                        ) : null}
+                      </div>
+                      <div>
+                        <label style={labelStyle}>
+                          Label <span style={{ color: RED }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          data-testid="edit-spot-label"
+                          value={editForm.label}
+                          onChange={(e) => {
+                            setEditForm((f) =>
+                              f ? { ...f, label: e.target.value } : f,
+                            );
+                            setEditError(null);
+                          }}
+                          required
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Type</label>
+                        <select
+                          value={editForm.type}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f
+                                ? {
+                                    ...f,
+                                    type: e.target.value as StagingSpotType,
+                                  }
+                                : f,
+                            )
+                          }
+                          style={inputStyle}
+                        >
+                          {STAGING_SPOT_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {STAGING_TYPE_LABELS[t]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Status</label>
+                        <select
+                          value={editForm.status}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f
+                                ? {
+                                    ...f,
+                                    status: e.target.value as LocationStatus,
+                                  }
+                                : f,
+                            )
+                          }
+                          style={inputStyle}
+                        >
+                          {LOCATION_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {LOCATION_STATUS_LABEL[s]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Sort order</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={editForm.sortOrder}
+                          onChange={(e) =>
+                            setEditForm((f) =>
+                              f ? { ...f, sortOrder: e.target.value } : f,
+                            )
+                          }
+                          placeholder="Optional"
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+                    {editError && (
+                      <p
+                        style={{
+                          margin: "0 0 12px",
+                          fontSize: 13,
+                          color: RED,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {editError}
+                      </p>
+                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <button
+                        type="submit"
+                        data-testid="save-spot-edit"
+                        disabled={
+                          savingEdit ||
+                          !editForm.code.trim() ||
+                          !editForm.label.trim() ||
+                          editCodeConflict
+                        }
+                        style={{
+                          padding: "8px 18px",
+                          borderRadius: 4,
+                          border: "none",
+                          backgroundColor:
+                            savingEdit ||
+                            !editForm.code.trim() ||
+                            !editForm.label.trim() ||
+                            editCodeConflict
+                              ? "#f3f4f6"
+                              : NAVY,
+                          color:
+                            savingEdit ||
+                            !editForm.code.trim() ||
+                            !editForm.label.trim() ||
+                            editCodeConflict
+                              ? "#9ca3af"
+                              : "#fff",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor:
+                            savingEdit ||
+                            !editForm.code.trim() ||
+                            !editForm.label.trim() ||
+                            editCodeConflict
+                              ? "not-allowed"
+                              : "pointer",
+                          fontFamily: FONT,
+                        }}
+                      >
+                        {savingEdit ? "Saving…" : "Save changes"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEditSpot}
+                        disabled={savingEdit}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 4,
+                          border: "1.5px solid #ccd0d7",
+                          backgroundColor: "#fff",
+                          color: "#374151",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: savingEdit ? "not-allowed" : "pointer",
+                          fontFamily: FONT,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      {editSaved && (
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#2e7d32",
+                          }}
+                        >
+                          Saved ✓
+                        </span>
+                      )}
+                    </div>
+                  </form>
                 </div>
               )}
 

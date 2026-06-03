@@ -76,15 +76,41 @@ async function ensureAuthenticated(page) {
   console.log(`Opening ${appBase}/#/settings`);
   await ensureAuthenticated(page);
 
-  await page.getByRole("heading", { name: "Staging Spots" }).waitFor({
+  await page.getByText("Staging Spots", { exact: true }).first().waitFor({
     timeout: 30_000,
   });
   await page.waitForSelector("text=Already listed", { timeout: 10_000 });
   await page.waitForSelector("text=already listed", { timeout: 10_000 });
   await page.waitForSelector("text=Add Staging Spot", { timeout: 10_000 });
-  await page.waitForSelector('input[placeholder="e.g. G4"]', { timeout: 10_000 });
+  await page.waitForSelector('input[placeholder="e.g. s1a or G4"]', {
+    timeout: 10_000,
+  });
 
-  await page.getByRole("heading", { name: "Staging Spots" }).scrollIntoViewIfNeeded();
+  await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
+
+  const editG1 = page.getByTestId("edit-spot-G1");
+  await editG1.waitFor({ timeout: 10_000 });
+  await editG1.click();
+
+  const editPanel = page.getByTestId("staging-spot-edit-panel");
+  await editPanel.waitFor({ timeout: 10_000 });
+
+  const labelInput = page.getByTestId("edit-spot-label");
+  const originalLabel = await labelInput.inputValue();
+  const probeLabel = `${originalLabel} (verify)`;
+  await labelInput.fill(probeLabel);
+  await page.getByTestId("save-spot-edit").click();
+  await page.getByTestId("spot-label-G1").filter({ hasText: probeLabel }).waitFor({
+    timeout: 25_000,
+  });
+
+  await editG1.click();
+  await editPanel.waitFor({ timeout: 10_000 });
+  await page.getByTestId("edit-spot-label").fill(originalLabel);
+  await page.getByTestId("save-spot-edit").click();
+  await page.getByTestId("spot-label-G1").filter({ hasText: originalLabel }).waitFor({
+    timeout: 25_000,
+  });
 
   await page.screenshot({
     path: resolve(outDir, "settings-staging-spots.png"),
