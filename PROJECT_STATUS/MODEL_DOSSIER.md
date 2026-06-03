@@ -67,9 +67,31 @@ Map **appear** vs **tap** before camera/fps tweaks (Sonnet postmortem on double-
 
 **Sonnet-style trace when:** 2+ failed fixes on same bug, or preview + async prefetch + hash/deep-link in one flow.
 
+### QR confidence scoring (2026-06-02 — Dan + Sonnet arc)
+
+Composer **over-scored** several QR passes; user still saw bugs until Sonnet traced appear vs tap and Firestore serial reads.
+
+| Archetype / symptom | Start conf (Composer) | After user still broken | After Sonnet + fix shipped | Composer solo? |
+|---------------------|----------------------|-------------------------|----------------------------|----------------|
+| `encode-qr` (shorter URL, level M) | 88 | **70** if claimed “scan fixed” | **85** encode only; **not** a scan-reliability fix | Yes |
+| `qr-scan-ios` (html5-qrcode won’t read) | 85 | **60** after fps/region-only tweaks | **75** with `qrScannerConfig` + pill UX; native Camera may still win on ESL | Yes, escalate if 2nd fail |
+| `qr-preview-pill` + routing (pill tap / wrong route) | 82 | **45** (hash changed on **appear**, not tap) | **88** after `80c1815` (hash only on confirm) | **No** — needed Sonnet trace |
+| `qr-perf` (“Loading delivery…”) | 80 | **55** while still full lookup + serial `getDoc` | **85** after parallel hydrate + zone skip re-read (`36c5b2e`) | Sonnet audit → Composer impl OK |
+| Dispatcher print ≠ e-tag QR | 75 | N/A (scope miss) | **80** after `buildEslTagQrUrl` unify (`f41edf8`) | Yes |
+
+**Rules for next QR session**
+
+1. **Triage three symptoms first** (write one line each): (a) won’t decode, (b) slow after decode, (c) wrong portal/route after tap. Do not mix fixes across columns.
+2. **Second failed fix on same symptom → stop tweaking camera/URL**; run appear vs tap table (above) or Task Sonnet 4.6 trace-only (no code until root cause named).
+3. **Do not log `confAfter` ≥ 90** on QR until Playwright or Dan confirms pill → tap → single navigation on **occupied** zone (e.g. G2), not empty G1.
+4. **Compact QR** = module density only; never substitute for routing/prefetch bugs.
+
+**How agents get better here:** one row in this table when QR ships; grep `applyHashFromScannedQr` before any prefetch change; reuse `verify:pickup` / add route-specific verify; downgrade conf in brain `outcomes/*.jsonl` when Dan says “still not fixed” (see pickup `90→65` pattern).
+
 ## Active outcome log (≤15 rows → rotate to archives/outcomes/)
 | Date | Task | Archetype | Model | Conf→ | Outcome | Note |
 |------|------|-----------|-------|-------|---------|------|
+| 2026-06-02 | QR scan circular fixes — conf scoring + Sonnet trace | qr-routing | Composer→Sonnet | 88→45→88 | partial→ok | appear≠tap; dossier § QR confidence |
 | 2026-06-02 | agent-lessons + Playwright gate in rules | docs-update | Composer 2.5 | — | ok | § agent-lessons; mandatory verify before "fixed" |
 | 2026-06-02 | Public pickup E2E + loadPickupReadyDeliveriesPublic | service-logic | Composer 2.5 | 93→**96** | ok | Playwright verify:pickup PASS local; prod after deploy |
 | 2026-06-02 | Public pickup "Failed to record" (rules+batch) | backend-write-critical + service-logic | Composer 2.5 | 72→93 | ok | rules deployed stageverify-db |
