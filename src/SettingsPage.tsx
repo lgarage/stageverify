@@ -432,7 +432,7 @@ export function SettingsPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Vendor Revert Window
+                Vendor auto-save
               </label>
               <input
                 type="number"
@@ -601,12 +601,12 @@ export function SettingsPage() {
                   >
                     <thead>
                       <tr style={{ backgroundColor: "#f8fafc" }}>
-                        {["Code", "Label", "Type", "Status", ""].map((col) => (
+                        {["Code", "Label", "Type", "Status", "Actions"].map((col) => (
                           <th
                             key={col}
                             style={{
                               padding: "10px 12px",
-                              textAlign: "left",
+                              textAlign: col === "Actions" ? "right" : "left",
                               fontWeight: 700,
                               color: "#6b7280",
                               borderBottom: "1px solid #eaecf0",
