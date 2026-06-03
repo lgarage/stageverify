@@ -6,7 +6,6 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import type { LocationStatus, StagingLocation } from "./dispatcher/models";
 import { isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
 import {
@@ -23,9 +22,9 @@ import {
 } from "./dispatcher/firestoreService";
 import {
   buildZoneEslQrUrl,
-  ESL_QR_RENDER_PROPS,
   formatZoneEslStatusLine,
 } from "./receiveQrUrls";
+import { EslQrCode } from "./EslQrCode";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -867,11 +866,7 @@ export function ZoneManagementPage() {
                               >
                                 E-ink QR preview
                               </p>
-                              <QRCodeSVG
-                                value={qrUrl}
-                                size={96}
-                                {...ESL_QR_RENDER_PROPS}
-                              />
+                              <EslQrCode value={qrUrl} variant="preview" />
                             </div>
                           </div>
 

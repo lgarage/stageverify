@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
-import { buildDeliveryLabelQrUrl, ESL_QR_RENDER_PROPS } from "./receiveQrUrls";
+import { buildEslTagQrUrl } from "./receiveQrUrls";
+import { EslQrCode } from "./EslQrCode";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
@@ -1688,17 +1688,18 @@ function CopyPickupLinkButton({
 /* ─── Print Label Modal ──────────────────────────────────────────────────── */
 
 function PrintLabelModal({
-  deliveryId,
+  qrUrl,
   orderNumber,
   vendorName,
+  zoneCode,
   onClose,
 }: {
-  deliveryId: string;
+  qrUrl: string;
   orderNumber: string;
   vendorName: string;
+  zoneCode: string | null;
   onClose: () => void;
 }) {
-  const qrUrl = buildDeliveryLabelQrUrl(deliveryId);
 
   return (
     <div
@@ -1746,7 +1747,7 @@ function PrintLabelModal({
             border: "1px solid #e5e7eb",
           }}
         >
-          <QRCodeSVG value={qrUrl} size={200} {...ESL_QR_RENDER_PROPS} />
+          <EslQrCode value={qrUrl} variant="print" />
         </div>
         <div
           style={{
@@ -1760,6 +1761,15 @@ function PrintLabelModal({
             {orderNumber}
           </div>
           <div style={{ fontSize: 14, color: "#4b5563" }}>{vendorName}</div>
+          {zoneCode ? (
+            <div style={{ fontSize: 12, color: "#6b7280" }}>
+              Staging {zoneCode} — same QR as the zone e-tag sign
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#6b7280" }}>
+              Assign a staging spot for a shorter zone QR (like e-tags)
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: 10, width: "100%", justifyContent: "center" }}>
           <button
@@ -2487,9 +2497,23 @@ function DetailContent({
       </div>
       {showPrintLabel && (
         <PrintLabelModal
-          deliveryId={details.delivery.id}
+          qrUrl={buildEslTagQrUrl({
+            zoneCode: details.stagingLocation?.code ?? null,
+            occupancy: details.stagingLocation
+              ? {
+                  deliveryId: details.delivery.id,
+                  orderNumber: details.delivery.orderNumber ?? "",
+                  vendorName: details.vendor.name,
+                  jobId: details.job.id,
+                  status: details.delivery.status,
+                }
+              : null,
+            deliveryId: details.delivery.id,
+            options: { forPrint: true },
+          })}
           orderNumber={details.delivery.orderNumber ?? ""}
           vendorName={details.vendor.name}
+          zoneCode={details.stagingLocation?.code ?? null}
           onClose={() => setShowPrintLabel(false)}
         />
       )}

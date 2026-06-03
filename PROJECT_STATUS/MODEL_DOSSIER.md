@@ -11,7 +11,7 @@
 | `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in App/Receive/Pickup |
 | `zone-lookup` | staging code → delivery | `getDeliveryDetailsByStagingCode`; match zones via `getAllStagingLocationIds` |
 | `receive-deep-link` | `/receive` URL params or camera | `deepLinkPending` before camera; failed lookup → show error (no silent empty screen) |
-| `encode-qr` | building QR URLs | `receiveQrUrls.ts` — **compact** `#/r?i=` / `#/r?z=` / `#/p?j=&d=` for new tags; long `#/receive?` still parses; `ESL_QR_RENDER_PROPS` level M |
+| `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; zone assigned → `#/r?z=` not long id |
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
@@ -22,7 +22,7 @@
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, target)`.
 - Targets: `"receive-page"` \| `"checkin-page"` \| `"app-checkin"`.
-- Zone tags: `buildZoneEslQrUrl` — pickup-ready → `#/pickup?job=`, vendor flow → `#/receive?id=`, empty → `#/receive?zone=`.
+- Zone tags + dispatcher print: `buildEslTagQrUrl` / `buildZoneEslQrUrl` — compact `#/p?` / `#/r?i=` / `#/r?z=` by status.
 
 ## § zone-lookup
 - QR routing: `getDeliveryDetailsByStagingCode` (includes pickup-ready).

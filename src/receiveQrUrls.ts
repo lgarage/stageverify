@@ -18,11 +18,22 @@ export const ESL_QR_RENDER_PROPS = {
   marginSize: 2,
 };
 
+export const ESL_QR_SIZE_PREVIEW = 96;
+export const ESL_QR_SIZE_PRINT = 200;
+
+/** Printed tags always encode prod gh-pages so native camera opens the live app. */
+export type EslQrOptions = { forPrint?: boolean };
+
 function appBaseUrl(): string {
   if (typeof window !== "undefined" && window.location.origin) {
     return `${window.location.origin}${window.location.pathname}`.replace(/\/$/, "");
   }
   return PROD_APP_BASE;
+}
+
+function qrBaseUrl(options?: EslQrOptions): string {
+  if (options?.forPrint) return PROD_APP_BASE;
+  return appBaseUrl();
 }
 
 export type ZoneEslOccupancy = {
@@ -33,12 +44,15 @@ export type ZoneEslOccupancy = {
   status: DeliveryStatus;
 };
 
-export function buildPickupDeepLink(options: {
-  jobId: string;
-  deliveryId?: string | null;
-  zoneCode?: string | null;
-}): string {
-  const base = appBaseUrl();
+export function buildPickupDeepLink(
+  options: {
+    jobId: string;
+    deliveryId?: string | null;
+    zoneCode?: string | null;
+  },
+  eslOptions?: EslQrOptions,
+): string {
+  const base = qrBaseUrl(eslOptions);
   const params = new URLSearchParams({ j: options.jobId });
   if (options.deliveryId) {
     params.set("d", options.deliveryId);
@@ -49,22 +63,67 @@ export function buildPickupDeepLink(options: {
   return `${base}#/p?${params.toString()}`;
 }
 
-/** Deep link for a zone tag: pickup when staged, receive when in vendor flow, zone when empty. */
-export function buildZoneEslQrUrl(
+function buildZoneEslQrUrlAtBase(
+  base: string,
   zoneCode: string,
   occupancy: ZoneEslOccupancy | null | undefined,
 ): string {
-  const base = appBaseUrl();
   if (occupancy?.deliveryId) {
     if (shouldRouteScanToPickup(occupancy.status)) {
-      return buildPickupDeepLink({
-        jobId: occupancy.jobId,
-        deliveryId: occupancy.deliveryId,
-      });
+      const params = new URLSearchParams({ j: occupancy.jobId });
+      params.set("d", occupancy.deliveryId);
+      return `${base}#/p?${params.toString()}`;
     }
     return `${base}#/r?i=${encodeURIComponent(occupancy.deliveryId)}`;
   }
   return `${base}#/r?z=${encodeURIComponent(zoneCode)}`;
+}
+
+/** Deep link for a zone e-tag sign: pickup when staged, receive when in vendor flow, zone when empty. */
+export function buildZoneEslQrUrl(
+  zoneCode: string,
+  occupancy: ZoneEslOccupancy | null | undefined,
+  eslOptions?: EslQrOptions,
+): string {
+  return buildZoneEslQrUrlAtBase(
+    qrBaseUrl(eslOptions),
+    zoneCode,
+    occupancy,
+  );
+}
+
+/**
+ * Single builder for zone e-tags and dispatcher print labels.
+ * When a staging spot is assigned, payload matches the zone sign (often `#/r?z=G2`, not a long delivery id).
+ */
+export function buildEslTagQrUrl(input: {
+  zoneCode?: string | null;
+  occupancy?: ZoneEslOccupancy | null;
+  deliveryId?: string | null;
+  jobId?: string;
+  status?: DeliveryStatus;
+  options?: EslQrOptions;
+}): string {
+  const zone = input.zoneCode?.trim();
+  if (zone) {
+    const occupancy =
+      input.occupancy ??
+      (input.deliveryId && input.jobId && input.status
+        ? {
+            deliveryId: input.deliveryId,
+            orderNumber: "",
+            vendorName: "",
+            jobId: input.jobId,
+            status: input.status,
+          }
+        : null);
+    return buildZoneEslQrUrlAtBase(qrBaseUrl(input.options), zone, occupancy);
+  }
+  const base = qrBaseUrl(input.options);
+  if (input.deliveryId) {
+    return `${base}#/r?i=${encodeURIComponent(input.deliveryId)}`;
+  }
+  return `${base}#/receive`;
 }
 
 /** Dynamic line shown on the e-ink tag below the zone code. */
@@ -75,23 +134,23 @@ export function formatZoneEslStatusLine(
   return `${occupancy.orderNumber} — ${occupancy.vendorName}`;
 }
 
-export function buildReceiveDeepLink(options: {
-  deliveryId?: string | null;
-  zoneCode?: string | null;
-}): string {
-  const base = appBaseUrl();
-  if (options.deliveryId) {
-    return `${base}#/r?i=${encodeURIComponent(options.deliveryId)}`;
-  }
-  if (options.zoneCode) {
-    return `${base}#/r?z=${encodeURIComponent(options.zoneCode)}`;
-  }
-  return `${base}#/receive`;
+export function buildReceiveDeepLink(
+  options: {
+    deliveryId?: string | null;
+    zoneCode?: string | null;
+  },
+  eslOptions?: EslQrOptions,
+): string {
+  return buildEslTagQrUrl({
+    zoneCode: options.zoneCode,
+    deliveryId: options.deliveryId,
+    options: eslOptions,
+  });
 }
 
-/** Dispatcher delivery label QR (compact receive deep link). */
+/** @deprecated Use buildEslTagQrUrl — kept for callers that only pass deliveryId */
 export function buildDeliveryLabelQrUrl(deliveryId: string): string {
-  return buildReceiveDeepLink({ deliveryId });
+  return buildEslTagQrUrl({ deliveryId, options: { forPrint: true } });
 }
 
 /** Fix legacy and compact hashes so HashRouter routes match. */
