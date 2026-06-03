@@ -519,7 +519,6 @@ export function ReceivingPage() {
                 <QrScannerOverlay
                   layout="fill"
                   readerId="receive-qr-reader"
-                  instantOpenUrls
                   onDecode={(text) => {
                     void handleQrFromCamera(text);
                   }}
