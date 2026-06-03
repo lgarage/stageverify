@@ -92,22 +92,21 @@ async function ensureAuthenticated(page) {
   await editG1.waitFor({ timeout: 10_000 });
   await editG1.click();
 
-  const editPanel = page.getByTestId("staging-spot-edit-panel");
-  await editPanel.waitFor({ timeout: 10_000 });
+  await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
 
   const labelInput = page.getByTestId("edit-spot-label");
   const originalLabel = await labelInput.inputValue();
   const probeLabel = `${originalLabel} (verify)`;
   await labelInput.fill(probeLabel);
-  await page.getByTestId("save-spot-edit").click();
+  await page.getByTestId("save-spot-G1").click();
   await page.getByTestId("spot-label-G1").filter({ hasText: probeLabel }).waitFor({
     timeout: 25_000,
   });
 
   await editG1.click();
-  await editPanel.waitFor({ timeout: 10_000 });
+  await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
   await page.getByTestId("edit-spot-label").fill(originalLabel);
-  await page.getByTestId("save-spot-edit").click();
+  await page.getByTestId("save-spot-G1").click();
   await page.getByTestId("spot-label-G1").filter({ hasText: originalLabel }).waitFor({
     timeout: 25_000,
   });

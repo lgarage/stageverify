@@ -110,7 +110,6 @@ export function SettingsPage() {
   const [editForm, setEditForm] = useState<StagingSpotEditForm | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [editSaved, setEditSaved] = useState(false);
 
   useEffect(() => {
     setLoadingSpots(true);
@@ -218,29 +217,10 @@ export function SettingsPage() {
     [spotCode, stagingSpots],
   );
 
-  const editingSpot = useMemo(
-    () =>
-      editingSpotId
-        ? stagingSpots.find((s) => s.id === editingSpotId)
-        : undefined,
-    [editingSpotId, stagingSpots],
-  );
-
-  const editCodeConflict =
-    Boolean(editingSpotId && editForm?.code.trim()) &&
-    findOtherSpotByCode(stagingSpots, editForm!.code, editingSpotId!) !==
-      undefined;
-
-  const editConflictingSpot = useMemo(() => {
-    if (!editingSpotId || !editForm?.code.trim()) return undefined;
-    return findOtherSpotByCode(stagingSpots, editForm.code, editingSpotId);
-  }, [editForm?.code, editingSpotId, stagingSpots]);
-
-  const openEditSpot = (spot: StagingLocation) => {
+  const startEditSpot = (spot: StagingLocation) => {
     setEditingSpotId(spot.id);
     setEditForm(spotToEditForm(spot));
     setEditError(null);
-    setEditSaved(false);
     setSpotError(null);
   };
 
@@ -248,25 +228,22 @@ export function SettingsPage() {
     setEditingSpotId(null);
     setEditForm(null);
     setEditError(null);
-    setEditSaved(false);
   };
 
-  const handleSaveEditSpot = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingSpotId || !editForm || savingEdit) return;
+  const saveEditSpot = async (spot: StagingLocation) => {
+    if (editingSpotId !== spot.id || !editForm || savingEdit) return;
 
     const label = editForm.label.trim();
     if (!editForm.code.trim() || !label) return;
 
     const canonicalCode = formatStagingCodeCanonical(editForm.code);
-    if (findOtherSpotByCode(stagingSpots, editForm.code, editingSpotId)) {
+    if (findOtherSpotByCode(stagingSpots, editForm.code, spot.id)) {
       setEditError(`Spot code "${canonicalCode}" is already used.`);
       return;
     }
 
     setSavingEdit(true);
     setEditError(null);
-    setEditSaved(false);
 
     try {
       const sortOrder = editForm.sortOrder.trim()
@@ -279,19 +256,13 @@ export function SettingsPage() {
         status: editForm.status,
         sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
       };
-      await updateZone(editingSpotId, patch);
+      await updateZone(spot.id, patch);
       setStagingSpots((prev) =>
         prev
-          .map((s) =>
-            s.id === editingSpotId ? { ...s, ...patch, id: editingSpotId } : s,
-          )
+          .map((s) => (s.id === spot.id ? { ...s, ...patch, id: spot.id } : s))
           .sort(sortStagingSpots),
       );
-      setEditSaved(true);
-      window.setTimeout(() => {
-        setEditSaved(false);
-        cancelEditSpot();
-      }, 1200);
+      cancelEditSpot();
     } catch (err) {
       setEditError(
         err instanceof Error ? err.message : "Failed to save staging spot.",
@@ -600,346 +571,285 @@ export function SettingsPage() {
                     }}
                   >
                     <thead>
-                      <tr style={{ backgroundColor: "#f8fafc" }}>
-                        {["Code", "Label", "Type", "Status", "Actions"].map((col) => (
-                          <th
-                            key={col}
-                            style={{
-                              padding: "10px 12px",
-                              textAlign: col === "Actions" ? "right" : "left",
-                              fontWeight: 700,
-                              color: "#6b7280",
-                              borderBottom: "1px solid #eaecf0",
-                            }}
-                          >
-                            {col}
-                          </th>
-                        ))}
+                      <tr style={{ backgroundColor: NAVY }}>
+                        {["Code", "Label", "Type", "Status", "Sort", ""].map(
+                          (col, i) => (
+                            <th
+                              key={i}
+                              style={{
+                                padding: "12px",
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: "#ffffff",
+                                textAlign: "left",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {col}
+                            </th>
+                          ),
+                        )}
                       </tr>
                     </thead>
                     <tbody>
-                      {stagingSpots.map((spot, idx) => (
-                        <tr
-                          key={spot.id}
-                          style={{
-                            backgroundColor: idx % 2 === 0 ? "#fff" : "#fafbfc",
-                          }}
-                        >
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              fontFamily: "monospace",
-                              color: NAVY,
-                              borderBottom: "1px solid #eaecf0",
-                            }}
-                          >
-                            {spot.code}
-                          </td>
-                          <td
-                            data-testid={`spot-label-${spot.code}`}
-                            style={{
-                              padding: "10px 12px",
-                              color: "#333",
-                              borderBottom: "1px solid #eaecf0",
-                            }}
-                          >
-                            {spot.label}
-                          </td>
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              color: "#333",
-                              borderBottom: "1px solid #eaecf0",
-                            }}
-                          >
-                            {STAGING_TYPE_LABELS[spot.type]}
-                          </td>
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              color: spot.status === "Active" ? "#2e7d32" : "#6b7280",
-                              fontWeight: 600,
-                              borderBottom: "1px solid #eaecf0",
-                            }}
-                          >
-                            {spot.status}
-                          </td>
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              borderBottom: "1px solid #eaecf0",
-                              textAlign: "right",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              data-testid={`edit-spot-${spot.code}`}
-                              onClick={() => openEditSpot(spot)}
+                      {stagingSpots.map((spot, idx) => {
+                        const isEditing = editingSpotId === spot.id;
+                        const rowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                        const tdBase: CSSProperties = {
+                          padding: "10px 12px",
+                          borderBottom: "1px solid #eaecf0",
+                          verticalAlign: "middle",
+                        };
+                        const inlineInput: CSSProperties = {
+                          padding: "4px 8px",
+                          border: "1.5px solid #ccd0d7",
+                          borderRadius: 4,
+                          fontSize: 13,
+                          color: "#333",
+                          fontFamily: FONT,
+                          outline: "none",
+                          width: "100%",
+                          boxSizing: "border-box",
+                          backgroundColor: "#fff",
+                        };
+                        const rowConflict =
+                          isEditing &&
+                          editForm &&
+                          findOtherSpotByCode(
+                            stagingSpots,
+                            editForm.code,
+                            spot.id,
+                          ) !== undefined;
+                        const saveDisabled =
+                          savingEdit ||
+                          !editForm?.code.trim() ||
+                          !editForm?.label.trim() ||
+                          Boolean(rowConflict);
+
+                        return (
+                          <tr key={spot.id} style={{ backgroundColor: rowBg }}>
+                            <td
                               style={{
-                                padding: "4px 10px",
-                                borderRadius: 4,
-                                border: `1.5px solid ${NAVY}`,
-                                backgroundColor:
-                                  editingSpotId === spot.id ? NAVY : "#fff",
-                                color:
-                                  editingSpotId === spot.id ? "#fff" : NAVY,
+                                ...tdBase,
                                 fontWeight: 700,
-                                fontSize: 12,
-                                cursor: "pointer",
-                                fontFamily: FONT,
+                                fontFamily: "monospace",
+                                color: NAVY,
                               }}
                             >
-                              Edit
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                              {isEditing && editForm ? (
+                                <input
+                                  style={{
+                                    ...inlineInput,
+                                    border: rowConflict
+                                      ? `1.5px solid ${RED}`
+                                      : inlineInput.border,
+                                  }}
+                                  value={editForm.code}
+                                  onChange={(e) => {
+                                    setEditForm((f) =>
+                                      f ? { ...f, code: e.target.value } : f,
+                                    );
+                                    setEditError(null);
+                                  }}
+                                  autoFocus
+                                />
+                              ) : (
+                                spot.code
+                              )}
+                            </td>
+                            <td
+                              data-testid={`spot-label-${spot.code}`}
+                              style={{ ...tdBase, color: "#333" }}
+                            >
+                              {isEditing && editForm ? (
+                                <input
+                                  data-testid="edit-spot-label"
+                                  style={inlineInput}
+                                  value={editForm.label}
+                                  onChange={(e) => {
+                                    setEditForm((f) =>
+                                      f ? { ...f, label: e.target.value } : f,
+                                    );
+                                    setEditError(null);
+                                  }}
+                                />
+                              ) : (
+                                spot.label
+                              )}
+                            </td>
+                            <td style={{ ...tdBase, color: "#333" }}>
+                              {isEditing && editForm ? (
+                                <select
+                                  style={inlineInput}
+                                  value={editForm.type}
+                                  onChange={(e) =>
+                                    setEditForm((f) =>
+                                      f
+                                        ? {
+                                            ...f,
+                                            type: e.target
+                                              .value as StagingSpotType,
+                                          }
+                                        : f,
+                                    )
+                                  }
+                                >
+                                  {STAGING_SPOT_TYPES.map((t) => (
+                                    <option key={t} value={t}>
+                                      {STAGING_TYPE_LABELS[t]}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                STAGING_TYPE_LABELS[spot.type]
+                              )}
+                            </td>
+                            <td style={{ ...tdBase, color: "#333" }}>
+                              {isEditing && editForm ? (
+                                <select
+                                  style={inlineInput}
+                                  value={editForm.status}
+                                  onChange={(e) =>
+                                    setEditForm((f) =>
+                                      f
+                                        ? {
+                                            ...f,
+                                            status: e.target
+                                              .value as LocationStatus,
+                                          }
+                                        : f,
+                                    )
+                                  }
+                                >
+                                  {LOCATION_STATUSES.map((s) => (
+                                    <option key={s} value={s}>
+                                      {LOCATION_STATUS_LABEL[s]}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span
+                                  style={{
+                                    color:
+                                      spot.status === "Active"
+                                        ? "#2e7d32"
+                                        : "#6b7280",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {spot.status}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ ...tdBase, color: "#333" }}>
+                              {isEditing && editForm ? (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  style={{ ...inlineInput, width: 72 }}
+                                  value={editForm.sortOrder}
+                                  onChange={(e) =>
+                                    setEditForm((f) =>
+                                      f
+                                        ? { ...f, sortOrder: e.target.value }
+                                        : f,
+                                    )
+                                  }
+                                  placeholder="—"
+                                />
+                              ) : spot.sortOrder != null ? (
+                                spot.sortOrder
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td style={{ ...tdBase, whiteSpace: "nowrap" }}>
+                              {isEditing ? (
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <button
+                                    type="button"
+                                    data-testid={`save-spot-${spot.code}`}
+                                    onClick={() => void saveEditSpot(spot)}
+                                    disabled={saveDisabled}
+                                    style={{
+                                      padding: "3px 10px",
+                                      borderRadius: 4,
+                                      border: "none",
+                                      backgroundColor: saveDisabled
+                                        ? "#e5e7eb"
+                                        : NAVY,
+                                      color: saveDisabled ? "#9ca3af" : "#fff",
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      cursor: saveDisabled
+                                        ? "not-allowed"
+                                        : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    {savingEdit ? "Saving…" : "Save"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={cancelEditSpot}
+                                    disabled={savingEdit}
+                                    style={{
+                                      padding: "3px 10px",
+                                      borderRadius: 4,
+                                      border: "1.5px solid #ccd0d7",
+                                      backgroundColor: "#fff",
+                                      color: "#6b7280",
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      cursor: savingEdit
+                                        ? "not-allowed"
+                                        : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  data-testid={`edit-spot-${spot.code}`}
+                                  onClick={() => startEditSpot(spot)}
+                                  style={{
+                                    padding: "3px 10px",
+                                    borderRadius: 4,
+                                    border: "1.5px solid #0a3161",
+                                    backgroundColor: "#fff",
+                                    color: "#0a3161",
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    fontFamily: FONT,
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
 
-              {editingSpot && editForm && (
-                <div
-                  data-testid="staging-spot-edit-panel"
+              {editError && (
+                <p
                   style={{
-                    marginBottom: 20,
-                    padding: "16px",
-                    backgroundColor: "#fffbeb",
-                    border: `1.5px solid ${NAVY}`,
-                    borderRadius: 8,
+                    margin: "0 0 16px",
+                    fontSize: 13,
+                    color: RED,
+                    fontWeight: 600,
                   }}
                 >
-                  <h4
-                    style={{
-                      margin: "0 0 12px",
-                      fontSize: 14,
-                      fontWeight: 800,
-                      color: NAVY,
-                    }}
-                  >
-                    Edit staging spot — {editingSpot.code}
-                  </h4>
-                  <form onSubmit={handleSaveEditSpot}>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(160px, 1fr))",
-                        gap: 12,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <div>
-                        <label style={labelStyle}>
-                          Code <span style={{ color: RED }}>*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={editForm.code}
-                          onChange={(e) => {
-                            setEditForm((f) =>
-                              f ? { ...f, code: e.target.value } : f,
-                            );
-                            setEditError(null);
-                          }}
-                          required
-                          style={{
-                            ...inputStyle,
-                            border: editCodeConflict
-                              ? `1.5px solid ${RED}`
-                              : "1.5px solid #ccd0d7",
-                          }}
-                        />
-                        {editCodeConflict && editConflictingSpot ? (
-                          <p
-                            style={{
-                              margin: "6px 0 0",
-                              fontSize: 12,
-                              color: RED,
-                              fontWeight: 600,
-                            }}
-                          >
-                            {editConflictingSpot.code} is already listed — pick
-                            another code.
-                          </p>
-                        ) : null}
-                      </div>
-                      <div>
-                        <label style={labelStyle}>
-                          Label <span style={{ color: RED }}>*</span>
-                        </label>
-                        <input
-                          type="text"
-                          data-testid="edit-spot-label"
-                          value={editForm.label}
-                          onChange={(e) => {
-                            setEditForm((f) =>
-                              f ? { ...f, label: e.target.value } : f,
-                            );
-                            setEditError(null);
-                          }}
-                          required
-                          style={inputStyle}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Type</label>
-                        <select
-                          value={editForm.type}
-                          onChange={(e) =>
-                            setEditForm((f) =>
-                              f
-                                ? {
-                                    ...f,
-                                    type: e.target.value as StagingSpotType,
-                                  }
-                                : f,
-                            )
-                          }
-                          style={inputStyle}
-                        >
-                          {STAGING_SPOT_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {STAGING_TYPE_LABELS[t]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Status</label>
-                        <select
-                          value={editForm.status}
-                          onChange={(e) =>
-                            setEditForm((f) =>
-                              f
-                                ? {
-                                    ...f,
-                                    status: e.target.value as LocationStatus,
-                                  }
-                                : f,
-                            )
-                          }
-                          style={inputStyle}
-                        >
-                          {LOCATION_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {LOCATION_STATUS_LABEL[s]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Sort order</label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={editForm.sortOrder}
-                          onChange={(e) =>
-                            setEditForm((f) =>
-                              f ? { ...f, sortOrder: e.target.value } : f,
-                            )
-                          }
-                          placeholder="Optional"
-                          style={inputStyle}
-                        />
-                      </div>
-                    </div>
-                    {editError && (
-                      <p
-                        style={{
-                          margin: "0 0 12px",
-                          fontSize: 13,
-                          color: RED,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {editError}
-                      </p>
-                    )}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <button
-                        type="submit"
-                        data-testid="save-spot-edit"
-                        disabled={
-                          savingEdit ||
-                          !editForm.code.trim() ||
-                          !editForm.label.trim() ||
-                          editCodeConflict
-                        }
-                        style={{
-                          padding: "8px 18px",
-                          borderRadius: 4,
-                          border: "none",
-                          backgroundColor:
-                            savingEdit ||
-                            !editForm.code.trim() ||
-                            !editForm.label.trim() ||
-                            editCodeConflict
-                              ? "#f3f4f6"
-                              : NAVY,
-                          color:
-                            savingEdit ||
-                            !editForm.code.trim() ||
-                            !editForm.label.trim() ||
-                            editCodeConflict
-                              ? "#9ca3af"
-                              : "#fff",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          cursor:
-                            savingEdit ||
-                            !editForm.code.trim() ||
-                            !editForm.label.trim() ||
-                            editCodeConflict
-                              ? "not-allowed"
-                              : "pointer",
-                          fontFamily: FONT,
-                        }}
-                      >
-                        {savingEdit ? "Saving…" : "Save changes"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditSpot}
-                        disabled={savingEdit}
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 4,
-                          border: "1.5px solid #ccd0d7",
-                          backgroundColor: "#fff",
-                          color: "#374151",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          cursor: savingEdit ? "not-allowed" : "pointer",
-                          fontFamily: FONT,
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      {editSaved && (
-                        <span
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "#2e7d32",
-                          }}
-                        >
-                          Saved ✓
-                        </span>
-                      )}
-                    </div>
-                  </form>
-                </div>
+                  {editError}
+                </p>
               )}
 
               {!loadingSpots && stagingSpots.length > 0 && (
