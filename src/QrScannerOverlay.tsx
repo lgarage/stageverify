@@ -12,6 +12,9 @@ const IOS_YELLOW_TEXT = "#1c1c1e";
 export type QrScannerOverlayProps = {
   readerId: string;
   onDecode: (text: string) => void;
+  /** Fires when the yellow preview pill appears — use to prefetch before tap. */
+  onQrPreview?: (raw: string) => void;
+  onQrPreviewClear?: () => void;
   onCancel?: () => void;
   onCameraError?: () => void;
   /** fullscreen = centered card (pickup/hub); fill = parent sizes the viewport */
@@ -116,6 +119,8 @@ function ScanPreviewPill({
 export function QrScannerOverlay({
   readerId,
   onDecode,
+  onQrPreview,
+  onQrPreviewClear,
   onCancel,
   onCameraError,
   layout = "fullscreen",
@@ -170,6 +175,7 @@ export function QrScannerOverlay({
               label: formatQrScanPreviewLabel(decodedText),
               detail: formatQrScanPreviewDetail(decodedText),
             });
+            onQrPreview?.(decodedText);
           },
           () => {
             // ignore continuous scan errors
@@ -187,7 +193,7 @@ export function QrScannerOverlay({
       isMounted = false;
       stopScanner();
     };
-  }, [readerId, onCancel, onCameraError]);
+  }, [readerId, onCancel, onCameraError, onQrPreview, onQrPreviewClear]);
 
   useEffect(() => {
     if (!onCancel) return;
@@ -195,6 +201,7 @@ export function QrScannerOverlay({
       if (e.key === "Escape") {
         if (previewRef.current) {
           setPreview(null);
+          onQrPreviewClear?.();
           return;
         }
         onCancel();
@@ -288,7 +295,10 @@ export function QrScannerOverlay({
           label={preview.label}
           detail={preview.detail}
           onOpen={confirmPreview}
-          onDismiss={() => setPreview(null)}
+          onDismiss={() => {
+            setPreview(null);
+            onQrPreviewClear?.();
+          }}
         />
       )}
     </div>

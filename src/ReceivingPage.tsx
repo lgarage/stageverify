@@ -21,6 +21,7 @@ import {
 } from "./dispatcher/firestoreService";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
+import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 import {
   shouldRouteScanToPickup,
   type DeliveryDetails,
@@ -99,9 +100,53 @@ export function ReceivingPage() {
   const [adjustDamagedQty, setAdjustDamagedQty] = useState(0);
 
   const urlDeepLinkHandledRef = useRef(false);
+  const scanPrefetchRef = useRef<Promise<DeliveryDetails | null> | null>(null);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
+
+  const clearScanPrefetch = useCallback(() => {
+    scanPrefetchRef.current = null;
+  }, []);
+
+  const startScanPrefetch = useCallback((raw: string) => {
+    const parsed = parseScannedQr(raw);
+    if (parsed.kind === "pickup") {
+      scanPrefetchRef.current = null;
+      return;
+    }
+    if (parsed.kind === "receive-id") {
+      scanPrefetchRef.current = getDeliveryDetailsPublic(parsed.deliveryId);
+      return;
+    }
+    const zoneCode =
+      parsed.kind === "receive-zone"
+        ? parsed.zoneCode
+        : parsed.kind === "raw"
+          ? normalizeStagingCodeKey(parsed.value)
+          : null;
+    if (zoneCode) {
+      scanPrefetchRef.current = getDeliveryDetailsByStagingCode(zoneCode);
+    }
+  }, []);
+
+  const fetchDeliveryForScan = useCallback(
+    async (
+      fetchLive: () => Promise<DeliveryDetails | null>,
+    ): Promise<DeliveryDetails | null> => {
+      const prefetched = scanPrefetchRef.current;
+      scanPrefetchRef.current = null;
+      if (prefetched) {
+        try {
+          return await prefetched;
+        } catch {
+          return fetchLive();
+        }
+      }
+      return fetchLive();
+    },
+    [],
+  );
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -219,7 +264,9 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        const details = await getDeliveryDetailsPublic(trimmed);
+        const details = await fetchDeliveryForScan(() =>
+          getDeliveryDetailsPublic(trimmed),
+        );
 
         if (!details) {
           showToast("Delivery not found");
@@ -234,7 +281,7 @@ export function ReceivingPage() {
         setDeepLinkPending(false);
       }
     },
-    [showToast, loadDeliveryForReceive],
+    [showToast, loadDeliveryForReceive, fetchDeliveryForScan],
   );
 
   const processZoneLookup = useCallback(
@@ -248,7 +295,9 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        const details = await getDeliveryDetailsByStagingCode(trimmed);
+        const details = await fetchDeliveryForScan(() =>
+          getDeliveryDetailsByStagingCode(trimmed),
+        );
 
         if (!details) {
           setZoneMissCode(trimmed);
@@ -268,7 +317,7 @@ export function ReceivingPage() {
         setDeepLinkPending(false);
       }
     },
-    [showToast, loadDeliveryForReceive],
+    [showToast, loadDeliveryForReceive, fetchDeliveryForScan],
   );
 
   const handleQrFromCamera = useCallback(
@@ -519,6 +568,8 @@ export function ReceivingPage() {
                 <QrScannerOverlay
                   layout="fill"
                   readerId="receive-qr-reader"
+                  onQrPreview={startScanPrefetch}
+                  onQrPreviewClear={clearScanPrefetch}
                   onDecode={(text) => {
                     void handleQrFromCamera(text);
                   }}
