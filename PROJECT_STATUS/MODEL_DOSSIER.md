@@ -16,7 +16,7 @@
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
 | `billing` | model / tier pick | Composer 2.5 default; Sonnet 4.6 for gate/review only |
-| `agent-lessons` | repeating mistakes, "say fixed" too early | Read **§ agent-lessons** before public routes / UI pickup fixes |
+| `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
 
 ## § qr-routing
@@ -49,6 +49,23 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 5. **Logged-in browser ≠ Playwright.** Dan may see data while headless test sees empty list — always verify unauthenticated or with the verify script.
 6. **Confidence downgrade when user still sees the bug.** Code-only fix that doesn't deploy rules or pass E2E → lower conf, do not mark ok until Playwright + user path green.
 7. **Auto-submit and Done must share the same gates** (shop stock + staged item checklists) — any second code path bypassing a gate will reproduce the bug.
+
+### Diagnose before tweak (2026-06-02 QR)
+
+Map **appear** vs **tap** before camera/fps tweaks (Sonnet postmortem on double-navigation):
+
+| Phase | Hooks | Hash / routing |
+|-------|--------|----------------|
+| Appear (preview) | `onQrPreview`, `startScanPrefetch` | **None** — prefetch read-only |
+| Tap (confirm) | `confirmPreview`, `onDecode`, `handleQrFromCamera` | `applyHashFromScannedQr`, `scanRouting`, deep-link `useEffect` |
+
+**Grep preview path only:** `applyHashFromScannedQr`, `location.hash`, `useSearchParams`, `urlDeepLinkHandledRef`, `confirmingRef`, `resetFlow` (must clear deep-link ref).
+
+**Rule:** prefetch = read-only; navigation/hash only on confirm.
+
+**One acceptance test first:** scan → yellow pill → tap → single correct route (no flash/wrong portal).
+
+**Sonnet-style trace when:** 2+ failed fixes on same bug, or preview + async prefetch + hash/deep-link in one flow.
 
 ## Active outcome log (≤15 rows → rotate to archives/outcomes/)
 | Date | Task | Archetype | Model | Conf→ | Outcome | Note |
