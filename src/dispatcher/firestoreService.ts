@@ -56,7 +56,7 @@ export {
 const COLLECTION_SAFETY_LIMIT = 500;
 
 /** Short TTL cache so back-to-back zone QR scans do not re-download full collections. */
-const SCAN_LOOKUP_CACHE_MS = 8000;
+const SCAN_LOOKUP_CACHE_MS = 60_000;
 let scanLookupCache: {
   at: number;
   locations: StagingLocation[];
@@ -853,41 +853,40 @@ export async function loadPickupReadyDeliveriesPublic(
   return detailsList.filter((d): d is DeliveryDetails => d !== null);
 }
 
-export async function getDeliveryDetailsPublic(
-  deliveryId: string,
-): Promise<DeliveryDetails | null> {
-  const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
-  if (!deliverySnap.exists()) return null;
-  const delivery = deliverySnap.data() as DeliveryOrder;
+type FirestoreDocSnap = Awaited<ReturnType<typeof getDoc>>;
 
-  const vendorSnap = await getDoc(doc(db, "vendors", delivery.vendorId));
+/** Hydrate public delivery details when the delivery doc is already loaded (zone scan path). */
+async function hydrateDeliveryDetailsPublic(
+  delivery: DeliveryOrder,
+): Promise<DeliveryDetails | null> {
+  const deliveryId = delivery.id;
+  const [vendorSnap, jobSnap, poSnap, locSnap, items] = await Promise.all([
+    getDoc(doc(db, "vendors", delivery.vendorId)),
+    getDoc(doc(db, "jobs", delivery.jobId)),
+    delivery.purchaseOrderId
+      ? getDoc(doc(db, "purchaseOrders", delivery.purchaseOrderId))
+      : Promise.resolve(null as FirestoreDocSnap | null),
+    delivery.stagingLocationId
+      ? getDoc(doc(db, "stagingLocations", delivery.stagingLocationId))
+      : Promise.resolve(null as FirestoreDocSnap | null),
+    fetchWhere<Item>("items", "deliveryOrderId", deliveryId),
+  ]);
+
   if (!vendorSnap.exists()) return null;
   const { contactName: _c, contactPhone: _p, email: _e, ...publicVendor } =
     vendorSnap.data() as Vendor;
 
   let job: Job | undefined;
-  const jobSnap = await getDoc(doc(db, "jobs", delivery.jobId));
   if (jobSnap.exists()) {
     job = jobSnap.data() as Job;
   }
 
   let purchaseOrder: PurchaseOrder | undefined;
-  if (delivery.purchaseOrderId) {
-    const poSnap = await getDoc(
-      doc(db, "purchaseOrders", delivery.purchaseOrderId),
-    );
-    if (poSnap.exists()) purchaseOrder = poSnap.data() as PurchaseOrder;
+  if (poSnap?.exists()) {
+    purchaseOrder = poSnap.data() as PurchaseOrder;
   }
 
-  let stagingLocation: StagingLocation | undefined;
-  if (delivery.stagingLocationId) {
-    const locSnap = await getDoc(
-      doc(db, "stagingLocations", delivery.stagingLocationId),
-    );
-    stagingLocation = stagingLocationFromSnap(locSnap);
-  }
-
-  const items = await fetchWhere<Item>("items", "deliveryOrderId", deliveryId);
+  const stagingLocation = locSnap ? stagingLocationFromSnap(locSnap) : undefined;
 
   const { notes: _n, ...publicDelivery } = delivery;
 
@@ -901,6 +900,15 @@ export async function getDeliveryDetailsPublic(
     statusHistory: [],
     pickupEvents: [],
   };
+}
+
+export async function getDeliveryDetailsPublic(
+  deliveryId: string,
+): Promise<DeliveryDetails | null> {
+  const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+  if (!deliverySnap.exists()) return null;
+  const delivery = deliverySnap.data() as DeliveryOrder;
+  return hydrateDeliveryDetailsPublic(delivery);
 }
 
 export async function getDeliveryByOrderNumber(
@@ -947,7 +955,7 @@ async function findDeliveryDetailsByStagingCode(
         `using most recently updated (${sorted[0].orderNumber}).`,
     );
   }
-  return getDeliveryDetailsPublic(sorted[0].id);
+  return hydrateDeliveryDetailsPublic(sorted[0]);
 }
 
 /** Delivery currently staged at a zone code (vendor receive flow only). */
