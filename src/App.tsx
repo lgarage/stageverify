@@ -15,7 +15,6 @@ import type {
   Job,
 } from "./dispatcher/models";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
-import { PortalNavBar } from "./PortalNavBar";
 
 // --- Icons ---
 const icons = {
@@ -139,7 +138,10 @@ function ScanScreen() {
 
         switch (result.action) {
           case "navigate":
-            navigate(result.path);
+            setIsScanning(false);
+            setNotFoundCode(
+              "This delivery uses the pickup QR — scan the vendor receive tag on the zone.",
+            );
             return;
           case "load-checkin-app":
             if (result.markArrived) {
@@ -751,9 +753,6 @@ export default function App() {
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
       <ScanScreen />
-      <div className="px-6 py-4">
-        <PortalNavBar />
-      </div>
     </div>
   );
 }

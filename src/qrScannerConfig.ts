@@ -30,35 +30,3 @@ export function buildMobileScanConfig(): Html5QrcodeCameraScanConfiguration {
   };
 }
 
-type CameraTuningScanner = {
-  getRunningTrackCapabilities: () => MediaTrackCapabilities;
-  applyVideoConstraints: (videoConstraints: MediaTrackConstraints) => Promise<void>;
-};
-
-/** After camera starts: continuous focus + light zoom for screen-printed zone QRs. */
-export async function tuneIosCamera(scanner: CameraTuningScanner): Promise<void> {
-  if (!isIosDevice()) return;
-  await new Promise((resolve) => setTimeout(resolve, 700));
-  try {
-    const caps = scanner.getRunningTrackCapabilities() as MediaTrackCapabilities & {
-      zoom?: { min?: number; max?: number };
-    };
-    const iosConstraints = {
-      focusMode: "continuous",
-    } as MediaTrackConstraints;
-    const zoomCap = caps.zoom;
-    if (zoomCap && typeof zoomCap.max === "number") {
-      const min = zoomCap.min ?? 1;
-      const max = zoomCap.max;
-      const zoom = Math.min(max, Math.max(min, min + (max - min) * 0.35));
-      await scanner.applyVideoConstraints({
-        focusMode: "continuous",
-        advanced: [{ zoom }],
-      } as unknown as MediaTrackConstraints);
-      return;
-    }
-    await scanner.applyVideoConstraints(iosConstraints);
-  } catch {
-    // Unsupported constraint sets are common on iOS — scanning still works without tuning.
-  }
-}

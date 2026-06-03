@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  buildMobileScanConfig,
-  isIosDevice,
-  tuneIosCamera,
-} from "./qrScannerConfig";
+import { buildMobileScanConfig, isIosDevice } from "./qrScannerConfig";
 import type { Html5QrcodeInstance } from "./qrScannerTypes";
 import {
   formatQrScanPreviewDetail,
@@ -179,10 +175,6 @@ export function QrScannerOverlay({
             // ignore continuous scan errors
           },
         )
-        .then(() => {
-          if (!isMounted) return;
-          return tuneIosCamera(scanner);
-        })
         .catch((err: unknown) => {
           console.error("Error starting scanner", err);
           if (!isMounted) return;

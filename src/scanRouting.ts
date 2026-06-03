@@ -59,6 +59,9 @@ function deliveryToScanResult(
   source: "delivery" | "zone",
 ): ScanHandleResult {
   if (shouldRouteScanToPickup(details.delivery.status)) {
+    if (target === "receive-page" || target === "app-checkin") {
+      return { action: "not-found" };
+    }
     return {
       action: "navigate",
       path: pickupPath(details.delivery.jobId, details.delivery.id),

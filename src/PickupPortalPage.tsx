@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
@@ -25,7 +25,6 @@ import {
 } from "./scanRouting";
 import { parseScannedQr } from "./receiveQrUrls";
 import { QrScannerOverlay } from "./QrScannerOverlay";
-import { PortalNavBar } from "./PortalNavBar";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 
 const icons = {
@@ -197,7 +196,6 @@ function WalkUpEntry({
   onJobResolved: (jobId: string, highlightDeliveryId: string | null) => void;
   initialNotFoundCode?: string | null;
 }) {
-  const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(
     initialNotFoundCode,
@@ -246,9 +244,10 @@ function WalkUpEntry({
         return;
       }
       if (resolved.kind === "receive") {
-        navigate(`/receive?id=${encodeURIComponent(resolved.deliveryId)}`, {
-          replace: true,
-        });
+        setNotFoundCode(
+          "Not ready for pickup — scan again after the zone tag shows a pickup QR.",
+        );
+        setIsScanning(false);
         return;
       }
       setNotFoundCode(null);
@@ -257,7 +256,7 @@ function WalkUpEntry({
       setManualZoneCode("");
       onJobResolved(resolved.jobId, resolved.deliveryId);
     },
-    [onJobResolved, navigate],
+    [onJobResolved],
   );
 
   const handleScanDecode = useCallback(
@@ -284,10 +283,6 @@ function WalkUpEntry({
 
   return (
     <div className="flex-1 flex flex-col px-6 py-12">
-      <div className="mb-8">
-        <PortalNavBar active="pickup" />
-      </div>
-
       {notFoundCode && (
         <div className="mb-6 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red">
           <p className="font-medium">
@@ -769,9 +764,6 @@ function JobPickupScreen({
   if (deliveries.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="mb-8 w-full max-w-sm">
-          <PortalNavBar active="pickup" />
-        </div>
         <p className="text-text-primary font-medium mb-6">
           No pickup-ready deliveries for this job. Check with your dispatcher.
         </p>
@@ -786,10 +778,7 @@ function JobPickupScreen({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="shrink-0 px-6 pt-6 pb-2">
-        <PortalNavBar active="pickup" />
-      </div>
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
         <p className="text-center text-text-secondary text-sm mb-6">
           {jobName}
         </p>
@@ -1150,7 +1139,6 @@ function JobPickupScreen({
 }
 
 export default function PickupPortalPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const jobIdFromUrl = searchParams.get("job");
   const deliveryFromUrl = searchParams.get("delivery");
@@ -1175,9 +1163,10 @@ export default function PickupPortalPage() {
       const resolved = await resolveZoneScanDisposition(zoneFromUrl);
       if (cancelled) return;
       if (resolved?.kind === "receive") {
-        navigate(`/receive?id=${encodeURIComponent(resolved.deliveryId)}`, {
-          replace: true,
-        });
+        setZoneDeepLinkError(
+          "Not ready for pickup — the zone tag QR switches to pickup when staging is complete.",
+        );
+        setZoneDeepLinkPending(false);
         return;
       }
       if (resolved?.kind === "pickup") {
@@ -1198,7 +1187,7 @@ export default function PickupPortalPage() {
     return () => {
       cancelled = true;
     };
-  }, [zoneFromUrl, jobIdFromUrl, setSearchParams, navigate]);
+  }, [zoneFromUrl, jobIdFromUrl, setSearchParams]);
 
   const handleJobResolved = useCallback(
     (jobId: string, deliveryId: string | null) => {
