@@ -33,6 +33,7 @@ import {
   RECEIVE_BLOCKED_DELIVERY_STATUSES,
   ZONE_CLEARED_DELIVERY_STATUSES,
 } from "./models";
+import { findStagingLocationByCode, normalizeStagingCodeKey } from "./stagingCode";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -890,12 +891,9 @@ async function findDeliveryDetailsByStagingCode(
 ): Promise<DeliveryDetails | null> {
   const code = zoneCode.trim();
   if (!code) return null;
-  const codeKey = code.toUpperCase();
 
   const locations = await fetchAllStagingLocations();
-  const location = locations.find(
-    (loc) => loc.code.trim().toUpperCase() === codeKey,
-  );
+  const location = findStagingLocationByCode(locations, code);
   if (!location) return null;
 
   const deliveries = await fetchAll<DeliveryOrder>("deliveries");
@@ -985,7 +983,7 @@ export async function mapActiveZoneOccupancyByCode(): Promise<
     for (const locId of getAllStagingLocationIds(delivery)) {
       const location = locations.find((loc) => loc.id === locId);
       if (!location) continue;
-      const key = location.code.trim().toUpperCase();
+      const key = normalizeStagingCodeKey(location.code);
       const existing = byCode[key];
       if (!existing || shouldReplace(existing, delivery)) {
         byCode[key] = summary;

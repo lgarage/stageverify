@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, type CSSProperties, type FormEvent } from
 import { Navigate, Link, useLocation } from "react-router-dom";
 import type { StagingLocation } from "./dispatcher/models";
 import {
+  findStagingLocationByCode,
+  formatStagingCodeCanonical,
+} from "./dispatcher/stagingCode";
+import {
   getAppSettings,
   updateAppSettings,
   listAllZones,
@@ -91,15 +95,12 @@ export function SettingsPage() {
 
   const handleAddStagingSpot = async (e: FormEvent) => {
     e.preventDefault();
-    const code = spotCode.trim();
     const label = spotLabel.trim();
-    if (!code || !label || savingSpot) return;
+    if (!spotCode.trim() || !label || savingSpot) return;
 
-    const codeKey = code.toUpperCase();
-    if (
-      stagingSpots.some((s) => s.code.trim().toUpperCase() === codeKey)
-    ) {
-      setSpotError(`Spot code "${code}" already exists.`);
+    const canonicalCode = formatStagingCodeCanonical(spotCode);
+    if (findStagingLocationByCode(stagingSpots, spotCode)) {
+      setSpotError(`Spot code "${canonicalCode}" already exists.`);
       return;
     }
 
@@ -113,7 +114,7 @@ export function SettingsPage() {
         : undefined;
       const dims = defaultDimensionsForSpotType(spotType);
       const id = await createZone({
-        code,
+        code: canonicalCode,
         label,
         type: spotType,
         status: "Active",
@@ -122,7 +123,7 @@ export function SettingsPage() {
       });
       const newSpot: StagingLocation = {
         id,
-        code,
+        code: canonicalCode,
         label,
         type: spotType,
         status: "Active",
@@ -159,20 +160,17 @@ export function SettingsPage() {
     [stagingSpots],
   );
 
-  const existingCodeKeys = useMemo(
-    () => new Set(existingSpotCodes.map((c) => c.toUpperCase())),
-    [existingSpotCodes],
-  );
-
   const spotCodeConflict =
     spotCode.trim().length > 0 &&
-    existingCodeKeys.has(spotCode.trim().toUpperCase());
+    findStagingLocationByCode(stagingSpots, spotCode) !== undefined;
 
-  const conflictingSpot = useMemo(() => {
-    const key = spotCode.trim().toUpperCase();
-    if (!key) return undefined;
-    return stagingSpots.find((s) => s.code.trim().toUpperCase() === key);
-  }, [spotCode, stagingSpots]);
+  const conflictingSpot = useMemo(
+    () =>
+      spotCode.trim()
+        ? findStagingLocationByCode(stagingSpots, spotCode)
+        : undefined,
+    [spotCode, stagingSpots],
+  );
 
   const inputStyle: CSSProperties = {
     width: "100%",
@@ -667,7 +665,7 @@ export function SettingsPage() {
                         setSpotCode(e.target.value);
                         setSpotError(null);
                       }}
-                      placeholder="e.g. G4"
+                      placeholder="e.g. s1a or G4"
                       required
                       list="existing-staging-spot-codes"
                       aria-describedby="staging-spot-code-hint"

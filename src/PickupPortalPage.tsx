@@ -24,11 +24,9 @@ import {
   syncScanIntent,
 } from "./scanRouting";
 import { parseScannedQr } from "./receiveQrUrls";
-import type { Html5QrcodeInstance } from "./qrScannerTypes";
+import { QrScannerOverlay } from "./QrScannerOverlay";
 import { PortalNavBar } from "./PortalNavBar";
-
-const normalizeZoneCode = (code: string): string =>
-  code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 
 const icons = {
   check: "M5 13l4 4L19 7",
@@ -192,108 +190,6 @@ function extractJobIdFromPickupUrl(text: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function QrScannerOverlay({
-  readerId,
-  onDecode,
-  onCancel,
-}: {
-  readerId: string;
-  onDecode: (text: string) => void;
-  onCancel: () => void;
-}) {
-  useEffect(() => {
-    let isMounted = true;
-    let html5QrCode: Html5QrcodeInstance | null = null;
-    let handledDecode = false;
-
-    import("html5-qrcode").then(({ Html5Qrcode }) => {
-      if (!isMounted) return;
-      html5QrCode = new Html5Qrcode(
-        readerId,
-      ) as unknown as Html5QrcodeInstance;
-      html5QrCode
-        .start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText: string) => {
-            if (handledDecode || !isMounted) return;
-            handledDecode = true;
-            onDecode(decodedText);
-          },
-          () => {
-            // ignore continuous scan errors
-          },
-        )
-        .catch((err: unknown) => {
-          console.error("Error starting scanner", err);
-          if (isMounted) onCancel();
-        });
-    });
-
-    return () => {
-      isMounted = false;
-      const scanner = html5QrCode;
-      if (scanner) {
-        try {
-          void scanner
-            .stop()
-            .then(() => scanner.clear())
-            .catch(() => {});
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, [readerId, onDecode, onCancel]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
-
-  return (
-    <div className="flex-1 flex flex-col bg-bg-primary">
-      <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up">
-        <p className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase mb-8">
-          Pickup Portal
-        </p>
-
-        <div className="relative w-full max-w-[280px] aspect-square mb-8">
-          <div className="absolute inset-0 border-2 border-accent rounded-3xl overflow-hidden bg-bg-secondary/50">
-            <div
-              id={readerId}
-              className="w-full h-full overflow-hidden rounded-2xl"
-            />
-
-            <div className="absolute left-0 right-0 h-0.5 bg-accent shadow-[0_0_8px_2px_rgba(59,130,246,0.5)] animate-scan-line z-10" />
-
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-3xl z-20" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-3xl z-20" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-3xl z-20" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-3xl z-20" />
-
-            <div className="absolute bottom-4 left-0 right-0 text-center z-20">
-              <span className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase">
-                Align QR
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={onCancel}
-          className="text-text-secondary text-sm font-medium py-2 px-4"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function WalkUpEntry({
   onJobResolved,
   initialNotFoundCode = null,
@@ -338,7 +234,7 @@ function WalkUpEntry({
       const zoneCode =
         intent.kind === "resolve-zone"
           ? intent.zoneCode
-          : normalizeZoneCode(trimmed);
+          : normalizeStagingCodeKey(trimmed);
       const resolved =
         intent.kind === "resolve-zone" || trimmed
           ? await resolveZoneScanDisposition(zoneCode)
@@ -379,6 +275,7 @@ function WalkUpEntry({
     return (
       <QrScannerOverlay
         readerId="entry-reader"
+        title="Pickup Portal"
         onDecode={handleScanDecode}
         onCancel={handleCancelScan}
       />
@@ -442,7 +339,7 @@ function WalkUpEntry({
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleDecodedText(manualZoneCode);
               }}
-              placeholder="Zone code (e.g. G2)"
+              placeholder="Zone code (e.g. s1a or G2)"
               className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary text-base focus:outline-none focus:border-accent"
               autoFocus
             />
@@ -787,7 +684,7 @@ function JobPickupScreen({
 
   const handleCheckOffScan = useCallback(
     (zoneCode: string) => {
-      const normalized = normalizeZoneCode(zoneCode.trim());
+      const normalized = normalizeStagingCodeKey(zoneCode);
       const match = deliveries.find((d) => {
         const ids = getAllStagingLocationIds(d.delivery);
         return ids.some((locId) => {
@@ -796,7 +693,7 @@ function JobPickupScreen({
             (d.stagingLocation?.id === locId ? d.stagingLocation : undefined);
           return (
             loc?.code !== undefined &&
-            normalizeZoneCode(loc.code) === normalized
+            normalizeStagingCodeKey(loc.code) === normalized
           );
         });
       });
@@ -829,6 +726,7 @@ function JobPickupScreen({
     return (
       <QrScannerOverlay
         readerId="checkoff-reader"
+        title="Pickup Portal"
         onDecode={handleCheckOffScan}
         onCancel={handleCancelScan}
       />

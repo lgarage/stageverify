@@ -10,6 +10,10 @@ import { QRCodeSVG } from "qrcode.react";
 import type { LocationStatus, StagingLocation } from "./dispatcher/models";
 import { isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
 import {
+  formatStagingCodeCanonical,
+  normalizeStagingCodeKey,
+} from "./dispatcher/stagingCode";
+import {
   listAllZones,
   createZone,
   updateZone,
@@ -53,7 +57,7 @@ function zoneOccupancy(
   code: string,
   byCode: Record<string, ZoneOccupancySummary>,
 ): ZoneOccupancySummary | undefined {
-  return byCode[code.trim().toUpperCase()];
+  return byCode[normalizeStagingCodeKey(code)];
 }
 
 function sortZones(a: StagingLocation, b: StagingLocation): number {
@@ -120,7 +124,7 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
   const widthFt = form.widthFt.trim() ? Number(form.widthFt) : undefined;
   const depthFt = form.depthFt.trim() ? Number(form.depthFt) : undefined;
   return {
-    code: form.code.trim(),
+    code: formatStagingCodeCanonical(form.code),
     label: form.label.trim(),
     type: form.type,
     status: form.status,

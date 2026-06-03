@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
   getDeliveryDetailsPublic,
 } from "./dispatcher/firestoreService";
-import type { Html5QrcodeInstance } from "./qrScannerTypes";
 import { handleScannedQr } from "./scanRouting";
+import { QrScannerOverlay } from "./QrScannerOverlay";
 import type {
   DeliveryOrder,
   Item,
@@ -132,73 +132,32 @@ function ScanScreen() {
     setIsScanning(false);
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    let html5QrCode: Html5QrcodeInstance | null = null;
-    let handledDecode = false;
+  const handleScanDecode = useCallback(
+    (decodedText: string) => {
+      void (async () => {
+        const result = await handleScannedQr(decodedText, "app-checkin");
 
-    if (isScanning) {
-      import("html5-qrcode").then(({ Html5Qrcode }) => {
-        if (!isMounted) return;
-        html5QrCode = new Html5Qrcode(
-          "reader",
-        ) as unknown as Html5QrcodeInstance;
-        html5QrCode
-          .start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText: string) => {
-              if (handledDecode || !isMounted) return;
-              handledDecode = true;
-              void (async () => {
-                const result = await handleScannedQr(decodedText, "app-checkin");
-                if (!isMounted) return;
-
-                switch (result.action) {
-                  case "navigate":
-                    navigate(result.path);
-                    return;
-                  case "load-checkin-app":
-                    if (result.markArrived) {
-                      await firestoreDataService.updateDeliveryStatus(
-                        result.deliveryId,
-                        "arrived",
-                      );
-                    }
-                    await handleDeliveryFound(result.deliveryId);
-                    return;
-                  case "not-found":
-                    setIsScanning(false);
-                    setNotFoundCode(decodedText);
-                }
-              })();
-            },
-            () => {
-              // ignore continuous scan errors
-            },
-          )
-          .catch((err: unknown) => {
-            console.error("Error starting scanner", err);
-            if (isMounted) void handleManualScan();
-          });
-      });
-    }
-
-    return () => {
-      isMounted = false;
-      const scanner = html5QrCode;
-      if (scanner) {
-        try {
-          void scanner
-            .stop()
-            .then(() => scanner.clear())
-            .catch(() => {});
-        } catch {
-          // ignore
+        switch (result.action) {
+          case "navigate":
+            navigate(result.path);
+            return;
+          case "load-checkin-app":
+            if (result.markArrived) {
+              await firestoreDataService.updateDeliveryStatus(
+                result.deliveryId,
+                "arrived",
+              );
+            }
+            await handleDeliveryFound(result.deliveryId);
+            return;
+          case "not-found":
+            setIsScanning(false);
+            setNotFoundCode(decodedText);
         }
-      }
-    };
-  }, [isScanning]);
+      })();
+    },
+    [navigate],
+  );
 
   const toggleItemCheck = (id: string) => {
     const toggled = checkInItems.find((i) => i.id === id);
@@ -332,65 +291,36 @@ function ScanScreen() {
 
   if (isScanning) {
     return (
-      <div className="flex-1 flex flex-col bg-bg-primary">
-        <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-text-primary mb-2">
-              Vendor Check-In
-            </h2>
-            <p className="text-sm text-text-secondary">
-              Scan the QR code at your assigned staging zone
+      <QrScannerOverlay
+        readerId="reader"
+        onDecode={handleScanDecode}
+        onCancel={handleCancelScan}
+        onCameraError={() => {
+          void handleManualScan();
+        }}
+        heading="Vendor Check-In"
+        subtitle="Scan the QR code at your assigned staging zone"
+        footer={
+          <>
+            {scanError && (
+              <p className="text-accent-red mt-4 text-sm text-center">{scanError}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                void handleManualScan();
+              }}
+              className="action-btn action-btn-primary w-full max-w-[280px] mb-6 mt-4"
+            >
+              <Svg d={icons.scan} size={20} />
+              SIMULATE QR SCAN
+            </button>
+            <p className="text-xs text-text-secondary mb-4 text-center">
+              Demo: taps a pending order automatically
             </p>
-          </div>
-
-          {/* Premium Scanner Box */}
-          <div className="relative w-full max-w-[280px] aspect-square mb-8">
-            {/* Scanner Frame */}
-            <div className="absolute inset-0 border-2 border-accent rounded-3xl overflow-hidden bg-bg-secondary/50">
-              <div id="reader" className="w-full h-full"></div>
-
-              {/* Animated Scan Line */}
-              <div className="absolute left-0 right-0 h-0.5 bg-accent shadow-[0_0_8px_2px_rgba(59,130,246,0.5)] animate-scan-line z-10"></div>
-
-              {/* Corner Accents */}
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-3xl z-20"></div>
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-3xl z-20"></div>
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-3xl z-20"></div>
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-3xl z-20"></div>
-
-              {/* Overlay Text */}
-              <div className="absolute bottom-4 left-0 right-0 text-center z-20">
-                <span className="text-[10px] font-mono text-accent/80 tracking-[0.3em] uppercase">
-                  Align QR
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {scanError && (
-            <p className="text-accent-red mt-4 text-sm">{scanError}</p>
-          )}
-
-          <button
-            onClick={() => { void handleManualScan(); }}
-            className="action-btn action-btn-primary w-full max-w-[280px] mb-6"
-          >
-            <Svg d={icons.scan} size={20} />
-            SIMULATE QR SCAN
-          </button>
-
-          <p className="text-xs text-text-secondary mb-8">
-            Demo: taps a pending order automatically
-          </p>
-
-          <button
-            onClick={handleCancelScan}
-            className="text-text-secondary text-sm font-medium py-2 px-4"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
     );
   }
 

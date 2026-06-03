@@ -19,6 +19,8 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 1. **ESL Cloud Function** (backend-write-critical) ??? BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
 2. **MVP complete.** All roadmap items shipped. Next: security audit (away-007) when ready, or ESL integration once Minew creds arrive.
 ## Last Session (2026-06-02, this session)
+- feat: iOS-style QR URL preview pill on mobile scanners (pickup/receive/vendor check-in); loose staging zone code match (s1a/S1-A).
+## Prev Session (2026-06-02, this session)
 - feat: separate `/vendors` page from Settings; shared PortalSidebar; verify:dispatcher-nav PASS.
 ## Prev Session (2026-06-02, this session)
 - fix: remove redundant Deliveries sidebar tab (same view as Dispatcher Dashboard).

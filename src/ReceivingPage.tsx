@@ -30,7 +30,7 @@ import {
   type DeliveryDetails,
   type StagingLocation,
 } from "./dispatcher/models";
-import type { Html5QrcodeInstance } from "./qrScannerTypes";
+import { QrScannerOverlay } from "./QrScannerOverlay";
 import { PortalNavBar } from "./PortalNavBar";
 
 type Step = "scan" | "items" | "zone" | "done";
@@ -104,7 +104,6 @@ export function ReceivingPage() {
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustDamagedQty, setAdjustDamagedQty] = useState(0);
 
-  const scannerRef = useRef<Html5QrcodeInstance | null>(null);
   const urlDeepLinkHandledRef = useRef(false);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
@@ -281,6 +280,39 @@ export function ReceivingPage() {
     [showToast, loadDeliveryForReceive, navigate],
   );
 
+  const handleQrFromCamera = useCallback(
+    async (decodedText: string) => {
+      setLoading(true);
+      const parsed = parseScannedQr(decodedText);
+      const intent = syncScanIntent(parsed);
+      try {
+        const result = await resolveSyncScanIntent(intent, "receive-page");
+        if (result.action === "navigate") {
+          navigate(result.path);
+          return;
+        }
+        if (result.action === "load-receive") {
+          await processDeliveryLookup(result.deliveryId);
+          return;
+        }
+        if (intent.kind === "resolve-zone") {
+          setZoneMissCode(intent.zoneCode);
+          setScanMode("zone-miss");
+          showToast(`No active delivery at zone ${intent.zoneCode}`);
+          return;
+        }
+        showToast(
+          intent.kind === "resolve-delivery"
+            ? "Delivery not found"
+            : "Unrecognized QR code",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [navigate, processDeliveryLookup, showToast],
+  );
+
   useEffect(() => {
     if (urlDeepLinkHandledRef.current) return;
     const parsed = parseScannedQr(window.location.href);
@@ -307,91 +339,6 @@ export function ReceivingPage() {
       void processZoneLookup(zone);
     }
   }, [searchParams, processDeliveryLookup, processZoneLookup]);
-
-  useEffect(() => {
-    if (step !== "scan" || scanMode !== "camera" || deepLinkPending) return;
-
-    let isMounted = true;
-    let handledDecode = false;
-
-    import("html5-qrcode").then(({ Html5Qrcode }) => {
-      if (!isMounted) return;
-
-      const scanner = new Html5Qrcode(
-        "receive-qr-reader",
-      ) as unknown as Html5QrcodeInstance;
-      scannerRef.current = scanner;
-
-      void scanner
-        .start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText: string) => {
-            if (handledDecode || !isMounted) return;
-            handledDecode = true;
-            const parsed = parseScannedQr(decodedText);
-            const intent = syncScanIntent(parsed);
-            void scanner.stop().then(() => {
-              scanner.clear();
-              scannerRef.current = null;
-              if (!isMounted) return;
-              void (async () => {
-                const result = await resolveSyncScanIntent(
-                  intent,
-                  "receive-page",
-                );
-                if (!isMounted) return;
-                if (result.action === "navigate") {
-                  navigate(result.path);
-                  return;
-                }
-                if (result.action === "load-receive") {
-                  void processDeliveryLookup(result.deliveryId);
-                  return;
-                }
-                if (intent.kind === "resolve-zone") {
-                  setZoneMissCode(intent.zoneCode);
-                  setScanMode("zone-miss");
-                  showToast(`No active delivery at zone ${intent.zoneCode}`);
-                  return;
-                }
-                showToast(
-                  intent.kind === "resolve-delivery"
-                    ? "Delivery not found"
-                    : "Unrecognized QR code",
-                );
-              })();
-            });
-          },
-          () => {
-            // ignore scan noise
-          },
-        )
-        .catch(() => {
-          if (isMounted) setCameraFailed(true);
-        });
-    });
-
-    return () => {
-      isMounted = false;
-      const scanner = scannerRef.current;
-      if (scanner) {
-        void scanner
-          .stop()
-          .then(() => scanner.clear())
-          .catch(() => {});
-        scannerRef.current = null;
-      }
-    };
-  }, [
-    step,
-    scanMode,
-    deepLinkPending,
-    processDeliveryLookup,
-    processZoneLookup,
-    navigate,
-    showToast,
-  ]);
 
   const applyItemQty = useCallback(
     (itemId: string, qtyReceived: number, qtyDamaged: number) => {
@@ -590,11 +537,15 @@ export function ReceivingPage() {
             </div>
 
             <div className="relative flex-1 min-h-0 bg-black">
-              <div id="receive-qr-reader" className="w-full h-full" />
-              {!cameraFailed && !loading && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="size-[250px] border-2 border-accent/80 rounded-lg" />
-                </div>
+              {!cameraFailed && (
+                <QrScannerOverlay
+                  layout="fill"
+                  readerId="receive-qr-reader"
+                  onDecode={(text) => {
+                    void handleQrFromCamera(text);
+                  }}
+                  onCameraError={() => setCameraFailed(true)}
+                />
               )}
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60">
