@@ -118,13 +118,25 @@ export type ParsedQrScan =
   | { kind: "pickup"; jobId: string | null; deliveryId: string | null; zoneCode: string | null }
   | { kind: "raw"; value: string };
 
+/** `#receive?…` → `#/receive?…` so HashRouter and parsers agree. */
+export function normalizeAppHash(hash: string): string {
+  if (!hash.startsWith("#")) return hash;
+  if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {
+    return hash.replace("#receive", "#/receive");
+  }
+  if (hash.startsWith("#pickup") && !hash.startsWith("#/pickup")) {
+    return hash.replace("#pickup", "#/pickup");
+  }
+  return hash;
+}
+
 /** Parse a scanned QR payload (URL or raw zone code). */
 export function parseScannedQr(raw: string): ParsedQrScan {
   const trimmed = raw.trim();
   if (trimmed.startsWith("http")) {
     try {
       const url = new URL(trimmed);
-      const hash = url.hash;
+      const hash = normalizeAppHash(url.hash);
       const path = hash.split("?")[0] ?? "";
       const qsStart = hash.indexOf("?");
       const params =
@@ -132,7 +144,7 @@ export function parseScannedQr(raw: string): ParsedQrScan {
           ? new URLSearchParams(hash.slice(qsStart + 1))
           : new URLSearchParams();
 
-      if (path.includes("/pickup")) {
+      if (path.includes("/pickup") || path.includes("pickup")) {
         return {
           kind: "pickup",
           jobId: params.get("job"),
@@ -146,7 +158,7 @@ export function parseScannedQr(raw: string): ParsedQrScan {
         return { kind: "receive-id", deliveryId: decodeURIComponent(checkinMatch[1]) };
       }
 
-      if (path.includes("/receive")) {
+      if (path.includes("/receive") || path.includes("receive")) {
         const id = params.get("id");
         const zone = params.get("zone");
         if (id) return { kind: "receive-id", deliveryId: id };
@@ -166,17 +178,17 @@ export function hashFromScannedQrUrl(raw: string): string | null {
   if (!trimmed.startsWith("http")) return null;
   try {
     const url = new URL(trimmed);
-    const hash = url.hash;
+    const hash = normalizeAppHash(url.hash);
     if (!hash) return null;
     const path = hash.split("?")[0] ?? "";
     if (
       path.includes("/pickup") ||
+      path.includes("pickup") ||
       path.includes("/receive") ||
+      path.includes("receive") ||
       path.includes("/checkin")
     ) {
-      if (hash.startsWith("#/")) return hash;
-      if (hash.startsWith("#")) return `#/${hash.slice(1)}`;
-      return hash;
+      return hash.startsWith("#/") ? hash : `#/${hash.slice(1)}`;
     }
   } catch {
     // ignore

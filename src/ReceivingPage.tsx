@@ -10,6 +10,7 @@ import {
   normalizeReceiveHash,
   applyHashFromScannedQr,
   parseScannedQr,
+  pickupPath,
   readReceiveParams,
 } from "./receiveQrUrls";
 import {
@@ -220,8 +221,9 @@ export function ReceivingPage() {
   const loadDeliveryForReceive = useCallback(
     async (details: DeliveryDetails): Promise<boolean> => {
       if (shouldRouteScanToPickup(details.delivery.status)) {
-        showToast(
-          "Ready for pickup — scan the pickup QR on the zone tag, not vendor receive.",
+        window.location.hash = pickupPath(
+          details.delivery.jobId,
+          details.delivery.id,
         );
         return false;
       }

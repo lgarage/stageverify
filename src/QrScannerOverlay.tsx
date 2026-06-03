@@ -218,6 +218,7 @@ export function QrScannerOverlay({
     setPreview(null);
     stopScanner();
     onDecode(raw);
+    confirmingRef.current = false;
   };
 
   const frameBorder = preview ? IOS_YELLOW : "rgba(59,130,246,0.8)";
