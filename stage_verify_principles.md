@@ -8,6 +8,26 @@ The goal is to catch material problems before technicians leave the shop, not af
 
 ---
 
+StageVerify Non-Goals
+
+StageVerify is not:
+
+- An ERP system
+- An accounting system
+- A purchasing system
+- A warehouse management system
+- A dispatch platform
+- An inventory management system
+
+StageVerify exists to:
+
+- Manage material readiness
+- Direct deliveries to correct staging locations
+- Verify technician pickup
+- Surface material issues early
+- Route material issues to the correct owner
+- Learn from delivery and pickup outcomes
+
 ## Primary Workflow
 
 Customer Approves Work
