@@ -31,9 +31,17 @@ export function isProjectOwnedPath(relPath, projectOwnedGlobs = []) {
  * @param {string} opts.plannedContent
  * @param {string[]} [opts.projectOwnedGlobs]
  * @param {Set<string>} [opts.installedRulePaths]
+ * @param {string} [opts.installedRecordHash]
  */
 export function analyzeCollision(opts) {
-  const { targetRoot, relPath, plannedContent, projectOwnedGlobs, installedRulePaths } = opts;
+  const {
+    targetRoot,
+    relPath,
+    plannedContent,
+    projectOwnedGlobs,
+    installedRulePaths,
+    installedRecordHash,
+  } = opts;
   const abs = path.join(targetRoot, relPath.replace(/\//g, path.sep));
   const plannedHash = sha256String(plannedContent);
 
@@ -57,6 +65,9 @@ export function analyzeCollision(opts) {
   }
 
   if (installedRulePaths?.has(normalizeRel(relPath))) {
+    if (installedRecordHash && existingHash === installedRecordHash) {
+      return { status: 'ok', reason: 'installed record matches disk — update may replace' };
+    }
     return {
       status: 'block',
       kind: 'local-override',

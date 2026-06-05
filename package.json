@@ -27,7 +27,12 @@
     "aecs:install": "node aecs/installer/install.mjs",
     "aecs:install:write": "node aecs/installer/install.mjs --write",
     "aecs:verify": "node aecs/installer/verify.mjs",
-    "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs"
+    "aecs:update": "node aecs/updater/update.mjs",
+    "aecs:update:write": "node aecs/updater/update.mjs --write",
+    "aecs:rollback": "node aecs/updater/rollback.mjs",
+    "aecs:rollback:list": "node aecs/updater/rollback.mjs --list",
+    "aecs:rollback:write": "node aecs/updater/rollback.mjs --write",
+    "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs aecs/updater/update.test.mjs aecs/updater/hardening.test.mjs aecs/updater/rollback-progress.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

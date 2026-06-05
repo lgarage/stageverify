@@ -62,6 +62,16 @@ export function buildInstallPlan(opts) {
       : [],
   );
 
+  /** @type {Map<string, string>} */
+  const installedRecordHashes = new Map();
+  if (Array.isArray(existingInstall?.files)) {
+    for (const f of existingInstall.files) {
+      if (f.installedAs && f.sha256) {
+        installedRecordHashes.set(normalizeRel(String(f.installedAs)), String(f.sha256));
+      }
+    }
+  }
+
   const projectOwnedGlobs = Array.isArray(manifest.projectOwned)
     ? manifest.projectOwned.map(String)
     : [];
@@ -110,6 +120,7 @@ export function buildInstallPlan(opts) {
       plannedContent: content,
       projectOwnedGlobs,
       installedRulePaths,
+      installedRecordHash: installedRecordHashes.get(normalizeRel(ruleRel)),
     });
 
     /** @type {PlannedFile} */
@@ -264,6 +275,12 @@ export function buildOwnershipRegistry(opts) {
 
   /** @type {Array<Record<string, unknown>>} */
   const entries = [];
+
+  entries.push({
+    path: 'aecs/manifest.json',
+    ownership: 'owned-by-core',
+    note: 'Root payload manifest',
+  });
 
   for (const entry of manifest.files) {
     entries.push({

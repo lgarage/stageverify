@@ -11,6 +11,7 @@ import {
   buildOwnershipRegistry,
 } from './lib/plan.mjs';
 import { assertValidTarget, normalizeRel } from './lib/paths.mjs';
+import { checkInstallAllowed } from '../updater/lib/progress.mjs';
 
 /**
  * @param {string[]} argv
@@ -120,6 +121,13 @@ export function runInstall(opts) {
   };
 
   if (!write) {
+    return result;
+  }
+
+  const progressGate = checkInstallAllowed(targetRoot);
+  if (!progressGate.ok) {
+    result.ok = false;
+    result.blocks.push(progressGate.reason ?? 'Install blocked by in-progress sentinel');
     return result;
   }
 
