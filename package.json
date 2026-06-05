@@ -27,7 +27,7 @@
     "aecs:install": "node aecs/installer/install.mjs",
     "aecs:install:write": "node aecs/installer/install.mjs --write",
     "aecs:verify": "node aecs/installer/verify.mjs",
-    "aecs:test": "node --test aecs/installer/install.test.mjs"
+    "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

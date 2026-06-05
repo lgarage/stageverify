@@ -2,6 +2,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
+ * Resolved-path containment: exact root or child under root (trailing sep required).
+ * On Windows, drive-letter and path casing may differ between realpath and resolve.
+ * @param {string} rootReal
+ * @param {string} candReal
+ * @param {NodeJS.Platform} [platform]
+ */
+export function isInsideRoot(rootReal, candReal, platform = process.platform) {
+  if (platform === 'win32') {
+    const r = rootReal.toLowerCase();
+    const c = candReal.toLowerCase();
+    const sep = path.win32.sep;
+    return c === r || c.startsWith(r + sep);
+  }
+  const sep = '/';
+  return candReal === rootReal || candReal.startsWith(rootReal + sep);
+}
+
+/**
  * @param {string} root
  * @param {string} relative
  */
@@ -12,7 +30,7 @@ export function resolveUnderRoot(root, relative) {
   }
   const joined = path.resolve(root, normalized);
   const rootResolved = path.resolve(root);
-  if (joined !== rootResolved && !joined.startsWith(rootResolved + path.sep)) {
+  if (!isInsideRoot(rootResolved, joined)) {
     throw new Error(`Path outside target root: ${relative}`);
   }
   return joined;
@@ -73,7 +91,7 @@ export function safeRealpath(p) {
 export function assertNoSymlinkEscape(root, candidate) {
   const rootReal = safeRealpath(root);
   const candReal = safeRealpath(candidate);
-  if (candReal !== rootReal && !candReal.startsWith(rootReal + path.sep)) {
+  if (!isInsideRoot(rootReal, candReal)) {
     throw new Error(`Symlink escape detected: ${candidate}`);
   }
   return candReal;
