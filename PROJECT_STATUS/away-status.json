@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-01",
+  "lastRun": "2026-06-04",
   "results": [
     {
       "id": "away-004",
@@ -21,7 +21,14 @@
       "status": "built",
       "commit": "f0ba6cc",
       "note": "All 5 changes applied. Build clean. Deployed. Playwright after-state: PASS (name input absent, Complete badge absent, no technician-name in DOM)."
+    },
+    {
+      "id": "away-007",
+      "title": "Full repo security audit — all src/ files",
+      "status": "built",
+      "commit": null,
+      "note": "Report at PROJECT_STATUS/security-report-2026-06-02.md. Closed during Phase 1 memory cleanup 2026-06-04."
     }
   ],
-  "summary": "3 built ✓  0 blocked ✗"
+  "summary": "4 built ✓  0 blocked ✗"
 }

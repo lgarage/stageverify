@@ -87,7 +87,7 @@
                   {
                       "acceptance":  "PROJECT_STATUS/security-report-2026-06-02.md exists and is committed to repo; report contains Gemini scanner output + Opus verdict; if SECURITY: BLOCK, fix-list with file:line refs is included; if SECURITY: PASS, summary of MED/LOW findings included.",
                       "id":  "away-007",
-                      "status":  "queued",
+                      "status":  "done",
                       "preApproved":  true,
                       "capturedDuring":  "Dan session 2026-06-01 — requested overnight security audit",
                       "scope":  "Run a comprehensive security audit across the entire src/ directory of stageverify. Use Gemini 3 Flash as the scanner and Opus as the verifier (per agent-ops SKILL.md §11 security-review protocol). Scanner reads ALL .tsx and .ts files in src/ and src/dispatcher/. Checklist: open redirects, unprotected routes, auth bypass, Firestore exposure (direct imports outside service layer), XSS vectors, data validation gaps, secrets leak, DoS surface. Verifier (Opus) reviews scanner output, confirms/adds/downgrades findings, returns SECURITY: PASS or SECURITY: BLOCK verdict. Write full report to PROJECT_STATUS/security-report-2026-06-02.md. If SECURITY: BLOCK, also write a fix-list with exact file:line references. Commit the report to the stageverify repo.",

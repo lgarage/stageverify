@@ -11,9 +11,13 @@ After **every substantive code or config change** in this session, perform a **b
 
 **Composer 2.5 Fast** implements all T0/T1/T2 work inline. Do not escalate for routine UI, service logic, or multi-file features unless a trigger below applies.
 
+## Security gate timing
+
+Run the Sonnet 4.6 security gate **before pushing** — not after commit. If Sonnet returns HIGH risk, fix before `git push origin main`.
+
 ## When to audit with a higher model (Sonnet 4.6 via Task subagent)
 
-Run a short review **only if** the shipped change touched any of:
+Run a short review **only if** the change (before push) touched any of:
 
 | Trigger | Review focus |
 |---------|----------------|

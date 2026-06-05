@@ -20,14 +20,14 @@ alwaysApply: true
 | T0 | `ui-component`, `css-restyle`, `docs-update` | **Composer 2.5 Fast** (inline) |
 | T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) |
 | T2 | `multi-file-feature` with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline, escalate if uncertain) |
-| T3 | `backend-write-critical` (rules, CF write paths, schema migrations) | **Composer 2.5 Fast** (inline, trial active) — Sonnet 4.6 security gate runs automatically after commit |
+| T3 | `backend-write-critical` (rules, CF write paths, schema migrations) | **Composer 2.5 Fast** (inline, trial active) — Sonnet 4.6 security gate runs automatically before pushing |
 
 ## Escalation triggers — use Sonnet 4.6 via Task subagent when:
 - Security gate review is required (any `backend-write-critical` commit, any auth/Firestore change)
 - The user request is genuinely ambiguous and getting it wrong has significant consequences
 - A T2 task involves non-obvious cross-file dependencies that require reasoning to untangle
-- After every T2 commit touching auth, routing, or Firestore reads (auto-run, not optional)
-- After every T3 / `backend-write-critical` commit (auto-run, not optional)
+- Before pushing any T2 change touching auth, routing, or Firestore reads (auto-run, not optional)
+- Before pushing any T3 / `backend-write-critical` change (auto-run, not optional)
 
 ## What NOT to do
 

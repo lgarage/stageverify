@@ -1,5 +1,7 @@
 # agent-ops Phase 2 — Reference
 
+> **ARCHIVED 2026-06-04** — Stale (claimed "no backend yet"; Firestore/rules/CF are live). Superseded by `docs/project_state.md` and agent-ops SKILL.md.
+
 > **Cold-tier file.** Read this only when you are asked about Phase 2, the playbook
 > system, the critical-trial ladder, or why the agent-ops system "learns from mistakes."
 > Do NOT read at session startup — CURRENT_STATE.md + SKILL.md cover everything needed.

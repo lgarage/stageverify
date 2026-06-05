@@ -39,4 +39,4 @@ Do **not** declare done until push succeeded and deploy succeeded (or you clearl
 
 ## PROJECT_STATUS
 
-When a feature ships, include `PROJECT_STATUS/CURRENT_STATE.md` (and `roadmap.md` when applicable) in the **same** commit as the feature code.
+When a feature ships, include `PROJECT_STATUS/CURRENT_STATE.md`, `docs/project_state.md`, and `docs/roadmap.md` (when applicable) in the **same** commit as the feature code.

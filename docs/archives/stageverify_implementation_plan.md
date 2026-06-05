@@ -1,5 +1,8 @@
 # StageVerify Implementation Plan
 
+> **ARCHIVED 2026-06-04** — Superseded by `docs/roadmap.md` Phase 2+ deliverables and `docs/project_state.md` phase truth. Kept for historical reference only.
+
+
 ## Project Status
 
 Current Phase: Architecture Validation

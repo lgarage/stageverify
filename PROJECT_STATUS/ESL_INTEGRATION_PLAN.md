@@ -142,7 +142,7 @@ Blocker: MinewTag API creds + Step 2 done first.
 ## Current Status
 - [x] QR scan handlers URL-aware (away-010, 2026-06-01)
 - [x] Print Label button in dispatcher drawer (away-011, 2026-06-01)
-- [ ] Step 1: Zone Management Page — READY TO BUILD
+- [x] Step 1: Zone Management Page — SHIPPED (2026-06-01, /zones route, ZoneManagementPage.tsx)
 - [ ] Step 2: ESL zone push — BLOCKED on MinewTag API creds
 - [ ] Step 3: ESL entryway board — BLOCKED on Step 2 + API creds
 
