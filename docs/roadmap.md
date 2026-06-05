@@ -206,6 +206,7 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | 7     | E-Tag Automation               | **LATER**      | ⬜ (blocked: Minew) |
 | 8     | AI Learning & Correction       | **LATER**      | ⬜                  |
 | 9     | AI Recommendations             | **LATER**      | ⬜                  |
+| —     | AECS conversion (control plane) | **LATER**      | 🔵 Phase 1 audit done — see `docs/aecs-phase1-audit.md` |
 
 ---
 
@@ -216,6 +217,7 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | **`docs/project_state.md`** | Canonical phase truth — features, deployment, known issues, current phase |
 | **`docs/roadmap.md` (this file)** | V2 phase prioritization and gates for agents; summarizes priorities — not a detailed implementation plan |
 | **`PROJECT_STATUS/CURRENT_STATE.md`** | Hot-tier snapshot (~30 lines); pointers only — read first each session |
+| **`docs/aecs-phase1-audit.md`** | AECS conversion audit (Layer 2) — control-system inventory, boundaries, Phase 2 plan; planning only, not live agent guidance |
 | **`docs/archives/stageverify_implementation_plan.md`** | Historical reference only — do not use for active agent guidance |
 
 When a V2 phase ships, update **both** `docs/project_state.md` and `PROJECT_STATUS/CURRENT_STATE.md` per ship-loop. Session history goes to `PROJECT_STATUS/archives/`.

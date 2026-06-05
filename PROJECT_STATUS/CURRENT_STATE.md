@@ -20,7 +20,7 @@ See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 2. **ESL Cloud Function** (Phase 7; backend-write-critical) — resume when MinewTag API creds arrive. Live ESL feature remains unavailable until then; does not block Phase 2.
 
 ## Canonical references
-- Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md` | Away: `away-list.json` | History: `archives/session-log-2026-06.md`
+- Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md` | Away: `away-list.json` | AECS: `docs/aecs/phase-2-plan.md` | History: `archives/session-log-2026-06.md`
 
 ## Update Protocol
 - After **meaningful work** (not routine code-only edits): evaluate memory impact — full process in `docs/roadmap.md` § Memory maintenance.

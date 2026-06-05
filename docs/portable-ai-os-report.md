@@ -476,4 +476,4 @@ The dual-policy problem is the highest-priority portability blocker.
 
 ---
 
-*Companion document: [`ai-os-extraction-phase-1-plan.md`](./ai-os-extraction-phase-1-plan.md)*
+*Companion documents: [`ai-os-extraction-phase-1-plan.md`](./ai-os-extraction-phase-1-plan.md) | [`aecs-phase1-audit.md`](./aecs-phase1-audit.md) (AECS three-layer audit, 2026-06-05)*
