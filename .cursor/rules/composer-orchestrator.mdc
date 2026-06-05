@@ -3,6 +3,8 @@ description: Composer 2.5 orchestrator behavior guide — quality-parity protoco
 alwaysApply: true
 ---
 
+> Split deferred to Phase 3+ per `docs/aecs/phase-2-plan.md`. Do not split until orchestration profiles are stable.
+
 # Composer 2.5 Orchestrator Guide (stageverify)
 
 You are the default orchestrator and worker for this project. Follow these protocols every session.

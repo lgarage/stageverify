@@ -1,0 +1,37 @@
+---
+description: Pre-edit model dispatch gate — forces archetype check before any file edit.
+alwaysApply: true
+---
+
+# Pre-Edit Model Dispatch Gate
+
+**BEFORE making any file edit (StrReplace, Write, EditNotebook), you MUST stop and state:**
+
+1. **Archetype** — classify the task (e.g. `ui-component`, `multi-file-feature`, `css-restyle`, `backend-write-critical`)
+2. **Recommended model** — look up the tier table; state tier (T0/T1/T2) and the default model
+3. **Dispatch decision** — doing it inline or escalating?
+4. **Parallel plan** — per `parallel-agent-strategy.mdc`: scouts (0–4), executor model, hard-stop check. Scouts may run before gate; gate mandatory before first executor edit.
+
+> **Billing priority (<REPO>):** <ORCHESTRATOR_MODEL> is the orchestrator and default worker.
+> Sonnet 4.6 is expensive (API on-demand). Only escalate when triggers in
+> `parallel-agent-strategy.mdc` apply.
+
+## Tier defaults (<REPO>)
+
+| Tier | Archetypes | Model |
+|------|-----------|-------|
+| T0 | `ui-component`, `css-restyle`, `docs-update`, read-only scout/inventory | **<DEFAULT_WORKER_MODEL>** (inline) |
+| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **<DEFAULT_WORKER_MODEL>** (inline) |
+| T2 | multi-file with auth/routing/data reads | **<DEFAULT_WORKER_MODEL>** (inline, escalate if uncertain) |
+| T3 | `backend-write-critical` | **<DEFAULT_WORKER_MODEL>** (inline) — security verifier before push |
+
+## Escalation triggers — rare (see `parallel-agent-strategy.mdc`)
+- Security **verifier** before push (`backend-write-critical`, auth/T2)
+- Architecture unclear after synthesis + one orchestrator pass; second failed fix; confStart < 70
+- **Not** for scouts, routine T0/T1/T2 implementation
+
+## What NOT to do
+
+❌ Skip the archetype statement and jump straight to StrReplace.
+❌ Treat every task as needing escalation — default is inline worker.
+✅ State archetype + tier + dispatch decision first, every time, no exceptions.

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "0.1.0",
+  "generatedAt": "2026-06-05",
+  "canonicalSource": "aecs/core/",
+  "installStateNote": "Generated from aecs/manifest.json — NOT independently maintained. Edit aecs/core/ first.",
+  "entries": [
+    {
+      "path": "aecs/core/rules/model-audit-gate.mdc.template",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "96fd3d34d0885dca36176323c593f18212fa64f5e9e53552be43da13409c2e5d"
+    },
+    {
+      "path": "aecs/core/rules/model-dispatch-gate.mdc.template",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "cb05054d71954301fda66ac8655383c53bdf752111318874798caa01c23ff280"
+    },
+    {
+      "path": "aecs/core/rules/parallel-agent-strategy.mdc.template",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "77599bd2ce402d153ebbbac0f9c9fbec85efdb7e329722602fb642af4d4a7373"
+    },
+    {
+      "path": "aecs/core/rules/session-cleanup-gate.mdc.template",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "f349b5ec2a32a2efd37bde44ce735569819ab113a60752620b69003ddcad97a4"
+    },
+    {
+      "path": "aecs/core/rules/agent-ops-bridge.mdc.template",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "efe64738db87da62e8023781e1042cfb25fff3b157369e1711be9f64415165b6"
+    },
+    {
+      "path": "aecs/core/rules/ship-loop.mdc.template",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "61f5b2edaac707b5ab1274a04f967c8d371200858257f0fce24e3c71f14408a0"
+    },
+    {
+      "path": "aecs/core/schemas/trials.schema.json",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "451e1a1e17ff5bd59dd7cad0b7684ccccd5ddda16613736c986ba0ac77c3d13b"
+    },
+    {
+      "path": "aecs/core/schemas/outcome-row.schema.json",
+      "ownership": "owned-by-core",
+      "canonicalSha256": "ce5464662de18bb685bb1c4c0b2d5906d7aa78ca8f6290965bb916fa4042a1b9"
+    },
+    {
+      "path": ".cursor/rules/agent-ops.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/composer-orchestrator.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/ship-loop.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/parallel-agent-strategy.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/model-dispatch-gate.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/model-audit-gate.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/session-cleanup-gate.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/trials.json",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/aecs/installed-manifest.json",
+      "ownership": "generated",
+      "note": "Regenerated on install/update"
+    },
+    {
+      "path": ".cursor/aecs/ownership.json",
+      "ownership": "generated",
+      "note": "Regenerated on install/update; local-override flags manual"
+    },
+    {
+      "path": ".cursor/aecs/backups/",
+      "ownership": "generated",
+      "note": "Empty until Phase 3 updates; .gitkeep placeholder"
+    },
+    {
+      "path": "aecs/adapters/stageverify.bindings.json",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    }
+  ]
+}

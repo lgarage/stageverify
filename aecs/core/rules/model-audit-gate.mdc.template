@@ -1,0 +1,56 @@
+---
+description: After every substantive change, audit that the correct model tier was used; escalate review when warranted.
+alwaysApply: true
+---
+
+# Post-Change Model Audit
+
+After **every substantive code or config change** in this session, perform a **brief model audit** before reporting done.
+
+## Default worker
+
+**<ORCHESTRATOR_MODEL>** implements all T0/T1/T2 work inline. Do not escalate for routine UI, service logic, or multi-file features unless a trigger below applies.
+
+## Security gate timing
+
+Run the security verifier **before pushing** — not after commit. If the verifier returns HIGH risk, fix before `git push origin main`.
+
+## When to audit with a higher model
+
+Run a short review **only if** the change (before push) touched any of:
+
+| Trigger | Review focus |
+|---------|----------------|
+| `backend-write-critical` (security rules, CF write paths, schema migrations) | Security, authz, data integrity |
+| Auth / route guards / protected data read paths | Leaks, bypass, wrong actorType |
+| Genuinely ambiguous high-stakes decision already implemented | Correctness vs intent |
+| Orchestrator uncertainty or failed first fix on T2+ work | Root cause + fix quality |
+
+## When orchestrator alone is sufficient (no escalation pass)
+
+- T0: `ui-component`, `css-restyle`, `docs-update`
+- T1: `multi-file-feature`, `type-refactor`, `service-logic` **without** rules/auth changes
+- T2: same as T1 when no auth/data-read escalation trigger fired
+- Pure Q&A, typos, read-only investigation
+- Parallel read-only scouts (no escalation audit required)
+
+## Audit output (mandatory in assistant reply)
+
+Complete the **ship loop** (`ship-loop.mdc`) before declaring done.
+
+End substantive work with a compact block:
+
+```
+### Model audit
+| Change | Archetype | Tier | Worker | Scouts parallel? | Escalation review? | Verdict |
+|--------|-----------|------|--------|-------------------|-------------------|---------|
+| … | … | … | … | Yes / No / N/A | No / Verifier → PASS | OK / note |
+```
+
+- **Verdict OK** — tier and worker matched the work; no review needed.
+- **Verdict note** — verifier (or self) found an issue; fix or document before done.
+- If escalation review was required but not run, **do not declare done** — run it first.
+
+## Session log (optional)
+
+When agent-ops outcome logging applies, include tier + whether audit escalated in the `note` field.

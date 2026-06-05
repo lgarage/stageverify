@@ -1,0 +1,19 @@
+{
+  "targetName": "stageverify",
+  "orchestrationProfile": "composer-default",
+  "memory": {
+    "hot": "PROJECT_STATUS/CURRENT_STATE.md",
+    "warm": "PROJECT_STATUS/MODEL_DOSSIER.md",
+    "phase": "docs/project_state.md",
+    "roadmap": "docs/roadmap.md"
+  },
+  "ship": {
+    "deploy": "npm run deploy",
+    "rulesDeploy": "firebase deploy --only firestore:rules --project stageverify-db"
+  },
+  "verify": {
+    "pickup": "npm run verify:pickup",
+    "devPort": 5173
+  },
+  "trials": ".cursor/trials.json"
+}

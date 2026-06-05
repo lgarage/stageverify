@@ -1,0 +1,38 @@
+{
+  "backend-write-critical": {
+    "autoTrial": true,
+    "candidateQueue": ["composer-2.5-fast", "gpt-5.5-medium", "sonnet-4-6"],
+    "currentCandidateIndex": 0,
+    "trialModel": "composer-2.5-fast",
+    "lockedModel": "claude-4.6-opus-high-thinking",
+    "promotedModel": null,
+    "trialStatus": "trial",
+    "consecutiveCleanPasses": 3,
+    "requiredConsecutivePasses": 5,
+    "trialsThisCandidate": 3,
+    "maxTrialsPerCandidate": 10,
+    "trials": [
+      {
+        "date": "2026-06-01",
+        "task": "receiving-scan-feature",
+        "candidate": "composer-2.5-fast",
+        "grade": "clean",
+        "notes": "tsc exit 0; Opus all 7 criteria pass; build step caught Html5Qrcode cast error post-grade"
+      },
+      {
+        "date": "2026-06-01",
+        "task": "mobile-hub-page",
+        "candidate": "composer-2.5-fast",
+        "grade": "clean",
+        "notes": "tsc exit 0; Opus all 6 criteria pass; auth, routing, ?next= redirect all correct"
+      },
+      {
+        "date": "2026-06-01",
+        "task": "firestore-security-rules",
+        "candidate": "composer-2.5-fast",
+        "grade": "clean",
+        "notes": "npm run build exit 0; Opus all 8 criteria pass; deploy blocked pending getDeliveryDetails refactor"
+      }
+    ]
+  }
+}

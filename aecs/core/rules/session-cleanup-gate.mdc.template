@@ -1,0 +1,56 @@
+---
+description: Mandatory session cleanup — dev servers, verify artifacts, and stray terminals after substantive work.
+alwaysApply: true
+---
+
+# Session Cleanup Gate
+
+> **Always clean up your messes.** If the agent created it (dev server, shell, PNG, git noise), the agent removes it before saying done.
+
+After **every substantive task**, run cleanup **before** reporting done. A clean workspace is part of "done."
+
+## Shutdown discipline (mandatory)
+
+**If the agent started it, the agent shuts it down** before declaring done — no exceptions.
+
+| Resource | Shut down when |
+|----------|----------------|
+| Dev server (`npm run dev` / Vite) | After verify finishes |
+| Background Shell (`block_until_ms: 0`) | Kill as soon as the task no longer needs it |
+| Playwright browser | Script must `browser.close()`; no orphan chromium |
+| Task subagents (scouts/shell) | Await completion or cancel before declaring done |
+
+## Dev servers
+
+If **you** started a dev server in this session:
+
+1. Stop it — kill the background shell or stop the Node listener.
+2. Confirm ports **<DEV_PORT_RANGE>** have no `LISTENING` entry.
+
+## Verify artifacts
+
+Delete ephemeral files created during verification:
+
+| Pattern | Location | When to delete |
+|---------|----------|----------------|
+| `before-*.png`, `after-*.png` | repo root or CWD | Always after screenshot compare |
+| `<VERIFY_ARTIFACT_GLOB>` | verify output dir | After verify scripts pass |
+
+## Git hygiene
+
+After artifact cleanup, run `git status` — do not push with unstaged cleanup deletions sitting in the working tree.
+
+## Completion checklist (append to model audit or state in reply)
+
+When cleanup ran, include one line:
+
+```
+Cleanup: dev servers stopped ✓ | background shells killed ✓ | verify artifacts removed ✓ | git status clean ✓ | ports clear ✓
+Ship: committed ✓ | pushed ✓ | deployed ✓
+```
+
+## What NOT to clean
+
+- Committed assets, user-deliberate screenshots
+- `.env.local`, auth state files (gitignored)
+- Brain outcome logs, PROJECT_STATUS (unless task updates them)

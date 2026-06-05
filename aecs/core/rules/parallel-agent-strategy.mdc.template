@@ -1,0 +1,68 @@
+---
+description: Default parallel scout pattern — orchestrator delegates read-only scouts, one executor implements.
+alwaysApply: true
+---
+
+# Parallel Agent Strategy (<REPO>)
+
+<ORCHESTRATOR_MODEL> is the **orchestrator**. Parallel cheap subagents are the **default** for independent read-only work.
+
+**Authority:** This file governs fan-out vs serialize. Project orchestrator extension governs build/verify/ship. `model-dispatch-gate.mdc` governs tier/model pick. On conflict about *whether* to parallelize, this file wins. On conflict about *commit/deploy*, ship-loop wins.
+
+## Roles
+
+| Role | Actor | May write repo files? |
+|------|-------|----------------------|
+| Orchestrator | <ORCHESTRATOR_MODEL> (parent session) | Yes — **only** after synthesis, as single executor |
+| Scout | `explore` or cheap `generalPurpose` Task subagent | **No** — `readonly: true` for explore; scouts return summaries only |
+| Security scanner | `explore` / `gemini-3-flash` | No — risk list only |
+| Security verifier | Sonnet 4.6 Task subagent | No — verdict only; never commits |
+| Executor | Orchestrator inline **or** one Task subagent | Yes — **one at a time**, scoped files only |
+| Shell worker | `shell` subagent | git/build/deploy only — never feature code |
+
+## Default pipeline
+
+1. **Classify** — archetype + tier (`model-dispatch-gate.mdc`).
+2. **Plan parallel scouts** — if independent read-only work applies, dispatch **2–4 scouts in one message**.
+3. **Synthesize** — merge scout outputs: findings, conflicts, file list, single implementation plan. **No file edits before synthesis.**
+4. **Execute** — one constrained executor. One hypothesis → one change set → build gate.
+5. **Verify + ship** — build/verify/ship-loop; security gate if triggered.
+
+## When to parallelize (DEFAULT)
+
+Dispatch parallel scouts when **all** hold:
+- Tasks are **independent**
+- Work is **read-only** OR produces a report/plan only
+- **No single security/schema decision** across scouts
+- Synthesis fits in **≤30 lines** before coding
+
+## Hard stops — NEVER parallelize
+
+- Same-file edits
+- Schema / DB / security rules design
+- Security-sensitive **implementation** (scan may be parallel; fix is serial)
+- Deploy commands
+- Ordered tasks (B depends on A's write)
+- Inconsistent repo state
+- Playwright on same dev server port
+- `backend-write-critical` **implementation**
+
+## Task tool conventions
+
+- **Parallel:** single parent message, multiple `Task` calls, `run_in_background: true` when appropriate
+- **Scouts:** `subagent_type: "explore"`, narrow prompt per domain
+- **Max concurrent scouts:** 4
+- **Subagents do not spawn subagents**
+
+### Scout prompt boilerplate (first lines)
+
+```
+ORCHESTRATOR-DISPATCHED SCOUT. Read-only — do NOT edit files, commit, or deploy.
+Return ≤25 lines: findings, file paths, conflicts, recommended next step.
+```
+
+## What NOT to do
+
+❌ Let multiple subagents edit the same file in one session.
+❌ Skip synthesis and implement from one scout's partial view.
+❌ Parallelize deploy or Playwright against one dev server.

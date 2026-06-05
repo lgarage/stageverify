@@ -1,0 +1,8 @@
+{
+  "aecsVersion": "0.1.0",
+  "installedAt": "2026-06-05",
+  "profile": "composer-default",
+  "sourceManifest": "aecs/manifest.json",
+  "sourceManifestSha256": "420f49db609f51237f18b5278cf65b0e523924afe60eedd03bd2c6ad4138aaa8",
+  "note": "Phase 2 scaffold — install snapshot; regenerate via Phase 3 installer"
+}

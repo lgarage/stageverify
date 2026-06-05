@@ -1,0 +1,29 @@
+---
+description: Mandatory commit, push, and deploy after substantive changes.
+alwaysApply: true
+---
+
+# Ship Loop (<REPO>)
+
+After **any** substantive code or config change in this repo, complete the ship loop before declaring done.
+
+## Sequence
+
+1. `git status` — stage **only** task-related files.
+2. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
+3. `git push origin main` — must succeed.
+4. `<DEPLOY_COMMAND>` — must succeed or report failure clearly.
+
+<RULES_DEPLOY_COMMAND_OR_NONE>
+
+## When to skip
+
+Skip commit, push, and deploy **only** when the owner explicitly says hold off or work is WIP on a branch.
+
+## Done gate
+
+Do **not** declare done until push succeeded and deploy succeeded (or you clearly report deploy failure and next steps).
+
+## PROJECT_STATUS
+
+When a feature ships, include hot-tier memory files in the **same** commit as the feature code.

@@ -1,0 +1,32 @@
+---
+description: Bridge to global agent-ops skill; declares orchestration profile for <REPO>.
+alwaysApply: true
+---
+
+# agent-ops loop (<REPO>)
+
+This repo uses the **agent-ops** skill (git source: <BRAIN_REPO_PATH>).
+Follow it every session unless this file explicitly overrides.
+
+## Orchestration profile: <ORCHESTRATION_PROFILE>
+<!-- Values: "sonnet-default" | "composer-default" -->
+
+<ORCHESTRATOR_MODEL> is the **orchestrator and default worker** for this repo.
+Sonnet 4.6 is rare escalation only (security verifier, 2nd failed fix, confStart < 70).
+Opus 4.6 is locked fallback only if Sonnet's security gate finds HIGH risk the orchestrator cannot resolve.
+
+## Session start (read order — STOP after this)
+1. `PROJECT_STATUS/CURRENT_STATE.md` (hot tier).
+2. The agent-ops skill's Global Tier Table (SKILL.md §2).
+Do NOT read archives or `outcomes/*.jsonl` during normal work.
+
+## During work
+- Classify each task into an archetype; route per `model-dispatch-gate.mdc`.
+- PRE-EDIT GATE: state archetype + tier + dispatch decision before any file edit.
+- Parallel read-only scouts per `parallel-agent-strategy.mdc` when triggers apply.
+- `backend-write-critical`: orchestrator implements inline if composer-default; security gate before push.
+- Trial state: read `.cursor/trials.json` (NOT the brain repo).
+
+## Session end
+Append ONE outcome line to the brain repo per SKILL.md §8, then commit+push brain repo.
+Project commits stay in this repo. Keep the two pushes separate.

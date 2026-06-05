@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AECS trials.json schema",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": [
+      "autoTrial",
+      "candidateQueue",
+      "currentCandidateIndex",
+      "lockedModel",
+      "trialStatus",
+      "consecutiveCleanPasses",
+      "requiredConsecutivePasses",
+      "trialsThisCandidate",
+      "maxTrialsPerCandidate",
+      "trials"
+    ],
+    "properties": {
+      "autoTrial": { "type": "boolean" },
+      "candidateQueue": { "type": "array", "items": { "type": "string" } },
+      "currentCandidateIndex": { "type": "integer", "minimum": 0 },
+      "trialModel": { "type": ["string", "null"] },
+      "lockedModel": { "type": "string" },
+      "promotedModel": { "type": ["string", "null"] },
+      "trialStatus": {
+        "type": "string",
+        "enum": ["auto-pending", "trial", "promoted", "locked"]
+      },
+      "consecutiveCleanPasses": { "type": "integer", "minimum": 0 },
+      "requiredConsecutivePasses": { "type": "integer", "minimum": 1 },
+      "trialsThisCandidate": { "type": "integer", "minimum": 0 },
+      "maxTrialsPerCandidate": { "type": "integer", "minimum": 1 },
+      "trials": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["date", "task", "candidate", "grade"],
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "task": { "type": "string" },
+            "candidate": { "type": "string" },
+            "grade": {
+              "type": "string",
+              "enum": ["pending", "clean", "needs-fixes", "fail"]
+            },
+            "notes": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

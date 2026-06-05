@@ -1,0 +1,88 @@
+{
+  "aecsVersion": "0.1.0",
+  "profileDefault": "sonnet-default",
+  "targetProfile": "composer-default",
+  "layers": {
+    "core": "aecs/core/",
+    "dev": "aecs/dev/",
+    "project": ".cursor/rules/"
+  },
+  "installState": ".cursor/aecs/",
+  "brainRepo": {
+    "skillPath": "~/.cursor/skills/agent-ops",
+    "gitSourceEnv": "AECS_BRAIN_REPO_PATH",
+    "gitSourceDefault": "C:/Projects/cursor-agent-brain"
+  },
+  "files": [
+    {
+      "path": "aecs/core/rules/model-audit-gate.mdc.template",
+      "layer": 1,
+      "sha256": "96fd3d34d0885dca36176323c593f18212fa64f5e9e53552be43da13409c2e5d",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/rules/model-dispatch-gate.mdc.template",
+      "layer": 1,
+      "sha256": "cb05054d71954301fda66ac8655383c53bdf752111318874798caa01c23ff280",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/rules/parallel-agent-strategy.mdc.template",
+      "layer": 1,
+      "sha256": "77599bd2ce402d153ebbbac0f9c9fbec85efdb7e329722602fb642af4d4a7373",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/rules/session-cleanup-gate.mdc.template",
+      "layer": 1,
+      "sha256": "f349b5ec2a32a2efd37bde44ce735569819ab113a60752620b69003ddcad97a4",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/rules/agent-ops-bridge.mdc.template",
+      "layer": 1,
+      "sha256": "efe64738db87da62e8023781e1042cfb25fff3b157369e1711be9f64415165b6",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/rules/ship-loop.mdc.template",
+      "layer": 1,
+      "sha256": "61f5b2edaac707b5ab1274a04f967c8d371200858257f0fce24e3c71f14408a0",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/schemas/trials.schema.json",
+      "layer": 1,
+      "sha256": "451e1a1e17ff5bd59dd7cad0b7684ccccd5ddda16613736c986ba0ac77c3d13b",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    },
+    {
+      "path": "aecs/core/schemas/outcome-row.schema.json",
+      "layer": 1,
+      "sha256": "ce5464662de18bb685bb1c4c0b2d5906d7aa78ca8f6290965bb916fa4042a1b9",
+      "installedAs": null,
+      "behaviorImpact": "none"
+    }
+  ],
+  "projectOwned": [
+    ".cursor/rules/composer-orchestrator.mdc",
+    ".cursor/rules/ship-loop.mdc",
+    ".cursor/rules/agent-ops.mdc",
+    ".cursor/trials.json",
+    "PROJECT_STATUS/**",
+    "scripts/verify-*.mjs",
+    "aecs/adapters/stageverify.bindings.json"
+  ],
+  "excludedFromInstall": [
+    "aecs/dev/**",
+    "src/**",
+    "functions/**"
+  ]
+}

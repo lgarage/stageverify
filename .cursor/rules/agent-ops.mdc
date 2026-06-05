@@ -8,6 +8,11 @@ alwaysApply: true
 This repo uses the **agent-ops** skill (personal skill at `~/.cursor/skills/agent-ops`,
 git source `C:\Projects\cursor-agent-brain`). Follow it every session.
 
+## Orchestration profile
+- **Profile:** `composer-default` (explicit opt-in; overrides SKILL.md §10 Sonnet-default)
+- **Trials:** `.cursor/trials.json` (per-project; NOT `cursor-agent-brain/trials.json`)
+- **Authority:** This file wins over SKILL.md on orchestration; SKILL.md wins on outcome schema and tier table.
+
 ## Session start (read order — STOP after this)
 1. `PROJECT_STATUS/CURRENT_STATE.md` (hot tier).
 2. The agent-ops skill's Global Tier Table (its `SKILL.md` §2).
