@@ -146,11 +146,5 @@ Blocker: MinewTag API creds + Step 2 done first.
 - [ ] Step 2: ESL zone push — BLOCKED on MinewTag API creds
 - [ ] Step 3: ESL entryway board — BLOCKED on Step 2 + API creds
 
-## getDeliveryDetails Deploy Blocker (unrelated but must fix before deploying firestore.rules)
-`firestore.rules` is committed but NOT deployed to Firebase.
-Blocker: `getDeliveryDetails()` in firestoreService.ts reads auth-gated collections
-(jobs, purchaseOrders, statusHistory, pickupEvents) and is called from 4 unauthenticated
-routes (/, /pickup, /checkin/:orderId, /receive).
-Fix: split getDeliveryDetails into auth/unauth variants, strip auth-gated reads from
-the unauth path. Then run: firebase deploy --only firestore:rules
-Archetype: multi-file-feature | Model: Composer 2.5
+## getDeliveryDetails Deploy Blocker — RESOLVED (2026-06-02)
+Firestore rules **deployed** 2026-06-02 (public pickup batch write + rules ship). `getDeliveryDetails` split into auth/unauth variants; unauth routes use public read paths. Canonical deploy state: `docs/project_state.md` Deployment Status.

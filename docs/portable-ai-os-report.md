@@ -3,7 +3,8 @@
 > **Generated:** 2026-06-04  
 > **Context:** Post-Phase-1 stageverify memory cleanup (commit `f7d2c44`)  
 > **Analyst role:** Senior AI Systems Architect  
-> **Scope:** Documentation and memory architecture only — no application code changes
+> **Scope:** Documentation and memory architecture only — no application code changes  
+> **Authority:** Meta/portability analysis only — not live agent guidance. Phase truth: `docs/roadmap.md` header chain.
 
 ---
 
@@ -469,7 +470,7 @@ The dual-policy problem is the highest-priority portability blocker.
 
 | Task Type | Model | Confidence | Notes |
 |-----------|-------|------------|-------|
-| `docs-update` (portability report) | Composer 2.5 Fast | 95% | Synthesis from MEMORY_ARCHITECTURE_ASSESSMENT.md + rules audit |
+| `docs-update` (portability report) | Composer 2.5 Fast | 95% | Synthesis from PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md + rules audit |
 | `docs-update` (extraction plan) | Composer 2.5 Fast | 92% | Depends on brain repo access for exact paths |
 | `backend-write-critical` extraction | Composer 2.5 Fast | N/A | Not in scope — docs only |
 

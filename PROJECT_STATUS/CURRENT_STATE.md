@@ -10,23 +10,20 @@
 - Data: Firebase Firestore (project: stageverify-db, Blaze plan). appSettings/config holds vendorRevertWindowMinutes + autoSubmitMinutes + entrywayEslTagId. Canonical models in src/dispatcher/models.ts.
 
 ## Active Blockers
-1. **Minew ESL creds** — waiting on vendor login for demo kit (ESL Cloud Function blocked). See ESL_INTEGRATION_PLAN.md.
+1. **Minew ESL creds (external — live ESL demo only)** — waiting on vendor login for demo kit; live ESL integration unavailable until creds arrive. Does **not** block Phase 2 or general development. See ESL_INTEGRATION_PLAN.md.
 2. **Shelving decision** — waiting on Jake Korb. Blocks: shop map, location ID assignment, tag count, tag order.
 3. **Physical shop map** — not yet created. Blocks full location ID assignment and Minew tag deployment.
 See PROJECT_STATUS/PHYSICAL_DEPLOYMENT.md for full dependency chain.
 
 ## Immediate Next Step
-1. **ESL Cloud Function** (backend-write-critical) — BLOCKED on MinewTag API creds (waiting on vendor login for demo kit).
-2. **Phase 2:** Material Readiness Data Model — see `docs/roadmap.md` NOW section.
+1. **Phase 2:** Material Readiness Data Model (active development track) — see `docs/roadmap.md` NOW section.
+2. **ESL Cloud Function** (Phase 7; backend-write-critical) — resume when MinewTag API creds arrive. Live ESL feature remains unavailable until then; does not block Phase 2.
 
 ## Canonical references
-- **Phase truth:** `docs/project_state.md` (features, deployment, known issues, V2 vision)
-- **Roadmap:** `docs/roadmap.md` (NOW/NEXT/LATER phases)
-- **Warm tier:** `PROJECT_STATUS/MODEL_DOSSIER.md` (QR, nav, backend-critical lessons)
-- **Away queue:** `PROJECT_STATUS/away-list.json`
-- Session history: `PROJECT_STATUS/archives/session-log-2026-06.md`
+- Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md` | Away: `away-list.json` | History: `archives/session-log-2026-06.md`
 
 ## Update Protocol
-- Touch Snapshot / Active Blockers / Immediate Next Step at end of every session.
-- When a phase gate or feature ships, update **docs/project_state.md** and **docs/roadmap.md** in the same commit — keep this file to hot-tier snapshot only.
-- Hard size cap: ~30 lines. Archive session entries to `PROJECT_STATUS/archives/`.
+- After **meaningful work** (not routine code-only edits): evaluate memory impact — full process in `docs/roadmap.md` § Memory maintenance.
+- Hot tier **here only:** Snapshot, Blockers, Immediate Next Step. Cap ~30 lines; overflow → `PROJECT_STATUS/archives/`.
+- Phase/feature ships: update `docs/project_state.md` + `docs/roadmap.md` in same commit; sync this snapshot.
+- Before handoff: report docs touched (or why none); cross-doc consistency check before commit.

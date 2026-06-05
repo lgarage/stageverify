@@ -1,3 +1,5 @@
+> **ARCHIVED — partially actioned 2026-06-05.** Point-in-time audit only; not current authority. **Authority chain:** `docs/roadmap.md` header → `docs/project_state.md` (phase truth) → `docs/roadmap.md` (gates) → `PROJECT_STATUS/CURRENT_STATE.md` (hot snapshot).
+
 # Memory Architecture Assessment — stageverify
 _Generated: 2026-06-04 | Analyst: Senior AI Systems Architect_
 
