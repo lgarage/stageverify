@@ -34,6 +34,7 @@ Run a short review **only if** the change (before push) touched any of:
 - T1: `multi-file-feature`, `type-refactor`, `service-logic` **without** rules/auth changes
 - T2: same as T1 when no auth/Firestore-read escalation trigger fired
 - Pure Q&A, typos, read-only investigation
+- Parallel read-only scouts (no Sonnet audit required)
 
 ## Audit output (mandatory in assistant reply)
 
@@ -43,9 +44,9 @@ End substantive work with a compact block:
 
 ```
 ### Model audit
-| Change | Archetype | Tier | Worker | Escalation review? | Verdict |
-|--------|-----------|------|--------|-------------------|---------|
-| … | … | … | Composer 2.5 | No / Sonnet → PASS | OK / note |
+| Change | Archetype | Tier | Worker | Scouts parallel? | Escalation review? | Verdict |
+|--------|-----------|------|--------|-------------------|-------------------|---------|
+| … | … | … | Composer 2.5 | Yes / No / N/A | No / Sonnet → PASS | OK / note |
 ```
 
 - **Verdict OK** — tier and worker matched the work; no review needed.

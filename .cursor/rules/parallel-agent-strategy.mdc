@@ -1,0 +1,104 @@
+---
+description: Default parallel scout pattern — Composer orchestrates, cheap agents scan, one executor implements.
+alwaysApply: true
+---
+
+# Parallel Agent Strategy (stageverify)
+
+Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **default** for independent read-only work. Dan does **not** need to ask for parallel execution when this file's triggers apply.
+
+**Authority:** This file governs fan-out vs serialize. `composer-orchestrator.mdc` governs build/Playwright/ship. `model-dispatch-gate.mdc` governs tier/model pick. On conflict about *whether* to parallelize, this file wins. On conflict about *commit/deploy*, ship-loop wins.
+
+## Roles
+
+| Role | Actor | May write repo files? |
+|------|-------|----------------------|
+| Orchestrator | Composer 2.5 (parent session) | Yes — **only** after synthesis, as single executor |
+| Scout | `explore` or cheap `generalPurpose` Task subagent | **No** — `readonly: true` for explore; scouts return summaries only |
+| Security scanner | `explore` / `gemini-3-flash` | No — risk list only |
+| Security verifier | Sonnet 4.6 Task subagent | No — verdict only; never commits |
+| Executor | Composer 2.5 inline **or** one Composer Task subagent | Yes — **one at a time**, scoped files only |
+| Shell worker | `shell` subagent | git/build/deploy only — never feature code |
+
+## Default pipeline
+
+1. **Classify** — archetype + tier (`model-dispatch-gate.mdc`).
+2. **Plan parallel scouts** — if independent read-only work applies, dispatch **2–4 scouts in one message**. Do not wait for Dan to request parallel.
+3. **Synthesize** — merge scout outputs: findings, conflicts, file list, single implementation plan. **No file edits before synthesis.**
+4. **Execute** — one constrained executor. One hypothesis → one change set → build gate.
+5. **Verify + ship** — Playwright/build/ship-loop; security gate if triggered.
+
+## When to parallelize (DEFAULT)
+
+Dispatch parallel scouts when **all** hold:
+- Tasks are **independent**
+- Work is **read-only** OR produces a report/plan only
+- **No single security/schema decision** across scouts
+- Synthesis fits in **≤30 lines** before coding
+
+**Preferred use cases (launch without asking Dan):** repo scans, doc/memory audits, rule conflict detection, duplicate detection, stale memory analysis, architecture reviews (read-only), security review scan, test-plan drafts, independent code reviews, planning/refactor analysis, file inventories.
+
+Split multi-domain investigations by domain — one scout per domain, same turn.
+
+## Hard stops — NEVER parallelize
+
+- Same-file edits
+- Schema / DB / Firestore rules design
+- Security-sensitive **implementation** (scan may be parallel; fix is serial)
+- Deploy (`npm run deploy`, `firebase deploy`)
+- Ordered tasks (B depends on A's write)
+- Inconsistent repo state
+- Playwright on same dev server port
+- `backend-write-critical` **implementation**
+
+## Sonnet 4.6 — rare escalation only
+
+Use Sonnet Task subagent **only** when:
+- `backend-write-critical` security **verifier** (step 2) before push
+- Architecture unclear after synthesis + one Composer pass
+- **Second failed fix** after `MODEL_DOSSIER.md` § Composer without Sonnet block
+- DB/schema design with competing approaches
+- **confStart < 70** or Dan says "still broken" without new hypothesis
+
+**Do not** dispatch Sonnet for routine T0/T1/T2 implementation, QR camera tweaks before self-trace, or parallel scouts.
+
+## Task tool conventions
+
+- **Parallel:** single parent message, multiple `Task` calls, `run_in_background: true` when appropriate
+- **Scouts:** `subagent_type: "explore"`, narrow prompt per domain
+- **Max concurrent scouts:** 4
+- **Subagents do not spawn subagents**
+
+### Scout prompt boilerplate (first lines)
+
+```
+ORCHESTRATOR-DISPATCHED SCOUT. Read-only — do NOT edit files, commit, or deploy.
+Return ≤25 lines: findings, file paths, conflicts, recommended next step.
+```
+
+### Synthesis output (before any edit)
+
+```
+### Scout synthesis
+- Scouts run: [list]
+- Agreements: …
+- Conflicts: …
+- Executor plan: one sentence, N files max
+- Parallel skipped because: … (only if skipped)
+```
+
+## Interaction with other gates
+
+- **Pre-edit gate:** State parallel plan before **executor** edits (`model-dispatch-gate.mdc`).
+- **Scope:** Scouts read widely; executor does only what Dan asked (`composer-orchestrator.mdc`).
+- **Build / Playwright / ship:** Serial after implementation.
+- **Cleanup:** Await background scouts before done (`session-cleanup-gate.mdc`).
+
+## What NOT to do
+
+❌ Ask Dan "should I run these in parallel?" when hard stops do not apply.
+❌ Let multiple subagents edit the same file in one session.
+❌ Skip synthesis and implement from one scout's partial view.
+❌ Use Sonnet for scouts or routine implementation.
+❌ Parallelize deploy, rules deploy, or Playwright against one dev server.
+❌ Treat "multitask workers: copy scope verbatim" as banning scouts — it bans **widening executor scope**, not read-only fan-out.

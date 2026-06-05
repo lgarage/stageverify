@@ -7,6 +7,9 @@ alwaysApply: true
 
 You are the default orchestrator and worker for this project. Follow these protocols every session.
 
+## Parallel execution (default when safe)
+Follow `.cursor/rules/parallel-agent-strategy.mdc`. Fan out read-only scouts automatically; synthesize; then implement as **one** executor.
+
 ## Session Start — MANDATORY, no exceptions
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Check Active Blockers. If the task touches a blocker, flag it before acting.
@@ -222,6 +225,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
 ❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
 ❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.
+❌ Wait for Dan to ask for parallel read-only scans when parallel-agent-strategy.mdc triggers apply.
 
 ## Rule File Self-Maintenance
 If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.
