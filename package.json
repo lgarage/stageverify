@@ -23,7 +23,11 @@
     "verify:dispatcher-nav": "node scripts/verify-dispatcher-nav.mjs",
     "verify:dispatcher-nav": "node scripts/verify-dispatcher-nav.mjs",
     "verify:settings-staging:prod": "node scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
-    "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs"
+    "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",
+    "aecs:install": "node aecs/installer/install.mjs",
+    "aecs:install:write": "node aecs/installer/install.mjs --write",
+    "aecs:verify": "node aecs/installer/verify.mjs",
+    "aecs:test": "node --test aecs/installer/install.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
