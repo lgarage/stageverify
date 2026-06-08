@@ -6,12 +6,15 @@ import {
   getDeliveryDetailsPublic,
   loadPickupReadyDeliveriesPublic,
   markDeliveryInstalled,
+  reportMaterialIssue,
 } from "./dispatcher/firestoreService";
 import {
   DELIVERY_STATUS_LABEL,
   getAllStagingLocationIds,
+  MATERIAL_ISSUE_TYPE_LABEL,
   type DeliveryDetails,
   type DeliveryStatus,
+  type MaterialIssueType,
   type StagingLocation,
 } from "./dispatcher/models";
 import {
@@ -352,6 +355,101 @@ function WalkUpEntry({
   );
 }
 
+const MATERIAL_ISSUE_TYPES: MaterialIssueType[] = [
+  "missing",
+  "wrong_item",
+  "damaged",
+  "backordered",
+  "other",
+];
+
+function ReportIssueModal({
+  deliveryLabel,
+  issueType,
+  description,
+  submitting,
+  error,
+  onTypeChange,
+  onDescriptionChange,
+  onCancel,
+  onSubmit,
+}: {
+  deliveryLabel: string;
+  issueType: MaterialIssueType;
+  description: string;
+  submitting: boolean;
+  error: string | null;
+  onTypeChange: (type: MaterialIssueType) => void;
+  onDescriptionChange: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-bg-primary p-5 shadow-xl">
+        <h3 className="text-lg font-bold text-text-primary mb-1">Report Issue</h3>
+        <p className="text-sm text-text-secondary mb-4">{deliveryLabel}</p>
+        <label
+          htmlFor="issue-type-select"
+          className="mb-2 block text-sm font-medium text-text-secondary"
+        >
+          Issue type
+        </label>
+        <select
+          id="issue-type-select"
+          data-testid="issue-type-select"
+          value={issueType}
+          onChange={(e) => onTypeChange(e.target.value as MaterialIssueType)}
+          className="mb-4 w-full rounded-xl border border-border bg-bg-surface px-3 py-2 text-text-primary"
+        >
+          {MATERIAL_ISSUE_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {MATERIAL_ISSUE_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
+        <label
+          htmlFor="issue-description"
+          className="mb-2 block text-sm font-medium text-text-secondary"
+        >
+          Description (optional)
+        </label>
+        <textarea
+          id="issue-description"
+          data-testid="issue-description"
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          rows={3}
+          placeholder="What is wrong with the material?"
+          className="mb-4 w-full resize-none rounded-xl border border-border bg-bg-surface px-3 py-2 text-text-primary"
+        />
+        {error && (
+          <p className="mb-3 text-sm text-accent-red">{error}</p>
+        )}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="action-btn action-btn-secondary flex-1"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            data-testid="issue-submit"
+            onClick={onSubmit}
+            disabled={submitting}
+            className="action-btn action-btn-delivered flex-1"
+          >
+            {submitting ? "Submitting…" : "Submit Issue"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function JobPickupScreen({
   jobId,
   highlightDeliveryId = null,
@@ -389,6 +487,14 @@ function JobPickupScreen({
     () => new Map(),
   );
   const [pulsingId, setPulsingId] = useState<string | null>(null);
+  const [issueModalDeliveryId, setIssueModalDeliveryId] = useState<string | null>(
+    null,
+  );
+  const [issueType, setIssueType] = useState<MaterialIssueType>("missing");
+  const [issueDescription, setIssueDescription] = useState("");
+  const [issueSubmitting, setIssueSubmitting] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
+  const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
   const submittedRef = useRef(false);
   const checkedRef = useRef(checked);
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -717,6 +823,68 @@ function JobPickupScreen({
     });
   }, []);
 
+  const reloadDeliveries = useCallback(async () => {
+    const loaded = await loadPickupReadyDeliveriesPublic(jobId);
+    setDeliveries(loaded);
+    return loaded;
+  }, [jobId]);
+
+  const openIssueModal = useCallback((deliveryId: string) => {
+    setIssueModalDeliveryId(deliveryId);
+    setIssueType("missing");
+    setIssueDescription("");
+    setIssueError(null);
+  }, []);
+
+  const closeIssueModal = useCallback(() => {
+    if (issueSubmitting) return;
+    setIssueModalDeliveryId(null);
+    setIssueError(null);
+  }, [issueSubmitting]);
+
+  const submitIssueReport = useCallback(async () => {
+    if (!issueModalDeliveryId) return;
+    const target = deliveries.find((d) => d.delivery.id === issueModalDeliveryId);
+    if (!target) return;
+
+    setIssueSubmitting(true);
+    setIssueError(null);
+    try {
+      const result = await reportMaterialIssue({
+        deliveryOrderId: issueModalDeliveryId,
+        jobId,
+        type: issueType,
+        description: issueDescription.trim() || undefined,
+        reportedBy: "Technician",
+        clientRequestId: crypto.randomUUID(),
+      });
+      await reloadDeliveries();
+      setIssueModalDeliveryId(null);
+      setIssueDescription("");
+      setIssueSuccess(
+        result.duplicate
+          ? "Issue already recorded for this delivery."
+          : `Issue reported${result.blocking ? " — pickup warning shown below" : ""}.`,
+      );
+      window.setTimeout(() => setIssueSuccess(null), 5000);
+    } catch (err) {
+      setIssueError(formatPickupError(err));
+    } finally {
+      setIssueSubmitting(false);
+    }
+  }, [
+    issueModalDeliveryId,
+    deliveries,
+    jobId,
+    issueType,
+    issueDescription,
+    reloadDeliveries,
+  ]);
+
+  const hasBlockingIssues = deliveries.some(
+    (d) => (d.delivery.openBlockingIssueCount ?? 0) > 0,
+  );
+
   if (isScanning) {
     return (
       <QrScannerOverlay
@@ -775,13 +943,49 @@ function JobPickupScreen({
   }
 
   const jobName = deliveries[0]?.job?.jobName ?? "Job";
+  const issueModalDelivery = issueModalDeliveryId
+    ? deliveries.find((d) => d.delivery.id === issueModalDeliveryId)
+    : null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {issueModalDelivery && (
+        <ReportIssueModal
+          deliveryLabel={`${issueModalDelivery.vendor.name} · ${issueModalDelivery.delivery.orderNumber}`}
+          issueType={issueType}
+          description={issueDescription}
+          submitting={issueSubmitting}
+          error={issueError}
+          onTypeChange={setIssueType}
+          onDescriptionChange={setIssueDescription}
+          onCancel={closeIssueModal}
+          onSubmit={() => void submitIssueReport()}
+        />
+      )}
       <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
-        <p className="text-center text-text-secondary text-sm mb-6">
+        <p className="text-center text-text-secondary text-sm mb-4">
           {jobName}
         </p>
+
+        {hasBlockingIssues && (
+          <div
+            data-testid="blocking-issue-warning"
+            className="mb-4 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent"
+          >
+            <p className="font-semibold">Open material issue on this job</p>
+            <p className="mt-1 text-text-secondary">
+              A blocking issue was reported. You can still complete pickup, but
+              dispatch has been notified — confirm with your material owner before
+              leaving if anything is still missing.
+            </p>
+          </div>
+        )}
+
+        {issueSuccess && (
+          <div className="mb-4 rounded-xl border border-accent-green/40 bg-accent-green/10 px-4 py-3 text-sm text-accent-green">
+            {issueSuccess}
+          </div>
+        )}
 
         <div className="space-y-3 mb-4">
           {deliveries.map((d) => {
@@ -892,9 +1096,26 @@ function JobPickupScreen({
                             pickup.
                           </p>
                         )}
+                        {(d.delivery.openBlockingIssueCount ?? 0) > 0 && (
+                          <p className="mt-2 text-xs font-semibold text-accent">
+                            Blocking material issue open
+                          </p>
+                        )}
                       </div>
                     </div>
                 </button>
+                {!isInstalled && isPickupReady(deliveryStatus) && !isChecked && (
+                  <div className="border-t border-border px-4 py-3">
+                    <button
+                      type="button"
+                      data-testid="report-issue-btn"
+                      onClick={() => openIssueModal(deliveryId)}
+                      className="action-btn action-btn-secondary w-full text-sm"
+                    >
+                      Report Issue
+                    </button>
+                  </div>
+                )}
                 {deliveryStatus === "picked_up" && (
                   <div className="border-t border-border px-4 py-3">
                     <button

@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "materialIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deliveryOrderId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "materialIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deliveryOrderId", "order": "ASCENDING" },
+        { "fieldPath": "clientRequestId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

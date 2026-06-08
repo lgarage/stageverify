@@ -31,7 +31,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds } from "./dispatcher/models";
+import { getAllStagingLocationIds, MATERIAL_ISSUE_TYPE_LABEL } from "./dispatcher/models";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -1252,6 +1252,23 @@ export function DispatcherDashboardPage() {
                             maxWidth: 200,
                           }}
                         >
+                          {row.openIssueCount > 0 && (
+                            <span
+                              data-testid={`open-issue-badge-${row.deliveryId}`}
+                              style={{
+                                display: "inline-block",
+                                marginBottom: row.issueSummary ? 6 : 0,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                backgroundColor: "#ffebee",
+                                color: "#c62828",
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              Issues ({row.openIssueCount})
+                            </span>
+                          )}
                           {row.issueSummary ? (
                             <span
                               style={{
@@ -1265,7 +1282,7 @@ export function DispatcherDashboardPage() {
                               </span>
                               {row.issueSummary}
                             </span>
-                          ) : (
+                          ) : row.openIssueCount > 0 ? null : (
                             "—"
                           )}
                         </td>
@@ -2158,6 +2175,72 @@ function DetailContent({
                       {details.delivery.issueSummary}
                     </p>
                   </div>
+                )}
+              </div>
+            ),
+          },
+          {
+            title: `Material Issues (${details.materialIssues.filter((i) => i.status === "open" || i.status === "assigned").length})`,
+            content: (
+              <div
+                data-testid="material-issues-panel"
+                style={{
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: 8,
+                }}
+              >
+                {details.materialIssues.filter(
+                  (i) => i.status === "open" || i.status === "assigned",
+                ).length === 0 ? (
+                  <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                    No open material issues.
+                  </p>
+                ) : (
+                  details.materialIssues
+                    .filter((i) => i.status === "open" || i.status === "assigned")
+                    .map((issue) => (
+                      <div
+                        key={issue.id}
+                        style={{
+                          border: "1px solid #e0e3e8",
+                          borderRadius: 8,
+                          padding: "12px",
+                          backgroundColor: issue.blocking ? "#fff8f8" : "#fff",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 8,
+                            marginBottom: 6,
+                          }}
+                        >
+                          <span style={{ fontWeight: 700, color: "#333" }}>
+                            {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              color: issue.blocking ? "#c62828" : "#6b7280",
+                            }}
+                          >
+                            {issue.blocking ? "Blocking" : "Info"}
+                          </span>
+                        </div>
+                        <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
+                          {issue.description?.trim() || "No description"}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
+                          Reported by {issue.reportedBy} · Owner{" "}
+                          {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
+                          {new Date(issue.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))
                 )}
               </div>
             ),

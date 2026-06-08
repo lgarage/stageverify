@@ -18,6 +18,8 @@ const jobs: Job[] = [
     jobName: "Riverside Medical Center",
     siteNumber: "SITE-A3",
     status: "active",
+    materialOwnerId: "owner-dispatch-1",
+    materialOwnerName: "Dispatch Lead",
     createdAt: "2026-05-20T08:00:00Z",
     updatedAt: "2026-05-29T15:00:00Z",
   },

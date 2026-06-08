@@ -85,7 +85,20 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 
-### Phase 3 — Technician Pickup Workflow
+### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
+
+| Item | Status |
+| ---- | ------ |
+| Report Issue (pickup portal) | ✅ Modal + `createMaterialIssue` callable CF |
+| Blocking behavior | ✅ Warning banner only — **Done flow unchanged**; no `delivery.status → issue` |
+| Dispatcher visibility | ✅ `Issues (n)` badge + read-only Material Issues panel |
+| Firestore | ✅ `materialIssues` auth-read-only; indexes; denormalized counts on delivery |
+| Verify | ✅ `verify:pickup` (Scenarios A+B), `verify:material-issue-dashboard`, fixture resets |
+| Sonnet security gate | ✅ PASS WITH NOTES (counter-in-transaction, scoped `clientRequestId`) |
+
+**Not in Slice 1 / still Phase 3:** expected-materials UI, shop-stock pull states, readiness-aware queue, unstaged display polish.
+
+### Phase 3 — Technician Pickup Workflow (full gate)
 
 | Deliverable            | Detail                                                                                                                                                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -102,7 +115,7 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Testing                | Scenario A (happy path) + Scenario B (issue creation) per implementation plan                                                                                                                                                |
 | Playwright             | Extend `verify:pickup` for issue button + dashboard visibility                                                                                                                                                               |
 
-**Gate:** Successful pickup + issue creation without manual DB edits.
+**Gate:** Successful pickup + issue creation without manual DB edits. **Slice 1 satisfies issue-creation + dispatcher visibility; full gate requires remaining pickup UI deliverables above.**
 
 ### Phase 4 — Material Issue Resolution
 

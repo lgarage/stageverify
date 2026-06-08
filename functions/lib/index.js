@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.autoSubmitDeliveries = void 0;
+exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
+const createMaterialIssue_1 = require("./createMaterialIssue");
+Object.defineProperty(exports, "createMaterialIssue", { enumerable: true, get: function () { return createMaterialIssue_1.createMaterialIssue; } });
 admin.initializeApp();
 const db = admin.firestore();
 const DEFAULT_AUTO_SUBMIT_MINUTES = 30;

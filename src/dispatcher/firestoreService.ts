@@ -11,6 +11,8 @@ import {
   limit,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { functions } from "../firebase";
+import { httpsCallable } from "firebase/functions";
 import type {
   DeliveryDetails,
   DeliveryListRow,
@@ -19,6 +21,9 @@ import type {
   Item,
   ItemStatus,
   Job,
+  MaterialIssue,
+  CreateMaterialIssueInput,
+  CreateMaterialIssueResult,
   PickupEvent,
   PurchaseOrder,
   StagingLocation,
@@ -278,6 +283,7 @@ export class FirestoreDataService implements DispatcherDataService {
         stagingLocationCode: loc?.code,
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary: delivery.issueSummary ?? "",
+        openIssueCount: delivery.openIssueCount ?? 0,
       });
     }
 
@@ -332,6 +338,7 @@ export class FirestoreDataService implements DispatcherDataService {
       "deliveryOrderId",
       deliveryId,
     );
+    const materialIssues = await listMaterialIssuesForDelivery(deliveryId);
 
     return {
       delivery,
@@ -342,6 +349,7 @@ export class FirestoreDataService implements DispatcherDataService {
       items,
       statusHistory: statusHistoryEvents,
       pickupEvents,
+      materialIssues,
     };
   }
 
@@ -899,6 +907,7 @@ async function hydrateDeliveryDetailsPublic(
     items,
     statusHistory: [],
     pickupEvents: [],
+    materialIssues: [],
   };
 }
 
@@ -1280,6 +1289,32 @@ export async function markDeliveryShipped(deliveryId: string): Promise<void> {
   });
 
   await batch.commit();
+}
+
+const createMaterialIssueCallable = httpsCallable<
+  CreateMaterialIssueInput,
+  CreateMaterialIssueResult
+>(functions, "createMaterialIssue");
+
+export async function reportMaterialIssue(
+  input: CreateMaterialIssueInput,
+): Promise<CreateMaterialIssueResult> {
+  const response = await createMaterialIssueCallable(input);
+  return response.data;
+}
+
+export async function listMaterialIssuesForDelivery(
+  deliveryOrderId: string,
+): Promise<MaterialIssue[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, "materialIssues"),
+      where("deliveryOrderId", "==", deliveryOrderId),
+    ),
+  );
+  const issues = snap.docs.map((d) => d.data() as MaterialIssue);
+  issues.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return issues;
 }
 
 export async function markDeliveryInstalled(deliveryId: string): Promise<void> {

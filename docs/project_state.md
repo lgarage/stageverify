@@ -57,6 +57,8 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Active phase:** Phase 3 — Technician Pickup Workflow 🔵
 
+**Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged. Full Phase 3 gate still open (expected-materials UI, shop-stock pull states, readiness queue).
+
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
 ---
@@ -67,8 +69,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 | ------------------------- | ------------------------------------- | ------------------------------------ |
 | Production (GitHub Pages) | https://lgarage.github.io/stageverify | ✅ Live                              |
 | Firebase project          | stageverify-db (Blaze)                | ✅ Active                            |
-| Cloud Functions           | us-central1                           | ✅ Deployed (`autoSubmitDeliveries`) |
-| Firestore rules           | stageverify-db                        | ✅ Deployed                          |
+| Cloud Functions           | us-central1                           | ✅ Deployed (`autoSubmitDeliveries`, **`createMaterialIssue`** — Slice 1) |
+| Firestore rules           | stageverify-db                        | ✅ Deployed (includes **`materialIssues` auth-read-only**) |
 | ESL / Minew integration   | Planned — no ESL Cloud Function currently implemented | 🔴 Live ESL updates blocked on Minew credentials; does not block Phase 2 |
 
 ---
@@ -82,7 +84,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 | Delivery Detail Drawer | (inside dispatcher)         | Dispatcher          | Status changes, staging, shop stock, PO      |
 | Staging Assignment     | Settings → Zones            | Dispatcher          | CRUD zones, occupancy guard                  |
 | QR Routing             | Scan any tag                | Any actor           | Zone code → correct portal based on status   |
-| Pickup Portal          | `/#/pickup`                 | Technician (public) | Verify items + shop stock → Done             |
+| Pickup Portal          | `/#/pickup`                 | Technician (public) | Verify items + shop stock → Done; **Slice 1:** Report Issue modal + blocking warning (Done not hard-blocked) |
+| Material Issues (Slice 1) | pickup + dispatcher drawer | Technician + dispatcher | Public callable `createMaterialIssue` (no Firebase Auth); dispatcher **Issues (n)** badge + read-only panel |
 | E-Tag / Zone Labels    | `/#/zones` (Print)          | Dispatcher          | Minew ESL QR + print label                   |
 | Vendor Management      | `/#/vendors`                | Dispatcher (auth)   | CRUD vendors                                 |
 | Zone Management        | `/#/zones`                  | Dispatcher (auth)   | CRUD staging locations                       |
@@ -151,5 +154,5 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 3: Technician Pickup Workflow** — per `docs/roadmap.md` NEXT (expected materials UI, Report Issue, readiness-aware queue).
+1. **Ship Phase 3 Slice 1** — commit/push/deploy after approval; then continue remaining Phase 3 pickup UI.
 2. **ESL integration** — Phase 7; blocked on Minew credentials.

@@ -70,11 +70,49 @@ export type MaterialIssueType =
   | "backordered"
   | "other";
 
+export const MATERIAL_ISSUE_TYPE_LABEL: Record<MaterialIssueType, string> = {
+  missing: "Missing",
+  wrong_item: "Wrong Item",
+  damaged: "Damaged",
+  backordered: "Backordered",
+  other: "Other",
+};
+
+/** Blocking types disable implicit “everything present”; `other` is informational only. */
+export function isBlockingMaterialIssueType(type: MaterialIssueType): boolean {
+  return type !== "other";
+}
+
 export type MaterialIssueStatus =
   | "open"
   | "assigned"
   | "resolved"
   | "closed";
+
+export interface MaterialOwnerRef {
+  id: string | null;
+  name: string;
+}
+
+/** Delivery-level owner overrides job-level; neither set → Unassigned. */
+export function effectiveMaterialOwner(
+  job: Pick<Job, "materialOwnerId" | "materialOwnerName"> | undefined,
+  delivery: Pick<DeliveryOrder, "materialOwnerId" | "materialOwnerName">,
+): MaterialOwnerRef {
+  if (delivery.materialOwnerId) {
+    return {
+      id: delivery.materialOwnerId,
+      name: delivery.materialOwnerName ?? "Unassigned",
+    };
+  }
+  if (job?.materialOwnerId) {
+    return {
+      id: job.materialOwnerId,
+      name: job.materialOwnerName ?? "Unassigned",
+    };
+  }
+  return { id: null, name: "Unassigned" };
+}
 
 export type IssueResolutionType =
   | "found_in_shop"
@@ -235,6 +273,10 @@ export interface DeliveryOrder {
   notes?: string;
   submittedAt?: string;
   lastCheckmarkAt?: string;
+  /** Denormalized — maintained by createMaterialIssue Cloud Function only. */
+  openIssueCount?: number;
+  /** Denormalized — open/assigned issues with blocking types (missing, wrong, damaged, backordered). */
+  openBlockingIssueCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -345,7 +387,6 @@ export interface PickupEvent {
   issueIds?: string[];
 }
 
-/** Forward-compatible stub — persistence Phase 3+ unless gate requires earlier. */
 export interface MaterialIssue {
   id: string;
   deliveryOrderId: string;
@@ -354,9 +395,33 @@ export interface MaterialIssue {
   status: MaterialIssueStatus;
   reportedBy: string;
   assignedOwnerId?: string;
+  assignedOwnerName?: string;
   description?: string;
+  /** True for missing, wrong_item, damaged, backordered. */
+  blocking: boolean;
+  clientRequestId: string;
+  itemId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateMaterialIssueInput {
+  deliveryOrderId: string;
+  jobId: string;
+  type: MaterialIssueType;
+  description?: string;
+  reportedBy: string;
+  clientRequestId: string;
+  itemId?: string;
+}
+
+export interface CreateMaterialIssueResult {
+  issueId: string;
+  status: MaterialIssueStatus;
+  assignedOwnerId?: string;
+  assignedOwnerName: string;
+  blocking: boolean;
+  duplicate: boolean;
 }
 
 /** Forward-compatible stub — resolution workflows Phase 4+. */
@@ -429,6 +494,7 @@ export interface DeliveryListRow {
   stagingLocationCode?: string;
   itemsReceivedLabel: string;
   issueSummary: string;
+  openIssueCount: number;
 }
 
 export interface DeliveryDetails {
@@ -440,4 +506,5 @@ export interface DeliveryDetails {
   items: Item[];
   statusHistory: StatusHistoryEvent[];
   pickupEvents: PickupEvent[];
+  materialIssues: MaterialIssue[];
 }

@@ -151,6 +151,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Phase 3: MaterialIssue — auth read only; writes via Admin SDK (createMaterialIssue CF).
+    match /materialIssues/{issueId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
     match /appSettings/{docId} {
       allow read: if true;
       allow write: if isAuthenticated();
