@@ -44,7 +44,7 @@ export function buildUpdatePlan(opts) {
     adapter,
     profile = 'sonnet-default',
     adapterName = null,
-    brainRepoPath = 'C:/Projects/cursor-agent-brain',
+    brainRepoPath = '~/.cursor/skills/agent-ops',
     allowDowngrade = false,
   } = opts;
 

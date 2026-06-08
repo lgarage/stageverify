@@ -98,17 +98,29 @@ test('5. collision — project-owned adapter file', () => {
   const adapterDir = path.join(target, 'aecs', 'adapters');
   fs.mkdirSync(adapterDir, { recursive: true });
   fs.writeFileSync(
-    path.join(adapterDir, 'stageverify.bindings.json'),
-    '{"targetName":"stageverify","custom":true}\n',
+    path.join(adapterDir, 'myproject.bindings.json'),
+    '{"targetName":"myproject","custom":true}\n',
   );
-  const result = runInstall({
-    sourceRoot: SOURCE_ROOT,
-    targetRoot: target,
-    write: true,
-    adapterName: 'stageverify',
-  });
-  assert.equal(result.ok, false);
-  assert.ok(result.blocks.some((b) => b.includes('Project-owned') || b.includes('adapter')));
+  const adapterSource = path.join(SOURCE_ROOT, 'aecs', 'adapters', 'myproject.bindings.json');
+  fs.mkdirSync(path.dirname(adapterSource), { recursive: true });
+  fs.writeFileSync(
+    adapterSource,
+    '{"targetName":"myproject","orchestrationProfile":"composer-default"}\n',
+  );
+  try {
+    const result = runInstall({
+      sourceRoot: SOURCE_ROOT,
+      targetRoot: target,
+      write: true,
+      adapterName: 'myproject',
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.blocks.some((b) => b.includes('Project-owned') || b.includes('adapter')));
+  } finally {
+    if (fs.existsSync(adapterSource)) {
+      fs.unlinkSync(adapterSource);
+    }
+  }
 });
 
 test('6. collision — locally modified AECS rule', () => {

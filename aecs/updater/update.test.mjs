@@ -113,17 +113,23 @@ test('6. local modification blocks update', () => {
 test('7. project-owned collision blocks', () => {
   const target = makeTempRepo();
   installA(target);
-  const adapterPath = path.join(target, 'aecs', 'adapters', 'stageverify.bindings.json');
+  const adapterPath = path.join(target, 'aecs', 'adapters', 'myproject.bindings.json');
   fs.mkdirSync(path.dirname(adapterPath), { recursive: true });
-  fs.writeFileSync(adapterPath, '{"targetName":"stageverify","custom":true}\n');
+  fs.writeFileSync(adapterPath, '{"targetName":"myproject","custom":true}\n');
   const sourceB = makeSourceVariant(HOST_ROOT, '0.2.0', (s) => {
     mutateCoreFile(s, 'aecs/core/schemas/trials.schema.json', '\n');
+    const adapterSrc = path.join(s, 'aecs', 'adapters', 'myproject.bindings.json');
+    fs.mkdirSync(path.dirname(adapterSrc), { recursive: true });
+    fs.writeFileSync(
+      adapterSrc,
+      '{"targetName":"myproject","orchestrationProfile":"composer-default"}\n',
+    );
   });
   const result = runUpdate({
     sourceRoot: sourceB,
     targetRoot: target,
     write: true,
-    adapterName: 'stageverify',
+    adapterName: 'myproject',
   });
   assert.equal(result.ok, false);
   assert.ok(result.blocks.some((b) => b.includes('Project-owned') || b.includes('adapter')));

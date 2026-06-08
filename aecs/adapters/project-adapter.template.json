@@ -1,0 +1,16 @@
+{
+  "_comment": "Template only — copy to aecs/adapters/<your-project>.bindings.json in YOUR repo before --adapter install.",
+  "targetName": "your-project",
+  "orchestrationProfile": "composer-default",
+  "memory": {
+    "hot": "PROJECT_STATUS/CURRENT_STATE.md",
+    "warm": "PROJECT_STATUS/MODEL_DOSSIER.md"
+  },
+  "ship": {
+    "deploy": "npm run deploy"
+  },
+  "verify": {
+    "devPort": 5173
+  },
+  "trials": ".cursor/trials.json"
+}

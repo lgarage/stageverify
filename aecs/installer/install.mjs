@@ -12,6 +12,7 @@ import {
 } from './lib/plan.mjs';
 import { assertValidTarget, normalizeRel } from './lib/paths.mjs';
 import { checkInstallAllowed } from '../updater/lib/progress.mjs';
+import { verifyReleasePackage } from '../release/lib/integrity.mjs';
 
 /**
  * @param {string[]} argv
@@ -74,9 +75,28 @@ export function runInstall(opts) {
   const write = Boolean(opts.write);
   const profile = opts.profile ?? 'sonnet-default';
   const brainRepoPath =
-    opts.brainRepoPath ?? process.env.AECS_BRAIN_REPO_PATH ?? 'C:/Projects/cursor-agent-brain';
+    opts.brainRepoPath ?? process.env.AECS_BRAIN_REPO_PATH ?? '~/.cursor/skills/agent-ops';
 
   assertValidTarget(sourceRoot, targetRoot);
+
+  const releaseMetaPath = path.join(sourceRoot, 'release-metadata.json');
+  if (fs.existsSync(releaseMetaPath)) {
+    try {
+      verifyReleasePackage(sourceRoot);
+    } catch (err) {
+      return {
+        ok: false,
+        dryRun: !write,
+        installerVersion: INSTALLER_VERSION,
+        sourceRoot,
+        targetRoot,
+        blocks: [err instanceof Error ? err.message : String(err)],
+        notes: [],
+        planned: [],
+        written: [],
+      };
+    }
+  }
 
   const { manifest, manifestSha256 } = loadSourceManifest(sourceRoot);
   const existingInstall = loadInstalledManifest(targetRoot);

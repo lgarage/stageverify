@@ -292,7 +292,11 @@ test('E2E disposable: A→B update, verify B, rollback A, cleanup', () => {
   fs.writeFileSync(path.join(target, nestedRel.replace(/\//g, path.sep)), '{ "v": "a-nested" }\n');
   fs.writeFileSync(path.join(target, flatRel.replace(/\//g, path.sep)), '{ "v": "a-flat" }\n');
 
-  const sourceB = makeSourceVariant(HOST_ROOT, '0.2.0', (s) => {
+  const versionA = JSON.parse(
+    fs.readFileSync(path.join(target, '.cursor', 'aecs', 'installed-manifest.json'), 'utf8'),
+  ).aecsVersion;
+
+  const sourceB = makeSourceVariant(HOST_ROOT, '0.2.1', (s) => {
     mutateCoreFile(s, 'aecs/core/schemas/trials.schema.json', '\n/* e2e b */\n');
   });
   const update = runUpdate({ sourceRoot: sourceB, targetRoot: target, write: true });
@@ -311,7 +315,7 @@ test('E2E disposable: A→B update, verify B, rollback A, cleanup', () => {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(target, '.cursor', 'aecs', 'installed-manifest.json'), 'utf8'),
   );
-  assert.notEqual(manifest.aecsVersion, '0.2.0');
+  assert.equal(manifest.aecsVersion, versionA);
   assert.equal(fs.readFileSync(path.join(target, 'e2e-unrelated.txt'), 'utf8'), 'untouched');
 
   fs.rmSync(target, { recursive: true, force: true });

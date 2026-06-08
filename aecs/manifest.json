@@ -1,5 +1,5 @@
 {
-  "aecsVersion": "0.1.0",
+  "aecsVersion": "0.2.0",
   "profileDefault": "sonnet-default",
   "targetProfile": "composer-default",
   "layers": {
@@ -11,7 +11,7 @@
   "brainRepo": {
     "skillPath": "~/.cursor/skills/agent-ops",
     "gitSourceEnv": "AECS_BRAIN_REPO_PATH",
-    "gitSourceDefault": "C:/Projects/cursor-agent-brain"
+    "gitSourceDefault": null
   },
   "files": [
     {
@@ -78,7 +78,7 @@
     ".cursor/trials.json",
     "PROJECT_STATUS/**",
     "scripts/verify-*.mjs",
-    "aecs/adapters/stageverify.bindings.json"
+    "aecs/adapters/"
   ],
   "excludedFromInstall": [
     "aecs/dev/**",

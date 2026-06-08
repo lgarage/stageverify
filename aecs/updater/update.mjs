@@ -23,6 +23,7 @@ import {
   writeUpdateInProgress,
 } from './lib/progress.mjs';
 import { runVerify } from '../installer/verify.mjs';
+import { verifyReleasePackage } from '../release/lib/integrity.mjs';
 
 /**
  * @param {string[]} argv
@@ -74,9 +75,25 @@ export function runUpdate(opts) {
   const write = Boolean(opts.write);
   const allowDowngrade = Boolean(opts.allowDowngrade);
   const brainRepoPath =
-    opts.brainRepoPath ?? process.env.AECS_BRAIN_REPO_PATH ?? 'C:/Projects/cursor-agent-brain';
+    opts.brainRepoPath ?? process.env.AECS_BRAIN_REPO_PATH ?? '~/.cursor/skills/agent-ops';
 
   assertValidTarget(sourceRoot, targetRoot);
+
+  const releaseMetaPath = path.join(sourceRoot, 'release-metadata.json');
+  if (fs.existsSync(releaseMetaPath)) {
+    try {
+      verifyReleasePackage(sourceRoot);
+    } catch (err) {
+      return {
+        ok: false,
+        dryRun: !write,
+        updaterVersion: UPDATER_VERSION,
+        blocks: [err instanceof Error ? err.message : String(err)],
+        planned: [],
+        written: [],
+      };
+    }
+  }
 
   const progressGate = checkUpdateAllowed(targetRoot);
   if (!progressGate.ok) {

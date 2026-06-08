@@ -1,4 +1,5 @@
 {
+  "_comment": "NON-AUTHORITATIVE EXAMPLE — StageVerify dev-host reference only. Copy and rename for your project.",
   "targetName": "stageverify",
   "orchestrationProfile": "composer-default",
   "memory": {
@@ -9,7 +10,7 @@
   },
   "ship": {
     "deploy": "npm run deploy",
-    "rulesDeploy": "firebase deploy --only firestore:rules --project stageverify-db"
+    "rulesDeploy": "firebase deploy --only firestore:rules --project YOUR-PROJECT-ID"
   },
   "verify": {
     "pickup": "npm run verify:pickup",

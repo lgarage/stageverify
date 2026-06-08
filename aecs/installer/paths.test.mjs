@@ -112,7 +112,6 @@ test('write install with lowercase drive target succeeds on Windows', { skip: !i
     sourceRoot: SOURCE_ROOT,
     targetRoot: lowerTarget,
     write: true,
-    adapterName: 'stageverify',
   });
   assert.equal(result.ok, true, JSON.stringify(result.blocks, null, 2));
   assert.ok(fs.existsSync(path.join(target, 'aecs', 'manifest.json')));
