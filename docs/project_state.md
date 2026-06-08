@@ -57,7 +57,11 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Active phase:** Phase 3 — Technician Pickup Workflow 🔵
 
-**Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged. Full Phase 3 gate still open (expected-materials UI, shop-stock pull states, readiness queue).
+**Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged.
+
+**Slice 2 (shipped 2026-06-08):** Clear pickup location labels on public pickup (`Pickup at`, `Also check`, `Find it at`, `Shop stock`); hides internal PARTIAL/COMPLETE chips. Display-only — queue, QR, rules, CF unchanged.
+
+Full Phase 3 gate still open (expected-materials UI, shop-stock pull states, readiness queue).
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
@@ -154,5 +158,5 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Ship Phase 3 Slice 1** — commit/push/deploy after approval; then continue remaining Phase 3 pickup UI.
+1. **Phase 3 remaining** — ready-only pickup queue (Slice 3+), shop-stock pull states, expected-materials UI (see `docs/roadmap.md`). Slice 2 (clear pickup locations) shipped 2026-06-08.
 2. **ESL integration** — Phase 7; blocked on Minew credentials.

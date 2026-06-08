@@ -13,6 +13,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
+  assignStagingIfUnassigned,
   clickMarkStatus,
   clickRevertIfVisible,
   ensureAuthenticated,
@@ -40,18 +41,49 @@ loadEnvLocal();
   await ensureAuthenticated(page, appBase);
   await openDeliveryDrawer(page, orderNumber, deliveryId);
 
-  if (await clickRevertIfVisible(page)) {
-    console.log(`Reset ${deliveryId}: reverted one step toward pickup-eligible.`);
+  let reverted = 0;
+  for (let i = 0; i < 4; i++) {
+    if (!(await clickRevertIfVisible(page))) break;
+    reverted++;
+  }
+  if (reverted > 0) {
+    console.log(`Reset ${deliveryId}: reverted ${reverted} step(s) toward pickup-eligible.`);
   }
 
-  if (await clickMarkStatus(page, /Mark Partial/i)) {
-    console.log(`Reset ${deliveryId}: marked Partial for pickup portal.`);
-  } else if (await clickMarkStatus(page, /Mark Staged/i)) {
-    console.log(`Reset ${deliveryId}: marked Staged for pickup portal.`);
-  } else if (await page.getByRole("button", { name: /Revert to/i }).isVisible().catch(() => false)) {
-    console.log(`Reset ${deliveryId}: pickup-eligible (partial/staged/complete).`);
-  } else {
-    console.log(`Reset ${deliveryId}: no status action needed — may already be pickup-eligible.`);
+  let advanced = false;
+  for (let i = 0; i < 8; i++) {
+    if (await clickMarkStatus(page, /Mark Partial/i)) {
+      console.log(`Reset ${deliveryId}: marked Partial for pickup portal.`);
+      advanced = true;
+      break;
+    }
+    if (await clickMarkStatus(page, /Mark Staged/i)) {
+      console.log(`Reset ${deliveryId}: marked Staged for pickup portal.`);
+      advanced = true;
+      break;
+    }
+    if (
+      (await clickMarkStatus(page, /Mark Received/i)) ||
+      (await clickMarkStatus(page, /Mark Shipped/i))
+    ) {
+      continue;
+    }
+    break;
+  }
+
+  if (!advanced) {
+    const body = await page.locator("body").innerText();
+    if (/Partial|Staged|Complete|Picked Up/i.test(body)) {
+      console.log(`Reset ${deliveryId}: already pickup-eligible.`);
+    } else {
+      console.warn(
+        `Reset ${deliveryId}: could not advance to pickup-eligible. Check drawer status.`,
+      );
+    }
+  }
+
+  if (await assignStagingIfUnassigned(page)) {
+    console.log(`Reset ${deliveryId}: assigned staging location for pickup display.`);
   }
 
   await browser.close();

@@ -72,3 +72,34 @@ export async function clickMarkStatus(page, labelPattern) {
   await page.waitForTimeout(2000);
   return true;
 }
+
+/** Assign first available staging zone when delivery has none (verify fixtures). */
+export async function assignStagingIfUnassigned(page) {
+  const section = page
+    .locator("div")
+    .filter({ has: page.getByText("Staging Location", { exact: true }) })
+    .first();
+  const select = section.locator("select");
+  if (!(await select.isVisible().catch(() => false))) return false;
+
+  const current = await select.inputValue();
+  if (current) return false;
+
+  const options = select.locator("option");
+  const count = await options.count();
+  for (let i = 0; i < count; i++) {
+    const opt = options.nth(i);
+    const value = await opt.getAttribute("value");
+    const disabled = await opt.getAttribute("disabled");
+    if (!value || disabled !== null) continue;
+    await select.selectOption(value);
+    const assignBtn = section.getByRole("button", { name: /^Assign$/ });
+    if (await assignBtn.isEnabled().catch(() => false)) {
+      await assignBtn.click();
+      await page.waitForTimeout(2000);
+      return true;
+    }
+    break;
+  }
+  return false;
+}

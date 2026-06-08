@@ -18,6 +18,10 @@ import {
   loadEnvLocal,
   openDeliveryDrawer,
 } from "./dispatcherVerifyHelpers.mjs";
+import {
+  applyFullLocationDisplay,
+  applyMinimalLocationDisplay,
+} from "./pickupLocationDisplayFixture.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -133,6 +137,120 @@ async function runScenarioA(page) {
   console.log("Scenario A PASS: All Items Picked Up! screen shown.");
 }
 
+async function waitForPickupCard(page) {
+  await page.waitForSelector("text=Mark off items as you pick them up", {
+    timeout: 30_000,
+  });
+  await page.waitForSelector('[data-testid="pickup-at-primary"]', {
+    timeout: 30_000,
+  });
+}
+
+async function assertLocationDisplayFull(page) {
+  const primary = page.getByTestId("pickup-at-primary");
+  const primaryText = (await primary.textContent())?.trim() ?? "";
+  if (primaryText !== "G1") {
+    throw new Error(
+      `Slice 2 FAIL: expected Pickup at G1, got "${primaryText}".`,
+    );
+  }
+  console.log("Slice 2 PASS: Pickup at G1");
+
+  const alsoCheck = page.getByTestId("pickup-also-check");
+  if (!(await alsoCheck.isVisible().catch(() => false))) {
+    throw new Error("Slice 2 FAIL: Also check row should be visible.");
+  }
+  const alsoText = (await alsoCheck.textContent()) ?? "";
+  if (!/Also check:\s*G4,\s*G5/.test(alsoText)) {
+    throw new Error(`Slice 2 FAIL: expected Also check G4, G5 — got "${alsoText.trim()}".`);
+  }
+  console.log("Slice 2 PASS: Also check: G4, G5");
+
+  const findAt = page.getByTestId("pickup-find-at");
+  if (!(await findAt.isVisible().catch(() => false))) {
+    throw new Error("Slice 2 FAIL: Find it at row should be visible.");
+  }
+  const findText = (await findAt.textContent()) ?? "";
+  if (!findText.includes("Receiving dock")) {
+    throw new Error(`Slice 2 FAIL: expected Find it at Receiving dock — got "${findText.trim()}".`);
+  }
+  console.log("Slice 2 PASS: Find it at: Receiving dock");
+
+  const shopStock = page.getByTestId("pickup-shop-stock-location");
+  if (!(await shopStock.isVisible().catch(() => false))) {
+    throw new Error("Slice 2 FAIL: Shop stock row should be visible.");
+  }
+  const shopText = (await shopStock.textContent()) ?? "";
+  if (!shopText.includes("Main stock room")) {
+    throw new Error(
+      `Slice 2 FAIL: expected Shop stock Main stock room — got "${shopText.trim()}".`,
+    );
+  }
+  console.log("Slice 2 PASS: Shop stock: Main stock room");
+
+  await page.screenshot({
+    path: resolve(outDir, "pickup-verify-locations-full-mobile.png"),
+    fullPage: false,
+  });
+}
+
+async function assertLocationDisplayMinimal(page) {
+  const primaryText =
+    (await page.getByTestId("pickup-at-primary").textContent())?.trim() ?? "";
+  if (!primaryText || primaryText === "—") {
+    throw new Error("Slice 2 FAIL: primary location missing on minimal fixture.");
+  }
+  console.log(`Slice 2 PASS: minimal — Pickup at ${primaryText} only`);
+
+  if (await page.getByTestId("pickup-also-check").isVisible().catch(() => false)) {
+    throw new Error("Slice 2 FAIL: Also check should be hidden when no extras.");
+  }
+  console.log("Slice 2 PASS: Also check hidden");
+
+  if (await page.getByTestId("pickup-find-at").isVisible().catch(() => false)) {
+    throw new Error("Slice 2 FAIL: Find it at should be hidden when note blank.");
+  }
+  console.log("Slice 2 PASS: Find it at hidden");
+
+  if (
+    await page.getByTestId("pickup-shop-stock-location").isVisible().catch(() => false)
+  ) {
+    throw new Error("Slice 2 FAIL: Shop stock should be hidden when note blank.");
+  }
+  console.log("Slice 2 PASS: Shop stock hidden");
+
+  await page.screenshot({
+    path: resolve(outDir, "pickup-verify-locations-minimal-mobile.png"),
+    fullPage: false,
+  });
+}
+
+async function assertNoProblemQtyDetails(page) {
+  const body = await page.locator("body").innerText();
+  const banned = [
+    /\b\d+\s+missing\b/i,
+    /\bbackordered\b/i,
+    /\bqty\s*missing\b/i,
+    /\bdamaged\b/i,
+  ];
+  for (const pattern of banned) {
+    if (pattern.test(body)) {
+      throw new Error(
+        `Slice 2 FAIL: public pickup must not show problem qty details (matched ${pattern}).`,
+      );
+    }
+  }
+  console.log("Slice 2 PASS: no missing/backorder/damaged qty details on pickup");
+}
+
+async function assertPublicStatusHidden(page) {
+  for (const label of ["Partial", "Complete"]) {
+    if (await page.getByText(label, { exact: true }).isVisible().catch(() => false)) {
+      throw new Error(`Slice 2 FAIL: internal status "${label}" visible on pickup.`);
+    }
+  }
+}
+
 async function runDashboardBadgeCheck(browser) {
   if (!existsSync(authState)) {
     console.log("SKIP dashboard badge: no playwright/.auth/state.json");
@@ -159,6 +277,9 @@ async function runDashboardBadgeCheck(browser) {
 }
 
 (async () => {
+  await applyFullLocationDisplay(deliveryId);
+  console.log("Slice 2: applied full location display fixture on delivery-3.");
+
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -170,11 +291,8 @@ async function runDashboardBadgeCheck(browser) {
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector("text=Mark off items as you pick them up", {
-    timeout: 30_000,
-  });
   try {
-    await page.waitForSelector("text=Staging:", { timeout: 30_000 });
+    await waitForPickupCard(page);
   } catch {
     const bodyText = await page.locator("body").innerText();
     await page.screenshot({
@@ -197,6 +315,34 @@ async function runDashboardBadgeCheck(browser) {
     await browser.close();
     process.exit(1);
   }
+
+  console.log("Slice 2: full location display…");
+  try {
+    await assertLocationDisplayFull(page);
+    await assertNoProblemQtyDetails(page);
+    await assertPublicStatusHidden(page);
+  } catch (err) {
+    console.error("FAIL:", err instanceof Error ? err.message : err);
+    await browser.close();
+    process.exit(1);
+  }
+
+  console.log("Slice 2: minimal location display (hidden rows)…");
+  await applyMinimalLocationDisplay(deliveryId);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  try {
+    await waitForPickupCard(page);
+    await assertLocationDisplayMinimal(page);
+    await assertNoProblemQtyDetails(page);
+  } catch (err) {
+    console.error("FAIL:", err instanceof Error ? err.message : err);
+    await browser.close();
+    process.exit(1);
+  }
+
+  await applyFullLocationDisplay(deliveryId);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForPickupCard(page);
 
   await page.screenshot({
     path: resolve(outDir, "pickup-verify-before.png"),

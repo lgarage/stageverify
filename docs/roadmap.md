@@ -96,7 +96,16 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Verify | ✅ `verify:pickup` (Scenarios A+B), `verify:material-issue-dashboard`, fixture resets |
 | Sonnet security gate | ✅ PASS WITH NOTES (counter-in-transaction, scoped `clientRequestId`) |
 
-**Not in Slice 1 / still Phase 3:** expected-materials UI, shop-stock pull states, readiness-aware queue, unstaged display polish.
+**Not in Slice 1 / still Phase 3:** expected-materials UI, shop-stock pull states, readiness-aware queue.
+
+### Phase 3 Slice 2 — Clear pickup locations ✅ (shipped 2026-06-08)
+
+| Item | Status |
+| ---- | ------ |
+| Pickup location labels | ✅ `Pickup at` / `Also check` / `Find it at` / `Shop stock` on public pickup cards |
+| Status display | ✅ Hide internal PARTIAL/COMPLETE chips; show `Ready for pickup` only when `ready_for_pickup` |
+| Scope | ✅ Display-only — no queue, rules, CF, or write-path changes |
+| Verify | ✅ `verify:pickup` full/minimal location display + Scenarios A+B |
 
 ### Phase 3 — Technician Pickup Workflow (full gate)
 

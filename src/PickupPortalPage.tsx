@@ -9,7 +9,6 @@ import {
   reportMaterialIssue,
 } from "./dispatcher/firestoreService";
 import {
-  DELIVERY_STATUS_LABEL,
   getAllStagingLocationIds,
   MATERIAL_ISSUE_TYPE_LABEL,
   type DeliveryDetails,
@@ -119,54 +118,66 @@ function resolveStagingLocations(
   });
 }
 
-function StagingLocationsDisplay({
-  locations,
-  compact = false,
-}: {
-  locations: { code: string; label: string; isPrimary: boolean }[];
-  compact?: boolean;
-}) {
-  if (locations.length === 0) {
-    return <span className="text-text-secondary">—</span>;
-  }
+/** Public pickup status — hide internal workflow labels (Partial, Complete, etc.). */
+function publicPickupStatusLabel(status: DeliveryStatus): string | null {
+  if (status === "ready_for_pickup") return "Ready for pickup";
+  if (status === "picked_up") return "Picked up";
+  if (status === "installed") return "Installed";
+  return null;
+}
 
-  if (compact) {
-    return (
-      <span className="inline-flex flex-wrap items-center gap-1">
-        {locations.map((loc, idx) => (
-          <span key={`${loc.code}-${idx}`}>
-            {idx > 0 && <span className="text-text-secondary">, </span>}
-            <span
-              className={
-                loc.isPrimary
-                  ? "font-bold text-accent"
-                  : "text-text-primary"
-              }
-            >
-              {loc.code}
-            </span>
-          </span>
-        ))}
-      </span>
-    );
-  }
+function usefulLocationNote(note: string | undefined): string | null {
+  const trimmed = note?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function PickupLocationBlock({
+  stagingLocations,
+  currentLocationNote,
+  shopStockLocationNote,
+}: {
+  stagingLocations: { code: string; label: string; isPrimary: boolean }[];
+  currentLocationNote?: string;
+  shopStockLocationNote?: string;
+}) {
+  const primary = stagingLocations.find((loc) => loc.isPrimary) ?? stagingLocations[0];
+  const additional = stagingLocations.filter((loc) => !loc.isPrimary);
+  const findAt = usefulLocationNote(currentLocationNote);
+  const shopStockAt = usefulLocationNote(shopStockLocationNote);
 
   return (
-    <span className="text-text-primary font-medium text-right inline-flex flex-wrap items-center justify-end gap-1.5">
-      {locations.map((loc, idx) => (
+    <div className="space-y-1.5 text-sm leading-snug" data-testid="pickup-location-block">
+      <p className="text-text-primary">
+        <span className="text-text-secondary">Pickup at: </span>
         <span
-          key={`${loc.code}-${idx}`}
-          className={`rounded-full px-2 py-0.5 text-xs ${
-            loc.isPrimary
-              ? "bg-accent/10 font-bold text-accent"
-              : "bg-bg-surface border border-border text-text-primary"
-          }`}
-          title={loc.label}
+          className="text-lg font-bold text-accent"
+          data-testid="pickup-at-primary"
+          title={primary?.label}
         >
-          {loc.code}
+          {primary?.code ?? "—"}
         </span>
-      ))}
-    </span>
+      </p>
+      {additional.length > 0 && (
+        <p className="text-text-primary" data-testid="pickup-also-check">
+          <span className="text-text-secondary">Also check: </span>
+          <span className="font-semibold">
+            {additional.map((loc) => loc.code).join(", ")}
+          </span>
+        </p>
+      )}
+      {findAt && (
+        <p className="text-text-primary" data-testid="pickup-find-at">
+          <span className="text-text-secondary">Find it at: </span>
+          <span className="font-medium">{findAt}</span>
+        </p>
+      )}
+      {shopStockAt && (
+        <p className="text-text-primary" data-testid="pickup-shop-stock-location">
+          <span className="text-text-secondary">Shop stock: </span>
+          <span className="font-medium">{shopStockAt}</span>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1048,31 +1059,25 @@ function JobPickupScreen({
                         </span>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <p
-                            className={`font-bold ${
-                              isInstalled
-                                ? "text-text-secondary"
-                                : "text-text-primary"
-                            }`}
-                          >
-                            Staging:{" "}
-                            <StagingLocationsDisplay
-                              locations={stagingLocations}
-                              compact
-                            />
-                          </p>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                              isInstalled
-                                ? "bg-text-secondary/15 text-text-secondary"
-                                : deliveryStatus === "picked_up"
+                        <div className="mb-2">
+                          <PickupLocationBlock
+                            stagingLocations={stagingLocations}
+                            currentLocationNote={d.delivery.currentLocationNote}
+                            shopStockLocationNote={d.delivery.shopStockLocationNote}
+                          />
+                          {publicPickupStatusLabel(deliveryStatus) && (
+                            <span
+                              className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                                deliveryStatus === "picked_up" ||
+                                deliveryStatus === "installed"
                                   ? "bg-accent-green/15 text-accent-green"
-                                  : "bg-accent/10 text-accent"
-                            }`}
-                          >
-                            {DELIVERY_STATUS_LABEL[deliveryStatus]}
-                          </span>
+                                  : "bg-accent-green/10 text-accent-green"
+                              }`}
+                              data-testid="pickup-public-status"
+                            >
+                              {publicPickupStatusLabel(deliveryStatus)}
+                            </span>
+                          )}
                         </div>
                         <p className="text-text-secondary text-sm">
                           {d.vendor.name} ·{" "}
@@ -1145,10 +1150,6 @@ function JobPickupScreen({
                           </span>
                         </div>
                       ))}
-                      <div className="flex items-center justify-between gap-4 text-xs">
-                        <span className="text-text-secondary">Staging</span>
-                        <StagingLocationsDisplay locations={stagingLocations} />
-                      </div>
                     </div>
 
                     <p className="mb-3 text-xs text-text-secondary">
@@ -1265,11 +1266,6 @@ function JobPickupScreen({
                             );
                           })}
                         </div>
-                        {d.delivery.shopStockLocationNote?.trim() && (
-                          <p className="mt-3 text-xs text-text-secondary">
-                            Location: {d.delivery.shopStockLocationNote.trim()}
-                          </p>
-                        )}
                         {shopStockComplete && (
                           <p className="mt-3 text-sm font-semibold text-accent-green">
                             Shop Stock Complete ✓
