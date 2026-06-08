@@ -207,6 +207,9 @@ const deliveryOrders: DeliveryOrder[] = [
     deliveryDate: "2026-05-30",
     stagingLocationId: "staging-4",
     status: "arrived",
+    readinessStatus: "not_ready",
+    currentLocationNote: "Receiving dock — forklift unload",
+    availabilityStatus: "received",
     issueSummary: "",
     notes: "Unload requires forklift support.",
     createdAt: "2026-05-25T07:00:00Z",
@@ -312,6 +315,8 @@ const items: Item[] = [
     qtyDamaged: 0,
     qtyBackordered: 0,
     status: "received",
+    materialSource: "vendor_delivery",
+    availabilityStatus: "received",
   },
   {
     id: "item-7",
