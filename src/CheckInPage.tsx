@@ -1,14 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import {
   firestoreDataService,
   getDeliveryByOrderNumber,
+  getDeliveryDetailsPublic,
 } from "./dispatcher/firestoreService";
 import type { DeliveryDetails, DeliveryOrder } from "./dispatcher/models";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
+import { VendorPinGate } from "./VendorPinGate";
+import { isPinSessionValid } from "./vendorPinSession";
+import { useVendorPinActivity } from "./useVendorPinActivity";
 
 type DisplayItemStatus = "Delivered" | "Partial" | "Backordered" | "Damaged";
 type DisplayOrderStatus = "Pending" | "Partial" | "Complete";
+type GatePhase = "pin" | "loading" | "ready" | "invalid";
 
 interface CheckInLineItem {
   id: string;
@@ -32,7 +37,6 @@ const orderStatusBadge = (status: DisplayOrderStatus) => {
   return `inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-medium uppercase tracking-widest ${map[status]}`;
 };
 
-/* ── Zone description helper ── */
 const zoneDescription = (zoneId: string): string => {
   const map: Record<string, string> = {
     G1: "Ground Spot 1",
@@ -45,7 +49,6 @@ const zoneDescription = (zoneId: string): string => {
   return map[zoneId] ?? zoneId;
 };
 
-/* ── Status pill component ── */
 const StatusPill = ({
   status,
   onSelect,
@@ -125,11 +128,13 @@ const StatusPill = ({
   );
 };
 
-/* ── Component ── */
 export function CheckInPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const [details, setDetails] = useState<DeliveryDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [gatePhase, setGatePhase] = useState<GatePhase>("pin");
+  const [resolvedDeliveryId, setResolvedDeliveryId] = useState<string | null>(
+    null,
+  );
 
   const [step, setStep] = useState<"checkoff" | "done">("checkoff");
   const [driverName, setDriverName] = useState("");
@@ -139,40 +144,71 @@ export function CheckInPage() {
     null,
   );
 
-  useEffect(() => {
-    if (!orderId) {
-      setLoading(false);
+  const handlePinSessionExpired = useCallback(() => {
+    setDetails(null);
+    setItems([]);
+    setGatePhase("pin");
+  }, []);
+
+  useVendorPinActivity(resolvedDeliveryId, handlePinSessionExpired);
+
+  const loadDelivery = useCallback(async (deliveryKey: string) => {
+    setGatePhase("loading");
+    let result = await getDeliveryDetailsPublic(deliveryKey);
+    if (!result) {
+      result = await getDeliveryByOrderNumber(deliveryKey);
+    }
+    if (!result) {
+      setGatePhase("invalid");
       return;
     }
-    setLoading(true);
-    void getDeliveryByOrderNumber(orderId).then(async (result) => {
-      if (result && result.delivery.status === "pending") {
-        await firestoreDataService.updateDeliveryStatus(
-          result.delivery.id,
-          "arrived",
-        );
-      }
-      setDetails(result);
-      if (result) {
-        setItems(
-          result.items.map((it) => ({
-            id: it.id,
-            description: it.description,
-            quantity: it.qtyOrdered,
-            deliveredQty: 0,
-            missingQty: it.qtyOrdered,
-            damagedQty: 0,
-            status: null,
-          })),
-        );
-      } else {
-        setItems([]);
-      }
-      setLoading(false);
-    });
-  }, [orderId]);
+    if (result.delivery.status === "pending") {
+      await firestoreDataService.updateDeliveryStatus(
+        result.delivery.id,
+        "arrived",
+      );
+    }
+    setResolvedDeliveryId(result.delivery.id);
+    setDetails(result);
+    setItems(
+      result.items.map((it) => ({
+        id: it.id,
+        description: it.description,
+        quantity: it.qtyOrdered,
+        deliveredQty: 0,
+        missingQty: it.qtyOrdered,
+        damagedQty: 0,
+        status: null,
+      })),
+    );
+    setGatePhase("ready");
+  }, []);
 
-  if (loading) {
+  useEffect(() => {
+    if (!orderId) {
+      setGatePhase("invalid");
+      return;
+    }
+    if (isPinSessionValid(orderId)) {
+      void loadDelivery(orderId);
+      return;
+    }
+    setResolvedDeliveryId(orderId);
+    setGatePhase("pin");
+  }, [orderId, loadDelivery]);
+
+  if (gatePhase === "pin" && resolvedDeliveryId) {
+    return (
+      <VendorPinGate
+        deliveryId={resolvedDeliveryId}
+        onVerified={() => {
+          void loadDelivery(resolvedDeliveryId);
+        }}
+      />
+    );
+  }
+
+  if (gatePhase === "loading") {
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
         <p className="text-sm text-text-secondary">Loading order…</p>
@@ -180,7 +216,7 @@ export function CheckInPage() {
     );
   }
 
-  if (!details) {
+  if (gatePhase === "invalid" || !details) {
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
         <div className="text-center">
@@ -199,11 +235,9 @@ export function CheckInPage() {
               />
             </svg>
           </div>
-          <h2 className="text-lg font-bold mb-1">Order Not Found</h2>
+          <h2 className="text-lg font-bold mb-1">Invalid Code</h2>
           <p className="text-sm text-text-secondary">
-            Order ID{" "}
-            <span className="font-mono text-text-primary">{orderId}</span> was
-            not found.
+            This QR code is not valid for check-in.
           </p>
           <p className="text-xs text-text-secondary mt-2">
             Please scan a valid QR code or contact dispatch.
@@ -237,11 +271,7 @@ export function CheckInPage() {
           </div>
           <h2 className="text-lg font-bold mb-1">Already Confirmed</h2>
           <p className="text-sm text-text-secondary">
-            Order{" "}
-            <span className="font-mono text-text-primary">
-              {details.delivery.orderNumber}
-            </span>{" "}
-            has already been marked as Complete.
+            This order has already been marked as Complete.
           </p>
         </div>
       </div>
@@ -366,7 +396,6 @@ export function CheckInPage() {
     <div className="min-h-screen bg-bg-primary">
       {step === "checkoff" && (
         <div className="max-w-lg mx-auto px-6 py-8 pb-32">
-          {/* Big Zone/Job Header */}
           <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
             <div className="flex items-center gap-4 mb-6">
               <div className="size-16 rounded-xl bg-accent/10 flex items-center justify-center font-light font-mono text-3xl text-accent shrink-0">
@@ -404,19 +433,16 @@ export function CheckInPage() {
             </div>
           </div>
 
-          {/* Item Checkoff Header */}
           <p className="text-[10px] text-text-secondary uppercase tracking-widest mb-4">
             Item Check-Off
           </p>
 
-          {/* Item Cards */}
           <div className="space-y-6 mb-8">
             {items.map((item, idx) => (
               <div
                 key={item.id}
                 className="rounded-2xl border border-border bg-bg-card overflow-hidden"
               >
-                {/* Item header with status pill */}
                 <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-border/50">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
@@ -434,7 +460,6 @@ export function CheckInPage() {
                       </strong>
                     </p>
                   </div>
-                  {/* Status pill in header */}
                   {item.status && (
                     <span
                       className={`shrink-0 ml-3 inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium uppercase tracking-widest border ${
@@ -463,15 +488,12 @@ export function CheckInPage() {
                   )}
                 </div>
 
-                {/* Item inputs */}
                 <div className="px-5 py-5 space-y-6">
-                  {/* Qty Delivered — BIG stepper */}
                   <div>
                     <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-3">
                       Quantity Delivered
                     </label>
                     <div className="flex items-stretch gap-3">
-                      {/* Minus button */}
                       <button
                         type="button"
                         onClick={() => handleDeliveredQty(item.id, -1)}
@@ -481,8 +503,6 @@ export function CheckInPage() {
                       >
                         −
                       </button>
-
-                      {/* Value display */}
                       <div className="flex-1 flex items-center justify-center rounded-xl border border-border bg-bg-surface px-4">
                         <span className="text-3xl font-light font-mono text-text-primary tabular-nums">
                           {item.deliveredQty}
@@ -491,8 +511,6 @@ export function CheckInPage() {
                           / {item.quantity}
                         </span>
                       </div>
-
-                      {/* Plus button */}
                       <button
                         type="button"
                         onClick={() => handleDeliveredQty(item.id, 1)}
@@ -505,7 +523,6 @@ export function CheckInPage() {
                     </div>
                   </div>
 
-                  {/* Qty Missing (auto) */}
                   <div>
                     <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-2">
                       Quantity Missing
@@ -521,7 +538,6 @@ export function CheckInPage() {
                     </div>
                   </div>
 
-                  {/* Status selector */}
                   <StatusPill
                     status={item.status}
                     selected={item.status}
@@ -549,7 +565,6 @@ export function CheckInPage() {
                     </div>
                   )}
 
-                  {/* Validation */}
                   {item.deliveredQty > item.quantity && (
                     <p className="text-xs text-accent-red mt-2">
                       Cannot exceed ordered quantity ({item.quantity}).
@@ -560,7 +575,6 @@ export function CheckInPage() {
             ))}
           </div>
 
-          {/* Driver Name */}
           <div className="rounded-2xl border border-border bg-bg-card p-6 mb-4">
             <label
               htmlFor="driver-name"
@@ -578,7 +592,6 @@ export function CheckInPage() {
             />
           </div>
 
-          {/* Vendor Note */}
           <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
             <label className="block text-[10px] uppercase tracking-widest text-text-secondary mb-3">
               Delivery Notes
@@ -592,7 +605,6 @@ export function CheckInPage() {
             />
           </div>
 
-          {/* Summary */}
           <div className="rounded-2xl border border-border bg-bg-card p-6 mb-8">
             <div className="flex items-center justify-between gap-4">
               <p className="text-[10px] uppercase tracking-widest text-text-secondary">
@@ -610,7 +622,6 @@ export function CheckInPage() {
             )}
           </div>
 
-          {/* Submit Button — BIG */}
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}

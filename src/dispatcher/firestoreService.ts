@@ -30,6 +30,8 @@ import type {
   StatusHistoryEvent,
   Vendor,
   AppSettings,
+  VerifyVendorPinInput,
+  VerifyVendorPinResult,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -863,13 +865,20 @@ export async function loadPickupReadyDeliveriesPublic(
 
 type FirestoreDocSnap = Awaited<ReturnType<typeof getDoc>>;
 
+function publicVendorFromDelivery(delivery: DeliveryOrder): Vendor {
+  return {
+    id: delivery.vendorId,
+    name: delivery.vendorName ?? "Vendor",
+    createdAt: delivery.createdAt,
+  };
+}
+
 /** Hydrate public delivery details when the delivery doc is already loaded (zone scan path). */
 async function hydrateDeliveryDetailsPublic(
   delivery: DeliveryOrder,
 ): Promise<DeliveryDetails | null> {
   const deliveryId = delivery.id;
-  const [vendorSnap, jobSnap, poSnap, locSnap, items] = await Promise.all([
-    getDoc(doc(db, "vendors", delivery.vendorId)),
+  const [jobSnap, poSnap, locSnap, items] = await Promise.all([
     getDoc(doc(db, "jobs", delivery.jobId)),
     delivery.purchaseOrderId
       ? getDoc(doc(db, "purchaseOrders", delivery.purchaseOrderId))
@@ -880,9 +889,7 @@ async function hydrateDeliveryDetailsPublic(
     fetchWhere<Item>("items", "deliveryOrderId", deliveryId),
   ]);
 
-  if (!vendorSnap.exists()) return null;
-  const { contactName: _c, contactPhone: _p, email: _e, ...publicVendor } =
-    vendorSnap.data() as Vendor;
+  const publicVendor = publicVendorFromDelivery(delivery);
 
   let job: Job | undefined;
   if (jobSnap.exists()) {
@@ -1217,11 +1224,17 @@ export async function createDelivery(
     batch.set(doc(db, "purchaseOrders", purchaseOrderId), po);
   }
 
+  const vendorSnap = await getDoc(doc(db, "vendors", input.vendorId));
+  const vendorName = vendorSnap.exists()
+    ? (vendorSnap.data() as Vendor).name
+    : "Vendor";
+
   const delivery: DeliveryOrder = {
     id: deliveryId,
     orderNumber,
     jobId: input.jobId,
     vendorId: input.vendorId,
+    vendorName,
     purchaseOrderId,
     deliveryDate: input.deliveryDate,
     stagingLocationId: input.stagingLocationId || undefined,
@@ -1295,6 +1308,18 @@ const createMaterialIssueCallable = httpsCallable<
   CreateMaterialIssueInput,
   CreateMaterialIssueResult
 >(functions, "createMaterialIssue");
+
+const verifyVendorPinCallable = httpsCallable<
+  VerifyVendorPinInput,
+  VerifyVendorPinResult
+>(functions, "verifyVendorPin");
+
+export async function verifyVendorPin(
+  input: VerifyVendorPinInput,
+): Promise<VerifyVendorPinResult> {
+  const response = await verifyVendorPinCallable(input);
+  return response.data;
+}
 
 export async function reportMaterialIssue(
   input: CreateMaterialIssueInput,

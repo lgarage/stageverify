@@ -4,9 +4,11 @@ rules_version = '2';
 // ------------------------------------
 // Access model:
 //
-// PUBLIC READ (no auth): deliveries, items, stagingLocations, vendors, appSettings
-//   - Mobile scan/check-in flows read delivery data, line items, zone codes, vendor names,
+// PUBLIC READ (no auth): deliveries, items, stagingLocations, appSettings
+//   - Mobile scan/check-in flows read delivery data, line items, zone codes,
 //     and global timing config without signing in.
+//   - Vendor PINs live in `vendors` (auth-only read). Public flows use denormalized
+//     `vendorName` on deliveries; PIN verification is via `verifyVendorPin` Cloud Function.
 //
 // AUTH REQUIRED READ: jobs, purchaseOrders, statusHistory, pickupEvents
 //   - Dispatcher/settings UI and audit views require Firebase Auth.
@@ -123,9 +125,18 @@ service cloud.firestore {
     }
 
     match /vendors/{vendorId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
       allow delete: if false;
+    }
+
+    match /vendorPinAttempts/{deliveryId} {
+      allow read, write: if false;
+    }
+
+    match /pinVerificationEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
     }
 
     match /stagingLocations/{locationId} {

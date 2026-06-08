@@ -15,14 +15,16 @@ import {
 } from "./receiveQrUrls";
 import {
   firestoreDataService,
-  getDeliveryDetailsByStagingCode,
   getDeliveryDetailsPublic,
   mapOccupancyByLocationId,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
+import { resolveZoneScanDisposition } from "./scanRouting";
+import { VendorPinGate } from "./VendorPinGate";
+import { isPinSessionValid } from "./vendorPinSession";
+import { useVendorPinActivity } from "./useVendorPinActivity";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
-import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 import {
   shouldRouteScanToPickup,
   type DeliveryDetails,
@@ -30,7 +32,7 @@ import {
 } from "./dispatcher/models";
 import { QrScannerOverlay } from "./QrScannerOverlay";
 
-type Step = "scan" | "items" | "zone" | "done";
+type Step = "scan" | "pin" | "items" | "zone" | "done";
 
 interface ItemQtyState {
   id: string;
@@ -100,56 +102,14 @@ export function ReceivingPage() {
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustDamagedQty, setAdjustDamagedQty] = useState(0);
+  const [pendingDeliveryId, setPendingDeliveryId] = useState<string | null>(
+    null,
+  );
 
   const urlDeepLinkHandledRef = useRef(false);
-  const scanPrefetchRef = useRef<Promise<DeliveryDetails | null> | null>(null);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
-
-  const clearScanPrefetch = useCallback(() => {
-    scanPrefetchRef.current = null;
-  }, []);
-
-  const startScanPrefetch = useCallback((raw: string) => {
-    const parsed = parseScannedQr(raw);
-    if (parsed.kind === "pickup") {
-      scanPrefetchRef.current = null;
-      return;
-    }
-    if (parsed.kind === "receive-id") {
-      scanPrefetchRef.current = getDeliveryDetailsPublic(parsed.deliveryId);
-      return;
-    }
-    const zoneCode =
-      parsed.kind === "receive-zone"
-        ? parsed.zoneCode
-        : parsed.kind === "raw"
-          ? normalizeStagingCodeKey(parsed.value)
-          : null;
-    if (zoneCode) {
-      scanPrefetchRef.current = getDeliveryDetailsByStagingCode(zoneCode);
-    }
-  }, []);
-
-  const fetchDeliveryForScan = useCallback(
-    async (
-      fetchLive: () => Promise<DeliveryDetails | null>,
-    ): Promise<DeliveryDetails | null> => {
-      const prefetched = scanPrefetchRef.current;
-      scanPrefetchRef.current = null;
-      if (prefetched) {
-        try {
-          const cached = await prefetched;
-          if (cached) return cached;
-        } catch {
-          // fall through to live fetch
-        }
-      }
-      return fetchLive();
-    },
-    [],
-  );
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -220,6 +180,17 @@ export function ReceivingPage() {
     [deliveryDetails],
   );
 
+  const handlePinSessionExpired = useCallback(() => {
+    setDeliveryDetails(null);
+    setPendingDeliveryId((id) => id);
+    setStep("pin");
+  }, []);
+
+  useVendorPinActivity(
+    deliveryDetails?.delivery.id ?? pendingDeliveryId,
+    handlePinSessionExpired,
+  );
+
   const loadDeliveryForReceive = useCallback(
     async (details: DeliveryDetails): Promise<boolean> => {
       if (shouldRouteScanToPickup(details.delivery.status)) {
@@ -254,7 +225,46 @@ export function ReceivingPage() {
       setStep("items");
       return true;
     },
-    [showToast],
+    [],
+  );
+
+  const loadDeliveryAfterPin = useCallback(
+    async (deliveryId: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const details = await getDeliveryDetailsPublic(deliveryId);
+        if (!details) {
+          showToast("Invalid code.");
+          setStep("scan");
+          return;
+        }
+        const loaded = await loadDeliveryForReceive(details);
+        if (loaded) {
+          window.history.replaceState(null, "", "#/receive");
+        }
+      } catch {
+        setError("Failed to load delivery");
+        setStep("scan");
+      } finally {
+        setLoading(false);
+        setPendingDeliveryId(null);
+        setDeepLinkPending(false);
+      }
+    },
+    [showToast, loadDeliveryForReceive],
+  );
+
+  const beginDeliveryAccess = useCallback(
+    (deliveryId: string) => {
+      if (isPinSessionValid(deliveryId)) {
+        void loadDeliveryAfterPin(deliveryId);
+        return;
+      }
+      setPendingDeliveryId(deliveryId);
+      setStep("pin");
+    },
+    [loadDeliveryAfterPin],
   );
 
   const processDeliveryLookup = useCallback(
@@ -268,16 +278,7 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        const details = await fetchDeliveryForScan(() =>
-          getDeliveryDetailsPublic(trimmed),
-        );
-
-        if (!details) {
-          showToast("Delivery not found");
-          return;
-        }
-
-        await loadDeliveryForReceive(details);
+        beginDeliveryAccess(trimmed);
       } catch {
         setError("Failed to load delivery");
       } finally {
@@ -285,7 +286,7 @@ export function ReceivingPage() {
         setDeepLinkPending(false);
       }
     },
-    [showToast, loadDeliveryForReceive, fetchDeliveryForScan],
+    [beginDeliveryAccess],
   );
 
   const processZoneLookup = useCallback(
@@ -299,21 +300,21 @@ export function ReceivingPage() {
       setError(null);
 
       try {
-        const details = await fetchDeliveryForScan(() =>
-          getDeliveryDetailsByStagingCode(trimmed),
-        );
-
-        if (!details) {
+        const disposition = await resolveZoneScanDisposition(trimmed);
+        if (!disposition) {
           setZoneMissCode(trimmed);
           setScanMode("zone-miss");
-          showToast(`No active delivery at zone ${trimmed}`);
+          showToast("Invalid code.");
           return;
         }
-
-        const loaded = await loadDeliveryForReceive(details);
-        if (loaded) {
-          window.history.replaceState(null, "", "#/receive");
+        if (disposition.kind === "pickup") {
+          window.location.hash = pickupPath(
+            disposition.jobId,
+            disposition.deliveryId,
+          );
+          return;
         }
+        beginDeliveryAccess(disposition.deliveryId);
       } catch {
         setError("Failed to load delivery for this zone");
       } finally {
@@ -321,7 +322,7 @@ export function ReceivingPage() {
         setDeepLinkPending(false);
       }
     },
-    [showToast, loadDeliveryForReceive, fetchDeliveryForScan],
+    [beginDeliveryAccess, showToast],
   );
 
   const handleQrFromCamera = useCallback(
@@ -498,10 +499,10 @@ export function ReceivingPage() {
 
   const resetFlow = () => {
     urlDeepLinkHandledRef.current = false;
-    scanPrefetchRef.current = null;
     setStep("scan");
     setScanMode("camera");
     setZoneMissCode(null);
+    setPendingDeliveryId(null);
     setDeliveryDetails(null);
     setItemQtys([]);
     setStagingLocationId(null);
@@ -527,6 +528,18 @@ export function ReceivingPage() {
   const hasPartialOrder = itemQtys.some(
     (item) => item.qtyReceived + item.qtyDamaged < item.qtyOrdered,
   );
+
+  if (step === "pin" && pendingDeliveryId) {
+    return (
+      <VendorPinGate
+        deliveryId={pendingDeliveryId}
+        onVerified={() => {
+          void loadDeliveryAfterPin(pendingDeliveryId);
+        }}
+        onCancel={resetFlow}
+      />
+    );
+  }
 
   return (
     <div
@@ -580,8 +593,6 @@ export function ReceivingPage() {
                   layout="fill"
                   readerId="receive-qr-reader"
                   scanLocked={scanOpening}
-                  onQrPreview={startScanPrefetch}
-                  onQrPreviewClear={clearScanPrefetch}
                   onDecode={(text) => {
                     void handleQrFromCamera(text);
                   }}

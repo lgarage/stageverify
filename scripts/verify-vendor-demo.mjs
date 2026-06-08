@@ -42,7 +42,11 @@ async function shot(page, name) {
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector("text=Vendor Portal", { timeout: 30_000 });
+  await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
+  for (const digit of "1234") {
+    await page.getByRole("button", { name: digit, exact: true }).click();
+  }
+  await page.waitForSelector("text=ORD-005", { timeout: 30_000 });
   await page.waitForSelector("text=ORD-005", { timeout: 30_000 });
   await page.waitForSelector("text=Filter rack", { timeout: 15_000 });
   await shot(page, "01-items-loaded");

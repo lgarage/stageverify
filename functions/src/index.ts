@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { createMaterialIssue } from "./createMaterialIssue";
+import { verifyVendorPin } from "./verifyVendorPin";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -112,4 +113,4 @@ export const autoSubmitDeliveries = onSchedule(
   }
 );
 
-export { createMaterialIssue };
+export { createMaterialIssue, verifyVendorPin };

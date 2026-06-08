@@ -30,6 +30,8 @@ export function VendorsManagementPanel() {
   const [address, setAddress] = useState("");
   const [supplies, setSupplies] = useState("");
   const [notes, setNotes] = useState("");
+  const [pinCode, setPinCode] = useState("");
+  const [active, setActive] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({
     name: "",
@@ -39,6 +41,8 @@ export function VendorsManagementPanel() {
     address: "",
     supplies: "",
     notes: "",
+    pinCode: "",
+    active: true,
   });
 
   const startEdit = (vendor: Vendor) => {
@@ -51,6 +55,8 @@ export function VendorsManagementPanel() {
       address: vendor.address ?? "",
       supplies: vendor.supplies ?? "",
       notes: vendor.notes ?? "",
+      pinCode: vendor.pinCode ?? "",
+      active: vendor.active !== false,
     });
   };
 
@@ -67,6 +73,11 @@ export function VendorsManagementPanel() {
       address: editDraft.address.trim() || undefined,
       supplies: editDraft.supplies.trim() || undefined,
       notes: editDraft.notes.trim() || undefined,
+      pinCode: /^\d{4}$/.test(editDraft.pinCode.trim())
+        ? editDraft.pinCode.trim()
+        : undefined,
+      active: editDraft.active,
+      updatedAt: new Date().toISOString(),
     };
     await updateVendor(updated);
     setVendors((prev) => prev.map((v) => (v.id === vendor.id ? updated : v)));
@@ -90,7 +101,10 @@ export function VendorsManagementPanel() {
       address: address.trim() || undefined,
       supplies: supplies.trim() || undefined,
       notes: notes.trim() || undefined,
+      pinCode: /^\d{4}$/.test(pinCode.trim()) ? pinCode.trim() : undefined,
+      active,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     await createVendor(newVendor);
     setVendors((prev) => [...prev, newVendor]);
@@ -102,6 +116,8 @@ export function VendorsManagementPanel() {
     setAddress("");
     setSupplies("");
     setNotes("");
+    setPinCode("");
+    setActive(true);
   };
 
   return (
@@ -141,7 +157,7 @@ export function VendorsManagementPanel() {
               >
                 <thead>
                   <tr style={{ backgroundColor: NAVY }}>
-                    {["Name", "Contact Name", "Contact Phone", "Email", "Address", "Supplies", "Notes", ""].map(
+                    {["Name", "PIN", "Active", "Contact Name", "Contact Phone", "Email", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
                           key={i}
@@ -196,6 +212,42 @@ export function VendorsManagementPanel() {
                             />
                           ) : (
                             vendor.name
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333", fontFamily: "monospace" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.pinCode}
+                              placeholder="4 digits"
+                              maxLength={4}
+                              inputMode="numeric"
+                              onChange={(e) =>
+                                setEditDraft((d) => ({
+                                  ...d,
+                                  pinCode: e.target.value.replace(/\D/g, "").slice(0, 4),
+                                }))
+                              }
+                            />
+                          ) : vendor.pinCode ? (
+                            "••••"
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              type="checkbox"
+                              checked={editDraft.active}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, active: e.target.checked }))
+                              }
+                            />
+                          ) : vendor.active === false ? (
+                            "Inactive"
+                          ) : (
+                            "Active"
                           )}
                         </td>
                         <td style={{ ...tdBase, color: "#333" }}>
@@ -400,6 +452,60 @@ export function VendorsManagementPanel() {
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Vendor PIN (4 digits)
+                  </label>
+                  <input
+                    type="text"
+                    value={pinCode}
+                    maxLength={4}
+                    inputMode="numeric"
+                    placeholder="1234"
+                    onChange={(e) =>
+                      setPinCode(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      color: "#333",
+                      outline: "none",
+                      backgroundColor: "#fff",
+                      fontFamily: FONT,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Active
+                  </label>
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={(e) => setActive(e.target.checked)}
+                    style={{ width: 18, height: 18 }}
                   />
                 </div>
                 <div>

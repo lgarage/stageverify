@@ -211,6 +211,37 @@ export interface Vendor {
   address?: string;
   supplies?: string;
   notes?: string;
+  /** 4-digit PIN (MVP); readable only by authenticated dispatchers. Verified server-side. */
+  pinCode?: string;
+  /** scrypt hash `salt:hex` — preferred over pinCode when set. */
+  pinHash?: string;
+  /** When false, PIN verification fails. Defaults to active when unset. */
+  active?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface VerifyVendorPinInput {
+  deliveryId: string;
+  pin: string;
+}
+
+export interface VerifyVendorPinResult {
+  success: boolean;
+  message?: string;
+  vendorId?: string;
+  vendorName?: string;
+  deliveryId?: string;
+}
+
+export interface PinVerificationEvent {
+  id: string;
+  deliveryOrderId: string;
+  vendorId: string;
+  vendorName: string;
+  pinVerified: true;
+  action: "PIN_VERIFIED";
+  timestamp: string;
   createdAt: string;
 }
 
@@ -249,6 +280,8 @@ export interface DeliveryOrder {
   orderNumber: string;
   jobId: string;
   vendorId: string;
+  /** Denormalized for public vendor flows when vendors collection is auth-only. */
+  vendorName?: string;
   purchaseOrderId?: string;
   deliveryDate: string;
   /** Assigned staging location — where material should be staged. */

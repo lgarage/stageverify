@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–2 shipped**; full Phase 3 gate not passed)
-- Last shipped: Phase 3 Slice 2 — clear pickup locations (Jun 8). Slice 1 Report Issue + dispatcher visibility (Jun 8).
+- Last shipped: Vendor PIN gate — Firestore-backed 4-digit PIN after QR scan (Jun 8). Phase 3 Slice 2 clear pickup locations (Jun 8).
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2 (`createMaterialIssue` + `autoSubmitDeliveries`). Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`. Slice 1: `materialIssues` auth-read-only collection; public callable `createMaterialIssue` (no Firebase Auth); denormalized issue counts on deliveries.
 
@@ -16,7 +16,8 @@
 
 ## Immediate Next Step
 1. **Phase 3 remaining** — ready-only queue, shop-stock pull states, expected-materials UI (see `docs/roadmap.md`).
-2. **Phase 4** — issue resolution UI (not started).
+2. **Vendor PIN** — dispatchers set PINs on `/vendors`; demo PIN `1234` for `vendor-1` / `delivery-demo-vendor-1`.
+3. **Phase 4** — issue resolution UI (not started).
 
 ## Canonical references
 - Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md` | Away: `away-list.json`

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
@@ -7,6 +6,9 @@ import {
 } from "./dispatcher/firestoreService";
 import { handleScannedQr } from "./scanRouting";
 import { QrScannerOverlay } from "./QrScannerOverlay";
+import { VendorPinGate } from "./VendorPinGate";
+import { isPinSessionValid } from "./vendorPinSession";
+import { useVendorPinActivity } from "./useVendorPinActivity";
 import type {
   DeliveryOrder,
   Item,
@@ -48,7 +50,7 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
   );
 }
 
-type Step = "scan" | "name" | "list" | "done";
+type Step = "scan" | "pin" | "name" | "list" | "done";
 
 type CheckInItem = {
   id: string;
@@ -67,7 +69,6 @@ type CheckInDelivery = {
 };
 
 function ScanScreen() {
-  const navigate = useNavigate();
   const [step, setStep] = useState<Step>("scan");
   const [currentDelivery, setCurrentDelivery] = useState<CheckInDelivery | null>(
     null,
@@ -84,12 +85,28 @@ function ScanScreen() {
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
+  const [pendingDeliveryId, setPendingDeliveryId] = useState<string | null>(
+    null,
+  );
+
+  const handlePinSessionExpired = useCallback(() => {
+    setCurrentDelivery(null);
+    setCheckInItems([]);
+    setDriverName("");
+    setPendingDeliveryId((id) => id);
+    setStep("pin");
+  }, []);
+
+  useVendorPinActivity(
+    currentDelivery?.delivery.id ?? pendingDeliveryId,
+    handlePinSessionExpired,
+  );
 
   useEffect(() => {
     getAppSettings().then((s) => setRevertWindowMinutes(s.vendorRevertWindowMinutes));
   }, []);
 
-  const handleDeliveryFound = async (deliveryId: string) => {
+  const handleDeliveryFound = useCallback(async (deliveryId: string) => {
     const details = await getDeliveryDetailsPublic(deliveryId);
     if (!details) return;
     const { delivery, vendor, job, stagingLocation, items: allItems } = details;
@@ -105,8 +122,21 @@ function ScanScreen() {
     );
     setIsScanning(false);
     setNotFoundCode(null);
+    setPendingDeliveryId(null);
     setStep("name");
-  };
+  }, []);
+
+  const beginDeliveryAccess = useCallback(
+    (deliveryId: string) => {
+      if (isPinSessionValid(deliveryId)) {
+        void handleDeliveryFound(deliveryId);
+        return;
+      }
+      setPendingDeliveryId(deliveryId);
+      setStep("pin");
+    },
+    [handleDeliveryFound],
+  );
 
   const handleManualScan = async () => {
     setNotFoundCode(null);
@@ -121,7 +151,7 @@ function ScanScreen() {
       });
     }
     if (result.items.length > 0) {
-      navigate(`/checkin/${result.items[0].deliveryId}`);
+      beginDeliveryAccess(result.items[0].deliveryId);
     } else {
       setNotFoundCode("__no_deliveries__");
     }
@@ -150,15 +180,15 @@ function ScanScreen() {
                 "arrived",
               );
             }
-            await handleDeliveryFound(result.deliveryId);
+            beginDeliveryAccess(result.deliveryId);
             return;
           case "not-found":
             setIsScanning(false);
-            setNotFoundCode(decodedText);
+            setNotFoundCode("Invalid code. Contact dispatch if you need help.");
         }
       })();
     },
-    [navigate],
+    [beginDeliveryAccess],
   );
 
   const toggleItemCheck = (id: string) => {
@@ -275,6 +305,7 @@ function ScanScreen() {
     setDriverName("");
     setNotFoundCode(null);
     setAdjustingItemId(null);
+    setPendingDeliveryId(null);
     setStep("scan");
   };
 
@@ -326,6 +357,21 @@ function ScanScreen() {
     );
   }
 
+  if (step === "pin" && pendingDeliveryId) {
+    return (
+      <VendorPinGate
+        deliveryId={pendingDeliveryId}
+        onVerified={() => {
+          void handleDeliveryFound(pendingDeliveryId);
+        }}
+        onCancel={() => {
+          setPendingDeliveryId(null);
+          setStep("scan");
+        }}
+      />
+    );
+  }
+
   if (step === "scan") {
     return (
       <div className="flex-1 flex flex-col px-6 py-12">
@@ -343,10 +389,7 @@ function ScanScreen() {
             {notFoundCode === "__no_deliveries__" ? (
               <p className="font-medium">No deliveries available to check in right now.</p>
             ) : (
-              <>
-                <p className="font-medium">No delivery found for this code.</p>
-                <p className="mt-1 text-sm break-all">{notFoundCode}</p>
-              </>
+              <p className="font-medium">{notFoundCode}</p>
             )}
           </div>
         )}
