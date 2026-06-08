@@ -51,9 +51,13 @@ The existing MVP workflow remains operational and serves as the foundation for V
 
 The platform is deployed and functional on GitHub Pages.
 
-**Active phase:** Phase 2 — Material Readiness Data Model 🔵
+**Phase 2 — Material Readiness Data Model** ✅ COMPLETE (gate passed 2026-06-08)
 
-Extend the data model with forward-compatible V2 types and optional fields without breaking Phase 1 workflows. Phase details and gate criteria: `docs/roadmap.md` (NOW/NEXT/LATER/MAYBE), `docs/stageverify_v2_architecture.md`, and this file.
+V2 optional fields and forward-compatible stub types live in `src/dispatcher/models.ts`. V1 workflows unchanged. No new Firestore collections or rules in Phase 2.
+
+**Active phase:** Phase 3 — Technician Pickup Workflow 🔵
+
+Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
 ---
 
@@ -147,12 +151,5 @@ Extend the data model with forward-compatible V2 types and optional fields witho
 
 ## Immediate Next Steps
 
-1. **Architecture review and documentation** — V2 architecture docs complete; see `docs/stageverify_v2_architecture.md` and `docs/roadmap.md`.
-2. **Phase 2: Material Readiness Data Model** — establish forward-compatible V2 data concepts only:
-   - Add optional fields on existing models (`readinessStatus`, `materialOwner`, recommended `currentLocationNote`, per-`Item` `materialSource`, `availabilityStatus`) per `docs/roadmap.md` § Phase 2.
-   - Add **stub types/interfaces** where the Phase 2 gate requires them (`MaterialIssue`, `IssueResolution`); treat `VendorEmailEvent`, `AICorrection`, and `VendorKnowledgeBase` as **conceptual / phase-gated** (Phase 5+ / Phase 8) — not permission to implement ingestion, UI, or persistence in Phase 2.
-   - **V1 workflows must remain functional** throughout (vendor check-in, dispatcher drawer, pickup Done, zone QR routing).
-   - Firestore collections, rules, indexes, service methods, and UI changes **only when the Phase 2 gate explicitly requires them** — not a one-shot build of all V2 architecture.
-   - **Phase 2 does not include:** vendor-email ingestion, issue-resolution UI, AI automation, or a full structured shop-stock system.
-3. **ESL integration** — ESL/Minew integration is planned (Phase 7; see `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md`); no ESL Cloud Function currently implemented; live ESL updates blocked on Minew credentials; does not block Phase 2.
-4. **Security audit** — complete (away-007 done; see `PROJECT_STATUS/security-report-2026-06-02.md`).
+1. **Phase 3: Technician Pickup Workflow** — per `docs/roadmap.md` NEXT (expected materials UI, Report Issue, readiness-aware queue).
+2. **ESL integration** — Phase 7; blocked on Minew credentials.

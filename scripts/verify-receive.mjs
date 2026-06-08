@@ -12,6 +12,7 @@
 import { chromium } from "playwright";
 import { mkdirSync } from "fs";
 import { resolve } from "path";
+import { resolveAppBase } from "./resolveAppBase.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -19,6 +20,7 @@ const baseUrl =
   (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
+const appBase = resolveAppBase(baseUrl);
 
 const deliveryId = process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-3";
 
@@ -33,11 +35,14 @@ mkdirSync(outDir, { recursive: true });
   });
   const page = await context.newPage();
 
-  const url = `${baseUrl.replace(/\/$/, "")}/#/receive?id=${deliveryId}`;
+  const url = `${appBase}/#/receive?id=${deliveryId}`;
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector("text=Vendor Portal", { timeout: 30_000 });
+  await page
+    .getByText(/Receive Delivery|Check off items as delivered/)
+    .first()
+    .waitFor({ state: "visible", timeout: 45_000 });
   await page.screenshot({
     path: resolve(outDir, "receive-verify-loaded.png"),
     fullPage: true,

@@ -3,17 +3,15 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase); **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents and Phase 2+ work; `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-05
+> **Last updated:** 2026-06-08
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
 ---
 
-## NOW
+## NOW (Phase 2 complete)
 
-**Active phase: Phase 2 — Material Readiness Data Model**
-
-Phase 1 (Stabilize) is **complete**. Do not start Phase 3 UI until Phase 2 gate passes.
+**Phase 2 — Material Readiness Data Model** ✅ Gate passed 2026-06-08. Active work is Phase 3 (see NEXT).
 
 ### Phase 2 — Material Readiness Data Model
 
@@ -59,11 +57,11 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 **Success criteria (gate):**
 
-- [ ] `npm run build` passes
-- [ ] Existing workflows and routes continue working without regressions: vendor check-in, dispatcher drawer, pickup completion, zone QR routing, public portals, existing Firestore records, and legacy QR behavior
-- [ ] New fields optional on documents; no required migration of production data
-- [ ] `docs/project_state.md` updated to Phase 2 complete
-- [ ] Playwright: `verify:pickup`, `verify:receive`, `verify:dispatcher-nav` (or equivalent) pass
+- [x] `npm run build` passes
+- [x] Existing workflows and routes continue working without regressions: vendor check-in, dispatcher drawer, pickup completion, zone QR routing, public portals, existing Firestore records, and legacy QR behavior
+- [x] New fields optional on documents; no required migration of production data
+- [x] `docs/project_state.md` updated to Phase 2 complete
+- [x] Playwright: `verify:pickup`, `verify:receive`, `verify:dispatcher-nav` (or equivalent) pass
 
 **Known blockers:**
 
@@ -83,7 +81,9 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 ## NEXT
 
-Expected immediately after Phase 2 gate passes.
+**Active phase: Phase 3 — Technician Pickup Workflow**
+
+Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 
 ### Phase 3 — Technician Pickup Workflow
 
@@ -198,8 +198,8 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | Phase | Name                           | Roadmap bucket | Status              |
 | ----- | ------------------------------ | -------------- | ------------------- |
 | 1     | Stabilize                      | — (complete)   | ✅ Gate passed      |
-| 2     | Material Readiness Data Model  | **NOW**        | 🔵 Active           |
-| 3     | Technician Pickup Workflow     | **NEXT**       | ⬜                  |
+| 2     | Material Readiness Data Model  | — (complete)   | ✅ Gate passed      |
+| 3     | Technician Pickup Workflow     | **NEXT**       | 🔵 Active           |
 | 4     | Material Issue Resolution      | **NEXT**       | ⬜                  |
 | 5     | Vendor Email Parsing Prototype | **LATER**      | ⬜                  |
 | 6     | Vendor Email Monitoring        | **LATER**      | ⬜                  |
