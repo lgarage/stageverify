@@ -91,3 +91,4 @@ for (const itemDoc of itemsSnap.docs) {
 
 await batch.commit();
 console.log(`Reset ${deliveryId} → pending (${itemsSnap.size} items zeroed).`);
+process.exit(0);
