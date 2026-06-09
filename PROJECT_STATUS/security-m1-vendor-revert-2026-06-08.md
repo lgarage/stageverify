@@ -13,9 +13,10 @@
 | Dispatcher revert still auth-only hydrate | ✓ |
 | `App.tsx` handleRevert passes `actorType: "vendor"` | ✓ |
 
-**Verification (local, pre-deploy):**
-- `npm run verify:vendor-e2e` — 10/10 PASS
-- `npm run verify:pickup` — PASS
+**Verification:**
+- Local: `verify:vendor-e2e` 10/10 PASS, `verify:pickup` PASS
+- Prod (commit `0ed7734`, gh-pages deployed): `verify:vendor-e2e:prod` 10/10 PASS, `verify:pickup:prod` PASS (after `reset-pickup-verify-fixture`)
+- Firestore rules: unchanged for M1; prior vendor rules deployment still active
 
 **Files:** `src/dispatcher/firestoreService.ts`, `src/App.tsx`, `src/DispatcherDashboardPage.tsx`
 
