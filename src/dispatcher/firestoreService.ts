@@ -660,6 +660,13 @@ export class FirestoreDataService implements DispatcherDataService {
     actorType: "vendor" | "dispatcher",
     vendorRevertWindowMinutes = 60,
   ): Promise<DeliveryDetails | null> {
+    const hydrateResult = (id: string): Promise<DeliveryDetails | null> =>
+      actorType === "vendor"
+        ? hydrateAfterVendorWrite(id, (hydrateId) =>
+            this.getDeliveryDetails(hydrateId),
+          )
+        : this.getDeliveryDetails(id);
+
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
@@ -667,14 +674,14 @@ export class FirestoreDataService implements DispatcherDataService {
     const revertTargets =
       actorType === "vendor" ? VENDOR_REVERT_TARGETS : DISPATCHER_REVERT_TARGETS;
     const toStatus = revertTargets[delivery.status];
-    if (!toStatus) return this.getDeliveryDetails(deliveryId);
+    if (!toStatus) return hydrateResult(deliveryId);
 
     if (actorType === "vendor") {
       const submittedAt = delivery.submittedAt;
-      if (!submittedAt) return this.getDeliveryDetails(deliveryId);
+      if (!submittedAt) return hydrateResult(deliveryId);
       const elapsedMs = Date.now() - new Date(submittedAt).getTime();
       if (elapsedMs > vendorRevertWindowMinutes * 60 * 1000) {
-        return this.getDeliveryDetails(deliveryId);
+        return hydrateResult(deliveryId);
       }
     }
 
@@ -700,7 +707,7 @@ export class FirestoreDataService implements DispatcherDataService {
     });
 
     await batch.commit();
-    return this.getDeliveryDetails(deliveryId);
+    return hydrateResult(deliveryId);
   }
 
   async updateItemQty(

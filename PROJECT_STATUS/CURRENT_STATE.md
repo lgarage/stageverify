@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–2 shipped**; full Phase 3 gate not passed)
-- Last shipped: Vendor public-path fix — occupancy/submit/zone use public hydration (Jun 8). Vendor PIN gate (Jun 8). Phase 3 Slice 2 pickup locations (Jun 8).
+- Last shipped: M1 vendor revert hydration — `revertDeliveryStatus` uses `hydrateAfterVendorWrite` (Jun 8). Vendor public-path fix (Jun 8). Vendor PIN gate (Jun 8).
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2 (`createMaterialIssue` + `autoSubmitDeliveries`). Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`. Slice 1: `materialIssues` auth-read-only collection; public callable `createMaterialIssue` (no Firebase Auth); denormalized issue counts on deliveries.
 
@@ -16,7 +16,7 @@
 
 ## Immediate Next Step
 1. **Phase 3 remaining** — ready-only queue, shop-stock pull states, expected-materials UI (see `docs/roadmap.md`).
-2. **Vendor E2E** — `npm run verify:vendor-e2e`; demo PIN `1234` on `delivery-demo-vendor-1`.
+2. **Vendor E2E** — local + prod `verify:vendor-e2e` (10/10); demo PIN `1234` on `delivery-demo-vendor-1`.
 3. **Phase 4** — issue resolution UI (not started).
 
 ## Canonical references
