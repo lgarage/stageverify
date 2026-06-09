@@ -87,6 +87,7 @@ loadEnvLocal();
   }
 
   await browser.close();
+  process.exit(0);
 })().catch((err) => {
   console.error("FAIL:", err.message ?? err);
   process.exit(1);

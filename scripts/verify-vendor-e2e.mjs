@@ -285,6 +285,7 @@ async function runDispatcherVisibility(browser) {
     process.exit(1);
   }
   console.log(`\nAll ${results.length} checks passed.`);
+  process.exit(0);
 })().catch((err) => {
   console.error("FAIL:", err.message ?? err);
   process.exit(1);

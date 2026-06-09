@@ -375,4 +375,5 @@ async function runDashboardBadgeCheck(browser) {
 
   console.log("PASS: Pickup portal Scenarios A + B complete.");
   await browser.close();
+  process.exit(0);
 })();
