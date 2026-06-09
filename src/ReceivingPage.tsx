@@ -107,6 +107,7 @@ export function ReceivingPage() {
   );
 
   const urlDeepLinkHandledRef = useRef(false);
+  const activeDeliveryIdRef = useRef<string | null>(null);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
@@ -180,9 +181,16 @@ export function ReceivingPage() {
     [deliveryDetails],
   );
 
+  useEffect(() => {
+    activeDeliveryIdRef.current =
+      deliveryDetails?.delivery.id ?? pendingDeliveryId;
+  }, [deliveryDetails, pendingDeliveryId]);
+
   const handlePinSessionExpired = useCallback(() => {
+    const deliveryId = activeDeliveryIdRef.current;
     setDeliveryDetails(null);
-    setPendingDeliveryId((id) => id);
+    setItemQtys([]);
+    if (deliveryId) setPendingDeliveryId(deliveryId);
     setStep("pin");
   }, []);
 

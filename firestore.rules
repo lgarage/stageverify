@@ -14,7 +14,7 @@ rules_version = '2';
 //   - Dispatcher/settings UI and audit views require Firebase Auth.
 //
 // UNAUTHENTICATED WRITES (mobile scan/check-in):
-//   - deliveries: update only — status, submittedAt, updatedAt, lastCheckmarkAt, stagingLocationId
+//   - deliveries: update only — status, submittedAt, updatedAt, lastCheckmarkAt, stagingLocationId, additionalStagingLocationIds
 //   - items: update only — qtyReceived, qtyMissing, qtyDamaged, status
 //   - statusHistory: create only (append-only audit log)
 //   - pickupEvents: create only (append-only pickup log)
@@ -70,6 +70,7 @@ service cloud.firestore {
           'updatedAt',
           'lastCheckmarkAt',
           'stagingLocationId',
+          'additionalStagingLocationIds',
         ])
         && (!changed.hasAny(['status']) || isValidDeliveryStatus(request.resource.data.status));
     }

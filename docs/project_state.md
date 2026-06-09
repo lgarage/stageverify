@@ -63,6 +63,8 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on vendor receive/check-in (`/#/receive`, `/`, `/checkin/:id`). `verifyVendorPin` CF validates PIN against order’s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` PIN `1234` on `delivery-demo-vendor-1`.
 
+**Vendor public-path fix (shipped 2026-06-08):** Unauthenticated vendor receive no longer reads `vendors` for occupancy; `submitCheckin` / `updateStagingLocation` return `getDeliveryDetailsPublic` after write. E2E: `npm run verify:vendor-e2e`. Rules: `additionalStagingLocationIds` allowed on unauth delivery update (deploy rules separately).
+
 Full Phase 3 gate still open (expected-materials UI, shop-stock pull states, readiness queue).
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.

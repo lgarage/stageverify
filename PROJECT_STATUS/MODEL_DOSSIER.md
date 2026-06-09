@@ -53,6 +53,7 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 8. **Scope:** do not add portal pickers, cross-links, or hub buttons unless Dan asked. Check `USER_SCOPE_REJECTIONS.md` before `PortalNavBar` / `MobileHubPage` edits.
 9. **Second fix failed → § Composer without Sonnet** (symptom block in reply); Sonnet is not a substitute for grep + appear/tap table on QR/async flows.
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
+11. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
 
 ### Diagnose before tweak (2026-06-02 QR)
 

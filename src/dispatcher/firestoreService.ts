@@ -10,6 +10,7 @@ import {
   where,
   limit,
 } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
@@ -488,20 +489,24 @@ export class FirestoreDataService implements DispatcherDataService {
       stagingLocationId: stagingLocationId ?? "",
       updatedAt: now,
     });
-    batch.set(doc(db, "statusHistory", eventId), {
-      id: eventId,
-      entityType: "delivery_order",
-      entityId: deliveryId,
-      fromStatus: prevCode,
-      toStatus: newCode,
-      reason: "Staging location updated",
-      actorType: "dispatcher",
-      actorName: "Dispatcher",
-      createdAt: now,
-    });
+    if (getAuth().currentUser) {
+      batch.set(doc(db, "statusHistory", eventId), {
+        id: eventId,
+        entityType: "delivery_order",
+        entityId: deliveryId,
+        fromStatus: prevCode,
+        toStatus: newCode,
+        reason: "Staging location updated",
+        actorType: "dispatcher",
+        actorName: "Dispatcher",
+        createdAt: now,
+      });
+    }
 
     await batch.commit();
-    return this.getDeliveryDetails(deliveryId);
+    return hydrateAfterVendorWrite(deliveryId, (id) =>
+      this.getDeliveryDetails(id),
+    );
   }
 
   async updateShopStockPickList(
@@ -645,7 +650,9 @@ export class FirestoreDataService implements DispatcherDataService {
     });
 
     await batch.commit();
-    return this.getDeliveryDetails(deliveryId);
+    return hydrateAfterVendorWrite(deliveryId, (id) =>
+      this.getDeliveryDetails(id),
+    );
   }
 
   async revertDeliveryStatus(
@@ -823,11 +830,13 @@ export async function addStagingLocation(
     additionalStagingLocationIds: arrayUnion(locationId),
     updatedAt: now,
   });
+  const status = delivery.status;
   batch.set(doc(db, "statusHistory", eventId), {
     id: eventId,
     entityType: "delivery_order",
     entityId: deliveryId,
-    toStatus: "staging_extended",
+    fromStatus: status,
+    toStatus: status,
     reason: `Additional staging location added: ${locationId}`,
     actorType: "vendor",
     actorName: "Vendor",
@@ -871,6 +880,22 @@ function publicVendorFromDelivery(delivery: DeliveryOrder): Vendor {
     name: delivery.vendorName ?? "Vendor",
     createdAt: delivery.createdAt,
   };
+}
+
+/** Denormalized vendor label — safe for unauthenticated occupancy reads. */
+function denormalizedVendorName(delivery: DeliveryOrder): string {
+  return delivery.vendorName?.trim() || "Vendor";
+}
+
+/** Public vendor writes must not hydrate via auth-only getDeliveryDetails. */
+async function hydrateAfterVendorWrite(
+  deliveryId: string,
+  authenticatedHydrate: (id: string) => Promise<DeliveryDetails | null>,
+): Promise<DeliveryDetails | null> {
+  if (getAuth().currentUser) {
+    return authenticatedHydrate(deliveryId);
+  }
+  return getDeliveryDetailsPublic(deliveryId);
 }
 
 /** Hydrate public delivery details when the delivery doc is already loaded (zone scan path). */
@@ -1005,10 +1030,7 @@ export async function mapActiveZoneOccupancyByCode(): Promise<
   Record<string, ZoneOccupancySummary>
 > {
   const locations = await fetchAllStagingLocations();
-  const [deliveries, vendors] = await Promise.all([
-    fetchAll<DeliveryOrder>("deliveries"),
-    fetchAll<Vendor>("vendors"),
-  ]);
+  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
   const byCode: Record<string, ZoneOccupancySummary> = {};
 
   const shouldReplace = (
@@ -1023,11 +1045,10 @@ export async function mapActiveZoneOccupancyByCode(): Promise<
 
   for (const delivery of deliveries) {
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
-    const vendor = vendors.find((v) => v.id === delivery.vendorId);
     const summary: ZoneOccupancySummary = {
       deliveryId: delivery.id,
       orderNumber: delivery.orderNumber,
-      vendorName: vendor?.name ?? "Unknown vendor",
+      vendorName: denormalizedVendorName(delivery),
       jobId: delivery.jobId,
       status: delivery.status,
     };
@@ -1059,10 +1080,7 @@ export async function mapOccupancyByLocationId(
   excludeDeliveryId?: string,
 ): Promise<Record<string, StagingLocationOccupant>> {
   const locations = await fetchAllStagingLocations();
-  const [deliveries, vendors] = await Promise.all([
-    fetchAll<DeliveryOrder>("deliveries"),
-    fetchAll<Vendor>("vendors"),
-  ]);
+  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
   const byLocationId: Record<string, StagingLocationOccupant> = {};
 
   const shouldReplace = (
@@ -1078,14 +1096,13 @@ export async function mapOccupancyByLocationId(
   for (const delivery of deliveries) {
     if (excludeDeliveryId && delivery.id === excludeDeliveryId) continue;
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
-    const vendor = vendors.find((v) => v.id === delivery.vendorId);
 
     for (const locId of getAllStagingLocationIds(delivery)) {
       const location = locations.find((loc) => loc.id === locId);
       const occupant: StagingLocationOccupant = {
         deliveryId: delivery.id,
         orderNumber: delivery.orderNumber,
-        vendorName: vendor?.name ?? "Unknown vendor",
+        vendorName: denormalizedVendorName(delivery),
         locationId: locId,
         locationCode: location?.code ?? locId,
       };

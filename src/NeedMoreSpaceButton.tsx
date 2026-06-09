@@ -76,6 +76,7 @@ export function NeedMoreSpaceButton({
   const [adding, setAdding] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState<string | null>(null);
   const [noLargerMessage, setNoLargerMessage] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalDelivery(delivery);
@@ -109,6 +110,7 @@ export function NeedMoreSpaceButton({
   const loadAndRecommend = useCallback(async (): Promise<void> => {
     setLoading(true);
     setNoLargerMessage(false);
+    setLoadError(null);
     try {
       const all = await firestoreDataService.listStagingLocations();
       const occupancy = await mapOccupancyByLocationId(localDelivery.id);
@@ -121,6 +123,9 @@ export function NeedMoreSpaceButton({
         setNoLargerMessage(true);
         window.setTimeout(() => setFlowState("done"), 2500);
       }
+    } catch {
+      setLoadError("Could not load staging options. Tap to try again.");
+      setFlowState("idle");
     } finally {
       setLoading(false);
     }
@@ -164,18 +169,24 @@ export function NeedMoreSpaceButton({
       setConfirmLabel(loc.label);
       window.setTimeout(() => {
         setConfirmLabel(null);
-        void firestoreDataService.listStagingLocations().then(async (all) => {
-          const occupancy = await mapOccupancyByLocationId(updated.id);
-          const hasSpot = applyRecommendations(
-            all,
-            updated,
-            Object.keys(occupancy),
-          );
-          if (!hasSpot) {
-            setNoLargerMessage(true);
-            window.setTimeout(() => setFlowState("done"), 2500);
-          }
-        });
+        void firestoreDataService
+          .listStagingLocations()
+          .then(async (all) => {
+            const occupancy = await mapOccupancyByLocationId(updated.id);
+            const hasSpot = applyRecommendations(
+              all,
+              updated,
+              Object.keys(occupancy),
+            );
+            if (!hasSpot) {
+              setNoLargerMessage(true);
+              window.setTimeout(() => setFlowState("done"), 2500);
+            }
+          })
+          .catch(() => {
+            setLoadError("Could not refresh staging options. Tap to try again.");
+            setFlowState("idle");
+          });
       }, 2000);
     } catch (err) {
       if (isStagingLocationOccupiedError(err)) {
@@ -245,13 +256,18 @@ export function NeedMoreSpaceButton({
 
   if (flowState === "idle") {
     return (
-      <button
-        type="button"
-        onClick={() => void loadAndRecommend()}
-        className={`w-full rounded-xl border border-border bg-bg-card py-4 text-base font-medium hover:bg-bg-surface transition-colors active:scale-[0.98] text-text-primary ${className}`}
-      >
-        Need More Space?
-      </button>
+      <div className={className}>
+        {loadError && (
+          <p className="text-sm text-accent-red text-center mb-2">{loadError}</p>
+        )}
+        <button
+          type="button"
+          onClick={() => void loadAndRecommend()}
+          className="w-full rounded-xl border border-border bg-bg-card py-4 text-base font-medium hover:bg-bg-surface transition-colors active:scale-[0.98] text-text-primary"
+        >
+          Need More Space?
+        </button>
+      </div>
     );
   }
 
