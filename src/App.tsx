@@ -4,9 +4,8 @@ import {
   getAppSettings,
   getDeliveryDetailsPublic,
 } from "./dispatcher/firestoreService";
-import { handleScannedQr } from "./scanRouting";
-import { QrScannerOverlay } from "./QrScannerOverlay";
 import { VendorPinGate } from "./VendorPinGate";
+import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
 import { isPinSessionValid } from "./vendorPinSession";
 import { useVendorPinActivity } from "./useVendorPinActivity";
 import type {
@@ -20,14 +19,11 @@ import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 
 // --- Icons ---
 const icons = {
-  scan: "M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M3 17v2a2 2 0 002 2h2M17 21h2a2 2 0 002-2v-2M7 12h10",
   check: "M5 13l4 4L19 7",
   alert:
     "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
   expand:
     "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4",
-  camera:
-    "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z",
   square: "M4 4h16v16H4z",
   checkSquare:
     "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",
@@ -79,9 +75,7 @@ function ScanScreen() {
   const [adjustQty, setAdjustQty] = useState<number>(0);
   const [adjustDamagedQty, setAdjustDamagedQty] = useState<number>(0);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
-  const [scanError] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
@@ -120,7 +114,6 @@ function ScanScreen() {
         damagedQty: 0,
       })),
     );
-    setIsScanning(false);
     setNotFoundCode(null);
     setPendingDeliveryId(null);
     setStep("name");
@@ -138,7 +131,7 @@ function ScanScreen() {
     [handleDeliveryFound],
   );
 
-  const handleManualScan = async () => {
+  const handleDemoLoadDelivery = async () => {
     setNotFoundCode(null);
     let result = await firestoreDataService.listDeliveries({
       statuses: ["pending"],
@@ -156,40 +149,6 @@ function ScanScreen() {
       setNotFoundCode("__no_deliveries__");
     }
   };
-
-  const handleCancelScan = () => {
-    setIsScanning(false);
-  };
-
-  const handleScanDecode = useCallback(
-    (decodedText: string) => {
-      void (async () => {
-        const result = await handleScannedQr(decodedText, "app-checkin");
-
-        switch (result.action) {
-          case "navigate":
-            setIsScanning(false);
-            setNotFoundCode(
-              "This delivery uses the pickup QR — scan the vendor receive tag on the zone.",
-            );
-            return;
-          case "load-checkin-app":
-            if (result.markArrived) {
-              await firestoreDataService.updateDeliveryStatus(
-                result.deliveryId,
-                "arrived",
-              );
-            }
-            beginDeliveryAccess(result.deliveryId);
-            return;
-          case "not-found":
-            setIsScanning(false);
-            setNotFoundCode("Invalid code. Contact dispatch if you need help.");
-        }
-      })();
-    },
-    [beginDeliveryAccess],
-  );
 
   const toggleItemCheck = (id: string) => {
     const toggled = checkInItems.find((i) => i.id === id);
@@ -315,45 +274,42 @@ function ScanScreen() {
       if (e.key === "Escape") {
         setAdjustingItemId(null);
         setShowSubmitConfirm(false);
-        setIsScanning(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  if (isScanning) {
+  if (step === "scan") {
     return (
-      <QrScannerOverlay
-        readerId="reader"
-        onDecode={handleScanDecode}
-        onCancel={handleCancelScan}
-        onCameraError={() => {
-          void handleManualScan();
-        }}
-        heading="Vendor Check-In"
-        subtitle="Scan the QR code at your assigned staging zone"
-        footer={
-          <>
-            {scanError && (
-              <p className="text-accent-red mt-4 text-sm text-center">{scanError}</p>
+      <div className="flex-1 flex flex-col">
+        {notFoundCode && (
+          <div className="mx-6 mt-6 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red">
+            {notFoundCode === "__no_deliveries__" ? (
+              <p className="font-medium">
+                No deliveries available to check in right now.
+              </p>
+            ) : (
+              <p className="font-medium">{notFoundCode}</p>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                void handleManualScan();
-              }}
-              className="action-btn action-btn-primary w-full max-w-[280px] mb-6 mt-4"
-            >
-              <Svg d={icons.scan} size={20} />
-              SIMULATE QR SCAN
-            </button>
-            <p className="text-xs text-text-secondary mb-4 text-center">
-              Demo: taps a pending order automatically
-            </p>
-          </>
-        }
-      />
+          </div>
+        )}
+
+        <VendorNativeQrEntry title="Vendor Check-In" />
+
+        <div className="px-6 pb-8">
+          <button
+            type="button"
+            onClick={() => {
+              setNotFoundCode(null);
+              void handleDemoLoadDelivery();
+            }}
+            className="action-btn action-btn-secondary w-full"
+          >
+            Demo: load pending delivery
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -369,55 +325,6 @@ function ScanScreen() {
           setStep("scan");
         }}
       />
-    );
-  }
-
-  if (step === "scan") {
-    return (
-      <div className="flex-1 flex flex-col px-6 py-12">
-        <div className="mb-12">
-          <h1 className="text-3xl font-bold text-text-primary mb-2">
-            Vendor Check-In
-          </h1>
-          <p className="text-base text-text-secondary">
-            Scan the QR code on your packing slip or staging zone.
-          </p>
-        </div>
-
-        {notFoundCode && (
-          <div className="mb-6 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red">
-            {notFoundCode === "__no_deliveries__" ? (
-              <p className="font-medium">No deliveries available to check in right now.</p>
-            ) : (
-              <p className="font-medium">{notFoundCode}</p>
-            )}
-          </div>
-        )}
-
-        <div
-          onClick={() => {
-            setNotFoundCode(null);
-            setIsScanning(true);
-          }}
-          className="flex-1 bg-bg-surface rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer active:scale-[0.98] transition-transform border border-border"
-        >
-          <div className="size-24 rounded-full bg-accent/10 text-accent flex items-center justify-center">
-            <Svg d={icons.camera} size={48} />
-          </div>
-          <span className="text-xl font-bold text-text-primary">
-            Tap to Scan
-          </span>
-        </div>
-
-        <div className="mt-8">
-          <button
-            onClick={() => { void handleManualScan(); }}
-            className="action-btn action-btn-secondary"
-          >
-            ENTER ID MANUALLY
-          </button>
-        </div>
-      </div>
     );
   }
 
@@ -562,10 +469,10 @@ function ScanScreen() {
             Submit
           </button>
           <button
-            onClick={() => setIsScanning(true)}
+            onClick={handleReset}
             className="action-btn action-btn-orange py-3"
           >
-            Scan Another QR Code
+            Check In Another Delivery
           </button>
         </div>
 

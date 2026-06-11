@@ -63,6 +63,8 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Vendor portal restyling (shipped 2026-06-11):** Restyled vendor receive portal (`/#/receive`) and PIN gate to visually match the polished `PickupPortalPage` (dark theme, rounded-2xl cards, centered job header, bg-bg-secondary/40 metadata blocks, green check icons, sticky footer). No logic changes.
 
+**Vendor native Camera check-in (shipped 2026-06-11):** Removed in-browser QR scanner from vendor receive (`/#/receive`) and legacy App (`/#/`). Vendors scan package/zone QRs with the phone Camera app; deep links open the portal automatically. Manual delivery ID entry remains on `/#/receive`.
+
 **Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on vendor receive/check-in (`/#/receive`, `/`, `/checkin/:id`). `verifyVendorPin` CF validates PIN against order’s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` PIN `1234` on `delivery-demo-vendor-1`.
 
 **Vendor public-path fix (shipped 2026-06-08):** Unauthenticated vendor receive no longer reads `vendors` for occupancy; `submitCheckin` / `updateStagingLocation` return `getDeliveryDetailsPublic` after write. E2E: `npm run verify:vendor-e2e`. Rules: `additionalStagingLocationIds` allowed on unauth delivery update (deploy rules separately).

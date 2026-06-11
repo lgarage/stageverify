@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–2 shipped**; full Phase 3 gate not passed)
-- Last shipped: Restyled vendor receive portal (match pickup portal style) (Jun 11). M1 vendor revert hydration — `revertDeliveryStatus` uses `hydrateAfterVendorWrite` (Jun 8). Vendor public-path fix (Jun 8). Vendor PIN gate (Jun 8).
+- Last shipped: Vendor check-in uses native Camera app only — removed in-browser QR scanner from receive portal + legacy App (Jun 11). Restyled vendor receive portal (Jun 11).
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2 (`createMaterialIssue` + `autoSubmitDeliveries`). Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`. Slice 1: `materialIssues` auth-read-only collection; public callable `createMaterialIssue` (no Firebase Auth); denormalized issue counts on deliveries.
 

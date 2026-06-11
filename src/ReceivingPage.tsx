@@ -8,8 +8,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   hasReceiveDeepLink,
   normalizeReceiveHash,
-  applyHashFromScannedQr,
-  parseScannedQr,
   pickupPath,
   readReceiveParams,
 } from "./receiveQrUrls";
@@ -30,7 +28,7 @@ import {
   type DeliveryDetails,
   type StagingLocation,
 } from "./dispatcher/models";
-import { QrScannerOverlay } from "./QrScannerOverlay";
+import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
 
 type Step = "scan" | "pin" | "items" | "zone" | "done";
 
@@ -94,11 +92,8 @@ export function ReceivingPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [manualId, setManualId] = useState("");
-  const [cameraFailed, setCameraFailed] = useState(false);
-  const [scanMode, setScanMode] = useState<"camera" | "zone-miss">("camera");
   const [zoneMissCode, setZoneMissCode] = useState<string | null>(null);
   const [deepLinkPending, setDeepLinkPending] = useState(hasReceiveDeepLink);
-  const [scanOpening, setScanOpening] = useState(false);
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustDamagedQty, setAdjustDamagedQty] = useState(0);
@@ -315,7 +310,6 @@ export function ReceivingPage() {
         const disposition = await resolveZoneScanDisposition(trimmed);
         if (!disposition) {
           setZoneMissCode(trimmed);
-          setScanMode("zone-miss");
           showToast("Invalid code.");
           return;
         }
@@ -335,43 +329,6 @@ export function ReceivingPage() {
       }
     },
     [beginDeliveryAccess, showToast],
-  );
-
-  const handleQrFromCamera = useCallback(
-    async (decodedText: string) => {
-      setScanOpening(true);
-      const parsed = parseScannedQr(decodedText);
-      applyHashFromScannedQr(decodedText);
-      urlDeepLinkHandledRef.current = true;
-
-      try {
-        if (parsed.kind === "pickup" && parsed.jobId) {
-          return;
-        }
-
-        const quiet = { quiet: true };
-
-        if (parsed.kind === "receive-id") {
-          await processDeliveryLookup(parsed.deliveryId, quiet);
-          return;
-        }
-
-        if (parsed.kind === "receive-zone") {
-          await processZoneLookup(parsed.zoneCode, quiet);
-          return;
-        }
-
-        if (parsed.kind === "raw") {
-          await processZoneLookup(parsed.value, quiet);
-          return;
-        }
-
-        showToast("Unrecognized QR code");
-      } finally {
-        setScanOpening(false);
-      }
-    },
-    [processDeliveryLookup, processZoneLookup, showToast],
   );
 
   useEffect(() => {
@@ -513,7 +470,6 @@ export function ReceivingPage() {
     urlDeepLinkHandledRef.current = false;
     itemQtyInitDeliveryIdRef.current = null;
     setStep("scan");
-    setScanMode("camera");
     setZoneMissCode(null);
     setPendingDeliveryId(null);
     setDeliveryDetails(null);
@@ -523,7 +479,6 @@ export function ReceivingPage() {
     setLoading(false);
     setError(null);
     setManualId("");
-    setCameraFailed(false);
     setDeepLinkPending(false);
     setAdjustingItemId(null);
     window.history.replaceState(null, "", "#/receive");
@@ -565,9 +520,9 @@ export function ReceivingPage() {
       <div className="flex flex-1 flex-col overflow-hidden min-h-0">
         {toast && <Toast message={toast} />}
 
-        {step === "scan" && scanMode === "zone-miss" && (
+        {step === "scan" && zoneMissCode && (
           <div className="flex flex-col h-full">
-            <div className="px-4 py-4 border-b border-border">
+            <div className="px-6 py-4 border-b border-border">
               <h1 className="text-xl font-bold">Zone {zoneMissCode}</h1>
               <p className="text-sm text-text-secondary mt-1">
                 No active delivery is assigned to this staging spot.
@@ -575,101 +530,34 @@ export function ReceivingPage() {
             </div>
             <div className="flex-1 flex items-center justify-center px-6 text-center">
               <p className="text-sm text-text-secondary">
-                Assign a delivery to this zone in the dispatcher, or scan a
-                package label instead.
+                Ask dispatch to assign a delivery, or scan a package QR with
+                your Camera app.
               </p>
             </div>
-            <div className="px-4 py-4 border-t border-border">
+            <div className="px-6 py-4 border-t border-border">
               <button
                 type="button"
-                onClick={() => {
-                  setScanMode("camera");
-                  setZoneMissCode(null);
-                }}
-                className="w-full min-h-[44px] rounded-xl bg-accent text-bg-primary font-medium"
+                onClick={() => setZoneMissCode(null)}
+                className="action-btn action-btn-secondary w-full"
               >
-                Scan another tag
+                Back
               </button>
             </div>
           </div>
         )}
 
-        {step === "scan" && scanMode === "camera" && !deepLinkPending && (
-          <div className="flex flex-col h-full">
-            <div className="px-4 py-3 border-b border-border">
-              <h1 className="text-xl font-bold">Receive Delivery</h1>
-              <p className="text-sm text-text-secondary mt-1">
-                Scan the QR tag on the package
-              </p>
-            </div>
-
-            <div className="relative flex-1 min-h-0 bg-black">
-              {!cameraFailed && (
-                <QrScannerOverlay
-                  layout="fill"
-                  readerId="receive-qr-reader"
-                  scanLocked={scanOpening}
-                  onDecode={(text) => {
-                    void handleQrFromCamera(text);
-                  }}
-                  onCameraError={() => setCameraFailed(true)}
-                />
-              )}
-              {scanOpening && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-40 pointer-events-none">
-                  <p className="text-sm text-white font-medium">Opening…</p>
-                </div>
-              )}
-              {cameraFailed && (
-                <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                  <p className="text-sm text-text-secondary">
-                    Camera unavailable — enter delivery ID below
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {deliveryDetails && (
-              <div className="px-4 py-3 border-t border-border bg-bg-card">
-                <p className="text-sm font-medium">{deliveryDetails.vendor.name}</p>
-                <p className="text-xs text-text-secondary">
-                  {deliveryDetails.delivery.orderNumber} ·{" "}
-                  {deliveryDetails.job?.jobName ?? ""}
-                </p>
-              </div>
-            )}
-
-            <div className="px-4 py-4 border-t border-border bg-bg-primary">
-              <p className="text-xs text-text-secondary mb-2 uppercase tracking-widest">
-                OR enter delivery ID manually
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  maxLength={64}
-                  value={manualId}
-                  onChange={(e) => setManualId(e.target.value)}
-                  placeholder="Delivery ID"
-                  className="flex-1 min-h-[44px] rounded-xl border border-border bg-bg-surface px-4 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent"
-                />
-                <button
-                  type="button"
-                  disabled={loading || !manualId.trim()}
-                  onClick={() => void processDeliveryLookup(manualId)}
-                  className="min-h-[44px] px-5 rounded-xl bg-accent text-bg-primary font-medium disabled:opacity-50"
-                >
-                  Go
-                </button>
-              </div>
-              {error && (
-                <p className="text-xs text-accent-red mt-2">{error}</p>
-              )}
-            </div>
-          </div>
+        {step === "scan" && !zoneMissCode && !deepLinkPending && (
+          <VendorNativeQrEntry
+            manualId={manualId}
+            onManualIdChange={setManualId}
+            onManualSubmit={() => void processDeliveryLookup(manualId)}
+            manualLoading={loading}
+            manualError={error}
+          />
         )}
 
-        {step === "scan" && scanMode === "camera" && deepLinkPending && (
-          <div className="flex flex-col h-full items-center justify-center px-6">
+        {step === "scan" && !zoneMissCode && deepLinkPending && (
+          <div className="flex flex-1 flex-col items-center justify-center px-6">
             <p className="text-sm text-text-secondary">Opening delivery…</p>
           </div>
         )}
@@ -1135,7 +1023,7 @@ export function ReceivingPage() {
                 onClick={resetFlow}
                 className="action-btn action-btn-delivered w-full"
               >
-                Scan Another Delivery
+                Check In Another Delivery
               </button>
               <Link
                 to="/dispatcher"

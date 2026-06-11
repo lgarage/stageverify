@@ -94,8 +94,8 @@ export function MobileHubPage() {
           <HubButton
             href="/#/"
             icon="📦"
-            title="Vendor QR Scanner"
-            subtitle="Legacy scan check-in"
+            title="Legacy Check-In"
+            subtitle="Camera app only (legacy route)"
             colorClass="bg-amber-600 text-white"
           />
         </main>
