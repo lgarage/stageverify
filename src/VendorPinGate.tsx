@@ -95,7 +95,7 @@ export function VendorPinGate({
 
   return (
     <div className="min-h-screen min-h-dvh bg-bg-primary flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-card p-6 shadow-lg">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-surface p-6 shadow-lg">
         <h1 className="text-xl font-semibold text-center text-text-primary mb-2">
           Enter Vendor PIN
         </h1>
