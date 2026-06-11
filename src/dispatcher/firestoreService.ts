@@ -31,8 +31,6 @@ import type {
   StatusHistoryEvent,
   Vendor,
   AppSettings,
-  VerifyVendorPinInput,
-  VerifyVendorPinResult,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -1333,17 +1331,7 @@ const createMaterialIssueCallable = httpsCallable<
   CreateMaterialIssueResult
 >(functions, "createMaterialIssue");
 
-const verifyVendorPinCallable = httpsCallable<
-  VerifyVendorPinInput,
-  VerifyVendorPinResult
->(functions, "verifyVendorPin");
-
-export async function verifyVendorPin(
-  input: VerifyVendorPinInput,
-): Promise<VerifyVendorPinResult> {
-  const response = await verifyVendorPinCallable(input);
-  return response.data;
-}
+export { verifyVendorPin } from "../verifyVendorPinClient";
 
 export async function reportMaterialIssue(
   input: CreateMaterialIssueInput,

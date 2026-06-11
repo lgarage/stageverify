@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–2 shipped**; full Phase 3 gate not passed)
-- Last shipped: Vendor PIN gate shows progress after verify + blocks double-submit hang (Jun 11). Native Camera-only vendor check-in (Jun 11).
+- Last shipped: Vendor PIN uses fetch + Firestore fallback (iOS Safari CF hang fix, Jun 11). Native Camera-only vendor check-in (Jun 11).
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2 (`createMaterialIssue` + `autoSubmitDeliveries`). Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`. Slice 1: `materialIssues` auth-read-only collection; public callable `createMaterialIssue` (no Firebase Auth); denormalized issue counts on deliveries.
 

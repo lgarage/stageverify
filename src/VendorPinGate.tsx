@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { verifyVendorPin } from "./dispatcher/firestoreService";
+import { verifyVendorPin } from "./verifyVendorPinClient";
 import {
   setPinSession,
   touchPinSession,

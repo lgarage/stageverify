@@ -10,6 +10,7 @@ import { resolve } from "path";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { computeVendorPinVerifier } from "./vendorPinVerifier.mjs";
 
 function loadEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -51,11 +52,11 @@ const vendors = [
 ];
 
 const deliveries = [
-  { id: "delivery-1", vendorName: "Johnstone Supply" },
-  { id: "delivery-2", vendorName: "First Supply" },
-  { id: "delivery-3", vendorName: "Ferguson HVAC" },
-  { id: "delivery-demo-vendor-1", vendorName: "Johnstone Supply" },
-  { id: "delivery-demo-vendor-2", vendorName: "Ferguson HVAC" },
+  { id: "delivery-1", vendorName: "Johnstone Supply", pin: "1234" },
+  { id: "delivery-2", vendorName: "First Supply", pin: "2345" },
+  { id: "delivery-3", vendorName: "Ferguson HVAC", pin: "3456" },
+  { id: "delivery-demo-vendor-1", vendorName: "Johnstone Supply", pin: "1234" },
+  { id: "delivery-demo-vendor-2", vendorName: "Ferguson HVAC", pin: "3456" },
 ];
 
 const now = new Date().toISOString();
@@ -74,7 +75,11 @@ for (const vendor of vendors) {
 for (const delivery of deliveries) {
   await setDoc(
     doc(db, "deliveries", delivery.id),
-    { vendorName: delivery.vendorName, updatedAt: now },
+    {
+      vendorName: delivery.vendorName,
+      vendorPinVerifier: computeVendorPinVerifier(delivery.id, delivery.pin),
+      updatedAt: now,
+    },
     { merge: true },
   );
   console.log(`Patched delivery ${delivery.id}`);
