@@ -16,7 +16,7 @@
 
 ## Immediate Next Step
 1. **Phase 3 remaining** — ready-only queue, shop-stock pull states, expected-materials UI (see `docs/roadmap.md`).
-2. **Vendor E2E** — local + prod `verify:vendor-e2e` (10/10); demo PIN `1234` on `delivery-demo-vendor-1`.
+2. **Vendor E2E** — local + prod `verify:vendor-e2e` (10/10); iPhone scan: `vendor-demo-scan.html` or dispatcher Print Label; PIN `1234` on `delivery-demo-vendor-1`.
 3. **Phase 4** — issue resolution UI (not started).
 
 ## Canonical references
