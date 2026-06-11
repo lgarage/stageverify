@@ -17,6 +17,9 @@ const ZoneManagementPage = lazy(() => import("./ZoneManagementPage").then(m => (
 const VendorsPage = lazy(() => import("./VendorsPage").then(m => ({ default: m.VendorsPage })));
 const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
+const VendorDemoScanPage = lazy(() =>
+  import("./VendorDemoScanPage").then((m) => ({ default: m.VendorDemoScanPage })),
+);
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
@@ -38,6 +41,7 @@ const renderApp = () => {
               <Route path="/pickup" element={<PickupPortalPage />} />
               <Route path="/checkin/:orderId" element={<CheckInPage />} />
               <Route path="/receive" element={<ReceivingPage />} />
+              <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
               <Route path="/display" element={<EntryDisplayPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
