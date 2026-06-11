@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   clearPinSession,
+  hasPinSession,
   isPinSessionValid,
   touchPinSession,
 } from "./vendorPinSession";
@@ -20,6 +21,7 @@ export function useVendorPinActivity(
     };
 
     const interval = window.setInterval(() => {
+      if (!hasPinSession(deliveryId)) return;
       if (!isPinSessionValid(deliveryId)) {
         clearPinSession(deliveryId);
         onSessionExpired();

@@ -100,6 +100,7 @@ export function ReceivingPage() {
   const [pendingDeliveryId, setPendingDeliveryId] = useState<string | null>(
     null,
   );
+  const [pinUnlocking, setPinUnlocking] = useState(false);
 
   const urlDeepLinkHandledRef = useRef(false);
   const activeDeliveryIdRef = useRef<string | null>(null);
@@ -237,6 +238,7 @@ export function ReceivingPage() {
 
   const loadDeliveryAfterPin = useCallback(
     async (deliveryId: string) => {
+      setPinUnlocking(true);
       setLoading(true);
       setError(null);
       try {
@@ -255,6 +257,7 @@ export function ReceivingPage() {
         setStep("scan");
       } finally {
         setLoading(false);
+        setPinUnlocking(false);
         setPendingDeliveryId(null);
         setDeepLinkPending(false);
       }
@@ -268,6 +271,7 @@ export function ReceivingPage() {
         void loadDeliveryAfterPin(deliveryId);
         return;
       }
+      setPinUnlocking(false);
       setPendingDeliveryId(deliveryId);
       setStep("pin");
     },
@@ -472,6 +476,7 @@ export function ReceivingPage() {
     setStep("scan");
     setZoneMissCode(null);
     setPendingDeliveryId(null);
+    setPinUnlocking(false);
     setDeliveryDetails(null);
     setItemQtys([]);
     setStagingLocationId(null);
@@ -504,10 +509,23 @@ export function ReceivingPage() {
   );
 
   if (step === "pin" && pendingDeliveryId) {
+    if (pinUnlocking) {
+      return (
+        <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
+          <div className="flex flex-1 flex-col items-center justify-center px-6 py-8">
+            <p className="text-center text-text-secondary text-sm mb-4">
+              Vendor Portal
+            </p>
+            <p className="text-sm text-text-secondary">Opening delivery…</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <VendorPinGate
         deliveryId={pendingDeliveryId}
         onVerified={() => {
+          setPinUnlocking(true);
           void loadDeliveryAfterPin(pendingDeliveryId);
         }}
         onCancel={resetFlow}

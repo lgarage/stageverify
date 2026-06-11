@@ -33,6 +33,10 @@ function readRaw(deliveryId: string): VendorPinSession | null {
   }
 }
 
+export function hasPinSession(deliveryId: string): boolean {
+  return readRaw(deliveryId) !== null;
+}
+
 export function isPinSessionValid(deliveryId: string): boolean {
   const session = readRaw(deliveryId);
   if (!session) return false;

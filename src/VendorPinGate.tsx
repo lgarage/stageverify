@@ -19,6 +19,19 @@ interface VendorPinGateProps {
   onCancel?: () => void;
 }
 
+function pinVerifyErrorMessage(err: unknown): string {
+  if (
+    err &&
+    typeof err === "object" &&
+    "message" in err &&
+    typeof (err as { message: unknown }).message === "string"
+  ) {
+    const message = (err as { message: string }).message.trim();
+    if (message.length > 0) return message;
+  }
+  return "Unable to verify PIN. Try again.";
+}
+
 export function VendorPinGate({
   deliveryId,
   onVerified,
@@ -27,6 +40,7 @@ export function VendorPinGate({
   const [digits, setDigits] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   const submitPin = useCallback(
     async (pin: string) => {
@@ -44,11 +58,12 @@ export function VendorPinGate({
           setError("Invalid code.");
           return;
         }
+        setVerified(true);
         setPinSession(deliveryId, result.vendorId, result.vendorName);
         onVerified(result.vendorId, result.vendorName);
-      } catch {
+      } catch (err) {
         setDigits([]);
-        setError("Unable to verify PIN. Try again.");
+        setError(pinVerifyErrorMessage(err));
       } finally {
         setSubmitting(false);
       }
@@ -57,9 +72,9 @@ export function VendorPinGate({
   );
 
   useEffect(() => {
-    if (digits.length !== 4 || submitting) return;
+    if (digits.length !== 4 || submitting || verified) return;
     void submitPin(digits.join(""));
-  }, [digits, submitting, submitPin]);
+  }, [digits, submitting, verified, submitPin]);
 
   useEffect(() => {
     const resetOnInactivity = () => {
@@ -75,20 +90,22 @@ export function VendorPinGate({
     };
   }, [deliveryId]);
 
+  const locked = submitting || verified;
+
   const pushDigit = (digit: string) => {
-    if (submitting || digits.length >= 4) return;
+    if (locked || digits.length >= 4) return;
     setError(null);
     setDigits((prev) => [...prev, digit]);
   };
 
   const backspace = () => {
-    if (submitting) return;
+    if (locked) return;
     setError(null);
     setDigits((prev) => prev.slice(0, -1));
   };
 
   const clearAll = () => {
-    if (submitting) return;
+    if (locked) return;
     setError(null);
     setDigits([]);
   };
@@ -132,6 +149,12 @@ export function VendorPinGate({
             </p>
           )}
 
+          {locked && !error && (
+            <p className="text-sm text-center text-text-secondary mb-4">
+              {verified ? "Opening delivery…" : "Verifying PIN…"}
+            </p>
+          )}
+
           <div className="grid grid-cols-3 gap-3 mb-4">
             {KEYPAD.flat().map((key, index) => {
               if (key === "") {
@@ -143,7 +166,7 @@ export function VendorPinGate({
                     key="back"
                     type="button"
                     onClick={backspace}
-                    disabled={submitting || digits.length === 0}
+                    disabled={locked || digits.length === 0}
                     className="tap-target size-16 mx-auto rounded-full border border-border bg-bg-card text-text-primary flex items-center justify-center active:scale-95 disabled:opacity-40"
                     aria-label="Backspace"
                   >
@@ -168,7 +191,7 @@ export function VendorPinGate({
                   key={key}
                   type="button"
                   onClick={() => pushDigit(key)}
-                  disabled={submitting || digits.length >= 4}
+                  disabled={locked || digits.length >= 4}
                   className="tap-target size-16 mx-auto rounded-full border border-border bg-bg-card text-2xl font-medium text-text-primary active:scale-95 disabled:opacity-40"
                 >
                   {key}
@@ -181,7 +204,7 @@ export function VendorPinGate({
             <button
               type="button"
               onClick={clearAll}
-              disabled={submitting || digits.length === 0}
+              disabled={locked || digits.length === 0}
               className="text-text-secondary font-medium disabled:opacity-40"
             >
               Clear
@@ -190,7 +213,7 @@ export function VendorPinGate({
               <button
                 type="button"
                 onClick={onCancel}
-                disabled={submitting}
+                disabled={locked}
                 className="text-text-secondary font-medium"
               >
                 Back
