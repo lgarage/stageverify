@@ -30,3 +30,7 @@ hvac-repair-quoting-tool-clone/
 playwright/.auth/
 screenshots/
 .env.local
+
+# Minew NDA-confidential material — never commit (see .cursor/rules/minew-nda-compliance.mdc)
+minew-confidential/
+**/minew-api-docs/**

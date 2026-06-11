@@ -1,0 +1,91 @@
+---
+description: Minew NDA compliance — confidential API material, ESL integration, AI tool usage. Mandatory for Phase 7 and any Minew/ESL work.
+alwaysApply: true
+---
+
+# Minew NDA Compliance (stageverify)
+
+StageVerify may develop, own, operate, and **commercially license** a Minew ESL integration. Minew's confidential technical information must never leak into this **public** repo, client bundles, Firestore public reads, or cloud AI sessions.
+
+**Authority:** NDA with Shenzhen Minew Technologies + Minew's written clarifications (Jun 2026). Architecture context: `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md` (placeholders only — never paste received API docs there).
+
+## What StageVerify owns (always OK in repo)
+
+- All StageVerify source, schemas, UI, QR routing (`receiveQrUrls.ts`, `EslQrCode.tsx`)
+- Public Minew **product model names** (e.g. DS042Q, DS035Q) — marketed publicly
+- Your shop's **physical tag barcodes** (`eslTagId`, `entrywayEslTagId`) — operational mapping to hardware you own
+- Speculative integration **placeholders** (TBD base URL, env var names) — not copies of Minew API documentation
+
+## Never commit, deploy, or paste into cloud AI
+
+Do **not** put these in git, `dist/`, docs, comments, logs, screenshots, or Cursor/ChatGPT/Gemini cloud chats:
+
+| Forbidden | Examples |
+|-----------|----------|
+| Minew API documentation | PDFs, Swagger/OpenAPI exports, Postman collections, full request/response specs |
+| Platform access | Minew cloud **login URL**, admin portal domain, login UI screenshots, default passwords |
+| Credentials | Production API keys, private keys, auth headers with real tokens, gateway admin passwords |
+| Authenticated examples | curl/fetch samples that include real keys, passwords, or non-public endpoints |
+| Legal confidential | NDA `.doc`/PDF, Minew email threads with unreleased technical specs |
+
+Store received docs in **private** storage only (`minew-confidential/` is gitignored — local disk or encrypted vault, not this repo).
+
+## End users and customers (no Minew NDA required)
+
+- Vendors, technicians, and customers use **StageVerify** URLs and flows only — not Minew's API.
+- QR codes must encode **StageVerify** deep links (`#/r?`, `#/p?`) — never Minew API endpoints.
+- Do not require StageVerify users to sign Minew's NDA.
+- Do not expose Minew API docs, credentials, or login interfaces in public routes (`/receive`, `/pickup`, `/checkin`, vendor PIN).
+
+Public UI may reference Minew **hardware product names**; it must not expose Minew **platform/API** internals.
+
+## ESL / Phase 7 implementation rules
+
+When Minew credentials arrive:
+
+1. **Server-side only** — Minew HTTP calls live in Cloud Functions (`functions/src/`), never in `src/` client code.
+2. **Secrets** — `MINew_API_KEY`, base URL, and login URL in Firebase Functions secrets / environment config — never hardcoded, never in `firebase.ts`, never in client bundles.
+3. **No API docs in repo** — implement from private docs; code comments describe behavior, not Minew endpoint/auth details.
+4. **Contractors** — anyone receiving Minew confidential material needs written confidentiality obligations before access (NDA item 5).
+5. **Trigger pattern** — Firestore `onDocumentWritten` → look up `eslTagId` → push label content server-side (see ESL plan).
+
+## AI-assisted development (Cursor et al.)
+
+| OK in cloud AI context | Never upload to cloud AI |
+|------------------------|--------------------------|
+| StageVerify integration code in this repo | Minew login URL / platform domain |
+| Public product model names | Default passwords |
+| Your `eslTagId` values (your hardware) | Production API keys or private keys |
+| Redacted pseudocode ("POST to vendor API with secret from env") | Full Minew API documentation or authenticated example requests |
+
+Prefer locally deployed models when working directly from Minew confidential docs. If unsure, redact.
+
+## Copies, git history, and agreement end
+
+- Reasonable copies of API docs for dev/test/security/backup are allowed **outside public git**, subject to NDA confidentiality.
+- Git may retain backups/source history per NDA carve-out — but **must not contain** Minew confidential material.
+- Confidentiality survives **5 years** from disclosure; trade secrets longer.
+- On Minew request or purpose completion: destroy/return Minew docs from private storage; retained backups stay confidential and unused except compliance/records.
+
+## Agent pre-ship checklist (Minew/ESL touches)
+
+Before commit when work touches ESL, Minew, `eslTagId`, or Phase 7:
+
+- [ ] `git diff` contains no Minew API keys, login URLs, default passwords, or pasted API documentation
+- [ ] No new Minew HTTP calls in `src/` (client)
+- [ ] No files under `minew-confidential/` staged
+- [ ] Public routes still use StageVerify QR URLs only
+- [ ] `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md` still has placeholders only — no received Minew spec text
+
+## What NOT to do
+
+❌ Commit Minew API PDFs, Postman exports, or real endpoint paths/auth from received docs  
+❌ Hardcode `minewtag.apikey` / base URL in source  
+❌ Call Minew APIs from the browser bundle  
+❌ Paste Minew login URL, keys, or full API docs into cloud AI chats  
+❌ Add Minew NDA requirement for StageVerify end users  
+❌ Put confidential Minew material in `docs/`, `PROJECT_STATUS/`, or public GitHub issues/PRs
+
+✅ Keep integration logic in Cloud Functions with Firebase secrets  
+✅ Keep customer-facing behavior entirely on StageVerify URLs  
+✅ Store received Minew docs privately; implement without reproducing confidential text in repo
