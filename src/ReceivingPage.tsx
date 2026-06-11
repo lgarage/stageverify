@@ -542,6 +542,12 @@ export function ReceivingPage() {
     (item) => item.qtyReceived + item.qtyDamaged < item.qtyOrdered,
   );
 
+  const allItemsFullyDelivered = itemQtys.every(
+    (item) =>
+      item.qtyReceived + item.qtyDamaged >= item.qtyOrdered &&
+      item.qtyOrdered > 0,
+  );
+
   if (step === "pin" && pendingDeliveryId) {
     return (
       <VendorPinGate
@@ -556,7 +562,7 @@ export function ReceivingPage() {
 
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
-      <div className="flex flex-col h-full">
+      <div className="flex flex-1 flex-col overflow-hidden min-h-0">
         {toast && <Toast message={toast} />}
 
         {step === "scan" && scanMode === "zone-miss" && (
@@ -669,178 +675,186 @@ export function ReceivingPage() {
         )}
 
         {step === "items" && deliveryDetails && (
-          <div className="flex flex-col h-full relative">
+          <div className="flex flex-1 flex-col overflow-hidden relative">
             <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
               <p className="text-center text-text-secondary text-sm mb-4">
                 {deliveryDetails.job?.jobName ?? "Delivery"}
               </p>
 
-              {(() => {
-                const allAccounted = itemQtys.every(
-                  (item) =>
-                    item.qtyReceived + item.qtyDamaged >= item.qtyOrdered &&
-                    item.qtyOrdered > 0,
-                );
-                return (
-                  <div
-                    className={`w-full bg-bg-surface rounded-2xl border overflow-hidden transition-colors ${
-                      allAccounted
-                        ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
-                        : "border-border"
-                    }`}
-                  >
-                    <div className="p-4 border-b border-border">
-                      <p className="font-bold text-text-primary mb-1">
-                        {deliveryDetails.vendor.name}
-                      </p>
-                      <p className="text-text-secondary text-sm">
-                        {deliveryDetails.items.length === 1
-                          ? "1 item"
-                          : `${deliveryDetails.items.length} items`}
-                      </p>
-                    </div>
+              <div
+                className={`w-full bg-bg-surface rounded-2xl border overflow-hidden transition-colors ${
+                  allItemsFullyDelivered
+                    ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
+                    : "border-border"
+                }`}
+              >
+                <div className="p-4 border-b border-border">
+                  <p className="font-bold text-text-primary mb-1">
+                    {deliveryDetails.vendor.name}
+                  </p>
+                  <p className="text-text-secondary text-sm">
+                    {deliveryDetails.items.length === 1
+                      ? "1 item"
+                      : `${deliveryDetails.items.length} items`}
+                  </p>
+                </div>
 
-                    <div className="border-t border-border bg-bg-secondary/40 px-4 py-4">
-                      <div className="space-y-2 mb-4">
-                        {[
-                          ["Order #", deliveryDetails.delivery.orderNumber],
-                          ["Vendor", deliveryDetails.vendor.name],
-                          ["PO #", deliveryDetails.purchaseOrder?.poNumber ?? "—"],
-                          ["Date", deliveryDetails.delivery.deliveryDate],
-                        ].map(([label, value]) => (
-                          <div
-                            key={label}
-                            className="flex items-center justify-between gap-4 text-xs"
-                          >
-                            <span className="text-text-secondary">{label}</span>
-                            <span className="text-text-primary font-medium text-right">
-                              {value}
-                            </span>
-                          </div>
-                        ))}
+                <div className="border-t border-border bg-bg-secondary/40 px-4 py-4">
+                  <div className="space-y-2 mb-4">
+                    {[
+                      ["Order #", deliveryDetails.delivery.orderNumber],
+                      ["Vendor", deliveryDetails.vendor.name],
+                      ["PO #", deliveryDetails.purchaseOrder?.poNumber ?? "—"],
+                      ["Date", deliveryDetails.delivery.deliveryDate],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between gap-4 text-xs"
+                      >
+                        <span className="text-text-secondary">{label}</span>
+                        <span className="text-text-primary font-medium text-right">
+                          {value}
+                        </span>
                       </div>
-
-                      <p className="mb-3 text-xs text-text-secondary">
-                        Check off items as delivered — tap Adjust for partial qty
-                      </p>
-
-                      <div className="space-y-2">
-                        {deliveryDetails.items.map((item) => {
-                          const qtyState = itemQtys.find((q) => q.id === item.id);
-                          const qtyReceived = qtyState?.qtyReceived ?? 0;
-                          const qtyDamaged = qtyState?.qtyDamaged ?? 0;
-                          const qtyOrdered = item.qtyOrdered;
-                          const qtyAccounted = qtyReceived + qtyDamaged;
-                          const isFullyAccounted =
-                            qtyAccounted >= qtyOrdered && qtyOrdered > 0;
-                          const isPartialDelivery =
-                            qtyAccounted > 0 && qtyAccounted < qtyOrdered;
-
-                          return (
-                            <div
-                              key={item.id}
-                              className="rounded-xl border border-border bg-bg-surface px-3 py-3"
-                            >
-                              <div className="flex items-start gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleItemCheck(item.id)}
-                                  className={`mt-0.5 shrink-0 ${
-                                    isPartialDelivery
-                                      ? "text-accent-amber"
-                                      : isFullyAccounted
-                                        ? "text-accent-green"
-                                        : "text-text-secondary"
-                                  }`}
-                                  aria-label={`Toggle ${item.description}`}
-                                >
-                                  <Svg
-                                    d={
-                                      isFullyAccounted
-                                        ? icons.check
-                                        : isPartialDelivery
-                                          ? icons.checkSquare
-                                          : icons.square
-                                    }
-                                    size={isFullyAccounted ? 24 : 22}
-                                  />
-                                </button>
-                                <div className="min-w-0 flex-1">
-                                  <p
-                                    className={`text-sm font-medium ${
-                                      isFullyAccounted
-                                        ? "text-text-secondary line-through"
-                                        : "text-text-primary"
-                                    }`}
-                                  >
-                                    {item.description}
-                                  </p>
-                                  <p
-                                    className={`mt-1 text-xs ${
-                                      isFullyAccounted
-                                        ? "text-text-secondary/70 line-through"
-                                        : "text-text-secondary"
-                                    }`}
-                                  >
-                                    Qty {qtyOrdered}
-                                    {item.sku ? ` · SKU ${item.sku}` : ""}
-                                  </p>
-                                  {(qtyReceived > 0 || qtyDamaged > 0) && (
-                                    <p className="mt-1 text-xs text-text-secondary">
-                                      Delivered: {qtyReceived}
-                                      {qtyDamaged > 0
-                                        ? ` good · ${qtyDamaged} damaged`
-                                        : ""}
-                                      {" / "}
-                                      {qtyOrdered}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="mt-2 pl-[34px] flex flex-wrap items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const state = itemQtys.find(
-                                      (q) => q.id === item.id,
-                                    );
-                                    if (state) openAdjust(state);
-                                  }}
-                                  className="bg-accent text-white font-medium py-1.5 px-5 rounded-full active:scale-[0.98] transition-transform text-[13px]"
-                                >
-                                  Adjust
-                                </button>
-                                {isPartialDelivery && (
-                                  <span className="text-[12px] font-bold text-accent-red bg-accent-red/10 px-2 py-0.5 rounded">
-                                    Partial Delivery
-                                  </span>
-                                )}
-                                {qtyDamaged > 0 && (
-                                  <span className="text-[12px] text-accent-red">
-                                    {qtyDamaged} damaged
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                );
-              })()}
+
+                  <p className="mb-3 text-xs text-text-secondary">
+                    Check off items as delivered — tap Adjust for partial qty
+                  </p>
+
+                  <div className="space-y-2">
+                    {deliveryDetails.items.map((item) => {
+                      const qtyState = itemQtys.find((q) => q.id === item.id);
+                      const qtyReceived = qtyState?.qtyReceived ?? 0;
+                      const qtyDamaged = qtyState?.qtyDamaged ?? 0;
+                      const qtyOrdered = item.qtyOrdered;
+                      const qtyAccounted = qtyReceived + qtyDamaged;
+                      const isFullyAccounted =
+                        qtyAccounted >= qtyOrdered && qtyOrdered > 0;
+                      const isPartialDelivery =
+                        qtyAccounted > 0 && qtyAccounted < qtyOrdered;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-border bg-bg-surface overflow-hidden"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleItemCheck(item.id)}
+                            className="w-full px-3 py-3 text-left"
+                            aria-label={`Toggle ${item.description}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span
+                                className={`mt-0.5 shrink-0 ${
+                                  isPartialDelivery
+                                    ? "text-accent-amber"
+                                    : isFullyAccounted
+                                      ? "text-accent-green"
+                                      : "text-text-secondary"
+                                }`}
+                              >
+                                <Svg
+                                  d={
+                                    isFullyAccounted || isPartialDelivery
+                                      ? icons.checkSquare
+                                      : icons.square
+                                  }
+                                  size={22}
+                                />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span
+                                  className={`block text-sm font-medium ${
+                                    isFullyAccounted
+                                      ? "text-text-secondary line-through"
+                                      : "text-text-primary"
+                                  }`}
+                                >
+                                  {item.description}
+                                </span>
+                                <span
+                                  className={`mt-1 block text-xs ${
+                                    isFullyAccounted
+                                      ? "text-text-secondary/70 line-through"
+                                      : "text-text-secondary"
+                                  }`}
+                                >
+                                  Qty {qtyOrdered}
+                                  {item.sku ? ` · SKU ${item.sku}` : ""}
+                                </span>
+                                {(qtyReceived > 0 || qtyDamaged > 0) && (
+                                  <span className="mt-1 block text-xs text-text-secondary">
+                                    Delivered: {qtyReceived}
+                                    {qtyDamaged > 0
+                                      ? ` good · ${qtyDamaged} damaged`
+                                      : ""}
+                                    {" / "}
+                                    {qtyOrdered}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </button>
+                          <div className="border-t border-border px-4 py-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const state = itemQtys.find(
+                                  (q) => q.id === item.id,
+                                );
+                                if (state) openAdjust(state);
+                              }}
+                              className="min-h-[36px] min-w-[5.5rem] px-7 py-2 rounded-lg bg-accent text-white font-medium text-[13px] active:scale-[0.98] transition-transform"
+                            >
+                              Adjust
+                            </button>
+                            {isPartialDelivery && (
+                              <span className="text-[12px] font-bold text-accent-red bg-accent-red/10 px-2 py-0.5 rounded">
+                                Partial Delivery
+                              </span>
+                            )}
+                            {qtyDamaged > 0 && (
+                              <span className="text-[12px] text-accent-red">
+                                {qtyDamaged} damaged
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="shrink-0 px-6 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-3 border-t border-border bg-bg-primary space-y-3">
+            <div
+              className={`shrink-0 px-6 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-3 border-t bg-bg-primary transition-colors space-y-3 ${
+                allItemsFullyDelivered
+                  ? "border-accent-green/50 bg-accent-green/5"
+                  : "border-border"
+              }`}
+            >
               {hasPartialOrder && (
                 <p className="text-center text-sm font-medium text-accent-amber">
                   Partial order — not all items fully delivered
                 </p>
               )}
+              {allItemsFullyDelivered && (
+                <p className="text-center text-sm font-semibold text-accent-green">
+                  All items delivered — tap below to assign zone
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => setStep("zone")}
-                className="action-btn action-btn-primary w-full"
+                className={`action-btn action-btn-delivered w-full transition-all duration-300 ${
+                  allItemsFullyDelivered
+                    ? "ring-4 ring-accent-green/50 shadow-[0_0_28px_rgba(34,197,94,0.35)] scale-[1.02]"
+                    : ""
+                }`}
               >
                 Next: Assign Zone →
               </button>
@@ -947,14 +961,14 @@ export function ReceivingPage() {
                     <button
                       type="button"
                       onClick={() => setAdjustingItemId(null)}
-                      className="flex-1 py-3 text-text-secondary font-medium text-sm bg-bg-secondary rounded-lg"
+                      className="action-btn action-btn-secondary flex-1 text-sm"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
                       onClick={saveAdjust}
-                      className="flex-1 py-3 bg-accent text-white font-medium text-sm rounded-lg"
+                      className="action-btn action-btn-delivered flex-1 text-sm"
                     >
                       Save
                     </button>
@@ -966,15 +980,17 @@ export function ReceivingPage() {
         )}
 
         {step === "zone" && deliveryDetails && (
-          <div className="flex flex-col h-full">
-            <div className="px-6 py-4 border-b border-border shrink-0">
-              <h1 className="text-xl font-bold">Assign Staging Zone</h1>
-              <p className="text-sm text-text-secondary mt-1">
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
+              <p className="text-center text-text-secondary text-sm mb-4">
+                {deliveryDetails.job?.jobName ?? "Delivery"}
+              </p>
+              <h1 className="text-xl font-bold text-center mb-1">
+                Assign Staging Zone
+              </h1>
+              <p className="text-sm text-text-secondary text-center mb-6">
                 Tap a zone for this delivery
               </p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-4">
               {loading && stagingLocations.length === 0 ? (
                 <p className="text-sm text-text-secondary">Loading zones…</p>
               ) : (
@@ -1074,11 +1090,13 @@ export function ReceivingPage() {
         )}
 
         {step === "done" && deliveryDetails && (
-          <div className="flex flex-col h-full items-center justify-center px-6 text-center">
-            <div className="size-24 rounded-full bg-accent-green/10 text-accent-green flex items-center justify-center mb-6">
-              <Svg d={icons.check} size={24} />
+          <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+            <div className="size-24 rounded-full bg-accent-green/10 text-accent-green flex items-center justify-center mb-8">
+              <Svg d={icons.check} size={48} />
             </div>
-            <h2 className="text-2xl font-bold mb-4">Check-in Complete</h2>
+            <h2 className="text-3xl font-bold text-text-primary mb-4">
+              Check-in Complete
+            </h2>
             {deliveryDetails.delivery.status === "partial" && (
               <p className="text-sm font-medium text-accent-amber mb-4">
                 Recorded as partial order
@@ -1115,7 +1133,7 @@ export function ReceivingPage() {
               <button
                 type="button"
                 onClick={resetFlow}
-                className="action-btn action-btn-primary w-full"
+                className="action-btn action-btn-delivered w-full"
               >
                 Scan Another Delivery
               </button>
