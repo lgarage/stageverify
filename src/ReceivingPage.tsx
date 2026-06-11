@@ -108,6 +108,7 @@ export function ReceivingPage() {
 
   const urlDeepLinkHandledRef = useRef(false);
   const activeDeliveryIdRef = useRef<string | null>(null);
+  const itemQtyInitDeliveryIdRef = useRef<string | null>(null);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
@@ -119,6 +120,9 @@ export function ReceivingPage() {
 
   useEffect(() => {
     if (!deliveryDetails) return;
+    const deliveryId = deliveryDetails.delivery.id;
+    if (itemQtyInitDeliveryIdRef.current === deliveryId) return;
+    itemQtyInitDeliveryIdRef.current = deliveryId;
     setItemQtys(
       deliveryDetails.items.map((item) => ({
         id: item.id,
@@ -507,6 +511,7 @@ export function ReceivingPage() {
 
   const resetFlow = () => {
     urlDeepLinkHandledRef.current = false;
+    itemQtyInitDeliveryIdRef.current = null;
     setStep("scan");
     setScanMode("camera");
     setZoneMissCode(null);
