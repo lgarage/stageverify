@@ -1,11 +1,11 @@
-import { StrictMode, lazy, Suspense } from "react";
+import { StrictMode, lazy, Suspense, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { LoginPage } from "./LoginPage";
-import { normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
+import { normalizeLegacyAppHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const App = lazy(() => import("./App"));
@@ -21,16 +21,31 @@ const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
 const VendorDemoScanPage = lazy(() =>
   import("./VendorDemoScanPage").then((m) => ({ default: m.VendorDemoScanPage })),
 );
+const PickupDemoScanPage = lazy(() =>
+  import("./PickupDemoScanPage").then((m) => ({ default: m.PickupDemoScanPage })),
+);
 
-/** Compact `#/r?…` QRs must rewrite before HashRouter matches `/receive`. */
+function CompactRouteSpinner({ label }: { label: string }) {
+  return (
+    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+      <p className="text-sm text-text-secondary">{label}</p>
+    </div>
+  );
+}
+
+/** Compact `#/r?…` QRs rewrite to `#/receive?…` before content mounts. */
 function CompactReceiveRedirect() {
-  normalizeReceiveHash();
-  return <ReceivingPage />;
+  useLayoutEffect(() => {
+    normalizeReceiveHash();
+  }, []);
+  return <CompactRouteSpinner label="Opening vendor check-in…" />;
 }
 
 function CompactPickupRedirect() {
-  normalizePickupHash();
-  return <PickupPortalPage />;
+  useLayoutEffect(() => {
+    normalizePickupHash();
+  }, []);
+  return <CompactRouteSpinner label="Opening pickup portal…" />;
 }
 
 const RootRedirect = () => {
@@ -56,6 +71,7 @@ const renderApp = () => {
               <Route path="/receive" element={<ReceivingPage />} />
               <Route path="/r" element={<CompactReceiveRedirect />} />
               <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
+              <Route path="/demo/pickup-scan" element={<PickupDemoScanPage />} />
               <Route path="/display" element={<EntryDisplayPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
@@ -73,6 +89,7 @@ const renderApp = () => {
   );
 };
 
+normalizeLegacyAppHash();
 normalizeReceiveHash();
 normalizePickupHash();
 renderApp();

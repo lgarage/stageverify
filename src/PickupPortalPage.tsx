@@ -25,7 +25,7 @@ import {
   resolveZoneScanDisposition,
   syncScanIntent,
 } from "./scanRouting";
-import { normalizePickupHash, parseScannedQr } from "./receiveQrUrls";
+import { normalizePickupHash, parseScannedQr, readPickupParams } from "./receiveQrUrls";
 import { QrScannerOverlay } from "./QrScannerOverlay";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 
@@ -1357,9 +1357,10 @@ function JobPickupScreen({
 
 export default function PickupPortalPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const jobIdFromUrl = searchParams.get("job");
-  const deliveryFromUrl = searchParams.get("delivery");
-  const zoneFromUrl = searchParams.get("zone");
+  const pickupParams = readPickupParams(searchParams);
+  const jobIdFromUrl = pickupParams.job;
+  const deliveryFromUrl = pickupParams.delivery;
+  const zoneFromUrl = pickupParams.zone;
   const [discoveredJobId, setDiscoveredJobId] = useState<string | null>(null);
   const [highlightDeliveryId, setHighlightDeliveryId] = useState<
     string | null

@@ -179,6 +179,24 @@ export function normalizeReceiveHash(): void {
   }
 }
 
+/** Fix legacy hashes missing the slash after `#` (Safari / shared links). */
+export function normalizeLegacyAppHash(): void {
+  let hash = window.location.hash;
+  if (!hash || hash === "#") return;
+
+  if (hash.startsWith("#pickup") && !hash.startsWith("#/pickup")) {
+    hash = hash.replace("#pickup", "#/pickup");
+  } else if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {
+    hash = hash.replace("#receive", "#/receive");
+  } else if (/^#[^/]/.test(hash)) {
+    hash = `#/${hash.slice(1)}`;
+  }
+
+  if (hash !== window.location.hash) {
+    window.location.hash = hash;
+  }
+}
+
 /** Compact #/p?j= → #/pickup?job= for pickup portal. */
 export function normalizePickupHash(): void {
   const hash = window.location.hash;
@@ -385,4 +403,38 @@ export function pickupPath(jobId: string, deliveryId?: string | null): string {
   const params = new URLSearchParams({ job: jobId });
   if (deliveryId) params.set("delivery", deliveryId);
   return `/pickup?${params.toString()}`;
+}
+
+/** Read pickup deep-link params from router search or hash (mobile Safari fallback). */
+export function readPickupParams(
+  searchParams: URLSearchParams,
+): { job: string | null; delivery: string | null; zone: string | null } {
+  const job = searchParams.get("job") ?? searchParams.get("j");
+  const delivery = searchParams.get("delivery") ?? searchParams.get("d");
+  const zone = searchParams.get("zone") ?? searchParams.get("z");
+  if (job || delivery || zone) {
+    return { job, delivery, zone };
+  }
+
+  const hash = window.location.hash;
+  const qs = hash.indexOf("?");
+  if (qs === -1) return { job: null, delivery: null, zone: null };
+  const fromHash = new URLSearchParams(hash.slice(qs + 1));
+  return {
+    job: fromHash.get("job") ?? fromHash.get("j"),
+    delivery: fromHash.get("delivery") ?? fromHash.get("d"),
+    zone: fromHash.get("zone") ?? fromHash.get("z"),
+  };
+}
+
+/** Full gh-pages pickup URL using long `#/pickup?` form (reliable on cold load). */
+export function buildPickupPortalUrl(
+  jobId: string,
+  deliveryId?: string | null,
+  eslOptions?: EslQrOptions,
+): string {
+  const base = qrBaseUrl(eslOptions);
+  const params = new URLSearchParams({ job: jobId });
+  if (deliveryId) params.set("delivery", deliveryId);
+  return `${base}#/pickup?${params.toString()}`;
 }
