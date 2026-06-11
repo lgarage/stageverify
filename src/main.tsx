@@ -5,6 +5,7 @@ import "./index.css";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { LoginPage } from "./LoginPage";
+import { normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const App = lazy(() => import("./App"));
@@ -20,6 +21,17 @@ const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
 const VendorDemoScanPage = lazy(() =>
   import("./VendorDemoScanPage").then((m) => ({ default: m.VendorDemoScanPage })),
 );
+
+/** Compact `#/r?…` QRs must rewrite before HashRouter matches `/receive`. */
+function CompactReceiveRedirect() {
+  normalizeReceiveHash();
+  return <ReceivingPage />;
+}
+
+function CompactPickupRedirect() {
+  normalizePickupHash();
+  return <PickupPortalPage />;
+}
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
@@ -39,8 +51,10 @@ const renderApp = () => {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/pickup" element={<PickupPortalPage />} />
+              <Route path="/p" element={<CompactPickupRedirect />} />
               <Route path="/checkin/:orderId" element={<CheckInPage />} />
               <Route path="/receive" element={<ReceivingPage />} />
+              <Route path="/r" element={<CompactReceiveRedirect />} />
               <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
               <Route path="/display" element={<EntryDisplayPage />} />
               <Route element={<ProtectedRoute />}>
@@ -59,6 +73,8 @@ const renderApp = () => {
   );
 };
 
+normalizeReceiveHash();
+normalizePickupHash();
 renderApp();
 if (import.meta.env.DEV) {
   seedFirestore().catch((err) => {
