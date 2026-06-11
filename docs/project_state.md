@@ -3,7 +3,7 @@
 > **Canonical phase truth** — single source for current phase, features, deployment status, and known issues.
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
 > **Maintained by:** Composer 2.5 (update after major milestones)
-> **Last reviewed:** 2026-06-05
+> **Last reviewed:** 2026-06-11
 
 ---
 
@@ -60,6 +60,8 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 **Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged.
 
 **Slice 2 (shipped 2026-06-08):** Clear pickup location labels on public pickup (`Pickup at`, `Also check`, `Find it at`, `Shop stock`); hides internal PARTIAL/COMPLETE chips. Display-only — queue, QR, rules, CF unchanged.
+
+**Vendor portal restyling (shipped 2026-06-11):** Restyled vendor receive portal (`/#/receive`) and PIN gate to visually match the polished `PickupPortalPage` (dark theme, rounded-2xl cards, centered job header, bg-bg-secondary/40 metadata blocks, green check icons, sticky footer). No logic changes.
 
 **Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on vendor receive/check-in (`/#/receive`, `/`, `/checkin/:id`). `verifyVendorPin` CF validates PIN against order’s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` PIN `1234` on `delivery-demo-vendor-1`.
 
