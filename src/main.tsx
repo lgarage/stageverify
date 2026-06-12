@@ -8,9 +8,12 @@ import { LoginPage } from "./LoginPage";
 import { normalizeLegacyAppHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
-const App = lazy(() => import("./App"));
-const CheckInPage = lazy(() => import("./CheckInPage").then(m => ({ default: m.CheckInPage })));
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
+const CheckinToReceiveRedirect = lazy(() =>
+  import("./VendorCheckinRedirect").then((m) => ({
+    default: m.CheckinToReceiveRedirect,
+  })),
+);
 const EntryDisplayPage = lazy(() => import("./EntryDisplayPage").then(m => ({ default: m.EntryDisplayPage })));
 const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").then(m => ({ default: m.DispatcherDashboardPage })));
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
@@ -50,9 +53,11 @@ function CompactPickupRedirect() {
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
-  if (loading) return <App />;
+  if (loading) {
+    return <CompactRouteSpinner label="Loading…" />;
+  }
   if (user) return <Navigate to="/hub" replace />;
-  return <App />;
+  return <Navigate to="/receive" replace />;
 };
 
 const root = createRoot(document.getElementById("root")!);
@@ -67,7 +72,7 @@ const renderApp = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/pickup" element={<PickupPortalPage />} />
               <Route path="/p" element={<CompactPickupRedirect />} />
-              <Route path="/checkin/:orderId" element={<CheckInPage />} />
+              <Route path="/checkin/:orderId" element={<CheckinToReceiveRedirect />} />
               <Route path="/receive" element={<ReceivingPage />} />
               <Route path="/r" element={<CompactReceiveRedirect />} />
               <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />

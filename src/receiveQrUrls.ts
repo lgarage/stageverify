@@ -224,6 +224,14 @@ export function normalizeLegacyAppHash(): void {
   let hash = window.location.hash;
   if (!hash || hash === "#") return;
 
+  const checkinMatch = hash.match(/^#\/checkin\/([^/?]+)/);
+  if (checkinMatch) {
+    window.location.hash = `#/receive?id=${encodeURIComponent(
+      decodeURIComponent(checkinMatch[1]),
+    )}`;
+    return;
+  }
+
   if (hash.startsWith("#pickup") && !hash.startsWith("#/pickup")) {
     hash = hash.replace("#pickup", "#/pickup");
   } else if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {

@@ -655,6 +655,47 @@ export class FirestoreDataService implements DispatcherDataService {
     );
   }
 
+  async markVendorDelivered(
+    deliveryId: string,
+    actorName = "Vendor Driver",
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+    const delivery = deliverySnap.data() as DeliveryOrder;
+
+    const fromStatus = delivery.status;
+    const toStatus: DeliveryStatus =
+      fromStatus === "pending" || fromStatus === "shipped"
+        ? "arrived"
+        : fromStatus;
+
+    const now = new Date().toISOString();
+    const eventId = `event-${crypto.randomUUID()}`;
+    const batch = writeBatch(db);
+
+    batch.update(doc(db, "deliveries", deliveryId), {
+      status: toStatus,
+      submittedAt: now,
+      updatedAt: now,
+    });
+    batch.set(doc(db, "statusHistory", eventId), {
+      id: eventId,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus,
+      toStatus,
+      reason: "Vendor confirmed delivery",
+      actorType: "vendor",
+      actorName,
+      createdAt: now,
+    });
+
+    await batch.commit();
+    return hydrateAfterVendorWrite(deliveryId, (id) =>
+      this.getDeliveryDetails(id),
+    );
+  }
+
   async revertDeliveryStatus(
     deliveryId: string,
     actorType: "vendor" | "dispatcher",
@@ -673,7 +714,17 @@ export class FirestoreDataService implements DispatcherDataService {
 
     const revertTargets =
       actorType === "vendor" ? VENDOR_REVERT_TARGETS : DISPATCHER_REVERT_TARGETS;
-    const toStatus = revertTargets[delivery.status];
+    let toStatus = revertTargets[delivery.status];
+
+    if (
+      actorType === "vendor" &&
+      !toStatus &&
+      delivery.status === "arrived" &&
+      delivery.submittedAt
+    ) {
+      toStatus = "arrived";
+    }
+
     if (!toStatus) return hydrateResult(deliveryId);
 
     if (actorType === "vendor") {
@@ -689,9 +740,13 @@ export class FirestoreDataService implements DispatcherDataService {
     const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
 
+    const clearSubmitted =
+      toStatus === "arrived" ||
+      (delivery.status === "arrived" && delivery.submittedAt);
+
     batch.update(doc(db, "deliveries", deliveryId), {
       status: toStatus,
-      submittedAt: toStatus === "arrived" ? null : delivery.submittedAt,
+      submittedAt: clearSubmitted ? null : delivery.submittedAt,
       updatedAt: now,
     });
     batch.set(doc(db, "statusHistory", eventId), {
@@ -801,6 +856,7 @@ const APP_SETTINGS_DOC = doc(db, "appSettings", "config");
 const DEFAULT_APP_SETTINGS: AppSettings = {
   vendorRevertWindowMinutes: 60,
   autoSubmitMinutes: 30,
+  vendorDeliveryMode: "full_checkin",
 };
 
 export async function getAppSettings(): Promise<AppSettings> {

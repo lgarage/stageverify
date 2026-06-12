@@ -1,8 +1,8 @@
 # Exception-Only Vendor Flow — Product Design Review
 
-> **Type:** Product design exercise (documentation only — no implementation)  
-> **Date:** 2026-06-08  
-> **Status:** Proposed migration path  
+> **Type:** Product design + implementation reference  
+> **Date:** 2026-06-08 (Slice 2 shipped 2026-06-11)  
+> **Status:** Slice 2 shipped — single vendor UI at `/#/receive`  
 > **Product principle:** *The person entering data must receive value from entering the data.*
 
 ---
@@ -23,7 +23,7 @@ This review proposes a migration toward **exception-only vendor delivery**:
 
 The migration is **phased and reversible**. Existing `DeliveryStatus` values and Firestore documents remain valid throughout; new behavior ships behind feature flags before becoming default.
 
-**Recommendation:** Proceed with Slice 1 (status wording + lifecycle cleanup) as low-risk alignment, then Slice 2 (exception-only vendor UI behind flag) once technician verification (Slice 3) has enough surface area to absorb the truth-transfer.
+**Recommendation:** Slice 2 **shipped** (2026-06-11). Default `vendorDeliveryMode` remains `full_checkin` until Slice 3 technician verification is ready; set `exception_only` in Settings or demo scripts for Delivered hub.
 
 ---
 
@@ -31,7 +31,7 @@ The migration is **phased and reversible**. Existing `DeliveryStatus` values and
 
 ### Vendor workflow (today)
 
-**Routes:** `/#/receive`, `/#/` (App.tsx), `/#/checkin/:id` (CheckInPage), `/#/r` (ReceivingPage)
+**Routes (canonical):** `/#/receive` (`ReceivingPage`) — **only** vendor check-in UI. Legacy `/#/`, `/#/checkin/:id`, and compact `#/r?` rewrite to receive. Demo QR: `/#/demo/vendor-scan`.
 
 | Step | What happens | Data written | Driver value |
 | ---- | ------------ | ------------ | ------------ |
@@ -255,7 +255,7 @@ Use `effectiveReadinessStatus()` — already derives from `status` when `readine
 
 ## 9. UI/UX Impact
 
-### Vendor (`App.tsx` / receive)
+### Vendor (`ReceivingPage` only)
 
 | Screen | Today | Proposed |
 | ------ | ----- | -------- |
@@ -344,21 +344,25 @@ Use `effectiveReadinessStatus()` — already derives from `status` when `readine
 
 ---
 
-### Slice 2: Exception-only vendor flow (feature flag)
+### Slice 2: Exception-only vendor flow (feature flag) — ✅ SHIPPED 2026-06-11
 
 **Goal:** `Scan → PIN → Delivered` with prominent Need More Space + exception chips.
 
 | Deliverable | Detail |
 | ----------- | ------ |
-| Feature flag | `appSettings.vendorDeliveryMode` or per-delivery override |
-| New vendor hub screen | Delivered CTA + Need More Space + Wrong Location / Damaged / Missing chips |
-| Write path | `markDelivered` or simplified `submitCheckin` (no item qty updates on happy path) |
-| Legacy path | Full check-in remains when flag off |
-| E2E | `verify:vendor-delivered.mjs` |
-| Rules | Unauth Delivered write (Sonnet security gate) |
+| Feature flag | `appSettings.vendorDeliveryMode` in Settings + `appSettings/config` |
+| Single vendor UI | `ReceivingPage` only; `App.tsx` / `CheckInPage` removed; legacy routes redirect |
+| Delivered hub | `VendorDeliveredHub` — DELIVERED CTA + Need More Space + Issue modal |
+| Write path | `markVendorDelivered` (status `arrived`, `submittedAt`; no item qty on happy path) |
+| Legacy path | Full check-in in same page when `vendorDeliveryMode = full_checkin` |
+| E2E | `npm run verify:vendor-delivered` + legacy `verify:vendor-e2e` |
+| Rules | No rules change — existing unauth delivery/statusHistory fields |
 
-**Risk:** Medium. **Depends on:** Slice 1 labels.  
-**Gate:** New E2E + legacy E2E both pass; Need More Space visible in screenshot assert.
+**Risk:** Medium. **Gate:** Both E2E scripts pass; Need More Space visible in Delivered hub.
+
+#### Future: email intelligence (document only — not implemented)
+
+StageVerify may later monitor vendor email responses (dispatcher CC: `stageverifybot@gmail.com`) to infer readiness: complete order, partial shipment, backorder, delay. Future automation may set `ready_for_pickup`, update dispatcher dashboard, and E-tags. **Technician verification and dispatcher confirmation remain the operational truth until that ships.**
 
 ---
 
@@ -431,8 +435,9 @@ flowchart LR
 
 ## References
 
-- `src/App.tsx` — vendor check-in steps  
-- `src/NeedMoreSpaceButton.tsx` — overflow staging workflow  
+- `src/ReceivingPage.tsx` — canonical vendor check-in (exception-only + legacy flag)  
+- `src/VendorDeliveredHub.tsx` — exception-only Delivered hub  
+- `src/NeedMoreSpaceButton.tsx` — overflow staging workflow (legacy full_checkin done screen)  
 - `src/PickupPortalPage.tsx` — technician pickup + Report Issue  
 - `src/dispatcher/models.ts` — `DeliveryStatus`, `ReadinessStatus`, `MaterialIssue`  
 - `docs/project_state.md` — shipped Phase 3 slices  

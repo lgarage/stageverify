@@ -14,7 +14,8 @@ import {
   type ParsedQrScan,
 } from "./receiveQrUrls";
 
-export type ScanHandlerTarget = "receive-page" | "checkin-page" | "app-checkin";
+/** Vendor check-in has a single UI: `ReceivingPage` at `/#/receive`. */
+export type ScanHandlerTarget = "receive-page";
 
 export type SyncScanIntent =
   | { kind: "navigate"; path: string }
@@ -25,7 +26,6 @@ export type SyncScanIntent =
 export type ScanHandleResult =
   | { action: "navigate"; path: string }
   | { action: "load-receive"; deliveryId: string }
-  | { action: "load-checkin-app"; deliveryId: string; markArrived: boolean }
   | { action: "not-found" };
 
 export function zoneCodeFromParsed(parsed: ParsedQrScan): string | null {
@@ -53,41 +53,16 @@ export function syncScanIntent(parsed: ParsedQrScan): SyncScanIntent {
   return { kind: "unrecognized" };
 }
 
-function deliveryToScanResult(
-  details: DeliveryDetails,
-  target: ScanHandlerTarget,
-  source: "delivery" | "zone",
-): ScanHandleResult {
+function deliveryToScanResult(details: DeliveryDetails): ScanHandleResult {
   if (shouldRouteScanToPickup(details.delivery.status)) {
-    if (target === "receive-page" || target === "app-checkin") {
-      return { action: "not-found" };
-    }
-    return {
-      action: "navigate",
-      path: pickupPath(details.delivery.jobId, details.delivery.id),
-    };
+    return { action: "not-found" };
   }
-  switch (target) {
-    case "receive-page":
-      return { action: "load-receive", deliveryId: details.delivery.id };
-    case "checkin-page":
-      return {
-        action: "navigate",
-        path: `/checkin/${encodeURIComponent(details.delivery.id)}`,
-      };
-    case "app-checkin":
-      return {
-        action: "load-checkin-app",
-        deliveryId: details.delivery.id,
-        markArrived:
-          source === "zone" && details.delivery.status === "pending",
-      };
-  }
+  return { action: "load-receive", deliveryId: details.delivery.id };
 }
 
 export async function resolveSyncScanIntent(
   intent: SyncScanIntent,
-  target: ScanHandlerTarget,
+  _target: ScanHandlerTarget,
 ): Promise<ScanHandleResult> {
   if (intent.kind === "navigate") {
     return { action: "navigate", path: intent.path };
@@ -95,12 +70,12 @@ export async function resolveSyncScanIntent(
   if (intent.kind === "resolve-delivery") {
     const details = await getDeliveryDetailsPublic(intent.deliveryId);
     if (!details) return { action: "not-found" };
-    return deliveryToScanResult(details, target, "delivery");
+    return deliveryToScanResult(details);
   }
   if (intent.kind === "resolve-zone") {
     const details = await getDeliveryDetailsByStagingCode(intent.zoneCode);
     if (!details) return { action: "not-found" };
-    return deliveryToScanResult(details, target, "zone");
+    return deliveryToScanResult(details);
   }
   return { action: "not-found" };
 }

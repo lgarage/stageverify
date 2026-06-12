@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase); **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents and Phase 2+ work; `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-08 (vendor public-path fix + E2E gate)
+> **Last updated:** 2026-06-11 (single vendor UI + exception-only Delivered hub)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
@@ -106,6 +106,16 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Status display | ✅ Hide internal PARTIAL/COMPLETE chips; show `Ready for pickup` only when `ready_for_pickup` |
 | Scope | ✅ Display-only — no queue, rules, CF, or write-path changes |
 | Verify | ✅ `verify:pickup` full/minimal location display + Scenarios A+B |
+
+### Vendor — single UI + exception-only flow ✅ (shipped 2026-06-11)
+
+| Item | Status |
+| ---- | ------ |
+| Canonical route | ✅ `ReceivingPage` at `/#/receive` only |
+| Legacy redirects | ✅ `/#/`, `/#/checkin/:id`, `#/r?` → receive |
+| Exception-only hub | ✅ `appSettings.vendorDeliveryMode`; Delivered / Need More Space / Issue |
+| Legacy full check-in | ✅ Same page when `vendorDeliveryMode = full_checkin` |
+| Verify | ✅ `verify:vendor-delivered` + `verify:vendor-e2e` |
 
 ### Phase 3 — Technician Pickup Workflow (full gate)
 

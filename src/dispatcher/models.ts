@@ -316,10 +316,14 @@ export interface DeliveryOrder {
   updatedAt: string;
 }
 
+export type VendorDeliveryMode = "full_checkin" | "exception_only";
+
 export interface AppSettings {
   vendorRevertWindowMinutes: number;
   autoSubmitMinutes: number;
   entrywayEslTagId?: string;
+  /** Vendor receive UX: full line-item check-in vs exception-only Delivered hub. */
+  vendorDeliveryMode?: VendorDeliveryMode;
 }
 
 export interface Item {

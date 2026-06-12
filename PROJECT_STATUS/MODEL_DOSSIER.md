@@ -8,7 +8,7 @@
 
 | Tag | Open when task touches… | One-line rule |
 |-----|-------------------------|---------------|
-| `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in App/Receive/Pickup |
+| `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in Receive/Pickup; vendor UI is **only** `ReceivingPage` (`/#/receive`) |
 | `zone-lookup` | staging code → delivery | `getDeliveryDetailsByStagingCode`; match zones via `getAllStagingLocationIds` |
 | `receive-deep-link` | `/receive` URL params or camera | `deepLinkPending` before camera; failed lookup → show error (no silent empty screen) |
 | `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; zone assigned → `#/r?z=` not long id |
@@ -21,8 +21,9 @@
 | `composer-trace` | 2nd fix failed, “still broken”, QR/scan/async | **§ Composer without Sonnet** — self-trace before more code or Sonnet |
 
 ## § qr-routing
-- Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, target)`.
-- Targets: `"receive-page"` \| `"checkin-page"` \| `"app-checkin"`.
+- Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
+- **Single vendor UI:** `ReceivingPage` at `/#/receive`. Legacy `/#/`, `/#/checkin/:id`, compact `#/r?` rewrite to receive. Demo QR: `/#/demo/vendor-scan`.
+- `appSettings.vendorDeliveryMode`: `exception_only` (Delivered hub) \| `full_checkin` (line-item flow, same page).
 - Zone tags + dispatcher print: `buildEslTagQrUrl` / `buildZoneEslQrUrl` — compact `#/p?` / `#/r?i=` / `#/r?z=` by status.
 
 ## § zone-lookup

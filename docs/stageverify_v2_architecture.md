@@ -48,9 +48,9 @@ StageVerify V1 is a **material staging and pickup accountability** web app for H
 
 | Route                 | Page                                   | Auth      |
 | --------------------- | -------------------------------------- | --------- |
-| `/#/`                 | `App.tsx` — Vendor Check-In scanner    | Public    |
-| `/#/checkin/:orderId` | `CheckInPage`                          | Public    |
-| `/#/receive`          | `ReceivingPage` — vendor deep link     | Public    |
+| `/#/receive`          | `ReceivingPage` — **canonical** vendor check-in | Public    |
+| `/#/checkin/:orderId` | Redirect → `/#/receive?id=`          | Public    |
+| `/#/`                 | Redirect → `/#/receive` (or `/hub` if logged in) | Public    |
 | `/#/pickup`           | `PickupPortalPage`                     | Public    |
 | `/#/display`          | `EntryDisplayPage` — ESL/entry display | Public    |
 | `/#/login`            | `LoginPage`                            | Public    |
@@ -75,7 +75,7 @@ Logged-in users at `/` redirect to `/hub`.
 #### UI components (major)
 
 - **Dispatcher Dashboard** — searchable delivery list, detail drawer, status buttons, staging assign, shop stock editor, print label QR
-- **Vendor Check-In** (`App.tsx`) — scan QR, verify quantities, damaged/missing, Need More Space overflow, submit
+- **Vendor Check-In** (`ReceivingPage`) — single UI at `/#/receive`; `exception_only`: Scan → PIN → Delivered hub (Need More Space, Issue, DELIVERED); `full_checkin`: line-item flow on same page
 - **Pickup Portal** (`PickupPortalPage.tsx`) — job/delivery list filtered by pickup-eligible `DeliveryStatus`; per delivery shows **staging zone code(s)** (`stagingLocationCode`), **line items** (description, qty), **shop stock pick list** (free-text `shopStockPickListItems`, optional `shopStockLocationNote`), delivery status label, Done → `PickupEvent` + status `picked_up`. V1 does **not** show `currentLocationNote`, `materialSource`, `availabilityStatus`, readiness status, or issue reporting.
 - **Zone Management** — CRUD staging locations, QR preview, print all active labels, occupancy guard
 - **Settings / Vendors** — app timers, staging spot list, vendor CRUD (separate pages per scope rejections)
@@ -711,10 +711,8 @@ Also read `PROJECT_STATUS/CURRENT_STATE.md` and, when touching nav/QR/public rou
 | Pickup Workflow                                   | **Modify**     | Phase 2: optional fields only. Phase 3: verification + Report Issue                                          |
 | Current Location Tracking                         | **Modify**     | Phase 2: optional `currentLocationNote` field on models. Phase 3: capture/display UI                       |
 | Shop Stock Pull List                              | **Modify**     | Phase 2: optional `materialSource` / location fields on models. Phase 3: structured pickup UI                |
-| Vendor Check-In (`App.tsx`)                       | **Keep**       | Core vendor path; optional email overlap later (Phase 5+)                                                      |
+| Vendor Check-In (`ReceivingPage`)                 | **Modify**     | Single UI at `/#/receive`; exception-only Delivered hub shipped; legacy `App.tsx` / `CheckInPage` removed (2026-06-11) |
 | E-Tag Integration                                 | **Modify**     | Phase 7 automation when Minew creds arrive                                                                     |
-| ReceivingPage                                     | **Keep**       | Deep-link vendor receive                                                                                       |
-| CheckInPage                                       | **Keep**       | ID-based check-in                                                                                              |
 | ZoneManagementPage                                | **Keep**       | CRUD + print labels                                                                                            |
 | VendorsPage                                       | **Modify**     | Phase 5+: `emailDomain`. Phase 8+: Vendor Knowledge Base refs (not Phase 2)                                  |
 | SettingsPage                                      | **Keep**       | Timers, entryway ESL; per scope rejections                                                                     |

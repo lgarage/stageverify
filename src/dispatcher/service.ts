@@ -112,6 +112,10 @@ export interface DispatcherDataService {
       qtyDamaged: number;
     }>,
   ): Promise<DeliveryDetails | null>;
+  markVendorDelivered(
+    deliveryId: string,
+    actorName?: string,
+  ): Promise<DeliveryDetails | null>;
   revertDeliveryStatus(
     deliveryId: string,
     actorType: "vendor" | "dispatcher",

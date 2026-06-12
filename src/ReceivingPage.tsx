@@ -13,6 +13,7 @@ import {
 } from "./receiveQrUrls";
 import {
   firestoreDataService,
+  getAppSettings,
   getDeliveryDetailsPublic,
   getDeliveryDetailsPublicForVendorReceive,
   mapOccupancyByLocationId,
@@ -31,8 +32,10 @@ import {
   type StagingLocation,
 } from "./dispatcher/models";
 import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
+import { VendorDeliveredHub } from "./VendorDeliveredHub";
+import type { VendorDeliveryMode } from "./dispatcher/models";
 
-type Step = "scan" | "pin" | "items" | "zone" | "done";
+type Step = "scan" | "pin" | "hub" | "items" | "zone" | "done";
 
 interface ItemQtyState {
   id: string;
@@ -104,6 +107,10 @@ export function ReceivingPage() {
   );
   const [pinUnlocking, setPinUnlocking] = useState(false);
   const [pinLoadError, setPinLoadError] = useState<string | null>(null);
+  const [vendorDeliveryMode, setVendorDeliveryMode] =
+    useState<VendorDeliveryMode>("full_checkin");
+  const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
+  const [reverting, setReverting] = useState(false);
 
   const urlDeepLinkHandledRef = useRef(false);
   const activeDeliveryIdRef = useRef<string | null>(null);
@@ -203,6 +210,15 @@ export function ReceivingPage() {
     handlePinSessionExpired,
   );
 
+  useEffect(() => {
+    void getAppSettings().then((settings) => {
+      setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
+      setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
+    });
+  }, []);
+
+  const isExceptionOnly = vendorDeliveryMode === "exception_only";
+
   const loadDeliveryForReceive = useCallback(
     async (details: DeliveryDetails): Promise<boolean> => {
       if (shouldRouteScanToPickup(details.delivery.status)) {
@@ -234,10 +250,18 @@ export function ReceivingPage() {
       }
 
       setDeliveryDetails(resolved);
-      setStep("items");
+      if (isExceptionOnly) {
+        if (resolved.delivery.submittedAt) {
+          setStep("done");
+        } else {
+          setStep("hub");
+        }
+      } else {
+        setStep("items");
+      }
       return true;
     },
-    [],
+    [isExceptionOnly],
   );
 
   const loadDeliveryAfterPin = useCallback(
@@ -462,6 +486,41 @@ export function ReceivingPage() {
       });
   };
 
+  const handleMarkDelivered = async () => {
+    if (!deliveryDetails) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const updated = await firestoreDataService.markVendorDelivered(
+        deliveryDetails.delivery.id,
+      );
+      if (updated) setDeliveryDetails(updated);
+      setStep("done");
+    } catch {
+      setError("Failed to confirm delivery");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRevertDelivered = async () => {
+    if (!deliveryDetails) return;
+    setReverting(true);
+    try {
+      const updated = await firestoreDataService.revertDeliveryStatus(
+        deliveryDetails.delivery.id,
+        "vendor",
+        revertWindowMinutes,
+      );
+      if (updated) {
+        setDeliveryDetails(updated);
+        setStep("hub");
+      }
+    } finally {
+      setReverting(false);
+    }
+  };
+
   const handleSubmitCheckin = async () => {
     if (!deliveryDetails) return;
     setLoading(true);
@@ -537,7 +596,11 @@ export function ReceivingPage() {
   );
 
   useEffect(() => {
-    if (step !== "items" || !deliveryDetails?.delivery.id) return;
+    if (
+      (step !== "items" && step !== "hub") ||
+      !deliveryDetails?.delivery.id
+    )
+      return;
     if (deliveryDetails.job) return;
     const deliveryId = deliveryDetails.delivery.id;
     if (enrichedDeliveryIdRef.current === deliveryId) return;
@@ -646,7 +709,22 @@ export function ReceivingPage() {
           </div>
         )}
 
-        {step === "items" && deliveryDetails && (
+        {step === "hub" && deliveryDetails && isExceptionOnly && (
+          <VendorDeliveredHub
+            deliveryDetails={deliveryDetails}
+            loading={loading}
+            error={error}
+            onDeliveryUpdated={(updated) => {
+              setDeliveryDetails((prev) =>
+                prev ? { ...prev, delivery: updated } : prev,
+              );
+            }}
+            onDelivered={() => void handleMarkDelivered()}
+            onBack={resetFlow}
+          />
+        )}
+
+        {step === "items" && deliveryDetails && !isExceptionOnly && (
           <div className="flex flex-1 flex-col overflow-hidden relative">
             <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
               <p className="text-center text-text-secondary text-sm mb-4">
@@ -1067,13 +1145,14 @@ export function ReceivingPage() {
               <Svg d={icons.check} size={48} />
             </div>
             <h2 className="text-3xl font-bold text-text-primary mb-4">
-              Check-in Complete
+              {isExceptionOnly ? "Delivery Confirmed" : "Check-in Complete"}
             </h2>
-            {deliveryDetails.delivery.status === "partial" && (
-              <p className="text-sm font-medium text-accent-amber mb-4">
-                Recorded as partial order
-              </p>
-            )}
+            {!isExceptionOnly &&
+              deliveryDetails.delivery.status === "partial" && (
+                <p className="text-sm font-medium text-accent-amber mb-4">
+                  Recorded as partial order
+                </p>
+              )}
             <div className="space-y-2 text-sm text-text-secondary mb-8">
               <p>
                 <span className="text-text-primary font-medium">
@@ -1081,10 +1160,12 @@ export function ReceivingPage() {
                 </span>
               </p>
               <p>Job: {deliveryDetails.job?.jobName ?? ""}</p>
-              <p>
-                {totalReceived} item
-                {totalReceived === 1 ? "" : "s"} received
-              </p>
+              {!isExceptionOnly && (
+                <p>
+                  {totalReceived} item
+                  {totalReceived === 1 ? "" : "s"} received
+                </p>
+              )}
               <p>
                 Zone:{" "}
                 {selectedZone?.code ??
@@ -1102,12 +1183,24 @@ export function ReceivingPage() {
                 }}
                 className="mb-2"
               />
+              {isExceptionOnly && deliveryDetails.delivery.submittedAt && (
+                <button
+                  type="button"
+                  onClick={() => void handleRevertDelivered()}
+                  disabled={reverting}
+                  className="action-btn action-btn-secondary w-full"
+                >
+                  {reverting ? "Reverting…" : "Undo Delivery"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={resetFlow}
                 className="action-btn action-btn-delivered w-full"
               >
-                Check In Another Delivery
+                {isExceptionOnly
+                  ? "Deliver Another"
+                  : "Check In Another Delivery"}
               </button>
               <Link
                 to="/dispatcher"

@@ -4,6 +4,7 @@ import {
   LOCATION_STATUSES,
   type LocationStatus,
   type StagingLocation,
+  type VendorDeliveryMode,
 } from "./dispatcher/models";
 import {
   findStagingLocationByCode,
@@ -93,6 +94,8 @@ function sortStagingSpots(a: StagingLocation, b: StagingLocation): number {
 export function SettingsPage() {
   const location = useLocation();
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
+  const [vendorDeliveryMode, setVendorDeliveryMode] =
+    useState<VendorDeliveryMode>("full_checkin");
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
 
@@ -121,6 +124,7 @@ export function SettingsPage() {
   useEffect(() => {
     void getAppSettings().then((settings) => {
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
+      setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
     });
   }, []);
 
@@ -130,6 +134,7 @@ export function SettingsPage() {
     try {
       await updateAppSettings({
         vendorRevertWindowMinutes: revertWindowMinutes,
+        vendorDeliveryMode,
       });
       setRevertSaved(true);
       setTimeout(() => setRevertSaved(false), 2000);
@@ -427,6 +432,38 @@ export function SettingsPage() {
                 }}
               />
               <span style={{ fontSize: 13, color: "#6b7280" }}>minutes</span>
+              <label
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#6b7280",
+                  whiteSpace: "nowrap",
+                  marginLeft: 8,
+                }}
+              >
+                Vendor delivery mode
+              </label>
+              <select
+                value={vendorDeliveryMode}
+                onChange={(e) =>
+                  setVendorDeliveryMode(
+                    e.target.value as VendorDeliveryMode,
+                  )
+                }
+                onBlur={() => void saveRevertWindow()}
+                style={{
+                  padding: "10px 12px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  color: "#333",
+                  backgroundColor: "#fff",
+                  fontFamily: FONT,
+                }}
+              >
+                <option value="full_checkin">Full check-in (legacy)</option>
+                <option value="exception_only">Exception-only Delivered hub</option>
+              </select>
               <button
                 type="button"
                 onClick={() => void saveRevertWindow()}

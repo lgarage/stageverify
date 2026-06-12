@@ -17,7 +17,7 @@ StageVerify V1 is a **live, Firestore-backed staging and pickup system** for USA
 **What works in production:**
 
 - Dispatcher creates deliveries, assigns staging zones (with occupancy guard), edits shop stock pick lists, and drives status through **Ordered → Shipped → Received → Staged → Picked Up → Installed**
-- Vendor drivers check in via QR (`/#/`, `/#/receive`, `/#/checkin/:id`) with quantity verification, damage/missing capture, and Need More Space overflow
+- Vendor drivers check in via QR at `/#/receive` (legacy `/#/` and `/#/checkin/:id` redirect here); `exception_only` mode: Scan → PIN → Delivered hub; `full_checkin` mode: line-item verify on same page; Need More Space overflow on hub and done screen
 - Technicians pick up via public `/#/pickup` with checkbox verification and `PickupEvent` audit
 - QR routing sends scans to the correct portal based on delivery status; compact and legacy URLs supported
 - Zone management, vendor CRUD, settings (auto-submit timer, revert window), entry display board
@@ -66,7 +66,7 @@ Carry forward with minimal or additive change:
 | **Models**                               | `Job`, `Vendor`, `PurchaseOrder`, `DeliveryOrder`, `Item`, `StagingLocation`, `StatusHistoryEvent`, `PickupEvent`, `AppSettings` |
 | **Services**                             | `firestoreService.ts` pattern; `VALID_TRANSITIONS` in `service.ts` (extend, don’t replace blindly)                               |
 | **Routes**                               | All current HashRouter paths; public vs `ProtectedRoute` split                                                                   |
-| **Portals**                              | `PickupPortalPage`, `ReceivingPage`, `CheckInPage`, `App.tsx` vendor scanner                                                     |
+| **Portals**                              | `PickupPortalPage`, `ReceivingPage` (single vendor UI; legacy routes redirect to `/#/receive`)                                   |
 | **Dispatcher**                           | `DispatcherDashboardPage` shell, drawer, create delivery modal                                                                   |
 | **QR**                                   | `receiveQrUrls.ts`, `scanRouting.ts`, `shouldRouteScanToPickup`                                                                  |
 | **Audit**                                | `StatusHistoryEvent` for operational timeline summaries and state transitions (`actorType: "system"` for automated events). Detailed AI corrections, parsed-email lineage, and evidence records are separate phase-gated structures — StatusHistory may reference or summarize them, not replace them |

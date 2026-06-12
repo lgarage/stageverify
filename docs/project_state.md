@@ -63,9 +63,13 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Vendor portal restyling (shipped 2026-06-11):** Restyled vendor receive portal (`/#/receive`) and PIN gate to visually match the polished `PickupPortalPage` (dark theme, rounded-2xl cards, centered job header, bg-bg-secondary/40 metadata blocks, green check icons, sticky footer). No logic changes.
 
-**Vendor native Camera check-in (shipped 2026-06-11):** Removed in-browser QR scanner from vendor receive (`/#/receive`) and legacy App (`/#/`). Vendors scan package/zone QRs with the phone Camera app; deep links open the portal automatically. Manual delivery ID entry remains on `/#/receive`.
+**Vendor native Camera check-in (shipped 2026-06-11):** Removed in-browser QR scanner from vendor receive (`/#/receive`). Vendors scan package/zone QRs with the phone Camera app; deep links open the portal automatically. Manual delivery ID entry remains on `/#/receive`.
 
-**Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on vendor receive/check-in (`/#/receive`, `/`, `/checkin/:id`). `verifyVendorPin` CF validates PIN against order’s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` PIN `1234` on `delivery-demo-vendor-1`.
+**Single vendor UI (shipped 2026-06-11):** One vendor check-in experience — `ReceivingPage` at `/#/receive`. Legacy `/#/` and `/#/checkin/:id` redirect to receive. `appSettings.vendorDeliveryMode`: `exception_only` (Scan → PIN → Delivered hub) or `full_checkin` (line-item flow) on the same page. Removed `App.tsx` and `CheckInPage.tsx`.
+
+**Exception-only vendor flow (shipped 2026-06-11):** Delivered hub with Need More Space, Issue reporting, and `markVendorDelivered` (status `arrived`, not `ready_for_pickup`). E2E: `npm run verify:vendor-delivered`.
+
+**Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on `/#/receive`. `verifyVendorPin` CF validates PIN against order’s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` PIN `1234` on `delivery-demo-vendor-1`.
 
 **Vendor public-path fix (shipped 2026-06-08):** Unauthenticated vendor receive no longer reads `vendors` for occupancy; `submitCheckin` / `updateStagingLocation` return `getDeliveryDetailsPublic` after write. E2E: `npm run verify:vendor-e2e`. Rules: `additionalStagingLocationIds` allowed on unauth delivery update (deploy rules separately).
 
@@ -93,7 +97,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 | Feature                | Route                       | Actor               | Notes                                        |
 | ---------------------- | --------------------------- | ------------------- | -------------------------------------------- |
-| Vendor Check-In        | `/#/` and `/#/receive`      | Vendor driver       | Scan QR → verify items → submit              |
+| Vendor Check-In        | `/#/receive` (canonical)    | Vendor driver       | Scan QR → PIN → Delivered hub or full check-in (`vendorDeliveryMode`) |
 | Dispatcher Dashboard   | `/#/dispatcher`             | Dispatcher (auth)   | Full delivery list, status, search           |
 | Delivery Detail Drawer | (inside dispatcher)         | Dispatcher          | Status changes, staging, shop stock, PO      |
 | Staging Assignment     | Settings → Zones            | Dispatcher          | CRUD zones, occupancy guard                  |
@@ -106,7 +110,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 | App Settings           | `/#/settings`               | Dispatcher (auth)   | Revert window, auto-submit timer, ESL tag ID |
 | Auto-Submit            | Cloud Function              | System              | Submits after inactivity timeout             |
 | Status History         | (inside drawer)             | All                 | Audit trail per delivery                     |
-| Need More Space        | Vendor check-in done screen | Vendor              | Tiered overflow staging flow                 |
+| Need More Space        | Vendor Delivered hub + done | Vendor              | Tiered overflow staging (shelf / ground / oversized) |
 
 ---
 
@@ -139,7 +143,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 | ------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------ |
 | Full-collection reads on `listDeliveries`                     | `firestoreService.ts`    | No server-side filter/sort. Scales to ~500 items today.                  |
 | `autoSubmitDeliveries` CF has duplicate `DeliveryStatus` type | `functions/src/index.ts` | Should import from shared types in V2                                    |
-| Vendor check-in (`App.tsx`) is a monolithic component         | `src/App.tsx`            | Should be broken into smaller components                                 |
+| Vendor check-in consolidated to `ReceivingPage`               | `src/ReceivingPage.tsx`  | Legacy `App.tsx` / `CheckInPage` removed; single UI at `/#/receive`      |
 | No error boundary on public portals                           | All portal pages         | Silent failures on network errors                                        |
 | `shopStockPickListItems` is a free-text array                 | `models.ts`              | Phase 3+: structured shop-stock pickup UI; not inventory balances        |
 | `shopStockPickListItems` has no location structure            | `models.ts`              | Phase 2 may add optional per-`Item` `materialSource` / location fields on models only |
