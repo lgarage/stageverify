@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
@@ -14,5 +14,14 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+const isIOSSafari =
+  typeof navigator !== "undefined" &&
+  /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+  !/CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent);
+
+/** iOS Safari often hangs on Firestore WebChannel — long polling is more reliable. */
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: isIOSSafari,
+});
 export const functions = getFunctions(app, "us-central1");

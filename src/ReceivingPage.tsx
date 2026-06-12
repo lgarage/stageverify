@@ -14,6 +14,7 @@ import {
 import {
   firestoreDataService,
   getDeliveryDetailsPublic,
+  getDeliveryDetailsPublicForVendorReceive,
   mapOccupancyByLocationId,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
@@ -101,10 +102,12 @@ export function ReceivingPage() {
     null,
   );
   const [pinUnlocking, setPinUnlocking] = useState(false);
+  const [pinLoadError, setPinLoadError] = useState<string | null>(null);
 
   const urlDeepLinkHandledRef = useRef(false);
   const activeDeliveryIdRef = useRef<string | null>(null);
   const itemQtyInitDeliveryIdRef = useRef<string | null>(null);
+  const enrichedDeliveryIdRef = useRef<string | null>(null);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
@@ -239,30 +242,38 @@ export function ReceivingPage() {
   const loadDeliveryAfterPin = useCallback(
     async (deliveryId: string) => {
       setPinUnlocking(true);
+      setPinLoadError(null);
       setLoading(true);
       setError(null);
+      let unlocked = false;
       try {
-        const details = await getDeliveryDetailsPublic(deliveryId);
+        const details =
+          await getDeliveryDetailsPublicForVendorReceive(deliveryId);
         if (!details) {
-          showToast("Invalid code.");
-          setStep("scan");
+          setPinLoadError("Invalid code.");
           return;
         }
         const loaded = await loadDeliveryForReceive(details);
         if (loaded) {
           window.history.replaceState(null, "", "#/receive");
+          unlocked = true;
         }
-      } catch {
-        setError("Failed to load delivery");
-        setStep("scan");
+      } catch (err) {
+        setPinLoadError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load delivery. Try again.",
+        );
       } finally {
         setLoading(false);
-        setPinUnlocking(false);
-        setPendingDeliveryId(null);
-        setDeepLinkPending(false);
+        if (unlocked) {
+          setPinUnlocking(false);
+          setPendingDeliveryId(null);
+          setDeepLinkPending(false);
+        }
       }
     },
-    [showToast, loadDeliveryForReceive],
+    [loadDeliveryForReceive],
   );
 
   const beginDeliveryAccess = useCallback(
@@ -272,6 +283,7 @@ export function ReceivingPage() {
         return;
       }
       setPinUnlocking(false);
+      setPinLoadError(null);
       setPendingDeliveryId(deliveryId);
       setStep("pin");
     },
@@ -485,10 +497,12 @@ export function ReceivingPage() {
   const resetFlow = () => {
     urlDeepLinkHandledRef.current = false;
     itemQtyInitDeliveryIdRef.current = null;
+    enrichedDeliveryIdRef.current = null;
     setStep("scan");
     setZoneMissCode(null);
     setPendingDeliveryId(null);
     setPinUnlocking(false);
+    setPinLoadError(null);
     setDeliveryDetails(null);
     setItemQtys([]);
     setStagingLocationId(null);
@@ -520,15 +534,48 @@ export function ReceivingPage() {
       item.qtyOrdered > 0,
   );
 
+  useEffect(() => {
+    if (step !== "items" || !deliveryDetails?.delivery.id) return;
+    if (deliveryDetails.job) return;
+    const deliveryId = deliveryDetails.delivery.id;
+    if (enrichedDeliveryIdRef.current === deliveryId) return;
+    enrichedDeliveryIdRef.current = deliveryId;
+    void getDeliveryDetailsPublic(deliveryId).then((full) => {
+      if (full) setDeliveryDetails(full);
+    });
+  }, [step, deliveryDetails]);
+
   if (step === "pin" && pendingDeliveryId) {
-    if (pinUnlocking) {
+    if (pinUnlocking || pinLoadError) {
       return (
         <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
           <div className="flex flex-1 flex-col items-center justify-center px-6 py-8">
             <p className="text-center text-text-secondary text-sm mb-4">
               Vendor Portal
             </p>
-            <p className="text-sm text-text-secondary">Opening delivery…</p>
+            {pinLoadError ? (
+              <div className="w-full max-w-sm text-center space-y-4">
+                <p className="text-sm text-accent-red" role="alert">
+                  {pinLoadError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadDeliveryAfterPin(pendingDeliveryId)}
+                  className="action-btn action-btn-delivered w-full"
+                >
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  onClick={resetFlow}
+                  className="action-btn action-btn-secondary w-full"
+                >
+                  Back
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-text-secondary">Opening delivery…</p>
+            )}
           </div>
         </div>
       );

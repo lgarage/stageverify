@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
+import { withTimeout } from "../withTimeout";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import type {
@@ -948,12 +949,66 @@ async function hydrateDeliveryDetailsPublic(
   };
 }
 
+const VENDOR_DELIVERY_LOAD_MS = 20_000;
+
+function deliveryOrderFromSnap(
+  deliveryId: string,
+  data: DeliveryOrder,
+): DeliveryOrder {
+  return { ...data, id: data.id ?? deliveryId };
+}
+
+function buildMinimalPublicDetails(
+  delivery: DeliveryOrder,
+  items: Item[],
+): DeliveryDetails {
+  const { notes: _n, ...publicDelivery } = delivery;
+  return {
+    delivery: publicDelivery as DeliveryOrder,
+    vendor: publicVendorFromDelivery(delivery) as Vendor,
+    items,
+    statusHistory: [],
+    pickupEvents: [],
+    materialIssues: [],
+  };
+}
+
+/**
+ * Fast public hydrate for vendor PIN unlock — delivery + line items only.
+ * Skips job/PO/staging reads that can stall iOS Safari; enrich later if needed.
+ */
+export async function getDeliveryDetailsPublicForVendorReceive(
+  deliveryId: string,
+): Promise<DeliveryDetails | null> {
+  const deliverySnap = await withTimeout(
+    getDoc(doc(db, "deliveries", deliveryId)),
+    VENDOR_DELIVERY_LOAD_MS,
+    "Delivery load timed out. Check your connection and try again.",
+  );
+  if (!deliverySnap.exists()) return null;
+
+  const delivery = deliveryOrderFromSnap(
+    deliveryId,
+    deliverySnap.data() as DeliveryOrder,
+  );
+  const items = await withTimeout(
+    fetchWhere<Item>("items", "deliveryOrderId", deliveryId),
+    VENDOR_DELIVERY_LOAD_MS,
+    "Items load timed out. Check your connection and try again.",
+  );
+
+  return buildMinimalPublicDetails(delivery, items);
+}
+
 export async function getDeliveryDetailsPublic(
   deliveryId: string,
 ): Promise<DeliveryDetails | null> {
   const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
   if (!deliverySnap.exists()) return null;
-  const delivery = deliverySnap.data() as DeliveryOrder;
+  const delivery = deliveryOrderFromSnap(
+    deliveryId,
+    deliverySnap.data() as DeliveryOrder,
+  );
   return hydrateDeliveryDetailsPublic(delivery);
 }
 
