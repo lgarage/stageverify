@@ -1,32 +1,27 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
 import { createMaterialIssue } from "./createMaterialIssue";
 import { verifyVendorPin } from "./verifyVendorPin";
+import { recordPickupEvent } from "./recordPickupEvent";
+import { recalculateDeliveryReadiness } from "./recalculateDeliveryReadiness";
 
 admin.initializeApp();
 const db = admin.firestore();
 
-type DeliveryStatus =
-  | "pending"
-  | "arrived"
-  | "partial"
-  | "ready_for_pickup"
-  | "complete"
-  | "issue"
-  | "picked_up";
-
 interface DeliveryOrder {
   id: string;
-  status: DeliveryStatus;
+  status: string;
   lastCheckmarkAt?: string;
   submittedAt?: string;
 }
 
 interface Item {
-  id: string;
-  deliveryOrderId: string;
   qtyOrdered: number;
   qtyReceived: number;
+  qtyMissing: number;
+  qtyDamaged: number;
+  qtyBackordered: number;
 }
 
 interface AppSettings {
@@ -55,7 +50,6 @@ export const autoSubmitDeliveries = onSchedule(
     const now = Date.now();
     const cutoffIso = new Date(now - autoSubmitMs).toISOString();
 
-    // Query arrived deliveries where vendor started checking items
     const snap = await db
       .collection("deliveries")
       .where("status", "==", "arrived")
@@ -65,7 +59,6 @@ export const autoSubmitDeliveries = onSchedule(
 
     const eligible = snap.docs.filter((d) => {
       const data = d.data() as DeliveryOrder;
-      // Must have lastCheckmarkAt set (vendor started), not yet submitted, and past cutoff
       if (!data.lastCheckmarkAt) return false;
       if (data.submittedAt) return false;
       return data.lastCheckmarkAt <= cutoffIso;
@@ -75,42 +68,59 @@ export const autoSubmitDeliveries = onSchedule(
 
     for (const deliveryDoc of eligible) {
       const delivery = deliveryDoc.data() as DeliveryOrder;
+      const deliveryId = deliveryDoc.id;
       const nowIso = new Date(now).toISOString();
 
-      const itemsSnap = await db
-        .collection("items")
-        .where("deliveryOrderId", "==", delivery.id)
-        .get();
-      const items = itemsSnap.docs.map((d) => d.data() as Item);
+      try {
+        const itemsSnap = await db
+          .collection("items")
+          .where("deliveryOrderId", "==", deliveryId)
+          .limit(501)
+          .get();
 
-      const allReceived =
-        items.length > 0 &&
-        items.every((i) => i.qtyReceived >= i.qtyOrdered);
-      const overallStatus: DeliveryStatus = allReceived
-        ? "ready_for_pickup"
-        : "partial";
-      const eventId = `event-auto-${delivery.id}-${now}`;
+        if (itemsSnap.empty || itemsSnap.size > 500) continue;
 
-      const batch = db.batch();
-      batch.update(deliveryDoc.ref, {
-        status: overallStatus,
-        submittedAt: nowIso,
-        updatedAt: nowIso,
-      });
-      batch.set(db.collection("statusHistory").doc(eventId), {
-        id: eventId,
-        entityType: "delivery_order",
-        entityId: delivery.id,
-        fromStatus: delivery.status,
-        toStatus: overallStatus,
-        reason: "Auto-submitted after inactivity timeout",
-        actorType: "system",
-        actorName: "Auto-Submit",
-        createdAt: nowIso,
-      });
-      await batch.commit();
+        const items = itemsSnap.docs.map((d) => d.data() as Item);
+        const anyReceived = items.some((i) => i.qtyReceived > 0);
+        if (!anyReceived) continue;
+
+        // Query selects status == "arrived"; auto-submit always promotes to partial.
+        const submitHistoryId = `event-auto-submit-${crypto.randomUUID()}`;
+        const batch = db.batch();
+        batch.update(deliveryDoc.ref, {
+          status: "partial",
+          submittedAt: nowIso,
+          updatedAt: nowIso,
+        });
+        batch.set(db.collection("statusHistory").doc(submitHistoryId), {
+          id: submitHistoryId,
+          entityType: "delivery_order",
+          entityId: deliveryId,
+          fromStatus: delivery.status,
+          toStatus: "partial",
+          reason: "Auto-submitted after inactivity timeout",
+          actorType: "system",
+          actorName: "Auto-Submit",
+          createdAt: nowIso,
+        });
+        await batch.commit();
+
+        await applyDeliveryReadinessTransaction(db, deliveryId, {
+          historyReason: "Auto-submit readiness recalculation",
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          `autoSubmitDeliveries: delivery ${deliveryId} failed — ${message}`,
+        );
+      }
     }
-  }
+  },
 );
 
-export { createMaterialIssue, verifyVendorPin };
+export {
+  createMaterialIssue,
+  verifyVendorPin,
+  recordPickupEvent,
+  recalculateDeliveryReadiness,
+};

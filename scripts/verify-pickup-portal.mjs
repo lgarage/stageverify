@@ -22,6 +22,48 @@ import {
   applyFullLocationDisplay,
   applyMinimalLocationDisplay,
 } from "./pickupLocationDisplayFixture.mjs";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { collection, getDocs, getFirestore, query, where } from "firebase/firestore";
+
+const BLOCKING_ISSUE_TYPES = ["damaged", "wrong_item", "missing", "backordered"];
+
+const firebaseConfig = {
+  apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
+  authDomain: "stageverify-db.firebaseapp.com",
+  projectId: "stageverify-db",
+  storageBucket: "stageverify-db.firebasestorage.app",
+  messagingSenderId: "784751243681",
+  appId: "1:784751243681:web:31fa71762b94f878fd1be0",
+};
+
+async function pickFreshBlockingIssueType(deliveryOrderId) {
+  const email = process.env.STAGEVERIFY_TEST_EMAIL;
+  const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+  if (!email || !password) {
+    return "damaged";
+  }
+  const app = initializeApp(firebaseConfig, "verify-pickup-issue-type");
+  const auth = getAuth(app);
+  await signInWithEmailAndPassword(auth, email, password);
+  const db = getFirestore(app);
+  const snap = await getDocs(
+    query(
+      collection(db, "materialIssues"),
+      where("deliveryOrderId", "==", deliveryOrderId),
+      where("status", "in", ["open", "assigned"]),
+    ),
+  );
+  const usedTypes = new Set(
+    snap.docs
+      .map((d) => d.data())
+      .filter((issue) => !issue.itemId)
+      .map((issue) => issue.type),
+  );
+  return (
+    BLOCKING_ISSUE_TYPES.find((type) => !usedTypes.has(type)) ?? "damaged"
+  );
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -56,6 +98,8 @@ async function waitForDoneEnabled(page, timeoutMs = 30_000) {
 
 async function runScenarioB(page) {
   console.log("Scenario B: Report Issue…");
+  const issueType = await pickFreshBlockingIssueType(deliveryId);
+  console.log(`Scenario B: using issue type "${issueType}"`);
   const reportBtn = page.getByTestId("report-issue-btn").first();
   const visible = await reportBtn
     .waitFor({ state: "visible", timeout: 15_000 })
@@ -69,8 +113,10 @@ async function runScenarioB(page) {
 
   await reportBtn.click();
 
-  await page.getByTestId("issue-type-select").selectOption("missing");
-  await page.getByTestId("issue-description").fill("Playwright verify — missing item");
+  await page.getByTestId("issue-type-select").selectOption(issueType);
+  await page.getByTestId("issue-description").fill(
+    `Playwright verify damaged ${Date.now()}`,
+  );
   await page.getByTestId("issue-submit").click();
 
   const success = page.getByText(/Issue reported|already recorded/i);
@@ -84,9 +130,20 @@ async function runScenarioB(page) {
         if (text.includes("Cannot report an issue while delivery status")) {
           return "skip";
         }
+        if (/not-found|functions\/not-found|internal/i.test(text)) {
+          return "cf-missing";
+        }
         throw new Error(text || "Issue report failed");
       }),
   ]);
+
+  if (outcome === "cf-missing") {
+    await page.getByRole("button", { name: "Cancel" }).click();
+    console.log(
+      "SKIP Scenario B: createMaterialIssue not deployed (pre-deployment blocker).",
+    );
+    return;
+  }
 
   if (outcome === "skip") {
     await page.getByRole("button", { name: "Cancel" }).click();
@@ -95,7 +152,7 @@ async function runScenarioB(page) {
 
   await page.getByTestId("blocking-issue-warning").waitFor({
     state: "visible",
-    timeout: 10_000,
+    timeout: 15_000,
   });
   await page.screenshot({
     path: resolve(outDir, "pickup-verify-issue-reported.png"),

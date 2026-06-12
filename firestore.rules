@@ -14,13 +14,14 @@ rules_version = '2';
 //   - Dispatcher/settings UI and audit views require Firebase Auth.
 //
 // UNAUTHENTICATED WRITES (mobile scan/check-in):
-//   - deliveries: update only — status, submittedAt, updatedAt, lastCheckmarkAt, stagingLocationId, additionalStagingLocationIds
+//   - deliveries: update only — physical facts + vendor workflow status (never picked_up or ready_for_pickup)
+//     Derived readiness summary fields (physicalDropoffComplete*, stagingAssignmentComplete) are CF-only.
 //   - items: update only — qtyReceived, qtyMissing, qtyDamaged, status
-//   - statusHistory: create only (append-only audit log)
-//   - pickupEvents: create only (append-only pickup log)
-//   - Delivery status enum + explicit forward-only transition allowlist on unauthenticated delivery updates.
-//     Vendor revert (partial|ready_for_pickup|complete → arrived) is the only intentional backward path.
-//     Terminal states picked_up and installed cannot be reopened without auth.
+//   - statusHistory: create only — vendor physical transitions (never picked_up or ready_for_pickup)
+//   - pickupEvents / pickupOperations: writes via Admin SDK (recordPickupEvent CF) only
+//   - Readiness promotion: recalculateDeliveryReadiness CF (Admin SDK) only
+//   - Vendor revert (partial|ready_for_pickup|complete → arrived) is the only intentional backward path.
+//   - Terminal states picked_up and installed cannot be reopened without auth.
 //
 // AUTHENTICATED WRITES (dispatcher/settings UI):
 //   - deliveries: full create/update/delete
@@ -64,26 +65,16 @@ service cloud.firestore {
       ];
     }
 
-    // Explicit allowlist derived from vendor check-in + technician pickup client write paths.
+    // Vendor physical workflow only — no unauth picked_up or ready_for_pickup promotion.
     // Same-status updates are allowed (idempotent vendor DELIVERED / re-submit check-in).
     function unauthDeliveryStatusTransitionAllowed(fromStatus, toStatus) {
       return fromStatus == toStatus
         || (fromStatus == 'pending' && toStatus == 'arrived')
         || (fromStatus == 'shipped' && toStatus == 'arrived')
-        || (fromStatus == 'arrived' && (toStatus == 'partial' || toStatus == 'ready_for_pickup'))
-        || (fromStatus == 'partial' && (
-          toStatus == 'ready_for_pickup'
-          || toStatus == 'arrived'
-          || toStatus == 'picked_up'
-        ))
-        || (fromStatus == 'ready_for_pickup' && (
-          toStatus == 'picked_up'
-          || toStatus == 'arrived'
-        ))
-        || (fromStatus == 'complete' && (
-          toStatus == 'picked_up'
-          || toStatus == 'arrived'
-        ));
+        || (fromStatus == 'arrived' && toStatus == 'partial')
+        || (fromStatus == 'partial' && toStatus == 'arrived')
+        || (fromStatus == 'ready_for_pickup' && toStatus == 'arrived')
+        || (fromStatus == 'complete' && toStatus == 'arrived');
     }
 
     function unauthDeliveryUpdateAllowed() {
@@ -125,17 +116,12 @@ service cloud.firestore {
       let d = request.resource.data;
       return d.keys().hasAll(['id', 'entityType', 'entityId', 'toStatus', 'actorType', 'createdAt'])
         && d.entityType == 'delivery_order'
-        && d.actorType in ['vendor', 'technician']
+        && d.actorType == 'vendor'
         && isValidDeliveryStatus(d.toStatus)
+        && d.toStatus != 'picked_up'
+        && d.toStatus != 'ready_for_pickup'
         && d.actorName is string
         && d.actorName.size() <= 128;
-    }
-
-    function unauthPickupEventCreateAllowed() {
-      let d = request.resource.data;
-      return d.keys().hasAll(['id', 'deliveryOrderId', 'jobId', 'technicianName', 'pickedUpAt', 'itemsPickedSummary'])
-        && d.technicianName is string
-        && d.technicianName.size() <= 128;
     }
 
     match /deliveries/{deliveryId} {
@@ -190,7 +176,7 @@ service cloud.firestore {
 
     match /pickupEvents/{eventId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() || unauthPickupEventCreateAllowed();
+      allow create: if false;
       allow update, delete: if false;
     }
 
@@ -198,6 +184,15 @@ service cloud.firestore {
     match /materialIssues/{issueId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if false;
+    }
+
+    match /vendorEmailEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    match /pickupOperations/{operationId} {
+      allow read, write: if false;
     }
 
     match /appSettings/{docId} {

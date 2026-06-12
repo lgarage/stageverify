@@ -31,9 +31,10 @@ function deliveryRef(db, id = "test-delivery") {
   return doc(db, "deliveries", id);
 }
 
-async function seedDelivery(context, status, extra = {}) {
-  await setDoc(deliveryRef(context.firestore()), {
+async function seedDelivery(context, status, extra = {}, id = "test-delivery") {
+  await setDoc(deliveryRef(context.firestore(), id), {
     ...BASE_DELIVERY,
+    id,
     status,
     ...extra,
   });
@@ -57,18 +58,6 @@ const ALLOWED = [
     label: "submitCheckin arrived→partial",
     extra: { submittedAt: new Date().toISOString() },
   },
-  {
-    from: "arrived",
-    to: "ready_for_pickup",
-    label: "submitCheckin arrived→ready_for_pickup",
-    extra: { submittedAt: new Date().toISOString() },
-  },
-  {
-    from: "partial",
-    to: "ready_for_pickup",
-    label: "submitCheckin partial→ready_for_pickup",
-    extra: { submittedAt: new Date().toISOString() },
-  },
   { from: "partial", to: "arrived", label: "vendor revert partial→arrived" },
   {
     from: "ready_for_pickup",
@@ -80,13 +69,6 @@ const ALLOWED = [
     to: "arrived",
     label: "vendor revert complete→arrived",
   },
-  {
-    from: "ready_for_pickup",
-    to: "picked_up",
-    label: "technician pickup ready_for_pickup→picked_up",
-  },
-  { from: "partial", to: "picked_up", label: "technician pickup partial→picked_up" },
-  { from: "complete", to: "picked_up", label: "technician pickup complete→picked_up" },
   {
     from: "arrived",
     to: "arrived",
@@ -110,6 +92,11 @@ const FORBIDDEN = [
   { from: "pending", to: "partial", label: "skip pending→partial" },
   { from: "issue", to: "arrived", label: "unauth issue→arrived (dispatcher-only)" },
   { from: "partial", to: "issue", label: "unauth partial→issue" },
+  { from: "partial", to: "picked_up", label: "authority partial→picked_up" },
+  { from: "ready_for_pickup", to: "picked_up", label: "authority ready_for_pickup→picked_up" },
+  { from: "complete", to: "picked_up", label: "authority complete→picked_up" },
+  { from: "arrived", to: "ready_for_pickup", label: "authority arrived→ready_for_pickup" },
+  { from: "partial", to: "ready_for_pickup", label: "authority partial→ready_for_pickup" },
 ];
 
 let passed = 0;
@@ -186,27 +173,53 @@ try {
   try {
     await assertFails(
       updateDoc(deliveryRef(unauthed.firestore()), {
-        status: "picked_up",
+        status: "partial",
         vendorId: "attacker-vendor",
         updatedAt: new Date().toISOString(),
       }),
     );
-    pass("picked_up transition with vendorId change denied");
+    pass("partial update with vendorId change denied");
   } catch (err) {
-    fail("picked_up transition with vendorId change should be denied", err);
+    fail("partial update with vendorId change should be denied", err);
   }
 
   try {
     await assertFails(
       updateDoc(deliveryRef(unauthed.firestore()), {
-        status: "picked_up",
+        status: "partial",
         jobId: "attacker-job",
         updatedAt: new Date().toISOString(),
       }),
     );
-    pass("picked_up transition with jobId change denied");
+    pass("partial update with jobId change denied");
   } catch (err) {
-    fail("picked_up transition with jobId change should be denied", err);
+    fail("partial update with jobId change should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      updateDoc(deliveryRef(unauthed.firestore()), {
+        status: "partial",
+        vendorOrderComplete: true,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("vendorOrderComplete write denied");
+  } catch (err) {
+    fail("vendorOrderComplete write should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      updateDoc(deliveryRef(unauthed.firestore()), {
+        status: "partial",
+        readinessStatus: "ready_for_pickup",
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("readinessStatus forgery denied");
+  } catch (err) {
+    fail("readinessStatus forgery should be denied", err);
   }
 
   console.log("\n=== Non-status unauthenticated delivery updates ===\n");
@@ -235,6 +248,128 @@ try {
     pass("stagingLocationId-only update allowed (vendor zone pick)");
   } catch (err) {
     fail("stagingLocationId-only update should be allowed", err);
+  }
+
+  try {
+    await assertFails(
+      updateDoc(deliveryRef(unauthed.firestore()), {
+        status: "partial",
+        physicalDropoffComplete: true,
+        physicalDropoffCompleteAt: new Date().toISOString(),
+        stagingAssignmentComplete: true,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("derived physicalDropoffComplete write denied");
+  } catch (err) {
+    fail("derived physicalDropoffComplete write should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      updateDoc(deliveryRef(unauthed.firestore()), {
+        status: "partial",
+        physicalDropoffCompleteAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("derived physicalDropoffCompleteAt write denied");
+  } catch (err) {
+    fail("derived physicalDropoffCompleteAt write should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      updateDoc(deliveryRef(unauthed.firestore()), {
+        status: "partial",
+        stagingAssignmentComplete: true,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("derived stagingAssignmentComplete write denied");
+  } catch (err) {
+    fail("derived stagingAssignmentComplete write should be denied", err);
+  }
+
+  console.log("\n=== Collection write restrictions ===\n");
+  try {
+    await assertFails(
+      setDoc(doc(unauthed.firestore(), "pickupEvents", "evt-1"), {
+        id: "evt-1",
+        deliveryOrderId: "test-delivery",
+        jobId: "job-test",
+        technicianName: "Attacker",
+        pickedUpAt: new Date().toISOString(),
+        itemsPickedSummary: "forged",
+      }),
+    );
+    pass("pickupEvents create denied");
+  } catch (err) {
+    fail("pickupEvents create should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      setDoc(doc(unauthed.firestore(), "pickupOperations", "op-1"), {
+        deliveryOrderId: "test-delivery",
+        jobId: "job-test",
+      }),
+    );
+    pass("pickupOperations create denied");
+  } catch (err) {
+    fail("pickupOperations create should be denied", err);
+  }
+
+  console.log("\n=== Forged statusHistory transitions ===\n");
+  try {
+    await assertFails(
+      setDoc(doc(unauthed.firestore(), "statusHistory", "hist-picked"), {
+        id: "hist-picked",
+        entityType: "delivery_order",
+        entityId: "test-delivery",
+        toStatus: "picked_up",
+        actorType: "technician",
+        actorName: "Attacker",
+        createdAt: new Date().toISOString(),
+      }),
+    );
+    pass("forged picked_up history denied");
+  } catch (err) {
+    fail("forged picked_up history should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      setDoc(doc(unauthed.firestore(), "statusHistory", "hist-ready"), {
+        id: "hist-ready",
+        entityType: "delivery_order",
+        entityId: "test-delivery",
+        toStatus: "ready_for_pickup",
+        actorType: "vendor",
+        actorName: "Attacker",
+        createdAt: new Date().toISOString(),
+      }),
+    );
+    pass("forged ready_for_pickup history denied");
+  } catch (err) {
+    fail("forged ready_for_pickup history should be denied", err);
+  }
+
+  try {
+    await assertSucceeds(
+      setDoc(doc(unauthed.firestore(), "statusHistory", "hist-arrived"), {
+        id: "hist-arrived",
+        entityType: "delivery_order",
+        entityId: "test-delivery",
+        toStatus: "arrived",
+        actorType: "vendor",
+        actorName: "Vendor Driver",
+        createdAt: new Date().toISOString(),
+      }),
+    );
+    pass("vendor arrived history allowed");
+  } catch (err) {
+    fail("vendor arrived history should be allowed", err);
   }
 
   console.log("\n=== Invalid status values ===\n");

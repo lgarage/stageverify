@@ -312,6 +312,19 @@ export interface DeliveryOrder {
   openIssueCount?: number;
   /** Denormalized — open/assigned issues with blocking types (missing, wrong, damaged, backordered). */
   openBlockingIssueCount?: number;
+  /** Two-source gate: vendor email / dispatcher confirms order completeness. */
+  vendorOrderComplete?: boolean;
+  vendorOrderCompleteAt?: string;
+  vendorOrderCompleteSource?: "vendor_email" | "physical_checkin" | "dispatcher" | "system";
+  /** Two-source gate: physical check-in confirms drop-off quantities. */
+  physicalDropoffComplete?: boolean;
+  physicalDropoffCompleteAt?: string;
+  /** Derived from stagingLocationId when physical material is received. */
+  stagingAssignmentComplete?: boolean;
+  /** Partial pickup — staging zones already collected. */
+  pickedUpStagingLocationIds?: string[];
+  /** Human-readable block reasons when not ready_for_pickup. */
+  readinessBlockReasons?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -324,6 +337,10 @@ export interface AppSettings {
   entrywayEslTagId?: string;
   /** Vendor receive UX: full line-item check-in vs exception-only Delivered hub. */
   vendorDeliveryMode?: VendorDeliveryMode;
+  /** Configurable StageVerify monitoring inbox — no hard-coded production address. */
+  monitoringInboxEmail?: string;
+  /** When false or inbox unset, email monitor reports missing configuration. */
+  emailMonitoringEnabled?: boolean;
 }
 
 export interface Item {
@@ -424,6 +441,8 @@ export interface PickupEvent {
   notes?: string;
   /** Linked MaterialIssue ids (Phase 3+). */
   issueIds?: string[];
+  clientOperationId?: string;
+  stagingLocationIds?: string[];
 }
 
 export interface MaterialIssue {
@@ -454,6 +473,24 @@ export interface CreateMaterialIssueInput {
   itemId?: string;
 }
 
+export interface RecordPickupEventInput {
+  deliveryOrderId: string;
+  jobId: string;
+  technicianName: string;
+  itemsPickedSummary: string;
+  notes?: string;
+  clientOperationId: string;
+  stagingLocationIds?: string[];
+}
+
+export interface RecordPickupEventResult {
+  duplicate: boolean;
+  pickupEventId: string | null;
+  deliveryStatus: string | null;
+  pickedUpStagingLocationIds: string[];
+  fullyPicked?: boolean;
+}
+
 export interface CreateMaterialIssueResult {
   issueId: string;
   status: MaterialIssueStatus;
@@ -474,18 +511,35 @@ export interface IssueResolution {
   resolvedBy?: string;
 }
 
-/** Forward-compatible stub — vendor email ingestion Phase 5–6. */
+/** Vendor email ingestion — persisted when Phase 5+ gate active. */
 export interface VendorEmailEvent {
   id: string;
-  vendorId: string;
+  /** Stable Gmail (or provider) message id for idempotent ingestion. */
+  sourceMessageId: string;
+  threadId?: string;
+  contentFingerprint?: string;
+  senderEmail: string;
+  recipientEmails?: string[];
+  subject: string;
+  receivedAt: string;
+  vendorId?: string;
+  jobId?: string;
   deliveryOrderId?: string;
   purchaseOrderId?: string;
-  rawPayloadRef?: string;
+  proposedPoNumber?: string;
+  proposedOrderNumber?: string;
+  proposedJobNumber?: string;
+  emailClassification?: string;
   parsedFields?: Record<string, string>;
   confidenceScore?: number;
+  confidenceReason?: string;
   humanReviewRequired?: boolean;
   reviewStatus: VendorEmailReviewStatus;
-  receivedAt: string;
+  rawPayloadRef?: string;
+  duplicateOfEventId?: string;
+  appliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

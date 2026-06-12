@@ -83,6 +83,8 @@ export interface DispatcherDataService {
     technicianName: string,
     itemsPickedSummary: string,
     notes?: string,
+    clientOperationId?: string,
+    stagingLocationIds?: string[],
   ): Promise<void>;
   updateIssueSummary(
     deliveryId: string,

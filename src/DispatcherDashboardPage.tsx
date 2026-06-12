@@ -196,6 +196,7 @@ export function DispatcherDashboardPage() {
 
   const [mutationLoading, setMutationLoading] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const pickupOperationIds = useRef<Map<string, string>>(new Map());
 
   const [availableStagingLocations, setAvailableStagingLocations] = useState<
     StagingLocation[]
@@ -388,10 +389,17 @@ export function DispatcherDashboardPage() {
     setMutationError(null);
 
     try {
+      let operationId = pickupOperationIds.current.get(selectedDeliveryId);
+      if (!operationId) {
+        operationId = `pickup-${selectedDeliveryId}-${crypto.randomUUID()}`;
+        pickupOperationIds.current.set(selectedDeliveryId, operationId);
+      }
       await firestoreDataService.recordPickupEvent(
         selectedDeliveryId,
         technicianName,
         itemsSummary,
+        undefined,
+        operationId,
       );
       const updatedDetails =
         await firestoreDataService.getDeliveryDetails(selectedDeliveryId);

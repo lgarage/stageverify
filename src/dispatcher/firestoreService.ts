@@ -232,6 +232,13 @@ function computeItemStatus(update: {
   return "missing";
 }
 
+async function invokeRecalculateDeliveryReadiness(
+  deliveryId: string,
+): Promise<void> {
+  const callable = httpsCallable(functions, "recalculateDeliveryReadiness");
+  await callable({ deliveryOrderId: deliveryId });
+}
+
 export class FirestoreDataService implements DispatcherDataService {
   async listDeliveries(
     q: DeliveryQuery = {},
@@ -373,6 +380,21 @@ export class FirestoreDataService implements DispatcherDataService {
       return this.getDeliveryDetails(deliveryId);
     }
 
+    if (toStatus === "ready_for_pickup") {
+      await invokeRecalculateDeliveryReadiness(deliveryId);
+      if (actorType === "technician") return null;
+      if (actorType === "vendor") {
+        return getDeliveryDetailsPublic(deliveryId);
+      }
+      return this.getDeliveryDetails(deliveryId);
+    }
+
+    if (toStatus === "picked_up") {
+      throw new Error(
+        "Use recordPickupEvent — direct picked_up writes are not supported.",
+      );
+    }
+
     const now = new Date().toISOString();
     const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
@@ -386,17 +408,13 @@ export class FirestoreDataService implements DispatcherDataService {
     } else if (fromStatus === "issue") {
       updatedFields.issueSummary = "";
     }
-    if (toStatus === "picked_up") {
-      updatedFields.stagingLocationId = "";
-    }
-
     batch.update(doc(db, "deliveries", deliveryId), updatedFields);
     batch.set(doc(db, "statusHistory", eventId), {
       id: eventId,
       entityType: "delivery_order",
       entityId: deliveryId,
       fromStatus,
-      toStatus,
+      toStatus: toStatus,
       reason: reason ?? null,
       actorType,
       actorName:
@@ -611,13 +629,10 @@ export class FirestoreDataService implements DispatcherDataService {
 
     const batch = writeBatch(db);
 
-    let allReceived = true;
     for (const update of itemUpdates) {
       const existingItem = existingItems.find((i) => i.id === update.id);
       const qtyOrdered = existingItem?.qtyOrdered ?? 0;
       const status = computeItemStatus({ ...update, qtyOrdered });
-
-      if (update.qtyReceived !== qtyOrdered) allReceived = false;
 
       batch.update(doc(db, "items", update.id), {
         qtyReceived: update.qtyReceived,
@@ -627,29 +642,32 @@ export class FirestoreDataService implements DispatcherDataService {
       });
     }
 
-    const overallStatus: DeliveryStatus = allReceived
-      ? "ready_for_pickup"
-      : "partial";
     const now = new Date().toISOString();
-    const eventId = `event-${crypto.randomUUID()}`;
+    const vendorStatus: DeliveryStatus =
+      delivery.status === "arrived" ? "partial" : delivery.status;
 
     batch.update(doc(db, "deliveries", deliveryId), {
-      status: overallStatus,
       submittedAt: now,
+      status: vendorStatus,
       updatedAt: now,
     });
-    batch.set(doc(db, "statusHistory", eventId), {
-      id: eventId,
-      entityType: "delivery_order",
-      entityId: deliveryId,
-      fromStatus: delivery.status,
-      toStatus: overallStatus,
-      actorType: "vendor",
-      actorName: driverName || "Vendor Driver",
-      createdAt: now,
-    });
+
+    if (delivery.status !== vendorStatus) {
+      const eventId = `event-${crypto.randomUUID()}`;
+      batch.set(doc(db, "statusHistory", eventId), {
+        id: eventId,
+        entityType: "delivery_order",
+        entityId: deliveryId,
+        fromStatus: delivery.status,
+        toStatus: vendorStatus,
+        actorType: "vendor",
+        actorName: driverName || "Vendor Driver",
+        createdAt: now,
+      });
+    }
 
     await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );
@@ -694,6 +712,25 @@ export class FirestoreDataService implements DispatcherDataService {
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );
+  }
+
+  async confirmVendorOrderComplete(
+    deliveryId: string,
+    _actorName = "Dispatcher",
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+    const now = new Date().toISOString();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "deliveries", deliveryId), {
+      vendorOrderComplete: true,
+      vendorOrderCompleteAt: now,
+      vendorOrderCompleteSource: "dispatcher",
+      updatedAt: now,
+    });
+    await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
+    return this.getDeliveryDetails(deliveryId);
   }
 
   async revertDeliveryStatus(
@@ -795,60 +832,29 @@ export class FirestoreDataService implements DispatcherDataService {
     technicianName: string,
     itemsPickedSummary: string,
     notes?: string,
+    clientOperationId?: string,
+    stagingLocationIds?: string[],
   ): Promise<void> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) {
       throw new Error("Delivery not found");
     }
     const delivery = deliverySnap.data() as DeliveryOrder;
-
-    if (
-      delivery.status === "picked_up" ||
-      delivery.status === "installed"
-    ) {
-      return;
+    const operationId = clientOperationId?.trim();
+    if (!operationId) {
+      throw new Error("clientOperationId is required for pickup.");
     }
 
-    if (!VALID_TRANSITIONS[delivery.status]?.includes("picked_up")) {
-      throw new Error(
-        `Cannot record pickup while delivery status is "${delivery.status}"`,
-      );
-    }
-
-    const eventId = crypto.randomUUID();
-    const historyId = `event-${crypto.randomUUID()}`;
-    const now = new Date().toISOString();
-    const trimmedNotes = notes?.trim();
-
-    const pickupEvent: PickupEvent = {
-      id: eventId,
+    const callable = httpsCallable(functions, "recordPickupEvent");
+    await callable({
       deliveryOrderId: deliveryId,
       jobId: delivery.jobId,
       technicianName,
-      pickedUpAt: now,
       itemsPickedSummary,
-      ...(trimmedNotes ? { notes: trimmedNotes } : {}),
-    };
-
-    const batch = writeBatch(db);
-    batch.set(doc(db, "pickupEvents", eventId), pickupEvent);
-    batch.update(doc(db, "deliveries", deliveryId), {
-      status: "picked_up",
-      updatedAt: now,
-      stagingLocationId: "",
+      notes,
+      clientOperationId: operationId,
+      stagingLocationIds,
     });
-    batch.set(doc(db, "statusHistory", historyId), {
-      id: historyId,
-      entityType: "delivery_order",
-      entityId: deliveryId,
-      fromStatus: delivery.status,
-      toStatus: "picked_up",
-      actorType: "technician",
-      actorName: technicianName,
-      createdAt: now,
-    });
-
-    await batch.commit();
   }
 }
 

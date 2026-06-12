@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.tmp
 *.local
 
 # Embedded repos / clones not part of this project

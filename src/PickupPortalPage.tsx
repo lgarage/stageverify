@@ -497,6 +497,7 @@ function JobPickupScreen({
   const [cardErrors, setCardErrors] = useState<Map<string, string>>(
     () => new Map(),
   );
+  const pickupOperationIds = useRef<Map<string, string>>(new Map());
   const [pulsingId, setPulsingId] = useState<string | null>(null);
   const [issueModalDeliveryId, setIssueModalDeliveryId] = useState<string | null>(
     null,
@@ -583,6 +584,12 @@ function JobPickupScreen({
       const deliveryId = delivery.delivery.id;
       if (checkedRef.current.has(deliveryId)) return;
 
+      let operationId = pickupOperationIds.current.get(deliveryId);
+      if (!operationId) {
+        operationId = `pickup-${deliveryId}-${crypto.randomUUID()}`;
+        pickupOperationIds.current.set(deliveryId, operationId);
+      }
+
       setCheckingIds((prev) => new Set([...prev, deliveryId]));
       setCardErrors((prev) => {
         const next = new Map(prev);
@@ -596,6 +603,7 @@ function JobPickupScreen({
           "Technician",
           `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
           notes || undefined,
+          operationId,
         );
         setChecked((prev) => new Set([...prev, deliveryId]));
         const refreshed = await getDeliveryDetailsPublic(deliveryId);
@@ -701,11 +709,17 @@ function JobPickupScreen({
 
     try {
       for (const d of needsPickupRecord) {
+        let operationId = pickupOperationIds.current.get(d.delivery.id);
+        if (!operationId) {
+          operationId = `pickup-${d.delivery.id}-${crypto.randomUUID()}`;
+          pickupOperationIds.current.set(d.delivery.id, operationId);
+        }
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
           "Technician",
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
+          operationId,
         );
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
@@ -746,11 +760,17 @@ function JobPickupScreen({
 
     try {
       for (const d of unchecked) {
+        let operationId = pickupOperationIds.current.get(d.delivery.id);
+        if (!operationId) {
+          operationId = `pickup-${d.delivery.id}-${crypto.randomUUID()}`;
+          pickupOperationIds.current.set(d.delivery.id, operationId);
+        }
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
           "Technician",
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
+          operationId,
         );
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
