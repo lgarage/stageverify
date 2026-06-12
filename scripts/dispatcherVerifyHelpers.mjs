@@ -28,9 +28,9 @@ export async function ensureAuthenticated(page, appBase) {
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/#\/(dispatcher|settings|hub|zones|vendors)/, {
-    timeout: 20_000,
-  });
+  await page
+    .locator('input[placeholder*="Job #, name, PO"]')
+    .waitFor({ state: "visible", timeout: 30_000 });
 }
 
 export async function openDeliveryDrawer(page, orderNumber, deliveryId) {

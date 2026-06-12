@@ -17,6 +17,7 @@
 import { chromium } from "playwright";
 import { readFileSync, existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
+import { resolveAppBase } from "./resolveAppBase.mjs";
 
 // Load .env.local if present
 const envPath = resolve(process.cwd(), ".env.local");
@@ -29,7 +30,9 @@ if (existsSync(envPath)) {
 
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
-const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
+const baseUrl = resolveAppBase(
+  process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173",
+);
 const stateFile = resolve(process.cwd(), "playwright/.auth/state.json");
 
 if (!email || !password) {
@@ -51,7 +54,9 @@ await page.goto(`${baseUrl}/#/login`);
 await page.fill("#email", email);
 await page.fill("#password", password);
 await page.click('button[type="submit"]');
-await page.waitForURL(/\/#\/(dispatcher|hub)/, { timeout: 15000 });
+await page
+  .locator('input[placeholder*="Job #, name, PO"]')
+  .waitFor({ state: "visible", timeout: 30_000 });
 
 await context.storageState({ path: stateFile });
 await browser.close();
