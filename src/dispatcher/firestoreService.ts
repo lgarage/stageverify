@@ -12,6 +12,8 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
+import { isIOSSafari } from "../deviceDetect";
+import { restGetDelivery, restGetItemsForDelivery } from "../firestoreRest";
 import { withTimeout } from "../withTimeout";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
@@ -949,7 +951,7 @@ async function hydrateDeliveryDetailsPublic(
   };
 }
 
-const VENDOR_DELIVERY_LOAD_MS = 20_000;
+const VENDOR_DELIVERY_LOAD_MS = 12_000;
 
 function deliveryOrderFromSnap(
   deliveryId: string,
@@ -977,7 +979,7 @@ function buildMinimalPublicDetails(
  * Fast public hydrate for vendor PIN unlock — delivery + line items only.
  * Skips job/PO/staging reads that can stall iOS Safari; enrich later if needed.
  */
-export async function getDeliveryDetailsPublicForVendorReceive(
+async function loadVendorReceiveViaSdk(
   deliveryId: string,
 ): Promise<DeliveryDetails | null> {
   const deliverySnap = await withTimeout(
@@ -998,6 +1000,36 @@ export async function getDeliveryDetailsPublicForVendorReceive(
   );
 
   return buildMinimalPublicDetails(delivery, items);
+}
+
+async function loadVendorReceiveViaRest(
+  deliveryId: string,
+): Promise<DeliveryDetails | null> {
+  const delivery = await withTimeout(
+    restGetDelivery(deliveryId),
+    VENDOR_DELIVERY_LOAD_MS,
+    "Delivery load timed out. Check your connection and try again.",
+  );
+  if (!delivery) return null;
+  const items = await withTimeout(
+    restGetItemsForDelivery(deliveryId),
+    VENDOR_DELIVERY_LOAD_MS,
+    "Items load timed out. Check your connection and try again.",
+  );
+  return buildMinimalPublicDetails(delivery, items);
+}
+
+export async function getDeliveryDetailsPublicForVendorReceive(
+  deliveryId: string,
+): Promise<DeliveryDetails | null> {
+  const restFirst = isIOSSafari();
+  const primary = restFirst ? loadVendorReceiveViaRest : loadVendorReceiveViaSdk;
+  const fallback = restFirst ? loadVendorReceiveViaSdk : loadVendorReceiveViaRest;
+  try {
+    return await primary(deliveryId);
+  } catch {
+    return fallback(deliveryId);
+  }
 }
 
 export async function getDeliveryDetailsPublic(

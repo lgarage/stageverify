@@ -24,6 +24,8 @@
     "verify:vendor-pin": "node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-pin.mjs",
     "verify:vendor-pin:prod": "node scripts/verify-vendor-pin.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:vendor-demo:prod": "node scripts/verify-vendor-demo.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:vendor-demo:webkit": "node scripts/verify-vendor-demo.mjs --browser=webkit",
+    "verify:vendor-demo:webkit:prod": "node scripts/verify-vendor-demo.mjs --browser=webkit --base-url=https://lgarage.github.io/stageverify",
     "reset:vendor-demo": "node scripts/reset-vendor-demo-fixture.mjs",
     "open:vendor-demo-qr": "cmd /c start https://lgarage.github.io/stageverify/#/demo/vendor-scan",
     "open:pickup-demo-qr": "cmd /c start https://lgarage.github.io/stageverify/#/demo/pickup-scan",

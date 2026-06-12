@@ -7,16 +7,21 @@
  *   node scripts/verify-vendor-demo.mjs --base-url=https://lgarage.github.io/stageverify
  */
 
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
+const browserFlag = args.find((a) => a.startsWith("--browser="));
 const baseUrl =
   (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
+const browserName =
+  (browserFlag ? browserFlag.split("=")[1] : null) ??
+  process.env.STAGEVERIFY_BROWSER ??
+  "chromium";
 
 const deliveryId =
   process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
@@ -31,14 +36,21 @@ async function shot(page, name) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const launcher = browserName === "webkit" ? webkit : chromium;
+  const browser = await launcher.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
+    isIOS: browserName === "webkit",
+    userAgent:
+      browserName === "webkit"
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        : undefined,
   });
   const page = await context.newPage();
 
   const url = `${baseUrl.replace(/\/$/, "")}/#/receive?id=${deliveryId}`;
+  console.log(`Browser: ${browserName}`);
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
