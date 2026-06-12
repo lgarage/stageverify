@@ -664,9 +664,9 @@ export function ReceivingPage() {
                             className="w-full px-3 py-3 text-left"
                             aria-label={`Toggle ${item.description}`}
                           >
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-4">
                               <span
-                                className={`mt-0.5 shrink-0 ${
+                                className={`shrink-0 ${
                                   isPartialDelivery
                                     ? "text-accent-amber"
                                     : isFullyAccounted
@@ -680,7 +680,7 @@ export function ReceivingPage() {
                                       ? icons.checkSquare
                                       : icons.square
                                   }
-                                  size={22}
+                                  size={44}
                                 />
                               </span>
                               <span className="min-w-0 flex-1">
