@@ -335,7 +335,7 @@ export function ReceivingPage() {
     [beginDeliveryAccess, showToast],
   );
 
-  useEffect(() => {
+  const handleReceiveDeepLink = useCallback(() => {
     if (urlDeepLinkHandledRef.current) return;
 
     const { id, zone } = readReceiveParams(searchParams);
@@ -352,6 +352,18 @@ export function ReceivingPage() {
       void processZoneLookup(zone);
     }
   }, [searchParams, processDeliveryLookup, processZoneLookup]);
+
+  useEffect(() => {
+    handleReceiveDeepLink();
+  }, [handleReceiveDeepLink]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      handleReceiveDeepLink();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [handleReceiveDeepLink]);
 
   const applyItemQty = useCallback(
     (itemId: string, qtyReceived: number, qtyDamaged: number) => {

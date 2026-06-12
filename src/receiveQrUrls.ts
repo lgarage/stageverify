@@ -2,8 +2,8 @@
  * QR URL builders and parsers. Routing logic lives in scanRouting.ts.
  * See PROJECT_STATUS/MODEL_DOSSIER.md tag: qr-routing
  *
- * New tags use **compact** hashes (#/r?i=, #/r?z=, #/p?j=&d=) for simpler QR modules.
- * Long hashes and SV:z: tokens still parse for older labels.
+ * Printed / Camera QRs use **long** hashes (`#/receive?id=`, `#/pickup?job=`) — reliable on
+ * iOS Safari cold load. Compact `#/r?i=` still parses for older labels.
  */
 import {
   shouldRouteScanToPickup,
@@ -36,6 +36,14 @@ function qrBaseUrl(options?: EslQrOptions): string {
   return appBaseUrl();
 }
 
+/** gh-pages + iOS Camera: `${base}/#/route` (slash before hash). */
+export function joinBaseAndHash(base: string, hash: string): string {
+  const cleanBase = base.replace(/\/$/, "");
+  const stripped = hash.startsWith("#") ? hash.slice(1) : hash;
+  const path = stripped.startsWith("/") ? stripped : `/${stripped}`;
+  return `${cleanBase}/#${path}`;
+}
+
 export type ZoneEslOccupancy = {
   deliveryId: string;
   orderNumber: string;
@@ -60,7 +68,7 @@ export function buildPickupDeepLink(
   if (options.zoneCode) {
     params.set("z", options.zoneCode);
   }
-  return `${base}#/p?${params.toString()}`;
+  return joinBaseAndHash(base, `#/p?${params.toString()}`);
 }
 
 function buildZoneEslQrUrlAtBase(
@@ -70,13 +78,43 @@ function buildZoneEslQrUrlAtBase(
 ): string {
   if (occupancy?.deliveryId) {
     if (shouldRouteScanToPickup(occupancy.status)) {
-      const params = new URLSearchParams({ j: occupancy.jobId });
-      params.set("d", occupancy.deliveryId);
-      return `${base}#/p?${params.toString()}`;
+      return buildPickupPortalUrlAtBase(base, occupancy.jobId, occupancy.deliveryId);
     }
-    return `${base}#/r?i=${encodeURIComponent(occupancy.deliveryId)}`;
+    return joinBaseAndHash(
+      base,
+      `#/receive?id=${encodeURIComponent(occupancy.deliveryId)}`,
+    );
   }
-  return `${base}#/r?z=${encodeURIComponent(zoneCode)}`;
+  return joinBaseAndHash(
+    base,
+    `#/receive?zone=${encodeURIComponent(zoneCode)}`,
+  );
+}
+
+function buildPickupPortalUrlAtBase(
+  base: string,
+  jobId: string,
+  deliveryId?: string | null,
+): string {
+  const params = new URLSearchParams({ job: jobId });
+  if (deliveryId) params.set("delivery", deliveryId);
+  return joinBaseAndHash(base, `#/pickup?${params.toString()}`);
+}
+
+/** Long receive URL for native Camera / gh-pages cold load (same pattern as pickup portal). */
+export function buildReceivePortalUrl(
+  options: {
+    deliveryId?: string | null;
+    zoneCode?: string | null;
+  },
+  eslOptions?: EslQrOptions,
+): string {
+  const base = qrBaseUrl(eslOptions);
+  const params = new URLSearchParams();
+  if (options.deliveryId) params.set("id", options.deliveryId);
+  if (options.zoneCode) params.set("zone", options.zoneCode);
+  const hash = params.toString() ? `#/receive?${params.toString()}` : "#/receive";
+  return joinBaseAndHash(base, hash);
 }
 
 /** Deep link for a zone e-tag sign: pickup when staged, receive when in vendor flow, zone when empty. */
@@ -94,7 +132,7 @@ export function buildZoneEslQrUrl(
 
 /**
  * Single builder for zone e-tags and dispatcher print labels.
- * When a staging spot is assigned, payload matches the zone sign (often `#/r?z=G2`, not a long delivery id).
+ * When a staging spot is assigned, payload matches the zone sign (`#/receive?zone=G2` when empty).
  */
 export function buildEslTagQrUrl(input: {
   zoneCode?: string | null;
@@ -119,11 +157,13 @@ export function buildEslTagQrUrl(input: {
         : null);
     return buildZoneEslQrUrlAtBase(qrBaseUrl(input.options), zone, occupancy);
   }
-  const base = qrBaseUrl(input.options);
   if (input.deliveryId) {
-    return `${base}#/r?i=${encodeURIComponent(input.deliveryId)}`;
+    return buildReceivePortalUrl(
+      { deliveryId: input.deliveryId },
+      input.options,
+    );
   }
-  return `${base}#/receive`;
+  return buildReceivePortalUrl({}, input.options);
 }
 
 /** Dynamic line shown on the e-ink tag below the zone code. */
@@ -433,8 +473,5 @@ export function buildPickupPortalUrl(
   deliveryId?: string | null,
   eslOptions?: EslQrOptions,
 ): string {
-  const base = qrBaseUrl(eslOptions);
-  const params = new URLSearchParams({ job: jobId });
-  if (deliveryId) params.set("delivery", deliveryId);
-  return `${base}#/pickup?${params.toString()}`;
+  return buildPickupPortalUrlAtBase(qrBaseUrl(eslOptions), jobId, deliveryId);
 }
