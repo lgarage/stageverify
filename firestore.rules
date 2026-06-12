@@ -18,7 +18,9 @@ rules_version = '2';
 //   - items: update only — qtyReceived, qtyMissing, qtyDamaged, status
 //   - statusHistory: create only (append-only audit log)
 //   - pickupEvents: create only (append-only pickup log)
-//   - Status enum values are validated on unauthenticated delivery/item writes.
+//   - Delivery status enum + explicit forward-only transition allowlist on unauthenticated delivery updates.
+//     Vendor revert (partial|ready_for_pickup|complete → arrived) is the only intentional backward path.
+//     Terminal states picked_up and installed cannot be reopened without auth.
 //
 // AUTHENTICATED WRITES (dispatcher/settings UI):
 //   - deliveries: full create/update/delete
@@ -62,8 +64,32 @@ service cloud.firestore {
       ];
     }
 
+    // Explicit allowlist derived from vendor check-in + technician pickup client write paths.
+    // Same-status updates are allowed (idempotent vendor DELIVERED / re-submit check-in).
+    function unauthDeliveryStatusTransitionAllowed(fromStatus, toStatus) {
+      return fromStatus == toStatus
+        || (fromStatus == 'pending' && toStatus == 'arrived')
+        || (fromStatus == 'shipped' && toStatus == 'arrived')
+        || (fromStatus == 'arrived' && (toStatus == 'partial' || toStatus == 'ready_for_pickup'))
+        || (fromStatus == 'partial' && (
+          toStatus == 'ready_for_pickup'
+          || toStatus == 'arrived'
+          || toStatus == 'picked_up'
+        ))
+        || (fromStatus == 'ready_for_pickup' && (
+          toStatus == 'picked_up'
+          || toStatus == 'arrived'
+        ))
+        || (fromStatus == 'complete' && (
+          toStatus == 'picked_up'
+          || toStatus == 'arrived'
+        ));
+    }
+
     function unauthDeliveryUpdateAllowed() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let fromStatus = resource.data.status;
+      let toStatus = request.resource.data.status;
       return changed.hasOnly([
           'status',
           'submittedAt',
@@ -72,7 +98,12 @@ service cloud.firestore {
           'stagingLocationId',
           'additionalStagingLocationIds',
         ])
-        && (!changed.hasAny(['status']) || isValidDeliveryStatus(request.resource.data.status));
+        && resource.data.keys().hasAll(['status'])
+        && request.resource.data.keys().hasAll(['status'])
+        && isValidDeliveryStatus(fromStatus)
+        && isValidDeliveryStatus(toStatus)
+        && (!changed.hasAny(['status'])
+          || unauthDeliveryStatusTransitionAllowed(fromStatus, toStatus));
     }
 
     function unauthItemUpdateAllowed() {

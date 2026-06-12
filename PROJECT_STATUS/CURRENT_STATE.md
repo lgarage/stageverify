@@ -6,6 +6,7 @@
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–2 shipped**; full Phase 3 gate not passed)
 - Last shipped: **Exception-only vendor Delivered hub** + **single vendor UI** at `/#/receive`; `vendorDeliveryMode` flag; legacy routes redirect here (Jun 11).
+- **Prepared (not deployed):** Firestore forward-only delivery status transition allowlist for unauthenticated writes — `npm run test:firestore-rules` (30/30 emulator tests pass); prod Playwright vendor + pickup regression pass; **awaiting Dan approval for `firebase deploy --only firestore:rules`**.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2 (`createMaterialIssue` + `autoSubmitDeliveries`). Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`. Slice 1: `materialIssues` auth-read-only collection; public callable `createMaterialIssue` (no Firebase Auth); denormalized issue counts on deliveries.
 
