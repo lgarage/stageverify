@@ -1,10 +1,8 @@
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "./firebase";
 import type {
-  DeliveryOrder,
   VerifyVendorPinInput,
   VerifyVendorPinResult,
 } from "./dispatcher/models";
+import { restGetDelivery } from "./firestoreRest";
 import {
   computeVendorPinVerifier,
   vendorPinVerifierPayload,
@@ -65,12 +63,11 @@ async function verifyVendorPinFetch(
 async function verifyVendorPinLocal(
   input: VerifyVendorPinInput,
 ): Promise<VerifyVendorPinResult | null> {
-  const snap = await getDoc(doc(db, "deliveries", input.deliveryId));
-  if (!snap.exists()) {
+  const delivery = await restGetDelivery(input.deliveryId);
+  if (!delivery) {
     return { success: false, message: "Invalid code." };
   }
 
-  const delivery = snap.data() as DeliveryOrder;
   if (!delivery.vendorPinVerifier) {
     return null;
   }

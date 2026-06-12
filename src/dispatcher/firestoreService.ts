@@ -12,7 +12,6 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
-import { isIOSSafari } from "../deviceDetect";
 import { restGetDelivery, restGetItemsForDelivery } from "../firestoreRest";
 import { withTimeout } from "../withTimeout";
 import { functions } from "../firebase";
@@ -951,7 +950,70 @@ async function hydrateDeliveryDetailsPublic(
   };
 }
 
-const VENDOR_DELIVERY_LOAD_MS = 12_000;
+const VENDOR_DELIVERY_LOAD_MS = 10_000;
+const VENDOR_RECEIVE_CACHE_PREFIX = "sv-vendor-recv:";
+
+const vendorReceiveInflight = new Map<
+  string,
+  Promise<DeliveryDetails | null>
+>();
+
+function readVendorReceiveCache(
+  deliveryId: string,
+): DeliveryDetails | null {
+  try {
+    const raw = sessionStorage.getItem(
+      `${VENDOR_RECEIVE_CACHE_PREFIX}${deliveryId}`,
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DeliveryDetails;
+    if (
+      typeof parsed.delivery?.id !== "string" ||
+      !Array.isArray(parsed.items)
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeVendorReceiveCache(
+  deliveryId: string,
+  details: DeliveryDetails,
+): void {
+  try {
+    sessionStorage.setItem(
+      `${VENDOR_RECEIVE_CACHE_PREFIX}${deliveryId}`,
+      JSON.stringify(details),
+    );
+  } catch {
+    /* sessionStorage quota — non-fatal */
+  }
+}
+
+/** Start loading delivery + items while vendor enters PIN (REST-only — reliable on iOS). */
+export function prefetchVendorReceiveDelivery(
+  deliveryId: string,
+  options?: { force?: boolean },
+): void {
+  const trimmed = deliveryId.trim();
+  if (!trimmed) return;
+  if (!options?.force && vendorReceiveInflight.has(trimmed)) return;
+  vendorReceiveInflight.set(
+    trimmed,
+    loadVendorReceiveViaRest(trimmed)
+      .then((details) => {
+        if (details) writeVendorReceiveCache(trimmed, details);
+        return details;
+      })
+      .catch((err: unknown) => {
+        vendorReceiveInflight.delete(trimmed);
+        throw err;
+      }),
+  );
+}
 
 function deliveryOrderFromSnap(
   deliveryId: string,
@@ -979,29 +1041,6 @@ function buildMinimalPublicDetails(
  * Fast public hydrate for vendor PIN unlock — delivery + line items only.
  * Skips job/PO/staging reads that can stall iOS Safari; enrich later if needed.
  */
-async function loadVendorReceiveViaSdk(
-  deliveryId: string,
-): Promise<DeliveryDetails | null> {
-  const deliverySnap = await withTimeout(
-    getDoc(doc(db, "deliveries", deliveryId)),
-    VENDOR_DELIVERY_LOAD_MS,
-    "Delivery load timed out. Check your connection and try again.",
-  );
-  if (!deliverySnap.exists()) return null;
-
-  const delivery = deliveryOrderFromSnap(
-    deliveryId,
-    deliverySnap.data() as DeliveryOrder,
-  );
-  const items = await withTimeout(
-    fetchWhere<Item>("items", "deliveryOrderId", deliveryId),
-    VENDOR_DELIVERY_LOAD_MS,
-    "Items load timed out. Check your connection and try again.",
-  );
-
-  return buildMinimalPublicDetails(delivery, items);
-}
-
 async function loadVendorReceiveViaRest(
   deliveryId: string,
 ): Promise<DeliveryDetails | null> {
@@ -1022,14 +1061,22 @@ async function loadVendorReceiveViaRest(
 export async function getDeliveryDetailsPublicForVendorReceive(
   deliveryId: string,
 ): Promise<DeliveryDetails | null> {
-  const restFirst = isIOSSafari();
-  const primary = restFirst ? loadVendorReceiveViaRest : loadVendorReceiveViaSdk;
-  const fallback = restFirst ? loadVendorReceiveViaSdk : loadVendorReceiveViaRest;
-  try {
-    return await primary(deliveryId);
-  } catch {
-    return fallback(deliveryId);
+  const cached = readVendorReceiveCache(deliveryId);
+  if (cached) return cached;
+
+  const inflight = vendorReceiveInflight.get(deliveryId);
+  if (inflight) {
+    try {
+      const details = await inflight;
+      if (details) return details;
+    } catch {
+      /* prefetch failed — fresh REST load below */
+    }
   }
+
+  const details = await loadVendorReceiveViaRest(deliveryId);
+  if (details) writeVendorReceiveCache(deliveryId, details);
+  return details;
 }
 
 export async function getDeliveryDetailsPublic(

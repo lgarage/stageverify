@@ -16,6 +16,7 @@ import {
   getDeliveryDetailsPublic,
   getDeliveryDetailsPublicForVendorReceive,
   mapOccupancyByLocationId,
+  prefetchVendorReceiveDelivery,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
 import { resolveZoneScanDisposition } from "./scanRouting";
@@ -278,6 +279,7 @@ export function ReceivingPage() {
 
   const beginDeliveryAccess = useCallback(
     (deliveryId: string) => {
+      prefetchVendorReceiveDelivery(deliveryId);
       if (isPinSessionValid(deliveryId)) {
         void loadDeliveryAfterPin(deliveryId);
         return;
@@ -560,7 +562,12 @@ export function ReceivingPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => void loadDeliveryAfterPin(pendingDeliveryId)}
+                  onClick={() => {
+                    prefetchVendorReceiveDelivery(pendingDeliveryId, {
+                      force: true,
+                    });
+                    void loadDeliveryAfterPin(pendingDeliveryId);
+                  }}
                   className="action-btn action-btn-delivered w-full"
                 >
                   Try again

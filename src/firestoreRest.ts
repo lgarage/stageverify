@@ -54,8 +54,29 @@ function documentIdFromName(name: string): string {
   return parts[parts.length - 1] ?? "";
 }
 
+const REST_FETCH_MS = 10_000;
+
+async function restFetch(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = REST_FETCH_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Request timed out. Check your connection and try again.");
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function restGetDocument(path: string): Promise<Response> {
-  return fetch(`${REST_DOCUMENTS}/${path}?key=${API_KEY}`);
+  return restFetch(`${REST_DOCUMENTS}/${path}?key=${API_KEY}`);
 }
 
 /** Public delivery doc read via Firestore REST (bypasses SDK — reliable on iOS Safari). */
@@ -82,7 +103,7 @@ export async function restGetDelivery(
 export async function restGetItemsForDelivery(
   deliveryOrderId: string,
 ): Promise<Item[]> {
-  const response = await fetch(`${REST_RUN_QUERY}?key=${API_KEY}`, {
+  const response = await restFetch(`${REST_RUN_QUERY}?key=${API_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
