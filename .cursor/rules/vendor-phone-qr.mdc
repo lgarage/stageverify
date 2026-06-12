@@ -1,0 +1,16 @@
+---
+description: When vendor receive or iPhone phone-test is in scope, always open and show the scannable demo QR.
+alwaysApply: true
+---
+
+# Vendor phone test — always show QR
+
+When the task touches **vendor receive**, **PIN gate**, `/#/receive`, **iPhone/Safari vendor testing**, or Dan should verify on a physical phone:
+
+1. **Open** the demo QR page in Glass/browser:
+   `https://lgarage.github.io/stageverify/#/demo/vendor-scan`
+   (or `npm run open:vendor-demo-qr` on Windows)
+2. **Include in the reply** — link, PIN `1234`, and a Playwright screenshot of that page saved to `screenshots/vendor-demo/qr-for-phone.png` (gitignored; for Dan to scan from chat).
+3. **Direct link fallback:** `https://lgarage.github.io/stageverify/#/receive?id=delivery-demo-vendor-1`
+
+Do not declare vendor/iPhone work "ready for Dan" without step 2 in the same reply.

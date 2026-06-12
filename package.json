@@ -32,6 +32,7 @@
     "verify:vendor-ios-latency:prod": "node scripts/verify-vendor-ios-rest-slow.mjs --base-url=https://lgarage.github.io/stageverify",
     "reset:vendor-demo": "node scripts/reset-vendor-demo-fixture.mjs",
     "open:vendor-demo-qr": "cmd /c start https://lgarage.github.io/stageverify/#/demo/vendor-scan",
+    "show:vendor-qr": "node scripts/show-vendor-qr.mjs",
     "open:pickup-demo-qr": "cmd /c start https://lgarage.github.io/stageverify/#/demo/pickup-scan",
     "verify:vendor-e2e": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-e2e.mjs",
     "verify:vendor-e2e:prod": "node scripts/verify-vendor-e2e.mjs --base-url=https://lgarage.github.io/stageverify",
