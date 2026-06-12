@@ -13,10 +13,14 @@ const MATERIAL_ISSUE_TYPES = new Set([
     "backordered",
     "other",
 ]);
-const PICKUP_ELIGIBLE_STATUSES = new Set([
+/** Statuses where vendor or technician may report material issues. */
+const ISSUE_ELIGIBLE_STATUSES = new Set([
+    "pending",
+    "shipped",
+    "arrived",
+    "partial",
     "ready_for_pickup",
     "complete",
-    "partial",
 ]);
 const OPEN_ISSUE_STATUSES = ["open", "assigned"];
 const MAX_OPEN_ISSUES_PER_DELIVERY = 10;
@@ -112,7 +116,7 @@ exports.createMaterialIssue = (0, https_1.onCall)({
     if (delivery.jobId !== jobId) {
         throw new https_1.HttpsError("permission-denied", "Delivery does not belong to this job.");
     }
-    if (!PICKUP_ELIGIBLE_STATUSES.has(delivery.status)) {
+    if (!ISSUE_ELIGIBLE_STATUSES.has(delivery.status)) {
         throw new https_1.HttpsError("failed-precondition", `Cannot report an issue while delivery status is "${delivery.status}".`);
     }
     if (itemId) {

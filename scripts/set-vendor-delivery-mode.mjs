@@ -58,3 +58,4 @@ await setDoc(
   { merge: true },
 );
 console.log(`appSettings.vendorDeliveryMode = ${mode}`);
+process.exit(0);

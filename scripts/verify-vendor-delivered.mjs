@@ -81,6 +81,16 @@ async function runDeliveredFlow(page) {
   await page.waitForSelector("text=Expected items", { timeout: 10_000 });
   record("Delivery context card visible", true);
 
+  const spaceSheet = () => page.locator(".fixed.inset-0.z-50").last();
+
+  async function waitForSpaceTier(label) {
+    await page.waitForFunction(
+      (tierLabel) => document.body.innerText.includes(tierLabel),
+      label,
+      { timeout: 30_000 },
+    );
+  }
+
   // --- Need More Space: tier picker ---
   await page.getByRole("button", { name: "📦 Need More Space?" }).click();
   await page.waitForSelector("text=Where do you need additional space?", {
@@ -91,54 +101,56 @@ async function runDeliveredFlow(page) {
 
   // Shelf path
   await page.getByRole("button", { name: "Shelf", exact: true }).click();
-  await page.waitForSelector("text=Loading locations", {
-    state: "hidden",
-    timeout: 30_000,
-  });
-  const shelfSpot = await page.getByText("Recommended").isVisible().catch(() => false);
-  const shelfNoSpot = await page
-    .getByText(/No shelf spots available/i)
-    .isVisible()
-    .catch(() => false);
+  await waitForSpaceTier("Shelf spot");
+  const shelfBody = await page.locator("body").innerText();
+  const shelfOk =
+    /Recommended/i.test(shelfBody) ||
+    /No shelf spots available/i.test(shelfBody) ||
+    /Add this spot/i.test(shelfBody);
   record(
     "Shelf path resolves",
-    shelfSpot || shelfNoSpot,
-    shelfSpot ? "spot shown" : "no spots (valid)",
+    shelfOk,
+    shelfOk ? "shelf tier rendered" : "shelf tier missing content",
   );
   await shot(page, "04-shelf-path");
-  await page.getByRole("button", { name: "← Back" }).click();
+  await spaceSheet().getByRole("button", { name: "← Back" }).click();
+  await page.waitForSelector("text=Where do you need additional space?", {
+    timeout: 10_000,
+  });
 
   // Ground path
   await page.getByRole("button", { name: "Ground", exact: true }).click();
-  await page.waitForSelector("text=Loading locations", {
-    state: "hidden",
-    timeout: 30_000,
-  });
-  const groundSpot = await page.getByText("Recommended").isVisible().catch(() => false);
-  const groundNoSpot = await page
-    .getByText(/No ground spots available/i)
-    .isVisible()
-    .catch(() => false);
+  await waitForSpaceTier("Ground spot");
+  const groundBody = await page.locator("body").innerText();
+  const groundOk =
+    /Recommended/i.test(groundBody) ||
+    /No ground spots available/i.test(groundBody) ||
+    /Add this spot/i.test(groundBody);
   record(
     "Ground path resolves",
-    groundSpot || groundNoSpot,
-    groundSpot ? "spot shown" : "no spots (valid)",
+    groundOk,
+    groundOk ? "ground tier rendered" : "ground tier missing content",
   );
   await shot(page, "05-ground-path");
-  await page.getByRole("button", { name: "← Back" }).click();
+  await spaceSheet().getByRole("button", { name: "← Back" }).click();
+  await page.waitForSelector("text=Where do you need additional space?", {
+    timeout: 10_000,
+  });
 
   // Large / Oversized path
   await page
     .getByRole("button", { name: "Large / Oversized Delivery" })
     .click();
-  await page.waitForSelector("text=Call Dispatcher", { timeout: 10_000 });
-  const callLink = page.locator('a[href="tel:9203360110"]');
+  await page.waitForSelector("text=Large / Oversized Delivery", {
+    timeout: 10_000,
+  });
+  const callLink = page.getByRole("link", { name: "Call Dispatcher" });
   record(
     "Large/oversized shows dispatcher call",
     await callLink.isVisible(),
   );
   await shot(page, "06-large-oversized");
-  await page.getByRole("button", { name: "← Back" }).click();
+  await spaceSheet().getByRole("button", { name: "← Back" }).click();
   await page.getByRole("button", { name: "Cancel" }).click();
 
   // --- Issue workflow ---

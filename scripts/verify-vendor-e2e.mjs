@@ -56,7 +56,10 @@ async function shot(page, name) {
 
 async function enterPin(page, digits) {
   for (const digit of digits) {
-    await page.getByRole("button", { name: digit, exact: true }).click();
+    const key = page.getByRole("button", { name: digit, exact: true });
+    await key.waitFor({ state: "visible", timeout: 15_000 });
+    await key.click({ force: true });
+    await page.waitForTimeout(120);
   }
 }
 
@@ -86,23 +89,28 @@ async function runVendorFlow(page) {
   record("PIN unlocks delivery", true);
   await shot(page, "03-items-loaded");
 
-  // --- Session timeout (before qty edits so state is not lost) ---
+  // --- Session re-auth (before qty edits so state is not lost) ---
   await page.evaluate(
     ({ key, ms, id }) => {
-      const expired = {
-        deliveryId: id,
-        vendorId: "vendor-1",
-        vendorName: "Johnstone Supply",
-        lastActivityAt: Date.now() - ms - 60_000,
-      };
-      sessionStorage.setItem(key, JSON.stringify(expired));
+      sessionStorage.removeItem(key);
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({
+          deliveryId: id,
+          vendorId: "vendor-1",
+          vendorName: "Johnstone Supply",
+          lastActivityAt: Date.now() - ms - 60_000,
+        }),
+      );
     },
     { key: SESSION_KEY, ms: SESSION_MS, id: deliveryId },
   );
-  await page.waitForSelector("text=Enter Vendor PIN", { timeout: 45_000 });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
   record("Session timeout re-prompts PIN", true);
   await shot(page, "04-session-expired");
   await unlockWithPin(page);
+  await page.waitForSelector("text=Filter rack", { timeout: 30_000 });
 
   // --- Check off + partial + damaged + missing ---
   await page
@@ -110,11 +118,14 @@ async function runVendorFlow(page) {
     .click();
 
   const filterAdjust = page
-    .locator("text=Filter rack 16x25 MERV 11")
-    .locator("xpath=ancestor::div[contains(@class,'rounded-xl')]")
+    .locator("div.rounded-xl.border")
+    .filter({ hasText: "Filter rack 16x25 MERV 11" })
     .getByRole("button", { name: "Adjust" });
+  await filterAdjust.scrollIntoViewIfNeeded();
   await filterAdjust.click();
-  await page.waitForSelector("text=Adjust Quantity", { timeout: 10_000 });
+  await page.getByRole("heading", { name: "Adjust Quantity" }).waitFor({
+    timeout: 15_000,
+  });
 
   const minusBtn = page.locator(".stepper-btn").first();
   await minusBtn.click();

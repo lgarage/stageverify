@@ -7,6 +7,8 @@ alwaysApply: true
 
 When the task touches **vendor receive**, **PIN gate**, `/#/receive`, **iPhone/Safari vendor testing**, or Dan should verify on a physical phone:
 
+**Canonical vendor UI:** `ReceivingPage` at `/#/receive` only. `appSettings.vendorDeliveryMode` toggles exception-only Delivered hub vs legacy full check-in on the **same page**. Legacy `/#/` and `/#/checkin/:id` redirect to receive — do not rebuild separate vendor UIs.
+
 1. **Open** the demo QR page in Glass/browser:
    `https://lgarage.github.io/stageverify/#/demo/vendor-scan`
    (or `npm run open:vendor-demo-qr` on Windows)

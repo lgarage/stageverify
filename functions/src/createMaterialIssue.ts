@@ -13,10 +13,14 @@ const MATERIAL_ISSUE_TYPES = new Set([
   "other",
 ]);
 
-const PICKUP_ELIGIBLE_STATUSES = new Set([
+/** Statuses where vendor or technician may report material issues. */
+const ISSUE_ELIGIBLE_STATUSES = new Set([
+  "pending",
+  "shipped",
+  "arrived",
+  "partial",
   "ready_for_pickup",
   "complete",
-  "partial",
 ]);
 
 const OPEN_ISSUE_STATUSES = ["open", "assigned"] as const;
@@ -176,7 +180,7 @@ export const createMaterialIssue = onCall(
       );
     }
 
-    if (!PICKUP_ELIGIBLE_STATUSES.has(delivery.status)) {
+    if (!ISSUE_ELIGIBLE_STATUSES.has(delivery.status)) {
       throw new HttpsError(
         "failed-precondition",
         `Cannot report an issue while delivery status is "${delivery.status}".`,

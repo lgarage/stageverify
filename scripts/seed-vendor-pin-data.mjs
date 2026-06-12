@@ -86,3 +86,4 @@ for (const delivery of deliveries) {
 }
 
 console.log("Vendor PIN seed complete.");
+process.exit(0);

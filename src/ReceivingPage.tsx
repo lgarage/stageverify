@@ -199,6 +199,8 @@ export function ReceivingPage() {
 
   const handlePinSessionExpired = useCallback(() => {
     const deliveryId = activeDeliveryIdRef.current;
+    itemQtyInitDeliveryIdRef.current = null;
+    enrichedDeliveryIdRef.current = null;
     setDeliveryDetails(null);
     setItemQtys([]);
     if (deliveryId) setPendingDeliveryId(deliveryId);
@@ -249,8 +251,14 @@ export function ReceivingPage() {
           .catch(() => {});
       }
 
+      const settings = await getAppSettings();
+      const mode = settings.vendorDeliveryMode ?? "full_checkin";
+      setVendorDeliveryMode(mode);
+      setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
+      const exceptionOnly = mode === "exception_only";
+
       setDeliveryDetails(resolved);
-      if (isExceptionOnly) {
+      if (exceptionOnly) {
         if (resolved.delivery.submittedAt) {
           setStep("done");
         } else {
@@ -261,7 +269,7 @@ export function ReceivingPage() {
       }
       return true;
     },
-    [isExceptionOnly],
+    [],
   );
 
   const loadDeliveryAfterPin = useCallback(
