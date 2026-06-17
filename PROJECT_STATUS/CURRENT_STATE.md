@@ -16,7 +16,7 @@
 
 ## Immediate Next Step
 0. **Default next slice (unless Dan says otherwise):** **Phase 3 Slice 3** — Pickup Scheduled + Copy Pickup Information (`roadmap.md` § Slice 3; `svscope` §6–8).
-1. **While-away queue:** `away-list.json` `away-009`…`014` — **verify-before-next required** (`executionProtocol.haltOnFailure`); log each built item to `away-status.json` before continuing.
+1. **While-away queue:** `away-009`…`014` — verify-before-next + **halt on fail**; **Sonnet gate** on CF/rules (see `executionProtocol.escalateWhen`).
 2. **Phase 3 Slices 4–6** — after Slice 3; vendor sessions, pickup tokens, staging release (see traceability table).
 3. **Phase 4** — issue resolution UI (not started).
 

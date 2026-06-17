@@ -2,7 +2,14 @@
     "executionProtocol":  {
                               "verifyBeforeNext":  true,
                               "haltOnFailure":  true,
-                              "instructions":  "Run queue items in dependsOn order only. For each item: implement → run verifyBeforeNext commands → all must PASS → set status to done in away-list.json → append {id, status: built, commit, note} to away-status.json → ship (commit, push, deploy if UI) → then and only then start the next item. On any verify FAIL: set status blocked, log reason in away-status.json, STOP the batch (do not skip ahead). Re-run failed item after fix before continuing.",
+                              "escalateWhen":  [
+                                                   "verifyBeforeNext command fails twice on the same item after one Composer fix attempt",
+                                                   "item touches functions/src/, firestore.rules, or pickup/delivery CF eligibility logic (run Sonnet 4.6 security review Task before push)",
+                                                   "item tier is T2+ and changes auth, Firestore writes, or transaction/idempotency behavior",
+                                                   "acceptance criteria cannot be met without schema or rules change not listed in item scope — mark blocked, do not widen scope"
+                                               ],
+                              "escalationModel":  "claude-4.6-sonnet-medium-thinking",
+                              "instructions":  "Run queue items in dependsOn order only. For each item: (1) confirm dependsOn predecessor is status done in away-list.json; (2) implement; (3) run ALL verifyBeforeNext commands — every command must exit 0; (4) if escalateWhen triggers, run Sonnet security/review gate BEFORE commit/push; (5) set status done in away-list.json; (6) append {id, status: built|blocked, commit, note} to away-status.json; (7) commit, push, deploy UI/CF as required; (8) only then start next item. On verify FAIL or Sonnet HIGH risk: status blocked, log reason, STOP batch — do not skip ahead. Re-run failed item after fix.",
                               "sequence":  [
                                                "away-009",
                                                "away-010",
@@ -143,10 +150,12 @@
                       "preApproved":  true,
                       "dependsOn":  null,
                       "verifyBeforeNext":  [
+                                               "cd functions && npm run build",
                                                "npm run build",
                                                "npm run test:pickup-authority",
                                                "npm run verify:pickup"
                                            ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate on functions/src/deliveryReadiness.ts changes; then firebase deploy --only functions --project stageverify-db; re-run verify:pickup",
                       "status":  "queued"
                   },
                   {
