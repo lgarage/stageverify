@@ -44,6 +44,8 @@
     "verify:dispatcher-nav": "node scripts/verify-dispatcher-nav.mjs",
     "verify:settings-staging:prod": "node scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
     "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",
+    "measure:routes": "node scripts/measure-mobile-route-performance.mjs",
+    "measure:vendor-submit-latency": "node scripts/measure-vendor-submit-latency.mjs",
     "aecs:install": "node aecs/installer/install.mjs",
     "aecs:install:write": "node aecs/installer/install.mjs --write",
     "aecs:verify": "node aecs/installer/verify.mjs",
