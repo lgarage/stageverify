@@ -1,4 +1,17 @@
 ﻿{
+    "executionProtocol":  {
+                              "verifyBeforeNext":  true,
+                              "haltOnFailure":  true,
+                              "instructions":  "Run queue items in dependsOn order only. For each item: implement → run verifyBeforeNext commands → all must PASS → set status to done in away-list.json → append {id, status: built, commit, note} to away-status.json → ship (commit, push, deploy if UI) → then and only then start the next item. On any verify FAIL: set status blocked, log reason in away-status.json, STOP the batch (do not skip ahead). Re-run failed item after fix before continuing.",
+                              "sequence":  [
+                                               "away-009",
+                                               "away-010",
+                                               "away-011",
+                                               "away-012",
+                                               "away-013",
+                                               "away-014"
+                                           ]
+                          },
     "queue":  [
                   {
                       "id":  "away-001",
@@ -128,7 +141,13 @@
                       "acceptance":  "recordPickupEvent succeeds on delivery-3 with openBlockingIssueCount=1 after Scenario B issue; npm run verify:pickup PASS (Scenarios A+B same run); npm run test:pickup-authority PASS; npm run build clean.",
                       "capturedDuring":  "Dan 2026-06-17 — away batch after authority deploy; prerequisite for Phase 3 full gate",
                       "preApproved":  true,
-                      "status":  "pending"
+                      "dependsOn":  null,
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run test:pickup-authority",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
                   },
                   {
                       "id":  "away-010",
@@ -142,7 +161,13 @@
                       "acceptance":  "Button reads Copy Pickup Information; copied text includes job name, job number, at least one location code when staged, and #/pickup?job= link; npm run build clean; npm run verify:dispatcher-nav PASS.",
                       "capturedDuring":  "Dan 2026-06-17 — away batch Slice 3 default",
                       "preApproved":  true,
-                      "status":  "pending"
+                      "dependsOn":  "away-009",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
                   },
                   {
                       "id":  "away-011",
@@ -158,7 +183,13 @@
                       "acceptance":  "Dispatcher can set and clear Pickup Scheduled on a job; badge visible when set; field persists on reload; npm run build clean; npm run verify:dispatcher-nav PASS.",
                       "capturedDuring":  "Dan 2026-06-17 — away batch Slice 3",
                       "preApproved":  true,
-                      "status":  "pending"
+                      "dependsOn":  "away-010",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
                   },
                   {
                       "id":  "away-012",
@@ -173,7 +204,13 @@
                       "acceptance":  "npm run verify:pickup:prod reaches seed step without ERR_CONNECTION_REFUSED on localhost:5173 (with .env.local credentials present).",
                       "capturedDuring":  "Dan 2026-06-17 — prod verify harness gap",
                       "preApproved":  true,
-                      "status":  "pending"
+                      "dependsOn":  "away-011",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup",
+                                               "npm run verify:pickup:prod"
+                                           ],
+                      "status":  "queued"
                   },
                   {
                       "id":  "away-013",
@@ -188,7 +225,12 @@
                       "acceptance":  "Button shows Order Pickup Complete; npm run verify:pickup PASS; npm run build clean.",
                       "capturedDuring":  "Dan 2026-06-17 — away batch scope alignment",
                       "preApproved":  true,
-                      "status":  "pending"
+                      "dependsOn":  "away-012",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
                   },
                   {
                       "id":  "away-014",
@@ -202,7 +244,14 @@
                       "acceptance":  "Job pickup list shows only pickup-eligible deliveries by default; ready_for_pickup deliveries visible; partial-only without readiness hidden from queue; npm run verify:pickup PASS; npm run build clean.",
                       "capturedDuring":  "Dan 2026-06-17 — away batch Slice 3",
                       "preApproved":  true,
-                      "status":  "pending"
+                      "dependsOn":  "away-013",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:pickup:prod"
+                                           ],
+                      "status":  "queued"
                   }
               ]
 }
