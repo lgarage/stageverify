@@ -5,42 +5,42 @@
       "id": "away-009",
       "title": "Align blocking-issue pickup with svscope (CF allows pickup with warning)",
       "status": "built",
-      "commit": "pending",
+      "commit": "faaed82",
       "note": "isPickupEligible filters unresolved_blocking_issues; Sonnet SECURITY: PASS; CF deployed stageverify-db; test:pickup-authority + verify:pickup PASS."
     },
     {
       "id": "away-010",
       "title": "Phase 3 Slice 3: Copy Pickup Information clipboard",
       "status": "built",
-      "commit": "pending",
+      "commit": "faaed82",
       "note": "Copy Pickup Information button + full clipboard message; verify:dispatcher-nav + verify:pickup PASS."
     },
     {
       "id": "away-011",
       "title": "Phase 3 Slice 3: Pickup Scheduled job flag",
       "status": "built",
-      "commit": "pending",
+      "commit": "faaed82",
       "note": "pickupScheduledAt/By on Job; dispatcher toggle + badge; roadmap Slice 3 partial; verify PASS."
     },
     {
       "id": "away-012",
       "title": "Fix verify:pickup:prod reset to use production base URL",
       "status": "built",
-      "commit": "pending",
+      "commit": "faaed82",
       "note": "reset-pickup-verify-fixture --base-url passthrough; verify:pickup:prod PASS (no localhost ERR_CONNECTION_REFUSED)."
     },
     {
       "id": "away-013",
       "title": "Rename pickup Done button to Order Pickup Complete",
       "status": "built",
-      "commit": "pending",
+      "commit": "faaed82",
       "note": "Button + verify selectors updated; verify:pickup PASS local + prod."
     },
     {
       "id": "away-014",
       "title": "Phase 3 Slice 3: ready-only pickup queue filter",
       "status": "built",
-      "commit": "pending",
+      "commit": "faaed82",
       "note": "Queue shows ready_for_pickup/picked_up/installed only; ?delivery= deep-link include; verify:pickup + verify:pickup:prod PASS."
     }
   ],
