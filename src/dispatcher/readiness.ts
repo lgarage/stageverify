@@ -243,3 +243,31 @@ export function isDeliveryFullyPickedUp(delivery: DeliveryOrder): boolean {
   const remaining = remainingStagingLocationIds(delivery);
   return remaining.length === 0 && getAllStagingLocationIds(delivery).length > 0;
 }
+
+/** Pickup eligibility: blocking issues may block readiness promotion only. */
+export function isPickupEligible(
+  delivery: DeliveryOrder,
+  items: Item[],
+): { eligible: boolean; reason?: string } {
+  if (delivery.status === "picked_up" || delivery.status === "installed") {
+    return { eligible: false, reason: "already_picked_up" };
+  }
+  if (
+    delivery.status !== "ready_for_pickup" &&
+    delivery.status !== "complete"
+  ) {
+    return { eligible: false, reason: "delivery_not_ready_for_pickup" };
+  }
+
+  const readiness = computeDeliveryReadiness(delivery, items);
+  const pickupBlockReasons = readiness.evidence.readinessBlockReasons.filter(
+    (reason) => reason !== "unresolved_blocking_issues",
+  );
+  if (pickupBlockReasons.length > 0) {
+    return {
+      eligible: false,
+      reason: pickupBlockReasons.join(", ") || "not_ready",
+    };
+  }
+  return { eligible: true };
+}

@@ -198,6 +198,10 @@ export interface Job {
   /** V2: default material owner for deliveries on this job (Phase 3+ workflows). */
   materialOwnerId?: string;
   materialOwnerName?: string;
+  /** ISO timestamp when dispatcher marked job Pickup Scheduled (Slice 3). */
+  pickupScheduledAt?: string;
+  /** Dispatcher email or name who marked Pickup Scheduled. */
+  pickupScheduledBy?: string;
   createdAt: string;
   updatedAt: string;
 }

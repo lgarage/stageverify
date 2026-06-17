@@ -88,7 +88,7 @@ async function waitForDoneEnabled(page, timeoutMs = 30_000) {
   await page.waitForFunction(
     () => {
       const btn = [...document.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Done — All Picked Up"),
+        b.textContent?.includes("Order Pickup Complete"),
       );
       return btn && !btn.disabled;
     },
@@ -150,10 +150,10 @@ async function runScenarioB(page) {
     throw new Error("Scenario B FAIL: delivery not eligible for issue report.");
   }
 
-  await page.getByTestId("blocking-issue-warning").waitFor({
-    state: "visible",
-    timeout: 15_000,
-  });
+  const warning = page.getByTestId("blocking-issue-warning");
+  if (!(await warning.isVisible().catch(() => false))) {
+    await warning.waitFor({ state: "visible", timeout: 15_000 });
+  }
   await page.screenshot({
     path: resolve(outDir, "pickup-verify-issue-reported.png"),
     fullPage: true,
@@ -172,7 +172,7 @@ async function runScenarioA(page) {
   }
 
   await waitForDoneEnabled(page);
-  await page.getByRole("button", { name: /Done — All Picked Up/ }).click();
+  await page.getByRole("button", { name: /Order Pickup Complete/ }).click();
 
   const errorBanner = page.locator(
     "text=/Failed to record|permission denied|Cannot record pickup/i",

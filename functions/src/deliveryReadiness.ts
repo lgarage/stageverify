@@ -174,22 +174,34 @@ export function computeDeliveryReadiness(
   };
 }
 
+/** Pickup eligibility: blocking issues may block readiness promotion only. */
 export function isPickupEligible(
   delivery: DeliveryDoc,
   items: ItemDoc[],
 ): { eligible: boolean; reason?: string } {
-  const readiness = computeDeliveryReadiness(delivery, items, new Date().toISOString());
-  if (!readiness.readyForPickup) {
-    return {
-      eligible: false,
-      reason: readiness.evidence.readinessBlockReasons.join(", ") || "not_ready",
-    };
+  if (delivery.status === "picked_up" || delivery.status === "installed") {
+    return { eligible: false, reason: "already_picked_up" };
   }
   if (
     delivery.status !== "ready_for_pickup" &&
     delivery.status !== "complete"
   ) {
     return { eligible: false, reason: "delivery_not_ready_for_pickup" };
+  }
+
+  const readiness = computeDeliveryReadiness(
+    delivery,
+    items,
+    new Date().toISOString(),
+  );
+  const pickupBlockReasons = readiness.evidence.readinessBlockReasons.filter(
+    (reason) => reason !== "unresolved_blocking_issues",
+  );
+  if (pickupBlockReasons.length > 0) {
+    return {
+      eligible: false,
+      reason: pickupBlockReasons.join(", ") || "not_ready",
+    };
   }
   return { eligible: true };
 }

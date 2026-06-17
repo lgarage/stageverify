@@ -2,6 +2,7 @@ import type {
   DeliveryDetails,
   DeliveryListRow,
   DeliveryStatus,
+  Job,
   StagingLocation,
 } from "./models";
 
@@ -99,6 +100,11 @@ export interface DispatcherDataService {
     deliveryId: string,
     poNumber: string,
   ): Promise<DeliveryDetails | null>;
+  updateJobPickupScheduled(
+    jobId: string,
+    scheduled: boolean,
+    scheduledBy?: string,
+  ): Promise<Job | null>;
   updateShopStockPickList(
     deliveryId: string,
     items: string[],

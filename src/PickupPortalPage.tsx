@@ -58,8 +58,8 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
 function isPickupReady(status: DeliveryStatus): boolean {
   return (
     status === "ready_for_pickup" ||
-    status === "complete" ||
-    status === "partial"
+    status === "picked_up" ||
+    status === "installed"
   );
 }
 
@@ -531,7 +531,9 @@ function JobPickupScreen({
       try {
         const [settings, loaded, stagingLocs] = await Promise.all([
           getAppSettings(),
-          loadPickupReadyDeliveriesPublic(jobId),
+          loadPickupReadyDeliveriesPublic(jobId, {
+            includeDeliveryId: highlightDeliveryId ?? undefined,
+          }),
           firestoreDataService.listStagingLocations(),
         ]);
         if (cancelled) return;
@@ -855,10 +857,12 @@ function JobPickupScreen({
   }, []);
 
   const reloadDeliveries = useCallback(async () => {
-    const loaded = await loadPickupReadyDeliveriesPublic(jobId);
+    const loaded = await loadPickupReadyDeliveriesPublic(jobId, {
+      includeDeliveryId: highlightDeliveryId ?? undefined,
+    });
     setDeliveries(loaded);
     return loaded;
-  }, [jobId]);
+  }, [jobId, highlightDeliveryId]);
 
   const openIssueModal = useCallback((deliveryId: string) => {
     setIssueModalDeliveryId(deliveryId);
@@ -889,6 +893,24 @@ function JobPickupScreen({
         reportedBy: "Technician",
         clientRequestId: crypto.randomUUID(),
       });
+      if (result.blocking) {
+        setDeliveries((prev) =>
+          prev.map((d) =>
+            d.delivery.id === issueModalDeliveryId
+              ? {
+                  ...d,
+                  delivery: {
+                    ...d.delivery,
+                    openBlockingIssueCount: Math.max(
+                      d.delivery.openBlockingIssueCount ?? 0,
+                      1,
+                    ),
+                  },
+                }
+              : d,
+          ),
+        );
+      }
       await reloadDeliveries();
       setIssueModalDeliveryId(null);
       setIssueDescription("");
@@ -1347,7 +1369,7 @@ function JobPickupScreen({
       >
         {readyToFinish && (
           <p className="text-center text-sm font-semibold text-accent-green mb-2">
-            All items picked up — tap Done to finish
+            All items picked up — tap Order Pickup Complete to finish
           </p>
         )}
         {autoSubmitMinutes > 0 &&
@@ -1368,7 +1390,7 @@ function JobPickupScreen({
               : "opacity-50 cursor-not-allowed"
           }`}
         >
-          {submitting ? "Submitting…" : "Done — All Picked Up ✓"}
+          {submitting ? "Submitting…" : "Order Pickup Complete"}
         </button>
       </div>
     </div>

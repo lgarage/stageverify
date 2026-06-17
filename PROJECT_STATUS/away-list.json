@@ -156,7 +156,7 @@
                                                "npm run verify:pickup"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate on functions/src/deliveryReadiness.ts changes; then firebase deploy --only functions --project stageverify-db; re-run verify:pickup",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-010",
@@ -176,7 +176,7 @@
                                                "npm run verify:dispatcher-nav",
                                                "npm run verify:pickup"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-011",
@@ -198,7 +198,7 @@
                                                "npm run verify:dispatcher-nav",
                                                "npm run verify:pickup"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-012",
@@ -219,7 +219,7 @@
                                                "npm run verify:pickup",
                                                "npm run verify:pickup:prod"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-013",
@@ -239,7 +239,7 @@
                                                "npm run build",
                                                "npm run verify:pickup"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-014",
@@ -260,7 +260,7 @@
                                                "npm run verify:dispatcher-nav",
                                                "npm run verify:pickup:prod"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   }
               ]
 }

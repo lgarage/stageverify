@@ -345,6 +345,36 @@ export function DispatcherDashboardPage() {
     }
   };
 
+  const handleUpdateJobPickupScheduled = async (
+    scheduled: boolean,
+  ): Promise<void> => {
+    const jobId = selectedDetails?.job?.id;
+    if (!jobId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updatedJob = await firestoreDataService.updateJobPickupScheduled(
+        jobId,
+        scheduled,
+      );
+      if (updatedJob) {
+        setSelectedDetails((prev) =>
+          prev ? { ...prev, job: updatedJob } : prev,
+        );
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to update Pickup Scheduled.");
+      }
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while updating Pickup Scheduled.",
+      );
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   /* ── Detail drawer ── */
   const handleUpdateStatus = async (
     toStatus: DeliveryStatus,
@@ -1588,6 +1618,7 @@ export function DispatcherDashboardPage() {
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
                 onUpdatePurchaseOrder={handleUpdatePurchaseOrder}
+                onUpdateJobPickupScheduled={handleUpdateJobPickupScheduled}
                 onDeliveryOrderUpdated={(delivery) => {
                   setSelectedDetails((prev) =>
                     prev ? { ...prev, delivery } : prev,
@@ -1654,10 +1685,16 @@ function PagBtn({
 
 function CopyPickupLinkButton({
   jobId,
+  jobName,
+  jobNumber,
+  siteNumber,
   navy,
   font,
 }: {
   jobId: string;
+  jobName: string;
+  jobNumber: string;
+  siteNumber?: string;
   navy: string;
   font: string;
 }) {
@@ -1669,19 +1706,26 @@ function CopyPickupLinkButton({
       pageSize: 100,
     });
     const readyItems = result.items.filter(
-      (d) =>
-        d.status === "ready_for_pickup" ||
-        d.status === "complete" ||
-        d.status === "partial",
+      (d) => d.status === "ready_for_pickup",
     );
-    const zones = readyItems
-      .map((d) => d.stagingLocationCode)
-      .filter(Boolean)
-      .join(",");
-    const link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}${
-      zones ? `&zones=${encodeURIComponent(zones)}` : ""
-    }`;
-    await navigator.clipboard.writeText(link);
+    const zones = [
+      ...new Set(
+        readyItems.map((d) => d.stagingLocationCode).filter(Boolean),
+      ),
+    ].join(", ");
+    const link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}`;
+    const siteLabel = siteNumber?.trim() || jobName;
+    const lines = [
+      "StageVerify Pickup",
+      `Site: ${siteLabel}`,
+      `Job: ${jobName}`,
+      `Job Number: ${jobNumber}`,
+      zones ? `Pickup Locations: ${zones}` : "Pickup Locations:",
+      "",
+      "Open pickup checklist:",
+      link,
+    ];
+    await navigator.clipboard.writeText(lines.join("\n"));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
   };
@@ -1705,7 +1749,7 @@ function CopyPickupLinkButton({
         transition: "all 0.13s",
       }}
     >
-      {copied ? "Copied!" : "Copy Pickup Link"}
+      {copied ? "Copied!" : "Copy Pickup Information"}
     </button>
   );
 }
@@ -1854,6 +1898,7 @@ function DetailContent({
   stagingLocations,
   onUpdateStagingLocation,
   onUpdatePurchaseOrder,
+  onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
 }: {
   loading: boolean;
@@ -1875,6 +1920,7 @@ function DetailContent({
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
+  onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
@@ -2010,6 +2056,53 @@ function DetailContent({
                     </span>
                   </div>
                 ))}
+                {job.pickupScheduledAt && (
+                  <span
+                    data-testid="pickup-scheduled-badge"
+                    style={{
+                      display: "inline-flex",
+                      alignSelf: "flex-start",
+                      alignItems: "center",
+                      gap: 6,
+                      backgroundColor: "#e3f2fd",
+                      color: navy,
+                      border: `1px solid ${navy}`,
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    Pickup Scheduled
+                  </span>
+                )}
+                <button
+                  type="button"
+                  disabled={mutationLoading}
+                  onClick={() =>
+                    void onUpdateJobPickupScheduled(!job.pickupScheduledAt)
+                  }
+                  style={{
+                    marginTop: 4,
+                    backgroundColor: "#fff",
+                    color: navy,
+                    border: `1.5px solid ${navy}`,
+                    borderRadius: 4,
+                    padding: "6px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: mutationLoading ? "wait" : "pointer",
+                    fontFamily: font,
+                    alignSelf: "flex-start",
+                    transition: "all 0.13s",
+                    opacity: mutationLoading ? 0.7 : 1,
+                  }}
+                >
+                  {job.pickupScheduledAt
+                    ? "Clear Pickup Scheduled"
+                    : "Mark Pickup Scheduled"}
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowPrintLabel(true)}
@@ -2030,7 +2123,14 @@ function DetailContent({
                 >
                   Print Label
                 </button>
-                <CopyPickupLinkButton jobId={job.id} navy={navy} font={font} />
+                <CopyPickupLinkButton
+                  jobId={job.id}
+                  jobName={job.jobName}
+                  jobNumber={job.jobNumber}
+                  siteNumber={job.siteNumber}
+                  navy={navy}
+                  font={font}
+                />
               </div>
             ),
           },

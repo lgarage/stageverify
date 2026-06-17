@@ -1,6 +1,7 @@
 import {
   arrayUnion,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -605,6 +606,42 @@ export class FirestoreDataService implements DispatcherDataService {
     return this.getDeliveryDetails(deliveryId);
   }
 
+  async updateJobPickupScheduled(
+    jobId: string,
+    scheduled: boolean,
+    scheduledBy?: string,
+  ): Promise<Job | null> {
+    const jobRef = doc(db, "jobs", jobId);
+    const jobSnap = await getDoc(jobRef);
+    if (!jobSnap.exists()) return null;
+
+    const now = new Date().toISOString();
+    const actor =
+      scheduledBy?.trim() ||
+      getAuth().currentUser?.email ||
+      getAuth().currentUser?.displayName ||
+      "dispatcher";
+
+    await setDoc(
+      jobRef,
+      scheduled
+        ? {
+            pickupScheduledAt: now,
+            pickupScheduledBy: actor,
+            updatedAt: now,
+          }
+        : {
+            pickupScheduledAt: deleteField(),
+            pickupScheduledBy: deleteField(),
+            updatedAt: now,
+          },
+      { merge: true },
+    );
+
+    const refreshed = await getDoc(jobRef);
+    return refreshed.exists() ? (refreshed.data() as Job) : null;
+  }
+
   async submitCheckin(
     deliveryId: string,
     driverName: string,
@@ -915,25 +952,27 @@ export async function addStagingLocation(
   await batch.commit();
 }
 
-/** Statuses shown on the public pickup portal (no auth / jobs read). */
+/** Default pickup queue: ready_for_pickup plus in-progress/completed pickups. */
 const PICKUP_PORTAL_DELIVERY_STATUSES: DeliveryStatus[] = [
   "ready_for_pickup",
-  "complete",
-  "partial",
   "picked_up",
   "installed",
 ];
 
 export async function loadPickupReadyDeliveriesPublic(
   jobId: string,
+  options?: { includeDeliveryId?: string },
 ): Promise<DeliveryDetails[]> {
   const deliveries = await fetchWhere<DeliveryOrder>(
     "deliveries",
     "jobId",
     jobId,
   );
-  const pickupReady = deliveries.filter((d) =>
-    PICKUP_PORTAL_DELIVERY_STATUSES.includes(d.status),
+  const includeId = options?.includeDeliveryId;
+  const pickupReady = deliveries.filter(
+    (d) =>
+      PICKUP_PORTAL_DELIVERY_STATUSES.includes(d.status) ||
+      (includeId !== undefined && d.id === includeId),
   );
   const detailsList = await Promise.all(
     pickupReady.map((d) => getDeliveryDetailsPublic(d.id)),

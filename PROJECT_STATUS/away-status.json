@@ -1,34 +1,48 @@
 {
-  "lastRun": "2026-06-04",
+  "lastRun": "2026-06-17",
   "results": [
     {
-      "id": "away-004",
-      "title": "Clear stagingLocationId on delivery picked_up transition",
+      "id": "away-009",
+      "title": "Align blocking-issue pickup with svscope (CF allows pickup with warning)",
       "status": "built",
-      "commit": "7bc7011",
-      "note": "One-liner added to updateDeliveryStatus in firestoreService.ts. Build clean. Pushed."
+      "commit": "pending",
+      "note": "isPickupEligible filters unresolved_blocking_issues; Sonnet SECURITY: PASS; CF deployed stageverify-db; test:pickup-authority + verify:pickup PASS."
     },
     {
-      "id": "away-005",
-      "title": "Route-level code-splitting via React.lazy in main.tsx",
+      "id": "away-010",
+      "title": "Phase 3 Slice 3: Copy Pickup Information clipboard",
       "status": "built",
-      "commit": "7bc7011",
-      "note": "610 kB monolith split into 6 page chunks (largest: DispatcherDashboardPage 50.55 kB). Deployed. Pushed."
+      "commit": "pending",
+      "note": "Copy Pickup Information button + full clipboard message; verify:dispatcher-nav + verify:pickup PASS."
     },
     {
-      "id": "away-006",
-      "title": "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
+      "id": "away-011",
+      "title": "Phase 3 Slice 3: Pickup Scheduled job flag",
       "status": "built",
-      "commit": "f0ba6cc",
-      "note": "All 5 changes applied. Build clean. Deployed. Playwright after-state: PASS (name input absent, Complete badge absent, no technician-name in DOM)."
+      "commit": "pending",
+      "note": "pickupScheduledAt/By on Job; dispatcher toggle + badge; roadmap Slice 3 partial; verify PASS."
     },
     {
-      "id": "away-007",
-      "title": "Full repo security audit — all src/ files",
+      "id": "away-012",
+      "title": "Fix verify:pickup:prod reset to use production base URL",
       "status": "built",
-      "commit": null,
-      "note": "Report at PROJECT_STATUS/security-report-2026-06-02.md. Closed during Phase 1 memory cleanup 2026-06-04."
+      "commit": "pending",
+      "note": "reset-pickup-verify-fixture --base-url passthrough; verify:pickup:prod PASS (no localhost ERR_CONNECTION_REFUSED)."
+    },
+    {
+      "id": "away-013",
+      "title": "Rename pickup Done button to Order Pickup Complete",
+      "status": "built",
+      "commit": "pending",
+      "note": "Button + verify selectors updated; verify:pickup PASS local + prod."
+    },
+    {
+      "id": "away-014",
+      "title": "Phase 3 Slice 3: ready-only pickup queue filter",
+      "status": "built",
+      "commit": "pending",
+      "note": "Queue shows ready_for_pickup/picked_up/installed only; ?delivery= deep-link include; verify:pickup + verify:pickup:prod PASS."
     }
   ],
-  "summary": "4 built ✓  0 blocked ✗"
+  "summary": "6 built ✓  0 blocked ✗"
 }
