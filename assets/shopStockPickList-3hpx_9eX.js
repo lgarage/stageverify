@@ -1,0 +1,2 @@
+function e(e){return e.split(/\r?\n/).map(e=>e.trim()).filter(e=>e.length>0)}function t(e){return e?.join(`
+`)??``}function n(e){return(e.shopStockPickListItems?.length??0)>0}function r(e,t){return`${e}:${t}`}export{r as i,n,e as r,t};
