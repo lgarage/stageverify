@@ -3,9 +3,48 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase); **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents and Phase 2+ work; `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-11 (single vendor UI + exception-only Delivered hub)
+> **Last updated:** 2026-06-17 (svscope_simple.md traceability sync)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
+
+> **Product scope authority:** `PROJECT_STATUS/svscope_simple.md` — canonical end-to-end product design. This roadmap maps every scope section to a phase so nothing is dropped. When scope and phase tables disagree, scope wins; update this file.
+
+---
+
+## Product scope traceability (`svscope_simple.md`)
+
+| Scope § | Topic | Phase / bucket | Status |
+| ------- | ----- | -------------- | ------ |
+| **§1** | Dispatcher creates job, PO, delivery, staging; per-vendor/PO/delivery separation | Phase 1–2 | ✅ Built |
+| **§2** | Entry display shows assigned location for arriving vendor | Phase 1 + Phase 7 ESL | ✅ Display built; live E-tag updates Phase 7 (Minew blocked) |
+| **§3** | Delivery QR + shared vendor PIN; scoped to one delivery only | Phase 1–2 + vendor flow 2026-06-11 | ✅ Built |
+| **§3** | Temporary vendor session + configurable expiration + server validation | **Phase 3 Slice 4 — Vendor access hardening** | ⬜ Not started |
+| **§3** | Shop geofence as additional vendor control | **Phase 3 Slice 4 — Vendor access hardening** | ⬜ Not started |
+| **§4** | Vendor actions: DELIVERED, Need More Space?, Issue (simple hub) | Vendor exception-only 2026-06-11 | ✅ Built |
+| **§4** | DELIVERED ≠ Ready for Pickup; vendor does not count material | Trusted readiness CF `b7b817f` | ✅ Shipped prod |
+| **§5** | Two-source readiness gate (vendor order + physical/staging) | `recalculateDeliveryReadiness` CF `b7b817f` | ✅ Shipped prod |
+| **§5** | Condition 1 — configurable inbox, vendor email evidence, untrusted parsing | **Phase 5** (prototype) → **Phase 6** (live inbox) | ⬜ Deferred |
+| **§5** | Email cannot directly force Ready for Pickup; server rules decide | Phase 5–6 gates + principles | ⬜ Policy defined; automation not built |
+| **§5** | Per-delivery / per-PO / per-job readiness separation | Phase 2 model + CF `b7b817f` | ✅ Core logic shipped; job-level “all ready” UI Phase 3 remainder |
+| **§6** | Dispatcher readiness view: ready / partial / issue / picked up / job-all-ready | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | 🔵 Partial (drawer + issues); job-all-ready queue ⬜ |
+| **§7** | **Pickup Scheduled** state after BuildOps scheduling | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ⬜ Not built |
+| **§8** | **Copy Pickup Information** (site, job, locations, link → clipboard) | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | 🔵 Partial (`Copy Pickup Link` only) |
+| **§9** | Technician opens pickup link — no login | Phase 1–3 public pickup portal | ✅ Built (job/delivery hash params) |
+| **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ⬜ Not built (plain job link today) |
+| **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Slice 2 location labels only; PO-grouped checklist ⬜ |
+| **§10** | Per-line pickup persistence; partial qty pickup | **Phase 3 remainder** + transactional CF | 🔵 `recordPickupEvent` shipped; per-line/qty partial ⬜ |
+| **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | ⬜ Display label only (Slice 2); structured pull list ⬜ |
+| **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | ⬜ Blocked on physical shop map / Jake Korb |
+| **§12** | **Order Pickup Complete** submit; server-owned transactional pickup | `recordPickupEvent` CF `b7b817f` | ✅ Shipped (UI says “Done — All Picked Up”) |
+| **§12** | Idempotent / concurrent-safe pickup | `recordPickupEvent` + `pickupOperations` `b7b817f` | ✅ Shipped prod |
+| **§12** | Blocking issue vs pickup behavior (UI says can complete; CF may block) | **Phase 3 bugfix / alignment** | 🔴 Known mismatch — resolve before full gate |
+| **§12** | Leave-shop geofence reminder (best-effort; not auto-complete) | **Phase 3 Slice 5 — Pickup link security** (optional) | ⬜ Not built |
+| **§13** | Dispatcher sees pickup update, qty remaining, pickup events | Phase 3 Slice 1 + drawer | 🔵 Partial |
+| **§13** | Release temporary staging → Available + E-tag clear | **Phase 3 Slice 6 — Staging release** | 🔵 Partial (`picked_up` clears staging); combination groups + ESL Phase 7 |
+| **§13** | Permanent shop-stock locations stay reserved; qty tracking not inventory | Phase 2 stubs + Phase 3 remainder | ⬜ Not built |
+| **§14** | End-to-end flow (27 steps) | Cross-phase integration test | ⬜ Full flow not gate-passed |
+| — | **Firebase App Check** on public writes | **Cross-cutting security (LATER)** | ⬜ Explicitly deferred |
+| — | **Gmail / live inbox connection** | Phase 6 only (after Phase 5 prototype) | ⬜ Deferred |
 
 ---
 
@@ -117,6 +156,50 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Legacy full check-in | ✅ Same page when `vendorDeliveryMode = full_checkin` |
 | Verify | ✅ `verify:vendor-delivered` + `verify:vendor-e2e` |
 
+### Trusted readiness + transactional pickup ✅ (shipped 2026-06-17, `b7b817f`)
+
+| Item | Status |
+| ---- | ------ |
+| `recalculateDeliveryReadiness` CF | ✅ Prod `stageverify-db` |
+| `recordPickupEvent` CF (idempotent, transactional) | ✅ Prod `stageverify-db` |
+| Unauth direct `picked_up` / `ready_for_pickup` writes blocked | ✅ Firestore rules prod |
+| Vendor physical submit → trusted readiness recalc | ✅ Prod path verified |
+| **Known gap:** blocking issue UI vs CF pickup eligibility | 🔴 Align before Phase 3 full gate (see traceability §12) |
+
+### Phase 3 Slice 3 — Dispatcher readiness & scheduling (not started)
+
+| Deliverable | Detail (`svscope` §6–8) |
+| ----------- | ------------------------ |
+| Job / PO / delivery readiness breakdown | Which deliveries ready, incomplete, issue, picked up; job must not show “Everything Ready” until all required material ready |
+| **Pickup Scheduled** | Dispatcher marks job after BuildOps scheduling — distinct from vendor delivery schedule |
+| **Copy Pickup Information** | One-click clipboard: site, job name, job number, pickup locations, pickup link (extends existing Copy Pickup Link) |
+| Ready-only pickup queue | Job appears in technician queue only when business readiness = `ready_for_pickup` |
+
+### Phase 3 Slice 4 — Vendor access hardening (not started)
+
+| Deliverable | Detail (`svscope` §3) |
+| ----------- | ---------------------- |
+| Temporary delivery-specific vendor session | Server-validated; configurable expiration |
+| Shop geofence | Additional control near shop; not sole protection |
+| App Check evaluation | Optional hardening for public write surfaces — deferred until explicit approval |
+
+### Phase 3 Slice 5 — Pickup link security (not started)
+
+| Deliverable | Detail (`svscope` §9, §12) |
+| ----------- | --------------------------- |
+| Opaque pickup token | Unguessable, revocable, server-validated; replaces predictable job-only links |
+| Token scope | Job pickup page only — no Firestore or dispatcher access |
+| Leave-shop reminder (optional) | Best-effort geofence prompt if technician leaves radius without completing; never auto-mark unchecked lines |
+
+### Phase 3 Slice 6 — Staging release & location lifecycle (not started)
+
+| Deliverable | Detail (`svscope` §13) |
+| ----------- | ----------------------- |
+| Per-location release after pickup | Temporary staging → Available when all assigned material picked up |
+| Combination staging groups | Release G20–G22 as a unit; concurrency-safe |
+| E-tag sync on release | Phase 7 ESL automation; manual/clear path in Phase 3 if ESL blocked |
+| Permanent shop-stock mapping | Locations stay reserved; qty accountability not inventory (BuildOps boundary) |
+
 ### Phase 3 — Technician Pickup Workflow (full gate)
 
 | Deliverable            | Detail                                                                                                                                                                                                                       |
@@ -133,8 +216,10 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Assignment             | Material Owner attached on issue create                                                                                                                                                                                      |
 | Testing                | Scenario A (happy path) + Scenario B (issue creation) per implementation plan                                                                                                                                                |
 | Playwright             | Extend `verify:pickup` for issue button + dashboard visibility                                                                                                                                                               |
+| Submit label           | Align UI copy with scope: **Order Pickup Complete** (or documented equivalent)                                                                                                                                              |
+| Blocking-issue pickup  | Resolve UI “can still complete pickup” vs CF `unresolved_blocking_issues` block; update verify harness B→A order if needed                                                                                                    |
 
-**Gate:** Successful pickup + issue creation without manual DB edits. **Slice 1 satisfies issue-creation + dispatcher visibility; full gate requires remaining pickup UI deliverables above.**
+**Gate:** Successful pickup + issue creation without manual DB edits. **Slices 1–2 + authority package shipped; full gate requires Slices 3–6 and remainder rows above.**
 
 ### Phase 4 — Material Issue Resolution
 
@@ -153,18 +238,19 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 
 Phases 5–9 are sequenced here for prioritization; not started until Phases 3–4 are stable. Historical detail in `docs/archives/stageverify_implementation_plan.md` — not active guidance.
 
-### Phase 5 — Vendor Email Parsing Prototype
+### Phase 5 — Vendor Email Parsing Prototype (`svscope` §5 Condition 1 — offline)
 
-- Sample emails only (Johnstone, Ferguson, First Supply) — **no live inbox, no production automation**
+- Configurable inbox address (not hard-coded); sample emails only (Johnstone, Ferguson, First Supply) — **no live inbox, no production automation**
 - Offline prototype with controlled sample emails only — domain-based live-email identification (`emailDomain`) **not required** in Phase 5
 - Extract vendor, PO, customer, delivered/missing/backordered, delivery status
 - AI may extract, classify, match, score, explain, and **propose** updates for human review — AI may **not** update operational records or change readiness/delivery status
 - Confidence: high confidence → proposed auto-processing for human review in Phase 5; actual automation is Phase 6+ only after an approved automation gate
 - **Gate:** ≥95% extraction accuracy on approved sample set using defined scoring method; low-confidence routed to review
 
-### Phase 6 — Vendor Email Monitoring
+### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
-- `emailDomain` (vendor email domain matching) — Phase 6+ operational concern for live inbox monitoring; a conceptual optional field on `Vendor` may appear earlier only if the Phase 2 data-model gate explicitly requires it
+- Configurable StageVerify inbox; dispatcher CC/intentional forward only — **no monitoring of all vendor mail**
+- `emailDomain` on `Vendor` for matching when live monitoring starts
 - Live inbox monitoring with **human-reviewed proposed updates first**
 - Narrow automation only for explicitly approved, high-confidence event types — high confidence alone is not blanket permission to update records
 - Unexpected or conflicting cases route to human review (business risk, missing data, conflicting evidence, or action type — not only low confidence score)
@@ -202,6 +288,7 @@ Phases 5–9 are sequenced here for prioritization; not started until Phases 3�
 | `listDeliveries` pagination     | Technical debt; acceptable until ~500+ deliveries         |
 | Shared types in Cloud Functions | Refactor CF `DeliveryStatus` duplicate                    |
 | Shop map / location IDs         | Blocked on Jake Korb shelving decision                    |
+| Firebase App Check (public routes) | `svscope` deferred; evaluate in Phase 3 Slice 4 or later |
 
 ---
 
@@ -215,7 +302,8 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | Slack/email notifications for Material Owner | Ops convenience, not core loop                  |
 | Mobile native scanner app                    | Web QR flow works today                         |
 | Multi-tenant / multi-shop                    | Full multi-tenant customer-facing product experience is out of MVP scope; making the data model tenant-safe now ≠ building a multi-tenant admin product — tenant-safe data boundaries remain a design consideration regardless |
-| Technician authentication                    | Pickup remains public by design                 |
+| Technician login / Google auth on pickup | Explicit non-goal — pickup stays public (`svscope` §9) |
+| Opaque pickup job tokens | **Not MAYBE** — scheduled in **Phase 3 Slice 5** (see traceability table) |
 | Inventory / stock-on-hand                    | Explicit non-goal                               |
 | Purchasing / PO creation in-app              | Explicit non-goal                               |
 | Dispatch / truck routing                     | Explicit non-goal                               |
@@ -231,7 +319,7 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | ----- | ------------------------------ | -------------- | ------------------- |
 | 1     | Stabilize                      | — (complete)   | ✅ Gate passed      |
 | 2     | Material Readiness Data Model  | — (complete)   | ✅ Gate passed      |
-| 3     | Technician Pickup Workflow     | **NEXT**       | 🔵 Active           |
+| 3     | Technician Pickup Workflow     | **NEXT**       | 🔵 Active (Slices 1–2 + authority ✅; Slices 3–6 ⬜) |
 | 4     | Material Issue Resolution      | **NEXT**       | ⬜                  |
 | 5     | Vendor Email Parsing Prototype | **LATER**      | ⬜                  |
 | 6     | Vendor Email Monitoring        | **LATER**      | ⬜                  |
@@ -247,7 +335,7 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | File | Role |
 | ---- | ---- |
 | **`docs/project_state.md`** | Canonical phase truth — features, deployment, known issues, current phase |
-| **`docs/roadmap.md` (this file)** | V2 phase prioritization and gates for agents; summarizes priorities — not a detailed implementation plan |
+| **`docs/roadmap.md` (this file)** | V2 phase prioritization and gates for agents; **`svscope_simple.md` traceability table** maps scope § → phase |
 | **`PROJECT_STATUS/CURRENT_STATE.md`** | Hot-tier snapshot (~30 lines); pointers only — read first each session |
 | **`docs/aecs-phase1-audit.md`** | AECS conversion audit (Layer 2) — control-system inventory, boundaries, Phase 2 plan; planning only, not live agent guidance |
 | **`docs/archives/stageverify_implementation_plan.md`** | Historical reference only — do not use for active agent guidance |
