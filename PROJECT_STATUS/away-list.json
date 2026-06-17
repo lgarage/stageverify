@@ -113,6 +113,96 @@
                       "capturedDuring":  "Security scan 2026-06-01 — Opus LOW finding",
                       "preApproved":  true,
                       "status":  "done"
+                  },
+                  {
+                      "id":  "away-009",
+                      "title":  "Align blocking-issue pickup with svscope (CF allows pickup with warning)",
+                      "scope":  "Per PROJECT_STATUS/svscope_simple.md §12 and roadmap traceability §12: technician may complete pickup when a blocking issue exists (UI already says so). In functions/src/deliveryReadiness.ts and src/dispatcher/readiness.ts, ensure isPickupEligible / pickup eligibility does NOT treat openBlockingIssueCount as blocking pickup — blocking issues may block readiness promotion only. Keep readiness computeDeliveryReadiness blocking behavior unchanged. Update scripts/verify-pickup-portal.mjs if needed so Scenario B then A passes in one run. Do NOT weaken Firestore rules. Run npm run test:pickup-authority and npm run verify:pickup after build.",
+                      "files":  [
+                                    "functions/src/deliveryReadiness.ts",
+                                    "src/dispatcher/readiness.ts",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "recordPickupEvent succeeds on delivery-3 with openBlockingIssueCount=1 after Scenario B issue; npm run verify:pickup PASS (Scenarios A+B same run); npm run test:pickup-authority PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — away batch after authority deploy; prerequisite for Phase 3 full gate",
+                      "preApproved":  true,
+                      "status":  "pending"
+                  },
+                  {
+                      "id":  "away-010",
+                      "title":  "Phase 3 Slice 3: Copy Pickup Information clipboard",
+                      "scope":  "Extend CopyPickupLinkButton in src/DispatcherDashboardPage.tsx per svscope §8: button label Copy Pickup Information; clipboard text includes Site/shop name, job name, job number, comma-separated pickup location codes from ready deliveries on the job, and the pickup deep link. Reuse existing listDeliveries(jobId) fetch. Match existing navy/button styling. Do NOT add pickup tokens (Slice 5). Playwright: dispatcher auth screenshot showing new button text; clipboard content asserted in script or manual log in acceptance.",
+                      "files":  [
+                                    "src/DispatcherDashboardPage.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Button reads Copy Pickup Information; copied text includes job name, job number, at least one location code when staged, and #/pickup?job= link; npm run build clean; npm run verify:dispatcher-nav PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — away batch Slice 3 default",
+                      "preApproved":  true,
+                      "status":  "pending"
+                  },
+                  {
+                      "id":  "away-011",
+                      "title":  "Phase 3 Slice 3: Pickup Scheduled job flag",
+                      "scope":  "Add optional pickupScheduledAt (ISO string) and pickupScheduledBy (string, optional) on Job in src/dispatcher/models.ts. Dispatcher job drawer or job header: Mark Pickup Scheduled / Clear Pickup Scheduled toggle using authenticated firestoreService update on jobs collection. Show visible Pickup Scheduled badge when set. No BuildOps API integration. Do NOT change delivery status enums. Update docs/roadmap.md Slice 3 row to partial when shipped.",
+                      "files":  [
+                                    "src/dispatcher/models.ts",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "src/DispatcherDashboardPage.tsx"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Dispatcher can set and clear Pickup Scheduled on a job; badge visible when set; field persists on reload; npm run build clean; npm run verify:dispatcher-nav PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — away batch Slice 3",
+                      "preApproved":  true,
+                      "status":  "pending"
+                  },
+                  {
+                      "id":  "away-012",
+                      "title":  "Fix verify:pickup:prod reset to use production base URL",
+                      "scope":  "In package.json verify:pickup:prod script chain, ensure reset-pickup-verify-fixture runs against production when verifying prod: prefix with STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify before reset script, OR add --base-url passthrough to reset-pickup-verify-fixture.mjs matching verify-pickup-portal.mjs pattern. Do not require local npm run dev for prod verify.",
+                      "files":  [
+                                    "package.json",
+                                    "scripts/reset-pickup-verify-fixture.mjs"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "npm run verify:pickup:prod reaches seed step without ERR_CONNECTION_REFUSED on localhost:5173 (with .env.local credentials present).",
+                      "capturedDuring":  "Dan 2026-06-17 — prod verify harness gap",
+                      "preApproved":  true,
+                      "status":  "pending"
+                  },
+                  {
+                      "id":  "away-013",
+                      "title":  "Rename pickup Done button to Order Pickup Complete",
+                      "scope":  "In src/PickupPortalPage.tsx, change visible submit button text from Done — All Picked Up to Order Pickup Complete per svscope §12. Update scripts/verify-pickup-portal.mjs selectors that wait for Done — All Picked Up or All Items Picked Up to match new copy. Keep success screen text unless it already matches.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Button shows Order Pickup Complete; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — away batch scope alignment",
+                      "preApproved":  true,
+                      "status":  "pending"
+                  },
+                  {
+                      "id":  "away-014",
+                      "title":  "Phase 3 Slice 3: ready-only pickup queue filter",
+                      "scope":  "In PickupPortalPage job list / entry path, hide or de-emphasize deliveries not in ready_for_pickup (and not already picked_up/installed) from the primary pickup queue per roadmap Slice 3 and svscope §6. Detail deep-link ?delivery= may still open a specific delivery for dispatcher testing. Do not delete data; filter display only. No new Firestore rules.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Job pickup list shows only pickup-eligible deliveries by default; ready_for_pickup deliveries visible; partial-only without readiness hidden from queue; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — away batch Slice 3",
+                      "preApproved":  true,
+                      "status":  "pending"
                   }
               ]
 }
