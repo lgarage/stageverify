@@ -3,10 +3,12 @@
   "targetName": "stageverify",
   "orchestrationProfile": "composer-default",
   "memory": {
+    "router": "PROJECT_STATUS/MEMORY.md",
     "hot": "PROJECT_STATUS/CURRENT_STATE.md",
     "warm": "PROJECT_STATUS/MODEL_DOSSIER.md",
     "phase": "docs/project_state.md",
-    "roadmap": "docs/roadmap.md"
+    "roadmap": "docs/roadmap.md",
+    "next": "NEXT.md"
   },
   "ship": {
     "deploy": "npm run deploy",

@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-18 (svscope authority chain clarified)
+> **Last updated:** 2026-06-18 (memory Phase 1+2; batch 3 traceability sync)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
@@ -18,8 +18,8 @@
 | **§1** | Dispatcher creates job, PO, delivery, staging; per-vendor/PO/delivery separation | Phase 1–2 | ✅ Built |
 | **§2** | Entry display shows assigned location for arriving vendor | Phase 1 + Phase 7 ESL | ✅ Display built; live E-tag updates Phase 7 (Minew blocked) |
 | **§3** | Delivery QR + shared vendor PIN; scoped to one delivery only | Phase 1–2 + vendor flow 2026-06-11 | ✅ Built |
-| **§3** | Temporary vendor session + configurable expiration + server validation | **Phase 3 Slice 4 — Vendor access hardening** | ⬜ Not started |
-| **§3** | Shop geofence as additional vendor control | **Phase 3 Slice 4 — Vendor access hardening** | ⬜ Not started |
+| **§3** | Temporary vendor session + configurable expiration + server validation | **Phase 3 Slice 4 — Vendor access hardening** | ✅ Shipped (`away-021`…`023`) |
+| **§3** | Shop geofence as additional vendor control | **Phase 3 Slice 4 — Vendor access hardening** | 🔵 Shipped warn-only (`away-024`; enforce optional) |
 | **§4** | Vendor actions: DELIVERED, Need More Space?, Issue (simple hub) | Vendor exception-only 2026-06-11 | ✅ Built |
 | **§4** | DELIVERED ≠ Ready for Pickup; vendor does not count material | Trusted readiness CF `b7b817f` | ✅ Shipped prod |
 | **§5** | Two-source readiness gate (vendor order + physical/staging) | `recalculateDeliveryReadiness` CF `b7b817f` | ✅ Shipped prod |
@@ -30,7 +30,7 @@
 | **§7** | **Pickup Scheduled** state after BuildOps scheduling | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped (dispatcher toggle + badge) |
 | **§8** | **Copy Pickup Information** (site, job, locations, link → clipboard) | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped |
 | **§9** | Technician opens pickup link — no login | Phase 1–3 public pickup portal | ✅ Built (job/delivery hash params) |
-| **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ⬜ Not built (plain job link today) |
+| **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ✅ Shipped (`away-025`…`027`; `away-028` geofence reminder deferred) |
 | **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Shipped (`away-029`…`032`: header, location sections, PO labels, checklist persist) |
 | **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | 🔵 Shipped (`away-018`, `away-033`…`035`: pull states, Running Low, location group) |
 | **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | 🔵 Model + CF release stub shipped (`away-036`/`037`); real Jake Korb IDs blocked |
@@ -174,28 +174,28 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | **Copy Pickup Information** | One-click clipboard: site, job name, job number, pickup locations, pickup link | ✅ Shipped |
 | Ready-only pickup queue | Job appears in technician queue only when business readiness = `ready_for_pickup` | ✅ Shipped |
 
-### Phase 3 Slice 4 — Vendor access hardening (not started)
+### Phase 3 Slice 4 — Vendor access hardening (shipped)
 
-| Deliverable | Detail (`svscope` §3) |
-| ----------- | ---------------------- |
-| Temporary delivery-specific vendor session | Server-validated; configurable expiration |
-| Shop geofence | Additional control near shop; not sole protection |
-| App Check evaluation | Optional hardening for public write surfaces — deferred until explicit approval |
+| Deliverable | Detail (`svscope` §3) | Status |
+| ----------- | ---------------------- | ------ |
+| Temporary delivery-specific vendor session | Server-validated; configurable expiration | ✅ Shipped (`away-021`…`023`) |
+| Shop geofence | Additional control near shop; warn-only default | 🔵 Shipped (`away-024`) |
+| App Check evaluation | Optional hardening for public write surfaces — deferred until explicit approval | ⬜ Deferred |
 
-### Phase 3 Slice 5 — Pickup link security (not started)
+### Phase 3 Slice 5 — Pickup link security (shipped; reminder deferred)
 
-| Deliverable | Detail (`svscope` §9, §12) |
-| ----------- | --------------------------- |
-| Opaque pickup token | Unguessable, revocable, server-validated; replaces predictable job-only links |
-| Token scope | Job pickup page only — no Firestore or dispatcher access |
-| Leave-shop reminder (optional) | Best-effort geofence prompt if technician leaves radius without completing; never auto-mark unchecked lines |
+| Deliverable | Detail (`svscope` §9, §12) | Status |
+| ----------- | --------------------------- | ------ |
+| Opaque pickup token | Unguessable, revocable, server-validated; replaces predictable job-only links | ✅ Shipped (`away-025`…`027`) |
+| Token scope | Job pickup page only — no Firestore or dispatcher access | ✅ Shipped |
+| Leave-shop reminder (optional) | Best-effort geofence prompt if technician leaves radius without completing; never auto-mark unchecked lines | ⬜ Deferred (`away-028` per Dan) |
 
 ### Phase 3 Slice 6 — Staging release & location lifecycle (partial)
 
 | Deliverable | Detail (`svscope` §13) | Status |
 | ----------- | ----------------------- | ------ |
 | Per-location release after pickup | Temporary staging → Available when all assigned material picked up | 🔵 CF clears primary + additional staging IDs on full pickup (`away-019`) |
-| Combination staging groups | Release G20–G22 as a unit; concurrency-safe | ⬜ Not built |
+| Combination staging groups | Release G20–G22 as a unit; concurrency-safe | 🔵 Shipped stub + CF (`away-036`/`037`; real Jake Korb location IDs blocked) |
 | E-tag sync on release | Phase 7 ESL automation; manual/clear path in Phase 3 if ESL blocked | ⬜ Phase 7 |
 | Permanent shop-stock mapping | Locations stay reserved; qty accountability not inventory (BuildOps boundary) | ⬜ Not built |
 
@@ -208,7 +208,7 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Detail visibility      | Once open, **all** material states are visible: staged, received-but-unstaged, shop-stock, missing, backordered, substituted, waived, exceptions — the _"What do I still need to grab?"_ goal applies to this detail view, not queue eligibility | 🔵 Unstaged partial/arrived rows visible de-emphasized (`away-017`); problem qty hidden on public pickup |
 | Material location      | Pickup screen shows **current location** (where material actually is), not only assigned staging zone | ✅ Slice 2 |
 | Shop + vendor mix        | Shop stock items appear alongside vendor-delivered items in pickup verification | 🔵 Pick list + pull-state labels (`away-018`) |
-| Shop-stock pull states | Not Pulled / Pulled / Staged UI for pickup accountability (what to pull, where to find it) — not inventory tracking; not a committed Phase 2 state machine | 🔵 Not Pulled / Pulled shipped (`away-018`); Staged ⬜ |
+| Shop-stock pull states | Not Pulled / Pulled / Staged UI for pickup accountability (what to pull, where to find it) — not inventory tracking; not a committed Phase 2 state machine | 🔵 Shipped (`away-018`, `away-033` Staged) |
 | Unstaged deliveries    | **Display only:** show already-known received-but-unstaged material in the pickup detail view (no new office workflow in Phase 3) | 🔵 Shipped (`away-017`) |
 | Pickup framing         | Goal: _"What do I still need to grab?"_ — not workflow state labels                                                                                                                                                          |
 | Actions                | **Everything Present** → `picked_up` + `PickupEvent`; **Report Issue** → `MaterialIssue`                                                                                                                                   |
@@ -362,7 +362,9 @@ Skip memory churn for routine code edits that do not change project truth (bugfi
 | Truth type | Owner file(s) |
 | ---------- | ------------- |
 | Active phase / gate | `docs/project_state.md` + `docs/roadmap.md` + `CURRENT_STATE.md` snapshot |
-| Hot snapshot / blockers / next steps | `PROJECT_STATUS/CURRENT_STATE.md` |
+| Hot snapshot / blockers / next steps | `PROJECT_STATUS/CURRENT_STATE.md` + `NEXT.md` |
+| Memory router (concern → file) | `PROJECT_STATUS/MEMORY.md` |
+| Away consistency | `npm run away:validate` after memory or away-list edits |
 | Phase gates / priorities | `docs/roadmap.md` |
 | Architecture | `docs/stageverify_v2_architecture.md` |
 | Accepted product decisions (nav/scope) | `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` |

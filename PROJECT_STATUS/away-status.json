@@ -1,7 +1,63 @@
 {
-  "lastRun": "2026-06-17",
-  "batch": "away-015…020 overnight Phase 3 remainder + Slice 6 partial",
+  "lastRun": "2026-06-18",
+  "batch": "away-001..041 archived; active queue away-042+",
   "results": [
+    {
+      "id": "away-001",
+      "title": "Dispatcher dashboard: Refresh Now button + 30s auto-poll",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-002",
+      "title": "Fix QR scan silent wrong-order fallback",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-003",
+      "title": "Fix frozen clock on Entry Display board",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-004",
+      "title": "Clear stagingLocationId on delivery picked_up transition",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-005",
+      "title": "Route-level code-splitting via React.lazy in main.tsx",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-006",
+      "title": "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-007",
+      "title": "Full repo security audit — all src/ files",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-008",
+      "title": "Add maxLength={64} to ReceivingPage manual ID input",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
     {
       "id": "away-009",
       "title": "Align blocking-issue pickup with svscope (CF allows pickup with warning)",
@@ -85,6 +141,20 @@
       "status": "built",
       "commit": "3a5feb9",
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
+    },
+    {
+      "id": "away-021",
+      "title": "Slice 4: vendor delivery session after PIN (CF)",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-022",
+      "title": "Slice 4: enforce vendor session on receive writes",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
     },
     {
       "id": "away-023",
@@ -220,5 +290,5 @@
       "note": "gh-pages deploy + verify:pickup:prod + roadmap/CURRENT_STATE sync."
     }
   ],
-  "summary": "Batch 3: away-021…041 built ✓ | away-028 deferred"
+  "summary": "Batch 3 closed; memory Phase 1+2 shipped; next away-042 Phase 5 email gate"
 }

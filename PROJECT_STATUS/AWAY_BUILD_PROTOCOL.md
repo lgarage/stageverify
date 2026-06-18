@@ -5,10 +5,10 @@
 
 ## Session start (mandatory)
 
-1. Read `PROJECT_STATUS/CURRENT_STATE.md` (blockers + active queue).
-2. Read **`PROJECT_STATUS/svscope_simple.md`** — product authority; every feature and away item must align with scope §; scope wins on conflict.
-3. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
-4. Open `PROJECT_STATUS/away-list.json` — follow `executionProtocol.sequence` in order.
+1. Read `PROJECT_STATUS/MEMORY.md` (router) then `PROJECT_STATUS/CURRENT_STATE.md`.
+2. Read **`PROJECT_STATUS/svscope_simple.md`** — product authority.
+3. `npm run away:next` or `NEXT.md` — active queued item.
+4. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
 
 ## Composer 2.5 = orchestrator (always)
 
@@ -79,10 +79,10 @@ For each id in `executionProtocol.sequence`:
 3. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 4. Run **all** `verifyBeforeNext` commands.
 5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
-6. Set item `status: done` in `away-list.json`.
-7. Append `{id, status: built|blocked, commit, note}` to `away-status.json`.
+6. Set item `status: done` via **`npm run away:ship -- --id <id> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically).
+7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
-9. Session cleanup (stop dev servers, delete verify PNGs, clean git) — then next item.
+9. Session cleanup — then next item.
 
 ## Escalation
 
@@ -100,6 +100,7 @@ See `away-list.json` → `executionProtocol.sequence`. Copy-paste starter: `PROJ
 
 | Topic | File |
 |-------|------|
+| **Memory router** | `PROJECT_STATUS/MEMORY.md` |
 | **Product authority (wins on conflict)** | `PROJECT_STATUS/svscope_simple.md` |
 | Playwright commands | `.cursor/rules/composer-orchestrator.mdc` |
 | Parallel scouts | `.cursor/rules/parallel-agent-strategy.mdc` |

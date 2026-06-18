@@ -4,7 +4,7 @@
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
 > **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` — end-to-end product design; all features and agent work must align with scope § there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
 > **Maintained by:** Composer 2.5 (update after major milestones)
-> **Last reviewed:** 2026-06-11
+> **Last reviewed:** 2026-06-18
 
 ---
 
@@ -76,7 +76,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **M1 vendor revert hydration (shipped 2026-06-08):** `revertDeliveryStatus` vendor paths (early return + post-commit) route through `hydrateAfterVendorWrite` — unauthenticated revert no longer calls auth-only `getDeliveryDetails`. Focused security review: PASS. Local verify: vendor-e2e 10/10, pickup PASS.
 
-Full Phase 3 gate still open (expected-materials UI, shop-stock pull states, readiness queue).
+Full Phase 3 gate still open (PO-grouped checklist polish, permanent shop-stock mapping). **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`).
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
@@ -173,5 +173,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 3 remaining** — shop-stock pull states, expected-materials UI, PO-grouped pickup checklist (see `docs/roadmap.md`). **Slice 3 complete** 2026-06-17. Slice 2 (clear pickup locations) shipped 2026-06-08.
-2. **ESL integration** — Phase 7; blocked on Minew credentials.
+1. **away-042** — Phase 5 offline email parser fixture gate (`npm run test:email-parser`); no live inbox (Phase 6). See `away-list.json`.
+2. **Phase 3 remainder** — permanent shop-stock mapping, full Phase 3 gate (see `docs/roadmap.md`).
+3. **ESL integration** — Phase 7; blocked on Minew credentials.
+4. **Shop map / Jake Korb shelving** — blocks real combination location IDs; not blocking away-042.
