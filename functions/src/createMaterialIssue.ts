@@ -10,6 +10,7 @@ const MATERIAL_ISSUE_TYPES = new Set([
   "wrong_item",
   "damaged",
   "backordered",
+  "running_low",
   "other",
 ]);
 
@@ -38,6 +39,7 @@ type MaterialIssueType =
   | "wrong_item"
   | "damaged"
   | "backordered"
+  | "running_low"
   | "other";
 
 type MaterialIssueStatus = "open" | "assigned";
@@ -50,6 +52,7 @@ interface CreateMaterialIssueRequest {
   reportedBy?: string;
   clientRequestId?: string;
   itemId?: string;
+  shopStockLineKey?: string;
 }
 
 interface DeliveryDoc {
@@ -68,7 +71,7 @@ interface JobDoc {
 }
 
 function isBlockingType(type: MaterialIssueType): boolean {
-  return type !== "other";
+  return type !== "other" && type !== "running_low";
 }
 
 function effectiveOwner(
@@ -146,6 +149,20 @@ export const createMaterialIssue = onCall(
       throw new HttpsError("invalid-argument", "Invalid itemId.");
     }
 
+    const shopStockLineKey =
+      data.shopStockLineKey === undefined || data.shopStockLineKey === ""
+        ? undefined
+        : asNonEmptyString(data.shopStockLineKey, 128);
+    if (data.shopStockLineKey && !shopStockLineKey) {
+      throw new HttpsError("invalid-argument", "Invalid shopStockLineKey.");
+    }
+    if (type === "running_low" && !shopStockLineKey) {
+      throw new HttpsError(
+        "invalid-argument",
+        "shopStockLineKey is required for running_low issues.",
+      );
+    }
+
     const existingByRequest = await getDb()
       .collection("materialIssues")
       .where("deliveryOrderId", "==", deliveryOrderId)
@@ -217,8 +234,9 @@ export const createMaterialIssue = onCall(
     const duplicateOpen = openIssuesSnap.docs.find((docSnap) => {
       const issue = docSnap.data();
       if (issue.type !== type) return false;
+      if (shopStockLineKey) return issue.shopStockLineKey === shopStockLineKey;
       if (itemId) return issue.itemId === itemId;
-      return !issue.itemId;
+      return !issue.itemId && !issue.shopStockLineKey;
     });
 
     if (duplicateOpen) {
@@ -284,6 +302,7 @@ export const createMaterialIssue = onCall(
     if (owner.id) issuePayload.assignedOwnerId = owner.id;
     if (description) issuePayload.description = description;
     if (itemId) issuePayload.itemId = itemId;
+    if (shopStockLineKey) issuePayload.shopStockLineKey = shopStockLineKey;
 
     await getDb().runTransaction(async (tx) => {
       const liveDelivery = await tx.get(deliveryRef);

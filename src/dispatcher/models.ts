@@ -68,6 +68,7 @@ export type MaterialIssueType =
   | "wrong_item"
   | "damaged"
   | "backordered"
+  | "running_low"
   | "other";
 
 export const MATERIAL_ISSUE_TYPE_LABEL: Record<MaterialIssueType, string> = {
@@ -75,12 +76,13 @@ export const MATERIAL_ISSUE_TYPE_LABEL: Record<MaterialIssueType, string> = {
   wrong_item: "Wrong Item",
   damaged: "Damaged",
   backordered: "Backordered",
+  running_low: "Running Low",
   other: "Other",
 };
 
-/** Blocking types disable implicit “everything present”; `other` is informational only. */
+/** Blocking types disable implicit “everything present”; `other` and `running_low` are informational only. */
 export function isBlockingMaterialIssueType(type: MaterialIssueType): boolean {
-  return type !== "other";
+  return type !== "other" && type !== "running_low";
 }
 
 export type MaterialIssueStatus =
@@ -524,6 +526,8 @@ export interface MaterialIssue {
   blocking: boolean;
   clientRequestId: string;
   itemId?: string;
+  /** Shop-stock line key when type is running_low (deliveryId:index). */
+  shopStockLineKey?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -536,6 +540,7 @@ export interface CreateMaterialIssueInput {
   reportedBy: string;
   clientRequestId: string;
   itemId?: string;
+  shopStockLineKey?: string;
 }
 
 export interface RecordPickupEventInput {

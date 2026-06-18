@@ -575,6 +575,9 @@ function JobPickupScreen({
   const [issueSubmitting, setIssueSubmitting] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
+  const [runningLowSubmitting, setRunningLowSubmitting] = useState<Set<string>>(
+    () => new Set(),
+  );
   const submittedRef = useRef(false);
   const checkedRef = useRef(checked);
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -1082,6 +1085,43 @@ function JobPickupScreen({
     reloadDeliveries,
   ]);
 
+  const reportShopStockRunningLow = useCallback(
+    async (deliveryId: string, lineIndex: number, label: string) => {
+      const lineKey = shopStockItemKey(deliveryId, lineIndex);
+      if (runningLowSubmitting.has(lineKey)) return;
+
+      setRunningLowSubmitting((prev) => new Set(prev).add(lineKey));
+      setIssueError(null);
+      try {
+        const result = await reportMaterialIssue({
+          deliveryOrderId: deliveryId,
+          jobId,
+          type: "running_low",
+          description: label.trim() || undefined,
+          reportedBy: "Technician",
+          clientRequestId: crypto.randomUUID(),
+          shopStockLineKey: lineKey,
+        });
+        await reloadDeliveries();
+        setIssueSuccess(
+          result.duplicate
+            ? "Running low already reported for this item."
+            : "Running low reported — restock alert sent to dispatcher.",
+        );
+        window.setTimeout(() => setIssueSuccess(null), 5000);
+      } catch (err) {
+        setIssueError(formatPickupError(err));
+      } finally {
+        setRunningLowSubmitting((prev) => {
+          const next = new Set(prev);
+          next.delete(lineKey);
+          return next;
+        });
+      }
+    },
+    [jobId, reloadDeliveries, runningLowSubmitting],
+  );
+
   const hasBlockingIssues = deliveries.some(
     (d) => (d.delivery.openBlockingIssueCount ?? 0) > 0,
   );
@@ -1543,50 +1583,70 @@ function JobPickupScreen({
                           {shopStockItems.map((label, index) => {
                             const key = shopStockItemKey(deliveryId, index);
                             const stockChecked = checkedShopStockKeys.has(key);
+                            const runningLowBusy = runningLowSubmitting.has(key);
                             return (
-                              <button
+                              <div
                                 key={key}
-                                type="button"
-                                onClick={() => toggleShopStockItem(key)}
-                                className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
+                                className="flex items-stretch gap-2"
                               >
-                                <div className="flex items-center gap-3 w-full">
-                                  <span
-                                    className={`mt-0.5 shrink-0 self-start ${
-                                      stockChecked
-                                        ? "text-accent-green"
-                                        : "text-text-secondary"
-                                    }`}
-                                  >
-                                    <Svg
-                                      d={
+                                <button
+                                  type="button"
+                                  onClick={() => toggleShopStockItem(key)}
+                                  className="flex-1 rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
+                                >
+                                  <div className="flex items-center gap-3 w-full">
+                                    <span
+                                      className={`mt-0.5 shrink-0 self-start ${
                                         stockChecked
-                                          ? icons.checkSquare
-                                          : icons.square
-                                      }
-                                      size={22}
-                                    />
-                                  </span>
-                                  <span
-                                    className={`flex-1 text-sm font-medium ${
-                                      stockChecked
-                                        ? "text-text-secondary line-through"
-                                        : "text-text-primary"
-                                    }`}
-                                  >
-                                    {label}
-                                  </span>
-                                  <span
-                                    className="shrink-0 text-xs font-semibold text-text-secondary"
-                                    data-testid="shop-stock-pull-state"
-                                  >
-                                    {shopStockPullStateLabel(
-                                      stockChecked,
-                                      isChecked || isInstalled,
-                                    )}
-                                  </span>
-                                </div>
-                              </button>
+                                          ? "text-accent-green"
+                                          : "text-text-secondary"
+                                      }`}
+                                    >
+                                      <Svg
+                                        d={
+                                          stockChecked
+                                            ? icons.checkSquare
+                                            : icons.square
+                                        }
+                                        size={22}
+                                      />
+                                    </span>
+                                    <span
+                                      className={`flex-1 text-sm font-medium ${
+                                        stockChecked
+                                          ? "text-text-secondary line-through"
+                                          : "text-text-primary"
+                                      }`}
+                                    >
+                                      {label}
+                                    </span>
+                                    <span
+                                      className="shrink-0 text-xs font-semibold text-text-secondary"
+                                      data-testid="shop-stock-pull-state"
+                                    >
+                                      {shopStockPullStateLabel(
+                                        stockChecked,
+                                        isChecked || isInstalled,
+                                      )}
+                                    </span>
+                                  </div>
+                                </button>
+                                <button
+                                  type="button"
+                                  data-testid="shop-stock-running-low"
+                                  disabled={runningLowBusy}
+                                  onClick={() =>
+                                    void reportShopStockRunningLow(
+                                      deliveryId,
+                                      index,
+                                      label,
+                                    )
+                                  }
+                                  className="shrink-0 rounded-xl border border-border bg-bg-primary px-3 py-2 text-xs font-semibold text-text-primary disabled:opacity-50"
+                                >
+                                  {runningLowBusy ? "…" : "Running Low"}
+                                </button>
+                              </div>
                             );
                           })}
                         </div>

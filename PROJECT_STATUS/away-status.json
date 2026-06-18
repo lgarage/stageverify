@@ -162,7 +162,14 @@
       "status": "built",
       "commit": "e4b48db",
       "note": "shop-stock-pull-state Not Pulled/Pulled/Staged; verify Scenario A staged assert PASS."
+    },
+    {
+      "id": "away-034",
+      "title": "svscope §11: Running Low on shop stock lines",
+      "status": "built",
+      "commit": "pending",
+      "note": "running_low material issue type + shop-stock-running-low button; Sonnet SECURITY: PASS; CF deployed; verify:pickup + verify:material-issue-dashboard PASS."
     }
   ],
-  "summary": "Batch 3: away-021…033 built ✓ | away-034…041 queued"
+  "summary": "Batch 3: away-021…034 built ✓ | away-035…041 queued"
 }

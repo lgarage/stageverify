@@ -11,6 +11,7 @@ const MATERIAL_ISSUE_TYPES = new Set([
     "wrong_item",
     "damaged",
     "backordered",
+    "running_low",
     "other",
 ]);
 /** Statuses where vendor or technician may report material issues. */
@@ -31,7 +32,7 @@ const MIN_SUBMIT_INTERVAL_MS = 5_000;
 const MAX_SUBMITS_PER_DELIVERY_WINDOW = 5;
 const SUBMIT_WINDOW_MS = 60_000;
 function isBlockingType(type) {
-    return type !== "other";
+    return type !== "other" && type !== "running_low";
 }
 function effectiveOwner(job, delivery) {
     if (delivery.materialOwnerId) {
@@ -89,6 +90,15 @@ exports.createMaterialIssue = (0, https_1.onCall)({
     if (data.itemId && !itemId) {
         throw new https_1.HttpsError("invalid-argument", "Invalid itemId.");
     }
+    const shopStockLineKey = data.shopStockLineKey === undefined || data.shopStockLineKey === ""
+        ? undefined
+        : asNonEmptyString(data.shopStockLineKey, 128);
+    if (data.shopStockLineKey && !shopStockLineKey) {
+        throw new https_1.HttpsError("invalid-argument", "Invalid shopStockLineKey.");
+    }
+    if (type === "running_low" && !shopStockLineKey) {
+        throw new https_1.HttpsError("invalid-argument", "shopStockLineKey is required for running_low issues.");
+    }
     const existingByRequest = await getDb()
         .collection("materialIssues")
         .where("deliveryOrderId", "==", deliveryOrderId)
@@ -141,9 +151,11 @@ exports.createMaterialIssue = (0, https_1.onCall)({
         const issue = docSnap.data();
         if (issue.type !== type)
             return false;
+        if (shopStockLineKey)
+            return issue.shopStockLineKey === shopStockLineKey;
         if (itemId)
             return issue.itemId === itemId;
-        return !issue.itemId;
+        return !issue.itemId && !issue.shopStockLineKey;
     });
     if (duplicateOpen) {
         const issue = duplicateOpen.data();
@@ -199,6 +211,8 @@ exports.createMaterialIssue = (0, https_1.onCall)({
         issuePayload.description = description;
     if (itemId)
         issuePayload.itemId = itemId;
+    if (shopStockLineKey)
+        issuePayload.shopStockLineKey = shopStockLineKey;
     await getDb().runTransaction(async (tx) => {
         const liveDelivery = await tx.get(deliveryRef);
         if (!liveDelivery.exists) {

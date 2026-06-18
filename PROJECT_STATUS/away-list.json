@@ -715,7 +715,7 @@
                                                "npm run verify:material-issue-dashboard"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate if CF/rules change; deploy CF/rules as needed",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-035",

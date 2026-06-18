@@ -206,18 +206,44 @@ async function runScenarioA(page) {
 
   const shopCountAfterItems = await page.getByTestId("shop-stock-pull-state").count();
   if (shopCountAfterItems > 0) {
+    const runningLowBtn = page.getByTestId("shop-stock-running-low").first();
+    if (await runningLowBtn.isVisible().catch(() => false)) {
+      await runningLowBtn.click();
+      await page.waitForSelector(
+        "text=/Running low reported|already reported for this item/i",
+        { timeout: 20_000 },
+      );
+      console.log("Running Low PASS: restock alert reported from shop stock row.");
+    } else {
+      console.log("SKIP Running Low: no shop-stock-running-low button on fixture.");
+    }
+
+    await page.waitForTimeout(400);
     const cardBtn = page
       .getByTestId("pickup-at-primary")
       .first()
       .locator("xpath=ancestor::button[1]");
+    await cardBtn.waitFor({ state: "visible", timeout: 10_000 });
+    if (await cardBtn.isDisabled().catch(() => false)) {
+      throw new Error(
+        "Shop stock FAIL: delivery card button still disabled after shop stock pulls.",
+      );
+    }
     await cardBtn.click();
-    await page.waitForTimeout(600);
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector('[data-testid="shop-stock-pull-state"]');
+        return el?.textContent?.trim() === "Staged";
+      },
+      { timeout: 20_000 },
+    );
     const staged = (
       (await page.getByTestId("shop-stock-pull-state").first().textContent()) ?? ""
     ).trim();
     if (staged !== "Staged") {
+      const cardErr = await page.locator(".text-accent-red").first().textContent().catch(() => "");
       throw new Error(
-        `Shop stock FAIL: expected Staged after delivery card check-off, got "${staged}".`,
+        `Shop stock FAIL: expected Staged after delivery card check-off, got "${staged}".${cardErr ? ` Card error: ${cardErr}` : ""}`,
       );
     }
     console.log("Shop stock PASS: Pulled → Staged after delivery card check-off.");
