@@ -97,6 +97,7 @@ export async function applyFullLocationDisplay(deliveryId) {
     additionalStagingLocationIds: [VERIFY_STAGING_G4, VERIFY_STAGING_G5],
     currentLocationNote: "Receiving dock",
     shopStockLocationNote: "Main stock room",
+    shopStockPickListItems: ["Verify shop stock item A"],
     updatedAt: now,
   });
 }
