@@ -43,7 +43,14 @@
       "status": "built",
       "commit": "faaed82",
       "note": "Queue shows ready_for_pickup/picked_up/installed only; ?delivery= deep-link include; verify:pickup + verify:pickup:prod PASS."
+    },
+    {
+      "id": "away-015",
+      "title": "Ship Slice 3 close-out: job readiness panel",
+      "status": "built",
+      "commit": "314d4d3",
+      "note": "Slice 3 readiness panel already in 314d4d3; deploy + verify:dispatcher-nav + verify:pickup PASS; gh-pages deployed."
     }
   ],
-  "summary": "Batch 1: 6 built ✓  0 blocked ✗ | Batch 2: away-015…020 queued"
+  "summary": "Batch 1: 6 built ✓  0 blocked ✗ | Batch 2: away-015 built ✓ | away-016…020 in progress"
 }
