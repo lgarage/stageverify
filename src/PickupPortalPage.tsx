@@ -150,6 +150,39 @@ function publicPickupStatusLabel(status: DeliveryStatus): string | null {
   return null;
 }
 
+function formatPickupItemLine(
+  poNumber: string | undefined,
+  description: string,
+  qty: number,
+): string {
+  const po = poNumber?.trim();
+  const poPrefix = po ? `${po} · ` : "";
+  return `${poPrefix}${description} · Qty ${qty}`;
+}
+
+/** Show vendor on cards only when the same SKU appears on multiple deliveries. */
+function deliveryIdsWithDuplicateSkus(
+  deliveries: DeliveryDetails[],
+): Set<string> {
+  const skuOwners = new Map<string, Set<string>>();
+  for (const d of deliveries) {
+    for (const item of d.items) {
+      const sku = item.sku?.trim();
+      if (!sku) continue;
+      const owners = skuOwners.get(sku) ?? new Set<string>();
+      owners.add(d.delivery.id);
+      skuOwners.set(sku, owners);
+    }
+  }
+  const duplicateDeliveryIds = new Set<string>();
+  for (const owners of skuOwners.values()) {
+    if (owners.size > 1) {
+      for (const id of owners) duplicateDeliveryIds.add(id);
+    }
+  }
+  return duplicateDeliveryIds;
+}
+
 function usefulLocationNote(note: string | undefined): string | null {
   const trimmed = note?.trim();
   return trimmed ? trimmed : null;
@@ -1081,6 +1114,9 @@ function JobPickupScreen({
     );
   }
 
+  const vendorVisibleDeliveryIds = deliveryIdsWithDuplicateSkus(deliveries);
+  const showVendorOnCard = (id: string) => vendorVisibleDeliveryIds.has(id);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {issueModalDelivery && (
@@ -1244,7 +1280,11 @@ function JobPickupScreen({
                           )}
                         </div>
                         <p className="text-text-secondary text-sm">
-                          {d.vendor.name} ·{" "}
+                          {showVendorOnCard(deliveryId)
+                            ? `${d.vendor.name} · `
+                            : d.purchaseOrder?.poNumber
+                              ? `${d.purchaseOrder.poNumber} · `
+                              : ""}
                           {d.items.length === 1
                             ? "1 item"
                             : `${d.items.length} items`}
@@ -1301,7 +1341,9 @@ function JobPickupScreen({
                     <div className="space-y-2 mb-4">
                       {[
                         ["Order #", d.delivery.orderNumber],
-                        ["Vendor", d.vendor.name],
+                        ...(showVendorOnCard(deliveryId)
+                          ? ([["Vendor", d.vendor.name]] as const)
+                          : []),
                         ["PO #", d.purchaseOrder?.poNumber ?? "—"],
                       ].map(([label, value]) => (
                         <div
@@ -1331,10 +1373,12 @@ function JobPickupScreen({
                               className="text-xs text-text-secondary"
                             >
                               <span className="text-text-primary">
-                                {item.description}
+                                {formatPickupItemLine(
+                                  d.purchaseOrder?.poNumber,
+                                  item.description,
+                                  item.qtyOrdered,
+                                )}
                               </span>
-                              {" · Qty "}
-                              {item.qtyOrdered}
                             </li>
                           ))}
                         </ul>
@@ -1357,6 +1401,8 @@ function JobPickupScreen({
                             <button
                               key={item.id}
                               type="button"
+                              data-testid="pickup-item-row"
+                              data-po-number={d.purchaseOrder?.poNumber ?? ""}
                               onClick={() => toggleCheckedItem(item.id)}
                               className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
                             >
@@ -1385,18 +1431,23 @@ function JobPickupScreen({
                                         : "text-text-primary"
                                     }`}
                                   >
-                                    {item.description}
+                                    {formatPickupItemLine(
+                                      d.purchaseOrder?.poNumber,
+                                      item.description,
+                                      item.qtyOrdered,
+                                    )}
                                   </span>
-                                  <span
-                                    className={`mt-1 block text-xs ${
-                                      itemChecked
-                                        ? "text-text-secondary/70 line-through"
-                                        : "text-text-secondary"
-                                    }`}
-                                  >
-                                    Qty {item.qtyOrdered}
-                                    {item.sku ? ` · SKU ${item.sku}` : ""}
-                                  </span>
+                                  {item.sku ? (
+                                    <span
+                                      className={`mt-1 block text-xs ${
+                                        itemChecked
+                                          ? "text-text-secondary/70 line-through"
+                                          : "text-text-secondary"
+                                      }`}
+                                    >
+                                      SKU {item.sku}
+                                    </span>
+                                  ) : null}
                                 </span>
                               </div>
                             </button>
@@ -1490,7 +1541,12 @@ function JobPickupScreen({
                   >
                     <div className="p-4">
                       <p className="text-text-primary text-sm font-medium">
-                        {d.vendor.name} · {d.delivery.orderNumber}
+                        {showVendorOnCard(deliveryId)
+                          ? `${d.vendor.name} · `
+                          : d.purchaseOrder?.poNumber
+                            ? `${d.purchaseOrder.poNumber} · `
+                            : ""}
+                        {d.delivery.orderNumber}
                       </p>
                       {notReadyLabel && (
                         <p className="mt-2 text-xs font-semibold text-text-secondary">
@@ -1516,10 +1572,12 @@ function JobPickupScreen({
                               className="text-xs text-text-secondary"
                             >
                               <span className="text-text-primary">
-                                {item.description}
+                                {formatPickupItemLine(
+                                  d.purchaseOrder?.poNumber,
+                                  item.description,
+                                  item.qtyOrdered,
+                                )}
                               </span>
-                              {" · Qty "}
-                              {item.qtyOrdered}
                             </li>
                           ))}
                         </ul>

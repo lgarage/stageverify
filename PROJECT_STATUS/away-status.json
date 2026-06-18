@@ -141,7 +141,14 @@
       "status": "built",
       "commit": "02c590c",
       "note": "pickup-location-section by primary staging code; not-ready rows after sections; verify:pickup PASS."
+    },
+    {
+      "id": "away-031",
+      "title": "svscope §10: PO line labels on pickup item rows",
+      "status": "built",
+      "commit": "pending",
+      "note": "PO prefix on pickup-item-row; vendor hidden unless duplicate SKU; verify:pickup PASS."
     }
   ],
-  "summary": "Batch 3: away-021…030 built ✓ | away-031…041 queued"
+  "summary": "Batch 3: away-021…031 built ✓ | away-032…041 queued"
 }

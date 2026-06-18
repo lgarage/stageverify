@@ -414,6 +414,24 @@ async function assertExpectedMaterials(page) {
   console.log("Expected Materials PASS: expected-materials visible on delivery-3.");
 }
 
+async function assertPickupItemPoLabels(page) {
+  const row = page.getByTestId("pickup-item-row").first();
+  await row.waitFor({ state: "visible", timeout: 15_000 });
+  const text = (await row.innerText()) ?? "";
+  if (!/PO-\d+/i.test(text)) {
+    throw new Error(
+      `Pickup item row FAIL: expected PO prefix on item row, got "${text.trim()}".`,
+    );
+  }
+  const cardBody = await page.locator("body").innerText();
+  if (/Ferguson HVAC/i.test(cardBody)) {
+    throw new Error(
+      "Pickup item row FAIL: vendor name Ferguson HVAC should be hidden on delivery-3 card.",
+    );
+  }
+  console.log("Pickup item PO PASS: PO prefix visible on item row; vendor hidden.");
+}
+
 async function assertPublicStatusHidden(page) {
   for (const label of ["Partial", "Complete"]) {
     if (await page.getByText(label, { exact: true }).isVisible().catch(() => false)) {
@@ -507,6 +525,7 @@ async function runDashboardBadgeCheck(browser) {
     await assertPickupJobHeader(page);
     await assertPickupLocationSections(page);
     await assertExpectedMaterials(page);
+    await assertPickupItemPoLabels(page);
     await assertShopStockPullState(page);
     await assertNotReadyRowVisible(page);
     await assertNoProblemQtyDetails(page);
