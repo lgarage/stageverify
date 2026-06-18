@@ -10,6 +10,10 @@
  * Prefers deployed recalculateDeliveryReadiness; falls back to auth write using
  * the same readiness algorithm when the CF is not yet deployed (fixture only).
  * Fallback imports ../src/dispatcher/readiness.ts — run via `npx tsx` (see package.json verify:pickup).
+ *
+ * Slice 6 combination group (optional — real Jake Korb shop-map IDs TBD; do not seed in verify fixture):
+ *   combinationStagingGroupId: "example-combo-g15-17"
+ *   combinationMemberLocationIds: ["staging-g15", "staging-g16", "staging-g17"]
  */
 
 import { readFileSync, existsSync } from "fs";

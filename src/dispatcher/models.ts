@@ -382,6 +382,12 @@ export interface DeliveryOrder {
   pickedUpStagingLocationIds?: string[];
   /** Technician item checklist — persisted per delivery for reload continuity. */
   pickupCheckedItemIds?: string[];
+  /**
+   * Slice 6 — combination staging group (optional; real shop-map IDs pending Jake Korb decision).
+   * When set, all member locations stay reserved together until full pickup release (CF away-037).
+   */
+  combinationStagingGroupId?: string;
+  combinationMemberLocationIds?: string[];
   /** Human-readable block reasons when not ready_for_pickup. */
   readinessBlockReasons?: string[];
   createdAt: string;

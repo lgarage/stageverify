@@ -3791,6 +3791,47 @@ function StatusActionPanel({
       )}
 
       {/* ── Staging Location Assignment ── */}
+      {(details.delivery.combinationStagingGroupId ||
+        (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0) && (
+        <div
+          data-testid="combination-staging-group-label"
+          style={{
+            marginTop: 16,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #e0e3e8",
+            backgroundColor: "#f9fafb",
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 6px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#9ca3af",
+              textTransform: "uppercase",
+              letterSpacing: "0.10em",
+            }}
+          >
+            Combination Staging Group
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: "#333" }}>
+            {details.delivery.combinationStagingGroupId ?? "—"}
+          </p>
+          {(details.delivery.combinationMemberLocationIds?.length ?? 0) > 0 && (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#6b7280" }}>
+              Members:{" "}
+              {details.delivery.combinationMemberLocationIds
+                ?.map(
+                  (id) =>
+                    stagingLocations.find((loc) => loc.id === id)?.code ?? id,
+                )
+                .join(", ")}
+            </p>
+          )}
+        </div>
+      )}
+
       <div style={{ marginTop: 16 }}>
         <h3
           style={{
