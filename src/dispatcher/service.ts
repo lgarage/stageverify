@@ -96,6 +96,13 @@ export interface DispatcherDataService {
     notes?: string,
     clientOperationId?: string,
     stagingLocationIds?: string[],
+    pickupToken?: string,
+  ): Promise<void>;
+  updatePickupChecklist(
+    deliveryId: string,
+    jobId: string,
+    pickupCheckedItemIds: string[],
+    pickupToken: string,
   ): Promise<void>;
   updateIssueSummary(
     deliveryId: string,

@@ -146,9 +146,16 @@
       "id": "away-031",
       "title": "svscope §10: PO line labels on pickup item rows",
       "status": "built",
-      "commit": "pending",
+      "commit": "d1bb5c7",
       "note": "PO prefix on pickup-item-row; vendor hidden unless duplicate SKU; verify:pickup PASS."
+    },
+    {
+      "id": "away-032",
+      "title": "svscope §10: persist technician item checklist on delivery",
+      "status": "built",
+      "commit": "pending",
+      "note": "pickupCheckedItemIds + updatePickupChecklist CF with pickup token auth; verify + test:pickup-authority PASS."
     }
   ],
-  "summary": "Batch 3: away-021…031 built ✓ | away-032…041 queued"
+  "summary": "Batch 3: away-021…032 built ✓ | away-033…041 queued"
 }

@@ -520,10 +520,12 @@ function ReportIssueModal({
 
 function JobPickupScreen({
   jobId,
+  pickupToken = null,
   highlightDeliveryId = null,
   onStartOver,
 }: {
   jobId: string;
+  pickupToken?: string | null;
   highlightDeliveryId?: string | null;
   onStartOver: () => void;
 }) {
@@ -606,7 +608,15 @@ function JobPickupScreen({
               pickupQueueSortRank(b.delivery.status),
           ),
         );
-        setCheckedItemIds(new Set());
+        setCheckedItemIds(() => {
+          const initial = new Set<string>();
+          for (const d of loaded) {
+            for (const itemId of d.delivery.pickupCheckedItemIds ?? []) {
+              initial.add(itemId);
+            }
+          }
+          return initial;
+        });
         setCheckedShopStockKeys(new Set());
         setChecked(
           new Set(
@@ -669,6 +679,8 @@ function JobPickupScreen({
           `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
+          undefined,
+          pickupToken ?? undefined,
         );
         setChecked((prev) => new Set([...prev, deliveryId]));
         const refreshed = await getDeliveryDetailsPublic(deliveryId);
@@ -691,7 +703,7 @@ function JobPickupScreen({
         });
       }
     },
-    [notes],
+    [notes, pickupToken],
   );
 
   const handleMarkInstalled = useCallback(async (deliveryId: string) => {
@@ -794,6 +806,8 @@ function JobPickupScreen({
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
+          undefined,
+          pickupToken ?? undefined,
         );
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
@@ -804,7 +818,7 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, notes, readyToFinish, submitting]);
+  }, [deliveries, notes, pickupToken, readyToFinish, submitting]);
 
   const handleAutoSubmit = useCallback(async () => {
     if (submittedRef.current || submitting) return;
@@ -847,6 +861,8 @@ function JobPickupScreen({
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
+          undefined,
+          pickupToken ?? undefined,
         );
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
@@ -857,7 +873,7 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, notes, submitting, isDeliveryChecklistComplete]);
+  }, [deliveries, notes, pickupToken, submitting, isDeliveryChecklistComplete]);
 
   useEffect(() => {
     if (
@@ -921,14 +937,63 @@ function JobPickupScreen({
     setIsScanning(false);
   }, []);
 
-  const toggleCheckedItem = useCallback((itemId: string) => {
-    setCheckedItemIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  }, []);
+  const toggleCheckedItem = useCallback(
+    (deliveryId: string, itemId: string) => {
+      const delivery = deliveries.find((d) => d.delivery.id === deliveryId);
+      if (!delivery) return;
+
+      const previousArray = delivery.delivery.pickupCheckedItemIds ?? [];
+      const previousChecked = new Set(checkedItemIds);
+      const nextChecked = new Set(previousChecked);
+      if (nextChecked.has(itemId)) nextChecked.delete(itemId);
+      else nextChecked.add(itemId);
+      const nextArray = delivery.items
+        .map((item) => item.id)
+        .filter((id) => nextChecked.has(id));
+
+      if (!pickupToken) return;
+
+      setCheckedItemIds(nextChecked);
+      setDeliveries((prev) =>
+        prev.map((d) =>
+          d.delivery.id === deliveryId
+            ? {
+                ...d,
+                delivery: {
+                  ...d.delivery,
+                  pickupCheckedItemIds: nextArray,
+                },
+              }
+            : d,
+        ),
+      );
+
+      void firestoreDataService
+        .updatePickupChecklist(
+          deliveryId,
+          jobId,
+          nextArray,
+          pickupToken,
+        )
+        .catch(() => {
+          setCheckedItemIds(previousChecked);
+          setDeliveries((prev) =>
+            prev.map((d) =>
+              d.delivery.id === deliveryId
+                ? {
+                    ...d,
+                    delivery: {
+                      ...d.delivery,
+                      pickupCheckedItemIds: previousArray,
+                    },
+                  }
+                : d,
+            ),
+          );
+        });
+    },
+    [checkedItemIds, deliveries, jobId, pickupToken],
+  );
 
   const reloadDeliveries = useCallback(async () => {
     const loaded = await loadPickupReadyDeliveriesPublic(jobId, {
@@ -1403,7 +1468,8 @@ function JobPickupScreen({
                               type="button"
                               data-testid="pickup-item-row"
                               data-po-number={d.purchaseOrder?.poNumber ?? ""}
-                              onClick={() => toggleCheckedItem(item.id)}
+                              data-checked={itemChecked ? "true" : "false"}
+                              onClick={() => toggleCheckedItem(deliveryId, item.id)}
                               className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
                             >
                               <div className="flex items-start gap-3">
@@ -1809,6 +1875,7 @@ export default function PickupPortalPage() {
         <JobPickupScreen
           key={`${activeJobId}-${highlightDeliveryId ?? "link"}`}
           jobId={activeJobId}
+          pickupToken={tokenFromUrl}
           highlightDeliveryId={highlightDeliveryId}
           onStartOver={handleStartOver}
         />

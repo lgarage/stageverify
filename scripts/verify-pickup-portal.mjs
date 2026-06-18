@@ -103,9 +103,6 @@ mkdirSync(outDir, { recursive: true });
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 loadEnvLocal();
 
-const pickRowSelector =
-  "button.w-full.rounded-xl.border.border-border.bg-bg-surface.px-3.py-3.text-left";
-
 async function waitForDoneEnabled(page, timeoutMs = 30_000) {
   await page.waitForFunction(
     () => {
@@ -185,12 +182,26 @@ async function runScenarioB(page) {
 
 async function runScenarioA(page) {
   console.log("Scenario A: pickup completion…");
-  const rows = page.locator(pickRowSelector);
-  const rowCount = await rows.count();
-  console.log(`Clicking ${rowCount} pick-list row(s)…`);
-  for (let i = 0; i < rowCount; i++) {
-    await rows.nth(i).click();
-    await page.waitForTimeout(150);
+  const itemRows = page.getByTestId("pickup-item-row");
+  const itemCount = await itemRows.count();
+  console.log(`Checking ${itemCount} pickup item row(s)…`);
+  for (let i = 0; i < itemCount; i++) {
+    const row = itemRows.nth(i);
+    if ((await row.getAttribute("data-checked")) !== "true") {
+      await row.click();
+      await page.waitForTimeout(150);
+    }
+  }
+
+  const shopStates = page.getByTestId("shop-stock-pull-state");
+  const shopCount = await shopStates.count();
+  for (let i = 0; i < shopCount; i++) {
+    const state = shopStates.nth(i);
+    const label = ((await state.textContent()) ?? "").trim();
+    if (label !== "Pulled") {
+      await state.locator("xpath=ancestor::button[1]").click();
+      await page.waitForTimeout(150);
+    }
   }
 
   await waitForDoneEnabled(page);
@@ -432,6 +443,49 @@ async function assertPickupItemPoLabels(page) {
   console.log("Pickup item PO PASS: PO prefix visible on item row; vendor hidden.");
 }
 
+async function assertPickupChecklistPersists(page, appBase, pickupToken) {
+  const row = page.getByTestId("pickup-item-row").first();
+  await row.waitFor({ state: "visible", timeout: 15_000 });
+  const beforeChecked = await row.getAttribute("data-checked");
+  if (beforeChecked === "true") {
+    await row.click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-testid="pickup-item-row"]')
+          ?.getAttribute("data-checked") === "false",
+    );
+  }
+  await row.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="pickup-item-row"]')
+        ?.getAttribute("data-checked") === "true",
+  );
+  await page.waitForTimeout(800);
+  const reloadUrl = `${appBase}/#/pickup?t=${pickupToken}&delivery=${deliveryId}`;
+  await page.goto(reloadUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await waitForPickupCard(page);
+  const reloaded = page.getByTestId("pickup-item-row").first();
+  await reloaded.waitFor({ state: "visible", timeout: 15_000 });
+  const afterChecked = await reloaded.getAttribute("data-checked");
+  if (afterChecked !== "true") {
+    throw new Error(
+      `Pickup checklist FAIL: item checkbox did not persist after reload (data-checked=${afterChecked}).`,
+    );
+  }
+  await reloaded.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="pickup-item-row"]')
+        ?.getAttribute("data-checked") === "false",
+  );
+  await page.waitForTimeout(800);
+  console.log("Pickup checklist PASS: item checkbox persisted after reload.");
+}
+
 async function assertPublicStatusHidden(page) {
   for (const label of ["Partial", "Complete"]) {
     if (await page.getByText(label, { exact: true }).isVisible().catch(() => false)) {
@@ -526,6 +580,7 @@ async function runDashboardBadgeCheck(browser) {
     await assertPickupLocationSections(page);
     await assertExpectedMaterials(page);
     await assertPickupItemPoLabels(page);
+    await assertPickupChecklistPersists(page, appBase, pickupToken);
     await assertShopStockPullState(page);
     await assertNotReadyRowVisible(page);
     await assertNoProblemQtyDetails(page);

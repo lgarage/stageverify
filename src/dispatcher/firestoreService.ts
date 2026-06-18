@@ -969,6 +969,7 @@ export class FirestoreDataService implements DispatcherDataService {
     notes?: string,
     clientOperationId?: string,
     stagingLocationIds?: string[],
+    pickupToken?: string,
   ): Promise<void> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) {
@@ -989,6 +990,26 @@ export class FirestoreDataService implements DispatcherDataService {
       notes,
       clientOperationId: operationId,
       stagingLocationIds,
+      ...(pickupToken ? { pickupToken } : {}),
+    });
+  }
+
+  async updatePickupChecklist(
+    deliveryId: string,
+    jobId: string,
+    pickupCheckedItemIds: string[],
+    pickupToken: string,
+  ): Promise<void> {
+    const token = pickupToken.trim();
+    if (!token) {
+      throw new Error("pickupToken is required for pickup checklist.");
+    }
+    const callable = httpsCallable(functions, "updatePickupChecklist");
+    await callable({
+      deliveryOrderId: deliveryId,
+      jobId,
+      pickupCheckedItemIds,
+      pickupToken: token,
     });
   }
 }

@@ -672,7 +672,7 @@
                                                "npm run verify:pickup"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate; deploy rules/CF as needed",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-033",

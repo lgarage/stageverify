@@ -4,6 +4,7 @@
  */
 
 import { readFileSync } from "fs";
+import { createHash } from "crypto";
 import { resolve } from "path";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { initializeApp } from "firebase/app";
@@ -39,6 +40,24 @@ connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
 const recordPickup = httpsCallable(functions, "recordPickupEvent");
 const recalculateReadiness = httpsCallable(functions, "recalculateDeliveryReadiness");
+
+const TEST_PICKUP_TOKEN = "a".repeat(64);
+const TEST_PICKUP_TOKEN_HASH = createHash("sha256")
+  .update(TEST_PICKUP_TOKEN)
+  .digest("hex");
+
+async function seedPickupToken(db, jobId) {
+  const now = new Date().toISOString();
+  await setDoc(doc(db, "pickupTokens", TEST_PICKUP_TOKEN_HASH), {
+    id: TEST_PICKUP_TOKEN_HASH,
+    jobId,
+    tokenHash: TEST_PICKUP_TOKEN_HASH,
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    revokedAt: null,
+    createdBy: "test",
+    createdAt: now,
+  });
+}
 
 let passed = 0;
 let failed = 0;
@@ -151,6 +170,7 @@ async function pickupPayload(deliveryId, overrides = {}) {
     technicianName: "Technician",
     itemsPickedSummary: "2 items",
     clientOperationId: `op-${crypto.randomUUID()}`,
+    pickupToken: TEST_PICKUP_TOKEN,
     ...overrides,
   };
 }
@@ -160,6 +180,7 @@ console.log("\n=== Pickup transaction authority ===\n");
 try {
   await seed(async (db) => {
     await seedReadyDelivery(db);
+    await seedPickupToken(db, "job-1");
   });
 
   const opId = "op-idempotent-001";

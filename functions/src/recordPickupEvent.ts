@@ -6,6 +6,7 @@ import {
   type DeliveryDoc,
   type ItemDoc,
 } from "./deliveryReadiness";
+import { asPickupToken, verifyPickupTokenForJob } from "./pickupTokenValidation";
 
 function getDb() {
   return admin.firestore();
@@ -17,6 +18,13 @@ const MAX_NOTES_LEN = 500;
 const MAX_CLIENT_OP_ID_LEN = 64;
 const MAX_LOCATION_IDS = 8;
 const MAX_ITEMS_PER_DELIVERY = 500;
+const CLIENT_OP_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+
+function asClientOperationId(value: unknown): string | null {
+  const parsed = asNonEmptyString(value, MAX_CLIENT_OP_ID_LEN);
+  if (!parsed || !CLIENT_OP_ID_PATTERN.test(parsed)) return null;
+  return parsed;
+}
 
 interface RecordPickupRequest {
   deliveryOrderId?: string;
@@ -26,6 +34,7 @@ interface RecordPickupRequest {
   notes?: string;
   clientOperationId?: string;
   stagingLocationIds?: string[];
+  pickupToken?: string;
 }
 
 interface DeliveryRecord extends DeliveryDoc {
@@ -94,9 +103,8 @@ export const recordPickupEvent = onCall(
       data.itemsPickedSummary,
       MAX_SUMMARY_LEN,
     );
-    const clientOperationId = asNonEmptyString(
+    const clientOperationId = asClientOperationId(
       data.clientOperationId,
-      MAX_CLIENT_OP_ID_LEN,
     );
 
     if (
@@ -120,6 +128,18 @@ export const recordPickupEvent = onCall(
       throw new HttpsError("invalid-argument", "Notes are too long.");
     }
 
+    const db = getDb();
+    if (!request.auth) {
+      const pickupToken = asPickupToken(data.pickupToken);
+      if (!pickupToken) {
+        throw new HttpsError(
+          "permission-denied",
+          "Pickup token is required for technician pickup.",
+        );
+      }
+      await verifyPickupTokenForJob(db, pickupToken, jobId);
+    }
+
     const stagingLocationIds =
       data.stagingLocationIds === undefined
         ? null
@@ -128,7 +148,6 @@ export const recordPickupEvent = onCall(
       throw new HttpsError("invalid-argument", "Invalid stagingLocationIds.");
     }
 
-    const db = getDb();
     const idempotencyRef = db.collection("pickupOperations").doc(clientOperationId);
 
     return db.runTransaction(async (tx) => {
@@ -286,6 +305,7 @@ export const recordPickupEvent = onCall(
         deliveryPatch.stagingLocationId = "";
         deliveryPatch.additionalStagingLocationIds = [];
         deliveryPatch.readinessStatus = "picked_up";
+        deliveryPatch.pickupCheckedItemIds = [];
       }
 
       tx.set(db.collection("pickupEvents").doc(pickupEventId), {

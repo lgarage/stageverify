@@ -378,6 +378,8 @@ export interface DeliveryOrder {
   stagingAssignmentComplete?: boolean;
   /** Partial pickup — staging zones already collected. */
   pickedUpStagingLocationIds?: string[];
+  /** Technician item checklist — persisted per delivery for reload continuity. */
+  pickupCheckedItemIds?: string[];
   /** Human-readable block reasons when not ready_for_pickup. */
   readinessBlockReasons?: string[];
   createdAt: string;
