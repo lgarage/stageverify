@@ -1194,6 +1194,31 @@ function JobPickupScreen({
                       ))}
                     </div>
 
+                    {d.items.length > 0 && (
+                      <div
+                        className="mb-4"
+                        data-testid="expected-materials"
+                      >
+                        <p className="mb-2 text-xs font-semibold text-text-primary">
+                          Expected Materials
+                        </p>
+                        <ul className="space-y-1">
+                          {d.items.map((item) => (
+                            <li
+                              key={item.id}
+                              className="text-xs text-text-secondary"
+                            >
+                              <span className="text-text-primary">
+                                {item.description}
+                              </span>
+                              {" · Qty "}
+                              {item.qtyOrdered}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <p className="mb-3 text-xs text-text-secondary">
                       Mark off items as you pick them up — optional
                     </p>

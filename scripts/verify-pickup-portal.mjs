@@ -300,6 +300,18 @@ async function assertNoProblemQtyDetails(page) {
   console.log("Slice 2 PASS: no missing/backorder/damaged qty details on pickup");
 }
 
+async function assertExpectedMaterials(page) {
+  const container = page.getByTestId("expected-materials");
+  await container.waitFor({ state: "visible", timeout: 15_000 });
+  const text = await container.innerText();
+  if (!/\bQty\s+\d+/i.test(text)) {
+    throw new Error(
+      `Expected Materials FAIL: expected qty in expected-materials, got "${text.trim()}".`,
+    );
+  }
+  console.log("Expected Materials PASS: expected-materials visible on delivery-3.");
+}
+
 async function assertPublicStatusHidden(page) {
   for (const label of ["Partial", "Complete"]) {
     if (await page.getByText(label, { exact: true }).isVisible().catch(() => false)) {
@@ -376,6 +388,7 @@ async function runDashboardBadgeCheck(browser) {
   console.log("Slice 2: full location display…");
   try {
     await assertLocationDisplayFull(page);
+    await assertExpectedMaterials(page);
     await assertNoProblemQtyDetails(page);
     await assertPublicStatusHidden(page);
   } catch (err) {
