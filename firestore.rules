@@ -7,8 +7,9 @@ rules_version = '2';
 // PUBLIC READ (no auth): deliveries, items, stagingLocations, appSettings
 //   - Mobile scan/check-in flows read delivery data, line items, zone codes,
 //     and global timing config without signing in.
-//   - Vendor PINs live in `vendors` (auth-only read). Public flows use denormalized
-//     `vendorName` on deliveries; PIN verification is via `verifyVendorPin` Cloud Function.
+//   - Vendor PIN sessions: vendorSessions collection (CF Admin SDK only).
+//     Vendor check-in writes (markVendorDelivered, submitCheckin) require active
+//     delivery-scoped session validated via validateVendorSession CF before client write.
 //
 // AUTH REQUIRED READ: jobs, purchaseOrders, statusHistory, pickupEvents
 //   - Dispatcher/settings UI and audit views require Firebase Auth.

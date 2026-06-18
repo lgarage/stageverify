@@ -23,6 +23,7 @@ import {
 import { resolveZoneScanDisposition } from "./scanRouting";
 import { VendorPinGate } from "./VendorPinGate";
 import { isPinSessionValid } from "./vendorPinSession";
+import { isVendorSessionError } from "./vendorSessionErrors";
 import { useVendorPinActivity } from "./useVendorPinActivity";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
@@ -504,7 +505,12 @@ export function ReceivingPage() {
       );
       if (updated) setDeliveryDetails(updated);
       setStep("done");
-    } catch {
+    } catch (err) {
+      if (isVendorSessionError(err)) {
+        setError(err.message);
+        handlePinSessionExpired();
+        return;
+      }
       setError("Failed to confirm delivery");
     } finally {
       setLoading(false);
@@ -550,6 +556,11 @@ export function ReceivingPage() {
       if (updated) setDeliveryDetails(updated);
       setStep("done");
     } catch (err) {
+      if (isVendorSessionError(err)) {
+        setError(err.message);
+        handlePinSessionExpired();
+        return;
+      }
       if (isStagingLocationOccupiedError(err)) {
         showToast(err.message);
         void mapOccupancyByLocationId(deliveryDetails.delivery.id).then(

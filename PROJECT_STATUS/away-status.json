@@ -86,6 +86,13 @@
       "commit": "3a5feb9",
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
     }
+    {
+      "id": "away-021",
+      "title": "Slice 4: vendor delivery session after PIN (CF)",
+      "status": "built",
+      "commit": "ab1e53c",
+      "note": "vendorSessions CF doc + client token storage; Sonnet SECURITY: PASS; CF+rules deployed; verify:vendor-delivered PASS."
+    }
   ],
-  "summary": "Batch 2: away-015…020 all built ✓  0 blocked ✗ | Batch 3: away-021…041 queued (svscope Slice 4–6 + §10–§13 + Phase 4 entry)"
+  "summary": "Batch 3: away-021 built ✓ | away-022…041 queued"
 }

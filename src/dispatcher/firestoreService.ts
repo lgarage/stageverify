@@ -17,6 +17,12 @@ import { restGetDelivery, restGetItemsForDelivery } from "../firestoreRest";
 import { withTimeout } from "../withTimeout";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
+import { getVendorSessionToken } from "../vendorPinSession";
+import { validateVendorSessionClient } from "../validateVendorSessionClient";
+import {
+  VendorSessionError,
+  vendorSessionErrorMessage,
+} from "../vendorSessionErrors";
 import type {
   DeliveryDetails,
   DeliveryListRow,
@@ -242,6 +248,18 @@ async function invokeRecalculateDeliveryReadiness(
 ): Promise<void> {
   const callable = httpsCallable(functions, "recalculateDeliveryReadiness");
   await callable({ deliveryOrderId: deliveryId });
+}
+
+async function requireActiveVendorSession(deliveryId: string): Promise<void> {
+  const sessionToken = getVendorSessionToken(deliveryId);
+  if (!sessionToken) {
+    throw new VendorSessionError("Session expired. Enter your PIN again.");
+  }
+  try {
+    await validateVendorSessionClient({ sessionToken, deliveryId });
+  } catch (err) {
+    throw new VendorSessionError(vendorSessionErrorMessage(err));
+  }
 }
 
 export class FirestoreDataService implements DispatcherDataService {
@@ -696,6 +714,8 @@ export class FirestoreDataService implements DispatcherDataService {
       qtyDamaged: number;
     }>,
   ): Promise<DeliveryDetails | null> {
+    await requireActiveVendorSession(deliveryId);
+
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
@@ -758,6 +778,8 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     actorName = "Vendor Driver",
   ): Promise<DeliveryDetails | null> {
+    await requireActiveVendorSession(deliveryId);
+
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;

@@ -5,6 +5,7 @@ import { createMaterialIssue } from "./createMaterialIssue";
 import { verifyVendorPin } from "./verifyVendorPin";
 import { recordPickupEvent } from "./recordPickupEvent";
 import { recalculateDeliveryReadiness } from "./recalculateDeliveryReadiness";
+import { validateVendorSession } from "./validateVendorSession";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -121,6 +122,7 @@ export const autoSubmitDeliveries = onSchedule(
 export {
   createMaterialIssue,
   verifyVendorPin,
+  validateVendorSession,
   recordPickupEvent,
   recalculateDeliveryReadiness,
 };
