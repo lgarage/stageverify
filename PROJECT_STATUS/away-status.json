@@ -153,9 +153,16 @@
       "id": "away-032",
       "title": "svscope §10: persist technician item checklist on delivery",
       "status": "built",
-      "commit": "pending",
+      "commit": "339b495",
       "note": "pickupCheckedItemIds + updatePickupChecklist CF with pickup token auth; verify + test:pickup-authority PASS."
+    },
+    {
+      "id": "away-033",
+      "title": "svscope §11: shop stock Staged pull-state label",
+      "status": "built",
+      "commit": "pending",
+      "note": "shop-stock-pull-state Not Pulled/Pulled/Staged; verify Scenario A staged assert PASS."
     }
   ],
-  "summary": "Batch 3: away-021…032 built ✓ | away-033…041 queued"
+  "summary": "Batch 3: away-021…033 built ✓ | away-034…041 queued"
 }

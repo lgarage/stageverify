@@ -92,6 +92,15 @@ function isDeliveryAlreadyPickedUp(delivery: DeliveryDetails): boolean {
   return status === "picked_up" || status === "installed";
 }
 
+function shopStockPullStateLabel(
+  stockChecked: boolean,
+  deliveryPickedUp: boolean,
+): string {
+  if (deliveryPickedUp) return "Staged";
+  if (stockChecked) return "Pulled";
+  return "Not Pulled";
+}
+
 function formatCountdown(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -1571,7 +1580,10 @@ function JobPickupScreen({
                                     className="shrink-0 text-xs font-semibold text-text-secondary"
                                     data-testid="shop-stock-pull-state"
                                   >
-                                    {stockChecked ? "Pulled" : "Not Pulled"}
+                                    {shopStockPullStateLabel(
+                                      stockChecked,
+                                      isChecked || isInstalled,
+                                    )}
                                   </span>
                                 </div>
                               </button>

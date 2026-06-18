@@ -204,6 +204,25 @@ async function runScenarioA(page) {
     }
   }
 
+  const shopCountAfterItems = await page.getByTestId("shop-stock-pull-state").count();
+  if (shopCountAfterItems > 0) {
+    const cardBtn = page
+      .getByTestId("pickup-at-primary")
+      .first()
+      .locator("xpath=ancestor::button[1]");
+    await cardBtn.click();
+    await page.waitForTimeout(600);
+    const staged = (
+      (await page.getByTestId("shop-stock-pull-state").first().textContent()) ?? ""
+    ).trim();
+    if (staged !== "Staged") {
+      throw new Error(
+        `Shop stock FAIL: expected Staged after delivery card check-off, got "${staged}".`,
+      );
+    }
+    console.log("Shop stock PASS: Pulled → Staged after delivery card check-off.");
+  }
+
   await waitForDoneEnabled(page);
   await page.getByRole("button", { name: /Order Pickup Complete/ }).click();
 
