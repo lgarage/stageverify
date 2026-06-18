@@ -348,7 +348,7 @@
                                                "npm run build",
                                                "npm run verify:pickup"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-019",
@@ -370,7 +370,7 @@
                                                "npm run verify:pickup"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate on recordPickupEvent.ts staging clear; then firebase deploy --only functions --project stageverify-db; re-run verify:pickup",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-020",
@@ -393,7 +393,7 @@
                                                "npm run verify:dispatcher-nav",
                                                "npm run verify:pickup:prod"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   }
               ]
 }

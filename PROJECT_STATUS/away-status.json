@@ -1,6 +1,6 @@
 {
   "lastRun": "2026-06-17",
-  "batch": "away-015…020 queued (overnight Phase 3 remainder + Slice 6 partial)",
+  "batch": "away-015…020 overnight Phase 3 remainder + Slice 6 partial",
   "results": [
     {
       "id": "away-009",
@@ -62,9 +62,30 @@
       "id": "away-017",
       "title": "Phase 3 remainder: unstaged deliveries visible (detail only)",
       "status": "built",
-      "commit": "pending",
+      "commit": "5a3118f",
       "note": "partial/arrived de-emphasized with pickup-not-ready-row; ready queue checkoff unchanged; verify:pickup PASS."
+    },
+    {
+      "id": "away-018",
+      "title": "Phase 3 remainder: shop stock Not Pulled / Pulled labels",
+      "status": "built",
+      "commit": "95fff8a",
+      "note": "shop-stock-pull-state Not Pulled/Pulled; verify harness tap assertion; verify:pickup PASS."
+    },
+    {
+      "id": "away-019",
+      "title": "Slice 6: clear staging assignment on full CF pickup",
+      "status": "built",
+      "commit": "8989cdb",
+      "note": "additionalStagingLocationIds cleared on fullyPicked; Sonnet SECURITY: PASS; CF deployed; test:pickup-authority + verify:pickup PASS."
+    },
+    {
+      "id": "away-020",
+      "title": "Overnight batch close: deploy UI + prod verify gate",
+      "status": "built",
+      "commit": "pending",
+      "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
     }
   ],
-  "summary": "Batch 2: away-015…017 built ✓ | away-018…020 in progress"
+  "summary": "Batch 2: away-015…020 all built ✓  0 blocked ✗"
 }

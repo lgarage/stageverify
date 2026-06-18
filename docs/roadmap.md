@@ -31,16 +31,16 @@
 | **§8** | **Copy Pickup Information** (site, job, locations, link → clipboard) | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped |
 | **§9** | Technician opens pickup link — no login | Phase 1–3 public pickup portal | ✅ Built (job/delivery hash params) |
 | **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ⬜ Not built (plain job link today) |
-| **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Slice 2 location labels only; PO-grouped checklist ⬜ |
+| **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Expected Materials read-only list + location labels shipped (`away-016`); PO-grouped checklist ⬜ |
 | **§10** | Per-line pickup persistence; partial qty pickup | **Phase 3 remainder** + transactional CF | 🔵 `recordPickupEvent` shipped; per-line/qty partial ⬜ |
-| **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | ⬜ Display label only (Slice 2); structured pull list ⬜ |
+| **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | 🔵 Pick list checkboxes + Not Pulled/Pulled labels shipped (`away-018`); structured pull list ⬜ |
 | **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | ⬜ Blocked on physical shop map / Jake Korb |
 | **§12** | **Order Pickup Complete** submit; server-owned transactional pickup | `recordPickupEvent` CF `b7b817f` | ✅ Shipped (UI says “Done — All Picked Up”) |
 | **§12** | Idempotent / concurrent-safe pickup | `recordPickupEvent` + `pickupOperations` `b7b817f` | ✅ Shipped prod |
 | **§12** | Blocking issue vs pickup behavior (UI says can complete; CF may block) | **Phase 3 bugfix / alignment** | ✅ Aligned (`away-009`) |
 | **§12** | Leave-shop geofence reminder (best-effort; not auto-complete) | **Phase 3 Slice 5 — Pickup link security** (optional) | ⬜ Not built |
 | **§13** | Dispatcher sees pickup update, qty remaining, pickup events | Phase 3 Slice 1 + drawer | 🔵 Partial |
-| **§13** | Release temporary staging → Available + E-tag clear | **Phase 3 Slice 6 — Staging release** | 🔵 Partial (`picked_up` clears staging); combination groups + ESL Phase 7 |
+| **§13** | Release temporary staging → Available + E-tag clear | **Phase 3 Slice 6 — Staging release** | 🔵 Partial — CF clears `stagingLocationId` + `additionalStagingLocationIds` on full pickup (`away-019`); combination groups + ESL Phase 7 |
 | **§13** | Permanent shop-stock locations stay reserved; qty tracking not inventory | Phase 2 stubs + Phase 3 remainder | ⬜ Not built |
 | **§14** | End-to-end flow (27 steps) | Cross-phase integration test | ⬜ Full flow not gate-passed |
 | — | **Firebase App Check** on public writes | **Cross-cutting security (LATER)** | ⬜ Explicitly deferred |
@@ -191,26 +191,26 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Token scope | Job pickup page only — no Firestore or dispatcher access |
 | Leave-shop reminder (optional) | Best-effort geofence prompt if technician leaves radius without completing; never auto-mark unchecked lines |
 
-### Phase 3 Slice 6 — Staging release & location lifecycle (not started)
+### Phase 3 Slice 6 — Staging release & location lifecycle (partial)
 
-| Deliverable | Detail (`svscope` §13) |
-| ----------- | ----------------------- |
-| Per-location release after pickup | Temporary staging → Available when all assigned material picked up |
-| Combination staging groups | Release G20–G22 as a unit; concurrency-safe |
-| E-tag sync on release | Phase 7 ESL automation; manual/clear path in Phase 3 if ESL blocked |
-| Permanent shop-stock mapping | Locations stay reserved; qty accountability not inventory (BuildOps boundary) |
+| Deliverable | Detail (`svscope` §13) | Status |
+| ----------- | ----------------------- | ------ |
+| Per-location release after pickup | Temporary staging → Available when all assigned material picked up | 🔵 CF clears primary + additional staging IDs on full pickup (`away-019`) |
+| Combination staging groups | Release G20–G22 as a unit; concurrency-safe | ⬜ Not built |
+| E-tag sync on release | Phase 7 ESL automation; manual/clear path in Phase 3 if ESL blocked | ⬜ Phase 7 |
+| Permanent shop-stock mapping | Locations stay reserved; qty accountability not inventory (BuildOps boundary) | ⬜ Not built |
 
 ### Phase 3 — Technician Pickup Workflow (full gate)
 
 | Deliverable            | Detail                                                                                                                                                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pickup UI              | Customer, address, job #, PO #, location, **Expected Materials**, shop stock                                                                                                                                                 |
-| Queue eligibility      | Job appears in pickup queue when the overall package is **`ready_for_pickup`** (business readiness) — distinct from detail visibility                                                                                         |
-| Detail visibility      | Once open, **all** material states are visible: staged, received-but-unstaged, shop-stock, missing, backordered, substituted, waived, exceptions — the _"What do I still need to grab?"_ goal applies to this detail view, not queue eligibility |
-| Material location      | Pickup screen shows **current location** (where material actually is), not only assigned staging zone                                                                                                                      |
-| Shop + vendor mix        | Shop stock items appear alongside vendor-delivered items in pickup verification                                                                                                                                              |
-| Shop-stock pull states | Not Pulled / Pulled / Staged UI for pickup accountability (what to pull, where to find it) — not inventory tracking; not a committed Phase 2 state machine                                                                     |
-| Unstaged deliveries    | **Display only:** show already-known received-but-unstaged material in the pickup detail view (no new office workflow in Phase 3)                                                                                            |
+| Pickup UI              | Customer, address, job #, PO #, location, **Expected Materials**, shop stock | 🔵 Expected Materials + shop stock labels shipped (`away-016`/`018`) |
+| Queue eligibility      | Job appears in pickup queue when the overall package is **`ready_for_pickup`** (business readiness) — distinct from detail visibility | ✅ Ready-only queue (`away-014`) |
+| Detail visibility      | Once open, **all** material states are visible: staged, received-but-unstaged, shop-stock, missing, backordered, substituted, waived, exceptions — the _"What do I still need to grab?"_ goal applies to this detail view, not queue eligibility | 🔵 Unstaged partial/arrived rows visible de-emphasized (`away-017`); problem qty hidden on public pickup |
+| Material location      | Pickup screen shows **current location** (where material actually is), not only assigned staging zone | ✅ Slice 2 |
+| Shop + vendor mix        | Shop stock items appear alongside vendor-delivered items in pickup verification | 🔵 Pick list + pull-state labels (`away-018`) |
+| Shop-stock pull states | Not Pulled / Pulled / Staged UI for pickup accountability (what to pull, where to find it) — not inventory tracking; not a committed Phase 2 state machine | 🔵 Not Pulled / Pulled shipped (`away-018`); Staged ⬜ |
+| Unstaged deliveries    | **Display only:** show already-known received-but-unstaged material in the pickup detail view (no new office workflow in Phase 3) | 🔵 Shipped (`away-017`) |
 | Pickup framing         | Goal: _"What do I still need to grab?"_ — not workflow state labels                                                                                                                                                          |
 | Actions                | **Everything Present** → `picked_up` + `PickupEvent`; **Report Issue** → `MaterialIssue`                                                                                                                                   |
 | Assignment             | Material Owner attached on issue create                                                                                                                                                                                      |
@@ -219,7 +219,7 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Submit label           | Align UI copy with scope: **Order Pickup Complete** (or documented equivalent)                                                                                                                                              |
 | Blocking-issue pickup  | Resolve UI “can still complete pickup” vs CF `unresolved_blocking_issues` block; update verify harness B→A order if needed                                                                                                    |
 
-**Gate:** Successful pickup + issue creation without manual DB edits. **Slices 1–2 + authority package shipped; full gate requires Slices 3–6 and remainder rows above.**
+**Gate:** Successful pickup + issue creation without manual DB edits. **Slices 1–3 + remainder batch (`away-015`…`019`) shipped; full gate requires Slices 4–6 completion.**
 
 ### Phase 4 — Material Issue Resolution
 
