@@ -132,6 +132,16 @@ function resolveStagingLocations(
   });
 }
 
+function primaryStagingCode(
+  delivery: DeliveryDetails,
+  allLocations: StagingLocation[],
+): string {
+  const stagingLocations = resolveStagingLocations(delivery, allLocations);
+  const primary =
+    stagingLocations.find((loc) => loc.isPrimary) ?? stagingLocations[0];
+  return primary?.code ?? "—";
+}
+
 /** Public pickup status — hide internal workflow labels (Partial, Complete, etc.). */
 function publicPickupStatusLabel(status: DeliveryStatus): string | null {
   if (status === "ready_for_pickup") return "Ready for pickup";
@@ -1042,6 +1052,35 @@ function JobPickupScreen({
     ? deliveries.find((d) => d.delivery.id === issueModalDeliveryId)
     : null;
 
+  const readyDeliveries = deliveries.filter((d) =>
+    isPickupReady(d.delivery.status),
+  );
+  const notReadyDeliveries = deliveries.filter(
+    (d) => !isPickupReady(d.delivery.status),
+  );
+
+  const stagingSectionMap = new Map<string, DeliveryDetails[]>();
+  for (const d of readyDeliveries) {
+    const code = primaryStagingCode(d, allStagingLocations);
+    const list = stagingSectionMap.get(code) ?? [];
+    list.push(d);
+    stagingSectionMap.set(code, list);
+  }
+
+  const stagingSections = [...stagingSectionMap.entries()].sort(([a], [b]) => {
+    if (a === "—") return 1;
+    if (b === "—") return -1;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
+
+  for (const [, sectionDeliveries] of stagingSections) {
+    sectionDeliveries.sort(
+      (a, b) =>
+        pickupQueueSortRank(a.delivery.status) -
+        pickupQueueSortRank(b.delivery.status),
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {issueModalDelivery && (
@@ -1110,8 +1149,20 @@ function JobPickupScreen({
           </div>
         )}
 
-        <div className="space-y-3 mb-4">
-          {deliveries.map((d) => {
+        <div className="space-y-6 mb-4">
+          {stagingSections.map(([code, sectionDeliveries]) => (
+            <section
+              key={code}
+              data-testid="pickup-location-section"
+              data-staging-code={code}
+              className="space-y-3"
+            >
+              <p className="text-sm font-semibold text-text-primary">
+                <span className="text-text-secondary">Pickup at </span>
+                <span className="text-lg font-bold text-accent">{code}</span>
+              </p>
+              <div className="space-y-3">
+                {sectionDeliveries.map((d) => {
             const deliveryId = d.delivery.id;
             const deliveryStatus = d.delivery.status;
             const isInstalled = deliveryStatus === "installed";
@@ -1133,56 +1184,6 @@ function JobPickupScreen({
               isPickupReady(deliveryStatus) &&
               !isChecked &&
               shopStockComplete;
-            const isQueueReady = isPickupReady(deliveryStatus);
-            const notReadyLabel = publicNotReadyDetailLabel(deliveryStatus);
-
-            if (!isQueueReady) {
-              return (
-                <div
-                  key={deliveryId}
-                  data-testid="pickup-not-ready-row"
-                  className="w-full rounded-2xl border border-dashed border-border/80 bg-bg-surface/70 opacity-75 overflow-hidden"
-                >
-                  <div className="p-4">
-                    <p className="text-text-primary text-sm font-medium">
-                      {d.vendor.name} · {d.delivery.orderNumber}
-                    </p>
-                    {notReadyLabel && (
-                      <p className="mt-2 text-xs font-semibold text-text-secondary">
-                        {notReadyLabel}
-                      </p>
-                    )}
-                    <p className="mt-2 text-xs text-text-secondary">
-                      Not available for pickup yet — shown for reference only.
-                    </p>
-                  </div>
-                  {d.items.length > 0 && (
-                    <div
-                      className="border-t border-border/60 px-4 py-4"
-                      data-testid="expected-materials"
-                    >
-                      <p className="mb-2 text-xs font-semibold text-text-primary">
-                        Expected Materials
-                      </p>
-                      <ul className="space-y-1">
-                        {d.items.map((item) => (
-                          <li
-                            key={item.id}
-                            className="text-xs text-text-secondary"
-                          >
-                            <span className="text-text-primary">
-                              {item.description}
-                            </span>
-                            {" · Qty "}
-                            {item.qtyOrdered}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            }
 
             return (
               <div
@@ -1470,7 +1471,65 @@ function JobPickupScreen({
                 </div>
               </div>
             );
-          })}
+                })}
+              </div>
+            </section>
+          ))}
+          {notReadyDeliveries.length > 0 && (
+            <div className="space-y-3 pt-2 border-t border-border/60">
+              {notReadyDeliveries.map((d) => {
+                const deliveryId = d.delivery.id;
+                const deliveryStatus = d.delivery.status;
+                const notReadyLabel = publicNotReadyDetailLabel(deliveryStatus);
+
+                return (
+                  <div
+                    key={deliveryId}
+                    data-testid="pickup-not-ready-row"
+                    className="w-full rounded-2xl border border-dashed border-border/80 bg-bg-surface/70 opacity-75 overflow-hidden"
+                  >
+                    <div className="p-4">
+                      <p className="text-text-primary text-sm font-medium">
+                        {d.vendor.name} · {d.delivery.orderNumber}
+                      </p>
+                      {notReadyLabel && (
+                        <p className="mt-2 text-xs font-semibold text-text-secondary">
+                          {notReadyLabel}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-text-secondary">
+                        Not available for pickup yet — shown for reference only.
+                      </p>
+                    </div>
+                    {d.items.length > 0 && (
+                      <div
+                        className="border-t border-border/60 px-4 py-4"
+                        data-testid="expected-materials"
+                      >
+                        <p className="mb-2 text-xs font-semibold text-text-primary">
+                          Expected Materials
+                        </p>
+                        <ul className="space-y-1">
+                          {d.items.map((item) => (
+                            <li
+                              key={item.id}
+                              className="text-xs text-text-secondary"
+                            >
+                              <span className="text-text-primary">
+                                {item.description}
+                              </span>
+                              {" · Qty "}
+                              {item.qtyOrdered}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {zoneScanError && (

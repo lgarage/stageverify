@@ -385,6 +385,23 @@ async function assertPickupJobHeader(page) {
   console.log("Pickup job header PASS: pickup-job-header visible with job number and PO.");
 }
 
+async function assertPickupLocationSections(page) {
+  const section = page.locator(
+    '[data-testid="pickup-location-section"][data-staging-code="G1"]',
+  );
+  await section.waitFor({ state: "visible", timeout: 15_000 });
+  const cardsInSection = section.getByTestId("pickup-at-primary");
+  const count = await cardsInSection.count();
+  if (count < 1) {
+    throw new Error(
+      "pickup-location-section G1 should contain at least one nested delivery card.",
+    );
+  }
+  console.log(
+    "Pickup location section PASS: G1 section visible with nested delivery cards.",
+  );
+}
+
 async function assertExpectedMaterials(page) {
   const container = page.getByTestId("expected-materials").first();
   await container.waitFor({ state: "visible", timeout: 15_000 });
@@ -488,6 +505,7 @@ async function runDashboardBadgeCheck(browser) {
   try {
     await assertLocationDisplayFull(page);
     await assertPickupJobHeader(page);
+    await assertPickupLocationSections(page);
     await assertExpectedMaterials(page);
     await assertShopStockPullState(page);
     await assertNotReadyRowVisible(page);

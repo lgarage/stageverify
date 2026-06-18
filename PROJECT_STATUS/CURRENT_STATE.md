@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–3 + remainder batch shipped**; full Phase 3 gate not passed)
-- Last shipped: **away-025…029** — Slice 5 pickup tokens (generate/validate/?t= + copy link); §10 job header; away-028 geofence deferred per Dan.
+- Last shipped: **away-030** — pickup queue grouped by staging location (`pickup-location-section`); away-025…029 prior (tokens, header); away-028 geofence deferred.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -15,7 +15,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-0. **Away queue:** Run `away-030`…`041` — away-025…029 shipped; away-028 deferred (geofence); protocol: `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`.
+0. **Away queue:** Run `away-031`…`041` — away-030 shipped; away-028 deferred (geofence); protocol: `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`.
 1. **Blockers:** Minew ESL creds; Jake Korb shelving / shop map (combination stock §11, Slice 6 groups).
 2. **Post-batch:** Phase 5 email readiness (svscope §5) — not in away queue yet.
 

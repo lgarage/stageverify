@@ -134,7 +134,14 @@
       "status": "built",
       "commit": "032d4f2",
       "note": "pickup-job-header with site/job/PO; verify:pickup PASS."
+    },
+    {
+      "id": "away-030",
+      "title": "svscope §10: group pickup queue by staging location",
+      "status": "built",
+      "commit": "7196b89",
+      "note": "pickup-location-section by primary staging code; not-ready rows after sections; verify:pickup PASS."
     }
   ],
-  "summary": "Batch 3: away-021…029 built ✓ | away-030…041 queued"
+  "summary": "Batch 3: away-021…030 built ✓ | away-031…041 queued"
 }
