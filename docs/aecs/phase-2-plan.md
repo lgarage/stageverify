@@ -1,5 +1,6 @@
-# AECS Phase 2 Plan — Structural Reorganization (Planning Only)
+# ACES Phase 2 Plan — Structural Reorganization (Planning Only)
 
+> **Branding:** **ACES** (formerly AECS in earlier drafts). Paths: `aecs/`, `docs/aecs/`. StageVerify remains the shipped product — see [`aecs/README.md`](../../aecs/README.md).
 > **Status:** PLANNING ONLY — no implementation until Dan approves  
 > **Generated:** 2026-06-05  
 > **Authority:** Meta/planning — not live agent guidance. Active orchestration remains `.cursor/rules/` + `agent-ops` skill until Phase 2 executes.  

@@ -20,7 +20,7 @@
 
 ## Canonical references
 - **Product authority:** `PROJECT_STATUS/svscope_simple.md` (wins on conflict)
-- Build protocol: `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Away prompt: `OVERNIGHT_PROMPT.md`
+- **ACES builder (prototype, SV-first):** `aecs/README.md` — product work wins; do not let ACES refactors block SV shipping
 - Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md` | Queue: `away-list.json`
 
 ## Update Protocol

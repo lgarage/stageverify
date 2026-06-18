@@ -1,6 +1,6 @@
-# Orchestration Rationale (AECS Layer 2)
+# Orchestration Rationale (ACES Layer 2)
 
-> AECS development memory — not loaded by Cursor at runtime.
+> ACES development memory — not loaded by Cursor at runtime. StageVerify product sessions: read `PROJECT_STATUS/CURRENT_STATE.md` first.
 
 ## Problem
 

@@ -1,5 +1,6 @@
-# AECS Phase 3 Plan — Installer and Installation Verification
+# ACES Phase 3 Plan — Installer and Installation Verification
 
+> **Branding:** **ACES** (formerly AECS). Paths unchanged (`aecs/`). SV product first — [`aecs/README.md`](../../aecs/README.md).
 > **Status:** IMPLEMENTATION (v0.1.0) — no commit until Dan approves  
 > **Generated:** 2026-06-05  
 > **Inputs:** [`phase-2-plan.md`](./phase-2-plan.md), [`aecs-phase1-audit.md`](../aecs-phase1-audit.md) §6  

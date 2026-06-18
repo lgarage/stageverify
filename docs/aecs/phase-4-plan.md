@@ -1,5 +1,6 @@
-# AECS Phase 4 Plan — Safe Updates, Backups, Conflict Handling, Rollback
+# ACES Phase 4 Plan — Safe Updates, Backups, Conflict Handling, Rollback
 
+> **Branding:** **ACES** (formerly AECS). Paths: `aecs/`. SV-first prototype — [`aecs/README.md`](../../aecs/README.md).
 > **Status:** IMPLEMENTATION (v0.2.0) — no commit until Dan approves  
 > **Generated:** 2026-06-05  
 > **Inputs:** [`phase-3-plan.md`](./phase-3-plan.md), [`phase-3-status.md`](../../aecs/dev/docs/phase-3-status.md)  

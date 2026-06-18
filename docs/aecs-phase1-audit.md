@@ -1,8 +1,9 @@
-# AECS Phase 1 Audit — StageVerify → AI Engineering Control System
+# ACES Phase 1 Audit — StageVerify → Agent Control Engineering System
 
+> **Branding (2026-06):** **ACES** is the product name (formerly **AECS** in earlier drafts). Code paths remain `aecs/` — see [`aecs/README.md`](../aecs/README.md).
 > **Status:** ANALYSIS AND PLANNING ONLY — no migration, no behavior change, no installer  
 > **Generated:** 2026-06-05  
-> **Scope:** Convert `c:\Projects\stageverify` into an **AI Engineering Control System (AECS)** while StageVerify remains the first installed target project  
+> **Scope:** Host the **ACES builder prototype** in `c:\Projects\stageverify` while **StageVerify remains the primary shipped product** and first target project  
 > **Companions:** [`portable-ai-os-report.md`](./portable-ai-os-report.md) (2026-06-04 portability scan), [`ai-os-extraction-phase-1-plan.md`](./ai-os-extraction-phase-1-plan.md) (brain-repo extraction proposal)  
 > **Authority:** Meta/planning only — not live agent guidance. Live orchestration: `.cursor/rules/` + `agent-ops` skill.
 
@@ -10,14 +11,14 @@
 
 ## Executive Summary
 
-StageVerify already functions as a **working agent control plane** (rules, gates, scouts, ship loop, memory tiers) bolted onto a product repo. The goal of AECS is to make that control plane **portable, installable, and auditable** without breaking StageVerify shipping behavior.
+StageVerify already functions as a **working agent control plane** (rules, gates, scouts, ship loop, memory tiers) bolted onto a product repo. The goal of **ACES** is to make that control plane **portable, installable, and auditable** without breaking StageVerify shipping behavior.
 
 **Three-layer target (classification lens):**
 
 | Layer | Purpose | Current home (mostly) |
 |-------|---------|----------------------|
 | **1 — Portable control-system core** | Reusable orchestration, rules templates, gates, skills, installer metadata; zero product facts | Split: `cursor-agent-brain/` (partial) + `.cursor/rules/` (contaminated) |
-| **2 — AECS development memory** | This repo's own evolution as a control-system product (roadmap, architecture, decisions) | **Missing as distinct layer** — mixed into `docs/` and `PROJECT_STATUS/` |
+| **2 — ACES development memory** | ACES builder evolution (roadmap, architecture, decisions) | `aecs/dev/`, `docs/aecs/` — mixed with Layer 3 in places |
 | **3 — Target-project memory** | Per-installed product state, overrides, lessons | `PROJECT_STATUS/`, `docs/project_state.md`, product `docs/` |
 
 **Health rating:** ~6.5/10 for control-plane maturity (up from 5/10 pre–memory cleanup); **~3/10 for installability** (no manifest, no installer, hard-coded paths, dual-repo manual sync).

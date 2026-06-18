@@ -1,6 +1,7 @@
-# AECS Examples (development repository only)
+# ACES Examples (development repository only)
 
-> **Not in portable export.** This directory is dev-host reference material only — excluded from `npm run aecs:export:write` payload. Copy and adapt patterns for your project; do not treat as canonical AECS core.
+> **Branding:** **ACES** (Agent Control Engineering System). Legacy text may say AECS; paths stay `aecs/`.
+> **Not in portable export.** This directory is dev-host reference material only — excluded from `npm run aecs:export:write` payload. Copy and adapt patterns for your project; do not treat as canonical ACES core.
 
 ## Adapters
 

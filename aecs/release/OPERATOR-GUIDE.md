@@ -1,6 +1,7 @@
-# AECS Operator Guide — Local Portability (Phase 5)
+# ACES Operator Guide — Local Portability (Phase 5)
 
-> **Audience:** Humans bootstrapping AECS on a new git repo from a local export.  
+> **Branding:** **ACES** (Agent Control Engineering System). Legacy export text may say AECS; npm scripts remain `aecs:*`.
+> **Audience:** Humans bootstrapping ACES on a new git repo from a local export.  
 > **Model:** Local copy only — no remote download, no signing, no unattended updates.
 
 ## Prerequisites
@@ -9,12 +10,12 @@
 |-------------|-------|
 | Node.js 18+ | CLIs are `.mjs`; `node:test` for regression |
 | Git repository | Target must be a directory with `.git/` |
-| AECS export directory | From dev host `npm run aecs:export:write` (see §1) |
-| cursor-agent-brain (optional) | Manual `~/.cursor/skills/agent-ops` symlink — **not** installed by AECS |
+| ACES export directory | From dev host `npm run aecs:export:write` (see §1) |
+| cursor-agent-brain (optional) | Manual `~/.cursor/skills/agent-ops` symlink — **not** installed by ACES |
 
 ## Never use as targets
 
-- **stageverify** (AECS development host — has `aecs/dev/`)
+- **stageverify** (ACES builder dev host — has `aecs/dev/`; **StageVerify product** at repo root)
 - **cursor-agent-brain**
 - Any repo without a disposable backup / git reset plan
 

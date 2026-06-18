@@ -1,5 +1,6 @@
-# AECS Phase 5 Plan — Release-Ready Local Portability Package
+# ACES Phase 5 Plan — Release-Ready Local Portability Package
 
+> **Branding:** **ACES** (formerly AECS). Paths: `aecs/`. SV-first prototype — [`aecs/README.md`](../../aecs/README.md).
 > **Status:** IMPLEMENTATION COMPLETE (v0.2.0) — Dan approved; awaiting commit  
 > **Generated:** 2026-06-08  
 > **Inputs:** [`phase-4-plan.md`](./phase-4-plan.md), [`phase-4-status.md`](../../aecs/dev/docs/phase-4-status.md)  
