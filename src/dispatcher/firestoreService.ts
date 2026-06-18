@@ -966,6 +966,7 @@ const DEFAULT_APP_SETTINGS: AppSettings = {
   vendorRevertWindowMinutes: 60,
   autoSubmitMinutes: 30,
   vendorDeliveryMode: "full_checkin",
+  vendorSessionMinutes: 15,
 };
 
 export async function getAppSettings(): Promise<AppSettings> {

@@ -455,7 +455,7 @@
                                                "npm run verify:vendor-e2e"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate on firestore.rules vendor session checks; firebase deploy --only firestore:rules --project stageverify-db",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-023",

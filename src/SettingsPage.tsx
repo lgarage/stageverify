@@ -96,6 +96,7 @@ export function SettingsPage() {
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
+  const [vendorSessionMinutes, setVendorSessionMinutes] = useState(15);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
 
@@ -125,6 +126,7 @@ export function SettingsPage() {
     void getAppSettings().then((settings) => {
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
       setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
+      setVendorSessionMinutes(settings.vendorSessionMinutes ?? 15);
     });
   }, []);
 
@@ -135,6 +137,7 @@ export function SettingsPage() {
       await updateAppSettings({
         vendorRevertWindowMinutes: revertWindowMinutes,
         vendorDeliveryMode,
+        vendorSessionMinutes,
       });
       setRevertSaved(true);
       setTimeout(() => setRevertSaved(false), 2000);
@@ -432,6 +435,42 @@ export function SettingsPage() {
                 }}
               />
               <span style={{ fontSize: 13, color: "#6b7280" }}>minutes</span>
+              <label
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#6b7280",
+                  whiteSpace: "nowrap",
+                  marginLeft: 8,
+                }}
+              >
+                Vendor session TTL
+              </label>
+              <input
+                type="number"
+                min={5}
+                max={480}
+                value={vendorSessionMinutes}
+                onChange={(e) =>
+                  setVendorSessionMinutes(Number(e.target.value) || 15)
+                }
+                onBlur={() => void saveRevertWindow()}
+                style={{
+                  width: 80,
+                  padding: "10px 12px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  color: "#333",
+                  outline: "none",
+                  backgroundColor: "#fff",
+                  fontFamily: FONT,
+                  boxSizing: "border-box",
+                }}
+              />
+              <span style={{ fontSize: 13, color: "#6b7280" }}>
+                min (PIN re-prompt)
+              </span>
               <label
                 style={{
                   fontSize: 13,

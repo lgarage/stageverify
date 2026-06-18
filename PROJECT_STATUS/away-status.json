@@ -87,12 +87,12 @@
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
     }
     {
-      "id": "away-021",
-      "title": "Slice 4: vendor delivery session after PIN (CF)",
+      "id": "away-022",
+      "title": "Slice 4: enforce vendor session on receive writes",
       "status": "built",
-      "commit": "ab1e53c",
-      "note": "vendorSessions CF doc + client token storage; Sonnet SECURITY: PASS; CF+rules deployed; verify:vendor-delivered PASS."
+      "commit": "5ebecf4",
+      "note": "validateVendorSession CF + requireActiveVendorSession; Sonnet PASS; verify:vendor-delivered + verify:vendor-e2e PASS."
     }
   ],
-  "summary": "Batch 3: away-021 built ✓ | away-022…041 queued"
+  "summary": "Batch 3: away-021…022 built ✓ | away-023…041 queued"
 }

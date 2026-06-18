@@ -355,6 +355,8 @@ export interface AppSettings {
   entrywayEslTagId?: string;
   /** Vendor receive UX: full line-item check-in vs exception-only Delivered hub. */
   vendorDeliveryMode?: VendorDeliveryMode;
+  /** Minutes before vendor PIN session expires (server + client inactivity). Default 15. */
+  vendorSessionMinutes?: number;
   /** Configurable StageVerify monitoring inbox — no hard-coded production address. */
   monitoringInboxEmail?: string;
   /** When false or inbox unset, email monitor reports missing configuration. */

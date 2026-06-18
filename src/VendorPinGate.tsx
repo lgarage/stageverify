@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { prefetchVendorReceiveDelivery } from "./dispatcher/firestoreService";
+import {
+  prefetchVendorReceiveDelivery,
+  getAppSettings,
+} from "./dispatcher/firestoreService";
 import { verifyVendorPin } from "./verifyVendorPinClient";
 import {
   setPinSession,
@@ -60,16 +63,13 @@ export function VendorPinGate({
           return;
         }
         setVerified(true);
-        const serverSession =
-          result.sessionToken && result.expiresAt
-            ? { sessionToken: result.sessionToken, expiresAt: result.expiresAt }
-            : undefined;
-        setPinSession(
-          deliveryId,
-          result.vendorId,
-          result.vendorName,
-          serverSession,
-        );
+        const settings = await getAppSettings();
+        const sessionMinutes = settings.vendorSessionMinutes ?? 15;
+        setPinSession(deliveryId, result.vendorId, result.vendorName, {
+          sessionToken: result.sessionToken,
+          expiresAt: result.expiresAt,
+          sessionMinutes,
+        });
         onVerified(result.vendorId, result.vendorName);
       } catch (err) {
         setDigits([]);

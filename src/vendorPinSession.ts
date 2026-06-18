@@ -12,6 +12,8 @@ export interface VendorPinSession {
   sessionToken?: string;
   /** ISO expiry from server session doc. */
   expiresAt?: string;
+  /** Client inactivity window (minutes) from appSettings at PIN time. */
+  sessionMinutes?: number;
 }
 
 function storageKey(deliveryId: string): string {
@@ -45,7 +47,8 @@ function serverSessionExpired(session: VendorPinSession): boolean {
 }
 
 function clientInactivityExpired(session: VendorPinSession): boolean {
-  return Date.now() - session.lastActivityAt >= VENDOR_PIN_SESSION_MS;
+  const minutes = session.sessionMinutes ?? VENDOR_PIN_SESSION_MS / 60_000;
+  return Date.now() - session.lastActivityAt >= minutes * 60_000;
 }
 
 export function hasPinSession(deliveryId: string): boolean {
@@ -80,15 +83,20 @@ export function setPinSession(
   deliveryId: string,
   vendorId: string,
   vendorName: string,
-  serverSession?: { sessionToken: string; expiresAt: string },
+  options?: {
+    sessionToken?: string;
+    expiresAt?: string;
+    sessionMinutes?: number;
+  },
 ): VendorPinSession {
   const session: VendorPinSession = {
     deliveryId,
     vendorId,
     vendorName,
     lastActivityAt: Date.now(),
-    sessionToken: serverSession?.sessionToken,
-    expiresAt: serverSession?.expiresAt,
+    sessionToken: options?.sessionToken,
+    expiresAt: options?.expiresAt,
+    sessionMinutes: options?.sessionMinutes,
   };
   sessionStorage.setItem(storageKey(deliveryId), JSON.stringify(session));
   return session;
