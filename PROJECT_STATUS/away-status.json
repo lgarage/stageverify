@@ -195,28 +195,28 @@
       "id": "away-038",
       "title": "svscope §13: dispatcher pickup summary after technician submit",
       "status": "built",
-      "commit": "pending",
+      "commit": "4c508a9",
       "note": "pickup-summary-panel in delivery drawer; verify:dispatcher-nav PASS."
     },
     {
       "id": "away-039",
       "title": "Phase 4: dispatcher resolve material issue workflow",
       "status": "built",
-      "commit": "pending",
+      "commit": "4c508a9",
       "note": "resolveMaterialIssue CF + Resolve button; verify:material-issue-dashboard PASS."
     },
     {
       "id": "away-040",
       "title": "Phase 4: resolved issue triggers readiness recalc",
       "status": "built",
-      "commit": "pending",
+      "commit": "4c508a9",
       "note": "resolveMaterialIssue CF invokes readiness when no blocking issues remain."
     },
     {
       "id": "away-041",
       "title": "Batch 3 close: deploy UI + prod verify + roadmap sync",
       "status": "built",
-      "commit": "pending",
+      "commit": "4c508a9",
       "note": "gh-pages deploy + verify:pickup:prod + roadmap/CURRENT_STATE sync."
     }
   ],

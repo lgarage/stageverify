@@ -209,11 +209,27 @@ async function runScenarioA(page) {
     const runningLowBtn = page.getByTestId("shop-stock-running-low").first();
     if (await runningLowBtn.isVisible().catch(() => false)) {
       await runningLowBtn.click();
-      await page.waitForSelector(
-        "text=/Running low reported|already reported for this item/i",
-        { timeout: 20_000 },
-      );
-      console.log("Running Low PASS: restock alert reported from shop stock row.");
+      const runningLowOk = await page
+        .waitForSelector(
+          "text=/Running low reported|already reported for this item/i",
+          { timeout: 20_000 },
+        )
+        .then(() => true)
+        .catch(() => false);
+      if (runningLowOk) {
+        console.log("Running Low PASS: restock alert reported from shop stock row.");
+      } else {
+        const errText =
+          (await page.locator(".text-accent-red").first().textContent().catch(() => "")) ??
+          "";
+        if (/already reported|duplicate/i.test(errText)) {
+          console.log("Running Low PASS: duplicate restock alert (prior run).");
+        } else {
+          throw new Error(
+            `Running Low FAIL: no success toast.${errText ? ` Error: ${errText}` : ""}`,
+          );
+        }
+      }
     } else {
       console.log("SKIP Running Low: no shop-stock-running-low button on fixture.");
     }
