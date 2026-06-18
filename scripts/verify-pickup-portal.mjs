@@ -323,6 +323,22 @@ async function assertLocationDisplayFull(page) {
   }
   console.log("Slice 2 PASS: Shop stock: Main stock room");
 
+  const shopGroup = page.getByTestId("shop-stock-location-group");
+  if (!(await shopGroup.isVisible().catch(() => false))) {
+    throw new Error("Slice 2 FAIL: shop-stock-location-group should be visible.");
+  }
+  const groupHeader = page.getByTestId("shop-stock-location-group-header");
+  if (!(await groupHeader.isVisible().catch(() => false))) {
+    throw new Error("Slice 2 FAIL: shop-stock location group header should be visible.");
+  }
+  const headerText = (await groupHeader.textContent()) ?? "";
+  if (!headerText.includes("Main stock room")) {
+    throw new Error(
+      `Slice 2 FAIL: expected group header Main stock room — got "${headerText.trim()}".`,
+    );
+  }
+  console.log("Slice 2 PASS: shop-stock-location-group header visible.");
+
   await page.screenshot({
     path: resolve(outDir, "pickup-verify-locations-full-mobile.png"),
     fullPage: false,
@@ -353,6 +369,15 @@ async function assertLocationDisplayMinimal(page) {
     throw new Error("Slice 2 FAIL: Shop stock should be hidden when note blank.");
   }
   console.log("Slice 2 PASS: Shop stock hidden");
+
+  if (
+    await page.getByTestId("shop-stock-location-group-header").isVisible().catch(() => false)
+  ) {
+    throw new Error(
+      "Slice 2 FAIL: shop-stock location group header should be hidden on minimal fixture.",
+    );
+  }
+  console.log("Slice 2 PASS: shop-stock location group header hidden");
 
   await page.screenshot({
     path: resolve(outDir, "pickup-verify-locations-minimal-mobile.png"),

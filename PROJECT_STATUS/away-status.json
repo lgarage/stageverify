@@ -169,7 +169,14 @@
       "status": "built",
       "commit": "21b4c24",
       "note": "running_low material issue type + shop-stock-running-low button; Sonnet SECURITY: PASS; CF deployed; verify:pickup + verify:material-issue-dashboard PASS."
+    },
+    {
+      "id": "away-035",
+      "title": "svscope §11: shop stock grouped by location header",
+      "status": "built",
+      "commit": "pending",
+      "note": "shop-stock-location-group + header from shopStockLocationNote; verify:pickup full/minimal asserts PASS."
     }
   ],
-  "summary": "Batch 3: away-021…034 built ✓ | away-035…041 queued"
+  "summary": "Batch 3: away-021…035 built ✓ | away-036…041 queued"
 }

@@ -197,6 +197,16 @@ function usefulLocationNote(note: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function shopStockLocationGroupHeader(delivery: {
+  shopStockLocationNote?: string;
+  shopStockLines?: { shopStockLocationCode?: string }[];
+}): string | null {
+  const note = usefulLocationNote(delivery.shopStockLocationNote);
+  if (note) return note;
+  const code = delivery.shopStockLines?.[0]?.shopStockLocationCode?.trim();
+  return code ? code : null;
+}
+
 function PickupLocationBlock({
   stagingLocations,
   currentLocationNote,
@@ -1329,6 +1339,7 @@ function JobPickupScreen({
             );
             const shopStockItems = d.delivery.shopStockPickListItems ?? [];
             const showShopStock = hasShopStockPickList(d.delivery);
+            const shopStockGroupHeader = shopStockLocationGroupHeader(d.delivery);
             const shopStockComplete = isShopStockCompleteForDelivery(d);
             const canCheckOff =
               isPickupReady(deliveryStatus) &&
@@ -1579,7 +1590,18 @@ function JobPickupScreen({
                         <p className="mb-3 text-xs text-text-secondary">
                           Check each item as you grab it from shop stock.
                         </p>
-                        <div className="space-y-2">
+                        <div
+                          className="space-y-2"
+                          data-testid="shop-stock-location-group"
+                        >
+                          {shopStockGroupHeader && (
+                            <p
+                              className="text-xs font-bold uppercase tracking-wide text-text-secondary"
+                              data-testid="shop-stock-location-group-header"
+                            >
+                              {shopStockGroupHeader}
+                            </p>
+                          )}
                           {shopStockItems.map((label, index) => {
                             const key = shopStockItemKey(deliveryId, index);
                             const stockChecked = checkedShopStockKeys.has(key);
