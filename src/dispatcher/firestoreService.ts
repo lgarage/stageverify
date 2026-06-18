@@ -1701,6 +1701,29 @@ export async function reportMaterialIssue(
   return response.data;
 }
 
+export interface ResolveMaterialIssueInput {
+  issueId: string;
+  resolutionNote: string;
+}
+
+export interface ResolveMaterialIssueResult {
+  issueId: string;
+  status: "resolved";
+  readinessRecalculated: boolean;
+}
+
+const resolveMaterialIssueCallable = httpsCallable<
+  ResolveMaterialIssueInput,
+  ResolveMaterialIssueResult
+>(functions, "resolveMaterialIssue");
+
+export async function resolveMaterialIssue(
+  input: ResolveMaterialIssueInput,
+): Promise<ResolveMaterialIssueResult> {
+  const response = await resolveMaterialIssueCallable(input);
+  return response.data;
+}
+
 export async function listMaterialIssuesForDelivery(
   deliveryOrderId: string,
 ): Promise<MaterialIssue[]> {

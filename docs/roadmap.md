@@ -31,15 +31,14 @@
 | **§8** | **Copy Pickup Information** (site, job, locations, link → clipboard) | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped |
 | **§9** | Technician opens pickup link — no login | Phase 1–3 public pickup portal | ✅ Built (job/delivery hash params) |
 | **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ⬜ Not built (plain job link today) |
-| **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Expected Materials read-only list + location labels shipped (`away-016`); PO-grouped checklist ⬜ |
-| **§10** | Per-line pickup persistence; partial qty pickup | **Phase 3 remainder** + transactional CF | 🔵 `recordPickupEvent` shipped; per-line/qty partial ⬜ |
-| **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | 🔵 Pick list checkboxes + Not Pulled/Pulled labels shipped (`away-018`); structured pull list ⬜ |
-| **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | ⬜ Blocked on physical shop map / Jake Korb |
+| **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Shipped (`away-029`…`032`: header, location sections, PO labels, checklist persist) |
+| **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | 🔵 Shipped (`away-018`, `away-033`…`035`: pull states, Running Low, location group) |
+| **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | 🔵 Model + CF release stub shipped (`away-036`/`037`); real Jake Korb IDs blocked |
 | **§12** | **Order Pickup Complete** submit; server-owned transactional pickup | `recordPickupEvent` CF `b7b817f` | ✅ Shipped (UI says “Done — All Picked Up”) |
 | **§12** | Idempotent / concurrent-safe pickup | `recordPickupEvent` + `pickupOperations` `b7b817f` | ✅ Shipped prod |
 | **§12** | Blocking issue vs pickup behavior (UI says can complete; CF may block) | **Phase 3 bugfix / alignment** | ✅ Aligned (`away-009`) |
 | **§12** | Leave-shop geofence reminder (best-effort; not auto-complete) | **Phase 3 Slice 5 — Pickup link security** (optional) | ⬜ Not built |
-| **§13** | Dispatcher sees pickup update, qty remaining, pickup events | Phase 3 Slice 1 + drawer | 🔵 Partial |
+| **§13** | Dispatcher sees pickup update, qty remaining, pickup events | Phase 3 Slice 1 + drawer | 🔵 Shipped (`away-038` pickup-summary-panel) |
 | **§13** | Release temporary staging → Available + E-tag clear | **Phase 3 Slice 6 — Staging release** | 🔵 Partial — CF clears `stagingLocationId` + `additionalStagingLocationIds` on full pickup (`away-019`); combination groups + ESL Phase 7 |
 | **§13** | Permanent shop-stock locations stay reserved; qty tracking not inventory | Phase 2 stubs + Phase 3 remainder | ⬜ Not built |
 | **§14** | End-to-end flow (27 steps) | Cross-phase integration test | ⬜ Full flow not gate-passed |

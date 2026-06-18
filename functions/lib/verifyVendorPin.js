@@ -11,6 +11,7 @@ const PIN_LEN = 4;
 const MAX_ATTEMPTS_PER_WINDOW = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const MIN_ATTEMPT_INTERVAL_MS = 750;
+const DEFAULT_VENDOR_SESSION_MINUTES = 15;
 function asFourDigitPin(value) {
     if (typeof value !== "string")
         return null;
@@ -98,6 +99,35 @@ async function checkRateLimit(deliveryId) {
 async function clearRateLimitOnSuccess(deliveryId) {
     await getDb().collection("vendorPinAttempts").doc(deliveryId).delete();
 }
+async function getVendorSessionMinutes() {
+    const snap = await getDb().collection("appSettings").doc("config").get();
+    if (!snap.exists)
+        return DEFAULT_VENDOR_SESSION_MINUTES;
+    const minutes = snap.data()
+        .vendorSessionMinutes;
+    if (typeof minutes === "number" &&
+        Number.isFinite(minutes) &&
+        minutes >= 5 &&
+        minutes <= 480) {
+        return minutes;
+    }
+    return DEFAULT_VENDOR_SESSION_MINUTES;
+}
+async function createVendorSession(deliveryId, vendorId, vendorName) {
+    const sessionMinutes = await getVendorSessionMinutes();
+    const now = Date.now();
+    const expiresAt = new Date(now + sessionMinutes * 60 * 1000).toISOString();
+    const sessionToken = (0, crypto_1.randomBytes)(32).toString("hex");
+    await getDb().collection("vendorSessions").doc(sessionToken).set({
+        id: sessionToken,
+        deliveryId,
+        vendorId,
+        vendorName,
+        expiresAt,
+        createdAt: new Date(now).toISOString(),
+    });
+    return { sessionToken, expiresAt };
+}
 async function writePinVerifiedAudit(deliveryId, vendorId, vendorName) {
     const now = new Date().toISOString();
     const eventId = `pin-${(0, crypto_1.createHash)("sha256")
@@ -156,11 +186,14 @@ exports.verifyVendorPin = (0, https_1.onCall)({
     const vendorName = vendorDisplayName(vendor);
     await clearRateLimitOnSuccess(deliveryId);
     await writePinVerifiedAudit(deliveryId, vendorId, vendorName);
+    const session = await createVendorSession(deliveryId, vendorId, vendorName);
     return {
         success: true,
         vendorId,
         vendorName,
         deliveryId,
+        sessionToken: session.sessionToken,
+        expiresAt: session.expiresAt,
     };
 });
 //# sourceMappingURL=verifyVendorPin.js.map

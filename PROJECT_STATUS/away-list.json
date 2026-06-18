@@ -756,7 +756,7 @@
                                                "npm run build",
                                                "npm run verify:dispatcher-nav"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-037",
@@ -779,7 +779,7 @@
                                                "npm run verify:pickup"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate; firebase deploy --only functions --project stageverify-db",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-038",
@@ -801,7 +801,7 @@
                                                "npm run verify:pickup",
                                                "npm run verify:dispatcher-nav"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-039",
@@ -826,7 +826,7 @@
                                                "npm run verify:dispatcher-nav"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate on issue resolve writes; firebase deploy --only firestore:rules --project stageverify-db if rules change",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-040",
@@ -873,7 +873,7 @@
                                                "npm run verify:dispatcher-nav",
                                                "npm run verify:pickup:prod"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   }
               ]
 }

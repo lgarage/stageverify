@@ -174,9 +174,51 @@
       "id": "away-035",
       "title": "svscope §11: shop stock grouped by location header",
       "status": "built",
-      "commit": "pending",
+      "commit": "0072bdf",
       "note": "shop-stock-location-group + header from shopStockLocationNote; verify:pickup full/minimal asserts PASS."
+    },
+    {
+      "id": "away-036",
+      "title": "Slice 6: combination staging group model stub",
+      "status": "built",
+      "commit": "6398ce0",
+      "note": "combinationStagingGroupId fields + dispatcher read-only label; verify:dispatcher-nav PASS."
+    },
+    {
+      "id": "away-037",
+      "title": "Slice 6: combination group atomic staging release in CF",
+      "status": "built",
+      "commit": "b654774",
+      "note": "recordPickupEvent clears combination members on full pickup; test:pickup-authority PASS; CF deployed."
+    },
+    {
+      "id": "away-038",
+      "title": "svscope §13: dispatcher pickup summary after technician submit",
+      "status": "built",
+      "commit": "pending",
+      "note": "pickup-summary-panel in delivery drawer; verify:dispatcher-nav PASS."
+    },
+    {
+      "id": "away-039",
+      "title": "Phase 4: dispatcher resolve material issue workflow",
+      "status": "built",
+      "commit": "pending",
+      "note": "resolveMaterialIssue CF + Resolve button; verify:material-issue-dashboard PASS."
+    },
+    {
+      "id": "away-040",
+      "title": "Phase 4: resolved issue triggers readiness recalc",
+      "status": "built",
+      "commit": "pending",
+      "note": "resolveMaterialIssue CF invokes readiness when no blocking issues remain."
+    },
+    {
+      "id": "away-041",
+      "title": "Batch 3 close: deploy UI + prod verify + roadmap sync",
+      "status": "built",
+      "commit": "pending",
+      "note": "gh-pages deploy + verify:pickup:prod + roadmap/CURRENT_STATE sync."
     }
   ],
-  "summary": "Batch 3: away-021…035 built ✓ | away-036…041 queued"
+  "summary": "Batch 3: away-021…041 built ✓ | away-028 deferred"
 }

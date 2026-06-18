@@ -534,6 +534,9 @@ export interface MaterialIssue {
   itemId?: string;
   /** Shop-stock line key when type is running_low (deliveryId:index). */
   shopStockLineKey?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNote?: string;
   createdAt: string;
   updatedAt: string;
 }

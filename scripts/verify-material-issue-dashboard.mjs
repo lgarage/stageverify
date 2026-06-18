@@ -131,5 +131,22 @@ async function ensureAuthenticated(page) {
   });
 
   console.log("PASS: Material Issues read-only panel shows type, status, description, reporter, owner.");
+
+  const resolveBtn = panel.getByRole("button", { name: "Resolve" }).first();
+  if (await resolveBtn.isVisible().catch(() => false)) {
+    const beforeCount = await panel.getByRole("button", { name: "Resolve" }).count();
+    await resolveBtn.click();
+    await page.waitForTimeout(3000);
+    const afterCount = await panel.getByRole("button", { name: "Resolve" }).count();
+    if (afterCount >= beforeCount) {
+      throw new Error(
+        `Resolve FAIL: expected fewer open issues (${beforeCount} → ${afterCount}).`,
+      );
+    }
+    console.log(`PASS: Resolve action decremented open issues (${beforeCount} → ${afterCount}).`);
+  } else {
+    console.log("SKIP Resolve: no Resolve button (CF may not be deployed yet).");
+  }
+
   await browser.close();
 })();

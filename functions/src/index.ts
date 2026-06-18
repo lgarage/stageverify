@@ -11,6 +11,7 @@ import { revokePickupToken } from "./revokePickupToken";
 import { getPickupTokenStatus } from "./getPickupTokenStatus";
 import { validatePickupToken } from "./validatePickupToken";
 import { updatePickupChecklist } from "./updatePickupChecklist";
+import { resolveMaterialIssue } from "./resolveMaterialIssue";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -134,5 +135,6 @@ export {
   validatePickupToken,
   recordPickupEvent,
   updatePickupChecklist,
+  resolveMaterialIssue,
   recalculateDeliveryReadiness,
 };

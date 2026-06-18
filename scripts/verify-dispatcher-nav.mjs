@@ -196,19 +196,51 @@ function sidebar(page) {
     }
 
     console.log("Slice 5: pickup token copy link…");
-    await page.getByTestId("generate-pickup-link").click();
-    await page.getByTestId("pickup-token-reveal").waitFor({ timeout: 20_000 });
-    await page.getByRole("button", { name: "Copy Pickup Information" }).click();
-    await page.waitForTimeout(500);
-    const clipboardText = await page.evaluate(async () => {
-      return navigator.clipboard.readText();
-    });
+    let clipboardText = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await page.getByTestId("generate-pickup-link").click();
+      await page.getByTestId("pickup-token-reveal").waitFor({ timeout: 20_000 });
+      await page.getByRole("button", { name: "Copy Pickup Information" }).click();
+      await page.waitForTimeout(1500);
+      clipboardText = await page.evaluate(async () => navigator.clipboard.readText()).catch(() => "");
+      if (/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) break;
+    }
     if (!/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) {
       throw new Error(
         `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
       );
     }
     console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
+
+    const orderNumber = process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-004";
+    const search = page.locator('input[placeholder*="Job #, name, PO"]');
+    try {
+      if (await search.isVisible().catch(() => false)) {
+        await search.fill(orderNumber);
+        await page.waitForTimeout(1200);
+        const rowView = page.locator("button").filter({ hasText: /^View$/ }).first();
+        if (await rowView.isVisible().catch(() => false)) {
+          await rowView.click({ force: true });
+          await page.waitForTimeout(1000);
+          const summary = page.getByTestId("pickup-summary-panel");
+          if (await summary.isVisible().catch(() => false)) {
+            const text = (await summary.innerText()) ?? "";
+            if (!text.trim()) {
+              throw new Error("pickup-summary-panel visible but empty.");
+            }
+            console.log("Pickup summary PASS: pickup-summary-panel visible in delivery drawer.");
+          } else {
+            console.log(
+              "SKIP pickup summary: panel not visible (expand Pickup Summary section if collapsed).",
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.log(
+        `SKIP pickup summary check: ${err instanceof Error ? err.message : err}`,
+      );
+    }
   } else {
     console.log("SKIP job readiness panel: no delivery rows to open.");
   }

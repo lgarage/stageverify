@@ -17,6 +17,7 @@ import {
   firestoreDataService,
   markDeliveryShipped,
   mapOccupancyByLocationId,
+  resolveMaterialIssue,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
@@ -33,7 +34,9 @@ import {
   type DeliveryOrder,
   type DeliverySortField,
   type DeliveryStatus,
+  type Item,
   type Job,
+  type PickupEvent,
   type PagedResult,
   type SortDirection,
   type StagingLocation,
@@ -454,6 +457,31 @@ export function DispatcherDashboardPage() {
       }
     } catch (e) {
       setMutationError("An unexpected error occurred while recording pickup.");
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleResolveMaterialIssue = async (issueId: string) => {
+    if (!selectedDeliveryId) return;
+
+    setMutationLoading(true);
+    setMutationError(null);
+
+    try {
+      await resolveMaterialIssue({
+        issueId,
+        resolutionNote: "Resolved by dispatcher",
+      });
+      const updatedDetails =
+        await firestoreDataService.getDeliveryDetails(selectedDeliveryId);
+      if (updatedDetails) {
+        setSelectedDetails(updatedDetails);
+        await fetchAllData();
+      }
+    } catch (e) {
+      setMutationError("Failed to resolve material issue.");
       console.error(e);
     } finally {
       setMutationLoading(false);
@@ -1638,6 +1666,7 @@ export function DispatcherDashboardPage() {
                   );
                   void fetchAllData();
                 }}
+                onResolveMaterialIssue={handleResolveMaterialIssue}
               />
             </div>
           </div>
@@ -2318,6 +2347,18 @@ function PrintLabelModal({
 
 /* ─── Detail Content ─────────────────────────────────────────────────────── */
 
+function latestPickupEvent(events: PickupEvent[]): PickupEvent | null {
+  if (events.length === 0) return null;
+  return [...events].sort((a, b) => b.pickedUpAt.localeCompare(a.pickedUpAt))[0];
+}
+
+function estimateRemainingItemQty(items: Item[]): number {
+  return items.reduce((sum, item) => {
+    if (item.status === "installed") return sum;
+    return sum + Math.max(0, item.qtyOrdered - item.qtyReceived);
+  }, 0);
+}
+
 function DetailContent({
   loading,
   error,
@@ -2337,6 +2378,7 @@ function DetailContent({
   onUpdatePurchaseOrder,
   onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
+  onResolveMaterialIssue,
 }: {
   loading: boolean;
   error: string | null;
@@ -2359,6 +2401,7 @@ function DetailContent({
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
+  onResolveMaterialIssue: (issueId: string) => Promise<void>;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
 
@@ -2737,6 +2780,43 @@ function DetailContent({
             ),
           },
           {
+            title: "Pickup Summary",
+            content: (() => {
+              const latest = latestPickupEvent(details.pickupEvents);
+              const remainingQty = estimateRemainingItemQty(details.items);
+              return (
+                <div
+                  data-testid="pickup-summary-panel"
+                  style={{
+                    border: "1px solid #e0e3e8",
+                    borderRadius: 8,
+                    padding: "12px",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  {!latest ? (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                      No pickup recorded yet.
+                    </p>
+                  ) : (
+                    <>
+                      <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#333" }}>
+                        {latest.itemsPickedSummary}
+                      </p>
+                      <p style={{ margin: "0 0 6px", fontSize: 12, color: "#6b7280" }}>
+                        {latest.technicianName} ·{" "}
+                        {new Date(latest.pickedUpAt).toLocaleString()}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: "#555" }}>
+                        Qty remaining estimate: {remainingQty}
+                      </p>
+                    </>
+                  )}
+                </div>
+              );
+            })(),
+          },
+          {
             title: `Material Issues (${details.materialIssues.filter((i) => i.status === "open" || i.status === "assigned").length})`,
             content: (
               <div
@@ -2796,6 +2876,26 @@ function DetailContent({
                           {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
                           {new Date(issue.createdAt).toLocaleString()}
                         </p>
+                        <button
+                          type="button"
+                          data-testid={`resolve-issue-${issue.id}`}
+                          disabled={mutationLoading}
+                          onClick={() => void onResolveMaterialIssue(issue.id)}
+                          style={{
+                            marginTop: 8,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: `1px solid ${navy}`,
+                            backgroundColor: "#fff",
+                            color: navy,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: mutationLoading ? "not-allowed" : "pointer",
+                            opacity: mutationLoading ? 0.6 : 1,
+                          }}
+                        >
+                          Resolve
+                        </button>
                       </div>
                     ))
                 )}
