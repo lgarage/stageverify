@@ -529,6 +529,54 @@ try {
     fail("missing staging should block readiness");
   }
 
+  await seed(async (db) => {
+    await seedReadyDelivery(db, {
+      id: "del-combo-group",
+      locations: ["loc-combo-primary", "loc-combo-extra"],
+    });
+    const { updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "deliveries", "del-combo-group"), {
+      combinationStagingGroupId: "verify-combo-g15-17",
+      combinationMemberLocationIds: ["loc-combo-m1", "loc-combo-m2"],
+    });
+  });
+
+  const comboLocations = [
+    "loc-combo-primary",
+    "loc-combo-extra",
+    "loc-combo-m1",
+    "loc-combo-m2",
+  ];
+  for (let i = 0; i < comboLocations.length; i++) {
+    await recordPickup(
+      await pickupPayload("del-combo-group", {
+        clientOperationId: `op-combo-${i}`,
+        stagingLocationIds: [comboLocations[i]],
+      }),
+    );
+  }
+
+  let comboDelivery = null;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const { getDoc } = await import("firebase/firestore");
+    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "del-combo-group"));
+    comboDelivery = snap.data();
+  });
+  if (
+    comboDelivery?.status === "picked_up" &&
+    comboDelivery?.stagingLocationId === "" &&
+    (comboDelivery?.additionalStagingLocationIds?.length ?? 0) === 0 &&
+    comboDelivery?.combinationStagingGroupId === "" &&
+    (comboDelivery?.combinationMemberLocationIds?.length ?? 0) === 0
+  ) {
+    pass("full pickup clears combination group and all staging IDs");
+  } else {
+    fail(
+      "combination group staging release",
+      new Error(JSON.stringify(comboDelivery)),
+    );
+  }
+
   pass("unrelated delivery records preserved during targeted tests");
 
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);

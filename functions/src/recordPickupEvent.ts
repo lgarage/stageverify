@@ -44,6 +44,8 @@ interface DeliveryRecord extends DeliveryDoc {
   purchaseOrderId?: string;
   stagingLocationId?: string;
   additionalStagingLocationIds?: string[];
+  combinationStagingGroupId?: string;
+  combinationMemberLocationIds?: string[];
   pickedUpStagingLocationIds?: string[];
   readinessStatus?: string;
 }
@@ -72,6 +74,12 @@ function allStagingIds(delivery: DeliveryRecord): string[] {
   if (delivery.stagingLocationId?.trim()) ids.push(delivery.stagingLocationId.trim());
   if (delivery.additionalStagingLocationIds?.length) {
     ids.push(...delivery.additionalStagingLocationIds);
+  }
+  if (delivery.combinationMemberLocationIds?.length) {
+    for (const memberId of delivery.combinationMemberLocationIds) {
+      const trimmed = memberId?.trim();
+      if (trimmed && !ids.includes(trimmed)) ids.push(trimmed);
+    }
   }
   return ids;
 }
@@ -304,6 +312,8 @@ export const recordPickupEvent = onCall(
         deliveryPatch.status = "picked_up";
         deliveryPatch.stagingLocationId = "";
         deliveryPatch.additionalStagingLocationIds = [];
+        deliveryPatch.combinationStagingGroupId = "";
+        deliveryPatch.combinationMemberLocationIds = [];
         deliveryPatch.readinessStatus = "picked_up";
         deliveryPatch.pickupCheckedItemIds = [];
       }

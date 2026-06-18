@@ -4,6 +4,7 @@ exports.recordPickupEvent = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const deliveryReadiness_1 = require("./deliveryReadiness");
+const pickupTokenValidation_1 = require("./pickupTokenValidation");
 function getDb() {
     return admin.firestore();
 }
@@ -13,6 +14,13 @@ const MAX_NOTES_LEN = 500;
 const MAX_CLIENT_OP_ID_LEN = 64;
 const MAX_LOCATION_IDS = 8;
 const MAX_ITEMS_PER_DELIVERY = 500;
+const CLIENT_OP_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+function asClientOperationId(value) {
+    const parsed = asNonEmptyString(value, MAX_CLIENT_OP_ID_LEN);
+    if (!parsed || !CLIENT_OP_ID_PATTERN.test(parsed))
+        return null;
+    return parsed;
+}
 function asNonEmptyString(value, maxLen) {
     if (typeof value !== "string")
         return null;
@@ -42,6 +50,13 @@ function allStagingIds(delivery) {
     if (delivery.additionalStagingLocationIds?.length) {
         ids.push(...delivery.additionalStagingLocationIds);
     }
+    if (delivery.combinationMemberLocationIds?.length) {
+        for (const memberId of delivery.combinationMemberLocationIds) {
+            const trimmed = memberId?.trim();
+            if (trimmed && !ids.includes(trimmed))
+                ids.push(trimmed);
+        }
+    }
     return ids;
 }
 function remainingLocationIds(delivery) {
@@ -61,7 +76,7 @@ exports.recordPickupEvent = (0, https_1.onCall)({
     const jobId = asNonEmptyString(data.jobId, 128);
     const technicianName = asNonEmptyString(data.technicianName, MAX_TECHNICIAN_LEN);
     const itemsPickedSummary = asNonEmptyString(data.itemsPickedSummary, MAX_SUMMARY_LEN);
-    const clientOperationId = asNonEmptyString(data.clientOperationId, MAX_CLIENT_OP_ID_LEN);
+    const clientOperationId = asClientOperationId(data.clientOperationId);
     if (!deliveryOrderId ||
         !jobId ||
         !technicianName ||
@@ -75,13 +90,20 @@ exports.recordPickupEvent = (0, https_1.onCall)({
     if (data.notes && !notes) {
         throw new https_1.HttpsError("invalid-argument", "Notes are too long.");
     }
+    const db = getDb();
+    if (!request.auth) {
+        const pickupToken = (0, pickupTokenValidation_1.asPickupToken)(data.pickupToken);
+        if (!pickupToken) {
+            throw new https_1.HttpsError("permission-denied", "Pickup token is required for technician pickup.");
+        }
+        await (0, pickupTokenValidation_1.verifyPickupTokenForJob)(db, pickupToken, jobId);
+    }
     const stagingLocationIds = data.stagingLocationIds === undefined
         ? null
         : asStringArray(data.stagingLocationIds, MAX_LOCATION_IDS);
     if (data.stagingLocationIds && !stagingLocationIds) {
         throw new https_1.HttpsError("invalid-argument", "Invalid stagingLocationIds.");
     }
-    const db = getDb();
     const idempotencyRef = db.collection("pickupOperations").doc(clientOperationId);
     return db.runTransaction(async (tx) => {
         const existingOp = await tx.get(idempotencyRef);
@@ -186,7 +208,10 @@ exports.recordPickupEvent = (0, https_1.onCall)({
             deliveryPatch.status = "picked_up";
             deliveryPatch.stagingLocationId = "";
             deliveryPatch.additionalStagingLocationIds = [];
+            deliveryPatch.combinationStagingGroupId = "";
+            deliveryPatch.combinationMemberLocationIds = [];
             deliveryPatch.readinessStatus = "picked_up";
+            deliveryPatch.pickupCheckedItemIds = [];
         }
         tx.set(db.collection("pickupEvents").doc(pickupEventId), {
             id: pickupEventId,
