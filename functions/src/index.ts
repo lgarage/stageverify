@@ -9,6 +9,7 @@ import { validateVendorSession } from "./validateVendorSession";
 import { generatePickupToken } from "./generatePickupToken";
 import { revokePickupToken } from "./revokePickupToken";
 import { getPickupTokenStatus } from "./getPickupTokenStatus";
+import { validatePickupToken } from "./validatePickupToken";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -129,6 +130,7 @@ export {
   generatePickupToken,
   revokePickupToken,
   getPickupTokenStatus,
+  validatePickupToken,
   recordPickupEvent,
   recalculateDeliveryReadiness,
 };

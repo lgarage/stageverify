@@ -456,22 +456,29 @@ export function pickupPath(jobId: string, deliveryId?: string | null): string {
 /** Read pickup deep-link params from router search or hash (mobile Safari fallback). */
 export function readPickupParams(
   searchParams: URLSearchParams,
-): { job: string | null; delivery: string | null; zone: string | null } {
+): {
+  job: string | null;
+  delivery: string | null;
+  zone: string | null;
+  token: string | null;
+} {
+  const token = searchParams.get("t");
   const job = searchParams.get("job") ?? searchParams.get("j");
   const delivery = searchParams.get("delivery") ?? searchParams.get("d");
   const zone = searchParams.get("zone") ?? searchParams.get("z");
-  if (job || delivery || zone) {
-    return { job, delivery, zone };
+  if (token || job || delivery || zone) {
+    return { job, delivery, zone, token };
   }
 
   const hash = window.location.hash;
   const qs = hash.indexOf("?");
-  if (qs === -1) return { job: null, delivery: null, zone: null };
+  if (qs === -1) return { job: null, delivery: null, zone: null, token: null };
   const fromHash = new URLSearchParams(hash.slice(qs + 1));
   return {
     job: fromHash.get("job") ?? fromHash.get("j"),
     delivery: fromHash.get("delivery") ?? fromHash.get("d"),
     zone: fromHash.get("zone") ?? fromHash.get("z"),
+    token: fromHash.get("t"),
   };
 }
 

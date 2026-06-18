@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recalculateDeliveryReadiness = exports.recordPickupEvent = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
+exports.recalculateDeliveryReadiness = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
@@ -20,6 +20,8 @@ const revokePickupToken_1 = require("./revokePickupToken");
 Object.defineProperty(exports, "revokePickupToken", { enumerable: true, get: function () { return revokePickupToken_1.revokePickupToken; } });
 const getPickupTokenStatus_1 = require("./getPickupTokenStatus");
 Object.defineProperty(exports, "getPickupTokenStatus", { enumerable: true, get: function () { return getPickupTokenStatus_1.getPickupTokenStatus; } });
+const validatePickupToken_1 = require("./validatePickupToken");
+Object.defineProperty(exports, "validatePickupToken", { enumerable: true, get: function () { return validatePickupToken_1.validatePickupToken; } });
 admin.initializeApp();
 const db = admin.firestore();
 const DEFAULT_AUTO_SUBMIT_MINUTES = 30;

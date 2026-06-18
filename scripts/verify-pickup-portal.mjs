@@ -24,6 +24,7 @@ import {
 } from "./pickupLocationDisplayFixture.mjs";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { collection, doc, getDocs, getFirestore, query, updateDoc, where } from "firebase/firestore";
 
 const BLOCKING_ISSUE_TYPES = ["damaged", "wrong_item", "missing", "backordered"];
@@ -36,6 +37,27 @@ const firebaseConfig = {
   messagingSenderId: "784751243681",
   appId: "1:784751243681:web:31fa71762b94f878fd1be0",
 };
+
+async function generatePickupTokenForJob(jobId) {
+  const email = process.env.STAGEVERIFY_TEST_EMAIL;
+  const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+  if (!email || !password) {
+    throw new Error(
+      "STAGEVERIFY_TEST_EMAIL/PASSWORD required to generate pickup token fixture",
+    );
+  }
+  const app = initializeApp(firebaseConfig, "verify-pickup-token-gen");
+  const auth = getAuth(app);
+  await signInWithEmailAndPassword(auth, email, password);
+  const functions = getFunctions(app);
+  const generate = httpsCallable(functions, "generatePickupToken");
+  const response = await generate({ jobId });
+  const token = response.data?.token;
+  if (typeof token !== "string" || !token) {
+    throw new Error("generatePickupToken did not return a token");
+  }
+  return token;
+}
 
 async function pickFreshBlockingIssueType(deliveryOrderId) {
   const email = process.env.STAGEVERIFY_TEST_EMAIL;
@@ -407,7 +429,20 @@ async function runDashboardBadgeCheck(browser) {
   });
   const page = await context.newPage();
 
-  const url = `${appBase}/#/pickup?job=${jobId}&delivery=${deliveryId}`;
+  let pickupToken;
+  try {
+    pickupToken = await generatePickupTokenForJob(jobId);
+    console.log("Slice 5: generated pickup token fixture for job", jobId);
+  } catch (err) {
+    console.error(
+      "FAIL: could not generate pickup token — deploy generatePickupToken CF and set .env.local credentials.",
+      err instanceof Error ? err.message : err,
+    );
+    await browser.close();
+    process.exit(1);
+  }
+
+  const url = `${appBase}/#/pickup?t=${pickupToken}&delivery=${deliveryId}`;
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 

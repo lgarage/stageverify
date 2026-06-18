@@ -26,6 +26,7 @@ import {
   syncScanIntent,
 } from "./scanRouting";
 import { normalizePickupHash, parseScannedQr, readPickupParams } from "./receiveQrUrls";
+import { validatePickupTokenClient } from "./validatePickupTokenClient";
 import { QrScannerOverlay } from "./QrScannerOverlay";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 
@@ -1513,27 +1514,62 @@ export default function PickupPortalPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const pickupParams = readPickupParams(searchParams);
   const jobIdFromUrl = pickupParams.job;
+  const tokenFromUrl = pickupParams.token;
   const deliveryFromUrl = pickupParams.delivery;
   const zoneFromUrl = pickupParams.zone;
   const [discoveredJobId, setDiscoveredJobId] = useState<string | null>(null);
+  const [tokenResolvedJobId, setTokenResolvedJobId] = useState<string | null>(
+    null,
+  );
+  const [tokenValidating, setTokenValidating] = useState(
+    Boolean(tokenFromUrl && !jobIdFromUrl),
+  );
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [highlightDeliveryId, setHighlightDeliveryId] = useState<
     string | null
   >(deliveryFromUrl);
   const [zoneDeepLinkPending, setZoneDeepLinkPending] = useState(
-    Boolean(zoneFromUrl && !jobIdFromUrl),
+    Boolean(zoneFromUrl && !jobIdFromUrl && !tokenFromUrl),
   );
   const [zoneDeepLinkError, setZoneDeepLinkError] = useState<string | null>(
     null,
   );
 
-  const activeJobId = jobIdFromUrl ?? discoveredJobId;
+  const activeJobId =
+    jobIdFromUrl ?? tokenResolvedJobId ?? discoveredJobId;
 
   useEffect(() => {
     normalizePickupHash();
   }, []);
 
   useEffect(() => {
-    if (!zoneFromUrl || jobIdFromUrl) return;
+    if (!tokenFromUrl || jobIdFromUrl) return;
+    let cancelled = false;
+    void (async () => {
+      setTokenValidating(true);
+      setTokenError(null);
+      try {
+        const result = await validatePickupTokenClient(tokenFromUrl);
+        if (cancelled) return;
+        setTokenResolvedJobId(result.jobId);
+      } catch (err) {
+        if (cancelled) return;
+        setTokenError(
+          err instanceof Error
+            ? err.message
+            : "Invalid or expired pickup link. Ask dispatch for a new link.",
+        );
+      } finally {
+        if (!cancelled) setTokenValidating(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenFromUrl, jobIdFromUrl]);
+
+  useEffect(() => {
+    if (!zoneFromUrl || jobIdFromUrl || tokenFromUrl) return;
     let cancelled = false;
     void (async () => {
       const resolved = await resolveZoneScanDisposition(zoneFromUrl);
@@ -1563,7 +1599,7 @@ export default function PickupPortalPage() {
     return () => {
       cancelled = true;
     };
-  }, [zoneFromUrl, jobIdFromUrl, setSearchParams]);
+  }, [zoneFromUrl, jobIdFromUrl, tokenFromUrl, setSearchParams]);
 
   const handleJobResolved = useCallback(
     (jobId: string, deliveryId: string | null) => {
@@ -1580,13 +1616,36 @@ export default function PickupPortalPage() {
 
   const handleStartOver = useCallback(() => {
     setDiscoveredJobId(null);
+    setTokenResolvedJobId(null);
+    setTokenError(null);
     setHighlightDeliveryId(null);
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
-      {zoneDeepLinkPending ? (
+      {tokenValidating ? (
+        <div
+          className="flex flex-1 items-center justify-center text-text-secondary text-sm"
+          data-testid="pickup-token-validating"
+        >
+          Opening pickup link…
+        </div>
+      ) : tokenError ? (
+        <div
+          className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
+          data-testid="pickup-token-error"
+        >
+          <p className="text-accent-red text-sm font-semibold">{tokenError}</p>
+          <button
+            type="button"
+            onClick={handleStartOver}
+            className="text-sm text-accent-blue underline"
+          >
+            Enter a different link
+          </button>
+        </div>
+      ) : zoneDeepLinkPending ? (
         <div className="flex flex-1 items-center justify-center text-text-secondary text-sm">
           Loading pickup for zone {zoneFromUrl}…
         </div>
