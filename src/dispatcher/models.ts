@@ -357,6 +357,12 @@ export interface AppSettings {
   vendorDeliveryMode?: VendorDeliveryMode;
   /** Minutes before vendor PIN session expires (server + client inactivity). Default 15. */
   vendorSessionMinutes?: number;
+  /** Optional shop geofence center (vendor receive warn/enforce). */
+  shopLatitude?: number;
+  shopLongitude?: number;
+  shopGeofenceRadiusMeters?: number;
+  /** When true, vendor DELIVERED blocked outside geofence. PIN still allowed when false. */
+  vendorGeofenceEnforce?: boolean;
   /** Configurable StageVerify monitoring inbox — no hard-coded production address. */
   monitoringInboxEmail?: string;
   /** When false or inbox unset, email monitor reports missing configuration. */

@@ -477,7 +477,7 @@
                                                "npm run verify:dispatcher-nav",
                                                "npm run verify:vendor-delivered"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-024",

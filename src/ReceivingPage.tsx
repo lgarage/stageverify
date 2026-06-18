@@ -34,6 +34,7 @@ import {
 } from "./dispatcher/models";
 import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
+import { isOutsideShopGeofence } from "./geofence";
 import type { VendorDeliveryMode } from "./dispatcher/models";
 
 type Step = "scan" | "pin" | "hub" | "items" | "zone" | "done";
@@ -112,6 +113,8 @@ export function ReceivingPage() {
     useState<VendorDeliveryMode>("full_checkin");
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
+  const [outsideGeofence, setOutsideGeofence] = useState<boolean | null>(null);
+  const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
 
   const urlDeepLinkHandledRef = useRef(false);
   const activeDeliveryIdRef = useRef<string | null>(null);
@@ -217,6 +220,37 @@ export function ReceivingPage() {
     void getAppSettings().then((settings) => {
       setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
+      setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
+
+      const lat = settings.shopLatitude;
+      const lng = settings.shopLongitude;
+      const radius = settings.shopGeofenceRadiusMeters;
+      if (
+        typeof lat !== "number" ||
+        typeof lng !== "number" ||
+        typeof radius !== "number" ||
+        radius <= 0 ||
+        !navigator.geolocation
+      ) {
+        setOutsideGeofence(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setOutsideGeofence(
+            isOutsideShopGeofence(
+              pos.coords.latitude,
+              pos.coords.longitude,
+              lat,
+              lng,
+              radius,
+            ),
+          );
+        },
+        () => setOutsideGeofence(null),
+        { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 },
+      );
     });
   }, []);
 
@@ -497,6 +531,10 @@ export function ReceivingPage() {
 
   const handleMarkDelivered = async () => {
     if (!deliveryDetails) return;
+    if (vendorGeofenceEnforce && outsideGeofence) {
+      setError("You must be at the shop to confirm delivery.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -733,6 +771,8 @@ export function ReceivingPage() {
             deliveryDetails={deliveryDetails}
             loading={loading}
             error={error}
+            geofenceOutside={outsideGeofence === true}
+            geofenceEnforce={vendorGeofenceEnforce}
             onDeliveryUpdated={(updated) => {
               setDeliveryDetails((prev) =>
                 prev ? { ...prev, delivery: updated } : prev,

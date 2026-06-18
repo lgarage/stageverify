@@ -5,6 +5,7 @@ import {
   type LocationStatus,
   type StagingLocation,
   type VendorDeliveryMode,
+  type AppSettings,
 } from "./dispatcher/models";
 import {
   findStagingLocationByCode,
@@ -97,6 +98,10 @@ export function SettingsPage() {
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
   const [vendorSessionMinutes, setVendorSessionMinutes] = useState(15);
+  const [shopLatitude, setShopLatitude] = useState("");
+  const [shopLongitude, setShopLongitude] = useState("");
+  const [shopGeofenceRadiusMeters, setShopGeofenceRadiusMeters] = useState("");
+  const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
 
@@ -127,6 +132,18 @@ export function SettingsPage() {
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
       setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
       setVendorSessionMinutes(settings.vendorSessionMinutes ?? 15);
+      setShopLatitude(
+        settings.shopLatitude != null ? String(settings.shopLatitude) : "",
+      );
+      setShopLongitude(
+        settings.shopLongitude != null ? String(settings.shopLongitude) : "",
+      );
+      setShopGeofenceRadiusMeters(
+        settings.shopGeofenceRadiusMeters != null
+          ? String(settings.shopGeofenceRadiusMeters)
+          : "",
+      );
+      setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
     });
   }, []);
 
@@ -134,11 +151,21 @@ export function SettingsPage() {
     if (savingRevert) return;
     setSavingRevert(true);
     try {
-      await updateAppSettings({
+      const patch: Partial<AppSettings> = {
         vendorRevertWindowMinutes: revertWindowMinutes,
         vendorDeliveryMode,
         vendorSessionMinutes,
-      });
+        vendorGeofenceEnforce,
+      };
+      const lat = Number(shopLatitude);
+      const lng = Number(shopLongitude);
+      const radius = Number(shopGeofenceRadiusMeters);
+      if (shopLatitude.trim() && Number.isFinite(lat)) patch.shopLatitude = lat;
+      if (shopLongitude.trim() && Number.isFinite(lng)) patch.shopLongitude = lng;
+      if (shopGeofenceRadiusMeters.trim() && Number.isFinite(radius) && radius > 0) {
+        patch.shopGeofenceRadiusMeters = radius;
+      }
+      await updateAppSettings(patch);
       setRevertSaved(true);
       setTimeout(() => setRevertSaved(false), 2000);
     } finally {
@@ -533,6 +560,95 @@ export function SettingsPage() {
                   Saved ✓
                 </span>
               )}
+            </div>
+            <div
+              style={{
+                padding: "0 20px 20px",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#6b7280",
+                  width: "100%",
+                }}
+              >
+                Shop geofence (vendor receive warn)
+              </span>
+              <label style={{ fontSize: 13, color: "#6b7280" }}>Lat</label>
+              <input
+                type="text"
+                value={shopLatitude}
+                onChange={(e) => setShopLatitude(e.target.value)}
+                onBlur={() => void saveRevertWindow()}
+                placeholder="41.88"
+                style={{
+                  width: 100,
+                  padding: "8px 10px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontFamily: FONT,
+                }}
+              />
+              <label style={{ fontSize: 13, color: "#6b7280" }}>Lng</label>
+              <input
+                type="text"
+                value={shopLongitude}
+                onChange={(e) => setShopLongitude(e.target.value)}
+                onBlur={() => void saveRevertWindow()}
+                placeholder="-87.63"
+                style={{
+                  width: 100,
+                  padding: "8px 10px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontFamily: FONT,
+                }}
+              />
+              <label style={{ fontSize: 13, color: "#6b7280" }}>Radius (m)</label>
+              <input
+                type="number"
+                min={50}
+                value={shopGeofenceRadiusMeters}
+                onChange={(e) => setShopGeofenceRadiusMeters(e.target.value)}
+                onBlur={() => void saveRevertWindow()}
+                placeholder="402"
+                style={{
+                  width: 80,
+                  padding: "8px 10px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontFamily: FONT,
+                }}
+              />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                  color: "#6b7280",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={vendorGeofenceEnforce}
+                  onChange={(e) => {
+                    setVendorGeofenceEnforce(e.target.checked);
+                    void saveRevertWindow();
+                  }}
+                />
+                Block DELIVERED outside radius
+              </label>
             </div>
           </div>
 

@@ -7,6 +7,8 @@ interface VendorDeliveredHubProps {
   deliveryDetails: DeliveryDetails;
   loading: boolean;
   error: string | null;
+  geofenceOutside?: boolean;
+  geofenceEnforce?: boolean;
   onDeliveryUpdated: (delivery: DeliveryOrder) => void;
   onDelivered: () => void;
   onBack: () => void;
@@ -16,6 +18,8 @@ export function VendorDeliveredHub({
   deliveryDetails,
   loading,
   error,
+  geofenceOutside = false,
+  geofenceEnforce = false,
   onDeliveryUpdated,
   onDelivered,
   onBack,
@@ -115,6 +119,17 @@ export function VendorDeliveredHub({
       </div>
 
       <div className="shrink-0 sticky bottom-0 z-10 px-4 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-3 border-t border-border bg-bg-primary space-y-2">
+        {geofenceOutside && (
+          <p
+            className="text-xs text-accent-amber text-center rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2"
+            role="status"
+            data-testid="vendor-geofence-warn"
+          >
+            {geofenceEnforce
+              ? "Outside shop area — move closer to confirm delivery."
+              : "You appear to be outside the shop area."}
+          </p>
+        )}
         {error && (
           <p className="text-xs text-accent-red text-center" role="alert">
             {error}
@@ -122,7 +137,7 @@ export function VendorDeliveredHub({
         )}
         <button
           type="button"
-          disabled={loading}
+          disabled={loading || (geofenceEnforce && geofenceOutside)}
           onClick={onDelivered}
           className="action-btn action-btn-delivered w-full text-lg font-bold tracking-wide disabled:opacity-50"
         >
