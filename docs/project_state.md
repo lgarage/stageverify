@@ -172,5 +172,5 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 3 remaining** — ready-only pickup queue (Slice 3+), shop-stock pull states, expected-materials UI (see `docs/roadmap.md`). Slice 2 (clear pickup locations) shipped 2026-06-08.
+1. **Phase 3 remaining** — shop-stock pull states, expected-materials UI, PO-grouped pickup checklist (see `docs/roadmap.md`). **Slice 3 complete** 2026-06-17. Slice 2 (clear pickup locations) shipped 2026-06-08.
 2. **ESL integration** — Phase 7; blocked on Minew credentials.

@@ -43,6 +43,10 @@ import {
   ZONE_CLEARED_DELIVERY_STATUSES,
 } from "./models";
 import { findStagingLocationByCode, normalizeStagingCodeKey } from "./stagingCode";
+import {
+  computeJobReadiness,
+  type JobReadinessResult,
+} from "./readiness";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -306,6 +310,46 @@ export class FirestoreDataService implements DispatcherDataService {
 
     const sorted = sortRows(filtered, sortBy, sortDirection);
     return asPagedResult(sorted, page, pageSize);
+  }
+
+  async getJobReadinessBreakdown(
+    jobId: string,
+  ): Promise<{
+    readiness: JobReadinessResult;
+    deliveries: DeliveryOrder[];
+    purchaseOrders: PurchaseOrder[];
+    vendorsById: Map<string, Vendor>;
+  } | null> {
+    const jobSnap = await getDoc(doc(db, "jobs", jobId));
+    if (!jobSnap.exists()) return null;
+
+    const [deliveries, purchaseOrders, vendors] = await Promise.all([
+      fetchWhere<DeliveryOrder>("deliveries", "jobId", jobId),
+      fetchWhere<PurchaseOrder>("purchaseOrders", "jobId", jobId),
+      fetchAll<Vendor>("vendors"),
+    ]);
+
+    const itemsByDelivery = new Map<string, Item[]>();
+    await Promise.all(
+      deliveries.map(async (delivery) => {
+        const items = await fetchWhere<Item>(
+          "items",
+          "deliveryOrderId",
+          delivery.id,
+        );
+        itemsByDelivery.set(delivery.id, items);
+      }),
+    );
+
+    const readiness = computeJobReadiness(
+      jobId,
+      deliveries,
+      purchaseOrders,
+      itemsByDelivery,
+    );
+
+    const vendorsById = new Map(vendors.map((v) => [v.id, v]));
+    return { readiness, deliveries, purchaseOrders, vendorsById };
   }
 
   async getDeliveryDetails(

@@ -1,10 +1,14 @@
 import type {
   DeliveryDetails,
   DeliveryListRow,
+  DeliveryOrder,
   DeliveryStatus,
   Job,
+  PurchaseOrder,
   StagingLocation,
+  Vendor,
 } from "./models";
+import type { JobReadinessResult } from "./readiness";
 
 export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   pending: ["arrived", "issue"],
@@ -72,6 +76,12 @@ export interface PagedResult<T> {
 export interface DispatcherDataService {
   listDeliveries(query?: DeliveryQuery): Promise<PagedResult<DeliveryListRow>>;
   getDeliveryDetails(deliveryId: string): Promise<DeliveryDetails | null>;
+  getJobReadinessBreakdown(jobId: string): Promise<{
+    readiness: JobReadinessResult;
+    deliveries: DeliveryOrder[];
+    purchaseOrders: PurchaseOrder[];
+    vendorsById: Map<string, Vendor>;
+  } | null>;
   updateDeliveryStatus(
     deliveryId: string,
     toStatus: DeliveryStatus,

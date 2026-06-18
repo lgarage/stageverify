@@ -26,9 +26,9 @@
 | **§5** | Condition 1 — configurable inbox, vendor email evidence, untrusted parsing | **Phase 5** (prototype) → **Phase 6** (live inbox) | ⬜ Deferred |
 | **§5** | Email cannot directly force Ready for Pickup; server rules decide | Phase 5–6 gates + principles | ⬜ Policy defined; automation not built |
 | **§5** | Per-delivery / per-PO / per-job readiness separation | Phase 2 model + CF `b7b817f` | ✅ Core logic shipped; job-level “all ready” UI Phase 3 remainder |
-| **§6** | Dispatcher readiness view: ready / partial / issue / picked up / job-all-ready | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | 🔵 Partial (drawer + issues); job-all-ready queue ⬜ |
-| **§7** | **Pickup Scheduled** state after BuildOps scheduling | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | 🔵 Partial (dispatcher toggle + badge) |
-| **§8** | **Copy Pickup Information** (site, job, locations, link → clipboard) | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | 🔵 Partial (Copy Pickup Information shipped) |
+| **§6** | Dispatcher readiness view: ready / partial / issue / picked up / job-all-ready | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped (job/PO/delivery breakdown + Everything Ready gate) |
+| **§7** | **Pickup Scheduled** state after BuildOps scheduling | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped (dispatcher toggle + badge) |
+| **§8** | **Copy Pickup Information** (site, job, locations, link → clipboard) | **Phase 3 Slice 3 — Dispatcher readiness & scheduling** | ✅ Shipped |
 | **§9** | Technician opens pickup link — no login | Phase 1–3 public pickup portal | ✅ Built (job/delivery hash params) |
 | **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ⬜ Not built (plain job link today) |
 | **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Slice 2 location labels only; PO-grouped checklist ⬜ |
@@ -37,7 +37,7 @@
 | **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | ⬜ Blocked on physical shop map / Jake Korb |
 | **§12** | **Order Pickup Complete** submit; server-owned transactional pickup | `recordPickupEvent` CF `b7b817f` | ✅ Shipped (UI says “Done — All Picked Up”) |
 | **§12** | Idempotent / concurrent-safe pickup | `recordPickupEvent` + `pickupOperations` `b7b817f` | ✅ Shipped prod |
-| **§12** | Blocking issue vs pickup behavior (UI says can complete; CF may block) | **Phase 3 bugfix / alignment** | 🔴 Known mismatch — resolve before full gate |
+| **§12** | Blocking issue vs pickup behavior (UI says can complete; CF may block) | **Phase 3 bugfix / alignment** | ✅ Aligned (`away-009`) |
 | **§12** | Leave-shop geofence reminder (best-effort; not auto-complete) | **Phase 3 Slice 5 — Pickup link security** (optional) | ⬜ Not built |
 | **§13** | Dispatcher sees pickup update, qty remaining, pickup events | Phase 3 Slice 1 + drawer | 🔵 Partial |
 | **§13** | Release temporary staging → Available + E-tag clear | **Phase 3 Slice 6 — Staging release** | 🔵 Partial (`picked_up` clears staging); combination groups + ESL Phase 7 |
@@ -166,14 +166,14 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Vendor physical submit → trusted readiness recalc | ✅ Prod path verified |
 | **Known gap:** blocking issue UI vs CF pickup eligibility | ✅ Aligned (`away-009` — pickup allowed with warning) |
 
-### Phase 3 Slice 3 — Dispatcher readiness & scheduling (in progress)
+### Phase 3 Slice 3 — Dispatcher readiness & scheduling (complete)
 
 | Deliverable | Detail (`svscope` §6–8) | Status |
 | ----------- | ------------------------ | ------ |
-| Job / PO / delivery readiness breakdown | Which deliveries ready, incomplete, issue, picked up; job must not show “Everything Ready” until all required material ready | 🔵 Partial |
-| **Pickup Scheduled** | Dispatcher marks job after BuildOps scheduling — distinct from vendor delivery schedule | 🔵 Partial |
-| **Copy Pickup Information** | One-click clipboard: site, job name, job number, pickup locations, pickup link | 🔵 Partial |
-| Ready-only pickup queue | Job appears in technician queue only when business readiness = `ready_for_pickup` | 🔵 Partial |
+| Job / PO / delivery readiness breakdown | Which deliveries ready, incomplete, issue, picked up; job must not show “Everything Ready” until all required material ready | ✅ Shipped |
+| **Pickup Scheduled** | Dispatcher marks job after BuildOps scheduling — distinct from vendor delivery schedule | ✅ Shipped |
+| **Copy Pickup Information** | One-click clipboard: site, job name, job number, pickup locations, pickup link | ✅ Shipped |
+| Ready-only pickup queue | Job appears in technician queue only when business readiness = `ready_for_pickup` | ✅ Shipped |
 
 ### Phase 3 Slice 4 — Vendor access hardening (not started)
 

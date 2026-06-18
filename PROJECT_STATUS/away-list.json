@@ -11,12 +11,12 @@
                               "escalationModel":  "claude-4.6-sonnet-medium-thinking",
                               "instructions":  "Run queue items in dependsOn order only. For each item: (1) confirm dependsOn predecessor is status done in away-list.json; (2) implement; (3) run ALL verifyBeforeNext commands — every command must exit 0; (4) if escalateWhen triggers, run Sonnet security/review gate BEFORE commit/push; (5) set status done in away-list.json; (6) append {id, status: built|blocked, commit, note} to away-status.json; (7) commit, push, deploy UI/CF as required; (8) only then start next item. On verify FAIL or Sonnet HIGH risk: status blocked, log reason, STOP batch — do not skip ahead. Re-run failed item after fix.",
                               "sequence":  [
-                                               "away-009",
-                                               "away-010",
-                                               "away-011",
-                                               "away-012",
-                                               "away-013",
-                                               "away-014"
+                                               "away-015",
+                                               "away-016",
+                                               "away-017",
+                                               "away-018",
+                                               "away-019",
+                                               "away-020"
                                            ]
                           },
     "queue":  [
@@ -261,6 +261,139 @@
                                                "npm run verify:pickup:prod"
                                            ],
                       "status":  "done"
+                  },
+                  {
+                      "id":  "away-015",
+                      "title":  "Ship Slice 3 close-out: job readiness panel",
+                      "scope":  "Commit and deploy pending Slice 3 close-out: JobReadinessPanel in DispatcherDashboardPage, jobReadinessDisplay.ts, getJobReadinessBreakdown in firestoreService, verify-dispatcher-nav job-readiness-panel check, roadmap/CURRENT_STATE Slice 3 complete. npm run deploy (gh-pages). No new feature code beyond what is already in working tree.",
+                      "files":  [
+                                    "src/DispatcherDashboardPage.tsx",
+                                    "src/dispatcher/jobReadinessDisplay.ts",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "src/dispatcher/service.ts",
+                                    "scripts/verify-dispatcher-nav.mjs",
+                                    "docs/roadmap.md",
+                                    "docs/project_state.md",
+                                    "PROJECT_STATUS/CURRENT_STATE.md"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Slice 3 docs show complete; dispatcher drawer shows job-readiness-panel; Everything Ready badge only when computeJobReadiness allReadyForPickup; npm run build clean; verify:dispatcher-nav PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — overnight batch 2 prerequisite",
+                      "preApproved":  true,
+                      "dependsOn":  null,
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-016",
+                      "title":  "Phase 3 remainder: Expected Materials on pickup cards",
+                      "scope":  "In PickupPortalPage per delivery zone card, add read-only Expected Materials list from delivery items (description + qty ordered). data-testid=expected-materials on container. Do NOT show missing/backorder/damaged counts (Slice 2 public rule). Extend scripts/verify-pickup-portal.mjs to assert expected-materials visible on delivery-3 fixture.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "expected-materials visible on pickup for delivery-3; no problem qty text; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — overnight batch 2 Phase 3 remainder",
+                      "preApproved":  true,
+                      "dependsOn":  "away-015",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-017",
+                      "title":  "Phase 3 remainder: unstaged deliveries visible (detail only)",
+                      "scope":  "Per roadmap detail visibility: when technician opens job pickup, show partial/arrived deliveries de-emphasized (not check-off eligible) alongside ready_for_pickup queue. Extend loadPickupReadyDeliveriesPublic or JobPickupScreen filter — display only, no new rules. Ready-only checkoff unchanged. data-testid=pickup-not-ready-row on de-emphasized rows. Update verify:pickup if row count assertions change.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Ready deliveries remain primary; partial/arrived on same job visible but not check-off; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — overnight batch 2 Phase 3 remainder",
+                      "preApproved":  true,
+                      "dependsOn":  "away-016",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-018",
+                      "title":  "Phase 3 remainder: shop stock Not Pulled / Pulled labels",
+                      "scope":  "On PickupPortalPage shop-stock lines, show Not Pulled when unchecked and Pulled when checked. data-testid=shop-stock-pull-state on each line. No Firestore schema changes. Extend verify:pickup to assert label toggles after tap if fixture has shop stock.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Shop stock lines show Not Pulled/Pulled; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — overnight batch 2 Phase 3 remainder",
+                      "preApproved":  true,
+                      "dependsOn":  "away-017",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-019",
+                      "title":  "Slice 6: clear staging assignment on full CF pickup",
+                      "scope":  "In functions/src/recordPickupEvent.ts when delivery reaches picked_up, clear stagingLocationId and additionalStagingLocationIds on delivery doc (release occupancy). Mirror client away-004 behavior. Do NOT weaken Firestore rules. Run Sonnet 4.6 security gate before deploy. firebase deploy --only functions --project stageverify-db. Extend test-pickup-authority or verify:pickup if needed.",
+                      "files":  [
+                                    "functions/src/recordPickupEvent.ts"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "After full pickup, delivery stagingLocationId empty; zone freed in occupancy; npm run test:pickup-authority PASS; npm run verify:pickup PASS after CF deploy.",
+                      "capturedDuring":  "Dan 2026-06-17 — overnight batch 2 Slice 6 partial",
+                      "preApproved":  true,
+                      "dependsOn":  "away-018",
+                      "verifyBeforeNext":  [
+                                               "cd functions && npm run build",
+                                               "npm run build",
+                                               "npm run test:pickup-authority",
+                                               "npm run verify:pickup"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate on recordPickupEvent.ts staging clear; then firebase deploy --only functions --project stageverify-db; re-run verify:pickup",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-020",
+                      "title":  "Overnight batch close: deploy UI + prod verify gate",
+                      "scope":  "npm run deploy (gh-pages). Run full verify gate. Update docs/roadmap.md Phase 3 remainder rows to partial where shipped. Append all away-015…019 results to away-status.json.",
+                      "files":  [
+                                    "docs/roadmap.md",
+                                    "PROJECT_STATUS/away-status.json",
+                                    "PROJECT_STATUS/CURRENT_STATE.md"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "npm run verify:pickup:prod PASS; npm run verify:dispatcher-nav PASS; npm run build clean; UI deployed.",
+                      "capturedDuring":  "Dan 2026-06-17 — overnight batch 2 gate",
+                      "preApproved":  true,
+                      "dependsOn":  "away-019",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:pickup:prod"
+                                           ],
+                      "status":  "queued"
                   }
               ]
 }

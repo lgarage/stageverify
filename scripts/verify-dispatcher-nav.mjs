@@ -179,6 +179,24 @@ function sidebar(page) {
   }
   await receivePage.close();
 
+  console.log("Job readiness panel (Slice 3)…");
+  await page
+    .getByRole("heading", { name: "Delivery Overview" })
+    .waitFor({ timeout: 15_000 });
+  const firstViewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
+  if (await firstViewBtn.isVisible().catch(() => false)) {
+    await firstViewBtn.click();
+    await page.getByTestId("job-readiness-panel").waitFor({ timeout: 15_000 });
+    const everythingReady = page.getByTestId("everything-ready-badge");
+    if (await everythingReady.isVisible().catch(() => false)) {
+      console.log("Slice 3: Everything Ready badge visible (all deliveries ready).");
+    } else {
+      console.log("Slice 3: job-readiness-panel visible; no Everything Ready badge (expected when job incomplete).");
+    }
+  } else {
+    console.log("SKIP job readiness panel: no delivery rows to open.");
+  }
+
   await browser.close();
   console.log("verify:dispatcher-nav PASS");
 })().catch((err) => {

@@ -1,5 +1,6 @@
 {
   "lastRun": "2026-06-17",
+  "batch": "away-015…020 queued (overnight Phase 3 remainder + Slice 6 partial)",
   "results": [
     {
       "id": "away-009",
@@ -44,5 +45,5 @@
       "note": "Queue shows ready_for_pickup/picked_up/installed only; ?delivery= deep-link include; verify:pickup + verify:pickup:prod PASS."
     }
   ],
-  "summary": "6 built ✓  0 blocked ✗"
+  "summary": "Batch 1: 6 built ✓  0 blocked ✗ | Batch 2: away-015…020 queued"
 }

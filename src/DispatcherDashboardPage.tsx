@@ -27,11 +27,18 @@ import {
   type DeliveryOrder,
   type DeliverySortField,
   type DeliveryStatus,
+  type Job,
   type PagedResult,
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
 import { getAllStagingLocationIds, MATERIAL_ISSUE_TYPE_LABEL } from "./dispatcher/models";
+import {
+  deliveryReadinessDisplayLabel,
+  jobDispatchDisplayLabel,
+  poReadinessDisplayLabel,
+  showEverythingReadyBadge,
+} from "./dispatcher/jobReadinessDisplay";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -1681,6 +1688,221 @@ function PagBtn({
   );
 }
 
+/* ─── Job readiness breakdown (Slice 3 §6) ───────────────────────────────── */
+
+function readinessRowBadge(label: string, tone: "green" | "amber" | "gray" | "red") {
+  const tones = {
+    green: { bg: "#e8f5e9", text: "#2e7d32", border: "#a5d6a7" },
+    amber: { bg: "#fff8e1", text: "#f57c00", border: "#ffcc02" },
+    gray: { bg: "#f5f5f5", text: "#616161", border: "#e0e0e0" },
+    red: { bg: "#ffebee", text: "#c62828", border: "#ef9a9a" },
+  };
+  const style = tones[tone];
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        fontSize: 10,
+        fontWeight: 700,
+        padding: "2px 8px",
+        borderRadius: 999,
+        backgroundColor: style.bg,
+        color: style.text,
+        border: `1px solid ${style.border}`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function readinessToneForLabel(
+  label: string,
+): "green" | "amber" | "gray" | "red" {
+  if (label === "Ready for Pickup" || label === "Everything Ready for Pickup") {
+    return "green";
+  }
+  if (label === "Picked Up" || label === "All Items Picked Up") {
+    return "gray";
+  }
+  if (label.includes("Issue")) {
+    return "red";
+  }
+  return "amber";
+}
+
+function JobReadinessPanel({
+  job,
+  navy,
+  font,
+  refreshKey,
+}: {
+  job: Job;
+  navy: string;
+  font: string;
+  refreshKey?: string;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [breakdown, setBreakdown] = useState<
+    Awaited<ReturnType<typeof firestoreDataService.getJobReadinessBreakdown>>
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void firestoreDataService.getJobReadinessBreakdown(job.id).then((data) => {
+      if (!cancelled) {
+        setBreakdown(data);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [job.id, refreshKey]);
+
+  if (loading) {
+    return (
+      <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+        Loading job readiness…
+      </p>
+    );
+  }
+
+  if (!breakdown || breakdown.deliveries.length === 0) {
+    return null;
+  }
+
+  const { readiness, deliveries, purchaseOrders } = breakdown;
+  const jobLabel = jobDispatchDisplayLabel(job, deliveries, readiness);
+  const everythingReady = showEverythingReadyBadge(deliveries, readiness);
+
+  const deliveryRows = deliveries.map((delivery, idx) => ({
+    delivery,
+    result: readiness.deliveryResults[idx],
+    label: deliveryReadinessDisplayLabel(
+      delivery,
+      readiness.deliveryResults[idx],
+    ),
+  }));
+
+  return (
+    <div
+      data-testid="job-readiness-panel"
+      style={{
+        marginTop: 8,
+        paddingTop: 10,
+        borderTop: "1px solid #e0e3e8",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        fontFamily: font,
+      }}
+    >
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+          Job status
+        </span>
+        {readinessRowBadge(jobLabel, readinessToneForLabel(jobLabel))}
+        {everythingReady && (
+          <span
+            data-testid="everything-ready-badge"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              backgroundColor: "#e8f5e9",
+              color: "#2e7d32",
+              border: "1px solid #a5d6a7",
+              borderRadius: 999,
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            Everything Ready for Pickup
+          </span>
+        )}
+      </div>
+
+      {purchaseOrders.length > 0 && (
+        <div>
+          <p
+            style={{
+              margin: "0 0 6px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: navy,
+              letterSpacing: "0.02em",
+            }}
+          >
+            Purchase orders
+          </p>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+            {purchaseOrders.map((po) => {
+              const poResult = readiness.poResults.find((r) => r.poId === po.id);
+              const label = poResult
+                ? poReadinessDisplayLabel(poResult)
+                : "Incomplete";
+              return (
+                <li
+                  key={po.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    fontSize: 12,
+                    padding: "4px 0",
+                  }}
+                >
+                  <span style={{ fontFamily: "monospace", fontWeight: 600 }}>
+                    {po.poNumber}
+                  </span>
+                  {readinessRowBadge(label, readinessToneForLabel(label))}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      <div>
+        <p
+          style={{
+            margin: "0 0 6px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: navy,
+            letterSpacing: "0.02em",
+          }}
+        >
+          Deliveries
+        </p>
+        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+          {deliveryRows.map(({ delivery, label }) => (
+            <li
+              key={delivery.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                fontSize: 12,
+                padding: "4px 0",
+              }}
+            >
+              <span style={{ fontFamily: "monospace", fontWeight: 600 }}>
+                {delivery.orderNumber}
+              </span>
+              {readinessRowBadge(label, readinessToneForLabel(label))}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Copy Pickup Link ───────────────────────────────────────────────────── */
 
 function CopyPickupLinkButton({
@@ -2130,6 +2352,12 @@ function DetailContent({
                   siteNumber={job.siteNumber}
                   navy={navy}
                   font={font}
+                />
+                <JobReadinessPanel
+                  job={job}
+                  navy={navy}
+                  font={font}
+                  refreshKey={details.delivery.updatedAt}
                 />
               </div>
             ),
