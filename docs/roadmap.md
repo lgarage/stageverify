@@ -1,13 +1,13 @@
 # StageVerify Roadmap (V2) - C:\Projects\stageverify\docs\roadmap.md
 
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
-> **Authority chain:** `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase); **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents and Phase 2+ work; `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
+> **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-17 (svscope_simple.md traceability sync)
+> **Last updated:** 2026-06-18 (svscope authority chain clarified)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
-> **Product scope authority:** `PROJECT_STATUS/svscope_simple.md` — canonical end-to-end product design. This roadmap maps every scope section to a phase so nothing is dropped. When scope and phase tables disagree, scope wins; update this file.
+> **Product scope authority:** `PROJECT_STATUS/svscope_simple.md` — canonical end-to-end product design. **All work must trace to scope § here.** This roadmap maps every scope section to a phase so nothing is dropped. When scope and phase tables disagree, **scope wins**; update this file.
 
 ---
 
@@ -334,8 +334,9 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 
 | File | Role |
 | ---- | ---- |
+| **`PROJECT_STATUS/svscope_simple.md`** | **Product authority** — end-to-end vision; everything hinges on scope §; wins on conflict |
 | **`docs/project_state.md`** | Canonical phase truth — features, deployment, known issues, current phase |
-| **`docs/roadmap.md` (this file)** | V2 phase prioritization and gates for agents; **`svscope_simple.md` traceability table** maps scope § → phase |
+| **`docs/roadmap.md` (this file)** | V2 phase prioritization and gates for agents; traceability table maps scope § → phase |
 | **`PROJECT_STATUS/CURRENT_STATE.md`** | Hot-tier snapshot (~30 lines); pointers only — read first each session |
 | **`docs/aecs-phase1-audit.md`** | AECS conversion audit (Layer 2) — control-system inventory, boundaries, Phase 2 plan; planning only, not live agent guidance |
 | **`docs/archives/stageverify_implementation_plan.md`** | Historical reference only — do not use for active agent guidance |

@@ -2,6 +2,7 @@
 
 > **Canonical phase truth** — single source for current phase, features, deployment status, and known issues.
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
+> **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` — end-to-end product design; all features and agent work must align with scope § there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
 > **Maintained by:** Composer 2.5 (update after major milestones)
 > **Last reviewed:** 2026-06-11
 

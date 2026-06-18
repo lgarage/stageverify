@@ -14,6 +14,7 @@ Continue the away batch from **`away-031` through `away-041`** in order from `PR
 
 Read first:
 - `PROJECT_STATUS/CURRENT_STATE.md`
+- **`PROJECT_STATUS/svscope_simple.md`** — product authority; align every item to scope §; scope wins on conflict
 - `PROJECT_STATUS/away-list.json` + `away-status.json`
 - `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`
 - `MODEL_DOSSIER.md` § agent-lessons (pickup / public routes)
@@ -48,9 +49,10 @@ Read first:
 Continue the away batch from away-031 (away-021…030 already shipped).
 Read first:
 - PROJECT_STATUS/CURRENT_STATE.md
+- PROJECT_STATUS/svscope_simple.md (product authority — align all work to scope §)
 - PROJECT_STATUS/away-list.json + away-status.json
 - PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md
 Done (do not redo): away-021…030 — vendor session, pickup tokens, job header, staging sections; away-028 geofence deferred.
 Start at: away-031 (PO line labels on pickup rows).
-Run away-031 through away-041 in order — as much as possible while I'm away. Halt only on verify fail or Sonnet HIGH. Verify gates + ship loop per protocol.
+Run away-031 through away-041 in order — as much as possible while I'm away. Halt only on verify fail or Sonnet HIGH. Verify gates + ship loop per protocol. Do not widen scope beyond svscope_simple.md.
 ```

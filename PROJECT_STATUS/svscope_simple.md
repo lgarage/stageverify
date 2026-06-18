@@ -1,5 +1,7 @@
 # StageVerify — Simple Product Scope
 
+> **Product authority — read this for “what we’re building.”** All features, phases, away-queue items, UI flows, and agent work **must align with this document**. `docs/roadmap.md` and `docs/project_state.md` trace delivery status to scope § here; **`PROJECT_STATUS/CURRENT_STATE.md`** points here first. When any doc disagrees with this file, **this file wins** — update the other doc, do not widen scope silently.
+
 ## What StageVerify Does
 
 StageVerify helps manage material deliveries, staging locations, readiness, scheduling, and technician pickup.

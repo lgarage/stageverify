@@ -6,8 +6,9 @@
 ## Session start (mandatory)
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` (blockers + active queue).
-2. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
-3. Open `PROJECT_STATUS/away-list.json` — follow `executionProtocol.sequence` in order.
+2. Read **`PROJECT_STATUS/svscope_simple.md`** — product authority; every feature and away item must align with scope §; scope wins on conflict.
+3. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
+4. Open `PROJECT_STATUS/away-list.json` — follow `executionProtocol.sequence` in order.
 
 ## Composer 2.5 = orchestrator (always)
 
@@ -74,7 +75,7 @@ node scripts/playwright-auth-setup.mjs   # if playwright/.auth/state.json missin
 For each id in `executionProtocol.sequence`:
 
 1. Confirm `dependsOn` predecessor is `status: done`.
-2. State scope in one line (what you will / will not add).
+2. State scope in one line (what you will / will not add) — **cite matching `svscope_simple.md` §**; do not implement outside scope.
 3. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 4. Run **all** `verifyBeforeNext` commands.
 5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
@@ -99,7 +100,7 @@ See `away-list.json` → `executionProtocol.sequence`. Copy-paste starter: `PROJ
 
 | Topic | File |
 |-------|------|
-| Product vision | `PROJECT_STATUS/svscope_simple.md` |
+| **Product authority (wins on conflict)** | `PROJECT_STATUS/svscope_simple.md` |
 | Playwright commands | `.cursor/rules/composer-orchestrator.mdc` |
 | Parallel scouts | `.cursor/rules/parallel-agent-strategy.mdc` |
 | Commit / deploy | `.cursor/rules/ship-loop.mdc` |
