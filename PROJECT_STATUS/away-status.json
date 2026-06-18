@@ -113,7 +113,21 @@
       "status": "built",
       "commit": "PENDING",
       "note": "validatePickupToken CF deployed; PickupPortalPage ?t= route; verify:pickup PASS with token fixture; Sonnet SECURITY: PASS."
+    },
+    {
+      "id": "away-027",
+      "title": "Slice 5: Copy Pickup Information uses token URL",
+      "status": "built",
+      "commit": "cf32bfa",
+      "note": "Copy uses session-stored token URL when active; verify:dispatcher-nav clipboard assert PASS."
+    },
+    {
+      "id": "away-028",
+      "title": "Slice 5: leave-shop geofence reminder (best-effort)",
+      "status": "built",
+      "commit": "n/a",
+      "note": "Deferred per Dan — geofence theory only; away-024 vendor geofence remains dormant; no pickup GPS monitoring shipped."
     }
   ],
-  "summary": "Batch 3: away-021…026 built ✓ | away-027…041 queued"
+  "summary": "Batch 3: away-021…029 built ✓ | away-030…041 queued"
 }

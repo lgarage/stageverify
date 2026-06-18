@@ -564,7 +564,7 @@
                                                "npm run build",
                                                "npm run verify:dispatcher-nav"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-028",

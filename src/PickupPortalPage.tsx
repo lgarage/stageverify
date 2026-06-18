@@ -1026,7 +1026,18 @@ function JobPickupScreen({
     );
   }
 
-  const jobName = deliveries[0]?.job?.jobName ?? "Job";
+  const job = deliveries[0]?.job;
+  const jobName = job?.jobName ?? "Job";
+  const jobNumber = job?.jobNumber ?? "";
+  const siteLabel = job?.siteNumber?.trim() || jobName;
+  const customerLabel = job?.materialOwnerName?.trim();
+  const poNumbers = [
+    ...new Set(
+      deliveries
+        .map((d) => d.purchaseOrder?.poNumber?.trim())
+        .filter((po): po is string => Boolean(po)),
+    ),
+  ].join(", ");
   const issueModalDelivery = issueModalDeliveryId
     ? deliveries.find((d) => d.delivery.id === issueModalDeliveryId)
     : null;
@@ -1047,9 +1058,37 @@ function JobPickupScreen({
         />
       )}
       <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
-        <p className="text-center text-text-secondary text-sm mb-4">
-          {jobName}
-        </p>
+        <div
+          data-testid="pickup-job-header"
+          className="mb-4 rounded-xl border border-border bg-bg-surface px-4 py-3 text-left text-sm space-y-1"
+        >
+          <p>
+            <span className="text-text-secondary">Site: </span>
+            <span className="text-text-primary font-medium">{siteLabel}</span>
+          </p>
+          {customerLabel ? (
+            <p>
+              <span className="text-text-secondary">Customer: </span>
+              <span className="text-text-primary font-medium">{customerLabel}</span>
+            </p>
+          ) : null}
+          <p>
+            <span className="text-text-secondary">Job: </span>
+            <span className="text-text-primary font-medium">{jobName}</span>
+          </p>
+          {jobNumber ? (
+            <p>
+              <span className="text-text-secondary">Job Number: </span>
+              <span className="text-text-primary font-medium">{jobNumber}</span>
+            </p>
+          ) : null}
+          {poNumbers ? (
+            <p>
+              <span className="text-text-secondary">PO Numbers: </span>
+              <span className="text-text-primary font-medium">{poNumbers}</span>
+            </p>
+          ) : null}
+        </div>
 
         {hasBlockingIssues && (
           <div

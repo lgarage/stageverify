@@ -372,6 +372,19 @@ async function assertShopStockPullState(page) {
   console.log("Shop stock PASS: Not Pulled → Pulled after tap.");
 }
 
+async function assertPickupJobHeader(page) {
+  const header = page.getByTestId("pickup-job-header");
+  await header.waitFor({ state: "visible", timeout: 15_000 });
+  const text = (await header.innerText()) ?? "";
+  if (!/Job Number:/i.test(text)) {
+    throw new Error(`pickup-job-header missing Job Number — got: ${text.slice(0, 200)}`);
+  }
+  if (!/PO Numbers:/i.test(text)) {
+    throw new Error(`pickup-job-header missing PO Numbers — got: ${text.slice(0, 200)}`);
+  }
+  console.log("Pickup job header PASS: pickup-job-header visible with job number and PO.");
+}
+
 async function assertExpectedMaterials(page) {
   const container = page.getByTestId("expected-materials").first();
   await container.waitFor({ state: "visible", timeout: 15_000 });
@@ -474,6 +487,7 @@ async function runDashboardBadgeCheck(browser) {
   console.log("Slice 2: full location display…");
   try {
     await assertLocationDisplayFull(page);
+    await assertPickupJobHeader(page);
     await assertExpectedMaterials(page);
     await assertShopStockPullState(page);
     await assertNotReadyRowVisible(page);
