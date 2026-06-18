@@ -497,7 +497,7 @@
                       "verifyBeforeNext":  [
                                                "npm run build"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-025",

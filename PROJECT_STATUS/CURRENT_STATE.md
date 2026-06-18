@@ -5,7 +5,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Phase 2 gate passed 2026-06-08; **Slices 1–3 + remainder batch shipped**; full Phase 3 gate not passed)
-- Last shipped: **away-015…020 batch** — Expected Materials, unstaged detail rows, shop-stock pull labels, CF staging clear on pickup (`8989cdb`); Slice 3 readiness panel deployed (`314d4d3`).
+- Last shipped: **away-021…024** — vendor PIN sessions (CF + enforce writes + TTL Settings + geofence warn); Slice 4 partial (`c14f654`).
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -15,7 +15,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-0. **Away queue:** Run `away-021`…`041` — protocol: `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`; prompt: `OVERNIGHT_PROMPT.md`.
+0. **Away queue:** Run `away-025`…`041` — away-021…024 shipped; protocol: `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`.
 1. **Blockers:** Minew ESL creds; Jake Korb shelving / shop map (combination stock §11, Slice 6 groups).
 2. **Post-batch:** Phase 5 email readiness (svscope §5) — not in away queue yet.
 

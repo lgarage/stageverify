@@ -87,12 +87,19 @@
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
     }
     {
-      "id": "away-022",
-      "title": "Slice 4: enforce vendor session on receive writes",
+      "id": "away-023",
+      "title": "Slice 4: configurable vendor session TTL in Settings",
       "status": "built",
-      "commit": "5ebecf4",
-      "note": "validateVendorSession CF + requireActiveVendorSession; Sonnet PASS; verify:vendor-delivered + verify:vendor-e2e PASS."
+      "commit": "12e6db1",
+      "note": "vendorSessionMinutes in Settings Workflow; CF + client session honor TTL; verify:dispatcher-nav + verify:vendor-delivered PASS."
+    },
+    {
+      "id": "away-024",
+      "title": "Slice 4: optional shop geofence warn on vendor receive",
+      "status": "built",
+      "commit": "c14f654",
+      "note": "shop lat/lng/radius + enforce toggle; vendor-geofence-warn banner; npm run build PASS."
     }
   ],
-  "summary": "Batch 3: away-021…022 built ✓ | away-023…041 queued"
+  "summary": "Batch 3: away-021…024 built ✓ | away-025…041 queued"
 }
