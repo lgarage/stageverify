@@ -111,7 +111,7 @@
       "id": "away-026",
       "title": "Slice 5: validatePickupToken CF + public route",
       "status": "built",
-      "commit": "PENDING",
+      "commit": "9c6d3f6",
       "note": "validatePickupToken CF deployed; PickupPortalPage ?t= route; verify:pickup PASS with token fixture; Sonnet SECURITY: PASS."
     },
     {
