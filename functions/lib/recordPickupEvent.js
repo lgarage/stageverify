@@ -185,6 +185,7 @@ exports.recordPickupEvent = (0, https_1.onCall)({
         if (fullyPicked) {
             deliveryPatch.status = "picked_up";
             deliveryPatch.stagingLocationId = "";
+            deliveryPatch.additionalStagingLocationIds = [];
             deliveryPatch.readinessStatus = "picked_up";
         }
         tx.set(db.collection("pickupEvents").doc(pickupEventId), {

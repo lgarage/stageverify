@@ -284,6 +284,7 @@ export const recordPickupEvent = onCall(
       if (fullyPicked) {
         deliveryPatch.status = "picked_up";
         deliveryPatch.stagingLocationId = "";
+        deliveryPatch.additionalStagingLocationIds = [];
         deliveryPatch.readinessStatus = "picked_up";
       }
 
