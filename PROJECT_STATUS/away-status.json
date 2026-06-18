@@ -104,7 +104,7 @@
       "id": "away-025",
       "title": "Slice 5: pickup token model + dispatcher generate",
       "status": "built",
-      "commit": "PENDING",
+      "commit": "b7dabff",
       "note": "pickupTokens CF-only collection; generate/revoke/status callables; PickupTokenControls in job drawer; Sonnet SECURITY: PASS; rules + CF deployed."
     }
   ],
