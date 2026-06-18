@@ -586,7 +586,7 @@
                                                "npm run build",
                                                "npm run verify:pickup"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-029",
@@ -606,7 +606,7 @@
                                                "npm run build",
                                                "npm run verify:pickup"
                                            ],
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-030",

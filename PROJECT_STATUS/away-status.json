@@ -127,6 +127,13 @@
       "status": "built",
       "commit": "n/a",
       "note": "Deferred per Dan — geofence theory only; away-024 vendor geofence remains dormant; no pickup GPS monitoring shipped."
+    },
+    {
+      "id": "away-029",
+      "title": "svscope §10: pickup job header (site, customer, PO list)",
+      "status": "built",
+      "commit": "032d4f2",
+      "note": "pickup-job-header with site/job/PO; verify:pickup PASS."
     }
   ],
   "summary": "Batch 3: away-021…029 built ✓ | away-030…041 queued"
