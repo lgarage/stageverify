@@ -160,7 +160,7 @@
       "id": "away-033",
       "title": "svscope §11: shop stock Staged pull-state label",
       "status": "built",
-      "commit": "pending",
+      "commit": "e4b48db",
       "note": "shop-stock-pull-state Not Pulled/Pulled/Staged; verify Scenario A staged assert PASS."
     }
   ],
