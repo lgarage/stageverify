@@ -242,6 +242,43 @@ export interface VerifyVendorPinResult {
   expiresAt?: string;
 }
 
+/** Server-validated pickup token (Firestore pickupTokens/{tokenHash}). */
+export interface PickupToken {
+  id: string;
+  jobId: string;
+  tokenHash: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface GeneratePickupTokenInput {
+  jobId: string;
+}
+
+export interface GeneratePickupTokenResult {
+  token: string;
+  expiresAt: string;
+  jobId: string;
+}
+
+export interface RevokePickupTokenInput {
+  jobId: string;
+}
+
+export interface RevokePickupTokenResult {
+  success: boolean;
+  revokedCount: number;
+}
+
+export interface PickupTokenStatusResult {
+  hasActiveToken: boolean;
+  expiresAt?: string;
+  createdAt?: string;
+  createdBy?: string;
+}
+
 /** Server-validated vendor PIN session (Firestore vendorSessions/{token}). */
 export interface VendorSession {
   id: string;

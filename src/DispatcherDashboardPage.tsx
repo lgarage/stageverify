@@ -1903,6 +1903,202 @@ function JobReadinessPanel({
   );
 }
 
+/* ─── Pickup token controls ──────────────────────────────────────────────── */
+
+function PickupTokenControls({
+  jobId,
+  navy,
+  font,
+  mutationLoading,
+}: {
+  jobId: string;
+  navy: string;
+  font: string;
+  mutationLoading: boolean;
+}) {
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [hasActiveToken, setHasActiveToken] = useState(false);
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null);
+  const [revealedToken, setRevealedToken] = useState<string | null>(null);
+  const [revealedLink, setRevealedLink] = useState<string | null>(null);
+
+  const refreshStatus = useCallback(async () => {
+    setStatusLoading(true);
+    setTokenError(null);
+    try {
+      const status = await firestoreDataService.getPickupTokenStatus(jobId);
+      setHasActiveToken(status.hasActiveToken);
+      setTokenExpiresAt(status.expiresAt ?? null);
+    } catch (err) {
+      setTokenError(
+        err instanceof Error ? err.message : "Failed to load pickup token status.",
+      );
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [jobId]);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  const handleGenerate = async () => {
+    setTokenBusy(true);
+    setTokenError(null);
+    try {
+      const result = await firestoreDataService.generatePickupToken(jobId);
+      const link = `${window.location.origin}${window.location.pathname}#/pickup?t=${result.token}`;
+      setRevealedToken(result.token);
+      setRevealedLink(link);
+      setHasActiveToken(true);
+      setTokenExpiresAt(result.expiresAt);
+    } catch (err) {
+      setTokenError(
+        err instanceof Error ? err.message : "Failed to generate pickup link.",
+      );
+    } finally {
+      setTokenBusy(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    setTokenBusy(true);
+    setTokenError(null);
+    try {
+      await firestoreDataService.revokePickupToken(jobId);
+      setHasActiveToken(false);
+      setTokenExpiresAt(null);
+      setRevealedToken(null);
+      setRevealedLink(null);
+    } catch (err) {
+      setTokenError(
+        err instanceof Error ? err.message : "Failed to revoke pickup link.",
+      );
+    } finally {
+      setTokenBusy(false);
+    }
+  };
+
+  const handleCopyRevealedLink = async () => {
+    if (!revealedLink) return;
+    await navigator.clipboard.writeText(revealedLink);
+  };
+
+  const buttonStyle = {
+    marginTop: 4,
+    backgroundColor: "#fff",
+    color: navy,
+    border: `1.5px solid ${navy}`,
+    borderRadius: 4,
+    padding: "6px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    fontFamily: font,
+    alignSelf: "flex-start" as const,
+    transition: "all 0.13s",
+    opacity: mutationLoading || tokenBusy ? 0.7 : 1,
+  };
+
+  return (
+    <div
+      data-testid="pickup-token-controls"
+      style={{ display: "flex", flexDirection: "column", gap: 4 }}
+    >
+      {statusLoading ? (
+        <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
+          Checking pickup link…
+        </span>
+      ) : hasActiveToken ? (
+        <span
+          data-testid="pickup-token-active"
+          style={{ fontSize: 11, color: "#2e7d32", fontFamily: font }}
+        >
+          Active pickup link
+          {tokenExpiresAt
+            ? ` · expires ${new Date(tokenExpiresAt).toLocaleString()}`
+            : ""}
+        </span>
+      ) : (
+        <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
+          No active pickup link
+        </span>
+      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <button
+          type="button"
+          data-testid="generate-pickup-link"
+          disabled={mutationLoading || tokenBusy}
+          onClick={() => void handleGenerate()}
+          style={buttonStyle}
+        >
+          {tokenBusy ? "Working…" : "Generate Pickup Link"}
+        </button>
+        {hasActiveToken ? (
+          <button
+            type="button"
+            data-testid="revoke-pickup-link"
+            disabled={mutationLoading || tokenBusy}
+            onClick={() => void handleRevoke()}
+            style={{
+              ...buttonStyle,
+              color: "#b91c1c",
+              borderColor: "#b91c1c",
+            }}
+          >
+            Revoke Pickup Link
+          </button>
+        ) : null}
+      </div>
+      {tokenError ? (
+        <span style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}>
+          {tokenError}
+        </span>
+      ) : null}
+      {revealedToken && revealedLink ? (
+        <div
+          data-testid="pickup-token-reveal"
+          style={{
+            marginTop: 4,
+            padding: 10,
+            borderRadius: 6,
+            border: "1px solid #a5d6a7",
+            backgroundColor: "#f1f8e9",
+            fontFamily: font,
+            fontSize: 11,
+          }}
+        >
+          <div style={{ fontWeight: 700, color: "#1b5e20", marginBottom: 6 }}>
+            Copy this link now — it will not be shown again
+          </div>
+          <div
+            style={{
+              wordBreak: "break-all",
+              color: navy,
+              marginBottom: 8,
+            }}
+          >
+            {revealedLink}
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleCopyRevealedLink()}
+            style={{
+              ...buttonStyle,
+              marginTop: 0,
+              backgroundColor: "#e8f5e9",
+            }}
+          >
+            Copy link
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /* ─── Copy Pickup Link ───────────────────────────────────────────────────── */
 
 function CopyPickupLinkButton({
@@ -2352,6 +2548,12 @@ function DetailContent({
                   siteNumber={job.siteNumber}
                   navy={navy}
                   font={font}
+                />
+                <PickupTokenControls
+                  jobId={job.id}
+                  navy={navy}
+                  font={font}
+                  mutationLoading={mutationLoading}
                 />
                 <JobReadinessPanel
                   job={job}

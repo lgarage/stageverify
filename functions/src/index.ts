@@ -6,6 +6,9 @@ import { verifyVendorPin } from "./verifyVendorPin";
 import { recordPickupEvent } from "./recordPickupEvent";
 import { recalculateDeliveryReadiness } from "./recalculateDeliveryReadiness";
 import { validateVendorSession } from "./validateVendorSession";
+import { generatePickupToken } from "./generatePickupToken";
+import { revokePickupToken } from "./revokePickupToken";
+import { getPickupTokenStatus } from "./getPickupTokenStatus";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -123,6 +126,9 @@ export {
   createMaterialIssue,
   verifyVendorPin,
   validateVendorSession,
+  generatePickupToken,
+  revokePickupToken,
+  getPickupTokenStatus,
   recordPickupEvent,
   recalculateDeliveryReadiness,
 };

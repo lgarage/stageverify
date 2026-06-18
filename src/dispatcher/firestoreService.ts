@@ -34,6 +34,11 @@ import type {
   MaterialIssue,
   CreateMaterialIssueInput,
   CreateMaterialIssueResult,
+  GeneratePickupTokenInput,
+  GeneratePickupTokenResult,
+  RevokePickupTokenInput,
+  RevokePickupTokenResult,
+  PickupTokenStatusResult,
   PickupEvent,
   PurchaseOrder,
   StagingLocation,
@@ -666,6 +671,33 @@ export class FirestoreDataService implements DispatcherDataService {
       { merge: true },
     );
     return this.getDeliveryDetails(deliveryId);
+  }
+
+  async generatePickupToken(jobId: string): Promise<GeneratePickupTokenResult> {
+    const callable = httpsCallable<
+      GeneratePickupTokenInput,
+      GeneratePickupTokenResult
+    >(functions, "generatePickupToken");
+    const response = await callable({ jobId });
+    return response.data;
+  }
+
+  async revokePickupToken(jobId: string): Promise<RevokePickupTokenResult> {
+    const callable = httpsCallable<
+      RevokePickupTokenInput,
+      RevokePickupTokenResult
+    >(functions, "revokePickupToken");
+    const response = await callable({ jobId });
+    return response.data;
+  }
+
+  async getPickupTokenStatus(jobId: string): Promise<PickupTokenStatusResult> {
+    const callable = httpsCallable<
+      { jobId: string },
+      PickupTokenStatusResult
+    >(functions, "getPickupTokenStatus");
+    const response = await callable({ jobId });
+    return response.data;
   }
 
   async updateJobPickupScheduled(

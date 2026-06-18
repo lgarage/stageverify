@@ -158,6 +158,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Pickup tokens — CF Admin SDK only; opaque token shown once at generation.
+    match /pickupTokens/{tokenId} {
+      allow read, write: if false;
+    }
+
     match /pinVerificationEvents/{eventId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if false;

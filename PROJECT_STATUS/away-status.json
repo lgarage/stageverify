@@ -85,7 +85,7 @@
       "status": "built",
       "commit": "3a5feb9",
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
-    }
+    },
     {
       "id": "away-023",
       "title": "Slice 4: configurable vendor session TTL in Settings",
@@ -99,7 +99,14 @@
       "status": "built",
       "commit": "c14f654",
       "note": "shop lat/lng/radius + enforce toggle; vendor-geofence-warn banner; npm run build PASS."
+    },
+    {
+      "id": "away-025",
+      "title": "Slice 5: pickup token model + dispatcher generate",
+      "status": "built",
+      "commit": "PENDING",
+      "note": "pickupTokens CF-only collection; generate/revoke/status callables; PickupTokenControls in job drawer; Sonnet SECURITY: PASS; rules + CF deployed."
     }
   ],
-  "summary": "Batch 3: away-021…024 built ✓ | away-025…041 queued"
+  "summary": "Batch 3: away-021…024 built ✓ | away-025 built ✓ | away-026…041 queued"
 }
