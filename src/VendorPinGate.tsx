@@ -60,7 +60,16 @@ export function VendorPinGate({
           return;
         }
         setVerified(true);
-        setPinSession(deliveryId, result.vendorId, result.vendorName);
+        const serverSession =
+          result.sessionToken && result.expiresAt
+            ? { sessionToken: result.sessionToken, expiresAt: result.expiresAt }
+            : undefined;
+        setPinSession(
+          deliveryId,
+          result.vendorId,
+          result.vendorName,
+          serverSession,
+        );
         onVerified(result.vendorId, result.vendorName);
       } catch (err) {
         setDigits([]);

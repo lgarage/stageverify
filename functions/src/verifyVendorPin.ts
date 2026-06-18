@@ -10,6 +10,7 @@ const PIN_LEN = 4;
 const MAX_ATTEMPTS_PER_WINDOW = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const MIN_ATTEMPT_INTERVAL_MS = 750;
+const DEFAULT_VENDOR_SESSION_MINUTES = 15;
 
 interface VerifyVendorPinRequest {
   deliveryId?: string;
@@ -146,6 +147,46 @@ async function clearRateLimitOnSuccess(deliveryId: string): Promise<void> {
   await getDb().collection("vendorPinAttempts").doc(deliveryId).delete();
 }
 
+async function getVendorSessionMinutes(): Promise<number> {
+  const snap = await getDb().collection("appSettings").doc("config").get();
+  if (!snap.exists) return DEFAULT_VENDOR_SESSION_MINUTES;
+  const minutes = (snap.data() as { vendorSessionMinutes?: number })
+    .vendorSessionMinutes;
+  if (
+    typeof minutes === "number" &&
+    Number.isFinite(minutes) &&
+    minutes >= 5 &&
+    minutes <= 480
+  ) {
+    return minutes;
+  }
+  return DEFAULT_VENDOR_SESSION_MINUTES;
+}
+
+async function createVendorSession(
+  deliveryId: string,
+  vendorId: string,
+  vendorName: string,
+): Promise<{ sessionToken: string; expiresAt: string }> {
+  const sessionMinutes = await getVendorSessionMinutes();
+  const now = Date.now();
+  const expiresAt = new Date(
+    now + sessionMinutes * 60 * 1000,
+  ).toISOString();
+  const sessionToken = randomBytes(32).toString("hex");
+
+  await getDb().collection("vendorSessions").doc(sessionToken).set({
+    id: sessionToken,
+    deliveryId,
+    vendorId,
+    vendorName,
+    expiresAt,
+    createdAt: new Date(now).toISOString(),
+  });
+
+  return { sessionToken, expiresAt };
+}
+
 async function writePinVerifiedAudit(
   deliveryId: string,
   vendorId: string,
@@ -223,12 +264,15 @@ export const verifyVendorPin = onCall(
 
     await clearRateLimitOnSuccess(deliveryId);
     await writePinVerifiedAudit(deliveryId, vendorId, vendorName);
+    const session = await createVendorSession(deliveryId, vendorId, vendorName);
 
     return {
       success: true,
       vendorId,
       vendorName,
       deliveryId,
+      sessionToken: session.sessionToken,
+      expiresAt: session.expiresAt,
     };
   },
 );

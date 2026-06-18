@@ -236,6 +236,20 @@ export interface VerifyVendorPinResult {
   vendorId?: string;
   vendorName?: string;
   deliveryId?: string;
+  /** Opaque server-issued session token (delivery-scoped). */
+  sessionToken?: string;
+  /** ISO expiry from server session doc. */
+  expiresAt?: string;
+}
+
+/** Server-validated vendor PIN session (Firestore vendorSessions/{token}). */
+export interface VendorSession {
+  id: string;
+  deliveryId: string;
+  vendorId: string;
+  vendorName: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface PinVerificationEvent {
