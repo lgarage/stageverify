@@ -50,7 +50,21 @@
       "status": "built",
       "commit": "314d4d3",
       "note": "Slice 3 readiness panel already in 314d4d3; deploy + verify:dispatcher-nav + verify:pickup PASS; gh-pages deployed."
+    },
+    {
+      "id": "away-016",
+      "title": "Phase 3 remainder: Expected Materials on pickup cards",
+      "status": "built",
+      "commit": "54d9a40",
+      "note": "Read-only expected-materials on pickup cards; verify:pickup PASS."
+    },
+    {
+      "id": "away-017",
+      "title": "Phase 3 remainder: unstaged deliveries visible (detail only)",
+      "status": "built",
+      "commit": "pending",
+      "note": "partial/arrived de-emphasized with pickup-not-ready-row; ready queue checkoff unchanged; verify:pickup PASS."
     }
   ],
-  "summary": "Batch 1: 6 built ✓  0 blocked ✗ | Batch 2: away-015 built ✓ | away-016…020 in progress"
+  "summary": "Batch 2: away-015…017 built ✓ | away-018…020 in progress"
 }

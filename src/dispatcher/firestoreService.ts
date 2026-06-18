@@ -1003,6 +1003,11 @@ const PICKUP_PORTAL_DELIVERY_STATUSES: DeliveryStatus[] = [
   "installed",
 ];
 
+const PICKUP_PORTAL_NOT_READY_DETAIL_STATUSES: DeliveryStatus[] = [
+  "partial",
+  "arrived",
+];
+
 export async function loadPickupReadyDeliveriesPublic(
   jobId: string,
   options?: { includeDeliveryId?: string },
@@ -1013,13 +1018,14 @@ export async function loadPickupReadyDeliveriesPublic(
     jobId,
   );
   const includeId = options?.includeDeliveryId;
-  const pickupReady = deliveries.filter(
+  const visibleOnPickup = deliveries.filter(
     (d) =>
       PICKUP_PORTAL_DELIVERY_STATUSES.includes(d.status) ||
+      PICKUP_PORTAL_NOT_READY_DETAIL_STATUSES.includes(d.status) ||
       (includeId !== undefined && d.id === includeId),
   );
   const detailsList = await Promise.all(
-    pickupReady.map((d) => getDeliveryDetailsPublic(d.id)),
+    visibleOnPickup.map((d) => getDeliveryDetailsPublic(d.id)),
   );
   return detailsList.filter((d): d is DeliveryDetails => d !== null);
 }

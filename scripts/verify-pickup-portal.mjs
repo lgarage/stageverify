@@ -24,7 +24,7 @@ import {
 } from "./pickupLocationDisplayFixture.mjs";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { collection, getDocs, getFirestore, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getFirestore, query, updateDoc, where } from "firebase/firestore";
 
 const BLOCKING_ISSUE_TYPES = ["damaged", "wrong_item", "missing", "backordered"];
 
@@ -300,8 +300,58 @@ async function assertNoProblemQtyDetails(page) {
   console.log("Slice 2 PASS: no missing/backorder/damaged qty details on pickup");
 }
 
+async function ensureNotReadyDeliveryOnJob() {
+  const email = process.env.STAGEVERIFY_TEST_EMAIL;
+  const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+  if (!email || !password) {
+    console.log(
+      "SKIP not-ready row: set STAGEVERIFY_TEST_EMAIL/PASSWORD to seed delivery-demo-vendor-2.",
+    );
+    return;
+  }
+  const app = initializeApp(firebaseConfig, "verify-pickup-not-ready");
+  const auth = getAuth(app);
+  await signInWithEmailAndPassword(auth, email, password);
+  const db = getFirestore(app);
+  await updateDoc(doc(db, "deliveries", "delivery-demo-vendor-2"), {
+    status: "arrived",
+    updatedAt: new Date().toISOString(),
+  });
+  console.log("Seeded delivery-demo-vendor-2 as arrived for not-ready row verify.");
+}
+
+async function assertNotReadyRowVisible(page) {
+  const row = page.getByTestId("pickup-not-ready-row");
+  await row.waitFor({ state: "visible", timeout: 15_000 });
+  console.log(
+    "Not-ready row PASS: pickup-not-ready-row visible alongside ready queue.",
+  );
+}
+
+async function assertShopStockPullState(page) {
+  const states = page.getByTestId("shop-stock-pull-state");
+  const count = await states.count();
+  if (count === 0) {
+    console.log("SKIP shop stock pull state: no shop stock pick list on fixture.");
+    return;
+  }
+  const first = states.first();
+  const before = ((await first.textContent()) ?? "").trim();
+  if (before !== "Not Pulled") {
+    throw new Error(
+      `Shop stock FAIL: expected Not Pulled before tap, got "${before}".`,
+    );
+  }
+  await first.locator("xpath=ancestor::button[1]").click();
+  const after = ((await first.textContent()) ?? "").trim();
+  if (after !== "Pulled") {
+    throw new Error(`Shop stock FAIL: expected Pulled after tap, got "${after}".`);
+  }
+  console.log("Shop stock PASS: Not Pulled → Pulled after tap.");
+}
+
 async function assertExpectedMaterials(page) {
-  const container = page.getByTestId("expected-materials");
+  const container = page.getByTestId("expected-materials").first();
   await container.waitFor({ state: "visible", timeout: 15_000 });
   const text = await container.innerText();
   if (!/\bQty\s+\d+/i.test(text)) {
@@ -347,6 +397,7 @@ async function runDashboardBadgeCheck(browser) {
 
 (async () => {
   await applyFullLocationDisplay(deliveryId);
+  await ensureNotReadyDeliveryOnJob();
   console.log("Slice 2: applied full location display fixture on delivery-3.");
 
   const browser = await chromium.launch({ headless: true });
@@ -389,6 +440,8 @@ async function runDashboardBadgeCheck(browser) {
   try {
     await assertLocationDisplayFull(page);
     await assertExpectedMaterials(page);
+    await assertShopStockPullState(page);
+    await assertNotReadyRowVisible(page);
     await assertNoProblemQtyDetails(page);
     await assertPublicStatusHidden(page);
   } catch (err) {

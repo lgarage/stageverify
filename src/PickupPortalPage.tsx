@@ -63,6 +63,19 @@ function isPickupReady(status: DeliveryStatus): boolean {
   );
 }
 
+function pickupQueueSortRank(status: DeliveryStatus): number {
+  if (status === "ready_for_pickup") return 0;
+  if (status === "picked_up" || status === "installed") return 1;
+  if (status === "partial" || status === "arrived") return 2;
+  return 3;
+}
+
+function publicNotReadyDetailLabel(status: DeliveryStatus): string | null {
+  if (status === "partial") return "Not ready — partial receipt";
+  if (status === "arrived") return "Not ready — awaiting staging";
+  return null;
+}
+
 function isStagedItemsCheckedOff(
   delivery: DeliveryDetails,
   checkedItemIds: Set<string>,
@@ -542,7 +555,13 @@ function JobPickupScreen({
         if (settings.autoSubmitMinutes > 0) {
           setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
         }
-        setDeliveries(loaded);
+        setDeliveries(
+          [...loaded].sort(
+            (a, b) =>
+              pickupQueueSortRank(a.delivery.status) -
+              pickupQueueSortRank(b.delivery.status),
+          ),
+        );
         setCheckedItemIds(new Set());
         setCheckedShopStockKeys(new Set());
         setChecked(
@@ -686,15 +705,23 @@ function JobPickupScreen({
   );
 
   const isDeliveryChecklistComplete = useCallback(
-    (d: DeliveryDetails): boolean =>
-      isStagedItemsCheckedOff(d, checkedItemIds) &&
-      isShopStockCompleteForDelivery(d),
+    (d: DeliveryDetails): boolean => {
+      if (!isPickupReady(d.delivery.status)) return true;
+      return (
+        isStagedItemsCheckedOff(d, checkedItemIds) &&
+        isShopStockCompleteForDelivery(d)
+      );
+    },
     [checkedItemIds, isShopStockCompleteForDelivery],
   );
 
+  const pickupQueueDeliveries = deliveries.filter((d) =>
+    isPickupReady(d.delivery.status),
+  );
+
   const readyToFinish =
-    deliveries.length > 0 &&
-    deliveries.every(isDeliveryChecklistComplete);
+    pickupQueueDeliveries.length > 0 &&
+    pickupQueueDeliveries.every(isDeliveryChecklistComplete);
 
   const handleDone = useCallback(async () => {
     if (submittedRef.current || submitting || !readyToFinish) return;
@@ -705,6 +732,7 @@ function JobPickupScreen({
 
     const needsPickupRecord = deliveries.filter(
       (d) =>
+        isPickupReady(d.delivery.status) &&
         !checkedRef.current.has(d.delivery.id) &&
         !isDeliveryAlreadyPickedUp(d),
     );
@@ -739,6 +767,7 @@ function JobPickupScreen({
 
     const blockedByChecklist = deliveries.some(
       (d) =>
+        isPickupReady(d.delivery.status) &&
         !checkedRef.current.has(d.delivery.id) &&
         !isDeliveryChecklistComplete(d),
     );
@@ -756,6 +785,7 @@ function JobPickupScreen({
 
     const unchecked = deliveries.filter(
       (d) =>
+        isPickupReady(d.delivery.status) &&
         !checkedRef.current.has(d.delivery.id) &&
         isDeliveryChecklistComplete(d),
     );
@@ -1063,6 +1093,57 @@ function JobPickupScreen({
               isPickupReady(deliveryStatus) &&
               !isChecked &&
               shopStockComplete;
+            const isQueueReady = isPickupReady(deliveryStatus);
+            const notReadyLabel = publicNotReadyDetailLabel(deliveryStatus);
+
+            if (!isQueueReady) {
+              return (
+                <div
+                  key={deliveryId}
+                  data-testid="pickup-not-ready-row"
+                  className="w-full rounded-2xl border border-dashed border-border/80 bg-bg-surface/70 opacity-75 overflow-hidden"
+                >
+                  <div className="p-4">
+                    <p className="text-text-primary text-sm font-medium">
+                      {d.vendor.name} · {d.delivery.orderNumber}
+                    </p>
+                    {notReadyLabel && (
+                      <p className="mt-2 text-xs font-semibold text-text-secondary">
+                        {notReadyLabel}
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs text-text-secondary">
+                      Not available for pickup yet — shown for reference only.
+                    </p>
+                  </div>
+                  {d.items.length > 0 && (
+                    <div
+                      className="border-t border-border/60 px-4 py-4"
+                      data-testid="expected-materials"
+                    >
+                      <p className="mb-2 text-xs font-semibold text-text-primary">
+                        Expected Materials
+                      </p>
+                      <ul className="space-y-1">
+                        {d.items.map((item) => (
+                          <li
+                            key={item.id}
+                            className="text-xs text-text-secondary"
+                          >
+                            <span className="text-text-primary">
+                              {item.description}
+                            </span>
+                            {" · Qty "}
+                            {item.qtyOrdered}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div
                 key={deliveryId}
@@ -1302,9 +1383,9 @@ function JobPickupScreen({
                                 onClick={() => toggleShopStockItem(key)}
                                 className="w-full rounded-xl border border-border bg-bg-surface px-3 py-3 text-left"
                               >
-                                <div className="flex items-start gap-3">
+                                <div className="flex items-center gap-3 w-full">
                                   <span
-                                    className={`mt-0.5 shrink-0 ${
+                                    className={`mt-0.5 shrink-0 self-start ${
                                       stockChecked
                                         ? "text-accent-green"
                                         : "text-text-secondary"
@@ -1320,13 +1401,19 @@ function JobPickupScreen({
                                     />
                                   </span>
                                   <span
-                                    className={`text-sm font-medium ${
+                                    className={`flex-1 text-sm font-medium ${
                                       stockChecked
                                         ? "text-text-secondary line-through"
                                         : "text-text-primary"
                                     }`}
                                   >
                                     {label}
+                                  </span>
+                                  <span
+                                    className="shrink-0 text-xs font-semibold text-text-secondary"
+                                    data-testid="shop-stock-pull-state"
+                                  >
+                                    {stockChecked ? "Pulled" : "Not Pulled"}
                                   </span>
                                 </div>
                               </button>
