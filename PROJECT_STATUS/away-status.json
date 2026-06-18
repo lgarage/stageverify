@@ -83,7 +83,7 @@
       "id": "away-020",
       "title": "Overnight batch close: deploy UI + prod verify gate",
       "status": "built",
-      "commit": "pending",
+      "commit": "3a5feb9",
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
     }
   ],
