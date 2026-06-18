@@ -544,7 +544,7 @@
                                                "npm run verify:pickup"
                                            ],
                       "escalateBeforeShip":  "Sonnet 4.6 security gate; firebase deploy --only functions --project stageverify-db; re-run verify:pickup",
-                      "status":  "queued"
+                      "status":  "done"
                   },
                   {
                       "id":  "away-027",

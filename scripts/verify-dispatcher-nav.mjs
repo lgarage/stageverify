@@ -74,6 +74,7 @@ function sidebar(page) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
     ...(existsSync(authState) ? { storageState: authState } : {}),
+    permissions: ["clipboard-read", "clipboard-write"],
   });
   const page = await context.newPage();
 
@@ -193,6 +194,21 @@ function sidebar(page) {
     } else {
       console.log("Slice 3: job-readiness-panel visible; no Everything Ready badge (expected when job incomplete).");
     }
+
+    console.log("Slice 5: pickup token copy link…");
+    await page.getByTestId("generate-pickup-link").click();
+    await page.getByTestId("pickup-token-reveal").waitFor({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Copy Pickup Information" }).click();
+    await page.waitForTimeout(500);
+    const clipboardText = await page.evaluate(async () => {
+      return navigator.clipboard.readText();
+    });
+    if (!/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) {
+      throw new Error(
+        `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
+      );
+    }
+    console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
   } else {
     console.log("SKIP job readiness panel: no delivery rows to open.");
   }

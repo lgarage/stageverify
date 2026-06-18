@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { buildEslTagQrUrl } from "./receiveQrUrls";
+import {
+  buildPickupTokenUrl,
+  clearPickupTokenForJob,
+  readPickupTokenForJob,
+  storePickupTokenForJob,
+} from "./pickupTokenSession";
 import { EslQrCode } from "./EslQrCode";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
@@ -1949,7 +1955,8 @@ function PickupTokenControls({
     setTokenError(null);
     try {
       const result = await firestoreDataService.generatePickupToken(jobId);
-      const link = `${window.location.origin}${window.location.pathname}#/pickup?t=${result.token}`;
+      const link = buildPickupTokenUrl(result.token);
+      storePickupTokenForJob(jobId, result.token);
       setRevealedToken(result.token);
       setRevealedLink(link);
       setHasActiveToken(true);
@@ -1968,6 +1975,7 @@ function PickupTokenControls({
     setTokenError(null);
     try {
       await firestoreDataService.revokePickupToken(jobId);
+      clearPickupTokenForJob(jobId);
       setHasActiveToken(false);
       setTokenExpiresAt(null);
       setRevealedToken(null);
@@ -2131,7 +2139,18 @@ function CopyPickupLinkButton({
         readyItems.map((d) => d.stagingLocationCode).filter(Boolean),
       ),
     ].join(", ");
-    const link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}`;
+    let link = `${window.location.origin}${window.location.pathname}#/pickup?job=${jobId}`;
+    try {
+      const status = await firestoreDataService.getPickupTokenStatus(jobId);
+      if (status.hasActiveToken) {
+        const storedToken = readPickupTokenForJob(jobId);
+        if (storedToken) {
+          link = buildPickupTokenUrl(storedToken);
+        }
+      }
+    } catch {
+      // Fall back to job link when token status unavailable
+    }
     const siteLabel = siteNumber?.trim() || jobName;
     const lines = [
       "StageVerify Pickup",

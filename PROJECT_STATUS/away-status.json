@@ -106,7 +106,14 @@
       "status": "built",
       "commit": "b7dabff",
       "note": "pickupTokens CF-only collection; generate/revoke/status callables; PickupTokenControls in job drawer; Sonnet SECURITY: PASS; rules + CF deployed."
+    },
+    {
+      "id": "away-026",
+      "title": "Slice 5: validatePickupToken CF + public route",
+      "status": "built",
+      "commit": "PENDING",
+      "note": "validatePickupToken CF deployed; PickupPortalPage ?t= route; verify:pickup PASS with token fixture; Sonnet SECURITY: PASS."
     }
   ],
-  "summary": "Batch 3: away-021…024 built ✓ | away-025 built ✓ | away-026…041 queued"
+  "summary": "Batch 3: away-021…026 built ✓ | away-027…041 queued"
 }
