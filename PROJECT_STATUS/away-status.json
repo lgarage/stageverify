@@ -167,7 +167,7 @@
       "id": "away-034",
       "title": "svscope §11: Running Low on shop stock lines",
       "status": "built",
-      "commit": "pending",
+      "commit": "21b4c24",
       "note": "running_low material issue type + shop-stock-running-low button; Sonnet SECURITY: PASS; CF deployed; verify:pickup + verify:material-issue-dashboard PASS."
     }
   ],
