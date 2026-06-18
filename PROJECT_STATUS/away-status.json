@@ -124,9 +124,9 @@
     {
       "id": "away-028",
       "title": "Slice 5: leave-shop geofence reminder (best-effort)",
-      "status": "built",
+      "status": "deferred",
       "commit": "n/a",
-      "note": "Deferred per Dan — geofence theory only; away-024 vendor geofence remains dormant; no pickup GPS monitoring shipped."
+      "note": "Deferred per Dan 2026-06-17 — leave-shop GPS pickup reminder not shipped; do not re-implement in batch. away-024 vendor geofence settings remain dormant (warn-only). Queue marked done in away-list.json for dependsOn chain only."
     },
     {
       "id": "away-029",

@@ -4,7 +4,7 @@ Paste as your **first message** in a new Cursor chat (Agent mode). Full protocol
 
 ---
 
-Continue the away batch from **`away-031` through `away-041`** in order from `PROJECT_STATUS/away-list.json`.
+Continue the away batch from **`away-034` through `away-041`** in order from `PROJECT_STATUS/away-list.json`.
 
 **Orchestrator:** Composer 2.5 Fast (parent session) — parallel read-only scouts when useful; **you** run verify + ship; subagents do not commit or declare done.
 
@@ -21,21 +21,19 @@ Read first:
 
 **Prerequisites:** `.env.local` → `STAGEVERIFY_TEST_EMAIL` / `STAGEVERIFY_TEST_PASSWORD`; `node scripts/playwright-auth-setup.mjs` if auth expired.
 
-**Already done (do not redo):** `away-021`…`030` shipped. **`away-028` geofence deferred** per Dan — skip re-implementing leave-shop GPS reminder.
+**Already done (do not redo):** `away-021`…`033` shipped. **`away-028` geofence deferred** per Dan — skip re-implementing leave-shop GPS reminder.
 
-**Start at:** `away-031` (PO line labels on pickup item rows).
+**Start at:** `away-034` (Running Low on shop stock lines).
 
 **Run as much as possible** — one item at a time through verify + ship; stop batch only on verify fail twice or Sonnet HIGH risk.
 
 ---
 
-## Remaining queue (031–041)
+## Remaining queue (034–041)
 
 | IDs | Focus |
 |-----|--------|
-| 031 | §10 — PO prefix on pickup item rows |
-| 032 | §10 — persist technician item checklist (T2, rules/CF, Sonnet gate) |
-| 033–035 | §11 — Staged label, Running Low, shop stock location groups |
+| 034–035 | §11 — Running Low, shop stock location groups |
 | 036–037 | Slice 6 — combination staging stub + CF release (037 may block on shop map) |
 | 038 | §13 — dispatcher pickup summary |
 | 039–040 | Phase 4 — resolve issues + readiness recalc |
@@ -46,13 +44,13 @@ Read first:
 ## Copy-paste starter (first message in new chat)
 
 ```
-Continue the away batch from away-031 (away-021…030 already shipped).
+Continue the away batch from away-034 (away-021…033 already shipped).
 Read first:
 - PROJECT_STATUS/CURRENT_STATE.md
 - PROJECT_STATUS/svscope_simple.md (product authority — align all work to scope §)
 - PROJECT_STATUS/away-list.json + away-status.json
 - PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md
-Done (do not redo): away-021…030 — vendor session, pickup tokens, job header, staging sections; away-028 geofence deferred.
-Start at: away-031 (PO line labels on pickup rows).
-Run away-031 through away-041 in order — as much as possible while I'm away. Halt only on verify fail or Sonnet HIGH. Verify gates + ship loop per protocol. Do not widen scope beyond svscope_simple.md.
+Done (do not redo): away-021…033 — vendor session, pickup tokens, job header, staging sections, PO labels, checklist persist, Staged label; away-028 geofence deferred.
+Start at: away-034 (Running Low on shop stock lines).
+Run away-034 through away-041 in order — as much as possible while I'm away. Halt only on verify fail or Sonnet HIGH. Verify gates + ship loop per protocol. Do not widen scope beyond svscope_simple.md.
 ```

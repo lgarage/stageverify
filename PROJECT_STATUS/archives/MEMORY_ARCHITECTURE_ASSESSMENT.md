@@ -1,4 +1,4 @@
-> **ARCHIVED — partially actioned 2026-06-05.** Point-in-time audit only; not current authority. **Authority chain:** `docs/roadmap.md` header → `docs/project_state.md` (phase truth) → `docs/roadmap.md` (gates) → `PROJECT_STATUS/CURRENT_STATE.md` (hot snapshot).
+> **SUPERSEDED — do not use for product or phase decisions.** Point-in-time audit (2026-06-04); partially actioned 2026-06-05. **Product authority:** `PROJECT_STATUS/svscope_simple.md` (wins on conflict). **Phase/status chain:** `docs/roadmap.md` → `docs/project_state.md` → `PROJECT_STATUS/CURRENT_STATE.md` (hot snapshot). This file is historical context only.
 
 # Memory Architecture Assessment — stageverify
 _Generated: 2026-06-04 | Analyst: Senior AI Systems Architect_
