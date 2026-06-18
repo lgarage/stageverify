@@ -15,9 +15,9 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-1. **Phase 3 Slices 4–5** — vendor sessions, pickup tokens.
-2. **Phase 3 Slice 6 remainder** — combination staging groups, ESL release path.
-3. **Phase 4** — material issue resolution UI (not started).
+0. **Away queue:** Run `away-021`…`041` in order — svscope-aligned batch 3 (Slice 4→5→§10→§11→Slice 6→Phase 4→gate). See `PROJECT_STATUS/away-list.json`.
+1. **Blockers:** Minew ESL creds; Jake Korb shelving / shop map (combination stock §11, Slice 6 groups).
+2. **Post-batch:** Phase 5 email readiness (svscope §5) — not in away queue yet.
 
 ## Canonical references
 - Product scope: `PROJECT_STATUS/svscope_simple.md` | Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md` | Away: `away-list.json`

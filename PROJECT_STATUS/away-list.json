@@ -11,12 +11,27 @@
                               "escalationModel":  "claude-4.6-sonnet-medium-thinking",
                               "instructions":  "Run queue items in dependsOn order only. For each item: (1) confirm dependsOn predecessor is status done in away-list.json; (2) implement; (3) run ALL verifyBeforeNext commands — every command must exit 0; (4) if escalateWhen triggers, run Sonnet security/review gate BEFORE commit/push; (5) set status done in away-list.json; (6) append {id, status: built|blocked, commit, note} to away-status.json; (7) commit, push, deploy UI/CF as required; (8) only then start next item. On verify FAIL or Sonnet HIGH risk: status blocked, log reason, STOP batch — do not skip ahead. Re-run failed item after fix.",
                               "sequence":  [
-                                               "away-015",
-                                               "away-016",
-                                               "away-017",
-                                               "away-018",
-                                               "away-019",
-                                               "away-020"
+                                               "away-021",
+                                               "away-022",
+                                               "away-023",
+                                               "away-024",
+                                               "away-025",
+                                               "away-026",
+                                               "away-027",
+                                               "away-028",
+                                               "away-029",
+                                               "away-030",
+                                               "away-031",
+                                               "away-032",
+                                               "away-033",
+                                               "away-034",
+                                               "away-035",
+                                               "away-036",
+                                               "away-037",
+                                               "away-038",
+                                               "away-039",
+                                               "away-040",
+                                               "away-041"
                                            ]
                           },
     "queue":  [
@@ -394,6 +409,471 @@
                                                "npm run verify:pickup:prod"
                                            ],
                       "status":  "done"
+                  },
+                  {
+                      "id":  "away-021",
+                      "title":  "Slice 4: vendor delivery session after PIN (CF)",
+                      "scope":  "Per svscope §3: after verifyVendorPin succeeds, issue server-validated delivery-scoped session (deliveryId, vendorId, expiresAt) stored in Firestore vendorSessions or signed token returned to client. ReceivingPage stores session; no browse other deliveries. Do NOT require individual vendor accounts. Sonnet gate before push.",
+                      "files":  [
+                                    "functions/src/verifyVendorPin.ts",
+                                    "functions/src/index.ts",
+                                    "src/ReceivingPage.tsx",
+                                    "src/dispatcher/models.ts"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Valid PIN yields session bound to scanned delivery only; expired session rejected on next vendor write attempt; npm run build clean; verify:vendor-delivered PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 4",
+                      "preApproved":  true,
+                      "dependsOn":  "away-020",
+                      "verifyBeforeNext":  [
+                                               "cd functions && npm run build",
+                                               "npm run build",
+                                               "npm run verify:vendor-delivered"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate on vendor session CF + public session storage; firebase deploy --only functions --project stageverify-db",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-022",
+                      "title":  "Slice 4: enforce vendor session on receive writes",
+                      "scope":  "Require active delivery-scoped session for vendor check-in writes (markVendorDelivered, submitCheckin paths). Return clear error when session missing/expired/wrong delivery. Do not weaken dispatcher auth paths.",
+                      "files":  [
+                                    "src/ReceivingPage.tsx",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "firestore.rules"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Vendor write without session fails with user-visible message; valid session path unchanged; npm run verify:vendor-delivered PASS; npm run verify:vendor-e2e PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 4",
+                      "preApproved":  true,
+                      "dependsOn":  "away-021",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:vendor-delivered",
+                                               "npm run verify:vendor-e2e"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate on firestore.rules vendor session checks; firebase deploy --only firestore:rules --project stageverify-db",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-023",
+                      "title":  "Slice 4: configurable vendor session TTL in Settings",
+                      "scope":  "Add appSettings.vendorSessionMinutes (default sensible). Settings Workflow card to edit. Session expiry uses this value. No App Check in this item.",
+                      "files":  [
+                                    "src/dispatcher/models.ts",
+                                    "src/SettingsPage.tsx",
+                                    "functions/src/verifyVendorPin.ts"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Dispatcher can change TTL; new sessions honor updated minutes; npm run build clean; npm run verify:dispatcher-nav PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 4",
+                      "preApproved":  true,
+                      "dependsOn":  "away-022",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:vendor-delivered"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-024",
+                      "title":  "Slice 4: optional shop geofence warn on vendor receive",
+                      "scope":  "Per svscope §3: appSettings shop lat/lng + radiusMeters (optional). ReceivingPage best-effort geolocation warn if outside radius; do NOT block PIN or DELIVERED unless setting vendorGeofenceEnforce=true. Geofence is additional control only.",
+                      "files":  [
+                                    "src/dispatcher/models.ts",
+                                    "src/SettingsPage.tsx",
+                                    "src/ReceivingPage.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "With coords configured, outside-radius shows visible warn; enforce=false still allows DELIVERED; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 4",
+                      "preApproved":  true,
+                      "dependsOn":  "away-023",
+                      "verifyBeforeNext":  [
+                                               "npm run build"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-025",
+                      "title":  "Slice 5: pickup token model + dispatcher generate",
+                      "scope":  "Per svscope §9: add pickupTokens collection schema (jobId, token hash, expiresAt, revokedAt, createdBy). Dispatcher job drawer: Generate Pickup Link / Revoke. Store opaque token server-side; UI shows token once. No client-only security.",
+                      "files":  [
+                                    "src/dispatcher/models.ts",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "src/DispatcherDashboardPage.tsx",
+                                    "firestore.rules"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Dispatcher generates token; token doc in Firestore; revoke clears access; npm run verify:dispatcher-nav PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 5",
+                      "preApproved":  true,
+                      "dependsOn":  "away-024",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate on pickupTokens rules and generation path; firebase deploy --only firestore:rules --project stageverify-db",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-026",
+                      "title":  "Slice 5: validatePickupToken CF + public route",
+                      "scope":  "Cloud Function validatePickupToken(token) returns jobId if valid/unrevoked/unexpired. PickupPortalPage accepts #/pickup?t=TOKEN (preferred) while keeping ?job= for dev. Invalid token shows clear error. Sonnet before deploy.",
+                      "files":  [
+                                    "functions/src/validatePickupToken.ts",
+                                    "functions/src/index.ts",
+                                    "src/PickupPortalPage.tsx",
+                                    "src/receiveQrUrls.ts"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Valid token opens job pickup without login; revoked/expired rejected; npm run verify:pickup PASS with token fixture; CF deployed.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 5",
+                      "preApproved":  true,
+                      "dependsOn":  "away-025",
+                      "verifyBeforeNext":  [
+                                               "cd functions && npm run build",
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate; firebase deploy --only functions --project stageverify-db; re-run verify:pickup",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-027",
+                      "title":  "Slice 5: Copy Pickup Information uses token URL",
+                      "scope":  "Update Copy Pickup Information clipboard to include opaque token link (#/pickup?t=) not predictable job id. Fall back to job link only when no active token. Match svscope §8 example intent.",
+                      "files":  [
+                                    "src/DispatcherDashboardPage.tsx",
+                                    "scripts/verify-dispatcher-nav.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Copied text contains token URL when token active; verify:dispatcher-nav PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 5",
+                      "preApproved":  true,
+                      "dependsOn":  "away-026",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-028",
+                      "title":  "Slice 5: leave-shop geofence reminder (best-effort)",
+                      "scope":  "Per svscope §12: optional appSettings pickupReminderRadiusMeters. PickupPortalPage watches geolocation while open; if user leaves radius before Order Pickup Complete, show non-blocking banner reminder. Never auto-checkoff or auto-submit unchecked lines.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "src/dispatcher/models.ts",
+                                    "src/SettingsPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Reminder banner appears in harness when coords mocked outside radius; unchecked items stay unchecked; npm run verify:pickup PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 5",
+                      "preApproved":  true,
+                      "dependsOn":  "away-027",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-029",
+                      "title":  "svscope §10: pickup job header (site, customer, PO list)",
+                      "scope":  "JobPickupScreen top summary: site/shop name, customer name, job name, job number, comma-separated PO numbers from loaded deliveries. data-testid=pickup-job-header. Read-only; no new Firestore reads beyond existing load.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Header visible on job-3 fixture with job number and at least one PO; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §10",
+                      "preApproved":  true,
+                      "dependsOn":  "away-028",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-030",
+                      "title":  "svscope §10: group pickup queue by staging location",
+                      "scope":  "Within JobPickupScreen, section ready deliveries by primary staging code (Pickup at G1 blocks). De-emphasized not-ready rows after ready sections. data-testid=pickup-location-section per code. Display only — checkoff rules unchanged.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "delivery-3 fixture shows pickup-location-section for G1; cards nested under section; npm run verify:pickup PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §10",
+                      "preApproved":  true,
+                      "dependsOn":  "away-029",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-031",
+                      "title":  "svscope §10: PO line labels on pickup item rows",
+                      "scope":  "Show PO number prefix on each item/checkbox row (PO-xxx · description · qty). Hide vendor name on technician cards unless needed for duplicate SKUs. Extend verify:pickup assert PO visible on delivery-3.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "PO number visible on item rows; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §10",
+                      "preApproved":  true,
+                      "dependsOn":  "away-030",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-032",
+                      "title":  "svscope §10: persist technician item checklist on delivery",
+                      "scope":  "Add pickupCheckedItemIds: string[] on DeliveryOrder updated via recordPickupEvent batch or new lightweight public CF updatePickupChecklist (delivery-scoped, idempotent). Checkbox state survives reload on same device/session path. Sonnet gate if rules change.",
+                      "files":  [
+                                    "src/dispatcher/models.ts",
+                                    "src/PickupPortalPage.tsx",
+                                    "functions/src/recordPickupEvent.ts",
+                                    "firestore.rules",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Checking item persists after page reload for delivery-3; npm run verify:pickup PASS; test:pickup-authority PASS if CF touched.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §10",
+                      "preApproved":  true,
+                      "dependsOn":  "away-031",
+                      "verifyBeforeNext":  [
+                                               "cd functions && npm run build",
+                                               "npm run build",
+                                               "npm run test:pickup-authority",
+                                               "npm run verify:pickup"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate; deploy rules/CF as needed",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-033",
+                      "title":  "svscope §11: shop stock Staged pull-state label",
+                      "scope":  "Extend shop-stock-pull-state: Not Pulled → Pulled when checked pre-card-tap; Staged when delivery card checked off (picked up path). data-testid unchanged. Update verify tap + card flow.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Three states visible in harness; npm run verify:pickup PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §11",
+                      "preApproved":  true,
+                      "dependsOn":  "away-032",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-034",
+                      "title":  "svscope §11: Running Low on shop stock lines",
+                      "scope":  "Per svscope §11: Running Low button on shop stock pick list rows creates shopStockAlert or materialIssue subtype flagged for dispatcher (no auto PO). data-testid=shop-stock-running-low. Public write via existing createMaterialIssue or new CF — Sonnet gate.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "functions/src/createMaterialIssue.ts",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Running Low tap creates visible alert/issue; dispatcher badge or list shows it; npm run verify:pickup PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §11",
+                      "preApproved":  true,
+                      "dependsOn":  "away-033",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup",
+                                               "npm run verify:material-issue-dashboard"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate if CF/rules change; deploy CF/rules as needed",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-035",
+                      "title":  "svscope §11: shop stock grouped by location header",
+                      "scope":  "Group shopStockPickListItems under header from shopStockLocationNote or code (e.g. S6F Bin). data-testid=shop-stock-location-group. Display only.",
+                      "files":  [
+                                    "src/PickupPortalPage.tsx",
+                                    "scripts/pickupLocationDisplayFixture.mjs",
+                                    "scripts/verify-pickup-portal.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Grouped header visible when note set; hidden when minimal fixture; npm run verify:pickup PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §11",
+                      "preApproved":  true,
+                      "dependsOn":  "away-034",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-036",
+                      "title":  "Slice 6: combination staging group model stub",
+                      "scope":  "Per svscope §13 combination locations: optional combinationStagingGroupId + combinationMemberLocationIds on DeliveryOrder (models + seed comment only). Dispatcher drawer read-only label when set. No release logic yet — mark blocked if Jake shop map decision required for real IDs.",
+                      "files":  [
+                                    "src/dispatcher/models.ts",
+                                    "src/DispatcherDashboardPage.tsx"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Types compile; optional fields documented; npm run build clean; no behavior regression in verify:dispatcher-nav.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 6",
+                      "preApproved":  true,
+                      "dependsOn":  "away-035",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:dispatcher-nav"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-037",
+                      "title":  "Slice 6: combination group atomic staging release in CF",
+                      "scope":  "In recordPickupEvent when fullyPicked and combinationMemberLocationIds present, clear all member IDs and group id atomically; occupancy map frees all members. Sonnet gate. firebase deploy functions. Block and log if no fixture — do not invent shop map.",
+                      "files":  [
+                                    "functions/src/recordPickupEvent.ts",
+                                    "scripts/test-pickup-authority.mjs"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Emulator test clears all member staging IDs on full pickup; npm run test:pickup-authority PASS; npm run verify:pickup PASS after deploy.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Slice 6",
+                      "preApproved":  true,
+                      "dependsOn":  "away-036",
+                      "verifyBeforeNext":  [
+                                               "cd functions && npm run build",
+                                               "npm run build",
+                                               "npm run test:pickup-authority",
+                                               "npm run verify:pickup"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate; firebase deploy --only functions --project stageverify-db",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-038",
+                      "title":  "svscope §13: dispatcher pickup summary after technician submit",
+                      "scope":  "Delivery drawer shows last pickup event summary (items picked summary, time, qty remaining estimate from items not picked_up). Read-only from pickupEvents + delivery status. data-testid=pickup-summary-panel.",
+                      "files":  [
+                                    "src/DispatcherDashboardPage.tsx",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "scripts/verify-dispatcher-nav.mjs"
+                                ],
+                      "tier":  "T1",
+                      "model":  "composer-2.5",
+                      "acceptance":  "After verify:pickup run, drawer shows pickup summary for delivery-3; verify:dispatcher-nav extended PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 §13",
+                      "preApproved":  true,
+                      "dependsOn":  "away-037",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup",
+                                               "npm run verify:dispatcher-nav"
+                                           ],
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-039",
+                      "title":  "Phase 4: dispatcher resolve material issue workflow",
+                      "scope":  "Per Phase 4 / svscope §4: dispatcher can mark MaterialIssue resolved with note; status resolved + resolvedAt/By. Read-only list already exists — add resolve action. Sonnet if rules change.",
+                      "files":  [
+                                    "src/DispatcherDashboardPage.tsx",
+                                    "src/dispatcher/firestoreService.ts",
+                                    "src/dispatcher/models.ts",
+                                    "firestore.rules",
+                                    "scripts/verify-material-issue-dashboard.mjs"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Resolve action persists; open-issue badge decrements; verify:material-issue-dashboard PASS.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Phase 4 entry",
+                      "preApproved":  true,
+                      "dependsOn":  "away-038",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:material-issue-dashboard",
+                                               "npm run verify:dispatcher-nav"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate on issue resolve writes; firebase deploy --only firestore:rules --project stageverify-db if rules change",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-040",
+                      "title":  "Phase 4: resolved issue triggers readiness recalc",
+                      "scope":  "On issue resolve, invoke recalculateDeliveryReadiness for delivery if no other blocking issues. CF or client callable from authenticated dispatcher only. Sonnet gate.",
+                      "files":  [
+                                    "src/dispatcher/firestoreService.ts",
+                                    "functions/src/recalculateDeliveryReadiness.ts",
+                                    "scripts/verify-material-issue-dashboard.mjs"
+                                ],
+                      "tier":  "T2",
+                      "model":  "composer-2.5",
+                      "acceptance":  "Resolve last blocking issue updates readiness fields when eligible; verify:material-issue-dashboard PASS; npm run build clean.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 Phase 4",
+                      "preApproved":  true,
+                      "dependsOn":  "away-039",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:material-issue-dashboard",
+                                               "npm run verify:pickup"
+                                           ],
+                      "escalateBeforeShip":  "Sonnet 4.6 security gate if CF eligibility logic changes",
+                      "status":  "queued"
+                  },
+                  {
+                      "id":  "away-041",
+                      "title":  "Batch 3 close: deploy UI + prod verify + roadmap sync",
+                      "scope":  "npm run deploy gh-pages. Full verify gate. Update docs/roadmap.md + CURRENT_STATE for Slices 4–6 / Phase 4 partial rows. Append away-021…040 to away-status.json.",
+                      "files":  [
+                                    "docs/roadmap.md",
+                                    "docs/project_state.md",
+                                    "PROJECT_STATUS/CURRENT_STATE.md",
+                                    "PROJECT_STATUS/away-status.json"
+                                ],
+                      "tier":  "T0",
+                      "model":  "composer-2.5",
+                      "acceptance":  "npm run verify:pickup:prod PASS; verify:dispatcher-nav PASS; npm run build clean; UI deployed.",
+                      "capturedDuring":  "Dan 2026-06-17 — svscope batch 3 gate",
+                      "preApproved":  true,
+                      "dependsOn":  "away-040",
+                      "verifyBeforeNext":  [
+                                               "npm run build",
+                                               "npm run verify:pickup",
+                                               "npm run verify:dispatcher-nav",
+                                               "npm run verify:pickup:prod"
+                                           ],
+                      "status":  "queued"
                   }
               ]
 }

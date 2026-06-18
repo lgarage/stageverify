@@ -87,5 +87,5 @@
       "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
     }
   ],
-  "summary": "Batch 2: away-015…020 all built ✓  0 blocked ✗"
+  "summary": "Batch 2: away-015…020 all built ✓  0 blocked ✗ | Batch 3: away-021…041 queued (svscope Slice 4–6 + §10–§13 + Phase 4 entry)"
 }
