@@ -139,7 +139,7 @@
       "id": "away-030",
       "title": "svscope §10: group pickup queue by staging location",
       "status": "built",
-      "commit": "7196b89",
+      "commit": "02c590c",
       "note": "pickup-location-section by primary staging code; not-ready rows after sections; verify:pickup PASS."
     }
   ],
