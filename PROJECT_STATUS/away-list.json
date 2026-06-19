@@ -10,24 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": ["away-053"]
+    "sequence": []
   },
-  "queue": [
-    {
-      "id": "away-053",
-      "title": "Phase 5 inbox settings UI",
-      "scope": "Settings → Email Monitoring section: monitoringInboxEmail text field + emailMonitoringEnabled toggle. Wire to SettingsPage + firestoreService appSettings defaults. Copy: offline prototype only, no live inbox wiring. Extend verify:settings-staging to assert fields save + reload.",
-      "files": [
-        "src/SettingsPage.tsx",
-        "src/dispatcher/firestoreService.ts",
-        "scripts/verify-settings-staging.mjs"
-      ],
-      "tier": "T1",
-      "model": "composer-2.5",
-      "acceptance": "Settings shows Email Monitoring card with inbox field + enable toggle; values save to Firestore appSettings and reload; npm run build clean; npm run verify:settings-staging PASS.",
-      "verifyBeforeNext": ["npm run build", "npm run verify:settings-staging"],
-      "dependsOn": null,
-      "status": "in_progress"
-    }
-  ]
+  "queue": []
 }

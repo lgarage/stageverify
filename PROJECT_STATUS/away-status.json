@@ -358,6 +358,13 @@
       "status": "built",
       "commit": "9b3bc26",
       "note": "8-type resolution picker + CF resolutionType; Sonnet PASS; verify:material-issue-dashboard PASS"
+    },
+    {
+      "id": "away-053",
+      "title": "Phase 5 inbox settings UI",
+      "status": "built",
+      "commit": "bb7a5d1",
+      "note": "Email Monitoring settings card; verify:settings-staging PASS"
     }
   ],
   "summary": "Batch 3 closed; memory Phase 1+2 shipped; next away-042 Phase 5 email gate"
