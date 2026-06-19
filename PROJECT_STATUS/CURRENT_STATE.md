@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (integration gate passed 2026-06-19; permanent shop-stock mapping still open)
-- Last shipped: **away-051** — Phase 4 resolution workflow: type picker
+- Last shipped: **away-052** — Phase 4 integration verify harness (`verify:phase4-integration`)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
