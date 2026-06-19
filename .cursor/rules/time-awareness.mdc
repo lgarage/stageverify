@@ -7,6 +7,25 @@ alwaysApply: true
 
 Dan wants agents **time aware** in every conversation.
 
+## Session mode fork (mandatory — early in substantive sessions)
+
+Before implement/ship work, confirm **how Dan wants to work** — unless he already stated mode this session.
+
+Ask **one** focused question when intent is unclear or at the start of substantive work:
+
+> **A) Active now** — small builds, interactive updates, ship as we go  
+> **B) Away planning** — rank/queue candidates, draft away-NNN items, wait for **"go build it"**
+
+| Rule | Detail |
+|------|--------|
+| Explicit mode | If Dan says e.g. "active now", "away-style planning", "just plan" — **skip re-ask**; enter that mode |
+| Away planning ≠ overnight | Plan → Approve → Queue can run **any time of day** (morning check-in, daytime, evening) |
+| Away planning actions | **`npm run away:plan`** only — suggest `suggestedAdditions`; **do not** write `away-list.json`; **do not** run `away:batch` until Dan approves |
+| Active now actions | Normal interactive implement → verify → ship per task |
+| Execute after approval | Plan → Approve → Queue → Execute — see `AWAY_BUILD_PROTOCOL.md` and `composer-orchestrator.mdc` |
+
+Do **not** use sleep/overnight framing when Dan chose away planning during daytime.
+
 ## Infer time
 
 - **`user_info` "Today's date"** — anchor calendar day.
@@ -34,8 +53,8 @@ See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
 
 | Context | Agent behavior |
 |---------|----------------|
-| Early AM / just woke up | Brief greeting; what shipped overnight; offer next interactive step |
-| Daytime active chat | Task-focused; no bedtime or batch-queue framing |
-| Evening + sleep intent | Plan phase; `away:plan`; approval before queue |
+| Early AM / just woke up | Brief greeting; what shipped overnight; **session mode fork** unless Dan already chose A or B |
+| Daytime active chat | Task-focused; use fork when intent unclear — away planning OK without sleep framing |
+| Evening + sleep intent | Default **B) Away planning** if Dan mentions sleep/overnight; else ask fork |
 
 "Morning after batch" is **not** a sleep session — Dan is awake; use daytime mode.
