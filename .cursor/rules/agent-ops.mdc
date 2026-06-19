@@ -20,7 +20,7 @@ Do NOT read archives or `outcomes/*.jsonl` during normal work.
 
 ## During work
 - Classify each task into an archetype and route to the tier-table default model.
-  **Composer 2.5 Fast is the orchestrator and default worker** — overrides global agent-ops §10 Sonnet-default for stageverify. Parallel read-only scouts per `parallel-agent-strategy.mdc`; Sonnet rare escalation only.
+  **Composer 2.5 Fast is the orchestrator and default worker** — overrides global agent-ops §10 Sonnet-default for stageverify. Parallel read-only scouts per `parallel-agent-strategy.mdc` (including § Planning question protocol for "what's next"); Sonnet rare escalation only.
   Do T0/T1/T2 edits inline. Escalate to Sonnet 4.6 only for security verifier or triggers in `parallel-agent-strategy.mdc`.
   Opus 4.6 is the locked fallback only if Sonnet's security gate finds a HIGH risk Composer cannot resolve.
 - **PRE-EDIT GATE (mandatory)**: Before any file edit, state archetype + tier + dispatch decision.
