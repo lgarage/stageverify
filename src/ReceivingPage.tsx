@@ -36,6 +36,7 @@ import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import { isOutsideShopGeofence } from "./geofence";
 import type { VendorDeliveryMode } from "./dispatcher/models";
+import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 
 type Step = "scan" | "pin" | "hub" | "items" | "zone" | "done";
 
@@ -319,18 +320,22 @@ export function ReceivingPage() {
           await getDeliveryDetailsPublicForVendorReceive(deliveryId);
         if (!details) {
           setPinLoadError("Invalid code.");
+          setPinUnlocking(false);
           return;
         }
         const loaded = await loadDeliveryForReceive(details);
         if (loaded) {
           window.history.replaceState(null, "", "#/receive");
           unlocked = true;
+        } else {
+          setPinUnlocking(false);
         }
       } catch (err) {
+        setPinUnlocking(false);
         setPinLoadError(
           err instanceof Error
             ? err.message
-            : "Failed to load delivery. Try again.",
+            : "Couldn't load delivery. Check your connection and try again.",
         );
       } finally {
         setLoading(false);
@@ -676,30 +681,15 @@ export function ReceivingPage() {
               Vendor Portal
             </p>
             {pinLoadError ? (
-              <div className="w-full max-w-sm text-center space-y-4">
-                <p className="text-sm text-accent-red" role="alert">
-                  {pinLoadError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    prefetchVendorReceiveDelivery(pendingDeliveryId, {
-                      force: true,
-                    });
-                    void loadDeliveryAfterPin(pendingDeliveryId);
-                  }}
-                  className="action-btn action-btn-delivered w-full"
-                >
-                  Try again
-                </button>
-                <button
-                  type="button"
-                  onClick={resetFlow}
-                  className="action-btn action-btn-secondary w-full"
-                >
-                  Back
-                </button>
-              </div>
+              <PublicNetworkErrorPanel
+                message={pinLoadError}
+                onRetry={() => {
+                  prefetchVendorReceiveDelivery(pendingDeliveryId, {
+                    force: true,
+                  });
+                  void loadDeliveryAfterPin(pendingDeliveryId);
+                }}
+              />
             ) : (
               <p className="text-sm text-text-secondary">Opening delivery…</p>
             )}

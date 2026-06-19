@@ -158,6 +158,23 @@ const FIXTURE_EXPECTATIONS = {
     maxConfidence: 40,
     humanReviewRequired: true,
   },
+  "msg-winsupply-ship-012": {
+    classification: "shipped",
+    vendorId: "vendor-winsupply",
+    poNumber: "PO-46110",
+    minConfidence: 85,
+  },
+  "msg-winsupply-delay-013": {
+    vendorId: "vendor-winsupply",
+    poNumber: "PO-46110",
+    notAutoProcessed: true,
+  },
+  "msg-johnstone-reschedule-014": {
+    classification: "estimated_delivery_changed",
+    vendorId: "vendor-johnstone",
+    poNumber: "PO-45821",
+    notAutoProcessed: true,
+  },
 };
 
 const failures = [];

@@ -245,6 +245,14 @@ function sidebar(page) {
     console.log("SKIP job readiness panel: no delivery rows to open.");
   }
 
+  console.log("Proposed Email Updates panel (Phase 5)…");
+  await page.getByTestId("proposed-email-updates-panel").waitFor({
+    timeout: 15_000,
+  });
+  await page.getByTestId("proposed-email-summary").waitFor({ timeout: 10_000 });
+  await page.getByTestId("proposed-email-filters").waitFor({ timeout: 10_000 });
+  console.log("Phase 5 PASS: proposed-email-updates-panel visible with summary + filters.");
+
   await browser.close();
   console.log("verify:dispatcher-nav PASS");
 })().catch((err) => {

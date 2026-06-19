@@ -134,8 +134,22 @@ async function ensureAuthenticated(page) {
 
   const resolveBtn = panel.getByRole("button", { name: "Resolve" }).first();
   if (await resolveBtn.isVisible().catch(() => false)) {
-    const beforeCount = await panel.getByRole("button", { name: "Resolve" }).count();
     await resolveBtn.click();
+    await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
+    await page.getByTestId("resolution-type-select").waitFor({ timeout: 10_000 });
+    const optionCount = await page
+      .getByTestId("resolution-type-select")
+      .locator("option")
+      .count();
+    if (optionCount < 8) {
+      throw new Error(`Expected 8 resolution types, got ${optionCount}.`);
+    }
+    console.log("PASS: Resolve modal shows resolution-type picker (8 types).");
+
+    const beforeCount = await panel.getByRole("button", { name: "Resolve" }).count();
+    await page.getByTestId("resolution-type-select").selectOption("vendor_redeliver");
+    await page.getByTestId("resolution-note-input").fill("Playwright verify resolution");
+    await page.getByTestId("confirm-resolve-issue").click();
     await page.waitForTimeout(3000);
     const afterCount = await panel.getByRole("button", { name: "Resolve" }).count();
     if (afterCount >= beforeCount) {
@@ -143,7 +157,7 @@ async function ensureAuthenticated(page) {
         `Resolve FAIL: expected fewer open issues (${beforeCount} → ${afterCount}).`,
       );
     }
-    console.log(`PASS: Resolve action decremented open issues (${beforeCount} → ${afterCount}).`);
+    console.log(`PASS: Resolve with type picker (${beforeCount} → ${afterCount}).`);
   } else {
     console.log("SKIP Resolve: no Resolve button (CF may not be deployed yet).");
   }

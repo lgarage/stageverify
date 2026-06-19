@@ -1,14 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveMaterialIssue = void 0;
-const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const admin = require("firebase-admin");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 function getDb() {
     return admin.firestore();
 }
 const OPEN_ISSUE_STATUSES = ["open", "assigned"];
 const MAX_NOTE_LEN = 500;
+const RESOLUTION_TYPES = [
+    "found_in_shop",
+    "pick_up_supply_house",
+    "vendor_redeliver",
+    "substitute",
+    "transfer",
+    "continue_without",
+    "hold_job",
+    "other",
+];
 function asNonEmptyString(value, maxLen) {
     if (typeof value !== "string")
         return null;
@@ -16,6 +26,13 @@ function asNonEmptyString(value, maxLen) {
     if (!trimmed || trimmed.length > maxLen)
         return null;
     return trimmed;
+}
+function asResolutionType(value) {
+    if (typeof value !== "string")
+        return null;
+    return RESOLUTION_TYPES.includes(value)
+        ? value
+        : null;
 }
 function isBlockingType(type) {
     return type !== "other" && type !== "running_low";
@@ -34,9 +51,10 @@ exports.resolveMaterialIssue = (0, https_1.onCall)({
     }
     const data = (request.data ?? {});
     const issueId = asNonEmptyString(data.issueId, 128);
+    const resolutionType = asResolutionType(data.resolutionType);
     const resolutionNote = asNonEmptyString(data.resolutionNote ?? "Resolved", MAX_NOTE_LEN);
-    if (!issueId || !resolutionNote) {
-        throw new https_1.HttpsError("invalid-argument", "issueId and resolutionNote are required.");
+    if (!issueId || !resolutionType || !resolutionNote) {
+        throw new https_1.HttpsError("invalid-argument", "issueId, resolutionType, and resolutionNote are required.");
     }
     const issueRef = getDb().collection("materialIssues").doc(issueId);
     const issueSnap = await issueRef.get();
@@ -72,6 +90,7 @@ exports.resolveMaterialIssue = (0, https_1.onCall)({
         const prevBlocking = delivery.openBlockingIssueCount ?? 0;
         tx.update(issueRef, {
             status: "resolved",
+            resolutionType,
             resolutionNote,
             resolvedAt: now,
             resolvedBy,
@@ -107,6 +126,7 @@ exports.resolveMaterialIssue = (0, https_1.onCall)({
     return {
         issueId,
         status: "resolved",
+        resolutionType,
         readinessRecalculated,
     };
 });

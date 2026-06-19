@@ -10,7 +10,126 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": []
+    "sequence": [
+      "away-047",
+      "away-048",
+      "away-049",
+      "away-050",
+      "away-051"
+    ]
   },
-  "queue": []
+  "queue": [
+    {
+      "id": "away-047",
+      "title": "Phase 3 gate close: integration + prod verify",
+      "scope": "Run npm run verify:phase3-integration and npm run verify:pickup:prod. If both pass, sync Phase 3 integration gate-pass in docs/project_state.md and PROJECT_STATUS/CURRENT_STATE.md (integration proof passed; permanent shop-stock mapping remains open). No feature code unless verify harness fix required.",
+      "files": [
+        "docs/project_state.md",
+        "PROJECT_STATUS/CURRENT_STATE.md",
+        "docs/roadmap.md"
+      ],
+      "tier": "T0",
+      "model": "composer-2.5",
+      "acceptance": "verify:phase3-integration PASS; verify:pickup:prod PASS; docs reflect integration gate passed.",
+      "capturedDuring": "Dan 2026-06-19 — approved away batch after away-046",
+      "preApproved": true,
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:phase3-integration",
+        "npm run verify:pickup:prod"
+      ],
+      "status": "queued"
+    },
+    {
+      "id": "away-048",
+      "title": "Pickup submit label: Order Pickup Complete",
+      "scope": "Align remaining pickup submit copy to Order Pickup Complete per svscope §12. Fix PickupDemoScanPage flow text; confirm PickupPortalPage submit button and verify-pickup-portal selectors. No CF or rules changes.",
+      "files": [
+        "src/PickupDemoScanPage.tsx",
+        "src/PickupPortalPage.tsx",
+        "scripts/verify-pickup-portal.mjs"
+      ],
+      "tier": "T0",
+      "model": "composer-2.5",
+      "acceptance": "Submit button shows Order Pickup Complete; demo page copy aligned; npm run verify:pickup PASS.",
+      "capturedDuring": "Dan 2026-06-19 — approved away batch",
+      "preApproved": true,
+      "dependsOn": "away-047",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:pickup"
+      ],
+      "status": "queued"
+    },
+    {
+      "id": "away-049",
+      "title": "Phase 5 email prototype polish",
+      "scope": "Add more offline email fixtures/vendors (read-only). Improve ProposedEmailUpdatesPanel UX: summary counts, status filter, expandable body preview. No live inbox, no Firestore writes. Extend verify:dispatcher-nav to assert proposed-email-updates-panel.",
+      "files": [
+        "src/dispatcher/email/emailFixtures.ts",
+        "src/dispatcher/email/ProposedEmailUpdatesPanel.tsx",
+        "scripts/verify-dispatcher-nav.mjs",
+        "scripts/test-email-parser.mjs"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "New fixtures parse in test:email-parser; panel shows filter + summary; verify:dispatcher-nav asserts panel visible.",
+      "capturedDuring": "Dan 2026-06-19 — approved away batch",
+      "preApproved": true,
+      "dependsOn": "away-048",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run test:email-parser",
+        "npm run verify:dispatcher-nav"
+      ],
+      "status": "queued"
+    },
+    {
+      "id": "away-050",
+      "title": "Public portal network-failure UX",
+      "scope": "Add reusable network-failure panel with retry on receive and pickup public routes when Firestore load fails. data-testid public-network-error. Add scripts/verify-public-network-error.mjs and package.json script. No rules/CF changes.",
+      "files": [
+        "src/PublicNetworkErrorPanel.tsx",
+        "src/PickupPortalPage.tsx",
+        "src/ReceivingPage.tsx",
+        "scripts/verify-public-network-error.mjs",
+        "package.json"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "Pickup and receive show retry panel on simulated network failure; verify:public-network-error PASS.",
+      "capturedDuring": "Dan 2026-06-19 — approved away batch",
+      "preApproved": true,
+      "dependsOn": "away-049",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:public-network-error"
+      ],
+      "status": "queued"
+    },
+    {
+      "id": "away-051",
+      "title": "Phase 4 resolution workflow: type picker",
+      "scope": "Add ISSUE_RESOLUTION_TYPE_LABEL for 8 IssueResolutionType values in models.ts. Dispatcher resolve flow: modal with resolution-type picker + note (not hardcoded). Extend resolveMaterialIssue CF to persist resolutionType. Tech-facing: show resolution type on resolved issues in material issues panel. Sonnet security gate before push (CF write path).",
+      "files": [
+        "src/dispatcher/models.ts",
+        "src/DispatcherDashboardPage.tsx",
+        "src/dispatcher/firestoreService.ts",
+        "functions/src/resolveMaterialIssue.ts",
+        "scripts/verify-material-issue-dashboard.mjs"
+      ],
+      "tier": "T2",
+      "model": "composer-2.5",
+      "acceptance": "Resolve modal offers 8 resolution types; CF stores resolutionType; verify:material-issue-dashboard asserts type select visible.",
+      "capturedDuring": "Dan 2026-06-19 — approved away batch",
+      "preApproved": true,
+      "dependsOn": "away-050",
+      "escalateBeforeShip": true,
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:material-issue-dashboard"
+      ],
+      "status": "queued"
+    }
+  ]
 }

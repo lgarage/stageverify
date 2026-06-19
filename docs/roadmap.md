@@ -119,7 +119,7 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 ## NEXT
 
-**Active phase: Phase 3 — Technician Pickup Workflow** (Slices 1–6 partial + Phase 4 entry shipped; full Phase 3 gate not passed)
+**Active phase: Phase 3 — Technician Pickup Workflow** (integration gate passed 2026-06-19; permanent shop-stock mapping still open)
 
 Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` resolve + readiness recalc). Full Phase 4 gate still open. **Active away queue** may prioritize work ahead of gate close — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next` (e.g. `away-042` Phase 5 prototype).
 
@@ -215,16 +215,16 @@ Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` reso
 | Assignment             | Material Owner attached on issue create                                                                                                                                                                                      |
 | Testing                | Scenario A (happy path) + Scenario B (issue creation) per implementation plan                                                                                                                                                |
 | Playwright             | Extend `verify:pickup` for issue button + dashboard visibility                                                                                                                                                               |
-| Submit label           | Align UI copy with scope: **Order Pickup Complete** (or documented equivalent)                                                                                                                                              |
+| Submit label           | **Order Pickup Complete** on submit button (`away-048`)                                                                                                                                              |
 | Blocking-issue pickup  | Resolve UI “can still complete pickup” vs CF `unresolved_blocking_issues` block; update verify harness B→A order if needed                                                                                                    |
 
-**Gate:** Successful pickup + issue creation without manual DB edits. **Slices 1–6 partial shipped** (`away-015`…`041`); full Phase 3 gate still open — end-to-end integration proof + permanent shop-stock mapping.
+**Gate:** Successful pickup + issue creation without manual DB edits. **Integration proof passed** (`away-047`: `verify:phase3-integration` + prod pickup verify). **Slices 1–6 partial shipped** (`away-015`…`041`). Full gate still open on permanent shop-stock mapping only.
 
 ### Phase 4 — Material Issue Resolution
 
 | Deliverable      | Detail                                                                                                            |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Owner UI         | Open issue, select resolution type, submit                                                                        |
+| Owner UI         | Open issue, select resolution type, submit (`away-051` — 8-type picker + note)                                                                        |
 | Resolution types | Found in Shop, Pick Up at Supply House, Vendor Redeliver, Substitute, Transfer, Continue Without, Hold Job, Other |
 | Tech UI          | View resolution status                                                                                            |
 | History          | Resolution + status history stored                                                                                |
@@ -245,7 +245,8 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - AI may extract, classify, match, score, explain, and **propose** updates for human review — AI may **not** update operational records or change readiness/delivery status
 - Confidence: high confidence → proposed auto-processing for human review in Phase 5; actual automation is Phase 6+ only after an approved automation gate
 - **Gate:** ≥95% extraction accuracy on approved sample set using defined scoring method; low-confidence routed to review
-- **Shipped (away-042…044):** Johnstone + First Supply + Ferguson fixtures; `npm run test:email-parser` prints per-fixture pass/fail + aggregate ≥95% gate; read-only proposed updates panel (away-045)
+- **Shipped (away-042…045):** Johnstone + First Supply + Ferguson fixtures; `npm run test:email-parser` prints per-fixture pass/fail + aggregate ≥95% gate; read-only proposed updates panel
+- **Polish (away-049):** WinSupply fixtures + panel filters/summary/expandable preview; `verify:dispatcher-nav` asserts panel
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 

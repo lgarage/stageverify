@@ -41,7 +41,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds, MATERIAL_ISSUE_TYPE_LABEL } from "./dispatcher/models";
+import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, ISSUE_RESOLUTION_TYPES, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType } from "./dispatcher/models";
 import {
   deliveryReadinessDisplayLabel,
   jobDispatchDisplayLabel,
@@ -464,7 +464,11 @@ export function DispatcherDashboardPage() {
     }
   };
 
-  const handleResolveMaterialIssue = async (issueId: string) => {
+  const handleResolveMaterialIssue = async (
+    issueId: string,
+    resolutionType: IssueResolutionType,
+    resolutionNote: string,
+  ) => {
     if (!selectedDeliveryId) return;
 
     setMutationLoading(true);
@@ -473,7 +477,8 @@ export function DispatcherDashboardPage() {
     try {
       await resolveMaterialIssue({
         issueId,
-        resolutionNote: "Resolved by dispatcher",
+        resolutionType,
+        resolutionNote: resolutionNote.trim() || ISSUE_RESOLUTION_TYPE_LABEL[resolutionType],
       });
       const updatedDetails =
         await firestoreDataService.getDeliveryDetails(selectedDeliveryId);
@@ -2404,9 +2409,17 @@ function DetailContent({
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
-  onResolveMaterialIssue: (issueId: string) => Promise<void>;
+  onResolveMaterialIssue: (
+    issueId: string,
+    resolutionType: IssueResolutionType,
+    resolutionNote: string,
+  ) => Promise<void>;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
+  const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
+  const [resolutionType, setResolutionType] =
+    useState<IssueResolutionType>("found_in_shop");
+  const [resolutionNote, setResolutionNote] = useState("");
 
   if (loading) {
     return (
@@ -2883,7 +2896,11 @@ function DetailContent({
                           type="button"
                           data-testid={`resolve-issue-${issue.id}`}
                           disabled={mutationLoading}
-                          onClick={() => void onResolveMaterialIssue(issue.id)}
+                          onClick={() => {
+                            setResolveIssueId(issue.id);
+                            setResolutionType("found_in_shop");
+                            setResolutionNote("");
+                          }}
                           style={{
                             marginTop: 8,
                             padding: "6px 10px",
@@ -2901,6 +2918,50 @@ function DetailContent({
                         </button>
                       </div>
                     ))
+                )}
+                {details.materialIssues.filter((i) => i.status === "resolved").length >
+                  0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <p
+                      style={{
+                        margin: "0 0 8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      Recently resolved
+                    </p>
+                    {details.materialIssues
+                      .filter((i) => i.status === "resolved")
+                      .slice(0, 3)
+                      .map((issue) => (
+                        <div
+                          key={issue.id}
+                          style={{
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 8,
+                            padding: "10px 12px",
+                            backgroundColor: "#f9fafb",
+                            marginBottom: 6,
+                          }}
+                        >
+                          <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700 }}>
+                            {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                            {issue.resolutionType
+                              ? ` → ${ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType]}`
+                              : ""}
+                          </p>
+                          {issue.resolutionNote && (
+                            <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>
+                              {issue.resolutionNote}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
                 )}
               </div>
             ),
@@ -3238,6 +3299,141 @@ function DetailContent({
           </section>
         ))}
       </div>
+      {resolveIssueId && (
+        <div
+          data-testid="resolve-issue-modal"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: 16,
+          }}
+          onClick={() => setResolveIssueId(null)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              backgroundColor: "#fff",
+              borderRadius: 10,
+              padding: 20,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: "0 0 12px",
+                fontSize: 16,
+                fontWeight: 700,
+                color: navy,
+                fontFamily: font,
+              }}
+            >
+              Resolve material issue
+            </h3>
+            <label
+              htmlFor="resolution-type-select"
+              style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}
+            >
+              Resolution type
+            </label>
+            <select
+              id="resolution-type-select"
+              data-testid="resolution-type-select"
+              value={resolutionType}
+              onChange={(e) =>
+                setResolutionType(e.target.value as IssueResolutionType)
+              }
+              style={{
+                width: "100%",
+                marginBottom: 12,
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                fontSize: 13,
+              }}
+            >
+              {ISSUE_RESOLUTION_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {ISSUE_RESOLUTION_TYPE_LABEL[type]}
+                </option>
+              ))}
+            </select>
+            <label
+              htmlFor="resolution-note-input"
+              style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}
+            >
+              Notes (optional)
+            </label>
+            <textarea
+              id="resolution-note-input"
+              data-testid="resolution-note-input"
+              value={resolutionNote}
+              onChange={(e) => setResolutionNote(e.target.value)}
+              rows={3}
+              placeholder="What happened and next steps for the technician"
+              style={{
+                width: "100%",
+                marginBottom: 14,
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                fontSize: 13,
+                resize: "vertical",
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setResolveIssueId(null)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  border: "1px solid #d1d5db",
+                  backgroundColor: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-resolve-issue"
+                disabled={mutationLoading}
+                onClick={() => {
+                  const issueId = resolveIssueId;
+                  setResolveIssueId(null);
+                  void onResolveMaterialIssue(
+                    issueId,
+                    resolutionType,
+                    resolutionNote,
+                  );
+                }}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  border: "none",
+                  backgroundColor: navy,
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: mutationLoading ? "not-allowed" : "pointer",
+                  opacity: mutationLoading ? 0.6 : 1,
+                }}
+              >
+                Submit resolution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showPrintLabel && (
         <PrintLabelModal
           qrUrl={buildEslTagQrUrl({

@@ -76,7 +76,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **M1 vendor revert hydration (shipped 2026-06-08):** `revertDeliveryStatus` vendor paths (early return + post-commit) route through `hydrateAfterVendorWrite` — unauthenticated revert no longer calls auth-only `getDeliveryDetails`. Focused security review: PASS. Local verify: vendor-e2e 10/10, pickup PASS.
 
-Full Phase 3 gate still open (PO-grouped checklist polish, permanent shop-stock mapping). **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`).
+Full Phase 3 integration gate **passed 2026-06-19** (`away-047`: `verify:phase3-integration` + `verify:pickup:prod`). Permanent shop-stock mapping still open. **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–051 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker on dispatcher resolve.
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
@@ -173,7 +173,6 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 3 gate close** — full Phase 3 gate not passed; run `npm run verify:phase3-integration` + `verify:pickup:prod` after deploy. Overnight batch away-042…046 shipped (Phase 5 email prototype + integration smoke).
-2. **Phase 3 remainder** — permanent shop-stock mapping, full Phase 3 gate (see `docs/roadmap.md`).
-3. **ESL integration** — Phase 7; blocked on Minew credentials.
-4. **Shop map / Jake Korb shelving** — blocks real combination location IDs.
+1. **Phase 3 remainder** — permanent shop-stock mapping (integration gate passed `away-047`).
+2. **ESL integration** — Phase 7; blocked on Minew credentials.
+3. **Shop map / Jake Korb shelving** — blocks real combination location IDs.

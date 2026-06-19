@@ -63,7 +63,9 @@ export function VendorPinGate({
           return;
         }
         setVerified(true);
-        const settings = await getAppSettings();
+        const settings = await getAppSettings().catch(() => ({
+          vendorSessionMinutes: 15,
+        }));
         const sessionMinutes = settings.vendorSessionMinutes ?? 15;
         setPinSession(deliveryId, result.vendorId, result.vendorName, {
           sessionToken: result.sessionToken,

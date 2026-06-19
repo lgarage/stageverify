@@ -29,6 +29,7 @@ import { normalizePickupHash, parseScannedQr, readPickupParams } from "./receive
 import { validatePickupTokenClient } from "./validatePickupTokenClient";
 import { QrScannerOverlay } from "./QrScannerOverlay";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
+import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 
 const icons = {
   check: "M5 13l4 4L19 7",
@@ -595,6 +596,59 @@ function JobPickupScreen({
 
   checkedRef.current = checked;
 
+  const loadJobDeliveries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    initialHighlightDone.current = false;
+
+    try {
+      const [settings, loaded, stagingLocs] = await Promise.all([
+        getAppSettings(),
+        loadPickupReadyDeliveriesPublic(jobId, {
+          includeDeliveryId: highlightDeliveryId ?? undefined,
+        }),
+        firestoreDataService.listStagingLocations(),
+      ]);
+      setAllStagingLocations(stagingLocs);
+      setAutoSubmitMinutes(settings.autoSubmitMinutes);
+      if (settings.autoSubmitMinutes > 0) {
+        setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
+      }
+      setDeliveries(
+        [...loaded].sort(
+          (a, b) =>
+            pickupQueueSortRank(a.delivery.status) -
+            pickupQueueSortRank(b.delivery.status),
+        ),
+      );
+      setCheckedItemIds(() => {
+        const initial = new Set<string>();
+        for (const d of loaded) {
+          for (const itemId of d.delivery.pickupCheckedItemIds ?? []) {
+            initial.add(itemId);
+          }
+        }
+        return initial;
+      });
+      setCheckedShopStockKeys(new Set());
+      setChecked(
+        new Set(
+          loaded
+            .filter(
+              (d) =>
+                d.delivery.status === "picked_up" ||
+                d.delivery.status === "installed",
+            )
+            .map((d) => d.delivery.id),
+        ),
+      );
+    } catch {
+      setError("Failed to load deliveries. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [jobId, highlightDeliveryId]);
+
   const highlightCard = useCallback((deliveryId: string) => {
     setPulsingId(deliveryId);
     const el = cardRefs.current.get(deliveryId);
@@ -603,65 +657,8 @@ function JobPickupScreen({
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    initialHighlightDone.current = false;
-
-    void (async () => {
-      try {
-        const [settings, loaded, stagingLocs] = await Promise.all([
-          getAppSettings(),
-          loadPickupReadyDeliveriesPublic(jobId, {
-            includeDeliveryId: highlightDeliveryId ?? undefined,
-          }),
-          firestoreDataService.listStagingLocations(),
-        ]);
-        if (cancelled) return;
-        setAllStagingLocations(stagingLocs);
-        setAutoSubmitMinutes(settings.autoSubmitMinutes);
-        if (settings.autoSubmitMinutes > 0) {
-          setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
-        }
-        setDeliveries(
-          [...loaded].sort(
-            (a, b) =>
-              pickupQueueSortRank(a.delivery.status) -
-              pickupQueueSortRank(b.delivery.status),
-          ),
-        );
-        setCheckedItemIds(() => {
-          const initial = new Set<string>();
-          for (const d of loaded) {
-            for (const itemId of d.delivery.pickupCheckedItemIds ?? []) {
-              initial.add(itemId);
-            }
-          }
-          return initial;
-        });
-        setCheckedShopStockKeys(new Set());
-        setChecked(
-          new Set(
-            loaded
-              .filter(
-                (d) =>
-                  d.delivery.status === "picked_up" ||
-                  d.delivery.status === "installed",
-              )
-              .map((d) => d.delivery.id),
-          ),
-        );
-      } catch {
-        if (!cancelled) setError("Failed to load deliveries. Please try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [jobId]);
+    void loadJobDeliveries();
+  }, [loadJobDeliveries]);
 
   useEffect(() => {
     if (
@@ -1152,6 +1149,15 @@ function JobPickupScreen({
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <p className="text-text-secondary">Loading pickup list…</p>
       </div>
+    );
+  }
+
+  if (error && deliveries.length === 0) {
+    return (
+      <PublicNetworkErrorPanel
+        message={error}
+        onRetry={() => void loadJobDeliveries()}
+      />
     );
   }
 

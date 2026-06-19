@@ -126,6 +126,28 @@ export type IssueResolutionType =
   | "hold_job"
   | "other";
 
+export const ISSUE_RESOLUTION_TYPE_LABEL: Record<IssueResolutionType, string> = {
+  found_in_shop: "Found in Shop",
+  pick_up_supply_house: "Pick Up at Supply House",
+  vendor_redeliver: "Vendor Redeliver",
+  substitute: "Substitute",
+  transfer: "Transfer",
+  continue_without: "Continue Without",
+  hold_job: "Hold Job",
+  other: "Other",
+};
+
+export const ISSUE_RESOLUTION_TYPES: IssueResolutionType[] = [
+  "found_in_shop",
+  "pick_up_supply_house",
+  "vendor_redeliver",
+  "substitute",
+  "transfer",
+  "continue_without",
+  "hold_job",
+  "other",
+];
+
 export type VendorEmailReviewStatus =
   | "pending_review"
   | "approved"
@@ -536,6 +558,7 @@ export interface MaterialIssue {
   shopStockLineKey?: string;
   resolvedAt?: string;
   resolvedBy?: string;
+  resolutionType?: IssueResolutionType;
   resolutionNote?: string;
   createdAt: string;
   updatedAt: string;

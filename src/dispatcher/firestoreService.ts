@@ -32,6 +32,7 @@ import type {
   ItemStatus,
   Job,
   MaterialIssue,
+  IssueResolutionType,
   CreateMaterialIssueInput,
   CreateMaterialIssueResult,
   GeneratePickupTokenInput,
@@ -1703,6 +1704,7 @@ export async function reportMaterialIssue(
 
 export interface ResolveMaterialIssueInput {
   issueId: string;
+  resolutionType: IssueResolutionType;
   resolutionNote: string;
 }
 

@@ -109,6 +109,34 @@ export const EMAIL_FIXTURES: InboundEmailMessage[] = [
     bodyText: "Your order PO-99999 has shipped.",
     receivedAt: "2026-06-12T13:00:00Z",
   },
+  {
+    sourceMessageId: "msg-winsupply-ship-012",
+    threadId: "thread-winsupply-46110",
+    senderEmail: "orders@winsupply.example",
+    recipientEmails: ["monitor@configured-inbox.example"],
+    subject: "Shipment PO-46110 — Job 26-1042",
+    bodyText:
+      "Your order PO-46110 ORD-9102 for job 26-1042 has shipped. 2x Thermostat included.",
+    receivedAt: "2026-06-13T09:00:00Z",
+  },
+  {
+    sourceMessageId: "msg-winsupply-delay-013",
+    senderEmail: "orders@winsupply.example",
+    recipientEmails: ["monitor@configured-inbox.example"],
+    subject: "Delivery delay PO-46110",
+    bodyText:
+      "Delivery for PO-46110 ORD-9102 job 26-1042 is delayed until next week.",
+    receivedAt: "2026-06-13T10:30:00Z",
+  },
+  {
+    sourceMessageId: "msg-johnstone-reschedule-014",
+    senderEmail: "dispatch@johnstone.com",
+    recipientEmails: ["monitor@configured-inbox.example"],
+    subject: "Rescheduled delivery PO-45821",
+    bodyText:
+      "Delivery for PO-45821 ORD-1007 job 26-1042 rescheduled to Friday.",
+    receivedAt: "2026-06-13T11:00:00Z",
+  },
 ];
 
 export const MULTI_VENDOR_MATCH_CONTEXT = {
@@ -129,6 +157,12 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
       id: "vendor-ferguson",
       name: "Ferguson",
       email: "orders@ferguson.com",
+      createdAt: "2026-01-01T00:00:00Z",
+    },
+    {
+      id: "vendor-winsupply",
+      name: "WinSupply",
+      email: "orders@winsupply.example",
       createdAt: "2026-01-01T00:00:00Z",
     },
   ],
@@ -169,6 +203,13 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
       poNumber: "PO-46001",
       jobId: "job-261042",
       vendorId: "vendor-ferguson",
+      status: "open" as const,
+    },
+    {
+      id: "po-winsupply-46110",
+      poNumber: "PO-46110",
+      jobId: "job-261042",
+      vendorId: "vendor-winsupply",
       status: "open" as const,
     },
   ],
@@ -220,6 +261,19 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
       purchaseOrderId: "po-johnstone-45899",
       deliveryDate: "2026-06-12",
       stagingLocationId: "loc-g3",
+      additionalStagingLocationIds: [],
+      status: "partial" as const,
+      createdAt: "2026-06-01T00:00:00Z",
+      updatedAt: "2026-06-01T00:00:00Z",
+    },
+    {
+      id: "del-winsupply-9102",
+      orderNumber: "ORD-9102",
+      jobId: "job-261042",
+      vendorId: "vendor-winsupply",
+      purchaseOrderId: "po-winsupply-46110",
+      deliveryDate: "2026-06-14",
+      stagingLocationId: "loc-w1",
       additionalStagingLocationIds: [],
       status: "partial" as const,
       createdAt: "2026-06-01T00:00:00Z",

@@ -1,5 +1,5 @@
-import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as admin from "firebase-admin";
 import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
 
 function getDb() {
@@ -9,8 +9,22 @@ function getDb() {
 const OPEN_ISSUE_STATUSES = ["open", "assigned"] as const;
 const MAX_NOTE_LEN = 500;
 
+const RESOLUTION_TYPES = [
+  "found_in_shop",
+  "pick_up_supply_house",
+  "vendor_redeliver",
+  "substitute",
+  "transfer",
+  "continue_without",
+  "hold_job",
+  "other",
+] as const;
+
+type ResolutionType = (typeof RESOLUTION_TYPES)[number];
+
 interface ResolveMaterialIssueRequest {
   issueId?: string;
+  resolutionType?: string;
   resolutionNote?: string;
 }
 
@@ -19,6 +33,13 @@ function asNonEmptyString(value: unknown, maxLen: number): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLen) return null;
   return trimmed;
+}
+
+function asResolutionType(value: unknown): ResolutionType | null {
+  if (typeof value !== "string") return null;
+  return RESOLUTION_TYPES.includes(value as ResolutionType)
+    ? (value as ResolutionType)
+    : null;
 }
 
 function isBlockingType(type: string): boolean {
@@ -45,14 +66,15 @@ export const resolveMaterialIssue = onCall(
 
     const data = (request.data ?? {}) as ResolveMaterialIssueRequest;
     const issueId = asNonEmptyString(data.issueId, 128);
+    const resolutionType = asResolutionType(data.resolutionType);
     const resolutionNote = asNonEmptyString(
       data.resolutionNote ?? "Resolved",
       MAX_NOTE_LEN,
     );
-    if (!issueId || !resolutionNote) {
+    if (!issueId || !resolutionType || !resolutionNote) {
       throw new HttpsError(
         "invalid-argument",
-        "issueId and resolutionNote are required.",
+        "issueId, resolutionType, and resolutionNote are required.",
       );
     }
 
@@ -106,6 +128,7 @@ export const resolveMaterialIssue = onCall(
 
       tx.update(issueRef, {
         status: "resolved",
+        resolutionType,
         resolutionNote,
         resolvedAt: now,
         resolvedBy,
@@ -144,6 +167,7 @@ export const resolveMaterialIssue = onCall(
     return {
       issueId,
       status: "resolved" as const,
+      resolutionType,
       readinessRecalculated,
     };
   },

@@ -43,6 +43,7 @@
     "verify:portal-layout": "node scripts/verify-portal-layout.mjs",
     "verify:dispatcher-nav": "node scripts/verify-dispatcher-nav.mjs",
     "verify:phase3-integration": "node scripts/verify-phase3-integration.mjs",
+    "verify:public-network-error": "node scripts/verify-public-network-error.mjs",
     "verify:settings-staging:prod": "node scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
     "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",
     "measure:routes": "node scripts/measure-mobile-route-performance.mjs",

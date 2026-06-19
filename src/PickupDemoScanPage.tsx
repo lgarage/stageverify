@@ -30,7 +30,7 @@ export function PickupDemoScanPage() {
           <dt className="font-semibold text-text-secondary">Job</dt>
           <dd>{DEMO_JOB_ID}</dd>
           <dt className="font-semibold text-text-secondary">Flow</dt>
-          <dd>Check each line → Done — All Picked Up</dd>
+          <dd>Check each line → Order Pickup Complete</dd>
         </dl>
         <Link
           to={pickupPath(DEMO_JOB_ID, DEMO_DELIVERY_ID)}
