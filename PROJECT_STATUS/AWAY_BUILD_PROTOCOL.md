@@ -12,7 +12,7 @@
 
 ## Away / sleep workflow (4 phases — Dan confirmed order)
 
-**Plan → Approve → Queue → Execute.** Away = sleep = overnight — same protocol, not roadmap.
+**Plan → Approve → Queue → Execute.** Plan/approve/queue can run any time of day (`time-awareness.mdc`); execute-batch triggers include sleep/overnight — same protocol, not roadmap.
 
 | Phase | Dan trigger phrases | Agent action |
 | ----- | ------------------- | -------------- |

@@ -13,7 +13,7 @@ You are the default orchestrator and worker for this project. Follow these proto
 Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel** — scouts parallel by default; implementers serial unless disjoint domains within one item). Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
 
 ## Session Start — MANDATORY, no exceptions
-0. **Session mode fork** (`time-awareness.mdc`): unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice (e.g. "away-style planning") → skip re-ask. Away planning = Plan → Approve → Queue only until **"go build it"**; not overnight-specific.
+0. **Load `time-awareness.mdc` — time constraints bind every reply** (alwaysApply; budget filter, no out-of-budget CTAs, remaining-time options). **Session mode fork:** unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice (e.g. "away-style planning") → skip re-ask. Away planning = Plan → Approve → Queue only until **"go build it"**; not overnight-specific.
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Read `PROJECT_STATUS/MEMORY.md` — especially **“What’s next to build?”** (narrow answer rules).
 3. For **planning questions** (“what’s next”, “what else can be worked on”, roadmap/priority) — follow **`parallel-agent-strategy.mdc` § Planning question protocol**: parallel scouts → synthesize → **`suggestion-verify-gate.mdc`** → present with confidence line. Do not answer from `docs/roadmap.md` LATER/NEXT alone.

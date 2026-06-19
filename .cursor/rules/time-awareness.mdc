@@ -1,9 +1,17 @@
 ---
-description: Time-of-day awareness — active daytime vs overnight/away sessions
+description: Time constraints bind every reply — budget filter, no out-of-budget CTAs, remaining-time options
 alwaysApply: true
 ---
 
 # Time Awareness (Dan standing preference)
+
+## Time constraints (summary)
+
+- **Users are always time-bound** — track stated windows; re-estimate after each ship cycle.
+- **Budget filter** — only offer **Fits now** / **To continue** when `budget ≤ remaining` (see **Time estimate calibration**).
+- **No out-of-budget CTAs** — out-of-budget items → **Save for later** only.
+- **Remaining time options** — mandatory after successful ship when a window was stated.
+- **Active default** — overnight/away-batch execute only on explicit sleep/overnight trigger.
 
 Dan wants agents **time aware** in every conversation.
 

@@ -23,7 +23,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | **Queue** | After approval | Add approved items to `away-list.json` |
 | **Execute** | Queue ready | `npm run away:batch` — all queued items; verify → `away:ship` → `away:validate` per item; halt on fail |
 
-Away = sleep = overnight. **Long batch** (≥3 items) is Dan's default. If `away:plan` shows `batchSize` < 3, use `suggestedAdditions` as draft templates only — not queued until approved. No unqueued roadmap work.
+Plan/approve/queue can run any time of day; execute-batch triggers include sleep/overnight. **Long batch** (≥3 items) is Dan's default. If `away:plan` shows `batchSize` < 3, use `suggestedAdditions` as draft templates only — not queued until approved. No unqueued roadmap work.
 
 ## Session start (every coding session)
 

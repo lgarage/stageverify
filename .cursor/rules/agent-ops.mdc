@@ -15,7 +15,8 @@ git source `C:\Projects\cursor-agent-brain`). Follow it every session.
 
 ## Session start (read order — STOP after this)
 1. `PROJECT_STATUS/CURRENT_STATE.md` (hot tier).
-2. The agent-ops skill's Global Tier Table (its `SKILL.md` §2).
+2. `.cursor/rules/time-awareness.mdc` — time constraints bind every reply (alwaysApply; budget filter, no out-of-budget CTAs).
+3. The agent-ops skill's Global Tier Table (its `SKILL.md` §2).
 Do NOT read archives or `outcomes/*.jsonl` during normal work.
 
 ## During work
