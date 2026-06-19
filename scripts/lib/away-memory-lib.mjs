@@ -169,7 +169,7 @@ export function buildBatchBrief(list, archive) {
     items,
     protocol: {
       file: "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md",
-      section: "Away / sleep batch (same thing)",
+      section: "Away / sleep workflow (4 phases)",
       loop: "Run items in sequence order — one at a time, verify+ship between each, halt on fail.",
       haltOnFailure: ep.haltOnFailure ?? true,
       instructions: ep.instructions ?? null,

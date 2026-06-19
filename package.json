@@ -64,6 +64,7 @@
     "test:email-parser": "npx tsx scripts/test-email-parser.mjs",
     "away:validate": "node scripts/away-validate.mjs",
     "away:next": "node scripts/away-next.mjs",
+    "away:plan": "node scripts/away-plan.mjs",
     "away:batch": "node scripts/away-batch.mjs",
     "away:preflight": "node scripts/away-preflight.mjs",
     "away:sync-next": "node scripts/away-sync-next.mjs",

@@ -10,21 +10,35 @@
 3. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
 4. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
 
-## Away / sleep batch (same thing)
+## Away / sleep workflow (4 phases — Dan confirmed order)
 
-**“While I'm away” = “while I sleep” = overnight batch.** Same protocol — not roadmap.
+**Plan → Approve → Queue → Execute.** Away = sleep = overnight — same protocol, not roadmap.
 
-**Dan's standing preference: long batch.** When away/sleep/overnight, always run the **full** queued sequence — not just the head item.
+| Phase | Dan trigger phrases | Agent action |
+| ----- | ------------------- | -------------- |
+| **1 Plan** | `what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, first away/sleep question | **`npm run away:plan`** — return `queuedItems` + optional `suggestedAdditions` (drafts). **Do not write `away-list.json`.** Do not run `away:batch` yet. |
+| **2 Approve** | `go build it`, `queue it`, `approved`, `yes build that`, similar explicit approval | Confirm which drafts/items Dan approved. |
+| **3 Queue** | After approval only | Add approved items to `PROJECT_STATUS/away-list.json`. Never auto-queue during plan. |
+| **4 Execute** | Queue ready (or Dan re-opens with execute starter) | **`npm run away:batch`** — full queued sequence; implement → verify → `away:ship` → `away:validate` per item; halt on fail. |
 
-For away/sleep/overnight questions (`what should I build while I'm away`, `run while I sleep`, `overnight batch`, etc.):
+### Plan phase details
 
-1. **`npm run away:batch`** — returns **all** queued items in `executionProtocol.sequence` order (same narrow rule as `away:next`, full runnable sequence). Brief includes `batchSize`, `longBatchExpected`, `minBatchHint` (3).
-2. If **`batchSize` < 3**, note the batch is short and suggest Dan queue more items in `away-list.json` — **do not invent IDs**.
-3. Read **`PROJECT_STATUS/OVERNIGHT_PROMPT.md`** for copy-paste starter.
-4. Execute items **one at a time** in order: implement → verify all `verifyBeforeNext` → `npm run away:ship` → `npm run away:validate` → next item.
+- `away:plan` reuses batch brief data with `mode: "plan"` and plan-only note — no queue writes until approval.
+- `queuedItems`: what would run if Dan approves the current queue as-is.
+- `suggestedAdditions`: draft template(s) when `batchSize` < `minBatchHint` (3). When queue is stocked (≥3), empty array + `suggestedAdditionsNote: "queue stocked"`.
+- **Dan's standing preference: long batch** — suggest enough work at plan time; execute every queued item at execute time.
+
+### Execute phase
+
+For away/sleep/overnight **execute** (phase 4 only):
+
+1. **`npm run away:batch`** — all queued items in `executionProtocol.sequence` order.
+2. If **`batchSize` < 3**, note short batch — suggest more at **plan** time next round; do not invent IDs during execute.
+3. Read **`PROJECT_STATUS/OVERNIGHT_PROMPT.md`** — starter (B) for execute after approval.
+4. Execute items **one at a time**: implement → verify all `verifyBeforeNext` → `npm run away:ship` → `npm run away:validate` → next item.
 5. **Halt on fail** — mark blocked, log `away-status.json`, stop batch. Do not widen to unqueued roadmap work.
 
-Suggest **batch runs** to Dan when he asks what to build while away or asleep.
+Suggest **batch runs** to Dan at plan time; run them only after queue + approval.
 
 ## Composer 2.5 = orchestrator (always)
 
@@ -110,7 +124,7 @@ For each id in `executionProtocol.sequence`:
 
 ## Current queue
 
-See `away-list.json` → `executionProtocol.sequence`. Copy-paste starter: `PROJECT_STATUS/OVERNIGHT_PROMPT.md`.
+See `away-list.json` → `executionProtocol.sequence`. Copy-paste starters: `PROJECT_STATUS/OVERNIGHT_PROMPT.md` (plan vs execute).
 
 ## References
 

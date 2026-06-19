@@ -12,9 +12,18 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 - Optional work sizing: `npm run away:preflight` (runs queued item `verifyBeforeNext`).
 - **Full program status** (Phase 3/4 gaps, LATER phases): separate question — then read `roadmap.md` + `project_state.md`.
 
-## Away / sleep batch (same thing — mandatory)
+## Away / sleep workflow (mandatory — 4 phases)
 
-**Dan always wants a long batch** when away/sleep/overnight — run full **`npm run away:batch`** (all queued items). Away = sleep = overnight. If queue has **fewer than 3** items, note batch is short and suggest Dan queue more in `away-list.json` (do not invent IDs). Execute `items[]` in order; ship+verify between; halt on fail. No unqueued roadmap work.
+**Plan → Approve → Queue → Execute.** Never skip to execute on Dan's first away/sleep question; never auto-queue on plan.
+
+| Phase | Trigger | Agent action |
+| ----- | ------- | -------------- |
+| **Plan** | `what should I build while I'm away/sleep/overnight` | `npm run away:plan` — suggest work; **do not** write `away-list.json` |
+| **Approve** | Dan says `go build it` (or similar) | Confirm scope; only then queue approved drafts |
+| **Queue** | After approval | Add approved items to `away-list.json` |
+| **Execute** | Queue ready | `npm run away:batch` — all queued items; verify → `away:ship` → `away:validate` per item; halt on fail |
+
+Away = sleep = overnight. **Long batch** (≥3 items) is Dan's default. If `away:plan` shows `batchSize` < 3, use `suggestedAdditions` as draft templates only — not queued until approved. No unqueued roadmap work.
 
 ## Session start (every coding session)
 
@@ -42,7 +51,8 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred |
 | Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
-| Batch sequence | `npm run away:batch` | Away/sleep/overnight — all queued items |
+| Batch sequence | `npm run away:batch` | Execute phase — all queued items |
+| Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
 | Preflight queued item | `npm run away:preflight` | Before coding session (opt-in) |

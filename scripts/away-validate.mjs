@@ -3,8 +3,10 @@
  * Cross-file memory consistency checks (Verifier).
  * Run: npm run away:validate
  */
+import path from "node:path";
 import {
   PATHS,
+  REPO_ROOT,
   ROADMAP_FORBIDDEN,
   deriveLastShippedFromStatus,
   firstRunnableItem,
@@ -187,10 +189,14 @@ function validateMemoryMd() {
     "AWAY_BUILD_PROTOCOL.md",
     "away:next",
     "away:batch",
+    "away:plan",
   ]) {
     if (!md.includes(pointer)) {
       fail(`MEMORY.md: missing pointer or rule: ${pointer}`);
     }
+  }
+  if (!/Plan.*Approve.*Queue.*Execute/i.test(md)) {
+    fail("MEMORY.md: missing away/sleep 4-phase workflow (Plan → Approve → Queue → Execute)");
   }
   if (!/next to build/i.test(md)) {
     fail("MEMORY.md: missing narrow 'what's next to build' answer rules");
@@ -210,6 +216,14 @@ function syncNextIfNeeded(list, archive) {
   }
 }
 
+function validatePackageScripts() {
+  const pkg = readJson(path.join(REPO_ROOT, "package.json"));
+  const scripts = pkg.scripts ?? {};
+  if (!scripts["away:plan"]) {
+    fail("package.json: missing away:plan script");
+  }
+}
+
 function main() {
   const list = validateAwayList();
   const archive = readJson(PATHS.awayArchive);
@@ -222,6 +236,7 @@ function main() {
   validateArchive();
   validateRoadmap();
   validateMemoryMd();
+  validatePackageScripts();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);
   if (errors.length) {
