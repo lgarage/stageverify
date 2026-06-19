@@ -1,7 +1,6 @@
 # Memory router (StageVerify)
 
-> **Warm-tier index + retriever seed.** Concern → file → when to read (≤70 lines).  
-> **Dev orchestration:** Composer + `.cursor/rules/` — not the full ACES Librarian plane.
+> **Warm-tier index + retriever seed** (≤70 lines). Concern → file → when to read. **Dev orchestration:** Composer + `.cursor/rules/` — not the full ACES Librarian plane.
 
 ## Session start (hot tier — STOP)
 
@@ -49,7 +48,7 @@ Long batch (≥3 items) is Dan's default. If `batchSize` < 3 at plan time, use `
 | Active queue | `PROJECT_STATUS/away-list.json` | Queued/blocked items only |
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
-| Next item packet | `npm run away:next` | Before coding queued work |
+| Next item packet | `npm run away:next` / root `NEXT.md` | Before coding queued work |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |

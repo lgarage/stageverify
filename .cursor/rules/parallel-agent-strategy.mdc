@@ -74,7 +74,7 @@ Split multi-domain investigations by domain — one scout per domain, same turn.
 
 | Scout | Domain | Read / run |
 |-------|--------|------------|
-| **A — Queue & hot state** | Authoritative "what's next" | `PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`, `PROJECT_STATUS/away-list.json`; run or read output of `npm run away:next` and `npm run away:plan` |
+| **A — Queue & hot state** | Authoritative "what's next" | `PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`, root `NEXT.md`, `PROJECT_STATUS/away-list.json`; run or read output of `npm run away:next`, `npm run away:plan`, and `npm run away:validate` when checking drift |
 | **B — Roadmap & blockers** | Planned work + constraints | `docs/roadmap.md`, `docs/project_state.md`, Active Blockers in CURRENT_STATE, `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` |
 | **C — Code gaps** | Open implementation work | Grep `TODO`/`FIXME`/`TBD` in `src/`; Phase markers in code; unfinished routes or stubs |
 | **D — Verify coverage** *(optional)* | Test gaps | `scripts/verify-*.mjs`, `package.json` verify scripts vs public/protected routes; missing Playwright gates per `composer-orchestrator.mdc` |

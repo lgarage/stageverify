@@ -180,7 +180,7 @@ function validateRoadmap() {
 function validateMemoryMd() {
   const md = readText(PATHS.memoryMd);
   if (md.split("\n").length > 70) {
-    warn(`MEMORY.md: ${md.split("\n").length} lines (target ≤60)`);
+    warn(`MEMORY.md: ${md.split("\n").length} lines (target ≤70)`);
   }
   for (const pointer of [
     "CURRENT_STATE.md",

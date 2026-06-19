@@ -6,10 +6,12 @@
 ## Session start (hot tier — STOP)
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` then `PROJECT_STATUS/MEMORY.md` (router + “what’s next” rules).
+2. Apply `time-awareness.mdc` (alwaysApply) — binds every reply; see `composer-orchestrator.mdc` session start step 0.
+
 **STOP here** for generic tasks. On demand only:
-2. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
-3. **`PROJECT_STATUS/svscope_simple.md`** — product authority; scope disputes only.
-4. `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** — before UI, pickup, receive, vendor, or public-route work.
+3. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
+4. **`PROJECT_STATUS/svscope_simple.md`** — product authority; scope disputes only.
+5. `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** — before UI, pickup, receive, vendor, or public-route work.
 
 ## Away / sleep workflow (4 phases — Dan confirmed order)
 
