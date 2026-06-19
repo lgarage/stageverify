@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-18 (memory Phase 1+2; batch 3 traceability sync)
+> **Last updated:** 2026-06-18 (librarian Tier 1 tighten — validate v2, away:preflight, roadmap sync)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
@@ -119,9 +119,9 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 ## NEXT
 
-**Active phase: Phase 3 — Technician Pickup Workflow**
+**Active phase: Phase 3 — Technician Pickup Workflow** (Slices 1–6 partial + Phase 4 entry shipped; full Phase 3 gate not passed)
 
-Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
+Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` resolve + readiness recalc). Full Phase 4 gate still open. **Active away queue** may prioritize work ahead of gate close — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next` (e.g. `away-042` Phase 5 prototype).
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 
@@ -134,7 +134,7 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Verify | ✅ `verify:pickup` (Scenarios A+B), `verify:material-issue-dashboard`, fixture resets |
 | Sonnet security gate | ✅ PASS WITH NOTES (counter-in-transaction, scoped `clientRequestId`) |
 
-**Not in Slice 1 / still Phase 3:** expected-materials UI, shop-stock pull states, readiness-aware queue.
+**Slice 1 follow-ons shipped:** expected-materials (`away-016`), shop-stock pull states (`away-018`), ready-only queue (`away-014`).
 
 ### Phase 3 Slice 2 — Clear pickup locations ✅ (shipped 2026-06-08)
 
@@ -218,7 +218,7 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 | Submit label           | Align UI copy with scope: **Order Pickup Complete** (or documented equivalent)                                                                                                                                              |
 | Blocking-issue pickup  | Resolve UI “can still complete pickup” vs CF `unresolved_blocking_issues` block; update verify harness B→A order if needed                                                                                                    |
 
-**Gate:** Successful pickup + issue creation without manual DB edits. **Slices 1–3 + remainder batch (`away-015`…`019`) shipped; full gate requires Slices 4–6 completion.**
+**Gate:** Successful pickup + issue creation without manual DB edits. **Slices 1–6 partial shipped** (`away-015`…`041`); full Phase 3 gate still open — end-to-end integration proof + permanent shop-stock mapping.
 
 ### Phase 4 — Material Issue Resolution
 
@@ -235,7 +235,7 @@ Phase 2 gate passed 2026-06-08. Do not start Phase 4 until Phase 3 gate passes.
 
 ## LATER
 
-Phases 5–9 are sequenced here for prioritization; not started until Phases 3–4 are stable. Historical detail in `docs/archives/stageverify_implementation_plan.md` — not active guidance.
+Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-list.json` + `CURRENT_STATE.md` + `npm run away:next` define the next build item (may queue Phase 5 before Phase 3 gate close). Historical detail in `docs/archives/stageverify_implementation_plan.md` — not active guidance.
 
 ### Phase 5 — Vendor Email Parsing Prototype (`svscope` §5 Condition 1 — offline)
 

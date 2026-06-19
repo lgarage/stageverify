@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /**
- * Cross-file memory consistency checks (Verifier seed).
+ * Cross-file memory consistency checks (Verifier).
  * Run: npm run away:validate
  */
 import {
   PATHS,
   ROADMAP_FORBIDDEN,
+  deriveLastShippedFromStatus,
   firstRunnableItem,
+  parseFirstQueuedFromProjectState,
+  parseImmediateNextFromCurrentState,
   parseLastShippedFromCurrentState,
   readJson,
   readText,
+  renderNextMd,
+  writeText,
 } from "./lib/away-memory-lib.mjs";
 
 const errors = [];
@@ -46,9 +51,7 @@ function validateAwayList() {
     }
 
     if (item.status === "done") {
-      fail(
-        `away-list.json: ${item.id} is done in active queue — archive done items (active queue should be queued/blocked only)`,
-      );
+      fail(`away-list.json: ${item.id} is done in active queue — remove or archive (active queue: queued/blocked only)`);
     }
 
     if (item.dependsOn && item.status === "queued") {
@@ -96,9 +99,7 @@ function validateAwayStatus(list) {
     if (item.status !== "queued") continue;
     const row = statusById.get(item.id);
     if (row && row.status === "built") {
-      fail(
-        `drift: ${item.id} is queued in away-list but built in away-status — run away:ship or fix manually`,
-      );
+      fail(`drift: ${item.id} is queued in away-list but built in away-status — run away:ship or fix manually`);
     }
   }
 
@@ -116,40 +117,35 @@ function validateArchive() {
   }
 }
 
-function validateCurrentState(list) {
-  const md = readText(PATHS.currentState);
-  const lines = md.split("\n").length;
-  if (lines > 35) {
-    warn(`CURRENT_STATE.md: ${lines} lines (target ~30)`);
-  }
-
-  const lastShipped = parseLastShippedFromCurrentState(md);
-  if (!lastShipped) {
-    fail("CURRENT_STATE.md: missing Last shipped: **away-NNN**");
-  } else if (lastShipped !== "away-041") {
-    warn(`CURRENT_STATE.md: Last shipped is ${lastShipped} (expected away-041 until next ship)`);
-  }
-
-  const queued = list.queue.filter((q) => q.status === "queued");
-  if (queued.length === 0 && md.includes("not in away queue yet") === false) {
-    // ok either way
-  }
-}
-
-function validateNextMd(list, archive) {
-  if (!readText(PATHS.nextMd).includes("# Next")) {
-    fail("NEXT.md: missing or invalid (expected # Next header)");
-    return;
-  }
-
+function validateNextIdSync(list, archive, statusDoc) {
   const next = firstRunnableItem(list.queue, archive);
+  const nextId = next?.id ?? null;
+
+  const currentState = readText(PATHS.currentState);
+  const immediate = parseImmediateNextFromCurrentState(currentState);
+  const projectFirst = parseFirstQueuedFromProjectState(readText(PATHS.projectState));
   const nextMd = readText(PATHS.nextMd);
-  if (next) {
-    if (!nextMd.includes(next.id)) {
-      fail(`NEXT.md: does not mention first queued item ${next.id}`);
+
+  if (nextId) {
+    if (immediate !== nextId) {
+      fail(`CURRENT_STATE immediate next (${immediate ?? "missing"}) !== queue head (${nextId})`);
     }
-  } else if (!nextMd.toLowerCase().includes("no queued") && !nextMd.includes("away-042")) {
-    warn("NEXT.md: no runnable queued item but NEXT.md may be stale");
+    if (projectFirst !== nextId) {
+      fail(`project_state.md item #1 (${projectFirst ?? "missing"}) !== queue head (${nextId})`);
+    }
+    if (!nextMd.includes(nextId)) {
+      fail(`NEXT.md does not mention queue head ${nextId}`);
+    }
+  } else if (list.queue.some((q) => q.status === "queued")) {
+    fail("queued items exist but no runnable queue head (dependsOn blocked?)");
+  }
+
+  const lastInState = parseLastShippedFromCurrentState(currentState);
+  const lastInStatus = deriveLastShippedFromStatus(statusDoc);
+  if (!lastInState) {
+    fail("CURRENT_STATE.md: missing Last shipped: **away-NNN**");
+  } else if (lastInStatus && lastInState !== lastInStatus) {
+    fail(`CURRENT_STATE last shipped (${lastInState}) !== away-status last built (${lastInStatus})`);
   }
 }
 
@@ -157,38 +153,50 @@ function validateRoadmap() {
   const roadmap = readText(PATHS.roadmap);
   for (const rule of ROADMAP_FORBIDDEN) {
     if (rule.pattern.test(roadmap)) {
-      fail(`docs/roadmap.md: stale row (${rule.label}) — batch 3 shipped but traceability still ⬜`);
+      fail(`docs/roadmap.md: stale/forbidden (${rule.label})`);
     }
-  }
-
-  if (/### Phase 3 Slice 4 — Vendor access hardening \(not started\)/.test(roadmap)) {
-    fail("docs/roadmap.md: Slice 4 section still says (not started)");
-  }
-  if (/### Phase 3 Slice 5 — Pickup link security \(not started\)/.test(roadmap)) {
-    fail("docs/roadmap.md: Slice 5 section still says (not started)");
   }
 }
 
 function validateMemoryMd() {
   const md = readText(PATHS.memoryMd);
-  const lines = md.split("\n").length;
-  if (lines > 65) {
-    warn(`MEMORY.md: ${lines} lines (target ≤60)`);
+  if (md.split("\n").length > 70) {
+    warn(`MEMORY.md: ${md.split("\n").length} lines (target ≤60)`);
   }
-  for (const pointer of ["CURRENT_STATE.md", "svscope_simple.md", "away-list.json", "AWAY_BUILD_PROTOCOL.md"]) {
+  for (const pointer of [
+    "CURRENT_STATE.md",
+    "svscope_simple.md",
+    "away-list.json",
+    "AWAY_BUILD_PROTOCOL.md",
+    "away:next",
+  ]) {
     if (!md.includes(pointer)) {
-      fail(`MEMORY.md: missing pointer to ${pointer}`);
+      fail(`MEMORY.md: missing pointer or rule: ${pointer}`);
     }
+  }
+  if (!/next to build/i.test(md)) {
+    fail("MEMORY.md: missing narrow 'what's next to build' answer rules");
+  }
+}
+
+function syncNextIfNeeded(list, archive) {
+  const next = firstRunnableItem(list.queue, archive);
+  const expected = renderNextMd(next);
+  const current = readText(PATHS.nextMd);
+  if (next && !current.includes(next.id)) {
+    writeText(PATHS.nextMd, expected);
+    warn("NEXT.md auto-synced to queue head (was stale)");
   }
 }
 
 function main() {
   const list = validateAwayList();
   const archive = readJson(PATHS.awayArchive);
+  let statusDoc = { results: [] };
   if (list) {
-    validateAwayStatus(list);
-    validateCurrentState(list);
-    validateNextMd(list, archive);
+    statusDoc = validateAwayStatus(list);
+    syncNextIfNeeded(list, archive);
+    validateNextIdSync(list, archive, statusDoc);
   }
   validateArchive();
   validateRoadmap();

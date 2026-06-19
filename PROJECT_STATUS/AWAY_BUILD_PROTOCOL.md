@@ -5,9 +5,9 @@
 
 ## Session start (mandatory)
 
-1. Read `PROJECT_STATUS/MEMORY.md` (router) then `PROJECT_STATUS/CURRENT_STATE.md`.
+1. Read `PROJECT_STATUS/MEMORY.md` (router + “what’s next” rules) then `PROJECT_STATUS/CURRENT_STATE.md`.
 2. Read **`PROJECT_STATUS/svscope_simple.md`** — product authority.
-3. `npm run away:next` or `NEXT.md` — active queued item.
+3. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
 4. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
 
 ## Composer 2.5 = orchestrator (always)

@@ -4,6 +4,14 @@
 > **Product authority:** `PROJECT_STATUS/svscope_simple.md` wins on conflict.  
 > **Dev orchestration:** Composer + `.cursor/rules/` — not the Librarian plane.
 
+## “What’s next to build?” (narrow — mandatory)
+
+Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT_STATE.md` immediate next + that item’s scope in `away-list.json`.
+
+- Do **not** infer the next build item from `docs/roadmap.md` LATER/NEXT narrative sections.
+- Optional work sizing: `npm run away:preflight` (runs queued item `verifyBeforeNext`).
+- **Full program status** (Phase 3/4 gaps, LATER phases): separate question — then read `roadmap.md` + `project_state.md`.
+
 ## Session start (every coding session)
 
 | Order | File | When |
@@ -32,6 +40,8 @@
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
+| Preflight queued item | `npm run away:preflight` | Before coding session (opt-in) |
+| Sync NEXT pointer | `npm run away:sync-next` | After editing away-list without ship |
 
 ## ACES / builder (meta — SV product wins)
 
