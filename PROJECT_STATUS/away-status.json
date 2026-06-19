@@ -323,6 +323,41 @@
       "status": "built",
       "commit": "fd450e3",
       "note": "verify:phase3-integration chained smoke; verify:pickup PASS"
+    },
+    {
+      "id": "away-047",
+      "title": "Phase 3 gate close: integration + prod verify",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "verify:phase3-integration + verify:pickup PASS; integration gate docs synced"
+    },
+    {
+      "id": "away-048",
+      "title": "Pickup submit label: Order Pickup Complete",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "Order Pickup Complete demo copy; verify:pickup PASS"
+    },
+    {
+      "id": "away-049",
+      "title": "Phase 5 email prototype polish",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "WinSupply fixtures + email panel filters; test:email-parser 100%; verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-050",
+      "title": "Public portal network-failure UX",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "PublicNetworkErrorPanel receive+pickup; verify:public-network-error PASS"
+    },
+    {
+      "id": "away-051",
+      "title": "Phase 4 resolution workflow: type picker",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "8-type resolution picker + CF resolutionType; Sonnet PASS; verify:material-issue-dashboard PASS"
     }
   ],
   "summary": "Batch 3 closed; memory Phase 1+2 shipped; next away-042 Phase 5 email gate"

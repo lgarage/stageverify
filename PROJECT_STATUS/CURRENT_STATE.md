@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (integration gate passed 2026-06-19; permanent shop-stock mapping still open)
-- Last shipped: **away-047…051** — Phase 3 gate close, pickup label, Phase 5 email polish, public network UX, resolution type picker
+- Last shipped: **away-051** — Phase 4 resolution workflow: type picker
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Phase 3 remainder:** permanent shop-stock mapping (see `docs/roadmap.md`).
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` | Queue: `away-list.json` + `NEXT.md`
