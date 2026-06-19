@@ -1,0 +1,50 @@
+---
+description: Pre-present verify loop for suggestions, rules, away plans, and roadmap answers — before Dan sees them.
+alwaysApply: true
+---
+
+# Suggestion Verify Gate (pre-present)
+
+**When:** Before presenting to Dan — not after code ships. Separate from `model-audit-gate.mdc` (post-change) and `model-dispatch-gate.mdc` (pre-edit archetype).
+
+## Triggers
+
+Run this gate when you are about to present any of:
+
+- Architectural or process suggestions (parallel agents, workflow changes, orchestration)
+- New or edited `.cursor/rules/` content
+- Away-build plans (`away:plan`, queue recommendations, "what can be built while I'm away")
+- "What's next" / roadmap / priority answers
+- Any recommendation that could mislead Dan if wrong
+
+Skip for: pure code execution, typos, read-only answers already grounded in files you just read.
+
+## Mandatory steps (Dan does not ask)
+
+1. **Cross-check** — read authoritative sources for the claim:
+   - `PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`
+   - `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`, `PROJECT_STATUS/away-list.json` (away/queue)
+   - Adjacent `.cursor/rules/` and `docs/roadmap.md` when relevant
+   - Code or scripts when the suggestion depends on behavior
+2. **Contradiction scan** — grep or read related rules/docs; list conflicts before ship or present.
+3. **Loop** — on mismatch: fix or revise, then re-verify once.
+   - **Rules files:** max **2** passes before present/commit.
+   - **Verbal plans:** **1** pass unless a contradiction was found (then one fix + re-verify).
+4. **Confidence line** — when presenting, include one of:
+   - `Verified against: [sources]` — when cross-check passed.
+   - `Caveat: [uncertainty]` — when a source was missing or ambiguous; do not say "ready."
+5. **Hard stop** — do **not** present rules or plans as "ready" if they contradict `AWAY_BUILD_PROTOCOL`, ship-loop, or an authoritative rule. Fix first.
+
+## Authority order (on conflict)
+
+`AWAY_BUILD_PROTOCOL.md` and task-specific protocol docs → `composer-orchestrator.mdc` → domain rules (`parallel-agent-strategy.mdc`, etc.) → verbal suggestions.
+
+## What NOT to do
+
+❌ Ship or commit new rules without running this gate on the diff vs adjacent rules.
+❌ Answer "what's next" from roadmap alone — use `away:next` / CURRENT_STATE per orchestrator.
+❌ Ask Dan to "check that your suggestions are correct" — you run the loop.
+❌ Duplicate post-change model audit or Sonnet security gate here.
+
+✅ Present only after verify pass or explicit caveat.
+✅ When editing rules, note which files you cross-checked in the reply.

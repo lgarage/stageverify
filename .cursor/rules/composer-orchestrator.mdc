@@ -24,6 +24,9 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc`. Fan out read-only scouts aut
 7. For **public routes**, **pickup portal**, or **UI fixes**, open `MODEL_DOSSIER.md` **§ agent-lessons** — do not repeat 2026-06-02 pickup mistakes.
 8. For **dispatcher portal nav / Settings / sidebar**, read `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` — do not re-introduce rejected nav or merged pages.
 
+## Suggestion Verify (before present)
+Before presenting architectural suggestions, rule edits, away plans, or roadmap answers, run `.cursor/rules/suggestion-verify-gate.mdc` — cross-check authoritative sources and adjacent rules; Dan should not have to ask for a review loop.
+
 ## Pre-Action Clarification Gate
 Before writing any code, STOP and ask ONE focused question if ANY of these are true:
 - The request scope is unclear or could be interpreted multiple ways
