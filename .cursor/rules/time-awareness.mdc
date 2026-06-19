@@ -67,6 +67,39 @@ See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
 
 "Morning after batch" is **not** a sleep session — Dan is awake; use daytime mode.
 
+## Time estimate calibration
+
+Estimates are **heuristics** — calibrate from session actuals when available (note elapsed after each ship/verify cycle).
+
+When presenting work that might fit a stated window, use **two numbers**:
+
+| Column | Meaning |
+|--------|---------|
+| **Budget** | Upper bound for "fits window" filter (conservative) |
+| **Typical** | Expected elapsed time in normal conditions |
+
+### Category anchors (stageverify)
+
+| Category | Budget | Typical |
+|----------|--------|---------|
+| Verify-only scripts (bundle) | 10–15 min | 1–3 min (often <2 min) |
+| `verify:pickup:prod` alone | 15 min | ~1 min |
+| T1 single-domain ship (e.g. Settings UI) | 35 min | 20–25 min |
+| T1 verify harness script | 35 min | 15–25 min |
+| T3 CF + Sonnet + deploy | 50 min | 35–45 min |
+
+### Rules
+
+- **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
+- **After ship/verify:** when Dan gave a time window, note **actual elapsed** in "what was done" (feeds future calibration).
+- **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
+
+### Wrong vs right (budget vs typical)
+
+**Wrong:** quoting 10–15 min per verify when the bundle completes in ~90s without noting typical.
+
+**Right:** `verify:settings` — budget 10–15 min, typical ~2 min.
+
 ## Time-bound suggestions (mandatory)
 
 **Users are always time-bound.** Track stated deadlines/durations (see **Stated time window**) and treat remaining minutes as a hard budget for every suggestion.
@@ -75,9 +108,9 @@ See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
 
 Before suggesting or asking Dan to **"go build X"**, **"want to run Y"**, or **"To continue:"** with a command:
 
-1. **Estimate** each candidate's minutes (build + verify + ship when applicable).
-2. **Compare** to **remaining** budget — re-estimate after each completed cycle.
-3. **Include in "Fits now" / "To continue"** only items where `estimate ≤ remaining`.
+1. **Estimate** each candidate using **budget** from **Time estimate calibration** (build + verify + ship when applicable).
+2. **Compare** budget to **remaining** window — re-estimate after each completed cycle.
+3. **Include in "Fits now" / "To continue"** only items where `budget ≤ remaining` (typical is informational; never filter on typical alone).
 4. **Never** ask Dan to approve or run work that **cannot fit** in remaining time.
 5. **Never** present out-of-budget items as actionable choices — no `"say go build away-054"` when ~5 min left; no **"if you have ~25+ min"** hypotheticals unless Dan **updates** the window this session.
 
@@ -121,7 +154,7 @@ Or: *"If you have ~25+ min left, say go build away-054"* — nonsensical when th
 
 ## Remaining time options (post-ship — mandatory)
 
-Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section. Apply **Time-bound suggestions** — only in-budget items are actionable.
+Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section. When a window was stated, also note **actual elapsed** for the task just completed (feeds **Time estimate calibration**). Apply **Time-bound suggestions** — only in-budget items are actionable.
 
 ### When to include
 
@@ -136,8 +169,8 @@ All must hold:
 ```markdown
 ### Remaining time options
 - **~N min left** (until 6:15 PM / "30 more minutes" from [when stated])
-- **Fits now:** (2–3 ranked bullets — **only** items where estimate ≤ remaining; or state clearly if nothing shippable fits)
-- **Save for later:** (out-of-budget items — name + estimate; **no** call-to-action)
+- **Fits now:** (2–3 ranked bullets — **only** items where budget ≤ remaining; or state clearly if nothing shippable fits)
+- **Save for later:** (out-of-budget items — name + budget estimate; **no** call-to-action)
 - **To continue:** (optional — **only** in-budget commands; omit or say "quick verify only or stop" when nothing fits)
 ```
 
@@ -145,8 +178,8 @@ All must hold:
 
 1. **Queue truth** — read `PROJECT_STATUS/away-list.json`; run or cite `npm run away:next` for the next queued away item. Do not invent away-NNN ids.
 2. **Verify before present** — cross-check `PROJECT_STATUS/CURRENT_STATE.md`, active blockers, and item scope; run `suggestion-verify-gate.mdc` on ranked items (lightweight pass OK when `away:next` is authoritative).
-3. **Budget conservatively** — quick verify scripts ~5–15 min; small T0/T1 away items ~20–40 min; multi-file or T2+ usually exceed a short window.
-4. **Filter before present** — drop any item where `estimate > remaining` from **Fits now** and **To continue**; move to **Save for later** with no CTA. If nothing fits: *"nothing shippable in N min — quick verify only or stop"*.
+3. **Use calibration table** — see **Time estimate calibration** for budget/typical anchors; present both when helpful (filter on budget only).
+4. **Filter before present** — drop any item where `budget > remaining` from **Fits now** and **To continue**; move to **Save for later** with no CTA. If nothing fits: *"nothing shippable in N min — quick verify only or stop"*.
 5. **Active window only** — suggest **active builds** (Dan says `go build away-NNN`) or **quick verifies** (`verify:*`, `:prod` after deploy) **only when they fit**. Do **not** suggest overnight batch, "while you sleep", `away:plan`-only queue framing, or **"if you have time"** hypotheticals during an active window.
 6. **Away planning mode** — if Dan chose **B) Away planning**, ranked items are candidates to approve; still require explicit **"go build it"** before `away:batch` — and only suggest approval for items that could fit if Dan extends the window, not as immediate run requests when they do not fit.
 

@@ -28,7 +28,7 @@ Skip for: pure code execution, typos, read-only answers already grounded in file
    - Adjacent `.cursor/rules/` and `docs/roadmap.md` when relevant
    - Code or scripts when the suggestion depends on behavior
 2. **Contradiction scan** — grep or read related rules/docs; list conflicts before ship or present.
-3. **Time-bound filter** — when Dan stated a window and the reply includes actionable suggestions or **Remaining time options**: estimate minutes per item; **remove** anything where `estimate > remaining` from **Fits now** and **To continue**; list out-of-budget items under **Save for later** only (no CTA, no "if you have time" hypotheticals). If nothing fits, state that clearly — never ask Dan to run out-of-budget work.
+3. **Time-bound filter** — when Dan stated a window and the reply includes actionable suggestions or **Remaining time options**: use **budget** (not typical) from `time-awareness.mdc` § **Time estimate calibration**; **remove** anything where `budget > remaining` from **Fits now** and **To continue**; list out-of-budget items under **Save for later** only (no CTA, no "if you have time" hypotheticals). If nothing fits, state that clearly — never ask Dan to run out-of-budget work.
 4. **Loop** — on mismatch: fix or revise, then re-verify once.
    - **Rules files:** max **2** passes before present/commit.
    - **Verbal plans:** **1** pass unless a contradiction was found (then one fix + re-verify).
