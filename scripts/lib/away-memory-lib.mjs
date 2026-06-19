@@ -45,16 +45,29 @@ export function awayIdNum(id) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** @param {{ id: string, status: string, dependsOn?: string }[]} queue @param {{ items?: { id: string, status: string }[] }} [archive] */
-export function firstRunnableItem(queue, archive) {
+/** @param {{ id: string, status: string, dependsOn?: string }[]} queue @param {{ items?: { id: string, status: string }[] }} [archive] @param {{ id: string, status: string }[]} [statusResults] */
+export function firstRunnableItem(queue, archive, statusResults) {
   const byId = new Map(queue.map((item) => [item.id, item]));
   const archived = new Map((archive?.items ?? []).map((item) => [item.id, item]));
+  /** @type {{ id: string, status: string }[]} */
+  let shipped = statusResults;
+  if (!shipped) {
+    try {
+      const status = readJson(PATHS.awayStatus);
+      shipped = status.results ?? [];
+    } catch {
+      shipped = [];
+    }
+  }
+  const built = new Map(
+    shipped.filter((r) => r.status === "built").map((r) => [r.id, { id: r.id, status: "done" }]),
+  );
 
   for (const item of queue) {
     if (item.status !== "queued") continue;
     const dep = item.dependsOn;
     if (!dep) return item;
-    const pred = byId.get(dep) ?? archived.get(dep);
+    const pred = byId.get(dep) ?? archived.get(dep) ?? built.get(dep);
     if (pred && pred.status === "done") return item;
   }
   return null;
@@ -138,9 +151,21 @@ export function allQueuedItemsInSequenceOrder(list) {
 export function buildBatchBrief(list, archive) {
   const items = allQueuedItemsInSequenceOrder(list).map((item) => buildNextBrief(item));
   const ep = list.executionProtocol ?? {};
+  const batchSize = items.length;
+  const minBatchHint = 3;
+  const longBatchExpected = true;
+  const shortBatch = batchSize > 0 && batchSize < minBatchHint;
 
   return {
     mode: "batch",
+    batchSize,
+    longBatchExpected,
+    minBatchHint,
+    ...(shortBatch
+      ? {
+          shortBatchWarning: `Only ${batchSize} queued item(s) — Dan prefers long away/sleep batches (≥${minBatchHint}). Suggest adding more items to away-list.json (do not invent IDs).`,
+        }
+      : {}),
     items,
     protocol: {
       file: "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md",
@@ -150,7 +175,7 @@ export function buildBatchBrief(list, archive) {
       instructions: ep.instructions ?? null,
     },
     note:
-      "Answer 'what should I build while I'm away/sleep/overnight' from this batch only. Do not widen to unqueued roadmap work.",
+      "Answer 'what should I build while I'm away/sleep/overnight' from this batch only. Do not widen to unqueued roadmap work. Dan's standing preference: long batch — run all queued items.",
     firstRunnable: firstRunnableItem(list.queue, archive)?.id ?? null,
   };
 }

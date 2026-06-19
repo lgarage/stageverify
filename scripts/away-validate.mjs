@@ -55,17 +55,34 @@ function validateAwayList() {
     }
 
     if (item.dependsOn && item.status === "queued") {
+      const sequence = list.executionProtocol?.sequence ?? [];
       const pred = list.queue.find((q) => q.id === item.dependsOn);
       if (pred) {
-        if (pred.status !== "done") {
+        if (pred.status === "done") {
+          // ok
+        } else if (pred.status === "queued") {
+          const predIdx = sequence.indexOf(item.dependsOn);
+          const itemIdx = sequence.indexOf(item.id);
+          if (predIdx < 0 || itemIdx < 0 || predIdx >= itemIdx) {
+            fail(
+              `away-list.json: ${item.id} dependsOn ${item.dependsOn} but queued predecessor is not earlier in sequence`,
+            );
+          }
+        } else {
           fail(`away-list.json: ${item.id} dependsOn ${item.dependsOn} but predecessor is ${pred.status}`);
         }
       } else {
         const archive = readJson(PATHS.awayArchive);
         const archived = archive.items?.find((a) => a.id === item.dependsOn);
-        if (!archived || archived.status !== "done") {
+        const statusDoc = readJson(PATHS.awayStatus);
+        const shipped = statusDoc.results?.find(
+          (r) => r.id === item.dependsOn && r.status === "built",
+        );
+        if (archived?.status === "done" || shipped) {
+          // ok — predecessor archived or shipped this batch
+        } else {
           fail(
-            `away-list.json: ${item.id} dependsOn ${item.dependsOn} — not done in queue or archive (status=${archived?.status ?? "missing"})`,
+            `away-list.json: ${item.id} dependsOn ${item.dependsOn} — not done in queue, archive, or away-status (status=${archived?.status ?? shipped?.status ?? "missing"})`,
           );
         }
       }

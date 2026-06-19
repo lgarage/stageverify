@@ -2,13 +2,15 @@
 
 **Away = sleep = overnight** — same batch protocol. Paste as your **first message** in a new Cursor chat (Agent mode). Full protocol: **`PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`**.
 
+**Dan's standing preference: long batch** — execute **every** queued item, not just the head. If `away:batch` reports `batchSize` < 3, note short batch and suggest queuing more in `away-list.json` (do not invent IDs).
+
 ---
 
 **Batch 3 (away-021…041) is closed.** Archived in `PROJECT_STATUS/archives/away-batch-3.json`.
 
 Run the **active queue** from `PROJECT_STATUS/away-list.json`:
 
-1. `npm run away:batch` — full queued sequence (not roadmap)  
+1. `npm run away:batch` — full queued sequence (not roadmap); expect `longBatchExpected: true`  
 2. Read `PROJECT_STATUS/MEMORY.md` (router) + `PROJECT_STATUS/svscope_simple.md`  
 3. For each item in order: implement → verify all `verifyBeforeNext` → `npm run away:ship -- --id <id> --note "..."`  
 4. `npm run away:validate` before declaring done — halt batch on fail  

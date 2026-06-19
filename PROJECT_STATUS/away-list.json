@@ -10,13 +10,13 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": ["away-042"]
+    "sequence": ["away-042", "away-043", "away-044", "away-045", "away-046"]
   },
   "queue": [
     {
       "id": "away-042",
       "title": "Phase 5: email parser fixture gate (offline prototype)",
-      "scope": "Per svscope §5 + roadmap Phase 5: offline sample emails only — no live inbox, no readiness writes. Run npm run test:email-parser on approved fixtures; fix parser/matcher regressions if any; document pass/fail in away-status note. Do NOT add Gmail/live monitoring (Phase 6). Minew ESL and shop map blockers do not apply to this item.",
+      "scope": "Per svscope §5 + roadmap Phase 5: offline sample emails only — no live inbox, no readiness writes. Fixtures on disk today: Johnstone + First Supply only (roadmap also names Ferguson — away-043 adds it; Ferguson fixtures do not exist yet). Run npm run test:email-parser on approved fixtures; fix parser/matcher regressions if any; document pass/fail in away-status note. Do NOT add Gmail/live monitoring (Phase 6). Minew ESL and shop map blockers do not apply to this item.",
       "files": [
         "src/dispatcher/email/",
         "scripts/test-email-parser.mjs",
@@ -29,6 +29,74 @@
       "preApproved": true,
       "dependsOn": "away-041",
       "verifyBeforeNext": ["npm run test:email-parser", "npm run build"],
+      "status": "queued"
+    },
+    {
+      "id": "away-043",
+      "title": "Phase 5: Ferguson + edge-case email fixtures",
+      "scope": "Offline only — no Firestore writes, no live inbox. Fixtures file today is Johnstone + First Supply only; add Ferguson per roadmap Phase 5 sample vendors plus 2 edge-case email fixtures. Extend scripts/test-email-parser.mjs with assertions for new fixtures. Do NOT claim Ferguson exists before this item ships.",
+      "files": [
+        "src/dispatcher/email/emailFixtures.ts",
+        "scripts/test-email-parser.mjs"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "Ferguson + 2 edge-case fixtures added; npm run test:email-parser exit 0; npm run build clean; no operational Firestore writes.",
+      "capturedDuring": "Dan 2026-06-18 — long away/sleep batch preference",
+      "preApproved": true,
+      "dependsOn": "away-042",
+      "verifyBeforeNext": ["npm run test:email-parser", "npm run build"],
+      "status": "queued"
+    },
+    {
+      "id": "away-044",
+      "title": "Phase 5: fixture accuracy report (≥95% gate)",
+      "scope": "Extend scripts/test-email-parser.mjs to emit per-fixture pass/fail and aggregate accuracy score. Document the ≥95% gate scoring method from roadmap Phase 5 (approved sample set, defined scoring). Offline only — no Firestore writes. Report must be visible in test output or structured summary; do not auto-apply updates.",
+      "files": [
+        "scripts/test-email-parser.mjs",
+        "docs/roadmap.md"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "Per-fixture pass/fail + aggregate score printed; ≥95% gate method documented in test output or comment; npm run test:email-parser exit 0; npm run build clean.",
+      "capturedDuring": "Dan 2026-06-18 — long away/sleep batch preference",
+      "preApproved": true,
+      "dependsOn": "away-043",
+      "verifyBeforeNext": ["npm run test:email-parser", "npm run build"],
+      "status": "queued"
+    },
+    {
+      "id": "away-045",
+      "title": "Phase 5: read-only proposed email updates panel",
+      "scope": "Read-only dispatcher UI stub on DispatcherDashboardPage or small new component: show fixture-derived proposed email updates for human review. Email types only — no apply button, no readiness writes, no Firestore mutations from email path. Align to svscope §5: AI may propose, not update operational records.",
+      "files": [
+        "src/DispatcherDashboardPage.tsx",
+        "src/dispatcher/email/"
+      ],
+      "tier": "T1-T2",
+      "model": "composer-2.5",
+      "acceptance": "Dispatcher shows proposed email updates from fixtures (read-only); npm run build clean; npm run verify:dispatcher-nav PASS; no apply/readiness writes.",
+      "capturedDuring": "Dan 2026-06-18 — long away/sleep batch preference",
+      "preApproved": true,
+      "dependsOn": "away-044",
+      "verifyBeforeNext": ["npm run build", "npm run verify:dispatcher-nav"],
+      "status": "queued"
+    },
+    {
+      "id": "away-046",
+      "title": "Phase 3: integration verify script (chained pickup smoke)",
+      "scope": "Add scripts/verify-phase3-integration.mjs — chained pickup smoke extending existing verify:* patterns (reset fixture, seed readiness, portal flow). Register npm run verify:phase3-integration in package.json. Read-only verification — no new product features beyond smoke script.",
+      "files": [
+        "scripts/verify-phase3-integration.mjs",
+        "package.json"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "npm run verify:phase3-integration PASS; npm run build clean; npm run verify:pickup still PASS.",
+      "capturedDuring": "Dan 2026-06-18 — long away/sleep batch preference",
+      "preApproved": true,
+      "dependsOn": "away-045",
+      "verifyBeforeNext": ["npm run build", "npm run verify:pickup"],
       "status": "queued"
     }
   ]

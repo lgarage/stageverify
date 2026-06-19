@@ -16,7 +16,7 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc`. Fan out read-only scouts aut
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Read `PROJECT_STATUS/MEMORY.md` — especially **“What’s next to build?”** (narrow answer rules).
 3. For **“what’s next to build?”** — run or equivalent read **`npm run away:next`**; do not answer from `docs/roadmap.md` LATER/NEXT alone.
-4. For **away / sleep / overnight batch** (`what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, etc.) — run **`npm run away:batch`** (returns **all** queued items in sequence; same narrow rule as step 3, not roadmap). Execute in order per `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`; suggest batch runs to Dan.
+4. For **away / sleep / overnight batch** (`what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, etc.) — run **`npm run away:batch`** (returns **all** queued items in sequence; same narrow rule as step 3, not roadmap). **Long batch is Dan's default expectation** — execute every item; if `batchSize` < 3, note short batch and suggest queuing more in `away-list.json` (do not invent IDs). Execute in order per `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`; suggest batch runs to Dan.
 5. Check Active Blockers. If the task touches a blocker, flag it before acting.
 6. Read `PROJECT_STATUS/MODEL_DOSSIER.md` **index** (match task to tag; open § only if needed) for model routing, QR/zones, or backend-critical work.
 7. For **public routes**, **pickup portal**, or **UI fixes**, open `MODEL_DOSSIER.md` **§ agent-lessons** — do not repeat 2026-06-02 pickup mistakes.

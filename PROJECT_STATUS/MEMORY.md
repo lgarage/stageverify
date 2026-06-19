@@ -14,7 +14,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 
 ## Away / sleep batch (same thing — mandatory)
 
-**Away = sleep = overnight.** Run **`npm run away:batch`** (+ `OVERNIGHT_PROMPT.md`, `AWAY_BUILD_PROTOCOL.md`) for “build while away/sleep”, “overnight batch”, etc. Execute `items[]` in order; ship+verify between; halt on fail. No unqueued roadmap work.
+**Dan always wants a long batch** when away/sleep/overnight — run full **`npm run away:batch`** (all queued items). Away = sleep = overnight. If queue has **fewer than 3** items, note batch is short and suggest Dan queue more in `away-list.json` (do not invent IDs). Execute `items[]` in order; ship+verify between; halt on fail. No unqueued roadmap work.
 
 ## Session start (every coding session)
 
