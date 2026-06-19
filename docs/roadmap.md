@@ -247,6 +247,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Gate:** ≥95% extraction accuracy on approved sample set using defined scoring method; low-confidence routed to review
 - **Shipped (away-042…045):** Johnstone + First Supply + Ferguson fixtures; `npm run test:email-parser` prints per-fixture pass/fail + aggregate ≥95% gate; read-only proposed updates panel
 - **Polish (away-049):** WinSupply fixtures + panel filters/summary/expandable preview; `verify:dispatcher-nav` asserts panel
+- **Settings (away-053):** Email Monitoring card on Settings — `monitoringInboxEmail` + `emailMonitoringEnabled` (offline prototype copy; no live inbox); `verify:settings-staging` asserts save + reload
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 

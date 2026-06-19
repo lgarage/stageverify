@@ -88,26 +88,85 @@ async function ensureAuthenticated(page) {
 
   await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
 
-  const editG1 = page.getByTestId("edit-spot-G1");
-  await editG1.waitFor({ timeout: 10_000 });
-  await editG1.click();
+  console.log("Email Monitoring settings (save + reload)…");
+  await page.getByText("Email Monitoring", { exact: true }).first().waitFor({
+    timeout: 10_000,
+  });
+
+  const inboxInput = page.getByTestId("monitoring-inbox-email");
+  const enableCheckbox = page.getByTestId("email-monitoring-enabled");
+  const originalEmail = await inboxInput.inputValue();
+  const originalEnabled = await enableCheckbox.isChecked();
+
+  const probeEmail = "verify-inbox@stageverify.test";
+  await inboxInput.fill(probeEmail);
+  await enableCheckbox.check();
+  await page.waitForFunction(
+    (probe) => {
+      const el = document.querySelector('[data-testid="monitoring-inbox-email"]');
+      const cb = document.querySelector('[data-testid="email-monitoring-enabled"]');
+      return el?.value === probe && cb?.checked === true;
+    },
+    probeEmail,
+    { timeout: 10_000 },
+  );
+  await page.getByTestId("save-email-settings").click();
+  await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(1500);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByTestId("monitoring-inbox-email").waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(800);
+  const reloadedEmail = await page.getByTestId("monitoring-inbox-email").inputValue();
+  const reloadedEnabled = await page.getByTestId("email-monitoring-enabled").isChecked();
+  if (reloadedEmail !== probeEmail) {
+    throw new Error(
+      `Inbox email did not persist after reload (expected ${probeEmail}, got ${reloadedEmail})`,
+    );
+  }
+  if (!reloadedEnabled) {
+    throw new Error("emailMonitoringEnabled did not persist after reload");
+  }
+
+  await page.getByTestId("monitoring-inbox-email").fill(originalEmail);
+  if (originalEnabled) {
+    await page.getByTestId("email-monitoring-enabled").check();
+  } else {
+    await page.getByTestId("email-monitoring-enabled").uncheck();
+  }
+  await page.waitForTimeout(400);
+  await page.getByTestId("save-email-settings").click();
+  await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 }).catch(() => {});
+  await page.waitForTimeout(1000);
+
+  console.log("PASS: Email Monitoring settings save + reload verified.");
+
+  await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+
+  const firstEdit = page.locator('[data-testid^="edit-spot-"]').first();
+  await firstEdit.waitFor({ timeout: 10_000 });
+  const editTestId = await firstEdit.getAttribute("data-testid");
+  const spotCode = editTestId?.replace("edit-spot-", "") ?? "G1";
+  await firstEdit.click();
 
   await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
 
   const labelInput = page.getByTestId("edit-spot-label");
-  const originalLabel = await labelInput.inputValue();
+  let originalLabel = await labelInput.inputValue();
+  originalLabel = originalLabel.replace(/ \(verify\)$/, "");
   const probeLabel = `${originalLabel} (verify)`;
   await labelInput.fill(probeLabel);
-  await page.getByTestId("save-spot-G1").click();
-  await page.getByTestId("spot-label-G1").filter({ hasText: probeLabel }).waitFor({
+  await page.getByTestId(`save-spot-${spotCode}`).click();
+  await page.getByTestId(`spot-label-${spotCode}`).filter({ hasText: probeLabel }).waitFor({
     timeout: 25_000,
   });
 
-  await editG1.click();
+  await firstEdit.click();
   await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
   await page.getByTestId("edit-spot-label").fill(originalLabel);
-  await page.getByTestId("save-spot-G1").click();
-  await page.getByTestId("spot-label-G1").filter({ hasText: originalLabel }).waitFor({
+  await page.getByTestId(`save-spot-${spotCode}`).click();
+  await page.getByTestId(`spot-label-${spotCode}`).filter({ hasText: originalLabel }).waitFor({
     timeout: 25_000,
   });
 

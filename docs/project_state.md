@@ -76,7 +76,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **M1 vendor revert hydration (shipped 2026-06-08):** `revertDeliveryStatus` vendor paths (early return + post-commit) route through `hydrateAfterVendorWrite` — unauthenticated revert no longer calls auth-only `getDeliveryDetails`. Focused security review: PASS. Local verify: vendor-e2e 10/10, pickup PASS.
 
-Full Phase 3 integration gate **passed 2026-06-19** (`away-047`: `verify:phase3-integration` + `verify:pickup:prod`). Permanent shop-stock mapping still open. **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–051 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker on dispatcher resolve.
+Full Phase 3 integration gate **passed 2026-06-19** (`away-047`: `verify:phase3-integration` + `verify:pickup:prod`). Permanent shop-stock mapping still open. **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`).
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 

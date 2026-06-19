@@ -1021,6 +1021,8 @@ const DEFAULT_APP_SETTINGS: AppSettings = {
   autoSubmitMinutes: 30,
   vendorDeliveryMode: "full_checkin",
   vendorSessionMinutes: 15,
+  monitoringInboxEmail: "",
+  emailMonitoringEnabled: false,
 };
 
 export async function getAppSettings(): Promise<AppSettings> {

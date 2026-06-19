@@ -102,8 +102,12 @@ export function SettingsPage() {
   const [shopLongitude, setShopLongitude] = useState("");
   const [shopGeofenceRadiusMeters, setShopGeofenceRadiusMeters] = useState("");
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
+  const [monitoringInboxEmail, setMonitoringInboxEmail] = useState("");
+  const [emailMonitoringEnabled, setEmailMonitoringEnabled] = useState(false);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
 
   const [stagingSpots, setStagingSpots] = useState<StagingLocation[]>([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
@@ -144,8 +148,25 @@ export function SettingsPage() {
           : "",
       );
       setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
+      setMonitoringInboxEmail(settings.monitoringInboxEmail ?? "");
+      setEmailMonitoringEnabled(settings.emailMonitoringEnabled === true);
     });
   }, []);
+
+  const saveEmailSettings = async () => {
+    if (savingEmail) return;
+    setSavingEmail(true);
+    try {
+      await updateAppSettings({
+        monitoringInboxEmail: monitoringInboxEmail.trim(),
+        emailMonitoringEnabled,
+      });
+      setEmailSaved(true);
+      setTimeout(() => setEmailSaved(false), 2000);
+    } finally {
+      setSavingEmail(false);
+    }
+  };
 
   const saveRevertWindow = async () => {
     if (savingRevert) return;
@@ -649,6 +670,121 @@ export function SettingsPage() {
                 />
                 Block DELIVERED outside radius
               </label>
+            </div>
+          </div>
+
+          {/* Email monitoring (Phase 5 prototype — settings only) */}
+          <div style={{ ...cardStyle, overflow: "hidden" }}>
+            <div
+              style={{
+                padding: "15px 20px",
+                borderBottom: "1px solid #eaecf0",
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                Email Monitoring
+              </span>
+            </div>
+            <div style={{ padding: "20px" }}>
+              <p
+                style={{
+                  margin: "0 0 16px",
+                  fontSize: 12,
+                  color: "#6b7280",
+                  lineHeight: 1.45,
+                  maxWidth: 560,
+                }}
+              >
+                Phase 5 offline prototype only — no live inbox connection. Set the
+                address where dispatchers will CC vendor order emails; live
+                monitoring ships in Phase 6.
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(200px, 1fr) auto",
+                  gap: 12,
+                  alignItems: "end",
+                  maxWidth: 560,
+                }}
+              >
+                <div>
+                  <label style={labelStyle} htmlFor="monitoring-inbox-email">
+                    Monitoring inbox address
+                  </label>
+                  <input
+                    id="monitoring-inbox-email"
+                    data-testid="monitoring-inbox-email"
+                    type="email"
+                    value={monitoringInboxEmail}
+                    onChange={(e) => setMonitoringInboxEmail(e.target.value)}
+                    placeholder="orders@yourshop.com"
+                    style={inputStyle}
+                  />
+                </div>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#374151",
+                    cursor: "pointer",
+                    paddingBottom: 10,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    data-testid="email-monitoring-enabled"
+                    checked={emailMonitoringEnabled}
+                    onChange={(e) => setEmailMonitoringEnabled(e.target.checked)}
+                  />
+                  Enable monitoring (Phase 6)
+                </label>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginTop: 14,
+                }}
+              >
+                <button
+                  type="button"
+                  data-testid="save-email-settings"
+                  onClick={() => void saveEmailSettings()}
+                  disabled={savingEmail}
+                  style={{
+                    padding: "8px 18px",
+                    borderRadius: 4,
+                    border: "none",
+                    backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
+                    color: savingEmail ? "#9ca3af" : "#fff",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: savingEmail ? "not-allowed" : "pointer",
+                    fontFamily: FONT,
+                    outline: "none",
+                  }}
+                >
+                  Save
+                </button>
+                {emailSaved && (
+                  <span
+                    data-testid="email-settings-saved"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#2e7d32",
+                    }}
+                  >
+                    Saved ✓
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
