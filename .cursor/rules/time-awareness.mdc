@@ -67,9 +67,61 @@ See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
 
 "Morning after batch" is **not** a sleep session — Dan is awake; use daytime mode.
 
+## Time-bound suggestions (mandatory)
+
+**Users are always time-bound.** Track stated deadlines/durations (see **Stated time window**) and treat remaining minutes as a hard budget for every suggestion.
+
+### Before any actionable suggestion
+
+Before suggesting or asking Dan to **"go build X"**, **"want to run Y"**, or **"To continue:"** with a command:
+
+1. **Estimate** each candidate's minutes (build + verify + ship when applicable).
+2. **Compare** to **remaining** budget — re-estimate after each completed cycle.
+3. **Include in "Fits now" / "To continue"** only items where `estimate ≤ remaining`.
+4. **Never** ask Dan to approve or run work that **cannot fit** in remaining time.
+5. **Never** present out-of-budget items as actionable choices — no `"say go build away-054"` when ~5 min left; no **"if you have ~25+ min"** hypotheticals unless Dan **updates** the window this session.
+
+### Out-of-budget items
+
+- List under **Save for later** only — name + estimate; **no call-to-action**.
+- Do **not** ask "want to run…?", "should I…?", or "if you have time…" for work that does not fit.
+- Scouts, orchestrator, and `suggestion-verify-gate.mdc` must **filter before present**.
+
+### Wrong vs right
+
+**Wrong** (~5 min left, offering a ~20 min build):
+
+```markdown
+### Remaining time options
+- **~5 min left** (until 6:15 PM)
+- **Fits now:** away-054 (~20 min)
+- **To continue:** `go build away-054`
+```
+
+Or: *"If you have ~25+ min left, say go build away-054"* — nonsensical when the stated budget is already ~5 min.
+
+**Right** (~5 min left):
+
+```markdown
+### Remaining time options
+- **~5 min left** (until 6:15 PM)
+- **Fits now:** nothing shippable in ~5 min — quick verify only or stop
+- **Save for later:** away-054 (~20 min) · away-055 (~45 min)
+```
+
+**Right** (~25 min left, away-054 fits):
+
+```markdown
+### Remaining time options
+- **~25 min left** (until 6:15 PM)
+- **Fits now:** away-054 (small UI copy fix, ~20 min)
+- **Save for later:** away-055 (multi-file receive flow, ~45 min)
+- **To continue:** `go build away-054`
+```
+
 ## Remaining time options (post-ship — mandatory)
 
-Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section.
+Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section. Apply **Time-bound suggestions** — only in-budget items are actionable.
 
 ### When to include
 
@@ -84,18 +136,19 @@ All must hold:
 ```markdown
 ### Remaining time options
 - **~N min left** (until 6:15 PM / "30 more minutes" from [when stated])
-- **Fits now:** (2–3 ranked bullets — active builds or quick verifies only)
-- **Won't fit:** (1–2 bullets — too large for remaining budget)
-- **To continue:** `go build away-054` / `npm run verify:pickup:prod` / etc.
+- **Fits now:** (2–3 ranked bullets — **only** items where estimate ≤ remaining; or state clearly if nothing shippable fits)
+- **Save for later:** (out-of-budget items — name + estimate; **no** call-to-action)
+- **To continue:** (optional — **only** in-budget commands; omit or say "quick verify only or stop" when nothing fits)
 ```
 
 ### How to rank (accuracy required)
 
 1. **Queue truth** — read `PROJECT_STATUS/away-list.json`; run or cite `npm run away:next` for the next queued away item. Do not invent away-NNN ids.
 2. **Verify before present** — cross-check `PROJECT_STATUS/CURRENT_STATE.md`, active blockers, and item scope; run `suggestion-verify-gate.mdc` on ranked items (lightweight pass OK when `away:next` is authoritative).
-3. **Budget conservatively** — quick verify scripts ~5–15 min; small T0/T1 away items ~20–40 min; multi-file or T2+ usually **won't fit** unless Dan's window is clearly long enough.
-4. **Active window only** — suggest **active builds** (Dan says `go build away-NNN`) or **quick verifies** (`verify:*`, `:prod` after deploy). Do **not** suggest overnight batch, "while you sleep", or `away:plan`-only queue framing during an active window.
-5. **Away planning mode** — if Dan chose **B) Away planning**, ranked items are candidates to approve; still require explicit **"go build it"** before `away:batch`.
+3. **Budget conservatively** — quick verify scripts ~5–15 min; small T0/T1 away items ~20–40 min; multi-file or T2+ usually exceed a short window.
+4. **Filter before present** — drop any item where `estimate > remaining` from **Fits now** and **To continue**; move to **Save for later** with no CTA. If nothing fits: *"nothing shippable in N min — quick verify only or stop"*.
+5. **Active window only** — suggest **active builds** (Dan says `go build away-NNN`) or **quick verifies** (`verify:*`, `:prod` after deploy) **only when they fit**. Do **not** suggest overnight batch, "while you sleep", `away:plan`-only queue framing, or **"if you have time"** hypotheticals during an active window.
+6. **Away planning mode** — if Dan chose **B) Away planning**, ranked items are candidates to approve; still require explicit **"go build it"** before `away:batch` — and only suggest approval for items that could fit if Dan extends the window, not as immediate run requests when they do not fit.
 
 ### When to skip
 
@@ -105,12 +158,6 @@ All must hold:
 | No window stated | Skip; ask once if time pressure seems implied: "Any time budget for what's next?" |
 | Remaining time unknown | Skip minute estimate; omit section or ask once for a fresh deadline |
 
-### Example (after away-053 within "until 6:15")
+### Example (after away-053 within "until 6:15", ~25 min remaining)
 
-```markdown
-### Remaining time options
-- **~25 min left** (until 6:15 PM)
-- **Fits now:** away-054 (small UI copy fix, ~20 min) · `npm run verify:pickup:prod` (~10 min)
-- **Won't fit:** away-055 (multi-file receive flow, ~45 min)
-- **To continue:** `go build away-054`
-```
+See **Wrong vs right** above. When ~25 min remain, away-054 (~20 min) may appear under **Fits now** with **To continue:** `go build away-054`. When ~5 min remain, the same item belongs under **Save for later** only — never under **To continue**.

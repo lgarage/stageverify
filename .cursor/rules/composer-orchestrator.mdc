@@ -189,7 +189,7 @@ After every substantive change, run the **model audit** protocol in `.cursor/rul
 **Always clean up your messes.** After every substantive task, run the **cleanup** protocol in `.cursor/rules/session-cleanup-gate.mdc` (stop dev servers, kill background shells, delete ephemeral Playwright PNGs, fix dirty git status, confirm ports clear).
 
 ### Remaining time options (post-ship)
-When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § Remaining time options (queue via `away:next` / `away-list.json`; verify per `suggestion-verify-gate.mdc`).
+When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § **Time-bound suggestions** + **Remaining time options**. Filter before present: only in-budget items under **Fits now** / **To continue**; out-of-budget → **Save for later** with no CTA. Queue via `away:next` / `away-list.json`; verify per `suggestion-verify-gate.mdc` (time-bound filter step).
 
 ### Pre-edit gate
 **Announce-and-go.** State archetype + tier + model, then immediately start editing. Do not wait for a "go ahead" reply.

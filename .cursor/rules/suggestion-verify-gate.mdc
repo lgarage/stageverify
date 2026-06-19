@@ -16,7 +16,7 @@ Run this gate when you are about to present any of:
 - Away-build plans (`away:plan`, queue recommendations, "what can be built while I'm away")
 - "What's next" / roadmap / priority answers (after scout synthesis per `parallel-agent-strategy.mdc` § Planning question protocol)
 - Any recommendation that could mislead Dan if wrong
-- **Remaining time options** — ranked post-ship suggestions within Dan's stated time window (`time-awareness.mdc`)
+- **Remaining time options** — ranked post-ship suggestions within Dan's stated time window (`time-awareness.mdc` § Time-bound suggestions)
 
 Skip for: pure code execution, typos, read-only answers already grounded in files you just read.
 
@@ -28,13 +28,14 @@ Skip for: pure code execution, typos, read-only answers already grounded in file
    - Adjacent `.cursor/rules/` and `docs/roadmap.md` when relevant
    - Code or scripts when the suggestion depends on behavior
 2. **Contradiction scan** — grep or read related rules/docs; list conflicts before ship or present.
-3. **Loop** — on mismatch: fix or revise, then re-verify once.
+3. **Time-bound filter** — when Dan stated a window and the reply includes actionable suggestions or **Remaining time options**: estimate minutes per item; **remove** anything where `estimate > remaining` from **Fits now** and **To continue**; list out-of-budget items under **Save for later** only (no CTA, no "if you have time" hypotheticals). If nothing fits, state that clearly — never ask Dan to run out-of-budget work.
+4. **Loop** — on mismatch: fix or revise, then re-verify once.
    - **Rules files:** max **2** passes before present/commit.
    - **Verbal plans:** **1** pass unless a contradiction was found (then one fix + re-verify).
-4. **Confidence line** — when presenting, include one of:
+5. **Confidence line** — when presenting, include one of:
    - `Verified against: [sources]` — when cross-check passed.
    - `Caveat: [uncertainty]` — when a source was missing or ambiguous; do not say "ready."
-5. **Hard stop** — do **not** present rules or plans as "ready" if they contradict `AWAY_BUILD_PROTOCOL`, ship-loop, or an authoritative rule. Fix first.
+6. **Hard stop** — do **not** present rules or plans as "ready" if they contradict `AWAY_BUILD_PROTOCOL`, ship-loop, `time-awareness.mdc` time-bound rules, or an authoritative rule. Fix first.
 
 ## Authority order (on conflict)
 
@@ -46,6 +47,8 @@ Skip for: pure code execution, typos, read-only answers already grounded in file
 ❌ Answer "what's next" from roadmap alone — use parallel scouts + verify per `parallel-agent-strategy.mdc` § Planning question protocol.
 ❌ Ask Dan to "check that your suggestions are correct" — you run the loop.
 ❌ Duplicate post-change model audit or Sonnet security gate here.
+❌ Offer **To continue** / **go build** / **want to run** for work that exceeds remaining time — filter first per `time-awareness.mdc` § Time-bound suggestions.
 
 ✅ Present only after verify pass or explicit caveat.
+✅ Out-of-budget items → **Save for later** only; in-budget only under **Fits now** / **To continue**.
 ✅ When editing rules, note which files you cross-checked in the reply.
