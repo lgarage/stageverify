@@ -47,7 +47,8 @@ The **parent Composer 2.5 Fast session** is the orchestrator. It:
 - Classifies each item (archetype + tier).
 - Runs parallel **read-only scouts** when useful (see below).
 - **Synthesizes** scout output before any file edit.
-- Implements **one item at a time** (single executor — no parallel writers).
+- Implements **one away item at a time** — never two items in parallel.
+- May delegate **non-overlapping file domains within the current item** to domain executors (`parallel-agent-strategy.mdc` § File-ownership batches); coordinator merges, then runs verify/build/ship itself.
 - Runs **verify gates** itself — do not delegate Playwright/build/ship to subagents.
 - Declares an item **done** only after verify passes — never on `npm run build` alone for UI work.
 
@@ -64,7 +65,7 @@ Fan out **2–4 read-only scouts in one turn** when work is independent (repo sc
 | Security scan (report only) | Deploy, `firebase deploy`, Playwright on one dev server |
 | Independent domain scouts before synthesis | Ordered away items (021 before 022) |
 
-**Pipeline:** classify → parallel scouts (if any) → **synthesis block in reply** → one executor edit → verify → ship.
+**Pipeline:** classify → parallel scouts (if any) → **synthesis block in reply** → single executor **or** parallel domain executors within the item (coordinator merges) → verify → ship.
 
 ## Verify before “done” (mandatory)
 

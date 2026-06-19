@@ -19,7 +19,7 @@ After **every substantive task** (especially UI/Playwright work), run cleanup **
 | Background Shell (`block_until_ms: 0`) | Kill the shell / process as soon as the task no longer needs it |
 | Playwright browser | Script must `browser.close()`; no orphan chromium |
 | One-off watchers / pollers | Clear intervals, abort controllers, remove listeners |
-| Task subagents (scouts/shell) | Await completion or cancel before declaring done — zero running Task subagents |
+| Task subagents (scouts, domain executors, shell) | Await completion or cancel before declaring done — zero running Task subagents |
 
 Do **not** leave background terminals running “just in case.” Start them only when needed; stop them in the same session.
 

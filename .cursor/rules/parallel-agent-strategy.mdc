@@ -42,38 +42,62 @@ Split multi-domain investigations by domain — one scout per domain, same turn.
 
 ## File-ownership parallel batches
 
-When work spans **disjoint file domains**, the coordinator may assign **2–4 domain executors** in parallel. **Default remains single executor** unless domains are clearly disjoint.
+When **one task or away item** spans **disjoint file domains**, the coordinator may assign **2–4 domain executors** in parallel. **Default remains single executor** unless domains are clearly disjoint.
+
+**Scope:** within-item only — away items still run **one at a time** (`AWAY_BUILD_PROTOCOL.md`). Never parallelize two away items or two ordered tasks.
 
 ### When to use
 
-- ≥2 independent file domains (e.g. pickup UI + receive error UI)
-- Away batch **≥3 items** mappable to disjoint domains
+- One task/item touches ≥2 independent file domains (e.g. pickup UI + receive error UI in the same item)
 - No shared schema, Firestore rules, or auth decision across domains
 - Scouts/read-only plans already synthesized per domain
+- Coordinator can list **non-overlapping allowed paths** per executor
 
-### When NOT to
+### When NOT to (default back to single executor)
 
-Same hard stops as below, plus:
-
-- Two executors touching the **same file** or shared types (`models.ts`) without coordinator serial merge first
+- **Any doubt about overlap** → single executor inline
+- Same hard stops as below, plus:
+- Two executors touching the **same file** or shared interfaces without coordinator serial merge first
 - Ordered cross-domain deps (domain B needs domain A's types/shapes)
+- Both domains need edits to **coordinator-only shared paths** — resolve serially first:
+
+| Coordinator-only (serial) | Why |
+|---------------------------|-----|
+| `src/dispatcher/models.ts` | Shared types |
+| `src/dispatcher/firestoreService.ts` | Shared data layer |
+| `src/App.tsx` / routing | Single router |
+| `package.json` | One script-entry pass |
+| `PROJECT_STATUS/CURRENT_STATE.md` | One ship narrative |
 
 ### Pipeline
 
-1. **Group** — coordinator maps items → ownership domains; list forbidden overlapping paths per executor prompt.
-2. **Parallel executors** — one worker per domain; scoped paths only; no commit/push by workers.
+1. **Group** — coordinator maps the **current item** → ownership domains; list allowed + forbidden paths per executor prompt.
+2. **Parallel executors** — one worker per domain; scoped paths only; **no commit/push/build/verify/deploy** by workers.
 3. **Synthesize** — each returns diff summary; coordinator resolves conflicts and shared types **serially**.
-4. **Merge** — single coordinator edit pass **or** sequential non-overlapping commits if tree stays clean.
-5. **Ship once** — one build, one Playwright cycle per affected route, one push/deploy.
+4. **Merge** — coordinator applies executor diffs in one edit pass; **one commit** per task/item (`ship-loop.mdc`).
+5. **Ship once** — coordinator runs one build, one Playwright cycle per affected route, one push/deploy.
 
 ### Away batch integration
 
-**Plan → Approve → Queue → Execute** unchanged (`composer-orchestrator.mdc`). Dan approves the queue; parallel split is a **coordinator decision at execute time** only. Before `away:batch`, coordinator may split queue items into ownership groups; default single executor unless groups are clearly disjoint.
+**Plan → Approve → Queue → Execute** unchanged (`composer-orchestrator.mdc`). Parallel domain executors apply **inside one away item** before that item's verify/ship — never two away items in parallel. Default single executor unless the **current item** spans clearly disjoint domains.
+
+### Executor prompt (required)
+
+Each domain executor prompt must include:
+
+- **Allowed paths:** explicit list
+- **Forbidden paths:** all other touched paths + coordinator-only shared files above
+- **Scope:** copy Dan's item scope verbatim — no widening (`composer-orchestrator.mdc` multitask rule)
+- **Return only:** diff summary — coordinator owns merge, build, verify, commit, push, deploy
+
+### Multitask mode
+
+Domain executors are **coordinator-delegated slices** of one task. Multitask "copy scope verbatim" applies to each slice — not a license to widen scope or ship independently.
 
 ### Coordinator duties
 
 - Assign domains; **forbid overlapping paths** in every executor prompt
-- Merge conflicts and shared interfaces before resuming parallel work
+- Merge conflicts and shared interfaces **before** build/verify
 - Run build/verify **once** after all executors complete
 - Single push/deploy; await all background executors (`session-cleanup-gate.mdc`)
 
@@ -136,9 +160,9 @@ Return ≤25 lines: findings, file paths, conflicts, recommended next step.
 ## Interaction with other gates
 
 - **Pre-edit gate:** State parallel plan before **executor** edits (`model-dispatch-gate.mdc`).
-- **Scope:** Scouts read widely; executor does only what Dan asked (`composer-orchestrator.mdc`).
-- **Build / Playwright / ship:** Serial after implementation.
-- **Cleanup:** Await background scouts before done (`session-cleanup-gate.mdc`).
+- **Scope:** Scouts read widely; executors do only what Dan asked (`composer-orchestrator.mdc`).
+- **Build / Playwright / ship:** Coordinator only — serial after merge (`ship-loop.mdc`).
+- **Cleanup:** Await background scouts **and domain executors** before done (`session-cleanup-gate.mdc`).
 
 ## What NOT to do
 
