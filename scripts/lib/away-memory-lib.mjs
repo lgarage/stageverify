@@ -112,6 +112,49 @@ Run: \`npm run away:next\`
 `;
 }
 
+/** @param {{ executionProtocol?: { sequence?: string[] }, queue: { id: string, status: string }[] }} list */
+export function allQueuedItemsInSequenceOrder(list) {
+  const sequence = list.executionProtocol?.sequence ?? [];
+  const queued = list.queue.filter((q) => q.status === "queued");
+  const byId = new Map(list.queue.map((q) => [q.id, q]));
+  /** @type {typeof list.queue} */
+  const ordered = [];
+  const seen = new Set();
+
+  for (const id of sequence) {
+    const item = byId.get(id);
+    if (item?.status === "queued") {
+      ordered.push(item);
+      seen.add(id);
+    }
+  }
+  for (const item of queued) {
+    if (!seen.has(item.id)) ordered.push(item);
+  }
+  return ordered;
+}
+
+/** @param {{ executionProtocol?: { sequence?: string[], haltOnFailure?: boolean, instructions?: string }, queue: { id: string, status: string }[] }} list @param {{ items?: { id: string, status: string }[] }} archive */
+export function buildBatchBrief(list, archive) {
+  const items = allQueuedItemsInSequenceOrder(list).map((item) => buildNextBrief(item));
+  const ep = list.executionProtocol ?? {};
+
+  return {
+    mode: "batch",
+    items,
+    protocol: {
+      file: "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md",
+      section: "Away / sleep batch (same thing)",
+      loop: "Run items in sequence order — one at a time, verify+ship between each, halt on fail.",
+      haltOnFailure: ep.haltOnFailure ?? true,
+      instructions: ep.instructions ?? null,
+    },
+    note:
+      "Answer 'what should I build while I'm away/sleep/overnight' from this batch only. Do not widen to unqueued roadmap work.",
+    firstRunnable: firstRunnableItem(list.queue, archive)?.id ?? null,
+  };
+}
+
 /** @param {Record<string, unknown>} item */
 export function buildNextBrief(item) {
   const scope = typeof item.scope === "string" ? item.scope : "";

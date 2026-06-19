@@ -12,6 +12,10 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 - Optional work sizing: `npm run away:preflight` (runs queued item `verifyBeforeNext`).
 - **Full program status** (Phase 3/4 gaps, LATER phases): separate question — then read `roadmap.md` + `project_state.md`.
 
+## Away / sleep batch (same thing — mandatory)
+
+**Away = sleep = overnight.** Run **`npm run away:batch`** (+ `OVERNIGHT_PROMPT.md`, `AWAY_BUILD_PROTOCOL.md`) for “build while away/sleep”, “overnight batch”, etc. Execute `items[]` in order; ship+verify between; halt on fail. No unqueued roadmap work.
+
 ## Session start (every coding session)
 
 | Order | File | When |
@@ -38,6 +42,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred |
 | Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
+| Batch sequence | `npm run away:batch` | Away/sleep/overnight — all queued items |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
 | Preflight queued item | `npm run away:preflight` | Before coding session (opt-in) |
@@ -57,9 +62,3 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | ------- | ---- | ---- |
 | ESL / Minew | `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only in repo |
 | Nav / scope rejections | `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
-
-## History (read-only)
-
-| Concern | File | When |
-| ------- | ---- | ---- |
-| Memory audit (superseded) | `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md` | Historical context only |

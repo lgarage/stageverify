@@ -10,6 +10,19 @@
 3. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
 4. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
 
+## Away / sleep batch (same thing)
+
+**“While I'm away” = “while I sleep” = overnight batch.** Same protocol — not roadmap.
+
+For away/sleep/overnight questions (`what should I build while I'm away`, `run while I sleep`, `overnight batch`, etc.):
+
+1. **`npm run away:batch`** — returns **all** queued items in `executionProtocol.sequence` order (same narrow rule as `away:next`, full runnable sequence).
+2. Read **`PROJECT_STATUS/OVERNIGHT_PROMPT.md`** for copy-paste starter.
+3. Execute items **one at a time** in order: implement → verify all `verifyBeforeNext` → `npm run away:ship` → `npm run away:validate` → next item.
+4. **Halt on fail** — mark blocked, log `away-status.json`, stop batch. Do not widen to unqueued roadmap work.
+
+Suggest **batch runs** to Dan when he asks what to build while away or asleep.
+
 ## Composer 2.5 = orchestrator (always)
 
 The **parent Composer 2.5 Fast session** is the orchestrator. It:

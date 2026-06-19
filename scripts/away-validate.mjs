@@ -169,6 +169,7 @@ function validateMemoryMd() {
     "away-list.json",
     "AWAY_BUILD_PROTOCOL.md",
     "away:next",
+    "away:batch",
   ]) {
     if (!md.includes(pointer)) {
       fail(`MEMORY.md: missing pointer or rule: ${pointer}`);
@@ -176,6 +177,9 @@ function validateMemoryMd() {
   }
   if (!/next to build/i.test(md)) {
     fail("MEMORY.md: missing narrow 'what's next to build' answer rules");
+  }
+  if (!/away.*sleep|sleep.*away|overnight batch/i.test(md)) {
+    fail("MEMORY.md: missing away/sleep batch phrase mapping (away = sleep = overnight)");
   }
 }
 

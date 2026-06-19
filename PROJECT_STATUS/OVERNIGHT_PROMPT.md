@@ -1,6 +1,6 @@
-# Overnight / away-batch prompt (copy into new conversation)
+# Away / overnight batch prompt (copy into new conversation)
 
-Paste as your **first message** in a new Cursor chat (Agent mode). Full protocol: **`PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`**.
+**Away = sleep = overnight** — same batch protocol. Paste as your **first message** in a new Cursor chat (Agent mode). Full protocol: **`PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`**.
 
 ---
 
@@ -8,10 +8,10 @@ Paste as your **first message** in a new Cursor chat (Agent mode). Full protocol
 
 Run the **active queue** from `PROJECT_STATUS/away-list.json`:
 
-1. `npm run away:next` — first queued item with dependsOn satisfied  
+1. `npm run away:batch` — full queued sequence (not roadmap)  
 2. Read `PROJECT_STATUS/MEMORY.md` (router) + `PROJECT_STATUS/svscope_simple.md`  
-3. Implement → verify all `verifyBeforeNext` → `npm run away:ship -- --id <id> --note "..."`  
-4. `npm run away:validate` before declaring done  
+3. For each item in order: implement → verify all `verifyBeforeNext` → `npm run away:ship -- --id <id> --note "..."`  
+4. `npm run away:validate` before declaring done — halt batch on fail  
 
 **Orchestrator:** Composer 2.5 Fast — parallel read-only scouts when useful; **you** run verify + ship.
 
@@ -23,9 +23,9 @@ Run the **active queue** from `PROJECT_STATUS/away-list.json`:
 
 ```
 Read PROJECT_STATUS/MEMORY.md and CURRENT_STATE.md first.
-Run npm run away:next and execute the returned item only.
+Run npm run away:batch and execute every returned item in order (away = sleep = overnight).
 Protocol: PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md
 Product authority: PROJECT_STATUS/svscope_simple.md
-After verify: npm run away:ship then npm run away:validate
+After each item: npm run away:ship then npm run away:validate; halt on fail.
 Do not widen scope. Do not redo archived away-001…041.
 ```
