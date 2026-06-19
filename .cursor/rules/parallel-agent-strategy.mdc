@@ -28,6 +28,21 @@ Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **de
 4. **Execute** — one constrained executor **or** parallel **non-overlapping** domain executors (see File-ownership batches); coordinator merges before verify.
 5. **Verify + ship** — one build/Playwright cycle; one push/deploy (ship-loop); security gate if triggered.
 
+## Building ≠ max parallel
+
+Parallel scouts/planning is the **default** for independent read-only work. Parallel **implementers** is the **exception** — not the default. Do not treat multitask or away batches as a license to max-parallelize builders.
+
+- **Routine builds:** one executor — including a single away item (`away-053` alone = one executor; do not fan out builders).
+- **Parallel domain executors:** only when **one item** spans clearly **disjoint file domains**; coordinator merges before verify (§ File-ownership batches).
+- **Away queue:** never parallelize away items against each other (`AWAY_BUILD_PROTOCOL.md` — one item at a time).
+- **Ship:** never parallel — coordinator only (build, Playwright, commit, push, deploy).
+
+| Phase | Default parallelism | Hard rule |
+|-------|---------------------|-----------|
+| **Planning** | 2–4 read-only scouts when independent | Synthesize before any edit |
+| **Building** | **Single executor**; domain executors only for disjoint paths within one item | Coordinator merges; workers do not ship |
+| **Ship** | **Serial** — coordinator only | One build/verify/commit/push/deploy per item |
+
 ## When to parallelize (DEFAULT)
 
 Dispatch parallel scouts when **all** hold:
@@ -215,3 +230,4 @@ Return ≤25 lines: findings, file paths, conflicts, recommended next step.
 ❌ Use Sonnet for scouts or routine implementation.
 ❌ Parallelize deploy, rules deploy, or Playwright against one dev server.
 ❌ Treat "multitask workers: copy scope verbatim" as banning scouts — it bans **widening executor scope**, not read-only fan-out.
+❌ Fan out multiple builders for a routine single-domain away item — building ≠ max parallel.

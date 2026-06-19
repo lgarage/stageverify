@@ -10,7 +10,7 @@ alwaysApply: true
 You are the default orchestrator and worker for this project. Follow these protocols every session.
 
 ## Parallel execution (default when safe)
-Follow `.cursor/rules/parallel-agent-strategy.mdc`. Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
+Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel** — scouts parallel by default; implementers serial unless disjoint domains within one item). Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
 
 ## Session Start — MANDATORY, no exceptions
 0. **Session mode fork** (`time-awareness.mdc`): unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice (e.g. "away-style planning") → skip re-ask. Away planning = Plan → Approve → Queue only until **"go build it"**; not overnight-specific.
