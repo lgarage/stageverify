@@ -32,6 +32,14 @@ Do **not** use sleep/overnight framing when Dan chose away planning during dayti
 - **Conversation cues** — Dan stating time (`5:31 am`), waking up, morning coffee, good morning, etc.
 - When cues conflict, trust what Dan says now over stale overnight framing.
 
+## Stated time window (track)
+
+When Dan states a deadline or availability window (`until 6:15`, `30 more minutes`, `on wifi for X`):
+
+- **Record** the window when first stated — clock deadline (anchor on today's date) or duration from the cue.
+- **Re-estimate** minutes left after each completed build/verify/ship cycle.
+- If Dan extends or narrows the window mid-session, replace the old estimate — do not stack both.
+
 ## Active daytime session (default)
 
 When Dan is chatting in the morning/day **without** sleep/overnight language:
@@ -58,3 +66,51 @@ See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
 | Evening + sleep intent | Default **B) Away planning** if Dan mentions sleep/overnight; else ask fork |
 
 "Morning after batch" is **not** a sleep session — Dan is awake; use daytime mode.
+
+## Remaining time options (post-ship — mandatory)
+
+Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section.
+
+### When to include
+
+All must hold:
+
+1. Dan stated a time window this session (see **Stated time window**).
+2. The current task's build/verify/ship completed successfully.
+3. Estimated minutes remaining **> 0**.
+
+### Required section format
+
+```markdown
+### Remaining time options
+- **~N min left** (until 6:15 PM / "30 more minutes" from [when stated])
+- **Fits now:** (2–3 ranked bullets — active builds or quick verifies only)
+- **Won't fit:** (1–2 bullets — too large for remaining budget)
+- **To continue:** `go build away-054` / `npm run verify:pickup:prod` / etc.
+```
+
+### How to rank (accuracy required)
+
+1. **Queue truth** — read `PROJECT_STATUS/away-list.json`; run or cite `npm run away:next` for the next queued away item. Do not invent away-NNN ids.
+2. **Verify before present** — cross-check `PROJECT_STATUS/CURRENT_STATE.md`, active blockers, and item scope; run `suggestion-verify-gate.mdc` on ranked items (lightweight pass OK when `away:next` is authoritative).
+3. **Budget conservatively** — quick verify scripts ~5–15 min; small T0/T1 away items ~20–40 min; multi-file or T2+ usually **won't fit** unless Dan's window is clearly long enough.
+4. **Active window only** — suggest **active builds** (Dan says `go build away-NNN`) or **quick verifies** (`verify:*`, `:prod` after deploy). Do **not** suggest overnight batch, "while you sleep", or `away:plan`-only queue framing during an active window.
+5. **Away planning mode** — if Dan chose **B) Away planning**, ranked items are candidates to approve; still require explicit **"go build it"** before `away:batch`.
+
+### When to skip
+
+| Situation | Action |
+|-----------|--------|
+| Deadline passed | Skip section; optional one-line "window closed" |
+| No window stated | Skip; ask once if time pressure seems implied: "Any time budget for what's next?" |
+| Remaining time unknown | Skip minute estimate; omit section or ask once for a fresh deadline |
+
+### Example (after away-053 within "until 6:15")
+
+```markdown
+### Remaining time options
+- **~25 min left** (until 6:15 PM)
+- **Fits now:** away-054 (small UI copy fix, ~20 min) · `npm run verify:pickup:prod` (~10 min)
+- **Won't fit:** away-055 (multi-file receive flow, ~45 min)
+- **To continue:** `go build away-054`
+```

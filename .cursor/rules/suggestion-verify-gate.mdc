@@ -16,6 +16,7 @@ Run this gate when you are about to present any of:
 - Away-build plans (`away:plan`, queue recommendations, "what can be built while I'm away")
 - "What's next" / roadmap / priority answers (after scout synthesis per `parallel-agent-strategy.mdc` § Planning question protocol)
 - Any recommendation that could mislead Dan if wrong
+- **Remaining time options** — ranked post-ship suggestions within Dan's stated time window (`time-awareness.mdc`)
 
 Skip for: pure code execution, typos, read-only answers already grounded in files you just read.
 
