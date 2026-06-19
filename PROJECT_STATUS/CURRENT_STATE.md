@@ -2,7 +2,7 @@
 
 > READ THIS FILE FIRST every session. Hot-tier — hard cap ~30 lines.
 > **Memory router:** `PROJECT_STATUS/MEMORY.md` — concern → file → when to read.
-> **Product authority:** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict.
+> **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (integration gate passed 2026-06-19; permanent shop-stock mapping still open)
@@ -19,7 +19,8 @@
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
-- Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` | Queue: `away-list.json` + `NEXT.md`
+- **Librarian mini:** MEMORY.md router + `away:next` packet + `away:validate`
+- Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` (on demand) | Queue: `away-list.json` + `NEXT.md`
 - Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md`
 - Validate memory: `npm run away:validate` | Archive: `archives/away-batch-3.json`
 

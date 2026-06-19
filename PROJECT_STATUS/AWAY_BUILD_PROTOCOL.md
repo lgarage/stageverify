@@ -3,12 +3,13 @@
 > Canonical instructions for running `away-list.json` batches and substantive agent builds in this repo.
 > Rules detail: `.cursor/rules/composer-orchestrator.mdc`, `parallel-agent-strategy.mdc`, `ship-loop.mdc`.
 
-## Session start (mandatory)
+## Session start (hot tier — STOP)
 
-1. Read `PROJECT_STATUS/MEMORY.md` (router + “what’s next” rules) then `PROJECT_STATUS/CURRENT_STATE.md`.
-2. Read **`PROJECT_STATUS/svscope_simple.md`** — product authority.
-3. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
-4. Read `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** before UI, pickup, receive, vendor, or public-route work.
+1. Read `PROJECT_STATUS/CURRENT_STATE.md` then `PROJECT_STATUS/MEMORY.md` (router + “what’s next” rules).
+**STOP here** for generic tasks. On demand only:
+2. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
+3. **`PROJECT_STATUS/svscope_simple.md`** — product authority; scope disputes only.
+4. `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** — before UI, pickup, receive, vendor, or public-route work.
 
 ## Away / sleep workflow (4 phases — Dan confirmed order)
 

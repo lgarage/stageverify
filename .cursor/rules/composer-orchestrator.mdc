@@ -12,10 +12,18 @@ You are the default orchestrator and worker for this project. Follow these proto
 ## Parallel execution (default when safe)
 Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel** — scouts parallel by default; implementers serial unless disjoint domains within one item). Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
 
+## Mini librarian (stageverify — until full ACES)
+- **Router:** `PROJECT_STATUS/MEMORY.md` — concern → file → when to read
+- **Execution packet:** `npm run away:next` / `PROJECT_STATUS/away-list.json`
+- **Verifier:** `npm run away:validate` (before commit; after memory edits)
+- **Hot tier (session start STOP):** `CURRENT_STATE.md` + `MEMORY.md` only (+ `time-awareness.mdc` alwaysApply)
+- **Full ACES librarian:** deferred — see `docs/aecs/librarian-plan.md`
+
 ## Session Start — MANDATORY, no exceptions
 0. **Load `time-awareness.mdc` — time constraints bind every reply** (alwaysApply; budget filter, no out-of-budget CTAs, remaining-time options). **Session mode fork:** unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice (e.g. "away-style planning") → skip re-ask. Away planning = Plan → Approve → Queue only until **"go build it"**; not overnight-specific.
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Read `PROJECT_STATUS/MEMORY.md` — especially **“What’s next to build?”** (narrow answer rules).
+**STOP after hot tier** for routine tasks. Steps 3–8 below are **on demand** — only when the task triggers them. Do **not** read `svscope_simple.md` at session start; load it only for scope disputes (see MEMORY.md authority chain).
 3. For **planning questions** (“what’s next”, “what else can be worked on”, roadmap/priority) — follow **`parallel-agent-strategy.mdc` § Planning question protocol**: parallel scouts → synthesize → **`suggestion-verify-gate.mdc`** → present with confidence line. Do not answer from `docs/roadmap.md` LATER/NEXT alone.
 4. For **away / sleep / overnight** (`what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, etc.) — **Plan → Approve → Queue → Execute** (never skip to execute on first message). See `time-awareness.mdc` — do not assume overnight when Dan is in active daytime chat:
    - **First message / plan phase:** run **`npm run away:plan`** — suggest `queuedItems` + draft `suggestedAdditions`; **do not write `away-list.json`**; **do not run `away:batch`** until Dan approves (`go build it`, `queue it`, similar).
