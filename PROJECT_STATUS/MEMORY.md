@@ -38,6 +38,7 @@
 | Concern | File | When |
 | ------- | ---- | ---- |
 | ACES prototype | `aecs/README.md` | Control-plane meta-work only when Dan asks |
+| Full Librarian vision (deferred) | `docs/aecs/librarian-plan.md` | Target ACES knowledge hierarchy — not built; mini seed is this file + `away:validate` |
 | Bindings example | `aecs/examples/adapters/stageverify.bindings.json` | Portable memory paths reference |
 
 ## Blockers & hardware
