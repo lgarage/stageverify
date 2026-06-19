@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 3 — Technician Pickup Workflow** (Slices 1–6 partial + Phase 4 entry shipped; full Phase 3 gate not passed)
-- Last shipped: **away-041** — batch 3 close (Running Low, shop stock groups, combination staging, pickup summary, issue resolve).
+- Last shipped: **away-046** — Phase 3: integration verify script (chained pickup smoke)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-042** — Phase 5 email parser fixture gate (offline; `npm run away:next`). ESL/shop map do not block this item.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` | Queue: `away-list.json` + `NEXT.md`

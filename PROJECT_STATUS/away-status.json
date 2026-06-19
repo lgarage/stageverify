@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-18",
+  "lastRun": "2026-06-19",
   "batch": "away-001..041 archived; active queue away-042+",
   "results": [
     {
@@ -288,6 +288,41 @@
       "status": "built",
       "commit": "4c508a9",
       "note": "gh-pages deploy + verify:pickup:prod + roadmap/CURRENT_STATE sync."
+    },
+    {
+      "id": "away-042",
+      "title": "Phase 5: email parser fixture gate (offline prototype)",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Johnstone+First Supply fixtures pass (8 msgs); test:email-parser exit 0; build clean; no Firestore writes"
+    },
+    {
+      "id": "away-043",
+      "title": "Phase 5: Ferguson + edge-case email fixtures",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Ferguson vendor+PO+2 fixtures; multi-PO+unknown-vendor edge cases; test:email-parser PASS"
+    },
+    {
+      "id": "away-044",
+      "title": "Phase 5: fixture accuracy report (≥95% gate)",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Per-fixture pass/fail + aggregate accuracy report; 11/11=100% gate PASS"
+    },
+    {
+      "id": "away-045",
+      "title": "Phase 5: read-only proposed email updates panel",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Read-only ProposedEmailUpdatesPanel on dispatcher; verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-046",
+      "title": "Phase 3: integration verify script (chained pickup smoke)",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "verify:phase3-integration chained smoke; verify:pickup PASS"
     }
   ],
   "summary": "Batch 3 closed; memory Phase 1+2 shipped; next away-042 Phase 5 email gate"

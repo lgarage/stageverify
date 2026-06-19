@@ -173,7 +173,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-042** — Phase 5 offline email parser fixture gate (`npm run test:email-parser`); fixtures on disk: Johnstone + First Supply (Ferguson in away-043). Overnight batch queue: away-042…046. See `away-list.json`.
+1. **Phase 3 gate close** — full Phase 3 gate not passed; run `npm run verify:phase3-integration` + `verify:pickup:prod` after deploy. Overnight batch away-042…046 shipped (Phase 5 email prototype + integration smoke).
 2. **Phase 3 remainder** — permanent shop-stock mapping, full Phase 3 gate (see `docs/roadmap.md`).
 3. **ESL integration** — Phase 7; blocked on Minew credentials.
-4. **Shop map / Jake Korb shelving** — blocks real combination location IDs; not blocking away-042.
+4. **Shop map / Jake Korb shelving** — blocks real combination location IDs.

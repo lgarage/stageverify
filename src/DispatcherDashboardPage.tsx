@@ -55,6 +55,7 @@ import {
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
+import { ProposedEmailUpdatesPanel } from "./dispatcher/email/ProposedEmailUpdatesPanel";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -783,6 +784,8 @@ export function DispatcherDashboardPage() {
               status.
             </p>
           </div>
+
+          <ProposedEmailUpdatesPanel />
 
           {/* ── Summary tiles ── */}
           {allRows.length > 0 && (
