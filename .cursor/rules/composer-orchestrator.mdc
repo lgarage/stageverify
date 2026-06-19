@@ -10,7 +10,7 @@ alwaysApply: true
 You are the default orchestrator and worker for this project. Follow these protocols every session.
 
 ## Parallel execution (default when safe)
-Follow `.cursor/rules/parallel-agent-strategy.mdc`. Fan out read-only scouts automatically; synthesize; then implement as **one** executor.
+Follow `.cursor/rules/parallel-agent-strategy.mdc`. Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
 
 ## Session Start — MANDATORY, no exceptions
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.

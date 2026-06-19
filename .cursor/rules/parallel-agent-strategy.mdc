@@ -1,5 +1,5 @@
 ---
-description: Default parallel scout pattern — Composer orchestrates, cheap agents scan, one executor implements.
+description: Parallel scouts and file-ownership batches — Composer coordinates, cheap agents scan, executors merge once.
 alwaysApply: true
 ---
 
@@ -13,11 +13,11 @@ Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **de
 
 | Role | Actor | May write repo files? |
 |------|-------|----------------------|
-| Orchestrator | Composer 2.5 (parent session) | Yes — **only** after synthesis, as single executor |
+| Coordinator | Composer 2.5 (parent session) | Yes — synthesizes scouts; merges domains; **one ship loop** |
 | Scout | `explore` or cheap `generalPurpose` Task subagent | **No** — `readonly: true` for explore; scouts return summaries only |
 | Security scanner | `explore` / `gemini-3-flash` | No — risk list only |
 | Security verifier | Sonnet 4.6 Task subagent | No — verdict only; never commits |
-| Executor | Composer 2.5 inline **or** one Composer Task subagent | Yes — **one at a time**, scoped files only |
+| Domain executor | Composer inline **or** up to 4 Task subagents | Yes — **non-overlapping paths only**; one ownership domain each |
 | Shell worker | `shell` subagent | git/build/deploy only — never feature code |
 
 ## Default pipeline
@@ -25,8 +25,8 @@ Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **de
 1. **Classify** — archetype + tier (`model-dispatch-gate.mdc`).
 2. **Plan parallel scouts** — if independent read-only work applies, dispatch **2–4 scouts in one message**. Do not wait for Dan to request parallel.
 3. **Synthesize** — merge scout outputs: findings, conflicts, file list, single implementation plan. **No file edits before synthesis.**
-4. **Execute** — one constrained executor. One hypothesis → one change set → build gate.
-5. **Verify + ship** — Playwright/build/ship-loop; security gate if triggered.
+4. **Execute** — one constrained executor **or** parallel **non-overlapping** domain executors (see File-ownership batches); coordinator merges before verify.
+5. **Verify + ship** — one build/Playwright cycle; one push/deploy (ship-loop); security gate if triggered.
 
 ## When to parallelize (DEFAULT)
 
@@ -39,6 +39,52 @@ Dispatch parallel scouts when **all** hold:
 **Preferred use cases (launch without asking Dan):** repo scans, doc/memory audits, rule conflict detection, duplicate detection, stale memory analysis, architecture reviews (read-only), security review scan, test-plan drafts, independent code reviews, planning/refactor analysis, file inventories.
 
 Split multi-domain investigations by domain — one scout per domain, same turn.
+
+## File-ownership parallel batches
+
+When work spans **disjoint file domains**, the coordinator may assign **2–4 domain executors** in parallel. **Default remains single executor** unless domains are clearly disjoint.
+
+### When to use
+
+- ≥2 independent file domains (e.g. pickup UI + receive error UI)
+- Away batch **≥3 items** mappable to disjoint domains
+- No shared schema, Firestore rules, or auth decision across domains
+- Scouts/read-only plans already synthesized per domain
+
+### When NOT to
+
+Same hard stops as below, plus:
+
+- Two executors touching the **same file** or shared types (`models.ts`) without coordinator serial merge first
+- Ordered cross-domain deps (domain B needs domain A's types/shapes)
+
+### Pipeline
+
+1. **Group** — coordinator maps items → ownership domains; list forbidden overlapping paths per executor prompt.
+2. **Parallel executors** — one worker per domain; scoped paths only; no commit/push by workers.
+3. **Synthesize** — each returns diff summary; coordinator resolves conflicts and shared types **serially**.
+4. **Merge** — single coordinator edit pass **or** sequential non-overlapping commits if tree stays clean.
+5. **Ship once** — one build, one Playwright cycle per affected route, one push/deploy.
+
+### Away batch integration
+
+**Plan → Approve → Queue → Execute** unchanged (`composer-orchestrator.mdc`). Dan approves the queue; parallel split is a **coordinator decision at execute time** only. Before `away:batch`, coordinator may split queue items into ownership groups; default single executor unless groups are clearly disjoint.
+
+### Coordinator duties
+
+- Assign domains; **forbid overlapping paths** in every executor prompt
+- Merge conflicts and shared interfaces before resuming parallel work
+- Run build/verify **once** after all executors complete
+- Single push/deploy; await all background executors (`session-cleanup-gate.mdc`)
+
+### Examples
+
+| Domain | Typical paths | Often paired with |
+|--------|---------------|-------------------|
+| Pickup | `PickupPortalPage.tsx`, `PickupDemoScanPage.tsx`, `scripts/verify-pickup*.mjs` | Receive (disjoint) |
+| Receive / vendor | `ReceivingPage.tsx`, `PublicNetworkErrorPanel.tsx`, vendor verify scripts | Pickup |
+| Dispatcher | `DispatcherDashboardPage.tsx`, `src/dispatcher/**` | Route-specific verify scripts |
+| Verify scripts | `scripts/verify-*.mjs`, `package.json` script entries | UI domain they exercise |
 
 ## Hard stops — NEVER parallelize
 
@@ -98,6 +144,7 @@ Return ≤25 lines: findings, file paths, conflicts, recommended next step.
 
 ❌ Ask Dan "should I run these in parallel?" when hard stops do not apply.
 ❌ Let multiple subagents edit the same file in one session.
+❌ Let domain executors commit, push, or deploy independently.
 ❌ Skip synthesis and implement from one scout's partial view.
 ❌ Use Sonnet for scouts or routine implementation.
 ❌ Parallelize deploy, rules deploy, or Playwright against one dev server.
