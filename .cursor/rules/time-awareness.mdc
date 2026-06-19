@@ -1,0 +1,41 @@
+---
+description: Time-of-day awareness — active daytime vs overnight/away sessions
+alwaysApply: true
+---
+
+# Time Awareness (Dan standing preference)
+
+Dan wants agents **time aware** in every conversation.
+
+## Infer time
+
+- **`user_info` "Today's date"** — anchor calendar day.
+- **Conversation cues** — Dan stating time (`5:31 am`), waking up, morning coffee, good morning, etc.
+- When cues conflict, trust what Dan says now over stale overnight framing.
+
+## Active daytime session (default)
+
+When Dan is chatting in the morning/day **without** sleep/overnight language:
+
+- Normal interactive work: implement, verify, ship per task.
+- **Do not default to:** overnight batch, "while you sleep", "good night", Plan-only `away:plan`, or queue-before-sleep framing.
+- Morning check-in → read `CURRENT_STATE.md`; brief summary + daytime next steps.
+
+## Overnight / away / sleep (explicit triggers only)
+
+Enter Plan → Approve → Queue → Execute **only** when Dan says e.g.:
+
+- sleep, overnight, while I'm away, good night (for batch)
+- away/sleep plan requests, `go build it` / queue approval for sleeping
+
+See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
+
+## Tone and pacing
+
+| Context | Agent behavior |
+|---------|----------------|
+| Early AM / just woke up | Brief greeting; what shipped overnight; offer next interactive step |
+| Daytime active chat | Task-focused; no bedtime or batch-queue framing |
+| Evening + sleep intent | Plan phase; `away:plan`; approval before queue |
+
+"Morning after batch" is **not** a sleep session — Dan is awake; use daytime mode.
