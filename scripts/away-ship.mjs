@@ -73,7 +73,7 @@ function main() {
 
   let currentState = readText(PATHS.currentState);
   currentState = updateLastShippedInCurrentState(currentState, args.id, item.title);
-  const nextItem = firstRunnableItem(list.queue, archive);
+  const nextItem = firstRunnableItem(list.queue, archive, statusDoc.results);
   currentState = updateImmediateNextInCurrentState(currentState, nextItem);
   const nextMd = renderNextMd(nextItem);
 
