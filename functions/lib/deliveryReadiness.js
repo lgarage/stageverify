@@ -13,13 +13,15 @@ function hasOutstandingQuantities(items) {
 function hasUnresolvedDamage(items) {
     return items.some((item) => item.qtyDamaged > 0);
 }
-function hasItemLevelPhysicalConflicts(items) {
-    return hasOutstandingQuantities(items) || hasUnresolvedDamage(items);
+function hasExceptionOnlyItemConflicts(items) {
+    return items.some((item) => item.qtyMissing > 0 ||
+        item.qtyDamaged > 0 ||
+        item.qtyBackordered > 0);
 }
 function computeQtyBasedPhysicalDropoffComplete(items) {
     if (items.length === 0)
         return false;
-    if (hasItemLevelPhysicalConflicts(items))
+    if (hasOutstandingQuantities(items) || hasUnresolvedDamage(items))
         return false;
     return items.every((item) => item.qtyReceived === item.qtyOrdered);
 }
@@ -31,7 +33,7 @@ function computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode) {
             return false;
         if (items.length === 0)
             return false;
-        return !hasItemLevelPhysicalConflicts(items);
+        return !hasExceptionOnlyItemConflicts(items);
     }
     return computeQtyBasedPhysicalDropoffComplete(items);
 }
