@@ -447,7 +447,7 @@
       "id": "away-065",
       "title": "Drawer UX — resolve modal Need More Information + banner simplify",
       "status": "built",
-      "commit": "f85b999",
+      "commit": "b2029a0",
       "note": "Remove Need More Info banner button; larger resolve modal; context-aware defaults; email preview in resolve modal when type selected; verify:dispatcher-nav + verify:phase5-email PASS"
     }
   ],
