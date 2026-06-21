@@ -3,6 +3,8 @@
 > **Type:** Product design + implementation reference  
 > **Date:** 2026-06-08 (Slice 2 shipped 2026-06-11)  
 > **Status:** Slice 2 shipped — single vendor UI at `/#/receive`  
+> **Product authority:** `PROJECT_STATUS/svscope_simple.md` §4 (Vendor Delivery Actions) — scope wins on conflict; this doc is the phased implementation reference.  
+> **Canonical path:** `docs/product-review/exception-only-vendor-flow.md` (no duplicate at `docs/` root).  
 > **Product principle:** *The person entering data must receive value from entering the data.*
 
 ---
@@ -29,9 +31,13 @@ The migration is **phased and reversible**. Existing `DeliveryStatus` values and
 
 ## 2. Current State Analysis
 
-### Vendor workflow (today)
+### Vendor workflow — dual mode on one page
 
 **Routes (canonical):** `/#/receive` (`ReceivingPage`) — **only** vendor check-in UI. Legacy `/#/`, `/#/checkin/:id`, and compact `#/r?` rewrite to receive. Demo QR: `/#/demo/vendor-scan`.
+
+**Modes (`appSettings.vendorDeliveryMode`):** `exception_only` → Scan → PIN → **Delivered hub** (canonical product intent per svscope §4; no item counting). `full_checkin` → legacy line-item flow on the same page. **Default in Firestore seed / Settings:** `full_checkin` until Slice 3 technician verification is ready to absorb truth transfer; set `exception_only` in Settings or demo scripts for the Delivered hub.
+
+The table below describes the **legacy `full_checkin`** path still available behind the flag:
 
 | Step | What happens | Data written | Driver value |
 | ---- | ------------ | ------------ | ------------ |
@@ -246,8 +252,8 @@ Use `effectiveReadinessStatus()` — already derives from `status` when `readine
 | `statusHistory` | New event: vendor `Delivered`; technician `Verified` | 2–3 |
 | `pinVerificationEvents` | Unchanged | — |
 | `additionalStagingLocationIds` | Unchanged (Need More Space) | — |
-| Cloud Functions | Optional `markDelivered` callable (validation + audit) vs client batch | 2 |
-| Firestore rules | New unauth write paths for Delivered-only vendor flow | 2 (Sonnet gate) |
+| Client write path | `markVendorDelivered` in `firestoreService` (status `arrived`, `submittedAt`; no item qty on happy path) | 2 ✅ |
+| Firestore rules | **No rules change** — reuses existing unauth delivery + `statusHistory` fields | 2 ✅ |
 
 **Backward compatibility:** Existing deliveries with vendor-submitted item qtys remain valid. Technician verify can **confirm** or **correct** without migration.
 
@@ -257,12 +263,12 @@ Use `effectiveReadinessStatus()` — already derives from `status` when `readine
 
 ### Vendor (`ReceivingPage` only)
 
-| Screen | Today | Proposed |
-| ------ | ----- | -------- |
-| After PIN | Name → item list → zone → submit | **Delivered** hub |
-| Primary CTA | Submit Check-in | **Delivered** (green, sticky bottom) |
-| Secondary | Need More Space (on zone step) | **Need More Space** + exception chips on same hub |
-| Item list | Full-screen mandatory | Hidden; exception-only entry |
+| Screen | `full_checkin` (legacy default) | `exception_only` (shipped hub) |
+| ------ | ------------------------------- | ------------------------------ |
+| After PIN | Name → item list → zone → submit | **Delivered** hub (`VendorDeliveredHub`) |
+| Primary CTA | Submit Check-in | **DELIVERED** (sticky bottom) |
+| Secondary | Need More Space (on zone step) | **Need More Space?** + **Issue** modal (Wrong Location / Damaged / Missing / Other) |
+| Item list | Full-screen mandatory | Hidden on happy path |
 | Done | Check-in Complete + revert | Delivered confirmation + short revert |
 
 ### Technician (`PickupPortalPage`)
@@ -314,15 +320,14 @@ Use `effectiveReadinessStatus()` — already derives from `status` when `readine
 
 ## 12. Recommendation
 
-**Proceed** with the exception-only vendor migration in four phases. The product is stable enough to design forward; implementation should not start until Slice 3 technician verify has a clear UX spec.
+**Slice 2 is shipped** (2026-06-11). Exception-only vendor UX is live behind `vendorDeliveryMode = 'exception_only'`. **Do not default the flag to `exception_only`** until Slice 3 technician verification can own item-level truth.
 
-**Priority order:**
-1. Align language (Slice 1) — immediate clarity, zero workflow change  
-2. Ship exception-only vendor behind flag (Slice 2) — **preserve Need More Space prominence**  
-3. Technician verification (Slice 3) — must be live before defaulting Slice 2  
-4. Dispatcher readiness controls (Slice 4) — completes the ownership model  
+**Remaining priority order:**
+1. Slice 1 label alignment — ongoing where UI copy still says "Received" vs **Delivered**  
+2. Slice 3 technician verification — **gate before flipping default** off `full_checkin`  
+3. Slice 4 dispatcher readiness + exception queue — completes the ownership model  
 
-**Do not:** Remove Need More Space, hide it in menus, or fold it into dispatcher-only tools.
+**Do not:** Remove Need More Space, hide it in menus, or fold it into dispatcher-only tools. Vendor must not count items or enter quantities in the canonical `exception_only` path (svscope §4).
 
 ---
 
@@ -440,6 +445,7 @@ flowchart LR
 - `src/NeedMoreSpaceButton.tsx` — overflow staging workflow (legacy full_checkin done screen)  
 - `src/PickupPortalPage.tsx` — technician pickup + Report Issue  
 - `src/dispatcher/models.ts` — `DeliveryStatus`, `ReadinessStatus`, `MaterialIssue`  
-- `docs/project_state.md` — shipped Phase 3 slices  
+- `docs/project_state.md` — shipped Phase 3–4 slices  
+- `PROJECT_STATUS/svscope_simple.md` §4 — product authority for vendor DELIVERED / Need More Space / Issue  
 - `PROJECT_STATUS/MODEL_DOSSIER.md` § agent-lessons — public route hydration patterns  
 - `scripts/verify-vendor-e2e.mjs` — current vendor acceptance tests  
