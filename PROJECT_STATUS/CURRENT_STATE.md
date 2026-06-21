@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **Vendor DELIVERED security (F1/F2)** — `markVendorDelivered` CF + rules block unauth evidence forgery; `recalculateDeliveryReadiness` requires auth or vendor session; `npm run test:mark-vendor-delivered`
+- Last shipped: **away-053** — Phase 5 inbox settings UI; post-queue vendor DELIVERED security (F1/F2) in `docs/project_state.md`
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
