@@ -1,4 +1,5 @@
 import { EMAIL_FIXTURES, MULTI_VENDOR_MATCH_CONTEXT } from "./emailFixtures";
+import { contentFingerprint } from "./parseVendorEmail";
 import { processInboundEmail } from "./processEmailMessage";
 import type { EmailClassification, EmailProcessingResult } from "./types";
 
@@ -31,6 +32,7 @@ export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
     const result = processInboundEmail(fixture, MULTI_VENDOR_MATCH_CONTEXT, existing);
     if (result.duplicate) continue;
     existing.byMessageId.set(fixture.sourceMessageId, fixture.sourceMessageId);
+    existing.byFingerprint.set(contentFingerprint(fixture), fixture.sourceMessageId);
 
     if (result.reviewStatus === "rejected") continue;
 

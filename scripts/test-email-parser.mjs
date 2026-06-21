@@ -7,6 +7,7 @@
  * Gate threshold: 95% on the full approved sample set (excluding duplicate-skip rows).
  */
 
+import { contentFingerprint } from "../src/dispatcher/email/parseVendorEmail.ts";
 import { processInboundEmail } from "../src/dispatcher/email/processEmailMessage.ts";
 import {
   EMAIL_FIXTURES,
@@ -191,6 +192,7 @@ for (const fixture of EMAIL_FIXTURES) {
     continue;
   }
   existing.byMessageId.set(fixture.sourceMessageId, fixture.sourceMessageId);
+  existing.byFingerprint.set(contentFingerprint(fixture), fixture.sourceMessageId);
 
   console.log(
     JSON.stringify({
@@ -225,6 +227,14 @@ const dup = processInboundEmail(EMAIL_FIXTURES[3], MULTI_VENDOR_MATCH_CONTEXT, {
   byFingerprint: new Map(),
 });
 if (!dup.duplicate) failures.push("duplicate message id not detected");
+
+const dupFingerprint = processInboundEmail(EMAIL_FIXTURES[4], MULTI_VENDOR_MATCH_CONTEXT, {
+  byMessageId: new Map(),
+  byFingerprint: new Map([
+    [contentFingerprint(EMAIL_FIXTURES[3]), EMAIL_FIXTURES[3].sourceMessageId],
+  ]),
+});
+if (!dupFingerprint.duplicate) failures.push("duplicate content fingerprint not detected");
 
 const scored = fixtureResults.length;
 const passedCount = fixtureResults.filter((r) => r.passed).length;

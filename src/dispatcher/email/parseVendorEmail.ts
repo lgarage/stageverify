@@ -120,10 +120,17 @@ export function parseVendorEmail(message: InboundEmailMessage): ParsedEmailConte
   };
 }
 
+function normalizeSubjectForFingerprint(subject: string): string {
+  return subject
+    .replace(/^(?:\s*(?:fwd|fw|re):\s*)+/i, "")
+    .trim()
+    .toLowerCase();
+}
+
 export function contentFingerprint(message: InboundEmailMessage): string {
   const normalized = [
     message.senderEmail.toLowerCase(),
-    message.subject.trim().toLowerCase(),
+    normalizeSubjectForFingerprint(message.subject),
     message.bodyText.replace(/\s+/g, " ").trim().toLowerCase().slice(0, 2000),
   ].join("|");
   let hash = 0;

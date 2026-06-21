@@ -10,7 +10,76 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": []
+    "sequence": [
+      "away-054",
+      "away-055",
+      "away-056"
+    ]
   },
-  "queue": []
+  "queue": [
+    {
+      "id": "away-054",
+      "title": "Phase 5: fingerprint dedup in getProposedEmailUpdates",
+      "scope": "In src/dispatcher/email/getProposedEmailUpdates.ts, record content fingerprints in existing.byFingerprint after each non-duplicate fixture (mirror test-email-parser.mjs index pattern) so msg-duplicate-004 and similar content-duplicates are excluded from the Proposed Email panel. Update scripts/test-email-parser.mjs to set byFingerprint in the processing loop and assert fingerprint duplicate detection. No Firestore, no CF, no live inbox.",
+      "files": [
+        "src/dispatcher/email/getProposedEmailUpdates.ts",
+        "scripts/test-email-parser.mjs"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "getProposedEmailUpdates excludes content-duplicates (msg-duplicate-004 not in proposals); npm run test:email-parser PASS with fingerprint duplicate assertion; npm run build clean; npm run verify:dispatcher-nav PASS.",
+      "capturedDuring": "Dan 2026-06-21 — approved away batch away-054..056",
+      "preApproved": true,
+      "dependsOn": "away-053",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run test:email-parser",
+        "npm run verify:dispatcher-nav"
+      ],
+      "status": "queued"
+    },
+    {
+      "id": "away-055",
+      "title": "Phase 5: verify:phase5-email interactive harness",
+      "scope": "Add scripts/verify-phase5-email.mjs — Playwright with auth on dispatcher Proposed Email Updates panel: click All / Needs review / Low confidence filters and expand a row to assert detail row visible. Add npm run verify:phase5-email in package.json. No UI component changes unless testids missing.",
+      "files": [
+        "scripts/verify-phase5-email.mjs",
+        "package.json"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "npm run verify:phase5-email PASS (filter clicks + row expand); npm run build clean.",
+      "capturedDuring": "Dan 2026-06-21 — approved away batch away-054..056",
+      "preApproved": true,
+      "dependsOn": "away-054",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:phase5-email"
+      ],
+      "status": "queued"
+    },
+    {
+      "id": "away-056",
+      "title": "Phase 5: email correction fixture + parser expectations",
+      "scope": "Per svscope §5 correction-to-earlier-email: add offline fixture msg-correction-015 to emailFixtures.ts; classify correction_to_earlier_email in parseVendorEmail.ts + types.ts; route corrections to human review in matchEmailToRecords.ts; add FIXTURE_EXPECTATIONS in test-email-parser.mjs. npm run test:email-parser ≥95% gate must pass.",
+      "files": [
+        "src/dispatcher/email/emailFixtures.ts",
+        "src/dispatcher/email/parseVendorEmail.ts",
+        "src/dispatcher/email/types.ts",
+        "src/dispatcher/email/matchEmailToRecords.ts",
+        "scripts/test-email-parser.mjs"
+      ],
+      "tier": "T1",
+      "model": "composer-2.5",
+      "acceptance": "msg-correction-015 classified correction_to_earlier_email with humanReviewRequired; npm run test:email-parser aggregate ≥95%; npm run build clean.",
+      "capturedDuring": "Dan 2026-06-21 — approved away batch away-054..056",
+      "preApproved": true,
+      "dependsOn": "away-055",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run test:email-parser"
+      ],
+      "status": "queued"
+    }
+  ]
 }
