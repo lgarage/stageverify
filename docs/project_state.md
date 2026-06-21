@@ -177,6 +177,6 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-058** — Phase 5: readiness evidence in delivery drawer (queued; Condition 1/2/blockers read-only in drawer).
+1. **Phase 5 prototype** — away-058 shipped (drawer READINESS EVIDENCE); continue Phase 5 gate or Phase 6 prep per roadmap.
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
