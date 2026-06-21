@@ -27,9 +27,6 @@ const VendorDemoScanPage = lazy(() =>
 const PickupDemoScanPage = lazy(() =>
   import("./PickupDemoScanPage").then((m) => ({ default: m.PickupDemoScanPage })),
 );
-const LandingPage = lazy(() =>
-  import("./marketing/LandingPage").then((m) => ({ default: m.LandingPage })),
-);
 
 function CompactRouteSpinner({ label }: { label: string }) {
   return (
@@ -60,7 +57,7 @@ const RootRedirect = () => {
     return <CompactRouteSpinner label="Loading…" />;
   }
   if (user) return <Navigate to="/hub" replace />;
-  return <LandingPage />;
+  return <Navigate to="/receive" replace />;
 };
 
 const root = createRoot(document.getElementById("root")!);

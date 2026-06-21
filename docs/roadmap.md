@@ -49,8 +49,6 @@
 
 ## NOW (Phase 5 prototype)
 
-**Marketing landing page** ✅ Shipped 2026-06-21 — public `/#/` for unauthenticated users; logged-in → `/hub`. Verify: `npm run verify:landing`.
-
 **Phase 5 — Vendor Email Parsing Prototype** — active per `CURRENT_STATE.md` (Phase 3 + Phase 4 gates closed 2026-06-20). Phase 2 gate passed 2026-06-08.
 
 ### Phase 2 — Material Readiness Data Model
