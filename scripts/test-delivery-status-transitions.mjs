@@ -251,7 +251,7 @@ try {
   }
 
   try {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(deliveryRef(unauthed.firestore(), "test-delivery"), {
         status: "arrived",
         vendorPhysicalDropoffConfirmed: true,
@@ -262,9 +262,26 @@ try {
         updatedAt: new Date().toISOString(),
       }),
     );
-    pass("vendor physical drop-off evidence fields allowed on arrived");
+    pass("vendor physical drop-off evidence forgery denied (CF-only)");
   } catch (err) {
-    fail("vendor physical drop-off evidence fields should be allowed", err);
+    fail("vendor physical drop-off evidence forgery should be denied", err);
+  }
+
+  try {
+    await assertSucceeds(
+      updateDoc(deliveryRef(unauthed.firestore(), "test-delivery"), {
+        status: "arrived",
+        vendorPhysicalDropoffConfirmed: false,
+        vendorPhysicalDropoffConfirmedAt: null,
+        deliveredAt: null,
+        physicalDropoffSource: null,
+        submittedAt: null,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("vendor revert may clear physical evidence (false/null only)");
+  } catch (err) {
+    fail("vendor revert evidence clear should be allowed", err);
   }
 
   try {

@@ -8,8 +8,9 @@ rules_version = '2';
 //   - Mobile scan/check-in flows read delivery data, line items, zone codes,
 //     and global timing config without signing in.
 //   - Vendor PIN sessions: vendorSessions collection (CF Admin SDK only).
-//     Vendor check-in writes (markVendorDelivered, submitCheckin) require active
-//     delivery-scoped session validated via validateVendorSession CF before client write.
+//     Vendor check-in writes (submitCheckin) require active delivery-scoped session
+//     validated via validateVendorSession CF before client write.
+//     vendorPhysicalDropoffConfirmed evidence is written via markVendorDelivered CF only.
 //
 // AUTH REQUIRED READ: jobs, purchaseOrders, statusHistory, pickupEvents
 //   - Dispatcher/settings UI and audit views require Firebase Auth.
@@ -78,6 +79,20 @@ service cloud.firestore {
         || (fromStatus == 'complete' && toStatus == 'arrived');
     }
 
+    // Positive vendor physical evidence is CF-only; unauth may clear on vendor revert.
+    function unauthVendorEvidenceWriteAllowed() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
+      return (!changed.hasAny(['vendorPhysicalDropoffConfirmed'])
+          || d.vendorPhysicalDropoffConfirmed == false)
+        && (!changed.hasAny(['vendorPhysicalDropoffConfirmedAt'])
+          || d.vendorPhysicalDropoffConfirmedAt == null)
+        && (!changed.hasAny(['deliveredAt'])
+          || d.deliveredAt == null)
+        && (!changed.hasAny(['physicalDropoffSource'])
+          || d.physicalDropoffSource == null);
+    }
+
     function unauthDeliveryUpdateAllowed() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let fromStatus = resource.data.status;
@@ -94,6 +109,7 @@ service cloud.firestore {
           'deliveredAt',
           'physicalDropoffSource',
         ])
+        && unauthVendorEvidenceWriteAllowed()
         && resource.data.keys().hasAll(['status'])
         && request.resource.data.keys().hasAll(['status'])
         && isValidDeliveryStatus(fromStatus)

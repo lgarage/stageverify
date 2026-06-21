@@ -159,10 +159,28 @@ const noStaging = computeDeliveryReadiness(
 );
 assert(!noStaging.readyForPickup, "DELIVERED without staging location is not Ready");
 
+// 7 — blocking issue prevents Ready
+const withBlocker = computeDeliveryReadiness(
+  {
+    ...baseDelivery,
+    vendorOrderComplete: true,
+    vendorPhysicalDropoffConfirmed: true,
+    vendorPhysicalDropoffConfirmedAt: "2026-06-12T10:00:00Z",
+    openBlockingIssueCount: 1,
+  },
+  zeroQtyItems,
+  exceptionOnly,
+);
+assert(!withBlocker.readyForPickup, "blocking issue prevents Ready");
+assert(
+  withBlocker.evidence.readinessBlockReasons.includes("unresolved_blocking_issues"),
+  "blocking issue reason present",
+);
+
 if (failures.length) {
   console.error("FAIL evidence alignment tests:");
   for (const f of failures) console.error(" -", f);
   process.exit(1);
 }
 
-console.log("PASS evidence model alignment (6 scenarios)");
+console.log("PASS evidence model alignment (7 scenarios)");

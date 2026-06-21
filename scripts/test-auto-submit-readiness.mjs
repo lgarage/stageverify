@@ -20,6 +20,7 @@ import {
   getFunctions,
   httpsCallable,
 } from "firebase/functions";
+import { recalcPayload, seedVendorSession } from "./test-vendor-session-helper.mjs";
 
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
@@ -94,7 +95,7 @@ async function simulateAutoSubmitAndRecalculate(deliveryId, fromStatus = "arrive
       });
     }
   });
-  return recalculateReadiness({ deliveryOrderId: deliveryId });
+  return recalculateReadiness(recalcPayload(deliveryId));
 }
 
 console.log("\n=== Auto-submit readiness integration ===\n");
@@ -118,6 +119,7 @@ await seed(async (db) => {
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
+  await seedVendorSession(db, "auto-phys-only");
 });
 try {
   const result = await simulateAutoSubmitAndRecalculate("auto-phys-only");
@@ -154,6 +156,7 @@ await seed(async (db) => {
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
+  await seedVendorSession(db, "auto-ready");
 });
 try {
   const result = await simulateAutoSubmitAndRecalculate("auto-ready");
@@ -188,6 +191,7 @@ await seed(async (db) => {
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
+  await seedVendorSession(db, "auto-no-staging");
 });
 try {
   const result = await simulateAutoSubmitAndRecalculate("auto-no-staging");
@@ -219,6 +223,7 @@ await seed(async (db) => {
     qtyDamaged: 1,
     qtyBackordered: 0,
   });
+  await seedVendorSession(db, "auto-damage");
 });
 try {
   const result = await simulateAutoSubmitAndRecalculate("auto-damage");
@@ -252,11 +257,12 @@ await seed(async (db) => {
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
+  await seedVendorSession(db, "auto-idempotent");
 });
 try {
   const before = await countHistory();
-  await recalculateReadiness({ deliveryOrderId: "auto-idempotent" });
-  await recalculateReadiness({ deliveryOrderId: "auto-idempotent" });
+  await recalculateReadiness(recalcPayload("auto-idempotent"));
+  await recalculateReadiness(recalcPayload("auto-idempotent"));
   const after = await countHistory();
   if (after === before) {
     pass("repeated recalculation does not duplicate history");

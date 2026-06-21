@@ -4,6 +4,7 @@ exports.recalculateDeliveryReadiness = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
+const vendorSessionValidation_1 = require("./vendorSessionValidation");
 function getDb() {
     return admin.firestore();
 }
@@ -39,6 +40,16 @@ exports.recalculateDeliveryReadiness = (0, https_1.onCall)({
     const deliveryOrderId = asDeliveryId(data.deliveryOrderId);
     if (!deliveryOrderId) {
         throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is required.");
+    }
+    const sessionToken = (0, vendorSessionValidation_1.asSessionToken)(data.sessionToken);
+    if (request.auth?.uid) {
+        // Dispatcher / authenticated caller
+    }
+    else if (sessionToken) {
+        await (0, vendorSessionValidation_1.assertVendorSessionValid)(sessionToken, deliveryOrderId);
+    }
+    else {
+        throw new https_1.HttpsError("permission-denied", "Sign in or provide a valid vendor session.");
     }
     try {
         return await (0, applyDeliveryReadiness_1.applyDeliveryReadinessTransaction)(getDb(), deliveryOrderId);

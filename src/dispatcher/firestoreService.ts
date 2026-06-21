@@ -262,8 +262,15 @@ function computeItemStatus(update: {
 async function invokeRecalculateDeliveryReadiness(
   deliveryId: string,
 ): Promise<void> {
+  const sessionToken = getVendorSessionToken(deliveryId);
+  const payload: { deliveryOrderId: string; sessionToken?: string } = {
+    deliveryOrderId: deliveryId,
+  };
+  if (sessionToken) {
+    payload.sessionToken = sessionToken;
+  }
   const callable = httpsCallable(functions, "recalculateDeliveryReadiness");
-  await callable({ deliveryOrderId: deliveryId });
+  await callable(payload);
 }
 
 async function requireActiveVendorSession(deliveryId: string): Promise<void> {
@@ -823,54 +830,22 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     actorName = "Vendor Driver",
   ): Promise<DeliveryDetails | null> {
-    await requireActiveVendorSession(deliveryId);
-
-    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
-    if (!deliverySnap.exists()) return null;
-    const delivery = deliverySnap.data() as DeliveryOrder;
-
-    const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
-    const fromStatus = delivery.status;
-    const toStatus: DeliveryStatus =
-      fromStatus === "pending" || fromStatus === "shipped"
-        ? "arrived"
-        : fromStatus;
-
-    const now = new Date().toISOString();
-    const confirmedAt =
-      alreadyConfirmed && delivery.vendorPhysicalDropoffConfirmedAt
-        ? delivery.vendorPhysicalDropoffConfirmedAt
-        : now;
-    const batch = writeBatch(db);
-
-    batch.update(doc(db, "deliveries", deliveryId), {
-      status: toStatus,
-      submittedAt: now,
-      vendorPhysicalDropoffConfirmed: true,
-      vendorPhysicalDropoffConfirmedAt: confirmedAt,
-      deliveredAt:
-        alreadyConfirmed && delivery.deliveredAt ? delivery.deliveredAt : now,
-      physicalDropoffSource: "physical_checkin",
-      updatedAt: now,
-    });
-
-    if (fromStatus !== toStatus) {
-      const eventId = `event-${crypto.randomUUID()}`;
-      batch.set(doc(db, "statusHistory", eventId), {
-        id: eventId,
-        entityType: "delivery_order",
-        entityId: deliveryId,
-        fromStatus,
-        toStatus,
-        reason: "Vendor confirmed delivery",
-        actorType: "vendor",
-        actorName,
-        createdAt: now,
-      });
+    const sessionToken = getVendorSessionToken(deliveryId);
+    if (!sessionToken) {
+      throw new VendorSessionError("Session expired. Enter your PIN again.");
     }
 
-    await batch.commit();
-    await invokeRecalculateDeliveryReadiness(deliveryId);
+    const callable = httpsCallable(functions, "markVendorDelivered");
+    try {
+      await callable({
+        deliveryId,
+        sessionToken,
+        actorName,
+      });
+    } catch (err) {
+      throw new VendorSessionError(vendorSessionErrorMessage(err));
+    }
+
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );

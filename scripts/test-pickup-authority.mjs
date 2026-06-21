@@ -21,6 +21,7 @@ import {
   getFunctions,
   httpsCallable,
 } from "firebase/functions";
+import { recalcPayload, seedVendorSession } from "./test-vendor-session-helper.mjs";
 
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
@@ -396,9 +397,10 @@ try {
       qtyBackordered: 0,
       status: "received",
     });
+    await seedVendorSession(db, "del-readiness-1");
   });
 
-  const physOnly = await recalculateReadiness({ deliveryOrderId: "del-readiness-1" });
+  const physOnly = await recalculateReadiness(recalcPayload("del-readiness-1"));
   if (physOnly.data.readyForPickup === false) {
     pass("physical only cannot create readiness");
   } else {
@@ -414,7 +416,7 @@ try {
     });
   });
 
-  const bothReady = await recalculateReadiness({ deliveryOrderId: "del-readiness-1" });
+  const bothReady = await recalculateReadiness(recalcPayload("del-readiness-1"));
   if (bothReady.data.readyForPickup === true && bothReady.data.deliveryStatus === "ready_for_pickup") {
     pass("both sources plus staging create readiness via trusted CF");
   } else {
@@ -422,7 +424,7 @@ try {
   }
 
   const historyAfterFirst = await countHistory();
-  const repeat = await recalculateReadiness({ deliveryOrderId: "del-readiness-1" });
+  const repeat = await recalculateReadiness(recalcPayload("del-readiness-1"));
   const historyAfterRepeat = await countHistory();
   if (repeat.data.statusChanged === false && historyAfterRepeat === historyAfterFirst) {
     pass("repeated recalculation does not duplicate history");
@@ -455,8 +457,9 @@ try {
       qtyBackordered: 0,
       status: "partial",
     });
+    await seedVendorSession(db, "del-shortage");
   });
-  const shortage = await recalculateReadiness({ deliveryOrderId: "del-shortage" });
+  const shortage = await recalculateReadiness(recalcPayload("del-shortage"));
   if (shortage.data.readyForPickup === false) {
     pass("shortage blocks readiness");
   } else {
@@ -488,8 +491,9 @@ try {
       qtyBackordered: 0,
       status: "damaged",
     });
+    await seedVendorSession(db, "del-damage");
   });
-  const damage = await recalculateReadiness({ deliveryOrderId: "del-damage" });
+  const damage = await recalculateReadiness(recalcPayload("del-damage"));
   if (damage.data.readyForPickup === false) {
     pass("damage blocks readiness");
   } else {
@@ -521,8 +525,9 @@ try {
       qtyBackordered: 0,
       status: "received",
     });
+    await seedVendorSession(db, "del-nostage-ready");
   });
-  const noStage = await recalculateReadiness({ deliveryOrderId: "del-nostage-ready" });
+  const noStage = await recalculateReadiness(recalcPayload("del-nostage-ready"));
   if (noStage.data.readyForPickup === false) {
     pass("missing staging blocks readiness");
   } else {

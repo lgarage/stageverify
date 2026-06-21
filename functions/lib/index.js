@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
+exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
@@ -12,6 +12,8 @@ const recordPickupEvent_1 = require("./recordPickupEvent");
 Object.defineProperty(exports, "recordPickupEvent", { enumerable: true, get: function () { return recordPickupEvent_1.recordPickupEvent; } });
 const recalculateDeliveryReadiness_1 = require("./recalculateDeliveryReadiness");
 Object.defineProperty(exports, "recalculateDeliveryReadiness", { enumerable: true, get: function () { return recalculateDeliveryReadiness_1.recalculateDeliveryReadiness; } });
+const markVendorDelivered_1 = require("./markVendorDelivered");
+Object.defineProperty(exports, "markVendorDelivered", { enumerable: true, get: function () { return markVendorDelivered_1.markVendorDelivered; } });
 const validateVendorSession_1 = require("./validateVendorSession");
 Object.defineProperty(exports, "validateVendorSession", { enumerable: true, get: function () { return validateVendorSession_1.validateVendorSession; } });
 const generatePickupToken_1 = require("./generatePickupToken");

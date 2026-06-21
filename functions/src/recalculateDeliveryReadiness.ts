@@ -1,6 +1,10 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
+import {
+  asSessionToken,
+  assertVendorSessionValid,
+} from "./vendorSessionValidation";
 
 function getDb() {
   return admin.firestore();
@@ -8,6 +12,7 @@ function getDb() {
 
 interface RecalculateRequest {
   deliveryOrderId?: string;
+  sessionToken?: string;
 }
 
 function asDeliveryId(value: unknown): string | null {
@@ -45,6 +50,18 @@ export const recalculateDeliveryReadiness = onCall(
     const deliveryOrderId = asDeliveryId(data.deliveryOrderId);
     if (!deliveryOrderId) {
       throw new HttpsError("invalid-argument", "deliveryOrderId is required.");
+    }
+
+    const sessionToken = asSessionToken(data.sessionToken);
+    if (request.auth?.uid) {
+      // Dispatcher / authenticated caller
+    } else if (sessionToken) {
+      await assertVendorSessionValid(sessionToken, deliveryOrderId);
+    } else {
+      throw new HttpsError(
+        "permission-denied",
+        "Sign in or provide a valid vendor session.",
+      );
     }
 
     try {

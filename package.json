@@ -64,6 +64,7 @@
     "aecs:export": "node aecs/release/export.mjs",
     "aecs:export:write": "node aecs/release/export.mjs --write",
     "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs aecs/updater/update.test.mjs aecs/updater/hardening.test.mjs aecs/updater/rollback-progress.test.mjs aecs/release/export.test.mjs",
+    "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:pickup-authority": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-pickup-authority.mjs\"",
     "test:auto-submit-readiness": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-auto-submit-readiness.mjs\"",

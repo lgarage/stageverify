@@ -5,6 +5,7 @@ import { createMaterialIssue } from "./createMaterialIssue";
 import { verifyVendorPin } from "./verifyVendorPin";
 import { recordPickupEvent } from "./recordPickupEvent";
 import { recalculateDeliveryReadiness } from "./recalculateDeliveryReadiness";
+import { markVendorDelivered } from "./markVendorDelivered";
 import { validateVendorSession } from "./validateVendorSession";
 import { generatePickupToken } from "./generatePickupToken";
 import { revokePickupToken } from "./revokePickupToken";
@@ -137,4 +138,5 @@ export {
   updatePickupChecklist,
   resolveMaterialIssue,
   recalculateDeliveryReadiness,
+  markVendorDelivered,
 };
