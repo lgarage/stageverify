@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { buildEslTagQrUrl } from "./receiveQrUrls";
 import {
@@ -64,6 +64,7 @@ import {
 import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
+import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -2484,6 +2485,42 @@ function DetailContent({
   if (!details.job) return null;
   const job = details.job;
 
+  const openMaterialIssues = details.materialIssues.filter(
+    (i) => i.status === "open" || i.status === "assigned",
+  );
+  const firstBlockingIssue = openMaterialIssues.find((i) => i.blocking);
+
+  const renderDrawerSection = (title: string, content: ReactNode) => (
+    <section key={title}>
+      <h3
+        style={{
+          margin: "0 0 10px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#9ca3af",
+          textTransform: "uppercase",
+          letterSpacing: "0.10em",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            width: 16,
+            height: 2,
+            backgroundColor: navy,
+            borderRadius: 2,
+            flexShrink: 0,
+          }}
+        />
+        {title}
+      </h3>
+      {content}
+    </section>
+  );
+
   const STATUS_BADGE_LOCAL: Record<
     string,
     { bg: string; text: string; border: string }
@@ -2523,812 +2560,737 @@ function DetailContent({
           fontFamily: font,
         }}
       >
-        {[
-          {
-            title: "Job",
-            content: (
-              <div
-                style={{
-                  backgroundColor: "#f8fafc",
-                  border: "1px solid #e0e3e8",
-                  borderRadius: 8,
-                  padding: "15px",
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 10,
-                }}
-              >
-                {[
-                  {
-                    label: "Job #",
-                    value: (
-                      <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
-                        {job.jobNumber}
-                      </span>
-                    ),
-                  },
-                  { label: "Job Name", value: job.jobName },
-                ].map(({ label, value }) => (
+        <DrawerActionBanner
+          details={details}
+          navy={navy}
+          font={font}
+          onResolveBlockingIssue={
+            firstBlockingIssue
+              ? () => {
+                  setResolveIssueId(firstBlockingIssue.id);
+                  setResolutionType("found_in_shop");
+                  setResolutionNote("");
+                }
+              : undefined
+          }
+        />
+        {openMaterialIssues.length > 0 &&
+          renderDrawerSection(
+            `Material Issues (${openMaterialIssues.length})`,
+            <div
+              data-testid="material-issues-panel"
+              style={{
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 8,
+              }}
+            >
+              {openMaterialIssues.map((issue) => (
+                <div
+                  key={issue.id}
+                  style={{
+                    border: "1px solid #e0e3e8",
+                    borderRadius: 8,
+                    padding: "12px",
+                    backgroundColor: issue.blocking ? "#fff8f8" : "#fff",
+                  }}
+                >
                   <div
-                    key={label}
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 12,
+                      gap: 8,
+                      marginBottom: 6,
                     }}
                   >
+                    <span style={{ fontWeight: 700, color: "#333" }}>
+                      {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                    </span>
                     <span
                       style={{
-                        color: "#6b7280",
-                        fontWeight: 600,
-                        flexShrink: 0,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: issue.blocking ? "#c62828" : "#6b7280",
                       }}
                     >
-                      {label}
-                    </span>
-                    <span style={{ color: "#333", textAlign: "right" }}>
-                      {value}
+                      {issue.blocking ? "Blocking" : "Info"}
                     </span>
                   </div>
-                ))}
-                {job.pickupScheduledAt && (
-                  <span
-                    data-testid="pickup-scheduled-badge"
+                  <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
+                    {issue.description?.trim() || "No description"}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
+                    Reported by {issue.reportedBy} · Owner{" "}
+                    {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
+                    {new Date(issue.createdAt).toLocaleString()}
+                  </p>
+                  <button
+                    type="button"
+                    data-testid={`resolve-issue-${issue.id}`}
+                    disabled={mutationLoading}
+                    onClick={() => {
+                      setResolveIssueId(issue.id);
+                      setResolutionType("found_in_shop");
+                      setResolutionNote("");
+                    }}
                     style={{
-                      display: "inline-flex",
-                      alignSelf: "flex-start",
-                      alignItems: "center",
-                      gap: 6,
-                      backgroundColor: "#e3f2fd",
-                      color: navy,
+                      marginTop: 8,
+                      padding: "6px 10px",
+                      borderRadius: 6,
                       border: `1px solid ${navy}`,
-                      borderRadius: 999,
-                      padding: "4px 10px",
+                      backgroundColor: "#fff",
+                      color: navy,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: mutationLoading ? "not-allowed" : "pointer",
+                      opacity: mutationLoading ? 0.6 : 1,
+                    }}
+                  >
+                    Resolve
+                  </button>
+                </div>
+              ))}
+              {details.materialIssues.filter((i) => i.status === "resolved").length >
+                0 && (
+                <div style={{ marginTop: 12 }}>
+                  <p
+                    style={{
+                      margin: "0 0 8px",
                       fontSize: 11,
                       fontWeight: 700,
-                      letterSpacing: "0.02em",
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
                     }}
                   >
-                    Pickup Scheduled
+                    Recently resolved
+                  </p>
+                  {details.materialIssues
+                    .filter((i) => i.status === "resolved")
+                    .slice(0, 3)
+                    .map((issue) => (
+                      <div
+                        key={issue.id}
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          backgroundColor: "#f9fafb",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700 }}>
+                          {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                          {issue.resolutionType
+                            ? ` → ${ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType]}`
+                            : ""}
+                        </p>
+                        {issue.resolutionNote && (
+                          <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>
+                            {issue.resolutionNote}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>,
+          )}
+        {renderDrawerSection(
+          "Readiness Evidence",
+          <ReadinessEvidencePanel
+            details={details}
+            stagingLocations={stagingLocations}
+            navy={navy}
+            font={font}
+          />,
+        )}
+        {renderDrawerSection(
+          "Delivery Basics",
+          <>
+            <div
+              style={{
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e0e3e8",
+                borderRadius: 8,
+                padding: "15px",
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              {[
+                {
+                  label: "Job #",
+                  value: (
+                    <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                      {job.jobNumber}
+                    </span>
+                  ),
+                },
+                { label: "Job Name", value: job.jobName },
+                {
+                  label: "Order #",
+                  value: (
+                    <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                      {details.delivery.orderNumber}
+                    </span>
+                  ),
+                },
+                { label: "Vendor", value: details.vendor.name },
+                {
+                  label: "PO #",
+                  value: (
+                    <span style={{ fontFamily: "monospace" }}>
+                      {details.purchaseOrder?.poNumber ?? "—"}
+                    </span>
+                  ),
+                },
+                {
+                  label: "Staging",
+                  value: details.stagingLocation ? (
+                    <>
+                      <span
+                        style={{
+                          fontFamily: "monospace",
+                          fontWeight: 700,
+                          backgroundColor: "#eef2ff",
+                          padding: "2px 7px",
+                          borderRadius: 4,
+                          color: navy,
+                          border: "1px solid #c7d2fe",
+                        }}
+                      >
+                        {details.stagingLocation.code}
+                      </span>{" "}
+                      <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                        {details.stagingLocation.label}
+                      </span>
+                    </>
+                  ) : (
+                    "—"
+                  ),
+                },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#6b7280",
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {label}
                   </span>
-                )}
-                <button
-                  type="button"
-                  disabled={mutationLoading}
-                  onClick={() =>
-                    void onUpdateJobPickupScheduled(!job.pickupScheduledAt)
-                  }
+                  <span style={{ color: "#333", textAlign: "right" }}>{value}</span>
+                </div>
+              ))}
+
+              {details.delivery.notes && (
+                <div
                   style={{
-                    marginTop: 4,
-                    backgroundColor: "#fff",
+                    borderTop: "1px solid #eaecf0",
+                    paddingTop: 10,
+                    marginTop: 2,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#6b7280",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      display: "block",
+                      marginBottom: 5,
+                    }}
+                  >
+                    Notes
+                  </span>
+                  <p
+                    style={{
+                      margin: 0,
+                      color: "#333",
+                      backgroundColor: "#fff",
+                      padding: "8px 12px",
+                      borderRadius: 4,
+                      border: "1px solid #e0e3e8",
+                    }}
+                  >
+                    {details.delivery.notes}
+                  </p>
+                </div>
+              )}
+              {details.delivery.issueSummary && (
+                <div
+                  style={{
+                    borderTop: "1px solid #eaecf0",
+                    paddingTop: 10,
+                    marginTop: 2,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#c62828",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      display: "block",
+                      marginBottom: 5,
+                    }}
+                  >
+                    ⚠ Issue
+                  </span>
+                  <p
+                    style={{
+                      margin: 0,
+                      color: "#c62828",
+                      backgroundColor: "#ffebee",
+                      padding: "8px 12px",
+                      borderRadius: 4,
+                      border: "1px solid #ef9a9a",
+                    }}
+                  >
+                    {details.delivery.issueSummary}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 8,
+              }}
+            >
+              {job.pickupScheduledAt && (
+                <span
+                  data-testid="pickup-scheduled-badge"
+                  style={{
+                    display: "inline-flex",
+                    alignSelf: "flex-start",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: "#e3f2fd",
                     color: navy,
-                    border: `1.5px solid ${navy}`,
-                    borderRadius: 4,
-                    padding: "6px 12px",
-                    fontSize: 12,
+                    border: `1px solid ${navy}`,
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                    fontSize: 11,
                     fontWeight: 700,
-                    cursor: mutationLoading ? "wait" : "pointer",
-                    fontFamily: font,
-                    alignSelf: "flex-start",
-                    transition: "all 0.13s",
-                    opacity: mutationLoading ? 0.7 : 1,
+                    letterSpacing: "0.02em",
                   }}
                 >
-                  {job.pickupScheduledAt
-                    ? "Clear Pickup Scheduled"
-                    : "Mark Pickup Scheduled"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPrintLabel(true)}
-                  style={{
-                    marginTop: 4,
-                    backgroundColor: "#fff",
-                    color: NAVY,
-                    border: `1.5px solid ${NAVY}`,
-                    borderRadius: 4,
-                    padding: "6px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: font,
-                    alignSelf: "flex-start",
-                    transition: "all 0.13s",
-                  }}
-                >
-                  Print Label
-                </button>
-                <CopyPickupLinkButton
-                  jobId={job.id}
-                  jobName={job.jobName}
-                  jobNumber={job.jobNumber}
-                  siteNumber={job.siteNumber}
-                  navy={navy}
-                  font={font}
-                />
-                <PickupTokenControls
-                  jobId={job.id}
-                  navy={navy}
-                  font={font}
-                  mutationLoading={mutationLoading}
-                />
-                <JobReadinessPanel
-                  job={job}
-                  navy={navy}
-                  font={font}
-                  refreshKey={details.delivery.updatedAt}
-                />
-              </div>
-            ),
-          },
-          {
-            title: "Delivery & Vendor",
-            content: (
-              <div
+                  Pickup Scheduled
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={mutationLoading}
+                onClick={() =>
+                  void onUpdateJobPickupScheduled(!job.pickupScheduledAt)
+                }
                 style={{
-                  backgroundColor: "#f8fafc",
-                  border: "1px solid #e0e3e8",
-                  borderRadius: 8,
-                  padding: "15px",
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 10,
+                  backgroundColor: "#fff",
+                  color: navy,
+                  border: `1.5px solid ${navy}`,
+                  borderRadius: 4,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: mutationLoading ? "wait" : "pointer",
+                  fontFamily: font,
+                  alignSelf: "flex-start",
+                  transition: "all 0.13s",
+                  opacity: mutationLoading ? 0.7 : 1,
                 }}
               >
-                {[
-                  {
-                    label: "Order #",
-                    value: (
-                      <span
-                        style={{ fontFamily: "monospace", fontWeight: 700 }}
-                      >
-                        {details.delivery.orderNumber}
-                      </span>
-                    ),
-                  },
-                  { label: "Vendor", value: details.vendor.name },
-                  {
-                    label: "PO #",
-                    value: (
-                      <span style={{ fontFamily: "monospace" }}>
-                        {details.purchaseOrder?.poNumber ?? "—"}
-                      </span>
-                    ),
-                  },
-                  {
-                    label: "Staging",
-                    value: details.stagingLocation ? (
-                      <>
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: 700,
-                            backgroundColor: "#eef2ff",
-                            padding: "2px 7px",
-                            borderRadius: 4,
-                            color: navy,
-                            border: "1px solid #c7d2fe",
-                          }}
-                        >
-                          {details.stagingLocation.code}
-                        </span>{" "}
-                        <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                          {details.stagingLocation.label}
-                        </span>
-                      </>
-                    ) : (
-                      "—"
-                    ),
-                  },
-                ].map(({ label, value }) => (
-                  <div
-                    key={label}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "#6b7280",
-                        fontWeight: 600,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {label}
-                    </span>
-                    <span style={{ color: "#333", textAlign: "right" }}>
-                      {value}
-                    </span>
-                  </div>
-                ))}
-
-                {details.delivery.notes && (
-                  <div
-                    style={{
-                      borderTop: "1px solid #eaecf0",
-                      paddingTop: 10,
-                      marginTop: 2,
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "#6b7280",
-                        fontWeight: 600,
-                        fontSize: 12,
-                        display: "block",
-                        marginBottom: 5,
-                      }}
-                    >
-                      Notes
-                    </span>
-                    <p
-                      style={{
-                        margin: 0,
-                        color: "#333",
-                        backgroundColor: "#fff",
-                        padding: "8px 12px",
-                        borderRadius: 4,
-                        border: "1px solid #e0e3e8",
-                      }}
-                    >
-                      {details.delivery.notes}
-                    </p>
-                  </div>
-                )}
-                {details.delivery.issueSummary && (
-                  <div
-                    style={{
-                      borderTop: "1px solid #eaecf0",
-                      paddingTop: 10,
-                      marginTop: 2,
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "#c62828",
-                        fontWeight: 600,
-                        fontSize: 12,
-                        display: "block",
-                        marginBottom: 5,
-                      }}
-                    >
-                      ⚠ Issue
-                    </span>
-                    <p
-                      style={{
-                        margin: 0,
-                        color: "#c62828",
-                        backgroundColor: "#ffebee",
-                        padding: "8px 12px",
-                        borderRadius: 4,
-                        border: "1px solid #ef9a9a",
-                      }}
-                    >
-                      {details.delivery.issueSummary}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ),
-          },
-          {
-            title: "Readiness Evidence",
-            content: (
-              <ReadinessEvidencePanel
-                details={details}
-                stagingLocations={stagingLocations}
+                {job.pickupScheduledAt
+                  ? "Clear Pickup Scheduled"
+                  : "Mark Pickup Scheduled"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPrintLabel(true)}
+                style={{
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  border: `1.5px solid ${NAVY}`,
+                  borderRadius: 4,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                  alignSelf: "flex-start",
+                  transition: "all 0.13s",
+                }}
+              >
+                Print Label
+              </button>
+              <CopyPickupLinkButton
+                jobId={job.id}
+                jobName={job.jobName}
+                jobNumber={job.jobNumber}
+                siteNumber={job.siteNumber}
                 navy={navy}
                 font={font}
               />
-            ),
-          },
-          {
-            title: "Pickup Summary",
-            content: (() => {
-              const latest = latestPickupEvent(details.pickupEvents);
-              const remainingQty = estimateRemainingItemQty(details.items);
+              <PickupTokenControls
+                jobId={job.id}
+                navy={navy}
+                font={font}
+                mutationLoading={mutationLoading}
+              />
+              <JobReadinessPanel
+                job={job}
+                navy={navy}
+                font={font}
+                refreshKey={details.delivery.updatedAt}
+              />
+            </div>
+          </>,
+        )}
+        {renderDrawerSection(
+          "Pickup Summary",
+          (() => {
+            const latest = latestPickupEvent(details.pickupEvents);
+            const remainingQty = estimateRemainingItemQty(details.items);
+            return (
+              <div
+                data-testid="pickup-summary-panel"
+                style={{
+                  border: "1px solid #e0e3e8",
+                  borderRadius: 8,
+                  padding: "12px",
+                  backgroundColor: "#fff",
+                }}
+              >
+                {!latest ? (
+                  <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                    No pickup recorded yet.
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#333" }}>
+                      {latest.itemsPickedSummary}
+                    </p>
+                    <p style={{ margin: "0 0 6px", fontSize: 12, color: "#6b7280" }}>
+                      {latest.technicianName} ·{" "}
+                      {new Date(latest.pickedUpAt).toLocaleString()}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: "#555" }}>
+                      Qty remaining estimate: {remainingQty}
+                    </p>
+                  </>
+                )}
+              </div>
+            );
+          })(),
+        )}
+        {renderDrawerSection(
+          `Items (${details.items.length})`,
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column" as const,
+              gap: 8,
+            }}
+          >
+            {details.items.map((item) => {
+              const sb = STATUS_BADGE_LOCAL[item.status] ?? {
+                bg: "#f8f9fa",
+                text: "#495057",
+                border: "#ced4da",
+              };
               return (
                 <div
-                  data-testid="pickup-summary-panel"
+                  key={item.id}
                   style={{
                     border: "1px solid #e0e3e8",
                     borderRadius: 8,
                     padding: "12px",
                     backgroundColor: "#fff",
+                    boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
                   }}
                 >
-                  {!latest ? (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
-                      No pickup recorded yet.
-                    </p>
-                  ) : (
-                    <>
-                      <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#333" }}>
-                        {latest.itemsPickedSummary}
-                      </p>
-                      <p style={{ margin: "0 0 6px", fontSize: 12, color: "#6b7280" }}>
-                        {latest.technicianName} ·{" "}
-                        {new Date(latest.pickedUpAt).toLocaleString()}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "#555" }}>
-                        Qty remaining estimate: {remainingQty}
-                      </p>
-                    </>
-                  )}
-                </div>
-              );
-            })(),
-          },
-          {
-            title: `Material Issues (${details.materialIssues.filter((i) => i.status === "open" || i.status === "assigned").length})`,
-            content: (
-              <div
-                data-testid="material-issues-panel"
-                style={{
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 8,
-                }}
-              >
-                {details.materialIssues.filter(
-                  (i) => i.status === "open" || i.status === "assigned",
-                ).length === 0 ? (
-                  <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
-                    No open material issues.
-                  </p>
-                ) : (
-                  details.materialIssues
-                    .filter((i) => i.status === "open" || i.status === "assigned")
-                    .map((issue) => (
-                      <div
-                        key={issue.id}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div>
+                      <p
                         style={{
-                          border: "1px solid #e0e3e8",
-                          borderRadius: 8,
-                          padding: "12px",
-                          backgroundColor: issue.blocking ? "#fff8f8" : "#fff",
+                          margin: 0,
+                          fontWeight: 700,
+                          color: "#111",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: 8,
-                            marginBottom: 6,
-                          }}
-                        >
-                          <span style={{ fontWeight: 700, color: "#333" }}>
-                            {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              textTransform: "uppercase",
-                              color: issue.blocking ? "#c62828" : "#6b7280",
-                            }}
-                          >
-                            {issue.blocking ? "Blocking" : "Info"}
-                          </span>
-                        </div>
-                        <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
-                          {issue.description?.trim() || "No description"}
-                        </p>
-                        <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
-                          Reported by {issue.reportedBy} · Owner{" "}
-                          {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
-                          {new Date(issue.createdAt).toLocaleString()}
-                        </p>
-                        <button
-                          type="button"
-                          data-testid={`resolve-issue-${issue.id}`}
-                          disabled={mutationLoading}
-                          onClick={() => {
-                            setResolveIssueId(issue.id);
-                            setResolutionType("found_in_shop");
-                            setResolutionNote("");
-                          }}
-                          style={{
-                            marginTop: 8,
-                            padding: "6px 10px",
-                            borderRadius: 6,
-                            border: `1px solid ${navy}`,
-                            backgroundColor: "#fff",
-                            color: navy,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: mutationLoading ? "not-allowed" : "pointer",
-                            opacity: mutationLoading ? 0.6 : 1,
-                          }}
-                        >
-                          Resolve
-                        </button>
-                      </div>
-                    ))
-                )}
-                {details.materialIssues.filter((i) => i.status === "resolved").length >
-                  0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <p
-                      style={{
-                        margin: "0 0 8px",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#6b7280",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                      }}
-                    >
-                      Recently resolved
-                    </p>
-                    {details.materialIssues
-                      .filter((i) => i.status === "resolved")
-                      .slice(0, 3)
-                      .map((issue) => (
-                        <div
-                          key={issue.id}
-                          style={{
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 8,
-                            padding: "10px 12px",
-                            backgroundColor: "#f9fafb",
-                            marginBottom: 6,
-                          }}
-                        >
-                          <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700 }}>
-                            {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
-                            {issue.resolutionType
-                              ? ` → ${ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType]}`
-                              : ""}
-                          </p>
-                          {issue.resolutionNote && (
-                            <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>
-                              {issue.resolutionNote}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            ),
-          },
-          {
-            title: `Items (${details.items.length})`,
-            content: (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 8,
-                }}
-              >
-                {details.items.map((item) => {
-                  const sb = STATUS_BADGE_LOCAL[item.status] ?? {
-                    bg: "#f8f9fa",
-                    text: "#495057",
-                    border: "#ced4da",
-                  };
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        border: "1px solid #e0e3e8",
-                        borderRadius: 8,
-                        padding: "12px",
-                        backgroundColor: "#fff",
-                        boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          gap: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <div>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontWeight: 700,
-                              color: "#111",
-                            }}
-                          >
-                            {item.description}
-                          </p>
-                          <p
-                            style={{
-                              margin: "3px 0 0",
-                              fontSize: 11,
-                              color: "#9ca3af",
-                              fontFamily: "monospace",
-                            }}
-                          >
-                            SKU: {item.sku ?? "—"}
-                          </p>
-                        </div>
-                        <span
-                          style={{
-                            flexShrink: 0,
-                            padding: "3px 8px",
-                            borderRadius: 4,
-                            fontSize: 10,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                            backgroundColor: sb.bg,
-                            color: sb.text,
-                            border: `1px solid ${sb.border}`,
-                          }}
-                        >
-                          {item.status}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr 1fr",
-                          gap: 8,
-                        }}
-                      >
-                        {[
-                          {
-                            label: "Ordered",
-                            value: item.qtyOrdered,
-                            bg: "#f8f9fa",
-                            text: "#333",
-                            border: "#e0e3e8",
-                          },
-                          {
-                            label: "Received",
-                            value: item.qtyReceived,
-                            bg: "#e8f5e9",
-                            text: "#2e7d32",
-                            border: "#a5d6a7",
-                          },
-                          {
-                            label: "Missing",
-                            value: item.qtyMissing,
-                            bg: "#ffebee",
-                            text: "#c62828",
-                            border: "#ef9a9a",
-                          },
-                        ].map(({ label, value, bg, text, border }) => (
-                          <div
-                            key={label}
-                            style={{
-                              backgroundColor: bg,
-                              border: `1px solid ${border}`,
-                              borderRadius: 4,
-                              padding: "8px 4px",
-                              textAlign: "center",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: text,
-                                marginBottom: 2,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
-                              }}
-                            >
-                              {label}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 16,
-                                fontWeight: 700,
-                                fontFamily: "monospace",
-                                color: text,
-                              }}
-                            >
-                              {value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ),
-          },
-          {
-            title: "Status History",
-            content: (
-              <div
-                style={{
-                  position: "relative",
-                  paddingLeft: 20,
-                  borderLeft: `2px solid #e0e3e8`,
-                  marginLeft: 8,
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 16,
-                }}
-              >
-                {details.statusHistory.length ? (
-                  details.statusHistory.map((event) => (
-                    <div key={event.id} style={{ position: "relative" }}>
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: -27,
-                          top: 4,
-                          width: 14,
-                          height: 14,
-                          borderRadius: "50%",
-                          backgroundColor: "#fff",
-                          border: `2px solid ${navy}`,
-                          boxShadow: `0 0 0 3px #eef2ff`,
-                        }}
-                      />
-                      <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
-                        {event.entityType}{" "}
-                        <span
-                          style={{
-                            color: "#9ca3af",
-                            fontWeight: 400,
-                            fontSize: 12,
-                          }}
-                        >
-                          →
-                        </span>{" "}
-                        <span
-                          style={{
-                            textTransform: "uppercase",
-                            fontSize: 11,
-                            letterSpacing: "0.06em",
-                            color: navy,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {event.toStatus}
-                        </span>
+                        {item.description}
                       </p>
                       <p
                         style={{
                           margin: "3px 0 0",
-                          fontSize: 12,
+                          fontSize: 11,
                           color: "#9ca3af",
+                          fontFamily: "monospace",
                         }}
                       >
-                        {event.actorType}
-                        {event.actorName ? ` · ${event.actorName}` : ""} ·{" "}
-                        {new Date(event.createdAt).toLocaleString()}
+                        SKU: {item.sku ?? "—"}
                       </p>
-                      {event.reason && (
-                        <p
-                          style={{
-                            margin: "6px 0 0",
-                            fontSize: 13,
-                            color: "#333",
-                            backgroundColor: "#f8fafc",
-                            padding: "7px 10px",
-                            borderRadius: 4,
-                            border: "1px solid #e0e3e8",
-                          }}
-                        >
-                          {event.reason}
-                        </p>
-                      )}
                     </div>
-                  ))
-                ) : (
-                  <p style={{ color: "#9ca3af", fontSize: 13 }}>
-                    No status history found.
-                  </p>
-                )}
-              </div>
-            ),
-          },
-          {
-            title: "Pickup Events",
-            content: (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 8,
-                }}
-              >
-                {details.pickupEvents.length ? (
-                  details.pickupEvents.map((pickup) => (
-                    <div
-                      key={pickup.id}
+                    <span
                       style={{
-                        border: "1px solid #e0e3e8",
-                        borderRadius: 8,
-                        padding: "12px",
-                        backgroundColor: "#fff",
-                        boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+                        flexShrink: 0,
+                        padding: "3px 8px",
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        backgroundColor: sb.bg,
+                        color: sb.text,
+                        border: `1px solid ${sb.border}`,
                       }}
                     >
-                      <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
-                        {pickup.technicianName}
-                      </p>
-                      <p
+                      {item.status}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: 8,
+                    }}
+                  >
+                    {[
+                      {
+                        label: "Ordered",
+                        value: item.qtyOrdered,
+                        bg: "#f8f9fa",
+                        text: "#333",
+                        border: "#e0e3e8",
+                      },
+                      {
+                        label: "Received",
+                        value: item.qtyReceived,
+                        bg: "#e8f5e9",
+                        text: "#2e7d32",
+                        border: "#a5d6a7",
+                      },
+                      {
+                        label: "Missing",
+                        value: item.qtyMissing,
+                        bg: "#ffebee",
+                        text: "#c62828",
+                        border: "#ef9a9a",
+                      },
+                    ].map(({ label, value, bg, text, border }) => (
+                      <div
+                        key={label}
                         style={{
-                          margin: "3px 0 8px",
-                          fontSize: 12,
-                          color: "#9ca3af",
-                        }}
-                      >
-                        {new Date(pickup.pickedUpAt).toLocaleString()}
-                      </p>
-                      <p
-                        style={{
-                          margin: 0,
-                          backgroundColor: "#f8fafc",
-                          padding: "8px 12px",
+                          backgroundColor: bg,
+                          border: `1px solid ${border}`,
                           borderRadius: 4,
-                          border: "1px solid #e0e3e8",
-                          color: "#333",
+                          padding: "8px 4px",
+                          textAlign: "center",
                         }}
                       >
-                        {pickup.itemsPickedSummary}
-                      </p>
-                      {pickup.notes && (
-                        <p
+                        <div
                           style={{
-                            margin: "8px 0 0",
-                            fontSize: 12,
-                            color: "#6b7280",
-                            fontStyle: "italic",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: text,
+                            marginBottom: 2,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
                           }}
                         >
-                          Note: {pickup.notes}
-                        </p>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p style={{ color: "#9ca3af", fontSize: 13 }}>
-                    No pickup events recorded yet.
+                          {label}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            fontFamily: "monospace",
+                            color: text,
+                          }}
+                        >
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>,
+        )}
+        {renderDrawerSection(
+          "Status History",
+          <div
+            style={{
+              position: "relative",
+              paddingLeft: 20,
+              borderLeft: `2px solid #e0e3e8`,
+              marginLeft: 8,
+              display: "flex",
+              flexDirection: "column" as const,
+              gap: 16,
+            }}
+          >
+            {details.statusHistory.length ? (
+              details.statusHistory.map((event) => (
+                <div key={event.id} style={{ position: "relative" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: -27,
+                      top: 4,
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      backgroundColor: "#fff",
+                      border: `2px solid ${navy}`,
+                      boxShadow: `0 0 0 3px #eef2ff`,
+                    }}
+                  />
+                  <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                    {event.entityType}{" "}
+                    <span
+                      style={{
+                        color: "#9ca3af",
+                        fontWeight: 400,
+                        fontSize: 12,
+                      }}
+                    >
+                      →
+                    </span>{" "}
+                    <span
+                      style={{
+                        textTransform: "uppercase",
+                        fontSize: 11,
+                        letterSpacing: "0.06em",
+                        color: navy,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {event.toStatus}
+                    </span>
                   </p>
-                )}
-              </div>
-            ),
-          },
-        ].map(({ title, content }) => (
-          <section key={title}>
-            <h3
-              style={{
-                margin: "0 0 10px",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.10em",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 16,
-                  height: 2,
-                  backgroundColor: navy,
-                  borderRadius: 2,
-                  flexShrink: 0,
-                }}
-              />
-              {title}
-            </h3>
-            {content}
-          </section>
-        ))}
+                  <p
+                    style={{
+                      margin: "3px 0 0",
+                      fontSize: 12,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    {event.actorType}
+                    {event.actorName ? ` · ${event.actorName}` : ""} ·{" "}
+                    {new Date(event.createdAt).toLocaleString()}
+                  </p>
+                  {event.reason && (
+                    <p
+                      style={{
+                        margin: "6px 0 0",
+                        fontSize: 13,
+                        color: "#333",
+                        backgroundColor: "#f8fafc",
+                        padding: "7px 10px",
+                        borderRadius: 4,
+                        border: "1px solid #e0e3e8",
+                      }}
+                    >
+                      {event.reason}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p style={{ color: "#9ca3af", fontSize: 13 }}>
+                No status history found.
+              </p>
+            )}
+          </div>,
+        )}
+        {renderDrawerSection(
+          "Pickup Events",
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column" as const,
+              gap: 8,
+            }}
+          >
+            {details.pickupEvents.length ? (
+              details.pickupEvents.map((pickup) => (
+                <div
+                  key={pickup.id}
+                  style={{
+                    border: "1px solid #e0e3e8",
+                    borderRadius: 8,
+                    padding: "12px",
+                    backgroundColor: "#fff",
+                    boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+                  }}
+                >
+                  <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                    {pickup.technicianName}
+                  </p>
+                  <p
+                    style={{
+                      margin: "3px 0 8px",
+                      fontSize: 12,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    {new Date(pickup.pickedUpAt).toLocaleString()}
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      backgroundColor: "#f8fafc",
+                      padding: "8px 12px",
+                      borderRadius: 4,
+                      border: "1px solid #e0e3e8",
+                      color: "#333",
+                    }}
+                  >
+                    {pickup.itemsPickedSummary}
+                  </p>
+                  {pickup.notes && (
+                    <p
+                      style={{
+                        margin: "8px 0 0",
+                        fontSize: 12,
+                        color: "#6b7280",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Note: {pickup.notes}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p style={{ color: "#9ca3af", fontSize: 13 }}>
+                No pickup events recorded yet.
+              </p>
+            )}
+          </div>,
+        )}
       </div>
       {resolveIssueId && (
         <div
