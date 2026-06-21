@@ -62,7 +62,7 @@ import {
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
-import { ProposedEmailUpdatesPanel } from "./dispatcher/email/ProposedEmailUpdatesPanel";
+import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -809,7 +809,7 @@ export function DispatcherDashboardPage() {
             </p>
           </div>
 
-          <ProposedEmailUpdatesPanel />
+          <NeedsReviewEmailStrip />
 
           {/* ── Summary tiles ── */}
           {allRows.length > 0 && (

@@ -4,4 +4,5 @@ export * from "./matchEmailToRecords";
 export * from "./processEmailMessage";
 export * from "./emailFixtures";
 export * from "./getProposedEmailUpdates";
-export * from "./ProposedEmailUpdatesPanel";
+export * from "./emailReviewHelpers";
+export * from "./NeedsReviewEmailStrip";

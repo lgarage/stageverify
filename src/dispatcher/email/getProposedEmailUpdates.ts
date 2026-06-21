@@ -30,6 +30,10 @@ export interface ProposedEmailUpdate {
   matchedDeliveryOrderId: string | null;
   itemLines: Array<{ description: string; qty?: number }>;
   bodyExcerpt: string;
+  /** Full original body — shown only after View Original Email (fixtures / future VendorEmailEvent). */
+  originalBody: string;
+  recipientEmails: string[];
+  threadId?: string;
   proposedOperationalMeaning: string;
   affectsCondition1: boolean;
   condition1ApprovalNote: string;
@@ -79,6 +83,9 @@ export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
       matchedDeliveryOrderId: result.match.deliveryOrderId ?? null,
       itemLines: result.parsed.itemLines,
       bodyExcerpt: bodyExcerpt(fixture.bodyText),
+      originalBody: fixture.bodyText,
+      recipientEmails: fixture.recipientEmails,
+      threadId: fixture.threadId,
       proposedOperationalMeaning: describeOperationalMeaning(
         result.parsed.classification,
         result.parsed,
@@ -103,6 +110,12 @@ export function filterProposalsForDelivery(
   poNumber?: string | null,
 ): ProposedEmailUpdate[] {
   return proposals.filter((p) => {
+    if (
+      p.classification === "unable_to_match" ||
+      p.classification === "needs_dispatcher_review"
+    ) {
+      return false;
+    }
     if (p.matchedDeliveryOrderId && p.matchedDeliveryOrderId === delivery.id) {
       return true;
     }

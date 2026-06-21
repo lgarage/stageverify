@@ -245,13 +245,15 @@ function sidebar(page) {
     console.log("SKIP job readiness panel: no delivery rows to open.");
   }
 
-  console.log("Proposed Email Updates panel (Phase 5)…");
-  await page.getByTestId("proposed-email-updates-panel").waitFor({
+  console.log("Needs Review email strip (Phase 5)…");
+  await page.getByTestId("needs-review-email-strip").waitFor({
     timeout: 15_000,
   });
-  await page.getByTestId("proposed-email-summary").waitFor({ timeout: 10_000 });
-  await page.getByTestId("proposed-email-filters").waitFor({ timeout: 10_000 });
-  console.log("Phase 5 PASS: proposed-email-updates-panel visible with summary + filters.");
+  await page.getByTestId("needs-review-email-count").waitFor({ timeout: 10_000 });
+  if (await page.getByTestId("proposed-email-updates-panel").count()) {
+    throw new Error("Proposed Email Updates panel must be retired");
+  }
+  console.log("Phase 5 PASS: needs-review-email-strip visible; legacy panel absent.");
 
   console.log("Shop stock directory on Staging Map…");
   await page.goto(`${appBase}/#/zones`, {

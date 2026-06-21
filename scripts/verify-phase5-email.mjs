@@ -1,5 +1,5 @@
 /**
- * Playwright: Phase 5 Proposed Email Updates panel — filters + row expand.
+ * Playwright: Phase 5 email UI — Needs Review strip + drawer Email Evidence.
  *
  * Usage:
  *   npm run dev
@@ -65,108 +65,65 @@ async function ensureAuthenticated(page) {
   });
   const page = await context.newPage();
 
-  console.log("Opening dispatcher Proposed Email panel…");
+  console.log("Opening dispatcher Needs Review email strip…");
   await ensureAuthenticated(page);
-  await page.getByTestId("proposed-email-updates-panel").waitFor({
+  await page.getByRole("heading", { name: "Delivery Overview" }).waitFor({
     timeout: 30_000,
   });
-  await page.getByTestId("proposed-email-summary").waitFor({ timeout: 10_000 });
 
-  const summaryAll = page.getByTestId("proposed-email-summary");
-  const allText = (await summaryAll.innerText()) ?? "";
-  const allMatch = allText.match(/(\d+)\s+proposals/);
-  const allCount = allMatch ? Number(allMatch[1]) : 0;
-  if (allCount < 1) {
-    throw new Error(`Expected at least 1 proposal in summary, got: ${allText}`);
-  }
-  console.log(`All view: ${allCount} proposals`);
-
-  const firstRow = page.locator('[data-testid^="proposed-email-row-"]').first();
-  const rowTestId = await firstRow.getAttribute("data-testid");
-  if (!rowTestId) throw new Error("No proposed email row found");
-  const messageId = rowTestId.replace("proposed-email-row-", "");
-
-  console.log("Filter: Needs review…");
-  await page.getByTestId("proposed-email-filter-needs_review").click();
-  await page.waitForTimeout(300);
-  const needsReviewRows = page.locator('[data-testid^="proposed-email-row-"]');
-  const needsReviewCount = await needsReviewRows.count();
-  if (needsReviewCount < 1) {
-    throw new Error("Needs review filter returned zero rows");
-  }
-  console.log(`Needs review filter: ${needsReviewCount} row(s)`);
-
-  console.log("Filter: Low confidence…");
-  await page.getByTestId("proposed-email-filter-low_confidence").click();
-  await page.waitForTimeout(300);
-  const lowConfRows = page.locator('[data-testid^="proposed-email-row-"]');
-  const lowConfCount = await lowConfRows.count();
-  console.log(`Low confidence filter: ${lowConfCount} row(s)`);
-
-  console.log("Filter: All (restore)…");
-  await page.getByTestId("proposed-email-filter-all").click();
-  await page.waitForTimeout(300);
-  const restoredCount = await page.locator('[data-testid^="proposed-email-row-"]').count();
-  if (restoredCount !== allCount) {
+  if (await page.getByTestId("proposed-email-updates-panel").count()) {
     throw new Error(
-      `All filter row count mismatch: expected ${allCount}, got ${restoredCount}`,
+      "Proposed Email Updates panel must be retired — found proposed-email-updates-panel",
     );
   }
 
-  console.log(`Expand row ${messageId}…`);
-  await page.getByTestId(`proposed-email-row-${messageId}`).click();
-  await page.getByTestId(`proposed-email-detail-${messageId}`).waitFor({
-    timeout: 10_000,
-  });
-  const detail = page.getByTestId(`proposed-email-detail-${messageId}`);
-  const detailText = await detail.innerText();
+  await page.getByTestId("needs-review-email-strip").waitFor({ timeout: 30_000 });
+  const countEl = page.getByTestId("needs-review-email-count");
+  const countText = (await countEl.innerText()) ?? "";
+  const needsMatch = countText.match(/Needs Review \((\d+)\)/);
+  const needsCount = needsMatch ? Number(needsMatch[1]) : 0;
+  if (needsCount < 1) {
+    throw new Error(`Expected at least 1 needs-review email, got: ${countText}`);
+  }
+  console.log(`Needs Review strip: ${needsCount} item(s)`);
 
-  const requiredDetailTestIds = [
-    "proposed-email-detail-job",
-    "proposed-email-detail-po",
-    "proposed-email-detail-order",
-    "proposed-email-detail-delivery",
-    "proposed-email-detail-confidence",
-    "proposed-email-detail-meaning",
-    "proposed-email-detail-condition1",
-    "proposed-email-detail-items",
-    "proposed-email-detail-body",
+  const matchedRowTestId = page.locator('[data-testid^="proposed-email-row-"]');
+  if ((await matchedRowTestId.count()) > 0) {
+    throw new Error("Matched emails must not appear in dashboard table rows");
+  }
+
+  if (await page.getByTestId("email-evidence-list").isVisible().catch(() => false)) {
+    throw new Error("Email Evidence must be collapsed by default on dashboard load");
+  }
+
+  console.log("Delivery drawer: Email Evidence section (before strip expand)…");
+  const search = page.locator('input[placeholder*="Job #, name, PO"]');
+  await search.waitFor({ state: "visible", timeout: 30_000 });
+  const ordersWithFixtureEvidence = [
+    "ORD-1007",
+    "ORD-7712",
+    "ORD-8821",
+    "ORD-1010",
+    "ORD-9102",
   ];
-  for (const testId of requiredDetailTestIds) {
-    const el = detail.getByTestId(testId);
-    if (!(await el.isVisible())) {
-      throw new Error(`Expanded detail missing ${testId}`);
+  let viewReady = false;
+  for (const orderNumber of ordersWithFixtureEvidence) {
+    await search.fill(orderNumber);
+    await page.waitForTimeout(1200);
+    const btn = page.locator("button").filter({ hasText: /^View$/ }).first();
+    if (await btn.isVisible().catch(() => false)) {
+      viewReady = true;
+      break;
     }
   }
-
-  const confidenceText = await detail.getByTestId("proposed-email-detail-confidence").innerText();
-  if (!/\d+%/.test(confidenceText)) {
-    throw new Error(`Detail confidence missing score: ${confidenceText}`);
+  if (!viewReady) {
+    await search.fill("");
+    await page.waitForTimeout(800);
   }
-  const meaningText = await detail.getByTestId("proposed-email-detail-meaning").innerText();
-  if (meaningText.trim().length < 8) {
-    throw new Error(`Detail operational meaning too short: ${meaningText}`);
-  }
-  const condition1Text = await detail.getByTestId("proposed-email-detail-condition1").innerText();
-  if (!/Condition 1|would not update/i.test(condition1Text)) {
-    throw new Error(`Detail Condition 1 note missing: ${condition1Text}`);
-  }
-  const bodyText = await detail.getByTestId("proposed-email-detail-body").innerText();
-  if (bodyText.trim().length < 10) {
-    throw new Error(`Detail body excerpt too short: ${bodyText}`);
-  }
-  console.log("Row expand PASS: evidence detail fields visible");
-
-  console.log("Collapse row…");
-  await page.getByTestId(`proposed-email-row-${messageId}`).click();
-  await page.waitForTimeout(200);
-  if (await page.getByTestId(`proposed-email-detail-${messageId}`).isVisible()) {
-    throw new Error("Detail row still visible after collapse click");
-  }
-
-  console.log("Delivery drawer: Readiness Evidence panel…");
   const firstViewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
+  await firstViewBtn.waitFor({ state: "visible", timeout: 30_000 });
   if (await firstViewBtn.isVisible().catch(() => false)) {
+    await firstViewBtn.scrollIntoViewIfNeeded();
     await firstViewBtn.click();
     await page.waitForTimeout(800);
     const evidencePanel = page.getByTestId("readiness-evidence-panel");
@@ -179,6 +136,46 @@ async function ensureAuthenticated(page) {
     if (!/does not determine readiness/i.test(noteText)) {
       throw new Error(`Condition 1 note missing disclaimer: ${noteText}`);
     }
+
+    await page.getByTestId("email-evidence-section").waitFor({ timeout: 10_000 });
+    if (await page.getByTestId("email-evidence-list").isVisible()) {
+      throw new Error("Email Evidence list must be collapsed by default");
+    }
+
+    await page.getByTestId("email-evidence-toggle").click();
+    await page.getByTestId("email-evidence-list").waitFor({ timeout: 10_000 });
+
+    const card = page.locator('[data-testid^="email-evidence-card-"]').first();
+    if (await card.isVisible().catch(() => false)) {
+      const cardTestId = await card.getAttribute("data-testid");
+      const cardId = cardTestId?.replace("email-evidence-card-", "") ?? "";
+      if (cardId) {
+        if (await page.getByTestId(`email-evidence-original-${cardId}`).isVisible()) {
+          throw new Error("Drawer original email visible before View Original Email");
+        }
+        await page.getByTestId(`email-evidence-view-original-${cardId}`).click();
+        await page.getByTestId(`email-evidence-original-body-${cardId}`).waitFor({
+          timeout: 10_000,
+        });
+        const drawerBody = await page
+          .getByTestId(`email-evidence-original-body-${cardId}`)
+          .innerText();
+        if (drawerBody.trim().length < 10) {
+          throw new Error(`Drawer original body too short: ${drawerBody}`);
+        }
+      }
+      console.log("Drawer Email Evidence PASS: collapsed default + View Original Email");
+    } else {
+      const empty = page.getByTestId("email-evidence-empty");
+      if (await empty.isVisible().catch(() => false)) {
+        console.log(
+          "Drawer Email Evidence: no fixture-matched orders in Firestore — empty state OK.",
+        );
+      } else {
+        throw new Error("Email Evidence expanded but no cards or empty state");
+      }
+    }
+
     const statusEl = page.getByTestId("readiness-evidence-condition1-status");
     if (await statusEl.isVisible().catch(() => false)) {
       const statusText = await statusEl.innerText();
@@ -187,10 +184,45 @@ async function ensureAuthenticated(page) {
       }
       console.log(`Drawer Condition 1 status: ${statusText.trim()}`);
     }
-    console.log("Drawer PASS: readiness-evidence-panel visible with condition1/2/blockers.");
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
   } else {
-    console.log("SKIP drawer readiness evidence: no delivery rows to open.");
+    throw new Error("Expected at least one delivery View button for drawer email evidence test");
   }
+
+  console.log("Expand Needs Review strip…");
+  await page.getByTestId("needs-review-email-toggle").click();
+  await page.getByTestId("needs-review-email-list").waitFor({ timeout: 10_000 });
+
+  const firstItem = page.locator('[data-testid^="needs-review-email-item-"]').first();
+  const itemTestId = await firstItem.getAttribute("data-testid");
+  if (!itemTestId) throw new Error("No needs-review email item found");
+  const messageId = itemTestId.replace("needs-review-email-item-", "");
+
+  const reasonEl = page.getByTestId(`needs-review-email-reason-${messageId}`);
+  const reasonText = await reasonEl.innerText();
+  if (/confidence low/i.test(reasonText)) {
+    throw new Error(`Review reason must not say confidence low: ${reasonText}`);
+  }
+  if (!/Review Required/i.test(reasonText)) {
+    throw new Error(`Expected Review Required label: ${reasonText}`);
+  }
+
+  console.log("View Original Email hidden until click…");
+  if (await page.getByTestId(`needs-review-original-${messageId}`).isVisible()) {
+    throw new Error("Original email visible before View Original Email click");
+  }
+  await page.getByTestId(`needs-review-view-original-${messageId}`).click();
+  await page.getByTestId(`needs-review-original-${messageId}`).waitFor({
+    timeout: 10_000,
+  });
+  const originalBody = page.getByTestId(`needs-review-original-${messageId}`);
+  const bodyText = await originalBody.innerText();
+  if (bodyText.trim().length < 10) {
+    throw new Error(`Original email body too short: ${bodyText}`);
+  }
+  console.log("Needs Review strip PASS");
 
   await browser.close();
   console.log("verify:phase5-email PASS");

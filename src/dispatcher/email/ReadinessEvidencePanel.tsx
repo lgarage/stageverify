@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { DeliveryDetails, StagingLocation } from "../models";
 import { computeDeliveryReadiness } from "../readiness";
 import {
@@ -6,6 +6,12 @@ import {
   getProposedEmailUpdates,
 } from "./getProposedEmailUpdates";
 import { hasVendorOrderCompleteApplyConflict } from "./emailApplyConflicts";
+import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
+import {
+  getHumanReviewReason,
+  getSvInterpretation,
+  proposalNeedsDrawerReview,
+} from "./emailReviewHelpers";
 
 const BLOCK_LABEL: Record<string, string> = {
   vendor_order_incomplete: "Vendor order not complete",
@@ -16,22 +22,156 @@ const BLOCK_LABEL: Record<string, string> = {
   unresolved_backorder: "Unresolved backorder on items",
 };
 
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
+function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const interpretation = getSvInterpretation(row);
+  const needsReview = proposalNeedsDrawerReview(row);
+
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div
+      data-testid={`email-evidence-card-${row.messageId}`}
+      style={{
+        backgroundColor: "#fff",
+        border: "1px solid #e0e3e8",
+        borderRadius: 6,
+        padding: "12px",
+      }}
+    >
       <div
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-          color: "#64748b",
-          marginBottom: 3,
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 6,
         }}
       >
-        {label}
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+          {row.vendorName ?? row.senderEmail}
+        </span>
+        <span style={{ fontSize: 11, color: "#64748b" }}>
+          {row.receivedAt.slice(0, 10)}
+        </span>
       </div>
-      <div style={{ color: "#334155", lineHeight: 1.45 }}>{children}</div>
+      <p style={{ margin: "0 0 8px", fontSize: 12, color: "#475569" }}>
+        {row.subject}
+        {row.poNumber ? (
+          <span style={{ fontFamily: "monospace", marginLeft: 6 }}>{row.poNumber}</span>
+        ) : null}
+      </p>
+
+      {needsReview ? (
+        <p
+          data-testid={`email-evidence-review-${row.messageId}`}
+          style={{
+            margin: "0 0 8px",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#b45309",
+          }}
+        >
+          Review Required — {getHumanReviewReason(row)}
+        </p>
+      ) : null}
+
+      {interpretation.length > 0 && (
+        <div
+          data-testid={`email-evidence-interpretation-${row.messageId}`}
+          style={{ marginBottom: 8, fontSize: 12, color: "#334155" }}
+        >
+          <span style={{ fontWeight: 700, fontSize: 11, color: "#64748b" }}>
+            SV Interpretation:{" "}
+          </span>
+          {interpretation.map((line) => (
+            <span key={line.label} style={{ marginRight: 10 }}>
+              {line.ok ? "✓" : "○"} {line.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p
+        data-testid={`email-evidence-classification-${row.messageId}`}
+        style={{ margin: "0 0 6px", fontSize: 11, color: "#64748b" }}
+      >
+        {row.classification.replace(/_/g, " ")} · {row.receivedAt.slice(0, 16).replace("T", " ")}
+      </p>
+
+      {row.itemLines.length > 0 && (
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b" }}>
+          {row.itemLines.length} parsed line(s)
+        </p>
+      )}
+
+      {row.condition1ApprovalNote && (
+        <p
+          data-testid={`email-evidence-condition1-note-${row.messageId}`}
+          style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b" }}
+        >
+          {row.condition1ApprovalNote}
+        </p>
+      )}
+
+      <button
+        type="button"
+        data-testid={`email-evidence-view-original-${row.messageId}`}
+        onClick={() => setShowOriginal((v) => !v)}
+        style={{
+          padding: "4px 10px",
+          borderRadius: 4,
+          border: "1px solid #0a3161",
+          backgroundColor: "#fff",
+          color: "#0a3161",
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        {showOriginal ? "Hide Original Email" : "View Original Email"}
+      </button>
+
+      {showOriginal && (
+        <div
+          data-testid={`email-evidence-original-${row.messageId}`}
+          style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            backgroundColor: "#f8fafc",
+            borderRadius: 4,
+            fontSize: 12,
+            color: "#334155",
+          }}
+        >
+          <div style={{ marginBottom: 4 }}>
+            <strong>From:</strong> {row.senderEmail}
+          </div>
+          <div style={{ marginBottom: 4 }}>
+            <strong>To:</strong> {row.recipientEmails.join(", ")}
+          </div>
+          {row.threadId ? (
+            <div style={{ marginBottom: 4 }}>
+              <strong>Thread:</strong> {row.threadId}
+            </div>
+          ) : null}
+          <div style={{ marginBottom: 4 }}>
+            <strong>Date:</strong> {new Date(row.receivedAt).toLocaleString()}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>Subject:</strong> {row.subject}
+          </div>
+          <pre
+            data-testid={`email-evidence-original-body-${row.messageId}`}
+            style={{
+              margin: 0,
+              whiteSpace: "pre-wrap",
+              fontFamily: "inherit",
+              fontSize: 12,
+            }}
+          >
+            {row.originalBody}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
@@ -54,6 +194,8 @@ export function ReadinessEvidencePanel({
     const all = getProposedEmailUpdates();
     return filterProposalsForDelivery(all, delivery, poNumber);
   }, [delivery, poNumber]);
+
+  const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
 
   const readiness = useMemo(
     () => computeDeliveryReadiness(delivery, items),
@@ -179,85 +321,10 @@ export function ReadinessEvidencePanel({
               : ""}
           </p>
         ) : null}
-        {proposals.length === 0 ? (
-          <p
-            data-testid="readiness-evidence-condition1-empty"
-            style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}
-          >
-            No offline email proposals matched this delivery.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {proposals.map((row) => (
-              <div
-                key={row.messageId}
-                data-testid={`readiness-evidence-email-${row.messageId}`}
-                style={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #e0e3e8",
-                  borderRadius: 6,
-                  padding: "12px",
-                }}
-              >
-                <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#333" }}>
-                  {row.subject}
-                </p>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                    gap: "4px 16px",
-                    fontSize: 12,
-                  }}
-                >
-                  <DetailField label="Confidence">
-                    <span data-testid={`readiness-evidence-confidence-${row.messageId}`}>
-                      {row.confidenceScore}% — {row.confidenceReason}
-                    </span>
-                  </DetailField>
-                  <DetailField label="Matched Job #">
-                    {row.matchedJobNumber ?? "—"}
-                  </DetailField>
-                  <DetailField label="Matched PO #">
-                    <span style={{ fontFamily: "monospace" }}>
-                      {row.matchedPoLabel ?? "—"}
-                    </span>
-                  </DetailField>
-                  <DetailField label="Matched Order #">
-                    <span style={{ fontFamily: "monospace" }}>
-                      {row.matchedOrderLabel ?? "—"}
-                    </span>
-                  </DetailField>
-                  <DetailField label="Matched Delivery">
-                    {row.matchedDeliveryLabel ?? "—"}
-                  </DetailField>
-                </div>
-                <DetailField label="Parsed meaning">
-                  {row.proposedOperationalMeaning}
-                </DetailField>
-                <DetailField label="Source email excerpt">
-                  <blockquote
-                    style={{
-                      margin: 0,
-                      padding: "8px 10px",
-                      borderLeft: "3px solid #cbd5e1",
-                      backgroundColor: "#f8fafc",
-                      color: "#475569",
-                      fontStyle: "italic",
-                      fontSize: 12,
-                    }}
-                  >
-                    {row.bodyExcerpt}
-                  </blockquote>
-                </DetailField>
-              </div>
-            ))}
-          </div>
-        )}
         <p
           data-testid="readiness-evidence-condition1-note"
           style={{
-            margin: "10px 0 0",
+            margin: 0,
             fontSize: 11,
             color: "#64748b",
             fontStyle: "italic",
@@ -265,6 +332,69 @@ export function ReadinessEvidencePanel({
         >
           Email evidence supports readiness but does not determine readiness.
         </p>
+      </div>
+
+      <div
+        data-testid="email-evidence-section"
+        style={{ borderTop: "1px solid #eaecf0", paddingTop: 12 }}
+      >
+        <button
+          type="button"
+          data-testid="email-evidence-toggle"
+          onClick={() => setEmailEvidenceOpen((v) => !v)}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            padding: 0,
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+            fontFamily: font,
+            textAlign: "left",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: navy,
+              letterSpacing: "0.02em",
+            }}
+          >
+            Email Evidence ({proposals.length})
+          </span>
+          <span style={{ fontSize: 11, color: "#64748b" }}>
+            {emailEvidenceOpen ? "Collapse" : "Expand"}
+          </span>
+        </button>
+
+        {emailEvidenceOpen && (
+          <div
+            data-testid="email-evidence-list"
+            style={{
+              marginTop: 12,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            {proposals.length === 0 ? (
+              <p
+                data-testid="email-evidence-empty"
+                style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}
+              >
+                No matched email evidence for this delivery.
+              </p>
+            ) : (
+              proposals.map((row) => (
+                <EmailEvidenceCard key={row.messageId} row={row} />
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       <div
