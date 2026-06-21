@@ -386,6 +386,13 @@
       "status": "built",
       "commit": "4ad3bc5",
       "note": "msg-correction-015 fixture; test:email-parser 15/15 100%"
+    },
+    {
+      "id": "away-057",
+      "title": "Phase 5: proposal review detail panel",
+      "status": "built",
+      "commit": "dde119c",
+      "note": "Expanded proposal review detail; verify:phase5-email + test:email-parser PASS"
     }
   ],
   "summary": "away-042..053 shipped; active queue empty — see docs/project_state.md immediate next steps"

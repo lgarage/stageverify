@@ -10,33 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": [
-      "away-057"
-    ]
+    "sequence": []
   },
-  "queue": [
-    {
-      "id": "away-057",
-      "title": "Phase 5: proposal review detail panel",
-      "scope": "Per svscope §5 Condition 1: extend read-only Proposed Email Updates expanded row with parser/matcher evidence (job, PO, order, delivery labels, confidence reason, item lines, body excerpt, operational meaning, Condition 1 after-approval note). NO approve/reject, NO Firestore writes, NO live Gmail.",
-      "files": [
-        "src/dispatcher/email/getProposedEmailUpdates.ts",
-        "src/dispatcher/email/proposedEmailDetail.ts",
-        "src/dispatcher/email/ProposedEmailUpdatesPanel.tsx",
-        "scripts/verify-phase5-email.mjs"
-      ],
-      "tier": "T1",
-      "model": "composer-2.5",
-      "acceptance": "Expanded row shows all evidence fields; verify:phase5-email asserts detail testids; npm run build + test:email-parser + verify:phase5-email PASS.",
-      "capturedDuring": "Dan 2026-06-21 — away-057 Phase 5 proposal review detail",
-      "preApproved": true,
-      "dependsOn": "away-056",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run test:email-parser",
-        "npm run verify:phase5-email"
-      ],
-      "status": "queued"
-    }
-  ]
+  "queue": []
 }
