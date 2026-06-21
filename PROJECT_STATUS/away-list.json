@@ -12,21 +12,5 @@
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
     "sequence": []
   },
-  "queue": [
-    {
-      "id": "away-059",
-      "title": "Phase 5: vendor_order_complete CF auto-apply (Condition 1 only)",
-      "tier": "T3",
-      "archetype": "backend-write-critical",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run test:email-parser",
-        "npm run test:evidence-alignment",
-        "npm run test:process-inbound-vendor-email",
-        "npm run verify:phase5-email",
-        "npm run away:validate"
-      ],
-      "scope": "processInboundVendorEmail CF; vendorEmailEvents audit; ReadinessEvidencePanel status badge only"
-    }
-  ]
+  "queue": []
 }

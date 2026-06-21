@@ -400,6 +400,13 @@
       "status": "built",
       "commit": "8bf021b",
       "note": "Drawer READINESS EVIDENCE panel; verify:dispatcher-nav + verify:phase5-email PASS"
+    },
+    {
+      "id": "away-059",
+      "title": "Phase 5: vendor_order_complete CF auto-apply (Condition 1 only)",
+      "status": "built",
+      "commit": "c88a0f4",
+      "note": "processInboundVendorEmail CF; test+security PASS"
     }
   ],
   "summary": "away-042..053 shipped; active queue empty — see docs/project_state.md immediate next steps"
