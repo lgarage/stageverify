@@ -393,6 +393,13 @@
       "status": "built",
       "commit": "dde119c",
       "note": "Expanded proposal review detail; verify:phase5-email + test:email-parser PASS"
+    },
+    {
+      "id": "away-058",
+      "title": "Phase 5: readiness evidence in delivery drawer",
+      "status": "built",
+      "commit": "8bf021b",
+      "note": "Drawer READINESS EVIDENCE panel; verify:dispatcher-nav + verify:phase5-email PASS"
     }
   ],
   "summary": "away-042..053 shipped; active queue empty — see docs/project_state.md immediate next steps"
