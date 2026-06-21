@@ -177,6 +177,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 5 prototype (in progress)** — fingerprint dedup shipped `away-054`; next: `away-055` verify harness, `away-056` correction fixture.
-2. **ESL integration** — Phase 7; blocked on Minew credentials.
-3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
+1. **away-055** — Phase 5 verify:phase5-email interactive harness (filter clicks + row expand on Proposed Email panel).
+2. **away-056** — Phase 5 email correction fixture + parser expectations (svscope §5 correction-to-earlier-email).
+3. **ESL integration** — Phase 7; blocked on Minew credentials.
+4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
