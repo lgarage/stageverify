@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-055** — Phase 5: verify:phase5-email interactive harness
+- Last shipped: **away-056** — Phase 5: email correction fixture + parser expectations
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-056** — Phase 5: email correction fixture + parser expectations (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - **Librarian mini:** MEMORY.md router + `away:next` packet + `away:validate`

@@ -80,7 +80,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **M1 vendor revert hydration (shipped 2026-06-08):** `revertDeliveryStatus` vendor paths (early return + post-commit) route through `hydrateAfterVendorWrite` — unauthenticated revert no longer calls auth-only `getDeliveryDetails`. Focused security review: PASS. Local verify: vendor-e2e 10/10, pickup PASS.
 
-Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** — pickup issue resolution readback + `verify:phase4-integration`. **Phase 3 gate closed 2026-06-19–20** (integration verify + permanent shop-stock mapping). **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`).
+Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** — pickup issue resolution readback + `verify:phase4-integration`. **Phase 3 gate closed 2026-06-19–20** (integration verify + permanent shop-stock mapping). **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`). **Away-054..056 (2026-06-21):** fingerprint dedup, `verify:phase5-email`, correction-to-earlier-email fixture.
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
@@ -177,6 +177,6 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-056** — Phase 5 email correction fixture + parser expectations (svscope §5 correction-to-earlier-email).
+1. **Phase 5 prototype** — away-054..056 shipped (fingerprint dedup, `verify:phase5-email`, correction fixture); continue Phase 5 gate work or Phase 6 prep per roadmap.
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.

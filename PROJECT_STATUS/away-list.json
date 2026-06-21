@@ -10,33 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": [
-      "away-056"
-    ]
+    "sequence": []
   },
-  "queue": [
-    {
-      "id": "away-056",
-      "title": "Phase 5: email correction fixture + parser expectations",
-      "scope": "Per svscope §5 correction-to-earlier-email: add offline fixture msg-correction-015 to emailFixtures.ts; classify correction_to_earlier_email in parseVendorEmail.ts + types.ts; route corrections to human review in matchEmailToRecords.ts; add FIXTURE_EXPECTATIONS in test-email-parser.mjs. npm run test:email-parser ≥95% gate must pass.",
-      "files": [
-        "src/dispatcher/email/emailFixtures.ts",
-        "src/dispatcher/email/parseVendorEmail.ts",
-        "src/dispatcher/email/types.ts",
-        "src/dispatcher/email/matchEmailToRecords.ts",
-        "scripts/test-email-parser.mjs"
-      ],
-      "tier": "T1",
-      "model": "composer-2.5",
-      "acceptance": "msg-correction-015 classified correction_to_earlier_email with humanReviewRequired; npm run test:email-parser aggregate ≥95%; npm run build clean.",
-      "capturedDuring": "Dan 2026-06-21 — approved away batch away-054..056",
-      "preApproved": true,
-      "dependsOn": "away-055",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run test:email-parser"
-      ],
-      "status": "queued"
-    }
-  ]
+  "queue": []
 }
