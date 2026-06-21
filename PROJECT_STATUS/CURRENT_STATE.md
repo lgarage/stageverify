@@ -5,8 +5,8 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Phase 3 — Technician Pickup Workflow** (integration gate passed 2026-06-19; permanent shop-stock mapping still open)
-- Last shipped: **away-053** — Phase 5 inbox settings UI
+- Active Phase: **Phase 3 — Technician Pickup Workflow** (permanent shop-stock mapping shipped 2026-06-20)
+- Last shipped: **Phase 3 shop-stock directory** — `shopStockLocationMappings` CRUD on Staging Map, zone reservation badges, dispatcher directory link, CF qty on pickup
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

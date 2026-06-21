@@ -253,6 +253,14 @@ function sidebar(page) {
   await page.getByTestId("proposed-email-filters").waitFor({ timeout: 10_000 });
   console.log("Phase 5 PASS: proposed-email-updates-panel visible with summary + filters.");
 
+  console.log("Shop stock directory on Staging Map…");
+  await page.goto(`${appBase}/#/zones`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.getByTestId("shop-stock-directory").waitFor({ timeout: 15_000 });
+  console.log("Shop stock PASS: shop-stock-directory visible on /zones.");
+
   await browser.close();
   console.log("verify:dispatcher-nav PASS");
 })().catch((err) => {

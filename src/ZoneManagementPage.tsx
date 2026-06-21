@@ -6,7 +6,7 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react";
-import type { LocationStatus, StagingLocation } from "./dispatcher/models";
+import type { LocationStatus, StagingLocation, ShopStockLocationMapping } from "./dispatcher/models";
 import { isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
 import {
   formatStagingCodeCanonical,
@@ -18,8 +18,10 @@ import {
   updateZone,
   deactivateZone,
   mapActiveZoneOccupancyByCode,
+  listShopStockMappings,
   type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
+import { mapActiveShopStockReservationsByCode } from "./dispatcher/shopStockMapping";
 import {
   buildZoneEslQrUrl,
   formatZoneEslStatusLine,
@@ -32,6 +34,7 @@ import {
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
+import { ShopStockDirectoryPanel } from "./ShopStockDirectoryPanel";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -52,6 +55,13 @@ const ESL_TAG_HINT: Record<ZoneType, string> = {
   bin: "Minew ESL tag barcode",
   other: "Minew ESL tag barcode",
 };
+
+function zoneShopStockReservation(
+  code: string,
+  byCode: Record<string, ShopStockLocationMapping>,
+): ShopStockLocationMapping | undefined {
+  return byCode[normalizeStagingCodeKey(code)];
+}
 
 function zoneOccupancy(
   code: string,
@@ -217,6 +227,9 @@ export function ZoneManagementPage() {
   const [occupancyByZoneCode, setOccupancyByZoneCode] = useState<
     Record<string, ZoneOccupancySummary>
   >({});
+  const [shopStockByCode, setShopStockByCode] = useState<
+    Record<string, ShopStockLocationMapping>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
@@ -230,12 +243,14 @@ export function ZoneManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const [loaded, occupancy] = await Promise.all([
+      const [loaded, occupancy, mappings] = await Promise.all([
         listAllZones(),
         mapActiveZoneOccupancyByCode(),
+        listShopStockMappings(),
       ]);
       setZones(loaded);
       setOccupancyByZoneCode(occupancy);
+      setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
       setEslDrafts(
         Object.fromEntries(
           loaded.map((z) => [z.id, z.eslTagId ?? ""]),
@@ -801,6 +816,10 @@ export function ZoneManagementPage() {
                         zone.code,
                         occupancyByZoneCode,
                       );
+                      const shopStock = zoneShopStockReservation(
+                        zone.code,
+                        shopStockByCode,
+                      );
                       const qrUrl = buildZoneEslQrUrl(zone.code, occupancy);
                       const eslStatus = formatZoneEslStatusLine(occupancy);
                       const tagLinked = Boolean(zone.eslTagId?.trim());
@@ -901,6 +920,41 @@ export function ZoneManagementPage() {
                               {eslStatus}
                             </div>
                           </div>
+
+                          {shopStock && (
+                            <div
+                              data-testid="zone-shop-stock-reserved"
+                              style={{
+                                marginTop: 10,
+                                padding: "10px 12px",
+                                borderRadius: 6,
+                                backgroundColor: "#fff7ed",
+                                border: "1px solid #fdba74",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: "#c2410c",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                }}
+                              >
+                                Permanent shop stock
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: "#9a3412",
+                                  marginTop: 4,
+                                  lineHeight: 1.4,
+                                }}
+                              >
+                                {shopStock.stockItemLabel}
+                              </div>
+                            </div>
+                          )}
 
                           {zone.notes && (
                             <p
@@ -1006,6 +1060,10 @@ export function ZoneManagementPage() {
               );
             })
           )}
+
+          <div style={{ marginTop: 24 }}>
+            <ShopStockDirectoryPanel />
+          </div>
         </div>
         </div>
       </div>

@@ -199,6 +199,17 @@ exports.recordPickupEvent = (0, https_1.onCall)({
         ];
         const stillRemaining = assignedLocations.filter((id) => !mergedPicked.includes(id));
         const fullyPicked = stillRemaining.length === 0;
+        const qtyByMapping = new Map();
+        if (fullyPicked) {
+            for (const line of delivery.shopStockLines ?? []) {
+                const mappingId = line.shopStockMappingId?.trim();
+                if (!mappingId)
+                    continue;
+                const qty = typeof line.qty === "number" && line.qty > 0 ? line.qty : 1;
+                qtyByMapping.set(mappingId, (qtyByMapping.get(mappingId) ?? 0) + qty);
+            }
+        }
+        const mappingSnaps = await Promise.all([...qtyByMapping.keys()].map((mappingId) => tx.get(db.collection("shopStockLocationMappings").doc(mappingId))));
         const nextStatus = fullyPicked ? "picked_up" : delivery.status;
         const deliveryPatch = {
             updatedAt: now,
@@ -236,6 +247,23 @@ exports.recordPickupEvent = (0, https_1.onCall)({
                 actorName: technicianName,
                 createdAt: now,
             });
+            for (const mappingSnap of mappingSnaps) {
+                if (!mappingSnap.exists)
+                    continue;
+                const mappingId = mappingSnap.id;
+                const qty = qtyByMapping.get(mappingId);
+                if (!qty)
+                    continue;
+                const data = mappingSnap.data();
+                const assigned = Math.max(0, data.qtyAssigned ?? 0);
+                const pickedUp = Math.max(0, data.qtyPickedUp ?? 0);
+                const applied = Math.min(qty, assigned > 0 ? assigned : qty);
+                tx.update(mappingSnap.ref, {
+                    qtyAssigned: Math.max(0, assigned - applied),
+                    qtyPickedUp: pickedUp + applied,
+                    updatedAt: now,
+                });
+            }
         }
         tx.set(idempotencyRef, {
             deliveryOrderId,

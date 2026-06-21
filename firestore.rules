@@ -210,5 +210,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
+
+    // Phase 3: permanent shop-stock location directory — public read for pickup location labels.
+    match /shopStockLocationMappings/{mappingId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
   }
 }

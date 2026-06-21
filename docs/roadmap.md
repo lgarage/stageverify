@@ -40,7 +40,7 @@
 | **§12** | Leave-shop geofence reminder (best-effort; not auto-complete) | **Phase 3 Slice 5 — Pickup link security** (optional) | ⬜ Not built |
 | **§13** | Dispatcher sees pickup update, qty remaining, pickup events | Phase 3 Slice 1 + drawer | 🔵 Shipped (`away-038` pickup-summary-panel) |
 | **§13** | Release temporary staging → Available + E-tag clear | **Phase 3 Slice 6 — Staging release** | 🔵 Partial — CF clears `stagingLocationId` + `additionalStagingLocationIds` on full pickup (`away-019`); combination groups + ESL Phase 7 |
-| **§13** | Permanent shop-stock locations stay reserved; qty tracking not inventory | Phase 2 stubs + Phase 3 remainder | ⬜ Not built |
+| **§13** | Permanent shop-stock locations stay reserved; qty tracking not inventory | Phase 3 Slice 6 | ✅ Shipped 2026-06-20 |
 | **§14** | End-to-end flow (27 steps) | Cross-phase integration test | ⬜ Full flow not gate-passed |
 | — | **Firebase App Check** on public writes | **Cross-cutting security (LATER)** | ⬜ Explicitly deferred |
 | — | **Gmail / live inbox connection** | Phase 6 only (after Phase 5 prototype) | ⬜ Deferred |
@@ -119,7 +119,7 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 ## NEXT
 
-**Active phase: Phase 3 — Technician Pickup Workflow** (integration gate passed 2026-06-19; permanent shop-stock mapping still open)
+**Active phase: Phase 3 — Technician Pickup Workflow** (permanent shop-stock mapping shipped 2026-06-20; full Phase 3 gate closed)
 
 Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` resolve + readiness recalc). Full Phase 4 gate still open. **Active away queue** may prioritize work ahead of gate close — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next` (e.g. `away-042` Phase 5 prototype).
 
@@ -197,7 +197,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` reso
 | Per-location release after pickup | Temporary staging → Available when all assigned material picked up | 🔵 CF clears primary + additional staging IDs on full pickup (`away-019`) |
 | Combination staging groups | Release G20–G22 as a unit; concurrency-safe | 🔵 Shipped stub + CF (`away-036`/`037`; real Jake Korb location IDs blocked) |
 | E-tag sync on release | Phase 7 ESL automation; manual/clear path in Phase 3 if ESL blocked | ⬜ Phase 7 |
-| Permanent shop-stock mapping | Locations stay reserved; qty accountability not inventory (BuildOps boundary) | ⬜ Not built |
+| Permanent shop-stock mapping | Locations stay reserved; qty accountability not inventory (BuildOps boundary) | ✅ Shipped 2026-06-20 |
 
 ### Phase 3 — Technician Pickup Workflow (full gate)
 
@@ -218,7 +218,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` reso
 | Submit label           | **Order Pickup Complete** on submit button (`away-048`)                                                                                                                                              |
 | Blocking-issue pickup  | Resolve UI “can still complete pickup” vs CF `unresolved_blocking_issues` block; update verify harness B→A order if needed                                                                                                    |
 
-**Gate:** Successful pickup + issue creation without manual DB edits. **Integration proof passed** (`away-047`: `verify:phase3-integration` + prod pickup verify). **Slices 1–6 partial shipped** (`away-015`…`041`). Full gate still open on permanent shop-stock mapping only.
+**Gate:** Successful pickup + issue creation without manual DB edits. **Integration proof passed** (`away-047`: `verify:phase3-integration` + prod pickup verify). **Permanent shop-stock mapping shipped 2026-06-20** — full Phase 3 gate closed.
 
 ### Phase 4 — Material Issue Resolution
 

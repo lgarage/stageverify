@@ -18,13 +18,20 @@ import {
   markDeliveryShipped,
   mapOccupancyByLocationId,
   resolveMaterialIssue,
+  listShopStockMappings,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
+import { isShopStockLocationReservedError } from "./dispatcher/shopStockMapping";
 import {
   formatShopStockPickListForEditor,
   parseShopStockPickListLines,
 } from "./dispatcher/shopStockPickList";
+import {
+  buildShopStockLinesFromPickList,
+  formatMappingLocationHeader,
+  shopStockLocationNoteFromLines,
+} from "./dispatcher/shopStockMapping";
 import {
   DELIVERY_STATUS_LABEL,
   DISPATCHER_REVERT_TARGETS,
@@ -41,7 +48,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, ISSUE_RESOLUTION_TYPES, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType } from "./dispatcher/models";
+import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, ISSUE_RESOLUTION_TYPES, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type ShopStockLocationMapping } from "./dispatcher/models";
 import {
   deliveryReadinessDisplayLabel,
   jobDispatchDisplayLabel,
@@ -322,7 +329,7 @@ export function DispatcherDashboardPage() {
         setMutationError("Failed to update staging location.");
       }
     } catch (e) {
-      if (isStagingLocationOccupiedError(e)) {
+      if (isStagingLocationOccupiedError(e) || isShopStockLocationReservedError(e)) {
         setMutationError(e.message);
       } else {
         setMutationError(
@@ -568,15 +575,26 @@ export function DispatcherDashboardPage() {
   const handleUpdateShopStockPickList = async (
     items: string[],
     locationNote: string,
+    linkedMappingId?: string,
   ): Promise<void> => {
     if (!selectedDeliveryId) return;
     setMutationLoading(true);
     setMutationError(null);
     try {
+      const mappings = await listShopStockMappings();
+      const shopStockLines = buildShopStockLinesFromPickList(
+        items,
+        mappings,
+        linkedMappingId,
+      );
+      const resolvedNote =
+        locationNote.trim() ||
+        shopStockLocationNoteFromLines(shopStockLines, mappings);
       const updated = await firestoreDataService.updateShopStockPickList(
         selectedDeliveryId,
         items,
-        locationNote,
+        resolvedNote,
+        shopStockLines,
       );
       if (updated) setSelectedDetails(updated);
       await fetchAllData();
@@ -2403,6 +2421,7 @@ function DetailContent({
   onUpdateShopStockPickList: (
     items: string[],
     locationNote: string,
+    linkedMappingId?: string,
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
@@ -3490,6 +3509,7 @@ function StatusActionPanel({
   onUpdateShopStockPickList: (
     items: string[],
     locationNote: string,
+    linkedMappingId?: string,
   ) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
@@ -3516,9 +3536,14 @@ function StatusActionPanel({
   const [zoneOccupancy, setZoneOccupancy] = useState<
     Record<string, StagingLocationOccupant>
   >({});
+  const [stockMappings, setStockMappings] = useState<ShopStockLocationMapping[]>([]);
+  const [linkedMappingId, setLinkedMappingId] = useState("");
 
   useEffect(() => {
     void mapOccupancyByLocationId(details.delivery.id).then(setZoneOccupancy);
+  }, [details.delivery.id]);
+  useEffect(() => {
+    void listShopStockMappings().then(setStockMappings);
   }, [details.delivery.id]);
   const [pickListText, setPickListText] = useState(() =>
     formatShopStockPickListForEditor(details.delivery.shopStockPickListItems),
@@ -4231,9 +4256,59 @@ function StatusActionPanel({
             fontFamily: font,
           }}
         >
-          One extra shop-stock item per line for the technician pickup screen.
-          Not inventory — free text only.
+          One shop-stock item per line for the technician pickup screen. Link to
+          the stock directory for permanent location codes.
         </p>
+        {stockMappings.filter((m) => m.active).length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <label
+              htmlFor="shop-stock-directory-link"
+              style={{
+                display: "block",
+                marginBottom: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#374151",
+                fontFamily: font,
+              }}
+            >
+              Stock directory (optional)
+            </label>
+            <select
+              id="shop-stock-directory-link"
+              value={linkedMappingId}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                setLinkedMappingId(nextId);
+                const mapping = stockMappings.find((m) => m.id === nextId);
+                if (mapping) {
+                  setShopStockLocationNote(formatMappingLocationHeader(mapping));
+                }
+              }}
+              disabled={loading}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "7px 10px",
+                border: "1.5px solid #ccd0d7",
+                borderRadius: 6,
+                fontSize: 13,
+                fontFamily: font,
+                color: "#333",
+                backgroundColor: loading ? "#f9fafb" : "#fff",
+              }}
+            >
+              <option value="">— Manual location note —</option>
+              {stockMappings
+                .filter((m) => m.active)
+                .map((mapping) => (
+                  <option key={mapping.id} value={mapping.id}>
+                    {formatMappingLocationHeader(mapping)}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
         <label
           htmlFor="shop-stock-pick-list"
           style={{
@@ -4311,6 +4386,7 @@ function StatusActionPanel({
             void onUpdateShopStockPickList(
               parseShopStockPickListLines(pickListText),
               shopStockLocationNote,
+              linkedMappingId || undefined,
             )
           }
           disabled={loading || !isPickListDirty}

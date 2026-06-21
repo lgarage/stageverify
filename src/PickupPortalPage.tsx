@@ -20,6 +20,7 @@ import {
   hasShopStockPickList,
   shopStockItemKey,
 } from "./dispatcher/shopStockPickList";
+import { shopStockPickListLabels } from "./dispatcher/shopStockMapping";
 import { formatPickupError } from "./dispatcher/pickupErrors";
 import {
   resolveZoneScanDisposition,
@@ -770,7 +771,7 @@ function JobPickupScreen({
 
   const isShopStockCompleteForDelivery = useCallback(
     (d: DeliveryDetails): boolean => {
-      const items = d.delivery.shopStockPickListItems ?? [];
+      const items = shopStockPickListLabels(d.delivery);
       if (items.length === 0) return true;
       return items.every((_, index) =>
         checkedShopStockKeys.has(shopStockItemKey(d.delivery.id, index)),
@@ -1343,7 +1344,7 @@ function JobPickupScreen({
               d,
               allStagingLocations,
             );
-            const shopStockItems = d.delivery.shopStockPickListItems ?? [];
+            const shopStockItems = shopStockPickListLabels(d.delivery);
             const showShopStock = hasShopStockPickList(d.delivery);
             const shopStockGroupHeader = shopStockLocationGroupHeader(d.delivery);
             const shopStockComplete = isShopStockCompleteForDelivery(d);

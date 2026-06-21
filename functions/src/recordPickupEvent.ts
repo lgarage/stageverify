@@ -37,6 +37,14 @@ interface RecordPickupRequest {
   pickupToken?: string;
 }
 
+interface ShopStockLineRecord {
+  id?: string;
+  description?: string;
+  qty?: number;
+  shopStockLocationCode?: string;
+  shopStockMappingId?: string;
+}
+
 interface DeliveryRecord extends DeliveryDoc {
   id: string;
   jobId: string;
@@ -48,6 +56,7 @@ interface DeliveryRecord extends DeliveryDoc {
   combinationMemberLocationIds?: string[];
   pickedUpStagingLocationIds?: string[];
   readinessStatus?: string;
+  shopStockLines?: ShopStockLineRecord[];
 }
 
 function asNonEmptyString(value: unknown, maxLen: number): string | null {
@@ -303,6 +312,22 @@ export const recordPickupEvent = onCall(
       );
       const fullyPicked = stillRemaining.length === 0;
 
+      const qtyByMapping = new Map<string, number>();
+      if (fullyPicked) {
+        for (const line of delivery.shopStockLines ?? []) {
+          const mappingId = line.shopStockMappingId?.trim();
+          if (!mappingId) continue;
+          const qty =
+            typeof line.qty === "number" && line.qty > 0 ? line.qty : 1;
+          qtyByMapping.set(mappingId, (qtyByMapping.get(mappingId) ?? 0) + qty);
+        }
+      }
+      const mappingSnaps = await Promise.all(
+        [...qtyByMapping.keys()].map((mappingId) =>
+          tx.get(db.collection("shopStockLocationMappings").doc(mappingId)),
+        ),
+      );
+
       const nextStatus = fullyPicked ? "picked_up" : delivery.status;
       const deliveryPatch: Record<string, unknown> = {
         updatedAt: now,
@@ -343,6 +368,25 @@ export const recordPickupEvent = onCall(
           actorName: technicianName,
           createdAt: now,
         });
+
+        for (const mappingSnap of mappingSnaps) {
+          if (!mappingSnap.exists) continue;
+          const mappingId = mappingSnap.id;
+          const qty = qtyByMapping.get(mappingId);
+          if (!qty) continue;
+          const data = mappingSnap.data() as {
+            qtyAssigned?: number;
+            qtyPickedUp?: number;
+          };
+          const assigned = Math.max(0, data.qtyAssigned ?? 0);
+          const pickedUp = Math.max(0, data.qtyPickedUp ?? 0);
+          const applied = Math.min(qty, assigned > 0 ? assigned : qty);
+          tx.update(mappingSnap.ref, {
+            qtyAssigned: Math.max(0, assigned - applied),
+            qtyPickedUp: pickedUp + applied,
+            updatedAt: now,
+          });
+        }
       }
 
       tx.set(idempotencyRef, {

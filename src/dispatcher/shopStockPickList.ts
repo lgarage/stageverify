@@ -1,4 +1,5 @@
 import type { DeliveryOrder } from "./models";
+import { hasShopStockPickListContent } from "./shopStockMapping";
 
 /** Parse dispatcher textarea: one pick-list item per non-empty line. */
 export function parseShopStockPickListLines(text: string): string[] {
@@ -15,7 +16,7 @@ export function formatShopStockPickListForEditor(
 }
 
 export function hasShopStockPickList(delivery: DeliveryOrder): boolean {
-  return (delivery.shopStockPickListItems?.length ?? 0) > 0;
+  return hasShopStockPickListContent(delivery);
 }
 
 export function shopStockItemKey(deliveryId: string, index: number): string {

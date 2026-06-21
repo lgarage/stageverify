@@ -46,6 +46,8 @@ import type {
   StatusHistoryEvent,
   Vendor,
   AppSettings,
+  ShopStockLocationMapping,
+  ShopStockLine,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -71,12 +73,20 @@ import {
   StagingLocationOccupiedError,
   deliveryUsesStagingLocation,
 } from "./stagingOccupancy";
+import {
+  ShopStockLocationReservedError,
+  findShopStockMappingForLocationCode,
+} from "./shopStockMapping";
 
 export {
   StagingLocationOccupiedError,
   deliveryUsesStagingLocation,
   isStagingLocationOccupiedError,
 } from "./stagingOccupancy";
+export {
+  ShopStockLocationReservedError,
+  isShopStockLocationReservedError,
+} from "./shopStockMapping";
 
 const COLLECTION_SAFETY_LIMIT = 500;
 
@@ -600,6 +610,7 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     items: string[],
     locationNote: string,
+    shopStockLines?: ShopStockLine[],
   ): Promise<DeliveryDetails | null> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
@@ -611,15 +622,16 @@ export class FirestoreDataService implements DispatcherDataService {
     const now = new Date().toISOString();
     const trimmedNote = locationNote.trim();
 
-    await setDoc(
-      doc(db, "deliveries", deliveryId),
-      {
-        shopStockPickListItems: items,
-        shopStockLocationNote: trimmedNote,
-        updatedAt: now,
-      },
-      { merge: true },
-    );
+    const patch: Record<string, unknown> = {
+      shopStockPickListItems: items,
+      shopStockLocationNote: trimmedNote,
+      updatedAt: now,
+    };
+    if (shopStockLines !== undefined) {
+      patch.shopStockLines = shopStockLines;
+    }
+
+    await setDoc(doc(db, "deliveries", deliveryId), patch, { merge: true });
     return this.getDeliveryDetails(deliveryId);
   }
 
@@ -1507,6 +1519,19 @@ async function assertStagingLocationAvailable(
       occupant.orderNumber,
     );
   }
+
+  const locSnap = await getDoc(doc(db, "stagingLocations", locationId));
+  if (!locSnap.exists()) return;
+  const location = stagingLocationFromSnap(locSnap);
+  if (!location) return;
+  const mappings = await listShopStockMappings();
+  const reserved = findShopStockMappingForLocationCode(location.code, mappings);
+  if (reserved) {
+    throw new ShopStockLocationReservedError(
+      location.code,
+      reserved.stockItemLabel,
+    );
+  }
 }
 
 /** Re-check every staging spot on a delivery before commit (catches races / stale UI). */
@@ -1538,6 +1563,68 @@ export async function createVendor(vendor: Vendor): Promise<void> {
 
 export async function updateVendor(vendor: Vendor): Promise<void> {
   await setDoc(doc(db, "vendors", vendor.id), vendor, { merge: true });
+}
+
+export async function listShopStockMappings(): Promise<
+  ShopStockLocationMapping[]
+> {
+  return fetchAll<ShopStockLocationMapping>("shopStockLocationMappings");
+}
+
+export async function createShopStockMapping(
+  input: Omit<
+    ShopStockLocationMapping,
+    "id" | "createdAt" | "updatedAt" | "qtyAssigned" | "qtyPickedUp"
+  > & { qtyAssigned?: number; qtyPickedUp?: number },
+): Promise<string> {
+  const now = new Date().toISOString();
+  const id = `ssm-${crypto.randomUUID()}`;
+  const mapping: ShopStockLocationMapping = {
+    id,
+    stockItemLabel: input.stockItemLabel.trim(),
+    locationCode: input.locationCode.trim(),
+    combinationGroupLabel: input.combinationGroupLabel?.trim() || undefined,
+    memberLocationCodes: input.memberLocationCodes?.length
+      ? input.memberLocationCodes.map((c) => c.trim()).filter(Boolean)
+      : undefined,
+    qtyAvailable: Math.max(0, input.qtyAvailable),
+    qtyAssigned: Math.max(0, input.qtyAssigned ?? 0),
+    qtyPickedUp: Math.max(0, input.qtyPickedUp ?? 0),
+    active: input.active,
+    notes: input.notes?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await setDoc(doc(db, "shopStockLocationMappings", id), mapping);
+  return id;
+}
+
+export async function updateShopStockMapping(
+  mapping: ShopStockLocationMapping,
+): Promise<void> {
+  await setDoc(
+    doc(db, "shopStockLocationMappings", mapping.id),
+    {
+      ...mapping,
+      stockItemLabel: mapping.stockItemLabel.trim(),
+      locationCode: mapping.locationCode.trim(),
+      combinationGroupLabel: mapping.combinationGroupLabel?.trim() || undefined,
+      memberLocationCodes: mapping.memberLocationCodes?.length
+        ? mapping.memberLocationCodes.map((c) => c.trim()).filter(Boolean)
+        : undefined,
+      notes: mapping.notes?.trim() || undefined,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+}
+
+export async function deactivateShopStockMapping(id: string): Promise<void> {
+  await setDoc(
+    doc(db, "shopStockLocationMappings", id),
+    { active: false, updatedAt: new Date().toISOString() },
+    { merge: true },
+  );
 }
 
 export async function listAllZones(): Promise<StagingLocation[]> {

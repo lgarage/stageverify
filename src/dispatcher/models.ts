@@ -345,13 +345,36 @@ export interface ExpectedMaterial {
   currentLocationNote?: string;
 }
 
-/** Structured shop-stock pull line (Phase 3+ UI; stub in Phase 2). */
+/** Structured shop-stock pull line (Phase 3+ pickup UI). */
 export interface ShopStockLine {
   id: string;
   description: string;
   qty: number;
   shopStockLocationCode?: string;
+  /** Link to permanent stock directory entry (shopStockLocationMappings). */
+  shopStockMappingId?: string;
   availabilityStatus?: AvailabilityStatus;
+}
+
+/**
+ * Permanent shop-stock location mapping (stock directory).
+ * Locations stay reserved while active — pickup updates qty accountability, not inventory.
+ */
+export interface ShopStockLocationMapping {
+  id: string;
+  stockItemLabel: string;
+  locationCode: string;
+  /** Display label for combination areas (e.g. G15–G17). */
+  combinationGroupLabel?: string;
+  /** Member codes reserved together; includes locationCode when combination. */
+  memberLocationCodes?: string[];
+  qtyAvailable: number;
+  qtyAssigned: number;
+  qtyPickedUp: number;
+  active: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DeliveryOrder {

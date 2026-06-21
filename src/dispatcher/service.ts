@@ -6,6 +6,7 @@ import type {
   Job,
   PurchaseOrder,
   StagingLocation,
+  ShopStockLine,
   Vendor,
 } from "./models";
 import type { JobReadinessResult } from "./readiness";
@@ -126,6 +127,7 @@ export interface DispatcherDataService {
     deliveryId: string,
     items: string[],
     locationNote: string,
+    shopStockLines?: ShopStockLine[],
   ): Promise<DeliveryDetails | null>;
   submitCheckin(
     deliveryId: string,
