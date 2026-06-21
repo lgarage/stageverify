@@ -1,0 +1,36 @@
+---
+alwaysApply: true
+---
+
+# Final Answer Review Gate — Dan Preference
+
+Before answering Dan with any recommendation, plan, workflow change, architecture suggestion, repo audit, or “what should I do next” answer:
+
+1. Do not answer immediately.
+2. First inspect the relevant repo files, rules, docs, and current project state.
+3. Build an initial answer privately.
+4. Then challenge that answer:
+   - What did I miss?
+   - What assumption might be wrong?
+   - What rule or file could contradict this?
+   - Is this recommendation too expensive, too complex, or off-track for StageVerify?
+   - Does this help ship SV faster, cheaper, or more reliably?
+
+5. Revise the answer once after that review.
+6. Present only the final conclusion, not the full internal reasoning.
+7. If confidence is low, say what is uncertain and what file/source would need to be checked.
+
+Bias:
+
+- Shipping StageVerify over building a perfect AI system.
+- Cost and token efficiency over impressive automation.
+- Simple workflow over multi-agent complexity.
+- Repo-grounded answers over general AI advice.
+
+Final reply must include:
+
+- Recommendation
+- Why
+- What to do now
+- What to defer
+- Confidence level

@@ -156,11 +156,22 @@ If there are no problems, the vendor presses:
 
 **DELIVERED**
 
-This confirms that the physical delivery was dropped off at the assigned location.
+This confirms that material associated with the displayed PO was physically dropped off at the assigned location.
+
+Before pressing DELIVERED, the vendor verifies:
+
+- The correct job
+- The correct PO
 
 Pressing DELIVERED does not automatically make the material Ready for Pickup.
 
-The vendor confirms only that the physical drop-off occurred.
+The vendor confirms only that physical drop-off occurred for that PO.
+
+The vendor does not confirm:
+
+- Item quantities
+- Order completeness
+- Material readiness
 
 StageVerify separately decides whether the complete order is ready.
 
@@ -247,7 +258,7 @@ It does not monitor every email from a vendor contact.
 
 Vendor email addresses and company domains may help StageVerify identify and validate the vendor, but the sender alone is not enough to update an order.
 
-The StageVerify bot looks for information such as:
+StageVerify evaluates vendor order-completeness evidence such as:
 
 - Order accepted
 - Order acknowledged
@@ -290,9 +301,11 @@ An email cannot:
 - Mark unrelated material complete
 - Directly force material into Ready for Pickup
 
-The StageVerify bot organizes the email evidence.
+StageVerify organizes the email evidence.
 
-StageVerify’s fixed server-side rules make the final readiness decision.
+The email evidence may support readiness, but it does not control readiness.
+
+StageVerify's fixed server-side rules make the final readiness decision.
 
 ## Condition 2 — Physical Delivery and Staging
 
@@ -558,7 +571,18 @@ Example:
 
 - ☐ 1 × Hardware box
 
-The technician goes to each location and verifies the E-tag.
+The technician goes to each location and confirms they are at the correct location.
+
+The technician may use:
+
+- The pickup page
+- The E-tag
+- Physical location labels
+- Shop signage
+
+The E-tag is preferred when available.
+
+The pickup link from BuildOps and the StageVerify pickup page remain the source of truth.
 
 The E-tag may show:
 
@@ -568,7 +592,7 @@ The E-tag may show:
 - PO number
 - Other information needed to confirm the correct material
 
-This helps the technician confirm that they are at the correct location and collecting material for the correct job.
+These displays help the technician confirm that they are collecting material for the correct job and location.
 
 The technician checks only the material they physically collect.
 
