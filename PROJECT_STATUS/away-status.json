@@ -372,6 +372,13 @@
       "status": "built",
       "commit": "4fd53c6",
       "note": "Fingerprint dedup in getProposedEmailUpdates; test:email-parser + verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-055",
+      "title": "Phase 5: verify:phase5-email interactive harness",
+      "status": "built",
+      "commit": "d47ce29",
+      "note": "verify:phase5-email filter clicks + row expand PASS"
     }
   ],
   "summary": "away-042..053 shipped; active queue empty — see docs/project_state.md immediate next steps"

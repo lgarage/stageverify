@@ -11,31 +11,10 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
     "sequence": [
-      "away-055",
       "away-056"
     ]
   },
   "queue": [
-    {
-      "id": "away-055",
-      "title": "Phase 5: verify:phase5-email interactive harness",
-      "scope": "Add scripts/verify-phase5-email.mjs — Playwright with auth on dispatcher Proposed Email Updates panel: click All / Needs review / Low confidence filters and expand a row to assert detail row visible. Add npm run verify:phase5-email in package.json. No UI component changes unless testids missing.",
-      "files": [
-        "scripts/verify-phase5-email.mjs",
-        "package.json"
-      ],
-      "tier": "T1",
-      "model": "composer-2.5",
-      "acceptance": "npm run verify:phase5-email PASS (filter clicks + row expand); npm run build clean.",
-      "capturedDuring": "Dan 2026-06-21 — approved away batch away-054..056",
-      "preApproved": true,
-      "dependsOn": "away-054",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:phase5-email"
-      ],
-      "status": "queued"
-    },
     {
       "id": "away-056",
       "title": "Phase 5: email correction fixture + parser expectations",
