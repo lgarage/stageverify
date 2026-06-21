@@ -11,6 +11,18 @@ const parseVendorEmail_1 = require("./email/parseVendorEmail");
 function getDb() {
     return admin.firestore();
 }
+/** Firestore rejects explicit undefined field values in documents. */
+function omitUndefined(data) {
+    const out = {};
+    for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined)
+            out[key] = value;
+    }
+    return out;
+}
+function vendorEmailEventForWrite(event) {
+    return omitUndefined(event);
+}
 const MAX_EMAIL_FIELD_LEN = 4096;
 const MAX_MESSAGE_ID_LEN = 256;
 function asInboundEmailMessage(data) {
@@ -104,7 +116,10 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
         updatedAt: now,
     };
     if (result.duplicate) {
-        await getDb().collection("vendorEmailEvents").doc(eventId).set(baseEvent);
+        await getDb()
+            .collection("vendorEmailEvents")
+            .doc(eventId)
+            .set(vendorEmailEventForWrite(baseEvent));
         return {
             eventId,
             reviewStatus: "rejected",
@@ -114,7 +129,10 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
         };
     }
     if (result.reviewStatus !== "auto_processed") {
-        await getDb().collection("vendorEmailEvents").doc(eventId).set(baseEvent);
+        await getDb()
+            .collection("vendorEmailEvents")
+            .doc(eventId)
+            .set(vendorEmailEventForWrite(baseEvent));
         return {
             eventId,
             reviewStatus: result.reviewStatus,
@@ -132,7 +150,10 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
             humanReviewRequired: true,
             applyConflictReason: "ambiguous_delivery_target",
         };
-        await getDb().collection("vendorEmailEvents").doc(eventId).set(pendingEvent);
+        await getDb()
+            .collection("vendorEmailEvents")
+            .doc(eventId)
+            .set(vendorEmailEventForWrite(pendingEvent));
         return {
             eventId,
             reviewStatus: "pending_review",
@@ -155,7 +176,10 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
             reviewStatus: "auto_processed",
             appliedAt: now,
         };
-        await getDb().collection("vendorEmailEvents").doc(eventId).set(idempotentEvent);
+        await getDb()
+            .collection("vendorEmailEvents")
+            .doc(eventId)
+            .set(vendorEmailEventForWrite(idempotentEvent));
         return {
             eventId,
             deliveryOrderId,
@@ -193,7 +217,10 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
             humanReviewRequired: true,
             applyConflictReason: conflictReason,
         };
-        await getDb().collection("vendorEmailEvents").doc(eventId).set(conflictEvent);
+        await getDb()
+            .collection("vendorEmailEvents")
+            .doc(eventId)
+            .set(vendorEmailEventForWrite(conflictEvent));
         return {
             eventId,
             deliveryOrderId,
@@ -228,12 +255,12 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
             throw new https_1.HttpsError("failed-precondition", `Apply conflict: ${freshConflict}`);
         }
         tx.update(deliveryRef, patch);
-        tx.set(getDb().collection("vendorEmailEvents").doc(eventId), {
+        tx.set(getDb().collection("vendorEmailEvents").doc(eventId), vendorEmailEventForWrite({
             ...baseEvent,
             deliveryOrderId,
             reviewStatus: "auto_processed",
             appliedAt: now,
-        });
+        }));
     });
     const readiness = await (0, applyDeliveryReadiness_1.applyDeliveryReadinessTransaction)(getDb(), deliveryOrderId, { historyReason: "Vendor email Condition 1 auto-apply readiness recalculation" });
     return {
