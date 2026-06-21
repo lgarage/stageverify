@@ -1,6 +1,12 @@
 import { EMAIL_FIXTURES, MULTI_VENDOR_MATCH_CONTEXT } from "./emailFixtures";
 import { contentFingerprint } from "./parseVendorEmail";
 import { processInboundEmail } from "./processEmailMessage";
+import {
+  bodyExcerpt,
+  describeCondition1Impact,
+  describeOperationalMeaning,
+  resolveMatchLabels,
+} from "./proposedEmailDetail";
 import type { EmailClassification, EmailProcessingResult } from "./types";
 
 export interface ProposedEmailUpdate {
@@ -12,8 +18,18 @@ export interface ProposedEmailUpdate {
   poNumber: string | null;
   vendorName: string | null;
   confidenceScore: number;
+  confidenceReason: string;
   reviewStatus: EmailProcessingResult["reviewStatus"];
   duplicate: boolean;
+  matchedJobNumber: string | null;
+  matchedPoLabel: string | null;
+  matchedOrderLabel: string | null;
+  matchedDeliveryLabel: string | null;
+  itemLines: Array<{ description: string; qty?: number }>;
+  bodyExcerpt: string;
+  proposedOperationalMeaning: string;
+  affectsCondition1: boolean;
+  condition1ApprovalNote: string;
 }
 
 const vendorNameById = new Map(
@@ -36,6 +52,9 @@ export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
 
     if (result.reviewStatus === "rejected") continue;
 
+    const labels = resolveMatchLabels(result.match, result.parsed, MULTI_VENDOR_MATCH_CONTEXT);
+    const condition1 = describeCondition1Impact(result);
+
     proposals.push({
       messageId: fixture.sourceMessageId,
       subject: fixture.subject,
@@ -47,8 +66,21 @@ export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
         ? (vendorNameById.get(result.match.vendorId) ?? result.match.vendorId)
         : null,
       confidenceScore: result.match.confidenceScore,
+      confidenceReason: result.match.confidenceReason,
       reviewStatus: result.reviewStatus,
       duplicate: result.duplicate,
+      matchedJobNumber: labels.jobNumber,
+      matchedPoLabel: labels.poLabel,
+      matchedOrderLabel: labels.orderLabel,
+      matchedDeliveryLabel: labels.deliveryLabel,
+      itemLines: result.parsed.itemLines,
+      bodyExcerpt: bodyExcerpt(fixture.bodyText),
+      proposedOperationalMeaning: describeOperationalMeaning(
+        result.parsed.classification,
+        result.parsed,
+      ),
+      affectsCondition1: condition1.affectsCondition1,
+      condition1ApprovalNote: condition1.note,
     });
   }
 

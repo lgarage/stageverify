@@ -118,11 +118,44 @@ async function ensureAuthenticated(page) {
   await page.getByTestId(`proposed-email-detail-${messageId}`).waitFor({
     timeout: 10_000,
   });
-  const detailText = await page.getByTestId(`proposed-email-detail-${messageId}`).innerText();
-  if (!detailText.includes("Preview:")) {
-    throw new Error(`Expanded detail missing Preview label: ${detailText}`);
+  const detail = page.getByTestId(`proposed-email-detail-${messageId}`);
+  const detailText = await detail.innerText();
+
+  const requiredDetailTestIds = [
+    "proposed-email-detail-job",
+    "proposed-email-detail-po",
+    "proposed-email-detail-order",
+    "proposed-email-detail-delivery",
+    "proposed-email-detail-confidence",
+    "proposed-email-detail-meaning",
+    "proposed-email-detail-condition1",
+    "proposed-email-detail-items",
+    "proposed-email-detail-body",
+  ];
+  for (const testId of requiredDetailTestIds) {
+    const el = detail.getByTestId(testId);
+    if (!(await el.isVisible())) {
+      throw new Error(`Expanded detail missing ${testId}`);
+    }
   }
-  console.log("Row expand PASS: detail row visible");
+
+  const confidenceText = await detail.getByTestId("proposed-email-detail-confidence").innerText();
+  if (!/\d+%/.test(confidenceText)) {
+    throw new Error(`Detail confidence missing score: ${confidenceText}`);
+  }
+  const meaningText = await detail.getByTestId("proposed-email-detail-meaning").innerText();
+  if (meaningText.trim().length < 8) {
+    throw new Error(`Detail operational meaning too short: ${meaningText}`);
+  }
+  const condition1Text = await detail.getByTestId("proposed-email-detail-condition1").innerText();
+  if (!/Condition 1|would not update/i.test(condition1Text)) {
+    throw new Error(`Detail Condition 1 note missing: ${condition1Text}`);
+  }
+  const bodyText = await detail.getByTestId("proposed-email-detail-body").innerText();
+  if (bodyText.trim().length < 10) {
+    throw new Error(`Detail body excerpt too short: ${bodyText}`);
+  }
+  console.log("Row expand PASS: evidence detail fields visible");
 
   console.log("Collapse row…");
   await page.getByTestId(`proposed-email-row-${messageId}`).click();

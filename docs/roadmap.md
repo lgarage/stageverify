@@ -248,7 +248,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Gate:** ≥95% extraction accuracy on approved sample set using defined scoring method; low-confidence routed to review
 - **Shipped (away-042…045):** Johnstone + First Supply + Ferguson fixtures; `npm run test:email-parser` prints per-fixture pass/fail + aggregate ≥95% gate; read-only proposed updates panel
 - **Polish (away-049):** WinSupply fixtures + panel filters/summary/expandable preview; `verify:dispatcher-nav` asserts panel
-- **Dedup + harness (away-054…056):** fingerprint dedup in proposed panel; `verify:phase5-email`; correction-to-earlier-email fixture (`msg-correction-015`) + ≥95% parser gate
+- **Dedup + harness (away-054…057):** fingerprint dedup in proposed panel; `verify:phase5-email`; correction-to-earlier-email fixture (`msg-correction-015`) + ≥95% parser gate; expanded proposal review detail (match labels, confidence reason, item lines, body excerpt, Condition 1 after-approval note)
 - **Settings (away-053):** Email Monitoring card on Settings — `monitoringInboxEmail` + `emailMonitoringEnabled` (offline prototype copy; no live inbox); `verify:settings-staging` asserts save + reload
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)

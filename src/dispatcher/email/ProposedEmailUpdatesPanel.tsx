@@ -13,6 +13,26 @@ const REVIEW_LABEL: Record<string, string> = {
 
 type FilterKey = "all" | "needs_review" | "low_confidence";
 
+function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          color: "#64748b",
+          marginBottom: 3,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ color: "#334155", lineHeight: 1.45 }}>{children}</div>
+    </div>
+  );
+}
+
 export function ProposedEmailUpdatesPanel() {
   const proposals = useMemo(() => getProposedEmailUpdates(), []);
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -229,15 +249,103 @@ export function ProposedEmailUpdatesPanel() {
                     <td
                       colSpan={7}
                       style={{
-                        padding: "10px 14px 14px",
+                        padding: "14px 16px 16px",
                         borderBottom: "1px solid #eaecf0",
                         backgroundColor: "#f8fafc",
                         fontSize: 12,
-                        color: "#475569",
                       }}
                       data-testid={`proposed-email-detail-${row.messageId}`}
                     >
-                      <strong>Preview:</strong> {row.subject}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gap: "4px 20px",
+                        }}
+                      >
+                        <DetailField label="Matched job">
+                          <span data-testid="proposed-email-detail-job">
+                            {row.matchedJobNumber ?? "—"}
+                          </span>
+                        </DetailField>
+                        <DetailField label="Matched PO">
+                          <span
+                            data-testid="proposed-email-detail-po"
+                            style={{ fontFamily: "monospace" }}
+                          >
+                            {row.matchedPoLabel ?? "—"}
+                          </span>
+                        </DetailField>
+                        <DetailField label="Matched order">
+                          <span
+                            data-testid="proposed-email-detail-order"
+                            style={{ fontFamily: "monospace" }}
+                          >
+                            {row.matchedOrderLabel ?? "—"}
+                          </span>
+                        </DetailField>
+                        <DetailField label="Matched delivery">
+                          <span data-testid="proposed-email-detail-delivery">
+                            {row.matchedDeliveryLabel ?? "—"}
+                          </span>
+                        </DetailField>
+                        <DetailField label="Confidence">
+                          <span data-testid="proposed-email-detail-confidence">
+                            {row.confidenceScore}% — {row.confidenceReason}
+                          </span>
+                        </DetailField>
+                      </div>
+
+                      <DetailField label="Proposed operational meaning">
+                        <span data-testid="proposed-email-detail-meaning">
+                          {row.proposedOperationalMeaning}
+                        </span>
+                      </DetailField>
+
+                      <DetailField label="Condition 1 (after approval)">
+                        <span
+                          data-testid="proposed-email-detail-condition1"
+                          style={{
+                            color: row.affectsCondition1 ? "#0a3161" : "#64748b",
+                          }}
+                        >
+                          {row.condition1ApprovalNote}
+                        </span>
+                      </DetailField>
+
+                      <DetailField label="Parsed item lines">
+                        {row.itemLines.length > 0 ? (
+                          <ul
+                            data-testid="proposed-email-detail-items"
+                            style={{ margin: 0, paddingLeft: 18 }}
+                          >
+                            {row.itemLines.map((line, i) => (
+                              <li key={`${row.messageId}-item-${i}`}>
+                                {line.qty != null ? `${line.qty}x ` : ""}
+                                {line.description}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span data-testid="proposed-email-detail-items">—</span>
+                        )}
+                      </DetailField>
+
+                      <DetailField label="Email body excerpt">
+                        <blockquote
+                          data-testid="proposed-email-detail-body"
+                          style={{
+                            margin: 0,
+                            padding: "8px 10px",
+                            borderLeft: "3px solid #cbd5e1",
+                            backgroundColor: "#fff",
+                            color: "#475569",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          {row.bodyExcerpt}
+                        </blockquote>
+                      </DetailField>
                     </td>
                   </tr>
                 )}
