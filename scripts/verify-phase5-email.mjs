@@ -164,6 +164,26 @@ async function ensureAuthenticated(page) {
     throw new Error("Detail row still visible after collapse click");
   }
 
+  console.log("Delivery drawer: Readiness Evidence panel…");
+  const firstViewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
+  if (await firstViewBtn.isVisible().catch(() => false)) {
+    await firstViewBtn.click();
+    await page.waitForTimeout(800);
+    const evidencePanel = page.getByTestId("readiness-evidence-panel");
+    await evidencePanel.waitFor({ timeout: 15_000 });
+    await page.getByTestId("readiness-evidence-condition1").waitFor({ timeout: 10_000 });
+    await page.getByTestId("readiness-evidence-condition2").waitFor({ timeout: 10_000 });
+    await page.getByTestId("readiness-evidence-blockers").waitFor({ timeout: 10_000 });
+    await page.getByTestId("readiness-evidence-condition1-note").waitFor({ timeout: 10_000 });
+    const noteText = await page.getByTestId("readiness-evidence-condition1-note").innerText();
+    if (!/does not determine readiness/i.test(noteText)) {
+      throw new Error(`Condition 1 note missing disclaimer: ${noteText}`);
+    }
+    console.log("Drawer PASS: readiness-evidence-panel visible with condition1/2/blockers.");
+  } else {
+    console.log("SKIP drawer readiness evidence: no delivery rows to open.");
+  }
+
   await browser.close();
   console.log("verify:phase5-email PASS");
 })().catch((err) => {

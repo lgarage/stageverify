@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **away-058** — Phase 5: readiness evidence in delivery drawer (queued).
 
 ## Canonical references
 - **Librarian mini:** MEMORY.md router + `away:next` packet + `away:validate`

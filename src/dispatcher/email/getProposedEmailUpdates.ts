@@ -7,6 +7,7 @@ import {
   describeOperationalMeaning,
   resolveMatchLabels,
 } from "./proposedEmailDetail";
+import type { DeliveryOrder } from "../models";
 import type { EmailClassification, EmailProcessingResult } from "./types";
 
 export interface ProposedEmailUpdate {
@@ -25,6 +26,8 @@ export interface ProposedEmailUpdate {
   matchedPoLabel: string | null;
   matchedOrderLabel: string | null;
   matchedDeliveryLabel: string | null;
+  /** Fixture/offline match target — filter drawer evidence by delivery.id or order+PO. */
+  matchedDeliveryOrderId: string | null;
   itemLines: Array<{ description: string; qty?: number }>;
   bodyExcerpt: string;
   proposedOperationalMeaning: string;
@@ -73,6 +76,7 @@ export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
       matchedPoLabel: labels.poLabel,
       matchedOrderLabel: labels.orderLabel,
       matchedDeliveryLabel: labels.deliveryLabel,
+      matchedDeliveryOrderId: result.match.deliveryOrderId ?? null,
       itemLines: result.parsed.itemLines,
       bodyExcerpt: bodyExcerpt(fixture.bodyText),
       proposedOperationalMeaning: describeOperationalMeaning(
@@ -87,4 +91,26 @@ export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
   return proposals.sort(
     (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
   );
+}
+
+/**
+ * Delivery-scoped email evidence (Phase 5 read-only drawer).
+ * Future parent-match strategy (Job rollup vs PO rollup) TBD — see docs/project_state.md.
+ */
+export function filterProposalsForDelivery(
+  proposals: ProposedEmailUpdate[],
+  delivery: Pick<DeliveryOrder, "id" | "orderNumber">,
+  poNumber?: string | null,
+): ProposedEmailUpdate[] {
+  return proposals.filter((p) => {
+    if (p.matchedDeliveryOrderId && p.matchedDeliveryOrderId === delivery.id) {
+      return true;
+    }
+    const orderMatch =
+      p.matchedOrderLabel === delivery.orderNumber ||
+      (p.matchedOrderLabel?.includes(delivery.orderNumber) ?? false);
+    if (!orderMatch) return false;
+    if (!poNumber) return true;
+    return p.matchedPoLabel === poNumber || p.poNumber === poNumber;
+  });
 }

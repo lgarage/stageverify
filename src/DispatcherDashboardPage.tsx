@@ -63,6 +63,7 @@ import {
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
 import { ProposedEmailUpdatesPanel } from "./dispatcher/email/ProposedEmailUpdatesPanel";
+import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -2812,6 +2813,17 @@ function DetailContent({
                   </div>
                 )}
               </div>
+            ),
+          },
+          {
+            title: "Readiness Evidence",
+            content: (
+              <ReadinessEvidencePanel
+                details={details}
+                stagingLocations={stagingLocations}
+                navy={navy}
+                font={font}
+              />
             ),
           },
           {
