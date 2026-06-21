@@ -420,6 +420,8 @@ export interface DeliveryOrder {
   vendorOrderComplete?: boolean;
   vendorOrderCompleteAt?: string;
   vendorOrderCompleteSource?: "vendor_email" | "physical_checkin" | "dispatcher" | "system";
+  /** Match confidence (0–100) when source is vendor_email auto-apply. */
+  vendorOrderCompleteConfidence?: number;
   /** Vendor DELIVERED — exception-only physical drop-off (no item qty on happy path). */
   vendorPhysicalDropoffConfirmed?: boolean;
   vendorPhysicalDropoffConfirmedAt?: string;

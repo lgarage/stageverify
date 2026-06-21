@@ -250,6 +250,8 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Polish (away-049):** WinSupply fixtures + panel filters/summary/expandable preview; `verify:dispatcher-nav` asserts panel
 - **Dedup + harness (away-054…057):** fingerprint dedup in proposed panel; `verify:phase5-email`; correction-to-earlier-email fixture (`msg-correction-015`) + ≥95% parser gate; expanded proposal review detail (match labels, confidence reason, item lines, body excerpt, Condition 1 after-approval note)
 - **Settings (away-053):** Email Monitoring card on Settings — `monitoringInboxEmail` + `emailMonitoringEnabled` (offline prototype copy; no live inbox); `verify:settings-staging` asserts save + reload
+- **Drawer evidence (away-058):** READINESS EVIDENCE panel in delivery drawer — Condition 1 offline proposals, Condition 2 physical fields, blockers (read-only)
+- **Condition 1 write (away-059):** `processInboundVendorEmail` callable CF (auth required) — auto-applies high-confidence `vendor_order_complete` to `vendorOrderComplete*` only; `vendorEmailEvents` audit; conflict → pending review; `test:process-inbound-vendor-email`; drawer ✓ Complete / Review Required from delivery fields
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 

@@ -179,6 +179,14 @@ async function ensureAuthenticated(page) {
     if (!/does not determine readiness/i.test(noteText)) {
       throw new Error(`Condition 1 note missing disclaimer: ${noteText}`);
     }
+    const statusEl = page.getByTestId("readiness-evidence-condition1-status");
+    if (await statusEl.isVisible().catch(() => false)) {
+      const statusText = await statusEl.innerText();
+      if (!/Complete|Review Required/i.test(statusText)) {
+        throw new Error(`Condition 1 status unexpected: ${statusText}`);
+      }
+      console.log(`Drawer Condition 1 status: ${statusText.trim()}`);
+    }
     console.log("Drawer PASS: readiness-evidence-panel visible with condition1/2/blockers.");
   } else {
     console.log("SKIP drawer readiness evidence: no delivery rows to open.");

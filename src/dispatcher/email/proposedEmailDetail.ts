@@ -68,7 +68,7 @@ export function describeCondition1Impact(
   if (wouldAutoApply && reviewStatus === "auto_processed") {
     return {
       affectsCondition1: true,
-      note: `Would propose vendor order complete on ${target} — Condition 1 evidence only; applies after dispatcher approval in Phase 6+. Readiness stays server-controlled.`,
+      note: `High-confidence vendor order complete on ${target} — Condition 1 only via server auto-apply; does not set Ready for Pickup or physical evidence.`,
     };
   }
 

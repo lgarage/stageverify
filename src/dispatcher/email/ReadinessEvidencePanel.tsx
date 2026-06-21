@@ -5,6 +5,7 @@ import {
   filterProposalsForDelivery,
   getProposedEmailUpdates,
 } from "./getProposedEmailUpdates";
+import { hasVendorOrderCompleteApplyConflict } from "./emailApplyConflicts";
 
 const BLOCK_LABEL: Record<string, string> = {
   vendor_order_incomplete: "Vendor order not complete",
@@ -79,6 +80,45 @@ export function ReadinessEvidencePanel({
     ]),
   ];
 
+  const emailAutoApplied =
+    delivery.vendorOrderComplete === true &&
+    delivery.vendorOrderCompleteSource === "vendor_email";
+
+  const proposalReviewRequired = proposals.some((row) => {
+    if (row.reviewStatus === "pending_review" || row.reviewStatus === "rejected") {
+      return row.affectsCondition1;
+    }
+    if (row.reviewStatus === "auto_processed" && !emailAutoApplied) {
+      const conflict = hasVendorOrderCompleteApplyConflict(
+        delivery,
+        items,
+        {
+          classification: row.classification,
+          poNumbers: row.poNumber ? [row.poNumber] : [],
+          orderNumbers: row.matchedOrderLabel ? [row.matchedOrderLabel] : [],
+          jobNumbers: row.matchedJobNumber ? [row.matchedJobNumber] : [],
+          itemLines: row.itemLines,
+          vendorOrderCompleteClaim: row.classification === "vendor_order_complete",
+        },
+      );
+      return conflict !== null;
+    }
+    return false;
+  });
+
+  const twoSourceConflict =
+    emailAutoApplied &&
+    delivery.vendorPhysicalDropoffConfirmed === true &&
+    items.some(
+      (item) =>
+        item.qtyReceived < item.qtyOrdered ||
+        item.qtyBackordered > 0 ||
+        item.qtyMissing > 0,
+    );
+
+  const condition1ReviewRequired = proposalReviewRequired || twoSourceConflict;
+  const condition1Complete = emailAutoApplied && !twoSourceConflict;
+
   return (
     <div
       data-testid="readiness-evidence-panel"
@@ -105,6 +145,40 @@ export function ReadinessEvidencePanel({
         >
           Condition 1 — Vendor Order Evidence
         </p>
+        {condition1Complete ? (
+          <p
+            data-testid="readiness-evidence-condition1-status"
+            style={{
+              margin: "0 0 10px",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#2e7d32",
+            }}
+          >
+            ✓ Complete
+            {delivery.vendorOrderCompleteAt
+              ? ` · auto-applied ${new Date(delivery.vendorOrderCompleteAt).toLocaleString()}`
+              : ""}
+            {delivery.vendorOrderCompleteConfidence !== undefined
+              ? ` · ${delivery.vendorOrderCompleteConfidence}% confidence`
+              : ""}
+          </p>
+        ) : condition1ReviewRequired ? (
+          <p
+            data-testid="readiness-evidence-condition1-status"
+            style={{
+              margin: "0 0 10px",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#b45309",
+            }}
+          >
+            Review Required
+            {twoSourceConflict
+              ? " — vendor email and physical delivery information conflict"
+              : ""}
+          </p>
+        ) : null}
         {proposals.length === 0 ? (
           <p
             data-testid="readiness-evidence-condition1-empty"

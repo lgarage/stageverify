@@ -1,4 +1,3 @@
-import type { DeliveryOrder } from "../models";
 import { matchEmailToRecords, shouldAutoApplyVendorOrderComplete } from "./matchEmailToRecords";
 import { contentFingerprint, parseVendorEmail } from "./parseVendorEmail";
 import type { EmailProcessingResult, InboundEmailMessage } from "./types";
@@ -47,18 +46,12 @@ export function processInboundEmail(
   };
 }
 
-/** Condition 1 evidence only — readiness recalculation is server-owned (CF). */
-export function buildVendorOrderCompletePatch(
-  now: string,
-  confidenceScore?: number,
-): Partial<DeliveryOrder> {
+/** Condition 1 evidence only — readiness recalculation is a separate server step. */
+export function buildVendorOrderCompletePatch(now: string): Record<string, unknown> {
   return {
     vendorOrderComplete: true,
     vendorOrderCompleteAt: now,
     vendorOrderCompleteSource: "vendor_email",
-    ...(confidenceScore !== undefined
-      ? { vendorOrderCompleteConfidence: confidenceScore }
-      : {}),
     updatedAt: now,
   };
 }
