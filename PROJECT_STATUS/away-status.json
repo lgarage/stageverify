@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-19",
+  "lastRun": "2026-06-21",
   "batch": "away-001..041 archived; active queue away-042+",
   "results": [
     {
@@ -365,6 +365,13 @@
       "status": "built",
       "commit": "bb7a5d1",
       "note": "Email Monitoring settings card; verify:settings-staging PASS"
+    },
+    {
+      "id": "away-054",
+      "title": "Phase 5: fingerprint dedup in getProposedEmailUpdates",
+      "status": "built",
+      "commit": "4fd53c6",
+      "note": "Fingerprint dedup in getProposedEmailUpdates; test:email-parser + verify:dispatcher-nav PASS"
     }
   ],
   "summary": "away-042..053 shipped; active queue empty — see docs/project_state.md immediate next steps"

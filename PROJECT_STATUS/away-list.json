@@ -11,33 +11,11 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
     "sequence": [
-      "away-054",
       "away-055",
       "away-056"
     ]
   },
   "queue": [
-    {
-      "id": "away-054",
-      "title": "Phase 5: fingerprint dedup in getProposedEmailUpdates",
-      "scope": "In src/dispatcher/email/getProposedEmailUpdates.ts, record content fingerprints in existing.byFingerprint after each non-duplicate fixture (mirror test-email-parser.mjs index pattern) so msg-duplicate-004 and similar content-duplicates are excluded from the Proposed Email panel. Update scripts/test-email-parser.mjs to set byFingerprint in the processing loop and assert fingerprint duplicate detection. No Firestore, no CF, no live inbox.",
-      "files": [
-        "src/dispatcher/email/getProposedEmailUpdates.ts",
-        "scripts/test-email-parser.mjs"
-      ],
-      "tier": "T1",
-      "model": "composer-2.5",
-      "acceptance": "getProposedEmailUpdates excludes content-duplicates (msg-duplicate-004 not in proposals); npm run test:email-parser PASS with fingerprint duplicate assertion; npm run build clean; npm run verify:dispatcher-nav PASS.",
-      "capturedDuring": "Dan 2026-06-21 — approved away batch away-054..056",
-      "preApproved": true,
-      "dependsOn": "away-053",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run test:email-parser",
-        "npm run verify:dispatcher-nav"
-      ],
-      "status": "queued"
-    },
     {
       "id": "away-055",
       "title": "Phase 5: verify:phase5-email interactive harness",
