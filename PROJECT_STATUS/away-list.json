@@ -10,26 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": ["away-061"]
+    "sequence": []
   },
-  "queue": [
-    {
-      "id": "away-061",
-      "title": "Drawer priority UX — action banner + section reorder",
-      "scope": "UI only in DispatcherDashboardPage drawer: ACTION REQUIRED/ALL CLEAR banner from existing readiness fields; reorder sections (Material Issues, Readiness Evidence, Delivery Basics, lower Items/Pickup/History). No table, workflow, or readiness logic changes.",
-      "files": [
-        "src/DispatcherDashboardPage.tsx",
-        "src/dispatcher/drawer/DrawerActionBanner.tsx"
-      ],
-      "tier": "T1",
-      "model": "composer-2.5",
-      "acceptance": "Banner at top; problems visible without scroll; email collapsed default; verify:dispatcher-nav + verify:phase5-email PASS; build clean.",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:dispatcher-nav",
-        "npm run verify:phase5-email"
-      ],
-      "status": "queued"
-    }
-  ]
+  "queue": []
 }

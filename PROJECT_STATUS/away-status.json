@@ -414,6 +414,13 @@
       "status": "built",
       "commit": "5048470",
       "note": "Needs Review strip + drawer Email Evidence; verify:phase5-email + verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-061",
+      "title": "Drawer priority UX — action banner + section reorder",
+      "status": "built",
+      "commit": "7202f63",
+      "note": "Action banner + drawer section reorder; verify:dispatcher-nav + verify:phase5-email PASS"
     }
   ],
   "summary": "away-060 shipped; active queue empty — see docs/project_state.md immediate next steps"
