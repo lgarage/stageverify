@@ -105,5 +105,10 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"
+  },
+  "_vendorVerifyScriptsDoc": {
+    "verify:vendor-delivered:prod": "CANONICAL prod — demo QR through exception-only Delivered hub",
+    "verify:vendor-demo": "LEGACY full_checkin — item checkoff + zone step",
+    "verify:vendor-demo:prod": "LEGACY full_checkin prod — not canonical; use verify:vendor-delivered:prod"
   }
 }

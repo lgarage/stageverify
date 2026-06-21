@@ -1,11 +1,14 @@
 /**
- * Playwright E2E: exception-only vendor Delivered hub workflow.
+ * Playwright E2E: exception-only vendor Delivered hub workflow (CANONICAL prod test).
  *
- * Covers: PIN, Delivered hub, Need More Space (shelf/ground/large), Issue, revert, dispatcher.
+ * Prod path: demo QR page → receive deep link → PIN 1234 → job/PO on hub →
+ * Need More Space / Issue / DELIVERED (no item checkoff, no full_checkin UI).
  *
  * Usage:
- *   npm run dev
- *   npm run verify:vendor-delivered
+ *   npm run verify:vendor-delivered        (local + fixture reset)
+ *   npm run verify:vendor-delivered:prod     (gh-pages + live Firebase/CF)
+ *
+ * Do NOT use verify:vendor-demo:prod — that is legacy full_checkin.
  */
 
 import { chromium } from "playwright";
@@ -23,12 +26,15 @@ const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
 const baseUrl =
   (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
   process.env.STAGEVERIFY_BASE_URL ??
+  process.env.STAGEVERIFY_PROD_BASE ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 
 const deliveryId =
   process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
 const orderNumber = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
+const jobName = process.env.STAGEVERIFY_VENDOR_JOB ?? "Riverside Medical Center";
+const poNumber = process.env.STAGEVERIFY_VENDOR_PO ?? "PO-88390";
 const correctPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
 
 const outDir = resolve(process.cwd(), "screenshots", "vendor-delivered");
@@ -59,18 +65,61 @@ async function unlockWithPin(page) {
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
   await enterPin(page, correctPin);
   await page.waitForSelector("text=DELIVERED", { timeout: 30_000 });
+  const hubText = await page.locator("body").innerText();
+  record("Job / Site visible on hub", hubText.includes(jobName));
+  record("Order # visible on hub", hubText.includes(orderNumber));
+  record("PO # visible on hub", hubText.includes(poNumber));
+}
+
+/** Demo QR page → extract printed payload → navigate (simulates Camera scan tap). */
+async function enterViaDemoQrScan(page) {
+  const demoUrl = `${appBase}/#/demo/vendor-scan`;
+  console.log(`Opening demo QR page ${demoUrl}`);
+  await page.goto(demoUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.waitForSelector("text=Vendor receive demo", { timeout: 15_000 });
+  await shot(page, "00-demo-qr-page");
+  record("Demo QR scan page loads", true);
+
+  const qrUrl = (await page.locator("p.break-all").innerText()).trim();
+  if (!qrUrl.includes("receive") && !/[/]r\?/i.test(qrUrl)) {
+    throw new Error(`QR payload missing receive route: ${qrUrl}`);
+  }
+  if (!qrUrl.includes(deliveryId)) {
+    throw new Error(`QR payload missing delivery id: ${qrUrl}`);
+  }
+  record("QR payload encodes demo delivery", true);
+
+  console.log(`Simulating scan → ${qrUrl}`);
+  await page.goto(qrUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  record("QR scan opens receive deep link", true);
 }
 
 async function runDeliveredFlow(page) {
-  const url = `${appBase}/#/receive?id=${deliveryId}`;
-  console.log(`Opening ${url}`);
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await enterViaDemoQrScan(page);
 
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
   await shot(page, "01-pin-gate");
   await unlockWithPin(page);
   record("PIN unlocks Delivered hub", true);
   await shot(page, "02-delivered-hub");
+
+  record(
+    "Exception-only Delivered hub",
+    await page.getByRole("button", { name: "DELIVERED", exact: true }).isVisible(),
+  );
+
+  const hasLegacyUi =
+    (await page.getByText("Filter rack").isVisible().catch(() => false)) ||
+    (await page
+      .getByRole("button", { name: /Next: Assign Zone/i })
+      .isVisible()
+      .catch(() => false)) ||
+    (await page
+      .getByText("Check off items as delivered")
+      .isVisible()
+      .catch(() => false)) ||
+    (await page.getByText("Assign Staging Zone").isVisible().catch(() => false));
+  record("No legacy full_checkin UI", !hasLegacyUi);
 
   const noItemCheckoff = !(await page
     .getByText("Check off items as delivered")

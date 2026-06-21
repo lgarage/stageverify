@@ -1,5 +1,9 @@
 /**
- * Playwright E2E: vendor portal demo — check-off items, adjust qty, zone step.
+ * LEGACY full_checkin vendor flow — NOT the canonical prod test.
+ *
+ * Exercises item checkoff, qty adjust, and zone step (vendorDeliveryMode=full_checkin).
+ * For exception-only Delivered hub on prod, use verify-vendor-delivered.mjs instead:
+ *   npm run verify:vendor-delivered:prod
  *
  * Usage:
  *   npm run dev   (local)
