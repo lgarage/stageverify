@@ -435,7 +435,14 @@
       "status": "built",
       "commit": "286dd94",
       "note": "Resolve defaults, call vendor tel link, need-more-info draft; consolidate blocking issues in banner"
+    },
+    {
+      "id": "away-064",
+      "title": "Fix drawer action modals",
+      "status": "built",
+      "commit": "91708bc",
+      "note": "Resolve prefilled note + readable inputs; Call Vendor SV modal; Need More Info copy draft"
     }
   ],
-  "summary": "away-063 shipped; active queue empty — see docs/project_state.md immediate next steps"
+  "summary": "away-064 shipped; active queue empty — see docs/project_state.md immediate next steps"
 }
