@@ -103,7 +103,7 @@ async function ensureAuthenticated(page) {
   });
 
   const panelText = await panel.innerText();
-  const required = ["Missing", "Technician", "Playwright verify"];
+  const required = ["Technician", "Playwright verify", "BLOCKING"];
   for (const fragment of required) {
     if (!panelText.includes(fragment)) {
       throw new Error(
@@ -149,8 +149,28 @@ async function ensureAuthenticated(page) {
     const beforeCount = await panel.getByRole("button", { name: "Resolve" }).count();
     await page.getByTestId("resolution-type-select").selectOption("vendor_redeliver");
     await page.getByTestId("resolution-note-input").fill("Playwright verify resolution");
-    await page.getByTestId("confirm-resolve-issue").click();
-    await page.waitForTimeout(3000);
+    const confirmResolve = page.getByTestId("confirm-resolve-issue");
+    await confirmResolve.waitFor({ state: "visible", timeout: 10_000 });
+    await page.waitForFunction(
+      () => {
+        const btn = document.querySelector('[data-testid="confirm-resolve-issue"]');
+        return btn instanceof HTMLButtonElement && !btn.disabled;
+      },
+      { timeout: 15_000 },
+    );
+    await confirmResolve.click();
+    await page.waitForFunction(
+      (before) => {
+        const panel = document.querySelector('[data-testid="material-issues-panel"]');
+        if (!panel) return false;
+        const resolveButtons = [...panel.querySelectorAll("button")].filter(
+          (b) => b.textContent?.trim() === "Resolve",
+        ).length;
+        return resolveButtons < before;
+      },
+      beforeCount,
+      { timeout: 20_000 },
+    );
     const afterCount = await panel.getByRole("button", { name: "Resolve" }).count();
     if (afterCount >= beforeCount) {
       throw new Error(
@@ -163,4 +183,5 @@ async function ensureAuthenticated(page) {
   }
 
   await browser.close();
+  process.exit(0);
 })();

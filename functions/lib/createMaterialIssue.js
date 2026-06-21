@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createMaterialIssue = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const pickupMaterialIssueReadback_1 = require("./pickupMaterialIssueReadback");
 function getDb() {
     return admin.firestore();
 }
@@ -222,9 +223,17 @@ exports.createMaterialIssue = (0, https_1.onCall)({
         const prevOpen = liveData.openIssueCount ?? 0;
         const prevBlocking = liveData.openBlockingIssueCount ?? 0;
         tx.set(getDb().collection("materialIssues").doc(issueId), issuePayload);
+        const readback = {
+            id: issueId,
+            type,
+            status,
+            blocking,
+            ...(description ? { description } : {}),
+        };
         tx.update(deliveryRef, {
             openIssueCount: prevOpen + 1,
             openBlockingIssueCount: prevBlocking + (blocking ? 1 : 0),
+            pickupMaterialIssues: (0, pickupMaterialIssueReadback_1.appendPickupMaterialIssueReadback)(liveData.pickupMaterialIssues, readback),
             updatedAt: now,
         });
     });

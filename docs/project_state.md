@@ -76,7 +76,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **M1 vendor revert hydration (shipped 2026-06-08):** `revertDeliveryStatus` vendor paths (early return + post-commit) route through `hydrateAfterVendorWrite` — unauthenticated revert no longer calls auth-only `getDeliveryDetails`. Focused security review: PASS. Local verify: vendor-e2e 10/10, pickup PASS.
 
-Full Phase 3 integration gate **passed 2026-06-19** (`away-047`: `verify:phase3-integration` + `verify:pickup:prod`). **Permanent shop-stock mapping shipped 2026-06-20** (`shopStockLocationMappings` directory on Staging Map, zone reservation, dispatcher link, CF qty on pickup). **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`).
+Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** — pickup issue resolution readback + `verify:phase4-integration`. **Phase 3 gate closed 2026-06-19–20** (integration verify + permanent shop-stock mapping). **Batch 3 shipped 2026-06-17–18:** vendor session (Slice 4), pickup tokens (Slice 5), §10–§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`…`041`; see `archives/away-batch-3.json`). **Away batch 047–053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`).
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
@@ -103,7 +103,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 | Delivery Detail Drawer | (inside dispatcher)         | Dispatcher          | Status changes, staging, shop stock, PO      |
 | Staging Assignment     | Settings → Zones            | Dispatcher          | CRUD zones, occupancy guard                  |
 | QR Routing             | Scan any tag                | Any actor           | Zone code → correct portal based on status   |
-| Pickup Portal          | `/#/pickup`                 | Technician (public) | Verify items + shop stock → Done; **Slice 1:** Report Issue modal + blocking warning (Done not hard-blocked) |
+| Pickup Portal          | `/#/pickup`                 | Technician (public) | Verify items + shop stock → Done; Report Issue + **open/resolved issue readback** (resolution type + note) |
 | Material Issues (Slice 1) | pickup + dispatcher drawer | Technician + dispatcher | Public callable `createMaterialIssue` (no Firebase Auth); dispatcher **Issues (n)** badge + read-only panel |
 | E-Tag / Zone Labels    | `/#/zones` (Print)          | Dispatcher          | Minew ESL QR + print label                   |
 | Vendor Management      | `/#/vendors`                | Dispatcher (auth)   | CRUD vendors                                 |
@@ -173,6 +173,6 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 4 remainder** — full issue-resolution gate (resolve UI shipped; end-to-end gate open).
+1. **Phase 5 prototype** — vendor email parsing (offline sample emails; inbox settings UI shipped `away-053`).
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.

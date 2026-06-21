@@ -414,6 +414,8 @@ export interface DeliveryOrder {
   openIssueCount?: number;
   /** Denormalized — open/assigned issues with blocking types (missing, wrong, damaged, backordered). */
   openBlockingIssueCount?: number;
+  /** Public-safe issue readback for pickup portal — CF-maintained only. */
+  pickupMaterialIssues?: PickupMaterialIssueReadback[];
   /** Two-source gate: vendor email / dispatcher confirms order completeness. */
   vendorOrderComplete?: boolean;
   vendorOrderCompleteAt?: string;
@@ -561,6 +563,18 @@ export interface PickupEvent {
   issueIds?: string[];
   clientOperationId?: string;
   stagingLocationIds?: string[];
+}
+
+/** Public-safe issue snapshot on delivery — maintained by material-issue CFs for pickup readback. */
+export interface PickupMaterialIssueReadback {
+  id: string;
+  type: MaterialIssueType;
+  status: MaterialIssueStatus;
+  blocking: boolean;
+  description?: string;
+  resolutionType?: IssueResolutionType;
+  resolutionNote?: string;
+  resolvedAt?: string;
 }
 
 export interface MaterialIssue {

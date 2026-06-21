@@ -111,6 +111,46 @@ if (process.env.FIRESTORE_EMULATOR_HOST) {
 await signInWithEmailAndPassword(auth, email, password);
 
 const deliveryRef = doc(db, "deliveries", deliveryId);
+
+async function clearOpenMaterialIssuesForFixture() {
+  const resolveIssue = httpsCallable(functions, "resolveMaterialIssue");
+  const issuesSnap = await getDocs(
+    query(
+      collection(db, "materialIssues"),
+      where("deliveryOrderId", "==", deliveryId),
+      where("status", "in", ["open", "assigned"]),
+    ),
+  );
+  if (issuesSnap.empty) return;
+
+  for (const issueDoc of issuesSnap.docs) {
+    try {
+      await resolveIssue({
+        issueId: issueDoc.id,
+        resolutionType: "other",
+        resolutionNote: "Fixture reset — cleared for verify",
+      });
+    } catch (err) {
+      console.warn(
+        `WARN: could not resolve stale issue ${issueDoc.id}:`,
+        err?.message ?? err,
+      );
+    }
+  }
+
+  await updateDoc(deliveryRef, {
+    openIssueCount: 0,
+    openBlockingIssueCount: 0,
+    pickupMaterialIssues: [],
+    updatedAt: new Date().toISOString(),
+  });
+  console.log(
+    `Cleared ${issuesSnap.size} stale material issue(s) on ${deliveryId}.`,
+  );
+}
+
+await clearOpenMaterialIssuesForFixture();
+
 const deliverySnap = await getDoc(deliveryRef);
 if (!deliverySnap.exists()) {
   console.error(`Delivery ${deliveryId} not found`);

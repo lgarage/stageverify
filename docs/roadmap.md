@@ -121,7 +121,7 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 **Active phase: Phase 3 — Technician Pickup Workflow** (permanent shop-stock mapping shipped 2026-06-20; full Phase 3 gate closed)
 
-Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` resolve + readiness recalc). Full Phase 4 gate still open. **Active away queue** may prioritize work ahead of gate close — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next` (e.g. `away-042` Phase 5 prototype).
+Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resolution readback + `verify:phase4-integration`). **Active away queue** may prioritize work ahead of phase gates — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next`.
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 
@@ -226,10 +226,11 @@ Phase 2 gate passed 2026-06-08. **Phase 4 entry shipped** (`away-039`/`040` reso
 | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Owner UI         | Open issue, select resolution type, submit (`away-051` — 8-type picker + note)                                                                        |
 | Resolution types | Found in Shop, Pick Up at Supply House, Vendor Redeliver, Substitute, Transfer, Continue Without, Hold Job, Other |
-| Tech UI          | View resolution status                                                                                            |
+| Tech UI          | View resolution status on pickup (`pickupMaterialIssues` readback + per-card panel) ✅ |
 | History          | Resolution + status history stored                                                                                |
+| Verify           | ✅ `verify:phase4-integration` (+ `:prod`) — issue report → dispatcher resolve → tech readback |
 
-**Gate:** End-to-end Issue Created → Assigned → Resolved → Closed for all resolution types, using defined test scenarios per implementation plan.
+**Gate:** End-to-end Issue Created → Assigned → Resolved → tech sees resolution on pickup. **Passed 2026-06-20** (`verify:phase4-integration` + `:prod`).
 
 ---
 

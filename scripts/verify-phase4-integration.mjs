@@ -14,6 +14,9 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const root = resolve(process.cwd());
+const baseUrlArgIndex = process.argv.indexOf("--base-url");
+const baseUrlOverride =
+  baseUrlArgIndex >= 0 ? process.argv[baseUrlArgIndex + 1] : undefined;
 
 function runStep(label, command, args) {
   console.log(`\n=== ${label} ===`);
@@ -21,7 +24,9 @@ function runStep(label, command, args) {
     cwd: root,
     stdio: "inherit",
     shell: true,
-    env: process.env,
+    env: baseUrlOverride
+      ? { ...process.env, STAGEVERIFY_BASE_URL: baseUrlOverride }
+      : process.env,
   });
   if (result.status !== 0) {
     console.error(`FAIL: ${label} (exit ${result.status ?? "unknown"})`);
@@ -37,9 +42,14 @@ runStep("seed pickup readiness", "npx", [
   "tsx",
   "scripts/seed-pickup-verify-readiness.mjs",
 ]);
-runStep("pickup portal flow", "node", ["scripts/verify-pickup-portal.mjs"]);
+runStep("pickup issue report", "node", [
+  "scripts/verify-pickup-issue-report.mjs",
+]);
 runStep("material issue dashboard resolve", "node", [
   "scripts/verify-material-issue-dashboard.mjs",
+]);
+runStep("pickup resolution readback", "node", [
+  "scripts/verify-pickup-issue-resolution-readback.mjs",
 ]);
 
 console.log("\nverify:phase4-integration PASS");

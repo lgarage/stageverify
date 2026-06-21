@@ -1,6 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
+import {
+  resolvePickupMaterialIssueReadback,
+  type PickupMaterialIssueReadback,
+} from "./pickupMaterialIssueReadback";
 
 function getDb() {
   return admin.firestore();
@@ -134,11 +138,17 @@ export const resolveMaterialIssue = onCall(
         resolvedBy,
         updatedAt: now,
       });
+      const pickupMaterialIssues = resolvePickupMaterialIssueReadback(
+        delivery.pickupMaterialIssues as PickupMaterialIssueReadback[] | undefined,
+        issueId,
+        { resolutionType, resolutionNote, resolvedAt: now },
+      );
       tx.update(deliveryRef, {
         openIssueCount: Math.max(0, prevOpen - 1),
         openBlockingIssueCount: blocking
           ? Math.max(0, prevBlocking - 1)
           : prevBlocking,
+        pickupMaterialIssues,
         updatedAt: now,
       });
     });

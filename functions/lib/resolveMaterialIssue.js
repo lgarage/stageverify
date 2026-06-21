@@ -4,6 +4,7 @@ exports.resolveMaterialIssue = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
+const pickupMaterialIssueReadback_1 = require("./pickupMaterialIssueReadback");
 function getDb() {
     return admin.firestore();
 }
@@ -96,11 +97,13 @@ exports.resolveMaterialIssue = (0, https_1.onCall)({
             resolvedBy,
             updatedAt: now,
         });
+        const pickupMaterialIssues = (0, pickupMaterialIssueReadback_1.resolvePickupMaterialIssueReadback)(delivery.pickupMaterialIssues, issueId, { resolutionType, resolutionNote, resolvedAt: now });
         tx.update(deliveryRef, {
             openIssueCount: Math.max(0, prevOpen - 1),
             openBlockingIssueCount: blocking
                 ? Math.max(0, prevBlocking - 1)
                 : prevBlocking,
+            pickupMaterialIssues,
             updatedAt: now,
         });
     });

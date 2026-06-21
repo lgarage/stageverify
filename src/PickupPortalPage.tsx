@@ -10,10 +10,12 @@ import {
 } from "./dispatcher/firestoreService";
 import {
   getAllStagingLocationIds,
+  ISSUE_RESOLUTION_TYPE_LABEL,
   MATERIAL_ISSUE_TYPE_LABEL,
   type DeliveryDetails,
   type DeliveryStatus,
   type MaterialIssueType,
+  type PickupMaterialIssueReadback,
   type StagingLocation,
 } from "./dispatcher/models";
 import {
@@ -444,14 +446,6 @@ function WalkUpEntry({
   );
 }
 
-const MATERIAL_ISSUE_TYPES: MaterialIssueType[] = [
-  "missing",
-  "wrong_item",
-  "damaged",
-  "backordered",
-  "other",
-];
-
 function ReportIssueModal({
   deliveryLabel,
   issueType,
@@ -535,6 +529,102 @@ function ReportIssueModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const MATERIAL_ISSUE_TYPES: MaterialIssueType[] = [
+  "missing",
+  "wrong_item",
+  "damaged",
+  "backordered",
+  "other",
+];
+
+function isOpenMaterialIssueStatus(
+  status: PickupMaterialIssueReadback["status"],
+): boolean {
+  return status === "open" || status === "assigned";
+}
+
+function PickupMaterialIssuePanel({
+  issues,
+}: {
+  issues: PickupMaterialIssueReadback[];
+}) {
+  if (issues.length === 0) return null;
+
+  return (
+    <div
+      className="mt-3 space-y-2"
+      data-testid="pickup-material-issue-panel"
+    >
+      {issues.map((issue) => {
+        const isOpen = isOpenMaterialIssueStatus(issue.status);
+        const isResolved =
+          issue.status === "resolved" || issue.status === "closed";
+
+        if (isResolved && issue.resolutionType) {
+          const resolutionLabel =
+            ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType];
+          return (
+            <div
+              key={issue.id}
+              data-testid="pickup-issue-resolved"
+              data-issue-id={issue.id}
+              className="rounded-xl border border-accent-green/40 bg-accent-green/10 px-3 py-2 text-xs"
+            >
+              <p className="font-semibold text-accent-green">
+                Issue resolved — {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+              </p>
+              <p className="mt-1 text-text-primary font-medium">
+                {resolutionLabel}
+              </p>
+              {issue.resolutionNote?.trim() ? (
+                <p
+                  className="mt-1 text-text-secondary"
+                  data-testid="pickup-issue-resolution-note"
+                >
+                  {issue.resolutionNote.trim()}
+                </p>
+              ) : null}
+            </div>
+          );
+        }
+
+        if (isOpen) {
+          return (
+            <div
+              key={issue.id}
+              data-testid="pickup-issue-open"
+              data-issue-id={issue.id}
+              className={`rounded-xl border px-3 py-2 text-xs ${
+                issue.blocking
+                  ? "border-accent/40 bg-accent/10 text-accent"
+                  : "border-border bg-bg-secondary/60 text-text-secondary"
+              }`}
+            >
+              <p className="font-semibold">
+                {MATERIAL_ISSUE_TYPE_LABEL[issue.type]} —{" "}
+                {issue.status === "assigned" ? "Assigned" : "Open"}
+              </p>
+              {issue.description?.trim() ? (
+                <p className="mt-1 text-text-secondary">
+                  {issue.description.trim()}
+                </p>
+              ) : null}
+              {issue.blocking ? (
+                <p className="mt-1 font-medium">
+                  Dispatch is reviewing — confirm before leaving if material is
+                  still missing.
+                </p>
+              ) : null}
+            </div>
+          );
+        }
+
+        return null;
+      })}
     </div>
   );
 }
@@ -1437,11 +1527,17 @@ function JobPickupScreen({
                             pickup.
                           </p>
                         )}
-                        {(d.delivery.openBlockingIssueCount ?? 0) > 0 && (
+                        {(d.delivery.openBlockingIssueCount ?? 0) > 0 &&
+                          !(d.delivery.pickupMaterialIssues ?? []).some(
+                            (issue) => isOpenMaterialIssueStatus(issue.status),
+                          ) && (
                           <p className="mt-2 text-xs font-semibold text-accent">
                             Blocking material issue open
                           </p>
                         )}
+                        <PickupMaterialIssuePanel
+                          issues={d.delivery.pickupMaterialIssues ?? []}
+                        />
                       </div>
                     </div>
                 </button>

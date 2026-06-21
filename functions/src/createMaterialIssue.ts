@@ -1,5 +1,9 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import {
+  appendPickupMaterialIssueReadback,
+  type PickupMaterialIssueReadback,
+} from "./pickupMaterialIssueReadback";
 
 function getDb() {
   return admin.firestore();
@@ -63,6 +67,7 @@ interface DeliveryDoc {
   materialOwnerName?: string;
   openIssueCount?: number;
   openBlockingIssueCount?: number;
+  pickupMaterialIssues?: PickupMaterialIssueReadback[];
 }
 
 interface JobDoc {
@@ -314,9 +319,20 @@ export const createMaterialIssue = onCall(
       const prevBlocking = liveData.openBlockingIssueCount ?? 0;
 
       tx.set(getDb().collection("materialIssues").doc(issueId), issuePayload);
+      const readback: PickupMaterialIssueReadback = {
+        id: issueId,
+        type,
+        status,
+        blocking,
+        ...(description ? { description } : {}),
+      };
       tx.update(deliveryRef, {
         openIssueCount: prevOpen + 1,
         openBlockingIssueCount: prevBlocking + (blocking ? 1 : 0),
+        pickupMaterialIssues: appendPickupMaterialIssueReadback(
+          liveData.pickupMaterialIssues,
+          readback,
+        ),
         updatedAt: now,
       });
     });
