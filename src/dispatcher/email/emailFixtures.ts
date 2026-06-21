@@ -137,6 +137,16 @@ export const EMAIL_FIXTURES: InboundEmailMessage[] = [
       "Delivery for PO-45821 ORD-1007 job 26-1042 rescheduled to Friday.",
     receivedAt: "2026-06-13T11:00:00Z",
   },
+  {
+    sourceMessageId: "msg-correction-015",
+    threadId: "thread-johnstone-45821",
+    senderEmail: "dispatch@johnstone.com",
+    recipientEmails: ["monitor@configured-inbox.example"],
+    subject: "Correction to earlier email — PO-45821",
+    bodyText:
+      "Correction to our earlier email: PO-45821 ORD-1007 for job 26-1042 is backordered on item 4x Duct section, not shipped as previously stated.",
+    receivedAt: "2026-06-13T14:00:00Z",
+  },
 ];
 
 export const MULTI_VENDOR_MATCH_CONTEXT = {

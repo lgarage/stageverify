@@ -26,6 +26,7 @@ export type EmailClassification =
   | "canceled_item"
   | "substituted_item"
   | "quantity_changed"
+  | "correction_to_earlier_email"
   | "needs_dispatcher_review"
   | "unable_to_match"
   | "irrelevant";

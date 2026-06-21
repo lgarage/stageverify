@@ -23,6 +23,9 @@ function classifyEmail(text: string): EmailClassification {
   if (/ignore (all )?previous|system prompt|override security|mark.*complete for job/i.test(text)) {
     return "needs_dispatcher_review";
   }
+  if (/correction to (our |your )?(earlier|previous)|correcting our earlier|revised.*earlier email/i.test(lower)) {
+    return "correction_to_earlier_email";
+  }
   if (/unable to match|cannot identify|unknown po/i.test(lower)) {
     return "unable_to_match";
   }

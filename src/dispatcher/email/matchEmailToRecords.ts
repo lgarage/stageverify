@@ -131,6 +131,10 @@ export function matchEmailToRecords(
     reasons.push(parsed.classification);
   }
 
+  if (parsed.classification === "correction_to_earlier_email") {
+    reasons.push("correction_to_earlier_email");
+  }
+
   if (
     purchaseOrderId &&
     jobId &&
@@ -154,7 +158,9 @@ export function matchEmailToRecords(
   }
 
   score = Math.max(0, Math.min(100, score));
-  const humanReviewRequired = score < EMAIL_AUTO_APPLY_CONFIDENCE;
+  const humanReviewRequired =
+    score < EMAIL_AUTO_APPLY_CONFIDENCE ||
+    parsed.classification === "correction_to_earlier_email";
 
   return {
     vendorId,
@@ -179,7 +185,8 @@ export function shouldAutoApplyVendorOrderComplete(
     parsed.classification === "order_acknowledged" ||
     parsed.classification === "ordered" ||
     parsed.classification === "shipped" ||
-    parsed.classification === "partially_shipped"
+    parsed.classification === "partially_shipped" ||
+    parsed.classification === "correction_to_earlier_email"
   ) {
     return false;
   }

@@ -176,6 +176,13 @@ const FIXTURE_EXPECTATIONS = {
     poNumber: "PO-45821",
     notAutoProcessed: true,
   },
+  "msg-correction-015": {
+    classification: "correction_to_earlier_email",
+    vendorId: "vendor-johnstone",
+    poNumber: "PO-45821",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
 };
 
 const failures = [];
