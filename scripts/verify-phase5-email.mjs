@@ -8,7 +8,7 @@
  */
 
 import { chromium } from "playwright";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 
@@ -143,6 +143,35 @@ async function ensureAuthenticated(page) {
       throw new Error(`Action banner summary unexpected: ${bannerSummary}`);
     }
     console.log("Drawer action banner PASS: receipt summary or all-clear visible.");
+
+    const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
+    if (await callVendorBtn.getAttribute("href")) {
+      throw new Error("Call Vendor banner must be button, not tel: link");
+    }
+    await callVendorBtn.click();
+    await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
+    await page.getByTestId("call-vendor-close").click();
+    await page.waitForTimeout(300);
+
+    await page.getByTestId("drawer-action-need-more-info").click();
+    await page.getByTestId("need-more-info-modal").waitFor({ timeout: 10_000 });
+    if (await page.getByTestId("need-more-info-draft").isVisible().catch(() => false)) {
+      const draft = await page.getByTestId("need-more-info-draft").inputValue();
+      if (!draft.trim()) throw new Error("Need More Info draft should be prefilled");
+      if (!(await page.getByTestId("need-more-info-copy").isVisible())) {
+        throw new Error("Need More Info modal missing Copy Message button");
+      }
+    }
+    await page.getByTestId("need-more-info-close").click();
+    await page.waitForTimeout(300);
+    console.log("Drawer modals PASS: Call Vendor modal + Need More Info draft/copy.");
+
+    const outDir = resolve(process.cwd(), "screenshots");
+    mkdirSync(outDir, { recursive: true });
+    await page.screenshot({
+      path: resolve(outDir, "phase5-drawer-action-banner.png"),
+      fullPage: false,
+    });
 
     await page.getByTestId("email-evidence-section").waitFor({ timeout: 10_000 });
     if (await page.getByTestId("email-evidence-list").isVisible()) {

@@ -69,6 +69,24 @@ function sidebar(page) {
   return page.locator("aside");
 }
 
+function assertReadableInputColor(page, testId, label) {
+  return page.getByTestId(testId).evaluate((el) => {
+    const style = window.getComputedStyle(el);
+    const color = style.color;
+    const rgb = color.match(/\d+/g);
+    if (!rgb || rgb.length < 3) return { ok: false, color };
+    const [r, g, b] = rgb.map(Number);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return { ok: luminance < 0.45, color, luminance };
+  }).then((result) => {
+    if (!result.ok) {
+      throw new Error(
+        `${label}: input text should be dark/readable, got color ${result.color}`,
+      );
+    }
+  });
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -212,11 +230,17 @@ function sidebar(page) {
     }
     console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
 
-    console.log("Drawer action banner (away-063)…");
+    console.log("Drawer action banner (away-063 / away-064)…");
     const actionBanner = page.getByTestId("drawer-action-banner");
     await actionBanner.waitFor({ timeout: 15_000 });
     const bannerHeading = await page.getByTestId("drawer-action-banner-heading").innerText();
     console.log(`Drawer action banner heading: ${bannerHeading.trim()}`);
+
+    const tableRowCount = await page.locator("table tbody tr").count();
+    console.log(`Deliveries table rows (unchanged baseline): ${tableRowCount}`);
+
+    const outDir = resolve(process.cwd(), "screenshots");
+    mkdirSync(outDir, { recursive: true });
 
     const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
     if (await resolveBtn.isEnabled().catch(() => false)) {
@@ -226,12 +250,48 @@ function sidebar(page) {
       if (!noteVal.trim()) {
         throw new Error("Resolve modal note should have suggested default text");
       }
-      console.log("PASS: Resolve modal opens with suggested default note.");
+      if (!/Issue:/i.test(noteVal) || !/Next step:/i.test(noteVal)) {
+        throw new Error("Resolve modal note should include issue and next step lines");
+      }
+      await assertReadableInputColor(page, "resolution-note-input", "Resolve note");
+      const submitBtn = page.getByTestId("confirm-resolve-issue");
+      if (!(await submitBtn.isEnabled())) {
+        throw new Error("Submit resolution should be enabled when default note exists");
+      }
+      console.log("PASS: Resolve modal opens with editable default note and enabled submit.");
+      await page.screenshot({
+        path: resolve(outDir, "drawer-resolve-modal-default-note.png"),
+        fullPage: false,
+      });
       await page.getByRole("button", { name: "Cancel" }).click();
       await page.waitForTimeout(400);
     } else {
       console.log("SKIP Resolve banner button: no blocking issues on this delivery.");
     }
+
+    const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
+    const callVendorHref = await callVendorBtn.getAttribute("href");
+    if (callVendorHref) {
+      throw new Error("Call Vendor banner button must not be a direct tel: link");
+    }
+    await callVendorBtn.click();
+    await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
+    await page.getByTestId("call-vendor-name").waitFor({ timeout: 5000 });
+    const modalPhoneLink = page.getByTestId("call-vendor-phone-link");
+    const modalPhoneMissing = page.getByTestId("call-vendor-phone-missing");
+    if (
+      !(await modalPhoneLink.isVisible().catch(() => false)) &&
+      !(await modalPhoneMissing.isVisible().catch(() => false))
+    ) {
+      throw new Error("Call Vendor modal must show phone link or missing message");
+    }
+    console.log("PASS: Call Vendor opens StageVerify modal (no direct tel on banner).");
+    await page.screenshot({
+      path: resolve(outDir, "drawer-call-vendor-modal.png"),
+      fullPage: false,
+    });
+    await page.getByTestId("call-vendor-close").click();
+    await page.waitForTimeout(300);
 
     const needMoreBtn = page.getByTestId("drawer-action-need-more-info");
     await needMoreBtn.click();
@@ -241,34 +301,39 @@ function sidebar(page) {
     if (!hasDraft && !hasDeferred) {
       throw new Error("Need More Info modal must show draft or deferred message");
     }
-    console.log(`PASS: Need More Info modal (${hasDraft ? "draft" : "deferred"}).`);
+    if (hasDraft) {
+      const draftVal = await page.getByTestId("need-more-info-draft").inputValue();
+      if (!draftVal.trim()) {
+        throw new Error("Need More Info draft should be prefilled");
+      }
+      await assertReadableInputColor(page, "need-more-info-draft", "Need More Info draft");
+      const copyBtn = page.getByTestId("need-more-info-copy");
+      if (!(await copyBtn.isVisible())) {
+        throw new Error("Need More Info modal must include Copy Message button");
+      }
+      await copyBtn.click();
+      await page.waitForTimeout(400);
+      console.log("PASS: Need More Info prefilled draft + Copy Message.");
+    } else {
+      console.log("PASS: Need More Info deferred state (no draft content).");
+    }
+    await page.screenshot({
+      path: resolve(outDir, "drawer-need-more-info-modal.png"),
+      fullPage: false,
+    });
     await page.getByTestId("need-more-info-close").click();
     await page.waitForTimeout(300);
 
-    const callVendor = page.getByTestId("drawer-action-call-vendor");
-    if (await callVendor.getAttribute("href")) {
-      const phoneLink = page.getByTestId("drawer-vendor-phone-link");
-      await phoneLink.waitFor({ timeout: 5000 });
-      console.log("PASS: Call Vendor enabled with tel link and visible phone.");
-    } else if (await page.getByTestId("drawer-vendor-phone-missing").isVisible().catch(() => false)) {
-      console.log("PASS: No vendor phone — missing message shown.");
+    const tableRowCountAfter = await page.locator("table tbody tr").count();
+    if (tableRowCountAfter !== tableRowCount) {
+      throw new Error("Deliveries table row count changed after drawer modal checks");
     }
+    console.log("PASS: Deliveries table unchanged after modal interactions.");
 
-    const outDir = resolve(process.cwd(), "screenshots");
-    mkdirSync(outDir, { recursive: true });
     await page.screenshot({
       path: resolve(outDir, "drawer-action-banner.png"),
       fullPage: false,
     });
-    if (await resolveBtn.isEnabled().catch(() => false)) {
-      await resolveBtn.click();
-      await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
-      await page.screenshot({
-        path: resolve(outDir, "drawer-resolve-modal-default-note.png"),
-        fullPage: false,
-      });
-      await page.getByRole("button", { name: "Cancel" }).click();
-    }
 
     const orderNumber = process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-004";
     const search = page.locator('input[placeholder*="Job #, name, PO"]');

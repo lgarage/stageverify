@@ -68,6 +68,7 @@ import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
+  DRAWER_MODAL_INPUT_STYLE,
 } from "./dispatcher/drawer/resolveIssueDefaults";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -2447,11 +2448,25 @@ function DetailContent({
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolutionNoteTouched, setResolutionNoteTouched] = useState(false);
 
-  const openResolveModal = (issue: MaterialIssue, orderNumber?: string | null) => {
+  const resolutionContext = {
+    orderNumber: details?.delivery.orderNumber ?? null,
+    jobNumber: details?.job?.jobNumber ?? null,
+    missingItems: (details?.items ?? [])
+      .filter((item) => item.qtyMissing > 0)
+      .map((item) => ({
+        description: item.description,
+        qtyMissing: item.qtyMissing,
+        qtyOrdered: item.qtyOrdered,
+      })),
+  };
+
+  const openResolveModal = (issue: MaterialIssue) => {
     const defaultType = defaultResolutionTypeForIssue(issue);
     setResolveIssueId(issue.id);
     setResolutionType(defaultType);
-    setResolutionNote(buildSuggestedResolutionNote(issue, defaultType, orderNumber));
+    setResolutionNote(
+      buildSuggestedResolutionNote(issue, defaultType, resolutionContext),
+    );
     setResolutionNoteTouched(false);
   };
 
@@ -2564,7 +2579,7 @@ function DetailContent({
           font={font}
           onResolveBlockingIssue={
             firstBlockingIssue
-              ? () => openResolveModal(firstBlockingIssue, details.delivery.orderNumber)
+              ? () => openResolveModal(firstBlockingIssue)
               : undefined
           }
         />
@@ -2626,7 +2641,7 @@ function DetailContent({
                     data-testid={`resolve-issue-${issue.id}`}
                     disabled={mutationLoading}
                     onClick={() =>
-                      openResolveModal(issue, details.delivery.orderNumber)
+                      openResolveModal(issue)
                     }
                     style={{
                       marginTop: 8,
@@ -3357,11 +3372,17 @@ function DetailContent({
                   );
                   if (issue) {
                     setResolutionNote(
-                      buildSuggestedResolutionNote(
-                        issue,
-                        nextType,
-                        details.delivery.orderNumber,
-                      ),
+                      buildSuggestedResolutionNote(issue, nextType, {
+                        orderNumber: details.delivery.orderNumber,
+                        jobNumber: job.jobNumber,
+                        missingItems: details.items
+                          .filter((item) => item.qtyMissing > 0)
+                          .map((item) => ({
+                            description: item.description,
+                            qtyMissing: item.qtyMissing,
+                            qtyOrdered: item.qtyOrdered,
+                          })),
+                      }),
                     );
                   }
                 }
@@ -3373,6 +3394,8 @@ function DetailContent({
                 borderRadius: 6,
                 border: "1px solid #d1d5db",
                 fontSize: 13,
+                fontFamily: font,
+                ...DRAWER_MODAL_INPUT_STYLE,
               }}
             >
               {ISSUE_RESOLUTION_TYPES.map((type) => (
@@ -3414,7 +3437,9 @@ function DetailContent({
                 borderRadius: 6,
                 border: "1px solid #d1d5db",
                 fontSize: 13,
+                fontFamily: font,
                 resize: "vertical",
+                ...DRAWER_MODAL_INPUT_STYLE,
               }}
             />
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -3436,7 +3461,7 @@ function DetailContent({
               <button
                 type="button"
                 data-testid="confirm-resolve-issue"
-                disabled={mutationLoading}
+                disabled={mutationLoading || !resolutionNote.trim()}
                 onClick={() => {
                   const issueId = resolveIssueId;
                   setResolveIssueId(null);

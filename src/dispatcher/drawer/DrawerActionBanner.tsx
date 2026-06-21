@@ -9,6 +9,7 @@ import {
 import { hasVendorOrderCompleteApplyConflict } from "../email/emailApplyConflicts";
 import { proposalNeedsDrawerReview } from "../email/emailReviewHelpers";
 import { buildNeedMoreInfoDraft } from "./needMoreInfoDraft";
+import { DRAWER_MODAL_INPUT_STYLE } from "./resolveIssueDefaults";
 
 const BLOCK_LABEL: Record<string, string> = {
   vendor_order_incomplete: "Vendor order not complete",
@@ -51,10 +52,15 @@ export function DrawerActionBanner({
   onResolveBlockingIssue?: () => void;
 }) {
   const [needMoreInfoOpen, setNeedMoreInfoOpen] = useState(false);
+  const [needMoreInfoText, setNeedMoreInfoText] = useState("");
+  const [callVendorOpen, setCallVendorOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
-  const { delivery, items, materialIssues, purchaseOrder } = details;
+  const { delivery, items, materialIssues, purchaseOrder, vendor, job } = details;
   const poNumber = purchaseOrder?.poNumber ?? null;
-  const vendorPhone = details.vendor.contactPhone?.trim() ?? "";
+  const vendorPhone = vendor.contactPhone?.trim() ?? "";
+  const vendorEmail = vendor.email?.trim() ?? "";
+  const vendorAddress = vendor.address?.trim() ?? "";
   const telHref = vendorPhone ? `tel:${telDigits(vendorPhone)}` : null;
 
   const readiness = useMemo(
@@ -149,7 +155,23 @@ export function DrawerActionBanner({
 
   const missingLines = missingItemLines(items);
   const receipt = itemReceiptSummary(items);
-  const needMoreInfoDraft = buildNeedMoreInfoDraft(details);
+
+  const openNeedMoreInfo = () => {
+    setNeedMoreInfoText(buildNeedMoreInfoDraft(details) ?? "");
+    setCopyFeedback(null);
+    setNeedMoreInfoOpen(true);
+  };
+
+  const handleCopyNeedMoreInfo = async () => {
+    if (!needMoreInfoText.trim()) return;
+    try {
+      await navigator.clipboard.writeText(needMoreInfoText);
+      setCopyFeedback("Copied!");
+      setTimeout(() => setCopyFeedback(null), 2000);
+    } catch {
+      setCopyFeedback("Copy failed — select text manually");
+    }
+  };
 
   return (
     <>
@@ -282,49 +304,28 @@ export function DrawerActionBanner({
             >
               Resolve Issue
             </button>
-            {telHref ? (
-              <a
-                href={telHref}
-                data-testid="drawer-action-call-vendor"
-                style={{
-                  padding: "7px 12px",
-                  borderRadius: 6,
-                  border: `1.5px solid ${navy}`,
-                  backgroundColor: "#fff",
-                  color: navy,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  fontFamily: font,
-                }}
-              >
-                Call Vendor
-              </a>
-            ) : (
-              <button
-                type="button"
-                data-testid="drawer-action-call-vendor"
-                disabled
-                title="No vendor phone number saved"
-                style={{
-                  padding: "7px 12px",
-                  borderRadius: 6,
-                  border: "1.5px solid #cbd5e1",
-                  backgroundColor: "#f8fafc",
-                  color: "#94a3b8",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "not-allowed",
-                  fontFamily: font,
-                }}
-              >
-                Call Vendor
-              </button>
-            )}
+            <button
+              type="button"
+              data-testid="drawer-action-call-vendor"
+              onClick={() => setCallVendorOpen(true)}
+              style={{
+                padding: "7px 12px",
+                borderRadius: 6,
+                border: `1.5px solid ${navy}`,
+                backgroundColor: "#fff",
+                color: navy,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Call Vendor
+            </button>
             <button
               type="button"
               data-testid="drawer-action-need-more-info"
-              onClick={() => setNeedMoreInfoOpen(true)}
+              onClick={openNeedMoreInfo}
               style={{
                 padding: "7px 12px",
                 borderRadius: 6,
@@ -352,20 +353,7 @@ export function DrawerActionBanner({
             }}
           >
             {vendorPhone ? (
-              <>
-                Vendor phone:{" "}
-                {telHref ? (
-                  <a
-                    href={telHref}
-                    data-testid="drawer-vendor-phone-link"
-                    style={{ color: navy, fontWeight: 700 }}
-                  >
-                    {vendorPhone}
-                  </a>
-                ) : (
-                  vendorPhone
-                )}
-              </>
+              <>Vendor phone: {vendorPhone}</>
             ) : (
               <span data-testid="drawer-vendor-phone-missing">
                 No vendor phone number saved
@@ -374,6 +362,130 @@ export function DrawerActionBanner({
           </p>
         )}
       </section>
+
+      {callVendorOpen && (
+        <div
+          data-testid="call-vendor-modal"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: 16,
+          }}
+          onClick={() => setCallVendorOpen(false)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              backgroundColor: "#fff",
+              borderRadius: 10,
+              padding: 20,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+              fontFamily: font,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: "0 0 8px",
+                fontSize: 16,
+                fontWeight: 700,
+                color: navy,
+              }}
+            >
+              Call Vendor
+            </h3>
+            <p
+              style={{
+                margin: "0 0 14px",
+                fontSize: 12,
+                color: "#64748b",
+              }}
+            >
+              {delivery.orderNumber
+                ? `Delivery ${delivery.orderNumber}`
+                : "Delivery contact details"}
+              {job ? ` · ${job.jobName}` : ""}
+            </p>
+            <dl
+              style={{
+                margin: "0 0 16px",
+                fontSize: 13,
+                color: "#111827",
+              }}
+            >
+              <div style={{ marginBottom: 10 }}>
+                <dt style={{ fontWeight: 700, marginBottom: 2 }}>Vendor</dt>
+                <dd style={{ margin: 0 }} data-testid="call-vendor-name">
+                  {vendor.name}
+                  {vendor.contactName ? ` (${vendor.contactName})` : ""}
+                </dd>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <dt style={{ fontWeight: 700, marginBottom: 2 }}>Phone</dt>
+                <dd style={{ margin: 0 }}>
+                  {vendorPhone && telHref ? (
+                    <a
+                      href={telHref}
+                      data-testid="call-vendor-phone-link"
+                      style={{ color: navy, fontWeight: 700, textDecoration: "none" }}
+                    >
+                      {vendorPhone}
+                    </a>
+                  ) : (
+                    <span
+                      data-testid="call-vendor-phone-missing"
+                      style={{ color: "#64748b" }}
+                    >
+                      No phone number saved for this vendor
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <dt style={{ fontWeight: 700, marginBottom: 2 }}>Address</dt>
+                <dd style={{ margin: 0 }} data-testid="call-vendor-address">
+                  {vendorAddress || (
+                    <span style={{ color: "#64748b" }}>No address on file</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt style={{ fontWeight: 700, marginBottom: 2 }}>Email</dt>
+                <dd style={{ margin: 0 }} data-testid="call-vendor-email">
+                  {vendorEmail || (
+                    <span style={{ color: "#64748b" }}>No email on file</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                data-testid="call-vendor-close"
+                onClick={() => setCallVendorOpen(false)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  border: "none",
+                  backgroundColor: navy,
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {needMoreInfoOpen && (
         <div
@@ -421,11 +533,11 @@ export function DrawerActionBanner({
             >
               Copy and contact the vendor manually. Automated send is not available yet.
             </p>
-            {needMoreInfoDraft ? (
+            {needMoreInfoText.trim() ? (
               <textarea
-                readOnly
                 data-testid="need-more-info-draft"
-                value={needMoreInfoDraft}
+                value={needMoreInfoText}
+                onChange={(e) => setNeedMoreInfoText(e.target.value)}
                 rows={12}
                 style={{
                   width: "100%",
@@ -436,7 +548,7 @@ export function DrawerActionBanner({
                   fontSize: 13,
                   fontFamily: "inherit",
                   resize: "vertical",
-                  backgroundColor: "#f8fafc",
+                  ...DRAWER_MODAL_INPUT_STYLE,
                 }}
               />
             ) : (
@@ -456,7 +568,41 @@ export function DrawerActionBanner({
                 include. Contact the vendor by phone or review email evidence below.
               </p>
             )}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                justifyContent: "flex-end",
+                alignItems: "center",
+              }}
+            >
+              {copyFeedback && (
+                <span
+                  data-testid="need-more-info-copy-feedback"
+                  style={{ fontSize: 12, color: "#166534", marginRight: "auto" }}
+                >
+                  {copyFeedback}
+                </span>
+              )}
+              {needMoreInfoText.trim() && (
+                <button
+                  type="button"
+                  data-testid="need-more-info-copy"
+                  onClick={() => void handleCopyNeedMoreInfo()}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    border: `1.5px solid ${navy}`,
+                    backgroundColor: "#fff",
+                    color: navy,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Copy Message
+                </button>
+              )}
               <button
                 type="button"
                 data-testid="need-more-info-close"
