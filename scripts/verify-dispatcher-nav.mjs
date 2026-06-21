@@ -212,6 +212,64 @@ function sidebar(page) {
     }
     console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
 
+    console.log("Drawer action banner (away-063)…");
+    const actionBanner = page.getByTestId("drawer-action-banner");
+    await actionBanner.waitFor({ timeout: 15_000 });
+    const bannerHeading = await page.getByTestId("drawer-action-banner-heading").innerText();
+    console.log(`Drawer action banner heading: ${bannerHeading.trim()}`);
+
+    const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
+    if (await resolveBtn.isEnabled().catch(() => false)) {
+      await resolveBtn.click();
+      await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
+      const noteVal = await page.getByTestId("resolution-note-input").inputValue();
+      if (!noteVal.trim()) {
+        throw new Error("Resolve modal note should have suggested default text");
+      }
+      console.log("PASS: Resolve modal opens with suggested default note.");
+      await page.getByRole("button", { name: "Cancel" }).click();
+      await page.waitForTimeout(400);
+    } else {
+      console.log("SKIP Resolve banner button: no blocking issues on this delivery.");
+    }
+
+    const needMoreBtn = page.getByTestId("drawer-action-need-more-info");
+    await needMoreBtn.click();
+    await page.getByTestId("need-more-info-modal").waitFor({ timeout: 10_000 });
+    const hasDraft = await page.getByTestId("need-more-info-draft").isVisible().catch(() => false);
+    const hasDeferred = await page.getByTestId("need-more-info-deferred").isVisible().catch(() => false);
+    if (!hasDraft && !hasDeferred) {
+      throw new Error("Need More Info modal must show draft or deferred message");
+    }
+    console.log(`PASS: Need More Info modal (${hasDraft ? "draft" : "deferred"}).`);
+    await page.getByTestId("need-more-info-close").click();
+    await page.waitForTimeout(300);
+
+    const callVendor = page.getByTestId("drawer-action-call-vendor");
+    if (await callVendor.getAttribute("href")) {
+      const phoneLink = page.getByTestId("drawer-vendor-phone-link");
+      await phoneLink.waitFor({ timeout: 5000 });
+      console.log("PASS: Call Vendor enabled with tel link and visible phone.");
+    } else if (await page.getByTestId("drawer-vendor-phone-missing").isVisible().catch(() => false)) {
+      console.log("PASS: No vendor phone — missing message shown.");
+    }
+
+    const outDir = resolve(process.cwd(), "screenshots");
+    mkdirSync(outDir, { recursive: true });
+    await page.screenshot({
+      path: resolve(outDir, "drawer-action-banner.png"),
+      fullPage: false,
+    });
+    if (await resolveBtn.isEnabled().catch(() => false)) {
+      await resolveBtn.click();
+      await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
+      await page.screenshot({
+        path: resolve(outDir, "drawer-resolve-modal-default-note.png"),
+        fullPage: false,
+      });
+      await page.getByRole("button", { name: "Cancel" }).click();
+    }
+
     const orderNumber = process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-004";
     const search = page.locator('input[placeholder*="Job #, name, PO"]');
     try {

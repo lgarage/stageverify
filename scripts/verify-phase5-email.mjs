@@ -137,6 +137,13 @@ async function ensureAuthenticated(page) {
       throw new Error(`Condition 1 note missing disclaimer: ${noteText}`);
     }
 
+    await page.getByTestId("drawer-action-banner").waitFor({ timeout: 10_000 });
+    const bannerSummary = await page.getByTestId("drawer-action-banner-summary").innerText();
+    if (!/\d+ of \d+ items ordered/i.test(bannerSummary) && !/Ready for Pickup/i.test(bannerSummary)) {
+      throw new Error(`Action banner summary unexpected: ${bannerSummary}`);
+    }
+    console.log("Drawer action banner PASS: receipt summary or all-clear visible.");
+
     await page.getByTestId("email-evidence-section").waitFor({ timeout: 10_000 });
     if (await page.getByTestId("email-evidence-list").isVisible()) {
       throw new Error("Email Evidence list must be collapsed by default");

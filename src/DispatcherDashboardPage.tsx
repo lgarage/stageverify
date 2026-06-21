@@ -48,7 +48,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, ISSUE_RESOLUTION_TYPES, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type ShopStockLocationMapping } from "./dispatcher/models";
+import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, ISSUE_RESOLUTION_TYPES, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping } from "./dispatcher/models";
 import {
   deliveryReadinessDisplayLabel,
   jobDispatchDisplayLabel,
@@ -65,6 +65,10 @@ import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
+import {
+  buildSuggestedResolutionNote,
+  defaultResolutionTypeForIssue,
+} from "./dispatcher/drawer/resolveIssueDefaults";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -2441,6 +2445,15 @@ function DetailContent({
   const [resolutionType, setResolutionType] =
     useState<IssueResolutionType>("found_in_shop");
   const [resolutionNote, setResolutionNote] = useState("");
+  const [resolutionNoteTouched, setResolutionNoteTouched] = useState(false);
+
+  const openResolveModal = (issue: MaterialIssue, orderNumber?: string | null) => {
+    const defaultType = defaultResolutionTypeForIssue(issue);
+    setResolveIssueId(issue.id);
+    setResolutionType(defaultType);
+    setResolutionNote(buildSuggestedResolutionNote(issue, defaultType, orderNumber));
+    setResolutionNoteTouched(false);
+  };
 
   if (loading) {
     return (
@@ -2488,6 +2501,8 @@ function DetailContent({
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
   );
+  const nonBlockingOpenIssues = openMaterialIssues.filter((i) => !i.blocking);
+  const resolvedIssues = details.materialIssues.filter((i) => i.status === "resolved");
   const firstBlockingIssue = openMaterialIssues.find((i) => i.blocking);
 
   const renderDrawerSection = (title: string, content: ReactNode) => (
@@ -2549,17 +2564,15 @@ function DetailContent({
           font={font}
           onResolveBlockingIssue={
             firstBlockingIssue
-              ? () => {
-                  setResolveIssueId(firstBlockingIssue.id);
-                  setResolutionType("found_in_shop");
-                  setResolutionNote("");
-                }
+              ? () => openResolveModal(firstBlockingIssue, details.delivery.orderNumber)
               : undefined
           }
         />
-        {openMaterialIssues.length > 0 &&
+        {(nonBlockingOpenIssues.length > 0 || resolvedIssues.length > 0) &&
           renderDrawerSection(
-            `Material Issues (${openMaterialIssues.length})`,
+            nonBlockingOpenIssues.length > 0
+              ? `Material Issues (${nonBlockingOpenIssues.length})`
+              : "Material Issues — recently resolved",
             <div
               data-testid="material-issues-panel"
               style={{
@@ -2568,7 +2581,7 @@ function DetailContent({
                 gap: 8,
               }}
             >
-              {openMaterialIssues.map((issue) => (
+              {nonBlockingOpenIssues.map((issue) => (
                 <div
                   key={issue.id}
                   style={{
@@ -2612,11 +2625,9 @@ function DetailContent({
                     type="button"
                     data-testid={`resolve-issue-${issue.id}`}
                     disabled={mutationLoading}
-                    onClick={() => {
-                      setResolveIssueId(issue.id);
-                      setResolutionType("found_in_shop");
-                      setResolutionNote("");
-                    }}
+                    onClick={() =>
+                      openResolveModal(issue, details.delivery.orderNumber)
+                    }
                     style={{
                       marginTop: 8,
                       padding: "6px 10px",
@@ -2634,9 +2645,8 @@ function DetailContent({
                   </button>
                 </div>
               ))}
-              {details.materialIssues.filter((i) => i.status === "resolved").length >
-                0 && (
-                <div style={{ marginTop: 12 }}>
+              {resolvedIssues.length > 0 && (
+                <div style={{ marginTop: nonBlockingOpenIssues.length > 0 ? 12 : 0 }}>
                   <p
                     style={{
                       margin: "0 0 8px",
@@ -2649,8 +2659,7 @@ function DetailContent({
                   >
                     Recently resolved
                   </p>
-                  {details.materialIssues
-                    .filter((i) => i.status === "resolved")
+                  {resolvedIssues
                     .slice(0, 3)
                     .map((issue) => (
                       <div
@@ -3339,9 +3348,24 @@ function DetailContent({
               id="resolution-type-select"
               data-testid="resolution-type-select"
               value={resolutionType}
-              onChange={(e) =>
-                setResolutionType(e.target.value as IssueResolutionType)
-              }
+              onChange={(e) => {
+                const nextType = e.target.value as IssueResolutionType;
+                setResolutionType(nextType);
+                if (!resolutionNoteTouched && resolveIssueId) {
+                  const issue = details.materialIssues.find(
+                    (i) => i.id === resolveIssueId,
+                  );
+                  if (issue) {
+                    setResolutionNote(
+                      buildSuggestedResolutionNote(
+                        issue,
+                        nextType,
+                        details.delivery.orderNumber,
+                      ),
+                    );
+                  }
+                }
+              }}
               style={{
                 width: "100%",
                 marginBottom: 12,
@@ -3361,14 +3385,27 @@ function DetailContent({
               htmlFor="resolution-note-input"
               style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}
             >
-              Notes (optional)
+              Resolution note (saved on issue record)
             </label>
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: 11,
+                color: "#64748b",
+              }}
+            >
+              Suggested text below — edit before submit. This is what technicians and
+              dispatch will see on the resolved issue.
+            </p>
             <textarea
               id="resolution-note-input"
               data-testid="resolution-note-input"
               value={resolutionNote}
-              onChange={(e) => setResolutionNote(e.target.value)}
-              rows={3}
+              onChange={(e) => {
+                setResolutionNoteTouched(true);
+                setResolutionNote(e.target.value);
+              }}
+              rows={4}
               placeholder="What happened and next steps for the technician"
               style={{
                 width: "100%",
