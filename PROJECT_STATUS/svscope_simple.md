@@ -333,13 +333,33 @@ The physical delivery record may include:
 
 The vendor does not count items or enter quantities.
 
-Physical delivery confirmation alone does not prove that the vendor’s complete order has arrived.
+Physical delivery confirmation alone does not prove that the vendor's complete order has arrived.
+
+StageVerify may infer that all PO items have been physically delivered when:
+
+- Vendor order-completeness evidence indicates the PO was Shipped Complete
+
+AND
+
+- The vendor verifies the correct Job and PO
+
+AND
+
+- The vendor presses DELIVERED
+
+AND
+
+- No conflicting evidence exists.
+
+If StageVerify has insufficient confidence or detects conflicting evidence:
+
+Dispatcher Review Required.
 
 ## Ready for Pickup
 
 Material becomes **Ready for Pickup** only when both conditions are satisfied:
 
-1. Vendor order-completeness evidence confirms that all required material is accounted for.
+1. Vendor order-completeness evidence indicates that all required material has shipped or otherwise been accounted for.
 2. Physical delivery and staging evidence confirms that the material was dropped off, properly located, and has no unresolved issue.
 
 Neither condition is enough by itself.
@@ -953,6 +973,22 @@ The basic StageVerify flow is:
 StageVerify should make the physical material workflow easier.
 
 It should not become another complicated system that people avoid using.
+
+StageVerify organizes evidence.
+
+StageVerify's server-side rules make the final readiness decision.
+
+No single actor:
+
+- Vendor
+- Dispatcher
+- Technician
+- Email parser
+- AI component
+
+can independently determine Ready for Pickup.
+
+Ready for Pickup is determined only after StageVerify evaluates all available evidence.
 
 The vendor experience should take only a few simple actions.
 

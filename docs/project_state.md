@@ -56,7 +56,7 @@ The platform is deployed and functional on GitHub Pages.
 
 V2 optional fields and forward-compatible stub types live in `src/dispatcher/models.ts`. V1 workflows unchanged. No new Firestore collections or rules in Phase 2.
 
-**Active phase:** Phase 3 — Technician Pickup Workflow 🔵
+**Active phase:** Phase 5 — Vendor Email Parsing Prototype 🔵 (Phase 3 gate closed 2026-06-20; Phase 4 gate closed 2026-06-20)
 
 **Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged.
 

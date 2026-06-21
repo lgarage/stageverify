@@ -47,9 +47,9 @@
 
 ---
 
-## NOW (Phase 2 complete)
+## NOW (Phase 5 prototype)
 
-**Phase 2 — Material Readiness Data Model** ✅ Gate passed 2026-06-08. Active work is Phase 3 (see NEXT).
+**Phase 5 — Vendor Email Parsing Prototype** — active per `CURRENT_STATE.md` (Phase 3 + Phase 4 gates closed 2026-06-20). Phase 2 gate passed 2026-06-08.
 
 ### Phase 2 — Material Readiness Data Model
 
@@ -322,9 +322,9 @@ Interesting or mentioned in principles; **not** in the current 9-phase gate sequ
 | ----- | ------------------------------ | -------------- | ------------------- |
 | 1     | Stabilize                      | — (complete)   | ✅ Gate passed      |
 | 2     | Material Readiness Data Model  | — (complete)   | ✅ Gate passed      |
-| 3     | Technician Pickup Workflow     | **NEXT**       | 🔵 Active (Slices 1–2 + authority ✅; Slices 3–6 ⬜) |
-| 4     | Material Issue Resolution      | **NEXT**       | ⬜                  |
-| 5     | Vendor Email Parsing Prototype | **LATER**      | ⬜                  |
+| 3     | Technician Pickup Workflow     | — (complete)   | ✅ Gate closed 2026-06-20 |
+| 4     | Material Issue Resolution      | — (complete)   | ✅ Gate closed 2026-06-20 |
+| 5     | Vendor Email Parsing Prototype | **NOW**        | 🔵 Active (prototype + inbox settings UI) |
 | 6     | Vendor Email Monitoring        | **LATER**      | ⬜                  |
 | 7     | E-Tag Automation               | **LATER**      | ⬜ (blocked: Minew) |
 | 8     | AI Learning & Correction       | **LATER**      | ⬜                  |
