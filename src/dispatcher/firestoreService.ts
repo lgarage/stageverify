@@ -829,6 +829,7 @@ export class FirestoreDataService implements DispatcherDataService {
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
 
+    const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
     const fromStatus = delivery.status;
     const toStatus: DeliveryStatus =
       fromStatus === "pending" || fromStatus === "shipped"
@@ -836,27 +837,40 @@ export class FirestoreDataService implements DispatcherDataService {
         : fromStatus;
 
     const now = new Date().toISOString();
-    const eventId = `event-${crypto.randomUUID()}`;
+    const confirmedAt =
+      alreadyConfirmed && delivery.vendorPhysicalDropoffConfirmedAt
+        ? delivery.vendorPhysicalDropoffConfirmedAt
+        : now;
     const batch = writeBatch(db);
 
     batch.update(doc(db, "deliveries", deliveryId), {
       status: toStatus,
       submittedAt: now,
+      vendorPhysicalDropoffConfirmed: true,
+      vendorPhysicalDropoffConfirmedAt: confirmedAt,
+      deliveredAt:
+        alreadyConfirmed && delivery.deliveredAt ? delivery.deliveredAt : now,
+      physicalDropoffSource: "physical_checkin",
       updatedAt: now,
     });
-    batch.set(doc(db, "statusHistory", eventId), {
-      id: eventId,
-      entityType: "delivery_order",
-      entityId: deliveryId,
-      fromStatus,
-      toStatus,
-      reason: "Vendor confirmed delivery",
-      actorType: "vendor",
-      actorName,
-      createdAt: now,
-    });
+
+    if (fromStatus !== toStatus) {
+      const eventId = `event-${crypto.randomUUID()}`;
+      batch.set(doc(db, "statusHistory", eventId), {
+        id: eventId,
+        entityType: "delivery_order",
+        entityId: deliveryId,
+        fromStatus,
+        toStatus,
+        reason: "Vendor confirmed delivery",
+        actorType: "vendor",
+        actorName,
+        createdAt: now,
+      });
+    }
 
     await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );
@@ -929,9 +943,21 @@ export class FirestoreDataService implements DispatcherDataService {
       toStatus === "arrived" ||
       (delivery.status === "arrived" && delivery.submittedAt);
 
+    const clearPhysicalEvidence =
+      actorType === "vendor" &&
+      (clearSubmitted || delivery.vendorPhysicalDropoffConfirmed === true);
+
     batch.update(doc(db, "deliveries", deliveryId), {
       status: toStatus,
       submittedAt: clearSubmitted ? null : delivery.submittedAt,
+      ...(clearPhysicalEvidence
+        ? {
+            vendorPhysicalDropoffConfirmed: false,
+            vendorPhysicalDropoffConfirmedAt: null,
+            deliveredAt: null,
+            physicalDropoffSource: null,
+          }
+        : {}),
       updatedAt: now,
     });
     batch.set(doc(db, "statusHistory", eventId), {
@@ -947,6 +973,9 @@ export class FirestoreDataService implements DispatcherDataService {
     });
 
     await batch.commit();
+    if (actorType === "vendor" || actorType === "dispatcher") {
+      await invokeRecalculateDeliveryReadiness(deliveryId);
+    }
     return hydrateResult(deliveryId);
   }
 

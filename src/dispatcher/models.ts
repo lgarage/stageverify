@@ -420,6 +420,12 @@ export interface DeliveryOrder {
   vendorOrderComplete?: boolean;
   vendorOrderCompleteAt?: string;
   vendorOrderCompleteSource?: "vendor_email" | "physical_checkin" | "dispatcher" | "system";
+  /** Vendor DELIVERED — exception-only physical drop-off (no item qty on happy path). */
+  vendorPhysicalDropoffConfirmed?: boolean;
+  vendorPhysicalDropoffConfirmedAt?: string;
+  /** When vendor pressed DELIVERED (exception-only hub). */
+  deliveredAt?: string;
+  physicalDropoffSource?: "vendor_email" | "physical_checkin" | "dispatcher" | "system";
   /** Two-source gate: physical check-in confirms drop-off quantities. */
   physicalDropoffComplete?: boolean;
   physicalDropoffCompleteAt?: string;

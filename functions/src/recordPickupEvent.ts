@@ -237,6 +237,15 @@ export const recordPickupEvent = onCall(
 
       const items = itemsSnap.docs.map((doc) => doc.data() as ItemDoc);
 
+      const settingsSnap = await tx.get(
+        db.collection("appSettings").doc("config"),
+      );
+      const vendorDeliveryMode =
+        (settingsSnap.data()?.vendorDeliveryMode as
+          | "full_checkin"
+          | "exception_only"
+          | undefined) ?? "full_checkin";
+
       if (delivery.purchaseOrderId) {
         const poSnap = await tx.get(
           db.collection("purchaseOrders").doc(delivery.purchaseOrderId),
@@ -253,7 +262,7 @@ export const recordPickupEvent = onCall(
         }
       }
 
-      const eligibility = isPickupEligible(delivery, items);
+      const eligibility = isPickupEligible(delivery, items, vendorDeliveryMode);
       if (!eligibility.eligible) {
         throw new HttpsError(
           "failed-precondition",
@@ -261,7 +270,7 @@ export const recordPickupEvent = onCall(
         );
       }
 
-      if (!computePhysicalDropoffComplete(items)) {
+      if (!computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode)) {
         throw new HttpsError(
           "failed-precondition",
           "Physical drop-off is incomplete for this delivery.",

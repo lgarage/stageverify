@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **Phase 4 pickup issue resolution readback** — tech sees open/resolved issue + resolution type/note on pickup; `pickupMaterialIssues` denormalized on delivery; `verify:phase4-integration` (+ `:prod`)
+- Last shipped: **Evidence model alignment (svscope §4–§5)** — exception-only DELIVERED records physical drop-off evidence + `recalculateDeliveryReadiness`; qty path unchanged for `full_checkin`; `npm run test:evidence-alignment`
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

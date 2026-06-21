@@ -7,12 +7,15 @@ exports.MAX_ITEMS_PER_DELIVERY = 500;
 /** Shared authoritative readiness write — used by callable CF and scheduled auto-submit. */
 async function applyDeliveryReadinessTransaction(db, deliveryOrderId, options) {
     const deliveryRef = db.collection("deliveries").doc(deliveryOrderId);
+    const settingsRef = db.collection("appSettings").doc("config");
     const historyReason = options?.historyReason ?? "Server readiness recalculation";
     return db.runTransaction(async (tx) => {
         const deliverySnap = await tx.get(deliveryRef);
         if (!deliverySnap.exists) {
             throw new Error(`Delivery not found: ${deliveryOrderId}`);
         }
+        const settingsSnap = await tx.get(settingsRef);
+        const vendorDeliveryMode = settingsSnap.data()?.vendorDeliveryMode ?? "full_checkin";
         const delivery = deliverySnap.data();
         const itemsSnap = await tx.get(db
             .collection("items")
@@ -26,7 +29,7 @@ async function applyDeliveryReadinessTransaction(db, deliveryOrderId, options) {
         }
         const items = itemsSnap.docs.map((doc) => doc.data());
         const now = new Date().toISOString();
-        const result = (0, deliveryReadiness_1.computeDeliveryReadiness)(delivery, items, now);
+        const result = (0, deliveryReadiness_1.computeDeliveryReadiness)(delivery, items, now, vendorDeliveryMode);
         const fromStatus = delivery.status;
         tx.update(deliveryRef, {
             physicalDropoffComplete: result.physicalDropoffComplete,

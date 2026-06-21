@@ -156,6 +156,8 @@ exports.recordPickupEvent = (0, https_1.onCall)({
             throw new https_1.HttpsError("failed-precondition", "Delivery has too many line items for pickup.");
         }
         const items = itemsSnap.docs.map((doc) => doc.data());
+        const settingsSnap = await tx.get(db.collection("appSettings").doc("config"));
+        const vendorDeliveryMode = settingsSnap.data()?.vendorDeliveryMode ?? "full_checkin";
         if (delivery.purchaseOrderId) {
             const poSnap = await tx.get(db.collection("purchaseOrders").doc(delivery.purchaseOrderId));
             if (!poSnap.exists) {
@@ -166,11 +168,11 @@ exports.recordPickupEvent = (0, https_1.onCall)({
                 throw new https_1.HttpsError("permission-denied", "Purchase order relationship mismatch.");
             }
         }
-        const eligibility = (0, deliveryReadiness_1.isPickupEligible)(delivery, items);
+        const eligibility = (0, deliveryReadiness_1.isPickupEligible)(delivery, items, vendorDeliveryMode);
         if (!eligibility.eligible) {
             throw new https_1.HttpsError("failed-precondition", `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`);
         }
-        if (!(0, deliveryReadiness_1.computePhysicalDropoffComplete)(items)) {
+        if (!(0, deliveryReadiness_1.computePhysicalDropoffComplete)(delivery, items, vendorDeliveryMode)) {
             throw new https_1.HttpsError("failed-precondition", "Physical drop-off is incomplete for this delivery.");
         }
         const targetLocations = stagingLocationIds && stagingLocationIds.length > 0

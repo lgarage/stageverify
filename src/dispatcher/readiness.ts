@@ -4,6 +4,7 @@ import type {
   Item,
   PurchaseOrder,
   ReadinessStatus,
+  VendorDeliveryMode,
 } from "./models";
 import { getAllStagingLocationIds } from "./models";
 
@@ -59,34 +60,71 @@ function hasUnresolvedDamage(items: Item[]): boolean {
   return items.some((item) => item.qtyDamaged > 0);
 }
 
-/** Physical drop-off: all required qty received, no shortage/backorder/damage outstanding. */
-export function computePhysicalDropoffComplete(items: Item[]): boolean {
+function hasExceptionOnlyItemConflicts(items: Item[]): boolean {
+  return items.some(
+    (item) =>
+      item.qtyMissing > 0 ||
+      item.qtyDamaged > 0 ||
+      item.qtyBackordered > 0,
+  );
+}
+
+function computeQtyBasedPhysicalDropoffComplete(items: Item[]): boolean {
   if (items.length === 0) return false;
-  if (hasOutstandingQuantities(items)) return false;
-  if (hasUnresolvedDamage(items)) return false;
+  if (hasOutstandingQuantities(items) || hasUnresolvedDamage(items)) return false;
   return items.every((item) => item.qtyReceived === item.qtyOrdered);
 }
 
-/** Staging: primary zone assigned when any material was received. */
+/** Physical drop-off: qty check-in (full_checkin) or vendor DELIVERED evidence (exception_only). */
+export function computePhysicalDropoffComplete(
+  delivery: Pick<DeliveryOrder, "vendorPhysicalDropoffConfirmed">,
+  items: Item[],
+  vendorDeliveryMode?: VendorDeliveryMode,
+): boolean {
+  const mode = vendorDeliveryMode ?? "full_checkin";
+
+  if (mode === "exception_only") {
+    if (delivery.vendorPhysicalDropoffConfirmed !== true) return false;
+    if (items.length === 0) return false;
+    return !hasExceptionOnlyItemConflicts(items);
+  }
+
+  return computeQtyBasedPhysicalDropoffComplete(items);
+}
+
+/** Staging: primary zone assigned when material received or vendor confirmed drop-off. */
 export function computeStagingAssignmentComplete(
   delivery: Pick<
     DeliveryOrder,
-    "stagingLocationId" | "additionalStagingLocationIds"
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "vendorPhysicalDropoffConfirmed"
   >,
   items: Item[],
 ): boolean {
   const anyReceived = items.some((item) => item.qtyReceived > 0);
-  if (!anyReceived) return true;
+  const vendorConfirmedDropoff =
+    delivery.vendorPhysicalDropoffConfirmed === true;
+  if (!anyReceived && !vendorConfirmedDropoff) return true;
   return Boolean(delivery.stagingLocationId?.trim());
+}
+
+export interface ReadinessComputeOptions {
+  vendorDeliveryMode?: VendorDeliveryMode;
 }
 
 export function buildDeliveryReadinessEvidence(
   delivery: DeliveryOrder,
   items: Item[],
+  options?: ReadinessComputeOptions,
 ): DeliveryReadinessEvidence {
   const blockReasons: string[] = [];
   const vendorOrderComplete = delivery.vendorOrderComplete === true;
-  const physicalDropoffComplete = computePhysicalDropoffComplete(items);
+  const physicalDropoffComplete = computePhysicalDropoffComplete(
+    delivery,
+    items,
+    options?.vendorDeliveryMode,
+  );
   const stagingAssignmentComplete = computeStagingAssignmentComplete(
     delivery,
     items,
@@ -122,17 +160,18 @@ export function buildDeliveryReadinessEvidence(
 export function computeDeliveryReadiness(
   delivery: DeliveryOrder,
   items: Item[],
+  options?: ReadinessComputeOptions,
 ): DeliveryReadinessResult {
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return {
       readyForPickup: false,
       readinessStatus: "picked_up",
       deliveryStatus: delivery.status,
-      evidence: buildDeliveryReadinessEvidence(delivery, items),
+      evidence: buildDeliveryReadinessEvidence(delivery, items, options),
     };
   }
 
-  const evidence = buildDeliveryReadinessEvidence(delivery, items);
+  const evidence = buildDeliveryReadinessEvidence(delivery, items, options);
   const readyForPickup = evidence.readinessBlockReasons.length === 0;
 
   if (readyForPickup) {
@@ -248,6 +287,7 @@ export function isDeliveryFullyPickedUp(delivery: DeliveryOrder): boolean {
 export function isPickupEligible(
   delivery: DeliveryOrder,
   items: Item[],
+  options?: ReadinessComputeOptions,
 ): { eligible: boolean; reason?: string } {
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return { eligible: false, reason: "already_picked_up" };
@@ -259,7 +299,7 @@ export function isPickupEligible(
     return { eligible: false, reason: "delivery_not_ready_for_pickup" };
   }
 
-  const readiness = computeDeliveryReadiness(delivery, items);
+  const readiness = computeDeliveryReadiness(delivery, items, options);
   const pickupBlockReasons = readiness.evidence.readinessBlockReasons.filter(
     (reason) => reason !== "unresolved_blocking_issues",
   );

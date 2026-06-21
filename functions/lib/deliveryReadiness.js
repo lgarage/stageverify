@@ -13,26 +13,42 @@ function hasOutstandingQuantities(items) {
 function hasUnresolvedDamage(items) {
     return items.some((item) => item.qtyDamaged > 0);
 }
-function computePhysicalDropoffComplete(items) {
+function hasItemLevelPhysicalConflicts(items) {
+    return hasOutstandingQuantities(items) || hasUnresolvedDamage(items);
+}
+function computeQtyBasedPhysicalDropoffComplete(items) {
     if (items.length === 0)
         return false;
-    if (hasOutstandingQuantities(items))
-        return false;
-    if (hasUnresolvedDamage(items))
+    if (hasItemLevelPhysicalConflicts(items))
         return false;
     return items.every((item) => item.qtyReceived === item.qtyOrdered);
 }
+/** Physical drop-off: qty check-in (full_checkin) or vendor DELIVERED evidence (exception_only). */
+function computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode) {
+    const mode = vendorDeliveryMode ?? "full_checkin";
+    if (mode === "exception_only") {
+        if (delivery.vendorPhysicalDropoffConfirmed !== true)
+            return false;
+        if (items.length === 0)
+            return false;
+        return !hasItemLevelPhysicalConflicts(items);
+    }
+    return computeQtyBasedPhysicalDropoffComplete(items);
+}
 function computeStagingAssignmentComplete(delivery, items) {
     const anyReceived = items.some((item) => item.qtyReceived > 0);
-    if (!anyReceived)
+    const vendorConfirmedDropoff = delivery.vendorPhysicalDropoffConfirmed === true;
+    if (!anyReceived && !vendorConfirmedDropoff)
         return true;
     return Boolean(delivery.stagingLocationId?.trim());
 }
-function computeDeliveryReadiness(delivery, items, now) {
-    const physicalDropoffComplete = computePhysicalDropoffComplete(items);
+function computeDeliveryReadiness(delivery, items, now, vendorDeliveryMode) {
+    const physicalDropoffComplete = computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode);
     const stagingAssignmentComplete = computeStagingAssignmentComplete(delivery, items);
     const physicalDropoffCompleteAt = physicalDropoffComplete
-        ? delivery.physicalDropoffCompleteAt ?? now
+        ? delivery.physicalDropoffCompleteAt ??
+            delivery.vendorPhysicalDropoffConfirmedAt ??
+            now
         : undefined;
     const blockReasons = [];
     const vendorOrderComplete = delivery.vendorOrderComplete === true;
@@ -107,7 +123,7 @@ function computeDeliveryReadiness(delivery, items, now) {
     };
 }
 /** Pickup eligibility: blocking issues may block readiness promotion only. */
-function isPickupEligible(delivery, items) {
+function isPickupEligible(delivery, items, vendorDeliveryMode) {
     if (delivery.status === "picked_up" || delivery.status === "installed") {
         return { eligible: false, reason: "already_picked_up" };
     }
@@ -115,7 +131,7 @@ function isPickupEligible(delivery, items) {
         delivery.status !== "complete") {
         return { eligible: false, reason: "delivery_not_ready_for_pickup" };
     }
-    const readiness = computeDeliveryReadiness(delivery, items, new Date().toISOString());
+    const readiness = computeDeliveryReadiness(delivery, items, new Date().toISOString(), vendorDeliveryMode);
     const pickupBlockReasons = readiness.evidence.readinessBlockReasons.filter((reason) => reason !== "unresolved_blocking_issues");
     if (pickupBlockReasons.length > 0) {
         return {

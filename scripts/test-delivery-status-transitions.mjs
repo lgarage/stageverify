@@ -251,6 +251,23 @@ try {
   }
 
   try {
+    await assertSucceeds(
+      updateDoc(deliveryRef(unauthed.firestore(), "test-delivery"), {
+        status: "arrived",
+        vendorPhysicalDropoffConfirmed: true,
+        vendorPhysicalDropoffConfirmedAt: new Date().toISOString(),
+        deliveredAt: new Date().toISOString(),
+        physicalDropoffSource: "physical_checkin",
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("vendor physical drop-off evidence fields allowed on arrived");
+  } catch (err) {
+    fail("vendor physical drop-off evidence fields should be allowed", err);
+  }
+
+  try {
     await assertFails(
       updateDoc(deliveryRef(unauthed.firestore()), {
         status: "partial",

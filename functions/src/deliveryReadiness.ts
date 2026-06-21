@@ -17,11 +17,18 @@ export type ReadinessStatus =
   | "ready_for_pickup"
   | "picked_up";
 
+export type VendorDeliveryMode = "full_checkin" | "exception_only";
+
 export interface DeliveryDoc {
   status: DeliveryStatus;
   vendorOrderComplete?: boolean;
   vendorOrderCompleteAt?: string;
   vendorOrderCompleteSource?: string;
+  vendorPhysicalDropoffConfirmed?: boolean;
+  vendorPhysicalDropoffConfirmedAt?: string;
+  deliveredAt?: string;
+  physicalDropoffSource?: string;
+  vendorDeliveryMode?: VendorDeliveryMode;
   physicalDropoffComplete?: boolean;
   physicalDropoffCompleteAt?: string;
   stagingAssignmentComplete?: boolean;
@@ -68,19 +75,50 @@ function hasUnresolvedDamage(items: ItemDoc[]): boolean {
   return items.some((item) => item.qtyDamaged > 0);
 }
 
-export function computePhysicalDropoffComplete(items: ItemDoc[]): boolean {
+function hasExceptionOnlyItemConflicts(items: ItemDoc[]): boolean {
+  return items.some(
+    (item) =>
+      item.qtyMissing > 0 ||
+      item.qtyDamaged > 0 ||
+      item.qtyBackordered > 0,
+  );
+}
+
+function computeQtyBasedPhysicalDropoffComplete(items: ItemDoc[]): boolean {
   if (items.length === 0) return false;
-  if (hasOutstandingQuantities(items)) return false;
-  if (hasUnresolvedDamage(items)) return false;
+  if (hasOutstandingQuantities(items) || hasUnresolvedDamage(items)) return false;
   return items.every((item) => item.qtyReceived === item.qtyOrdered);
 }
 
+/** Physical drop-off: qty check-in (full_checkin) or vendor DELIVERED evidence (exception_only). */
+export function computePhysicalDropoffComplete(
+  delivery: Pick<DeliveryDoc, "vendorPhysicalDropoffConfirmed">,
+  items: ItemDoc[],
+  vendorDeliveryMode?: VendorDeliveryMode,
+): boolean {
+  const mode = vendorDeliveryMode ?? "full_checkin";
+
+  if (mode === "exception_only") {
+    if (delivery.vendorPhysicalDropoffConfirmed !== true) return false;
+    if (items.length === 0) return false;
+    return !hasExceptionOnlyItemConflicts(items);
+  }
+
+  return computeQtyBasedPhysicalDropoffComplete(items);
+}
+
 export function computeStagingAssignmentComplete(
-  delivery: Pick<DeliveryDoc, "stagingLocationId" | "additionalStagingLocationIds">,
+  delivery: Pick<
+    DeliveryDoc,
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "vendorPhysicalDropoffConfirmed"
+  >,
   items: ItemDoc[],
 ): boolean {
   const anyReceived = items.some((item) => item.qtyReceived > 0);
-  if (!anyReceived) return true;
+  const vendorConfirmedDropoff = delivery.vendorPhysicalDropoffConfirmed === true;
+  if (!anyReceived && !vendorConfirmedDropoff) return true;
   return Boolean(delivery.stagingLocationId?.trim());
 }
 
@@ -88,14 +126,21 @@ export function computeDeliveryReadiness(
   delivery: DeliveryDoc,
   items: ItemDoc[],
   now: string,
+  vendorDeliveryMode?: VendorDeliveryMode,
 ): DeliveryReadinessResult {
-  const physicalDropoffComplete = computePhysicalDropoffComplete(items);
+  const physicalDropoffComplete = computePhysicalDropoffComplete(
+    delivery,
+    items,
+    vendorDeliveryMode,
+  );
   const stagingAssignmentComplete = computeStagingAssignmentComplete(
     delivery,
     items,
   );
   const physicalDropoffCompleteAt = physicalDropoffComplete
-    ? delivery.physicalDropoffCompleteAt ?? now
+    ? delivery.physicalDropoffCompleteAt ??
+      delivery.vendorPhysicalDropoffConfirmedAt ??
+      now
     : undefined;
 
   const blockReasons: string[] = [];
@@ -178,6 +223,7 @@ export function computeDeliveryReadiness(
 export function isPickupEligible(
   delivery: DeliveryDoc,
   items: ItemDoc[],
+  vendorDeliveryMode?: VendorDeliveryMode,
 ): { eligible: boolean; reason?: string } {
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return { eligible: false, reason: "already_picked_up" };
@@ -193,6 +239,7 @@ export function isPickupEligible(
     delivery,
     items,
     new Date().toISOString(),
+    vendorDeliveryMode,
   );
   const pickupBlockReasons = readiness.evidence.readinessBlockReasons.filter(
     (reason) => reason !== "unresolved_blocking_issues",

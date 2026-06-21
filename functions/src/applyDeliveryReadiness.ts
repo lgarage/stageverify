@@ -25,6 +25,7 @@ export async function applyDeliveryReadinessTransaction(
   options?: { historyReason?: string },
 ): Promise<ApplyDeliveryReadinessResult> {
   const deliveryRef = db.collection("deliveries").doc(deliveryOrderId);
+  const settingsRef = db.collection("appSettings").doc("config");
   const historyReason =
     options?.historyReason ?? "Server readiness recalculation";
 
@@ -33,6 +34,13 @@ export async function applyDeliveryReadinessTransaction(
     if (!deliverySnap.exists) {
       throw new Error(`Delivery not found: ${deliveryOrderId}`);
     }
+
+    const settingsSnap = await tx.get(settingsRef);
+    const vendorDeliveryMode =
+      (settingsSnap.data()?.vendorDeliveryMode as
+        | "full_checkin"
+        | "exception_only"
+        | undefined) ?? "full_checkin";
 
     const delivery = deliverySnap.data() as DeliveryDoc & { id?: string };
     const itemsSnap = await tx.get(
@@ -53,7 +61,12 @@ export async function applyDeliveryReadinessTransaction(
 
     const items = itemsSnap.docs.map((doc) => doc.data() as ItemDoc);
     const now = new Date().toISOString();
-    const result = computeDeliveryReadiness(delivery, items, now);
+    const result = computeDeliveryReadiness(
+      delivery,
+      items,
+      now,
+      vendorDeliveryMode,
+    );
     const fromStatus = delivery.status as DeliveryStatus;
 
     tx.update(deliveryRef, {

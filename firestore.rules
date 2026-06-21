@@ -89,6 +89,10 @@ service cloud.firestore {
           'lastCheckmarkAt',
           'stagingLocationId',
           'additionalStagingLocationIds',
+          'vendorPhysicalDropoffConfirmed',
+          'vendorPhysicalDropoffConfirmedAt',
+          'deliveredAt',
+          'physicalDropoffSource',
         ])
         && resource.data.keys().hasAll(['status'])
         && request.resource.data.keys().hasAll(['status'])
