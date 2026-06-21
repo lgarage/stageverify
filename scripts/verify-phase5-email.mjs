@@ -153,18 +153,24 @@ async function ensureAuthenticated(page) {
     await page.getByTestId("call-vendor-close").click();
     await page.waitForTimeout(300);
 
-    await page.getByTestId("drawer-action-need-more-info").click();
-    await page.getByTestId("need-more-info-modal").waitFor({ timeout: 10_000 });
-    if (await page.getByTestId("need-more-info-draft").isVisible().catch(() => false)) {
-      const draft = await page.getByTestId("need-more-info-draft").inputValue();
-      if (!draft.trim()) throw new Error("Need More Info draft should be prefilled");
-      if (!(await page.getByTestId("need-more-info-copy").isVisible())) {
-        throw new Error("Need More Info modal missing Copy Message button");
-      }
+    if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
+      throw new Error("Need More Info banner button must be removed (away-065)");
     }
-    await page.getByTestId("need-more-info-close").click();
-    await page.waitForTimeout(300);
-    console.log("Drawer modals PASS: Call Vendor modal + Need More Info draft/copy.");
+
+    const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
+    if (await resolveBtn.isEnabled().catch(() => false)) {
+      await resolveBtn.click();
+      await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
+      await page.getByTestId("resolution-type-select").selectOption("need_more_information");
+      await page.getByTestId("resolve-need-more-info-section").waitFor({ timeout: 10_000 });
+      const emailVendorBtn = page.getByTestId("resolve-email-vendor");
+      if (!(await emailVendorBtn.isVisible())) {
+        throw new Error("Email Vendor button missing in resolve modal");
+      }
+      await page.getByRole("button", { name: "Cancel" }).click();
+      await page.waitForTimeout(300);
+    }
+    console.log("Drawer modals PASS: Call Vendor modal; Need More Information in resolve modal.");
 
     const outDir = resolve(process.cwd(), "screenshots");
     mkdirSync(outDir, { recursive: true });

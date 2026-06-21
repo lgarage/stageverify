@@ -8,8 +8,6 @@ import {
 } from "../email/getProposedEmailUpdates";
 import { hasVendorOrderCompleteApplyConflict } from "../email/emailApplyConflicts";
 import { proposalNeedsDrawerReview } from "../email/emailReviewHelpers";
-import { buildNeedMoreInfoDraft } from "./needMoreInfoDraft";
-import { DRAWER_MODAL_INPUT_STYLE } from "./resolveIssueDefaults";
 
 const BLOCK_LABEL: Record<string, string> = {
   vendor_order_incomplete: "Vendor order not complete",
@@ -51,10 +49,7 @@ export function DrawerActionBanner({
   font: string;
   onResolveBlockingIssue?: () => void;
 }) {
-  const [needMoreInfoOpen, setNeedMoreInfoOpen] = useState(false);
-  const [needMoreInfoText, setNeedMoreInfoText] = useState("");
   const [callVendorOpen, setCallVendorOpen] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const { delivery, items, materialIssues, purchaseOrder, vendor, job } = details;
   const poNumber = purchaseOrder?.poNumber ?? null;
@@ -155,23 +150,6 @@ export function DrawerActionBanner({
 
   const missingLines = missingItemLines(items);
   const receipt = itemReceiptSummary(items);
-
-  const openNeedMoreInfo = () => {
-    setNeedMoreInfoText(buildNeedMoreInfoDraft(details) ?? "");
-    setCopyFeedback(null);
-    setNeedMoreInfoOpen(true);
-  };
-
-  const handleCopyNeedMoreInfo = async () => {
-    if (!needMoreInfoText.trim()) return;
-    try {
-      await navigator.clipboard.writeText(needMoreInfoText);
-      setCopyFeedback("Copied!");
-      setTimeout(() => setCopyFeedback(null), 2000);
-    } catch {
-      setCopyFeedback("Copy failed — select text manually");
-    }
-  };
 
   return (
     <>
@@ -322,24 +300,6 @@ export function DrawerActionBanner({
             >
               Call Vendor
             </button>
-            <button
-              type="button"
-              data-testid="drawer-action-need-more-info"
-              onClick={openNeedMoreInfo}
-              style={{
-                padding: "7px 12px",
-                borderRadius: 6,
-                border: `1.5px solid ${navy}`,
-                backgroundColor: "#fff",
-                color: navy,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: font,
-              }}
-            >
-              Need More Info
-            </button>
           </div>
         )}
 
@@ -469,144 +429,6 @@ export function DrawerActionBanner({
                 type="button"
                 data-testid="call-vendor-close"
                 onClick={() => setCallVendorOpen(false)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 6,
-                  border: "none",
-                  backgroundColor: navy,
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {needMoreInfoOpen && (
-        <div
-          data-testid="need-more-info-modal"
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
-          }}
-          onClick={() => setNeedMoreInfoOpen(false)}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 480,
-              backgroundColor: "#fff",
-              borderRadius: 10,
-              padding: 20,
-              boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
-              fontFamily: font,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3
-              style={{
-                margin: "0 0 8px",
-                fontSize: 16,
-                fontWeight: 700,
-                color: navy,
-              }}
-            >
-              Need More Info — draft message
-            </h3>
-            <p
-              style={{
-                margin: "0 0 12px",
-                fontSize: 12,
-                color: "#64748b",
-              }}
-            >
-              Copy and contact the vendor manually. Automated send is not available yet.
-            </p>
-            {needMoreInfoText.trim() ? (
-              <textarea
-                data-testid="need-more-info-draft"
-                value={needMoreInfoText}
-                onChange={(e) => setNeedMoreInfoText(e.target.value)}
-                rows={12}
-                style={{
-                  width: "100%",
-                  marginBottom: 14,
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  fontSize: 13,
-                  fontFamily: "inherit",
-                  resize: "vertical",
-                  ...DRAWER_MODAL_INPUT_STYLE,
-                }}
-              />
-            ) : (
-              <p
-                data-testid="need-more-info-deferred"
-                style={{
-                  margin: "0 0 14px",
-                  padding: "12px",
-                  borderRadius: 6,
-                  backgroundColor: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  fontSize: 13,
-                  color: "#475569",
-                }}
-              >
-                Request-info draft is not available — no open issues or missing items to
-                include. Contact the vendor by phone or review email evidence below.
-              </p>
-            )}
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                justifyContent: "flex-end",
-                alignItems: "center",
-              }}
-            >
-              {copyFeedback && (
-                <span
-                  data-testid="need-more-info-copy-feedback"
-                  style={{ fontSize: 12, color: "#166534", marginRight: "auto" }}
-                >
-                  {copyFeedback}
-                </span>
-              )}
-              {needMoreInfoText.trim() && (
-                <button
-                  type="button"
-                  data-testid="need-more-info-copy"
-                  onClick={() => void handleCopyNeedMoreInfo()}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 6,
-                    border: `1.5px solid ${navy}`,
-                    backgroundColor: "#fff",
-                    color: navy,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Copy Message
-                </button>
-              )}
-              <button
-                type="button"
-                data-testid="need-more-info-close"
-                onClick={() => setNeedMoreInfoOpen(false)}
                 style={{
                   padding: "8px 14px",
                   borderRadius: 6,

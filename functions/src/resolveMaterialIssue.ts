@@ -22,6 +22,7 @@ const RESOLUTION_TYPES = [
   "continue_without",
   "hold_job",
   "other",
+  "need_more_information",
 ] as const;
 
 type ResolutionType = (typeof RESOLUTION_TYPES)[number];

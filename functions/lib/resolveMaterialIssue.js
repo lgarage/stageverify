@@ -19,6 +19,7 @@ const RESOLUTION_TYPES = [
     "continue_without",
     "hold_job",
     "other",
+    "need_more_information",
 ];
 function asNonEmptyString(value, maxLen) {
     if (typeof value !== "string")

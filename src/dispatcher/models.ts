@@ -124,7 +124,8 @@ export type IssueResolutionType =
   | "transfer"
   | "continue_without"
   | "hold_job"
-  | "other";
+  | "other"
+  | "need_more_information";
 
 export const ISSUE_RESOLUTION_TYPE_LABEL: Record<IssueResolutionType, string> = {
   found_in_shop: "Found in Shop",
@@ -135,6 +136,7 @@ export const ISSUE_RESOLUTION_TYPE_LABEL: Record<IssueResolutionType, string> = 
   continue_without: "Continue Without",
   hold_job: "Hold Job",
   other: "Other",
+  need_more_information: "Need More Information",
 };
 
 export const ISSUE_RESOLUTION_TYPES: IssueResolutionType[] = [
@@ -146,6 +148,7 @@ export const ISSUE_RESOLUTION_TYPES: IssueResolutionType[] = [
   "continue_without",
   "hold_job",
   "other",
+  "need_more_information",
 ];
 
 export type VendorEmailReviewStatus =

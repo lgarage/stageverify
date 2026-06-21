@@ -15,6 +15,7 @@ import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import { DispatcherPortalLinks } from "./PortalNavBar";
 import {
   firestoreDataService,
+  getAppSettings,
   markDeliveryShipped,
   mapOccupancyByLocationId,
   resolveMaterialIssue,
@@ -48,7 +49,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, ISSUE_RESOLUTION_TYPES, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping } from "./dispatcher/models";
+import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping } from "./dispatcher/models";
 import {
   deliveryReadinessDisplayLabel,
   jobDispatchDisplayLabel,
@@ -65,10 +66,10 @@ import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
+import { ResolveIssueModal } from "./dispatcher/drawer/ResolveIssueModal";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
-  DRAWER_MODAL_INPUT_STYLE,
 } from "./dispatcher/drawer/resolveIssueDefaults";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -234,6 +235,7 @@ export function DispatcherDashboardPage() {
   >([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [emailProviderConnected, setEmailProviderConnected] = useState(false);
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
@@ -315,6 +317,17 @@ export function DispatcherDashboardPage() {
     void firestoreDataService
       .listStagingLocations()
       .then(setAvailableStagingLocations);
+  }, []);
+
+  useEffect(() => {
+    void getAppSettings()
+      .then((settings) => {
+        const connected =
+          settings.emailMonitoringEnabled === true &&
+          Boolean(settings.monitoringInboxEmail?.trim());
+        setEmailProviderConnected(connected);
+      })
+      .catch(() => setEmailProviderConnected(false));
   }, []);
 
   /* ── Staging location assignment ── */
@@ -1700,6 +1713,7 @@ export function DispatcherDashboardPage() {
                   void fetchAllData();
                 }}
                 onResolveMaterialIssue={handleResolveMaterialIssue}
+                emailProviderConnected={emailProviderConnected}
               />
             </div>
           </div>
@@ -2412,6 +2426,7 @@ function DetailContent({
   onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
   onResolveMaterialIssue,
+  emailProviderConnected,
 }: {
   loading: boolean;
   error: string | null;
@@ -2440,6 +2455,7 @@ function DetailContent({
     resolutionType: IssueResolutionType,
     resolutionNote: string,
   ) => Promise<void>;
+  emailProviderConnected: boolean;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
   const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
@@ -3317,177 +3333,44 @@ function DetailContent({
         )}
       </div>
       {resolveIssueId && (
-        <div
-          data-testid="resolve-issue-modal"
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
+        <ResolveIssueModal
+          issueId={resolveIssueId}
+          details={details}
+          resolutionType={resolutionType}
+          resolutionNote={resolutionNote}
+          mutationLoading={mutationLoading}
+          emailProviderConnected={emailProviderConnected}
+          navy={navy}
+          font={font}
+          onResolutionTypeChange={(nextType, issue) => {
+            setResolutionType(nextType);
+            if (!resolutionNoteTouched) {
+              setResolutionNote(
+                buildSuggestedResolutionNote(issue, nextType, {
+                  orderNumber: details.delivery.orderNumber,
+                  jobNumber: job.jobNumber,
+                  missingItems: details.items
+                    .filter((item) => item.qtyMissing > 0)
+                    .map((item) => ({
+                      description: item.description,
+                      qtyMissing: item.qtyMissing,
+                      qtyOrdered: item.qtyOrdered,
+                    })),
+                }),
+              );
+            }
           }}
-          onClick={() => setResolveIssueId(null)}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              backgroundColor: "#fff",
-              borderRadius: 10,
-              padding: 20,
-              boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3
-              style={{
-                margin: "0 0 12px",
-                fontSize: 16,
-                fontWeight: 700,
-                color: navy,
-                fontFamily: font,
-              }}
-            >
-              Resolve material issue
-            </h3>
-            <label
-              htmlFor="resolution-type-select"
-              style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}
-            >
-              Resolution type
-            </label>
-            <select
-              id="resolution-type-select"
-              data-testid="resolution-type-select"
-              value={resolutionType}
-              onChange={(e) => {
-                const nextType = e.target.value as IssueResolutionType;
-                setResolutionType(nextType);
-                if (!resolutionNoteTouched && resolveIssueId) {
-                  const issue = details.materialIssues.find(
-                    (i) => i.id === resolveIssueId,
-                  );
-                  if (issue) {
-                    setResolutionNote(
-                      buildSuggestedResolutionNote(issue, nextType, {
-                        orderNumber: details.delivery.orderNumber,
-                        jobNumber: job.jobNumber,
-                        missingItems: details.items
-                          .filter((item) => item.qtyMissing > 0)
-                          .map((item) => ({
-                            description: item.description,
-                            qtyMissing: item.qtyMissing,
-                            qtyOrdered: item.qtyOrdered,
-                          })),
-                      }),
-                    );
-                  }
-                }
-              }}
-              style={{
-                width: "100%",
-                marginBottom: 12,
-                padding: "8px 10px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                fontSize: 13,
-                fontFamily: font,
-                ...DRAWER_MODAL_INPUT_STYLE,
-              }}
-            >
-              {ISSUE_RESOLUTION_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {ISSUE_RESOLUTION_TYPE_LABEL[type]}
-                </option>
-              ))}
-            </select>
-            <label
-              htmlFor="resolution-note-input"
-              style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}
-            >
-              Resolution note (saved on issue record)
-            </label>
-            <p
-              style={{
-                margin: "0 0 6px",
-                fontSize: 11,
-                color: "#64748b",
-              }}
-            >
-              Suggested text below — edit before submit. This is what technicians and
-              dispatch will see on the resolved issue.
-            </p>
-            <textarea
-              id="resolution-note-input"
-              data-testid="resolution-note-input"
-              value={resolutionNote}
-              onChange={(e) => {
-                setResolutionNoteTouched(true);
-                setResolutionNote(e.target.value);
-              }}
-              rows={4}
-              placeholder="What happened and next steps for the technician"
-              style={{
-                width: "100%",
-                marginBottom: 14,
-                padding: "8px 10px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                fontSize: 13,
-                fontFamily: font,
-                resize: "vertical",
-                ...DRAWER_MODAL_INPUT_STYLE,
-              }}
-            />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={() => setResolveIssueId(null)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  backgroundColor: "#fff",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                data-testid="confirm-resolve-issue"
-                disabled={mutationLoading || !resolutionNote.trim()}
-                onClick={() => {
-                  const issueId = resolveIssueId;
-                  setResolveIssueId(null);
-                  void onResolveMaterialIssue(
-                    issueId,
-                    resolutionType,
-                    resolutionNote,
-                  );
-                }}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 6,
-                  border: "none",
-                  backgroundColor: navy,
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: mutationLoading ? "not-allowed" : "pointer",
-                  opacity: mutationLoading ? 0.6 : 1,
-                }}
-              >
-                Submit resolution
-              </button>
-            </div>
-          </div>
-        </div>
+          onResolutionNoteChange={(note, touched) => {
+            if (touched) setResolutionNoteTouched(true);
+            setResolutionNote(note);
+          }}
+          onClose={() => setResolveIssueId(null)}
+          onSubmit={() => {
+            const issueId = resolveIssueId;
+            setResolveIssueId(null);
+            void onResolveMaterialIssue(issueId, resolutionType, resolutionNote);
+          }}
+        />
       )}
       {showPrintLabel && (
         <PrintLabelModal

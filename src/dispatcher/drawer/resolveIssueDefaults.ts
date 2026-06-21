@@ -4,17 +4,37 @@ import {
   MATERIAL_ISSUE_TYPE_LABEL,
 } from "../models";
 
+const UNKNOWN_ETA_PATTERN =
+  /unknown eta|no eta|eta unknown|delivery date unknown|when will|no delivery date/i;
+const LOCAL_SUPPLY_PATTERN =
+  /supply house|local supply|pick up at|pickup at supply/i;
+const MISSING_SHIPMENT_PATTERN = /missing|short shipment|partial ship/i;
+
 export function defaultResolutionTypeForIssue(
   issue: MaterialIssue,
 ): IssueResolutionType {
+  const desc = (issue.description ?? "").toLowerCase();
+
+  if (UNKNOWN_ETA_PATTERN.test(desc)) {
+    return "need_more_information";
+  }
+  if (LOCAL_SUPPLY_PATTERN.test(desc)) {
+    return "pick_up_supply_house";
+  }
+
   switch (issue.type) {
     case "missing":
-      return "found_in_shop";
-    case "backordered":
-    case "damaged":
     case "wrong_item":
+    case "damaged":
       return "vendor_redeliver";
+    case "backordered":
+      return "vendor_redeliver";
+    case "running_low":
+      return "pick_up_supply_house";
     default:
+      if (MISSING_SHIPMENT_PATTERN.test(desc)) {
+        return "vendor_redeliver";
+      }
       return "other";
   }
 }
@@ -35,6 +55,8 @@ function nextStepForResolution(type: IssueResolutionType): string {
       return "Job may proceed without item — document waiver for technician.";
     case "hold_job":
       return "Hold job until issue cleared — notify technician and dispatcher.";
+    case "need_more_information":
+      return "Email vendor for clarification; update delivery when response received.";
     default:
       return "Document outcome and confirm readiness before pickup.";
   }
@@ -56,27 +78,26 @@ export function buildSuggestedResolutionNote(
   const desc = issue.description?.trim() || "reported issue";
 
   const lines: string[] = [];
-  lines.push(`Issue: ${issueLabel} — ${desc}.`);
+  lines.push(`Issue: ${issueLabel} — ${desc}`);
 
   if (context?.orderNumber || context?.jobNumber) {
     const parts: string[] = [];
-    if (context.orderNumber) parts.push(`delivery ${context.orderNumber}`);
+    if (context.orderNumber) parts.push(context.orderNumber);
     if (context.jobNumber) parts.push(`job ${context.jobNumber}`);
-    lines.push(`Delivery: ${parts.join(" for ")}.`);
+    lines.push(`Delivery: ${parts.join(" for ")}`);
   }
 
   if (context?.missingItems && context.missingItems.length > 0) {
-    const missingPart = context.missingItems
-      .map(
-        (m) =>
-          `${m.description} (${m.qtyMissing} missing of ${m.qtyOrdered} ordered)`,
-      )
-      .join("; ");
-    lines.push(`Missing from receipt: ${missingPart}.`);
+    lines.push("Missing Items:");
+    for (const m of context.missingItems) {
+      lines.push(
+        `- ${m.description} (${m.qtyMissing} missing of ${m.qtyOrdered} ordered)`,
+      );
+    }
   }
 
-  lines.push(`Resolution: ${resolutionLabel}.`);
-  lines.push(`Next step: ${nextStepForResolution(resolutionType)}.`);
+  lines.push(`Suggested Resolution: ${resolutionLabel}`);
+  lines.push(`Next Step: ${nextStepForResolution(resolutionType)}`);
 
   return lines.join("\n");
 }

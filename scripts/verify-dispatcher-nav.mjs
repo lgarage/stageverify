@@ -230,11 +230,16 @@ function assertReadableInputColor(page, testId, label) {
     }
     console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
 
-    console.log("Drawer action banner (away-063 / away-064)…");
+    console.log("Drawer action banner (away-065)…");
     const actionBanner = page.getByTestId("drawer-action-banner");
     await actionBanner.waitFor({ timeout: 15_000 });
     const bannerHeading = await page.getByTestId("drawer-action-banner-heading").innerText();
     console.log(`Drawer action banner heading: ${bannerHeading.trim()}`);
+
+    if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
+      throw new Error("Need More Info button must be removed from action banner");
+    }
+    console.log("PASS: Action banner has Resolve Issue + Call Vendor only.");
 
     const tableRowCount = await page.locator("table tbody tr").count();
     console.log(`Deliveries table rows (unchanged baseline): ${tableRowCount}`);
@@ -250,19 +255,53 @@ function assertReadableInputColor(page, testId, label) {
       if (!noteVal.trim()) {
         throw new Error("Resolve modal note should have suggested default text");
       }
-      if (!/Issue:/i.test(noteVal) || !/Next step:/i.test(noteVal)) {
-        throw new Error("Resolve modal note should include issue and next step lines");
+      if (
+        !/Issue:/i.test(noteVal) ||
+        !/Suggested Resolution:/i.test(noteVal) ||
+        !/Next Step:/i.test(noteVal)
+      ) {
+        throw new Error("Resolve modal note should include structured sections");
       }
       await assertReadableInputColor(page, "resolution-note-input", "Resolve note");
+
+      const defaultType = await page.getByTestId("resolution-type-select").inputValue();
+      if (defaultType !== "vendor_redeliver") {
+        console.log(
+          `Note: default resolution type is ${defaultType} (expected vendor_redeliver when blocking issue is missing).`,
+        );
+      } else {
+        console.log("PASS: Default resolution type is vendor_redeliver for missing issue.");
+      }
+
       const submitBtn = page.getByTestId("confirm-resolve-issue");
       if (!(await submitBtn.isEnabled())) {
-        throw new Error("Submit resolution should be enabled when default note exists");
+        throw new Error("Save resolution should be enabled when default note exists");
       }
-      console.log("PASS: Resolve modal opens with editable default note and enabled submit.");
       await page.screenshot({
-        path: resolve(outDir, "drawer-resolve-modal-default-note.png"),
+        path: resolve(outDir, "drawer-resolve-modal-vendor-redeliver.png"),
         fullPage: false,
       });
+      console.log("PASS: Resolve modal opens larger with editable default note.");
+
+      await page.getByTestId("resolution-type-select").selectOption("need_more_information");
+      await page.getByTestId("resolve-need-more-info-section").waitFor({ timeout: 10_000 });
+      await page.getByTestId("resolve-vendor-info").waitFor({ timeout: 5000 });
+      await page.getByTestId("resolve-email-subject").waitFor({ timeout: 5000 });
+      await page.getByTestId("resolve-email-message").waitFor({ timeout: 5000 });
+      const emailVendorBtn = page.getByTestId("resolve-email-vendor");
+      if (!(await emailVendorBtn.isVisible())) {
+        throw new Error("Email Vendor button must appear when Need More Information selected");
+      }
+      if (await emailVendorBtn.isEnabled()) {
+        throw new Error("Email Vendor should be disabled when email provider not connected");
+      }
+      await page.getByTestId("resolve-email-provider-disconnected").waitFor({ timeout: 5000 });
+      await page.screenshot({
+        path: resolve(outDir, "drawer-resolve-modal-need-more-info.png"),
+        fullPage: false,
+      });
+      console.log("PASS: Need More Information section shows vendor info + email preview.");
+
       await page.getByRole("button", { name: "Cancel" }).click();
       await page.waitForTimeout(400);
     } else {
@@ -293,36 +332,14 @@ function assertReadableInputColor(page, testId, label) {
     await page.getByTestId("call-vendor-close").click();
     await page.waitForTimeout(300);
 
-    const needMoreBtn = page.getByTestId("drawer-action-need-more-info");
-    await needMoreBtn.click();
-    await page.getByTestId("need-more-info-modal").waitFor({ timeout: 10_000 });
-    const hasDraft = await page.getByTestId("need-more-info-draft").isVisible().catch(() => false);
-    const hasDeferred = await page.getByTestId("need-more-info-deferred").isVisible().catch(() => false);
-    if (!hasDraft && !hasDeferred) {
-      throw new Error("Need More Info modal must show draft or deferred message");
+    if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
+      throw new Error("Need More Info banner button must be removed (away-065)");
     }
-    if (hasDraft) {
-      const draftVal = await page.getByTestId("need-more-info-draft").inputValue();
-      if (!draftVal.trim()) {
-        throw new Error("Need More Info draft should be prefilled");
-      }
-      await assertReadableInputColor(page, "need-more-info-draft", "Need More Info draft");
-      const copyBtn = page.getByTestId("need-more-info-copy");
-      if (!(await copyBtn.isVisible())) {
-        throw new Error("Need More Info modal must include Copy Message button");
-      }
-      await copyBtn.click();
-      await page.waitForTimeout(400);
-      console.log("PASS: Need More Info prefilled draft + Copy Message.");
-    } else {
-      console.log("PASS: Need More Info deferred state (no draft content).");
-    }
+
     await page.screenshot({
-      path: resolve(outDir, "drawer-need-more-info-modal.png"),
+      path: resolve(outDir, "drawer-action-banner-no-need-more-info.png"),
       fullPage: false,
     });
-    await page.getByTestId("need-more-info-close").click();
-    await page.waitForTimeout(300);
 
     const tableRowCountAfter = await page.locator("table tbody tr").count();
     if (tableRowCountAfter !== tableRowCount) {

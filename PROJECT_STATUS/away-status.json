@@ -442,7 +442,14 @@
       "status": "built",
       "commit": "91708bc",
       "note": "Resolve prefilled note + readable inputs; Call Vendor SV modal; Need More Info copy draft"
+    },
+    {
+      "id": "away-065",
+      "title": "Drawer UX — resolve modal Need More Information + banner simplify",
+      "status": "built",
+      "commit": "f85b999",
+      "note": "Remove Need More Info banner button; larger resolve modal; context-aware defaults; email preview in resolve modal when type selected; verify:dispatcher-nav + verify:phase5-email PASS"
     }
   ],
-  "summary": "away-064 shipped; active queue empty — see docs/project_state.md immediate next steps"
+  "summary": "away-065 shipped; active queue empty — see docs/project_state.md immediate next steps"
 }
