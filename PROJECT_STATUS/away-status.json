@@ -407,7 +407,14 @@
       "status": "built",
       "commit": "c88a0f4",
       "note": "processInboundVendorEmail CF; test+security PASS"
+    },
+    {
+      "id": "away-060",
+      "title": "Phase 5: retire Proposed Email Updates table",
+      "status": "built",
+      "commit": "5048470",
+      "note": "Needs Review strip + drawer Email Evidence; verify:phase5-email + verify:dispatcher-nav PASS"
     }
   ],
-  "summary": "away-042..053 shipped; active queue empty — see docs/project_state.md immediate next steps"
+  "summary": "away-060 shipped; active queue empty — see docs/project_state.md immediate next steps"
 }
