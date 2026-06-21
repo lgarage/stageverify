@@ -50,6 +50,7 @@
     "verify:pickup-issue-resolution": "node scripts/verify-pickup-issue-resolution-readback.mjs",
     "verify:pickup-issue-resolution:prod": "node scripts/verify-pickup-issue-resolution-readback.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:public-network-error": "node scripts/verify-public-network-error.mjs",
+    "verify:landing": "node scripts/verify-landing.mjs",
     "verify:settings-staging:prod": "node scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
     "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",
     "measure:routes": "node scripts/measure-mobile-route-performance.mjs",
