@@ -58,7 +58,7 @@ export function VendorNativeQrEntry({
           <ol className="space-y-3 text-left text-sm text-text-secondary">
             <li>Open the Camera app on your phone.</li>
             <li>Point it at the delivery or zone QR code.</li>
-            <li>Tap the link banner — this check-in page opens automatically.</li>
+            <li>Tap the link banner — the receive page opens automatically.</li>
           </ol>
         </div>
       </div>

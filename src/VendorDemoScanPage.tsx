@@ -29,14 +29,19 @@ export function VendorDemoScanPage() {
           <dt className="font-semibold text-text-secondary">PIN</dt>
           <dd className="text-accent-red font-bold tracking-widest">{DEMO_PIN}</dd>
           <dt className="font-semibold text-text-secondary">After scan</dt>
-          <dd>Check items → zone → Submit Check-in</dd>
+          <dd>Enter PIN → confirm job &amp; PO → tap DELIVERED</dd>
         </dl>
         <ol className="text-left text-sm text-text-secondary space-y-2 list-decimal list-inside">
           <li>Open iPhone Camera and point at this QR.</li>
-          <li>Tap the banner → Safari opens Vendor Portal.</li>
+          <li>Tap the banner → Safari opens the receive page.</li>
           <li>
             Enter PIN <strong className="text-text-primary">{DEMO_PIN}</strong> on
             the keypad.
+          </li>
+          <li>
+            Confirm the correct job and PO, then tap{" "}
+            <strong className="text-text-primary">DELIVERED</strong>. Use Need More
+            Space? or Issue only if something is wrong.
           </li>
         </ol>
         <p className="mt-6 text-xs text-text-secondary break-all">{receiveQrUrl}</p>
