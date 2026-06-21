@@ -14,9 +14,11 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const root = resolve(process.cwd());
-const baseUrlArgIndex = process.argv.indexOf("--base-url");
+const baseUrlFlagArg = process.argv.find((a) => a.startsWith("--base-url="));
+const baseUrlPairIndex = process.argv.indexOf("--base-url");
 const baseUrlOverride =
-  baseUrlArgIndex >= 0 ? process.argv[baseUrlArgIndex + 1] : undefined;
+  (baseUrlFlagArg ? baseUrlFlagArg.split("=")[1] : null) ??
+  (baseUrlPairIndex >= 0 ? process.argv[baseUrlPairIndex + 1] : undefined);
 
 function runStep(label, command, args) {
   console.log(`\n=== ${label} ===`);
