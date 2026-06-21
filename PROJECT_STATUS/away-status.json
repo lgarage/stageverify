@@ -421,7 +421,21 @@
       "status": "built",
       "commit": "7202f63",
       "note": "Fix: StatusActionPanel below banner/material issues/readiness; verify PASS"
+    },
+    {
+      "id": "away-062",
+      "title": "Fix drawer section order — status below action banner",
+      "status": "built",
+      "commit": "06ef6ad",
+      "note": "StatusActionPanel moved below banner, material issues, readiness evidence"
+    },
+    {
+      "id": "away-063",
+      "title": "Harden dispatcher drawer action workflow",
+      "status": "built",
+      "commit": "286dd94",
+      "note": "Resolve defaults, call vendor tel link, need-more-info draft; consolidate blocking issues in banner"
     }
   ],
-  "summary": "away-060 shipped; active queue empty — see docs/project_state.md immediate next steps"
+  "summary": "away-063 shipped; active queue empty — see docs/project_state.md immediate next steps"
 }
