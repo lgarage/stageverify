@@ -420,7 +420,7 @@
       "title": "Drawer priority UX — action banner + section reorder",
       "status": "built",
       "commit": "7202f63",
-      "note": "Action banner + drawer section reorder; verify:dispatcher-nav + verify:phase5-email PASS"
+      "note": "Fix: StatusActionPanel below banner/material issues/readiness; verify PASS"
     }
   ],
   "summary": "away-060 shipped; active queue empty — see docs/project_state.md immediate next steps"

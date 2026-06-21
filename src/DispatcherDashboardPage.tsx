@@ -2534,23 +2534,6 @@ function DetailContent({
 
   return (
     <>
-      <StatusActionPanel
-        details={details}
-        loading={mutationLoading}
-        error={mutationError}
-        onUpdateStatus={onUpdateStatus}
-        onRecordPickup={onRecordPickup}
-        onRevertStatus={onRevertStatus}
-        onMarkShipped={onMarkShipped}
-        onUpdateIssueSummary={onUpdateIssueSummary}
-        onUpdateShopStockPickList={onUpdateShopStockPickList}
-        onUpdateStagingLocation={onUpdateStagingLocation}
-        onUpdatePurchaseOrder={onUpdatePurchaseOrder}
-        onDeliveryOrderUpdated={onDeliveryOrderUpdated}
-        stagingLocations={stagingLocations}
-        navy={navy}
-        font={font}
-      />
       <div
         style={{
           display: "flex",
@@ -2706,6 +2689,23 @@ function DetailContent({
             font={font}
           />,
         )}
+        <StatusActionPanel
+          details={details}
+          loading={mutationLoading}
+          error={mutationError}
+          onUpdateStatus={onUpdateStatus}
+          onRecordPickup={onRecordPickup}
+          onRevertStatus={onRevertStatus}
+          onMarkShipped={onMarkShipped}
+          onUpdateIssueSummary={onUpdateIssueSummary}
+          onUpdateShopStockPickList={onUpdateShopStockPickList}
+          onUpdateStagingLocation={onUpdateStagingLocation}
+          onUpdatePurchaseOrder={onUpdatePurchaseOrder}
+          onDeliveryOrderUpdated={onDeliveryOrderUpdated}
+          stagingLocations={stagingLocations}
+          navy={navy}
+          font={font}
+        />
         {renderDrawerSection(
           "Delivery Basics",
           <>
