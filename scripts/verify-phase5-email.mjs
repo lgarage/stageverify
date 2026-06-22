@@ -144,6 +144,19 @@ async function ensureAuthenticated(page) {
     }
     console.log("Drawer action banner PASS: receipt summary or all-clear visible.");
 
+    console.log("Vendor Communications placeholder (away-066)…");
+    await page.getByTestId("vendor-communications-panel").waitFor({ timeout: 10_000 });
+    if (await page.getByTestId("vendor-communications-empty").isVisible().catch(() => false)) {
+      throw new Error("Vendor Communications empty state must be collapsed by default");
+    }
+    await page.getByTestId("vendor-communications-toggle").click();
+    await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
+    const vendorCommsEmpty = await page.getByTestId("vendor-communications-empty").innerText();
+    if (!/No messages yet/i.test(vendorCommsEmpty) || !/Phase 6/i.test(vendorCommsEmpty)) {
+      throw new Error(`Vendor Communications empty state unexpected: ${vendorCommsEmpty}`);
+    }
+    console.log("PASS: Vendor Communications read-only placeholder.");
+
     const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
     if (await callVendorBtn.getAttribute("href")) {
       throw new Error("Call Vendor banner must be button, not tel: link");
@@ -166,6 +179,9 @@ async function ensureAuthenticated(page) {
       const emailVendorBtn = page.getByTestId("resolve-email-vendor");
       if (!(await emailVendorBtn.isVisible())) {
         throw new Error("Email Vendor button missing in resolve modal");
+      }
+      if (await emailVendorBtn.isEnabled()) {
+        throw new Error("Email Vendor must stay disabled until real OAuth provider (away-066)");
       }
       await page.getByRole("button", { name: "Cancel" }).click();
       await page.waitForTimeout(300);

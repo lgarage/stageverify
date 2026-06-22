@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-21",
+  "lastRun": "2026-06-22",
   "batch": "away-001..041 archived; active queue away-042+",
   "results": [
     {
@@ -449,7 +449,14 @@
       "status": "built",
       "commit": "b2029a0",
       "note": "Remove Need More Info banner button; larger resolve modal; context-aware defaults; email preview in resolve modal when type selected; verify:dispatcher-nav + verify:phase5-email PASS"
+    },
+    {
+      "id": "away-066",
+      "title": "Phase 6 foundation: vendor communication data model + drawer placeholder",
+      "status": "built",
+      "commit": "079c180",
+      "note": "VendorEmailEvent types + Vendor Communications drawer placeholder; verify:dispatcher-nav + verify:phase5-email PASS"
     }
   ],
-  "summary": "away-065 shipped; active queue empty — see docs/project_state.md immediate next steps"
+  "summary": "away-066 shipped; active queue empty — see docs/project_state.md immediate next steps"
 }

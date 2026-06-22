@@ -157,6 +157,17 @@ export type VendorEmailReviewStatus =
   | "rejected"
   | "auto_processed";
 
+/** Inbound vendor inbox vs outbound dispatcher reply (Phase 6+). */
+export type VendorEmailDirection = "inbound" | "outbound";
+
+/** Why this vendor communication was sent or ingested. */
+export type VendorCommunicationPurpose =
+  | "vendor_order_update"
+  | "need_more_information"
+  | "issue_resolution"
+  | "general"
+  | "unknown";
+
 /** Phase-gated Firestore root collections — create only when the active phase gate requires persistence. */
 export const V2_COLLECTION_NAMES = {
   materialIssues: "materialIssues",
@@ -668,6 +679,11 @@ export interface VendorEmailEvent {
   sourceMessageId: string;
   threadId?: string;
   contentFingerprint?: string;
+  /** Defaults to inbound for legacy Phase 5 documents. */
+  direction?: VendorEmailDirection;
+  communicationPurpose?: VendorCommunicationPurpose;
+  /** Linked material issue when outbound from resolve flow (Phase 6+). */
+  materialIssueId?: string;
   senderEmail: string;
   recipientEmails?: string[];
   subject: string;
@@ -688,6 +704,11 @@ export interface VendorEmailEvent {
   rawPayloadRef?: string;
   duplicateOfEventId?: string;
   appliedAt?: string;
+  /** Outbound audit fields — populated when direction is outbound (Phase 6+). */
+  sentBy?: string;
+  sentAt?: string;
+  bodyExcerpt?: string;
+  provider?: string;
   createdAt: string;
   updatedAt: string;
 }

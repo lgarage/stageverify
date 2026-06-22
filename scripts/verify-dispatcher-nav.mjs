@@ -236,6 +236,19 @@ function assertReadableInputColor(page, testId, label) {
     const bannerHeading = await page.getByTestId("drawer-action-banner-heading").innerText();
     console.log(`Drawer action banner heading: ${bannerHeading.trim()}`);
 
+    console.log("Vendor Communications placeholder (away-066)…");
+    await page.getByTestId("vendor-communications-panel").waitFor({ timeout: 10_000 });
+    if (await page.getByTestId("vendor-communications-empty").isVisible().catch(() => false)) {
+      throw new Error("Vendor Communications empty state must be collapsed by default");
+    }
+    await page.getByTestId("vendor-communications-toggle").click();
+    await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
+    const emptyText = await page.getByTestId("vendor-communications-empty").innerText();
+    if (!/No messages yet/i.test(emptyText) || !/Phase 6/i.test(emptyText)) {
+      throw new Error(`Vendor Communications empty state unexpected: ${emptyText}`);
+    }
+    console.log("PASS: Vendor Communications read-only placeholder (no send).");
+
     if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
       throw new Error("Need More Info button must be removed from action banner");
     }

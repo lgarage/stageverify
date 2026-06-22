@@ -67,6 +67,7 @@ import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip"
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { ResolveIssueModal } from "./dispatcher/drawer/ResolveIssueModal";
+import { VendorCommunicationsPanel } from "./dispatcher/drawer/VendorCommunicationsPanel";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
@@ -2728,6 +2729,10 @@ function DetailContent({
             navy={navy}
             font={font}
           />,
+        )}
+        {renderDrawerSection(
+          "Vendor Communications",
+          <VendorCommunicationsPanel navy={navy} font={font} />,
         )}
         <StatusActionPanel
           details={details}

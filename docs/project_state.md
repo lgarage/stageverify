@@ -177,20 +177,12 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 5 prototype** — away-059 shipped (Condition 1 CF write path); Phase 6 live inbox prep or remaining Phase 5 polish per roadmap.
+1. **Phase 6 OAuth + send** — away-067+ per roadmap (OAuth in Settings, `sendVendorEmail` CF, enable Email Vendor).
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
 
 ---
 
-## Draft away item (approve before queue)
+## Recently shipped (away)
 
-**away-066 — Phase 6 foundation: vendor communication data model + drawer placeholder**
-
-- Extend `VendorEmailEvent` types (`direction`, `communicationPurpose`, `materialIssueId?`, outbound audit fields) — design only, no send.
-- Drawer: read-only **Vendor Communications** section (empty state until provider connected).
-- Resolve modal: **Email Vendor** stays disabled until real OAuth (not `emailMonitoringEnabled` alone).
-- Verify: `verify:dispatcher-nav` UI assertions only.
-- **Out of scope:** Gmail OAuth/API, outbound send CF, inbox watch, Deliveries table, readiness logic, real email.
-
-**Next slice (away-067+):** OAuth in Settings, `sendVendorEmail` CF, thread/reply mapping, enable Email Vendor.
+**away-066 (2026-06-21)** — Phase 6 foundation: `VendorEmailEvent` direction/purpose/outbound audit types; read-only **Vendor Communications** drawer placeholder (empty until provider connected). Email Vendor stays disabled until real OAuth. Verify: `verify:dispatcher-nav`, `verify:phase5-email`.

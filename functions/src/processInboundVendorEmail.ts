@@ -89,6 +89,14 @@ interface VendorEmailEventDoc {
   sourceMessageId: string;
   threadId?: string;
   contentFingerprint: string;
+  direction?: "inbound" | "outbound";
+  communicationPurpose?:
+    | "vendor_order_update"
+    | "need_more_information"
+    | "issue_resolution"
+    | "general"
+    | "unknown";
+  materialIssueId?: string;
   senderEmail: string;
   recipientEmails?: string[];
   subject: string;
@@ -108,6 +116,10 @@ interface VendorEmailEventDoc {
   duplicateOfEventId?: string;
   applyConflictReason?: string;
   appliedAt?: string;
+  sentBy?: string;
+  sentAt?: string;
+  bodyExcerpt?: string;
+  provider?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +160,8 @@ export const processInboundVendorEmail = onCall(
       sourceMessageId: message.sourceMessageId,
       threadId: message.threadId,
       contentFingerprint: fingerprint,
+      direction: "inbound",
+      communicationPurpose: "vendor_order_update",
       senderEmail: message.senderEmail,
       recipientEmails: message.recipientEmails,
       subject: message.subject,
