@@ -91,6 +91,8 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
         sourceMessageId: message.sourceMessageId,
         threadId: message.threadId,
         contentFingerprint: fingerprint,
+        direction: "inbound",
+        communicationPurpose: "vendor_order_update",
         senderEmail: message.senderEmail,
         recipientEmails: message.recipientEmails,
         subject: message.subject,
