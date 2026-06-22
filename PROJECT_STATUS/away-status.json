@@ -454,7 +454,7 @@
       "id": "away-066",
       "title": "Phase 6 foundation: vendor communication data model + drawer placeholder",
       "status": "built",
-      "commit": "079c180",
+      "commit": "1af3fca",
       "note": "VendorEmailEvent types + Vendor Communications drawer placeholder; verify:dispatcher-nav + verify:phase5-email PASS"
     }
   ],
