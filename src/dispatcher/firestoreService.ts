@@ -68,6 +68,7 @@ import {
   computeJobReadiness,
   type JobReadinessResult,
 } from "./readiness";
+import { computeDeliveryDisplayState } from "./deliveryDisplayHelpers";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -305,7 +306,7 @@ export class FirestoreDataService implements DispatcherDataService {
       ? fetchWhere<DeliveryOrder>("deliveries", "jobId", q.jobId)
       : fetchAll<DeliveryOrder>("deliveries");
 
-    const [deliveries, allJobs, allVendors, allLocations, allPOs, allItems] =
+    const [deliveries, allJobs, allVendors, allLocations, allPOs, allItems, allMaterialIssues] =
       await Promise.all([
         deliveriesPromise,
         fetchAll<Job>("jobs"),
@@ -313,7 +314,15 @@ export class FirestoreDataService implements DispatcherDataService {
         fetchAllStagingLocations(),
         fetchAll<PurchaseOrder>("purchaseOrders"),
         fetchAll<Item>("items"),
+        fetchAll<MaterialIssue>("materialIssues"),
       ]);
+
+    const materialIssuesByDelivery = new Map<string, MaterialIssue[]>();
+    for (const issue of allMaterialIssues) {
+      const list = materialIssuesByDelivery.get(issue.deliveryOrderId) ?? [];
+      list.push(issue);
+      materialIssuesByDelivery.set(issue.deliveryOrderId, list);
+    }
 
     const rows: DeliveryListRow[] = [];
     for (const delivery of deliveries) {
@@ -333,10 +342,17 @@ export class FirestoreDataService implements DispatcherDataService {
       );
       const ordered = lineItems.reduce((sum, i) => sum + i.qtyOrdered, 0);
       const received = lineItems.reduce((sum, i) => sum + i.qtyReceived, 0);
+      const materialIssues = materialIssuesByDelivery.get(delivery.id) ?? [];
+      const display = computeDeliveryDisplayState(
+        delivery,
+        lineItems,
+        materialIssues,
+      );
 
       rows.push({
         deliveryId: delivery.id,
         status: delivery.status,
+        statusDisplayLabel: display.statusDisplayLabel,
         jobNumber: job.jobNumber,
         jobName: job.jobName,
         poNumber: po?.poNumber,
@@ -345,8 +361,8 @@ export class FirestoreDataService implements DispatcherDataService {
         deliveryDate: delivery.deliveryDate,
         stagingLocationCode: loc?.code,
         itemsReceivedLabel: `${received}/${ordered}`,
-        issueSummary: delivery.issueSummary ?? "",
-        openIssueCount: delivery.openIssueCount ?? 0,
+        issueSummary: display.issueSummary,
+        openIssueCount: display.openIssueCount,
       });
     }
 

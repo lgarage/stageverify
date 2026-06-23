@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { DeliveryDetails, StagingLocation } from "../models";
-import { computeDeliveryReadiness } from "../readiness";
+import { computeDeliveryDisplayState } from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
   getProposedEmailUpdates,
@@ -12,15 +12,9 @@ import {
   getSvInterpretation,
   proposalNeedsDrawerReview,
 } from "./emailReviewHelpers";
+import { READINESS_BLOCK_LABEL } from "../deliveryDisplayHelpers";
 
-const BLOCK_LABEL: Record<string, string> = {
-  vendor_order_incomplete: "Vendor order not complete",
-  physical_dropoff_incomplete: "Physical drop-off not complete",
-  staging_assignment_incomplete: "Staging location not assigned",
-  unresolved_blocking_issues: "Open blocking material issues",
-  unresolved_damage: "Unresolved damage on items",
-  unresolved_backorder: "Unresolved backorder on items",
-};
+const BLOCK_LABEL: Record<string, string> = READINESS_BLOCK_LABEL;
 
 function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
   const [showOriginal, setShowOriginal] = useState(false);
@@ -197,10 +191,11 @@ export function ReadinessEvidencePanel({
 
   const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
 
-  const readiness = useMemo(
-    () => computeDeliveryReadiness(delivery, items),
-    [delivery, items],
+  const displayState = useMemo(
+    () => computeDeliveryDisplayState(delivery, items, materialIssues),
+    [delivery, items, materialIssues],
   );
+  const readiness = displayState.readiness;
 
   const openIssues = materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
@@ -215,12 +210,7 @@ export function ReadinessEvidencePanel({
     (item) => item.qtyMissing > 0 || item.qtyDamaged > 0 || item.qtyBackordered > 0,
   );
 
-  const blockReasons = [
-    ...new Set([
-      ...(delivery.readinessBlockReasons ?? []),
-      ...readiness.evidence.readinessBlockReasons,
-    ]),
-  ];
+  const blockReasons = readiness.evidence.readinessBlockReasons;
 
   const emailAutoApplied =
     delivery.vendorOrderComplete === true &&

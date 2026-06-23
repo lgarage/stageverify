@@ -57,6 +57,7 @@ import {
   poReadinessDisplayLabel,
   showEverythingReadyBadge,
 } from "./dispatcher/jobReadinessDisplay";
+import { computeDeliveryDisplayState } from "./dispatcher/deliveryDisplayHelpers";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -168,6 +169,23 @@ const STATUS_COUNT_COLORS: Record<
 
 const STATUS_LABEL = (status: DeliveryStatus): string =>
   DELIVERY_STATUS_LABEL[status];
+
+function listStatusBadge(
+  row: DeliveryListRow,
+): (typeof STATUS_BADGE)[DeliveryStatus] {
+  const label = row.statusDisplayLabel;
+  if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
+  if (label === "Issue / Review Required") return STATUS_BADGE.issue;
+  if (label === "Picked Up") return STATUS_BADGE.picked_up;
+  if (label === "Partial") return STATUS_BADGE.partial;
+  if (label === "Awaiting Vendor Delivery") {
+    return row.status === "shipped"
+      ? STATUS_BADGE.shipped
+      : STATUS_BADGE.pending;
+  }
+  if (label === "Incomplete") return STATUS_BADGE.partial;
+  return STATUS_BADGE[row.status];
+}
 
 const SORT_COLUMNS: Array<{
   label: string;
@@ -1197,7 +1215,7 @@ export function DispatcherDashboardPage() {
                 <tbody>
                   {paged.items.map((row, idx) => {
                     const selected = selectedDeliveryId === row.deliveryId;
-                    const b = STATUS_BADGE[row.status];
+                    const b = listStatusBadge(row);
                     return (
                       <tr
                         key={row.deliveryId}
@@ -1269,7 +1287,7 @@ export function DispatcherDashboardPage() {
                                 flexShrink: 0,
                               }}
                             />
-                            {STATUS_LABEL(row.status)}
+                            {row.statusDisplayLabel}
                           </span>
                         </td>
                         <td
@@ -2595,6 +2613,11 @@ function DetailContent({
 
   if (!details.job) return null;
   const job = details.job;
+  const displayState = computeDeliveryDisplayState(
+    details.delivery,
+    details.items,
+    details.materialIssues,
+  );
 
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
@@ -2665,163 +2688,6 @@ function DetailContent({
               ? () => openResolveModal(firstBlockingIssue)
               : undefined
           }
-        />
-        {(nonBlockingOpenIssues.length > 0 || resolvedIssues.length > 0) &&
-          renderDrawerSection(
-            nonBlockingOpenIssues.length > 0
-              ? `Material Issues (${nonBlockingOpenIssues.length})`
-              : "Material Issues — recently resolved",
-            <div
-              data-testid="material-issues-panel"
-              style={{
-                display: "flex",
-                flexDirection: "column" as const,
-                gap: 8,
-              }}
-            >
-              {nonBlockingOpenIssues.map((issue) => (
-                <div
-                  key={issue.id}
-                  style={{
-                    border: "1px solid #e0e3e8",
-                    borderRadius: 8,
-                    padding: "12px",
-                    backgroundColor: issue.blocking ? "#fff8f8" : "#fff",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 8,
-                      marginBottom: 6,
-                    }}
-                  >
-                    <span style={{ fontWeight: 700, color: "#333" }}>
-                      {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        color: issue.blocking ? "#c62828" : "#6b7280",
-                      }}
-                    >
-                      {issue.blocking ? "Blocking" : "Info"}
-                    </span>
-                  </div>
-                  <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
-                    {issue.description?.trim() || "No description"}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
-                    Reported by {issue.reportedBy} · Owner{" "}
-                    {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
-                    {new Date(issue.createdAt).toLocaleString()}
-                  </p>
-                  <button
-                    type="button"
-                    data-testid={`resolve-issue-${issue.id}`}
-                    disabled={mutationLoading}
-                    onClick={() =>
-                      openResolveModal(issue)
-                    }
-                    style={{
-                      marginTop: 8,
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: `1px solid ${navy}`,
-                      backgroundColor: "#fff",
-                      color: navy,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: mutationLoading ? "not-allowed" : "pointer",
-                      opacity: mutationLoading ? 0.6 : 1,
-                    }}
-                  >
-                    Resolve
-                  </button>
-                </div>
-              ))}
-              {resolvedIssues.length > 0 && (
-                <div style={{ marginTop: nonBlockingOpenIssues.length > 0 ? 12 : 0 }}>
-                  <p
-                    style={{
-                      margin: "0 0 8px",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "#6b7280",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    Recently resolved
-                  </p>
-                  {resolvedIssues
-                    .slice(0, 3)
-                    .map((issue) => (
-                      <div
-                        key={issue.id}
-                        style={{
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 8,
-                          padding: "10px 12px",
-                          backgroundColor: "#f9fafb",
-                          marginBottom: 6,
-                        }}
-                      >
-                        <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700 }}>
-                          {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
-                          {issue.resolutionType
-                            ? ` → ${ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType]}`
-                            : ""}
-                        </p>
-                        {issue.resolutionNote && (
-                          <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>
-                            {issue.resolutionNote}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>,
-          )}
-        {renderDrawerSection(
-          "Readiness Evidence",
-          <ReadinessEvidencePanel
-            details={details}
-            stagingLocations={stagingLocations}
-            navy={navy}
-            font={font}
-          />,
-        )}
-        {renderDrawerSection(
-          "Vendor Communications",
-          <VendorCommunicationsPanel
-            navy={navy}
-            font={font}
-            emailProviderConnected={emailProviderConnected}
-            deliveryOrderId={details.delivery.id}
-            refreshKey={vendorCommsRefresh}
-          />,
-        )}
-        <StatusActionPanel
-          details={details}
-          loading={mutationLoading}
-          error={mutationError}
-          onUpdateStatus={onUpdateStatus}
-          onRecordPickup={onRecordPickup}
-          onRevertStatus={onRevertStatus}
-          onMarkShipped={onMarkShipped}
-          onUpdateIssueSummary={onUpdateIssueSummary}
-          onUpdateShopStockPickList={onUpdateShopStockPickList}
-          onUpdateStagingLocation={onUpdateStagingLocation}
-          onUpdatePurchaseOrder={onUpdatePurchaseOrder}
-          onDeliveryOrderUpdated={onDeliveryOrderUpdated}
-          stagingLocations={stagingLocations}
-          navy={navy}
-          font={font}
         />
         {renderDrawerSection(
           "Delivery Basics",
@@ -2946,7 +2812,7 @@ function DetailContent({
                   </p>
                 </div>
               )}
-              {details.delivery.issueSummary && (
+              {displayState.issueSummary && (
                 <div
                   style={{
                     borderTop: "1px solid #eaecf0",
@@ -2975,7 +2841,7 @@ function DetailContent({
                       border: "1px solid #ef9a9a",
                     }}
                   >
-                    {details.delivery.issueSummary}
+                    {displayState.issueSummary}
                   </p>
                 </div>
               )}
@@ -3075,6 +2941,159 @@ function DetailContent({
             </div>
           </>,
         )}
+        {renderDrawerSection(
+          "Readiness Evidence",
+          <ReadinessEvidencePanel
+            details={details}
+            stagingLocations={stagingLocations}
+            navy={navy}
+            font={font}
+          />,
+        )}
+        {(nonBlockingOpenIssues.length > 0 || resolvedIssues.length > 0) &&
+          renderDrawerSection(
+            nonBlockingOpenIssues.length > 0
+              ? `Material Issues (${nonBlockingOpenIssues.length})`
+              : "Material Issues — recently resolved",
+            <div
+              data-testid="material-issues-panel"
+              style={{
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 8,
+              }}
+            >
+              {nonBlockingOpenIssues.map((issue) => (
+                <div
+                  key={issue.id}
+                  style={{
+                    border: "1px solid #e0e3e8",
+                    borderRadius: 8,
+                    padding: "12px",
+                    backgroundColor: issue.blocking ? "#fff8f8" : "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, color: "#333" }}>
+                      {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: issue.blocking ? "#c62828" : "#6b7280",
+                      }}
+                    >
+                      {issue.blocking ? "Blocking" : "Info"}
+                    </span>
+                  </div>
+                  <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
+                    {issue.description?.trim() || "No description"}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
+                    Reported by {issue.reportedBy} · Owner{" "}
+                    {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
+                    {new Date(issue.createdAt).toLocaleString()}
+                  </p>
+                  <button
+                    type="button"
+                    data-testid={`resolve-issue-${issue.id}`}
+                    disabled={mutationLoading}
+                    onClick={() => openResolveModal(issue)}
+                    style={{
+                      marginTop: 8,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: `1px solid ${navy}`,
+                      backgroundColor: "#fff",
+                      color: navy,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: mutationLoading ? "not-allowed" : "pointer",
+                      opacity: mutationLoading ? 0.6 : 1,
+                    }}
+                  >
+                    Resolve
+                  </button>
+                </div>
+              ))}
+              {resolvedIssues.length > 0 && (
+                <div style={{ marginTop: nonBlockingOpenIssues.length > 0 ? 12 : 0 }}>
+                  <p
+                    style={{
+                      margin: "0 0 8px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Recently resolved
+                  </p>
+                  {resolvedIssues.slice(0, 3).map((issue) => (
+                    <div
+                      key={issue.id}
+                      style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        backgroundColor: "#f9fafb",
+                        marginBottom: 6,
+                      }}
+                    >
+                      <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700 }}>
+                        {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                        {issue.resolutionType
+                          ? ` → ${ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType]}`
+                          : ""}
+                      </p>
+                      {issue.resolutionNote && (
+                        <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>
+                          {issue.resolutionNote}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>,
+          )}
+        {renderDrawerSection(
+          "Vendor Communications",
+          <VendorCommunicationsPanel
+            navy={navy}
+            font={font}
+            emailProviderConnected={emailProviderConnected}
+            deliveryOrderId={details.delivery.id}
+            refreshKey={vendorCommsRefresh}
+          />,
+        )}
+        <StatusActionPanel
+          details={details}
+          loading={mutationLoading}
+          error={mutationError}
+          onUpdateStatus={onUpdateStatus}
+          onRecordPickup={onRecordPickup}
+          onRevertStatus={onRevertStatus}
+          onMarkShipped={onMarkShipped}
+          onUpdateIssueSummary={onUpdateIssueSummary}
+          onUpdateShopStockPickList={onUpdateShopStockPickList}
+          onUpdateStagingLocation={onUpdateStagingLocation}
+          onUpdatePurchaseOrder={onUpdatePurchaseOrder}
+          onDeliveryOrderUpdated={onDeliveryOrderUpdated}
+          stagingLocations={stagingLocations}
+          navy={navy}
+          font={font}
+        />
         {renderDrawerSection(
           "Pickup Summary",
           (() => {

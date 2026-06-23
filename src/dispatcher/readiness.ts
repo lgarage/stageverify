@@ -111,6 +111,8 @@ export function computeStagingAssignmentComplete(
 
 export interface ReadinessComputeOptions {
   vendorDeliveryMode?: VendorDeliveryMode;
+  /** When materialIssues are loaded, pass live open blocking count to avoid stale delivery counters. */
+  openBlockingIssueCount?: number;
 }
 
 export function buildDeliveryReadinessEvidence(
@@ -129,7 +131,8 @@ export function buildDeliveryReadinessEvidence(
     delivery,
     items,
   );
-  const blockingIssues = (delivery.openBlockingIssueCount ?? 0) > 0;
+  const blockingIssues =
+    (options?.openBlockingIssueCount ?? delivery.openBlockingIssueCount ?? 0) > 0;
 
   if (!vendorOrderComplete) blockReasons.push("vendor_order_incomplete");
   if (!physicalDropoffComplete) blockReasons.push("physical_dropoff_incomplete");

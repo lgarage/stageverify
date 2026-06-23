@@ -7,6 +7,10 @@ import {
   computeDeliveryReadiness,
   computeJobReadiness,
 } from "../src/dispatcher/readiness.ts";
+import {
+  computeDeliveryDisplayState,
+  countOpenBlockingIssues,
+} from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 const failures = [];
 
@@ -152,6 +156,41 @@ assert(!jobResult.allReadyForPickup, "job not fully ready with one partial PO");
 assert(
   jobResult.poResults.find((p) => p.poId === "po-johnstone-45821")?.readyForPickup,
   "johnstone PO ready alone",
+);
+
+const readyDelivery = {
+  ...baseDelivery,
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "arrived",
+  readinessBlockReasons: ["vendor_order_incomplete", "physical_dropoff_incomplete"],
+  openBlockingIssueCount: 1,
+};
+const readyDisplay = computeDeliveryDisplayState(readyDelivery, completeItems, []);
+assert(
+  readyDisplay.statusDisplayLabel === "Ready for Pickup",
+  "list label ready when evidence complete despite stale persisted fields",
+);
+assert(readyDisplay.issueSummary === "", "no issue summary when ready");
+assert(
+  countOpenBlockingIssues(readyDelivery) === 1,
+  "persisted blocking count when materialIssues unavailable",
+);
+assert(
+  countOpenBlockingIssues(readyDelivery, [
+    {
+      id: "resolved-1",
+      deliveryOrderId: "del-1",
+      jobId: "job-261042",
+      type: "missing",
+      status: "resolved",
+      reportedBy: "vendor",
+      blocking: true,
+      createdAt: "2026-06-01T00:00:00Z",
+      updatedAt: "2026-06-01T00:00:00Z",
+    },
+  ]) === 0,
+  "live materialIssues override stale openBlockingIssueCount",
 );
 
 if (failures.length) {

@@ -801,6 +801,8 @@ export const getAllStagingLocationIds = (delivery: DeliveryOrder): string[] => {
 export interface DeliveryListRow {
   deliveryId: string;
   status: DeliveryStatus;
+  /** Readiness-aware label aligned with drawer / job readiness panel. */
+  statusDisplayLabel: string;
   jobNumber: string;
   jobName: string;
   poNumber?: string;

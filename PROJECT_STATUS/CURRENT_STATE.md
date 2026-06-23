@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-068 follow-up** — editable Resolve Issue email fields + saveVendorEmail CF path
+- Last shipped: **away-068** follow-up — delivery list/drawer consistency (readiness-aware status, computed issue summary, drawer order)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

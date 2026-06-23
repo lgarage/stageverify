@@ -1,22 +1,12 @@
 import { useMemo, useState } from "react";
 import type { DeliveryDetails, Item } from "../models";
-import { MATERIAL_ISSUE_TYPE_LABEL } from "../models";
-import { computeDeliveryReadiness } from "../readiness";
+import { computeDeliveryDisplayState } from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
   getProposedEmailUpdates,
 } from "../email/getProposedEmailUpdates";
 import { hasVendorOrderCompleteApplyConflict } from "../email/emailApplyConflicts";
 import { proposalNeedsDrawerReview } from "../email/emailReviewHelpers";
-
-const BLOCK_LABEL: Record<string, string> = {
-  vendor_order_incomplete: "Vendor order not complete",
-  physical_dropoff_incomplete: "Physical drop-off not complete",
-  staging_assignment_incomplete: "Staging location not assigned",
-  unresolved_blocking_issues: "Open blocking material issues",
-  unresolved_damage: "Unresolved damage on items",
-  unresolved_backorder: "Unresolved backorder on items",
-};
 
 function missingItemLines(items: Item[]): string[] {
   return items
@@ -58,10 +48,11 @@ export function DrawerActionBanner({
   const vendorAddress = vendor.address?.trim() ?? "";
   const telHref = vendorPhone ? `tel:${telDigits(vendorPhone)}` : null;
 
-  const readiness = useMemo(
-    () => computeDeliveryReadiness(delivery, items),
-    [delivery, items],
+  const displayState = useMemo(
+    () => computeDeliveryDisplayState(delivery, items, materialIssues),
+    [delivery, items, materialIssues],
   );
+  const readiness = displayState.readiness;
 
   const proposals = useMemo(() => {
     const all = getProposedEmailUpdates();
@@ -108,45 +99,17 @@ export function DrawerActionBanner({
     );
   }, [proposals, emailAutoApplied, delivery, items]);
 
-  const openIssues = materialIssues.filter(
-    (i) => i.status === "open" || i.status === "assigned",
-  );
-  const blockingIssues = openIssues.filter((i) => i.blocking);
-  const hasBlockingIssues = blockingIssues.length > 0;
+  const hasBlockingIssues = displayState.openBlockingIssueCount > 0;
 
-  const blockReasons = [
-    ...new Set([
-      ...(delivery.readinessBlockReasons ?? []),
-      ...readiness.evidence.readinessBlockReasons,
-    ]),
-  ];
-
-  const blockerLabels: string[] = [];
-  if (emailReviewRequired) {
-    blockerLabels.push("Vendor email needs review");
-  }
-  for (const reason of blockReasons) {
-    const label = BLOCK_LABEL[reason];
-    if (label && !blockerLabels.includes(label)) {
-      blockerLabels.push(label);
-    }
-  }
-  if (
-    !details.stagingLocation &&
-    items.some((item) => item.qtyReceived > 0) &&
-    !blockerLabels.includes("Staging location not assigned")
-  ) {
-    blockerLabels.push("Missing staging assignment");
-  }
-  for (const issue of blockingIssues) {
-    const line = `${MATERIAL_ISSUE_TYPE_LABEL[issue.type]}: ${issue.description?.trim() || "No description"}`;
-    if (!blockerLabels.includes(line)) {
-      blockerLabels.push(line);
-    }
+  const blockerLabels = [...displayState.blockerLabels];
+  if (emailReviewRequired && !blockerLabels.includes("Vendor email needs review")) {
+    blockerLabels.unshift("Vendor email needs review");
   }
 
   const allClear =
-    readiness.readyForPickup && !emailReviewRequired && blockerLabels.length === 0;
+    readiness.readyForPickup &&
+    !emailReviewRequired &&
+    blockerLabels.length === 0;
 
   const missingLines = missingItemLines(items);
   const receipt = itemReceiptSummary(items);
@@ -213,8 +176,8 @@ export function DrawerActionBanner({
                 padding: "4px 10px",
               }}
             >
-              {(delivery.openBlockingIssueCount ?? blockingIssues.length) > 0
-                ? `${delivery.openBlockingIssueCount ?? blockingIssues.length} blocking`
+              {displayState.openBlockingIssueCount > 0
+                ? `${displayState.openBlockingIssueCount} blocking`
                 : "Review"}
             </span>
           )}
