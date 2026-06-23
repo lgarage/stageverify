@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-22",
+  "lastRun": "2026-06-23",
   "batch": "away-001..041 archived; active queue away-042+",
   "results": [
     {
@@ -456,6 +456,13 @@
       "status": "built",
       "commit": "1af3fca",
       "note": "VendorEmailEvent types + Vendor Communications drawer placeholder; verify:dispatcher-nav + verify:phase5-email PASS"
+    },
+    {
+      "id": "away-067",
+      "title": "Phase 6 slice 1: Gmail OAuth connection state (no send, no watch)",
+      "status": "built",
+      "commit": "5b2277a",
+      "note": "Gmail OAuth connection state; Email Vendor still disabled"
     }
   ],
   "summary": "away-066 shipped; active queue empty — see docs/project_state.md immediate next steps"

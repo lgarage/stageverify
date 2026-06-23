@@ -10,38 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": ["away-067"]
+    "sequence": []
   },
-  "queue": [
-    {
-      "id": "away-067",
-      "title": "Phase 6 slice 1: Gmail OAuth connection state (no send, no watch)",
-      "scope": "Provider connection doc + CF initiate/complete/disconnect + Settings connect UI + fix emailProviderConnected gate + VendorCommunications empty copy + audit connect/disconnect only. No sendVendorEmail, no watch, Email Vendor stays disabled.",
-      "files": [
-        "functions/src/gmailOAuth.ts",
-        "functions/src/index.ts",
-        "firestore.rules",
-        "src/dispatcher/models.ts",
-        "src/dispatcher/firestoreService.ts",
-        "src/SettingsPage.tsx",
-        "src/DispatcherDashboardPage.tsx",
-        "src/dispatcher/drawer/VendorCommunicationsPanel.tsx",
-        "scripts/verify-email-oauth-connect.mjs",
-        "scripts/seed-email-oauth-fixture.mjs",
-        "package.json"
-      ],
-      "tier": "T3",
-      "model": "composer-2.5",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:phase5-email",
-        "npm run verify:settings-staging",
-        "npm run verify:email-oauth-connect",
-        "npm run away:validate"
-      ],
-      "acceptance": "OAuth CFs deployed; Settings connect/disconnect + status badge; emailProviderConnected true only when status connected; monitoring toggles do not enable Email Vendor; verify:email-oauth-connect passes; Sonnet security gate before push.",
-      "preApproved": true,
-      "status": "queued"
-    }
-  ]
+  "queue": []
 }
