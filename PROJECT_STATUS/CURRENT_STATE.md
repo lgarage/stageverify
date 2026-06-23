@@ -16,8 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
-- See `docs/project_state.md` immediate next steps.
+- **Post-queue:** see `docs/project_state.md` immediate next steps (away-069 Gmail reply sync next).
 
 ## Canonical references
 - **Librarian mini:** MEMORY.md router + `away:next` packet + `away:validate`
