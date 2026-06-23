@@ -470,7 +470,14 @@
       "status": "built",
       "commit": "cd753c3",
       "note": "Follow-up: editable To/Subject/Body in Resolve modal; saveVendorEmail CF updates vendor.email; Other requires note; Sonnet LOW"
+    },
+    {
+      "id": "away-072",
+      "title": "Delivery drawer exception-management UX (Issue Summary panel)",
+      "status": "built",
+      "commit": "cc19045",
+      "note": "Issue Summary top; Action Required deduped; section reorder; verify:delivery-consistency + verify:dispatcher-nav PASS"
     }
   ],
-  "summary": "away-067 complete; active queue empty — see docs/project_state.md immediate next steps"
+  "summary": "away-072 shipped; active queue empty — see docs/project_state.md immediate next steps"
 }
