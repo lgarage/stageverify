@@ -222,6 +222,25 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Phase 6: Gmail OAuth connection metadata — auth read; tokens CF-only.
+    match /emailProviderConnections/{providerId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    match /emailProviderSecrets/{providerId} {
+      allow read, write: if false;
+    }
+
+    match /emailOAuthStates/{stateId} {
+      allow read, write: if false;
+    }
+
+    match /emailProviderAuditEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
     match /pickupOperations/{operationId} {
       allow read, write: if false;
     }

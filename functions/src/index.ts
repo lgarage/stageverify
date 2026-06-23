@@ -14,6 +14,11 @@ import { getPickupTokenStatus } from "./getPickupTokenStatus";
 import { validatePickupToken } from "./validatePickupToken";
 import { updatePickupChecklist } from "./updatePickupChecklist";
 import { resolveMaterialIssue } from "./resolveMaterialIssue";
+import {
+  initiateGmailOAuth,
+  completeGmailOAuth,
+  disconnectGmailOAuth,
+} from "./gmailOAuth";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -141,4 +146,7 @@ export {
   recalculateDeliveryReadiness,
   markVendorDelivered,
   processInboundVendorEmail,
+  initiateGmailOAuth,
+  completeGmailOAuth,
+  disconnectGmailOAuth,
 };

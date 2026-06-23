@@ -168,12 +168,46 @@ export type VendorCommunicationPurpose =
   | "general"
   | "unknown";
 
+/** Gmail (or future) email provider OAuth connection — metadata only; tokens Admin SDK only. */
+export type EmailProviderId = "gmail";
+
+export type EmailProviderConnectionStatus =
+  | "disconnected"
+  | "connected"
+  | "token_expired";
+
+export interface EmailProviderConnection {
+  provider: EmailProviderId;
+  status: EmailProviderConnectionStatus;
+  connectedAccountEmail?: string;
+  connectedAt?: string;
+  connectedByUid?: string;
+  updatedAt: string;
+}
+
+/** Connect/disconnect audit — no message bodies. */
+export type EmailProviderAuditAction =
+  | "connected"
+  | "disconnected"
+  | "token_expired";
+
+export interface EmailProviderAuditEvent {
+  id: string;
+  provider: EmailProviderId;
+  action: EmailProviderAuditAction;
+  actorUid: string;
+  connectedAccountEmail?: string;
+  createdAt: string;
+}
+
 /** Phase-gated Firestore root collections — create only when the active phase gate requires persistence. */
 export const V2_COLLECTION_NAMES = {
   materialIssues: "materialIssues",
   vendorEmailEvents: "vendorEmailEvents",
   aiCorrections: "aiCorrections",
   vendorKnowledge: "vendorKnowledge",
+  emailProviderConnections: "emailProviderConnections",
+  emailProviderAuditEvents: "emailProviderAuditEvents",
 } as const;
 
 export type ItemStatus =

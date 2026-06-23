@@ -43,6 +43,7 @@
     "verify:portal-layout": "node scripts/verify-portal-layout.mjs",
     "verify:dispatcher-nav": "node scripts/verify-dispatcher-nav.mjs",
     "verify:phase5-email": "node scripts/verify-phase5-email.mjs",
+    "verify:email-oauth-connect": "node scripts/verify-email-oauth-connect.mjs",
     "verify:phase3-integration": "node scripts/verify-phase3-integration.mjs",
     "verify:phase4-integration": "node scripts/verify-phase4-integration.mjs",
     "verify:phase4-integration:prod": "node scripts/verify-phase4-integration.mjs --base-url=https://lgarage.github.io/stageverify",

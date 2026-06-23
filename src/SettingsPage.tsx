@@ -17,7 +17,11 @@ import {
   listAllZones,
   createZone,
   updateZone,
+  getEmailProviderConnection,
+  initiateGmailOAuth,
+  disconnectGmailOAuth,
 } from "./dispatcher/firestoreService";
+import type { EmailProviderConnection } from "./dispatcher/models";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -108,6 +112,13 @@ export function SettingsPage() {
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
+  const [gmailConnection, setGmailConnection] = useState<EmailProviderConnection | null>(
+    null,
+  );
+  const [loadingGmailConnection, setLoadingGmailConnection] = useState(true);
+  const [connectingGmail, setConnectingGmail] = useState(false);
+  const [disconnectingGmail, setDisconnectingGmail] = useState(false);
+  const [gmailOAuthMessage, setGmailOAuthMessage] = useState<string | null>(null);
 
   const [stagingSpots, setStagingSpots] = useState<StagingLocation[]>([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
@@ -152,6 +163,94 @@ export function SettingsPage() {
       setEmailMonitoringEnabled(settings.emailMonitoringEnabled === true);
     });
   }, []);
+
+  const refreshGmailConnection = async () => {
+    setLoadingGmailConnection(true);
+    try {
+      const connection = await getEmailProviderConnection();
+      setGmailConnection(connection);
+    } catch {
+      setGmailConnection(null);
+    } finally {
+      setLoadingGmailConnection(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshGmailConnection();
+  }, []);
+
+  useEffect(() => {
+    const hash = location.hash;
+    const queryStart = hash.indexOf("?");
+    if (queryStart === -1) return;
+    const params = new URLSearchParams(hash.slice(queryStart + 1));
+    const oauthResult = params.get("gmailOAuth");
+    if (!oauthResult) return;
+
+    if (oauthResult === "success") {
+      setGmailOAuthMessage("Gmail connected successfully.");
+      void refreshGmailConnection();
+    } else {
+      const reason = params.get("reason") ?? "unknown";
+      setGmailOAuthMessage(`Gmail connection failed (${reason}).`);
+    }
+    window.setTimeout(() => setGmailOAuthMessage(null), 6000);
+  }, [location.hash]);
+
+  const handleConnectGmail = async () => {
+    if (connectingGmail) return;
+    setConnectingGmail(true);
+    setGmailOAuthMessage(null);
+    try {
+      const returnUrl = `${window.location.origin}${window.location.pathname}#/settings`;
+      const authUrl = await initiateGmailOAuth(returnUrl);
+      window.location.href = authUrl;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not start Gmail connection.";
+      setGmailOAuthMessage(message);
+      setConnectingGmail(false);
+    }
+  };
+
+  const handleDisconnectGmail = async () => {
+    if (disconnectingGmail) return;
+    setDisconnectingGmail(true);
+    setGmailOAuthMessage(null);
+    try {
+      await disconnectGmailOAuth();
+      await refreshGmailConnection();
+      setGmailOAuthMessage("Gmail disconnected.");
+      window.setTimeout(() => setGmailOAuthMessage(null), 4000);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not disconnect Gmail.";
+      setGmailOAuthMessage(message);
+    } finally {
+      setDisconnectingGmail(false);
+    }
+  };
+
+  const gmailStatus = gmailConnection?.status ?? "disconnected";
+  const gmailStatusLabel =
+    gmailStatus === "connected"
+      ? "Connected"
+      : gmailStatus === "token_expired"
+        ? "Token expired"
+        : "Disconnected";
+  const gmailStatusColor =
+    gmailStatus === "connected"
+      ? "#166534"
+      : gmailStatus === "token_expired"
+        ? "#b45309"
+        : "#6b7280";
+  const gmailStatusBg =
+    gmailStatus === "connected"
+      ? "#dcfce7"
+      : gmailStatus === "token_expired"
+        ? "#fef3c7"
+        : "#f3f4f6";
 
   const saveEmailSettings = async () => {
     if (savingEmail) return;
@@ -695,10 +794,128 @@ export function SettingsPage() {
                   maxWidth: 560,
                 }}
               >
-                Phase 5 offline prototype only — no live inbox connection. Set the
-                address where dispatchers will CC vendor order emails; live
-                monitoring ships in Phase 6.
+                Configure the CC inbox address and Gmail OAuth separately. Monitoring
+                toggles do not connect Gmail — use Connect Gmail below for vendor
+                email provider status.
               </p>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 16,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #e5e7eb",
+                  backgroundColor: "#fafafa",
+                  maxWidth: 560,
+                }}
+              >
+                <div style={{ flex: "1 1 180px" }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: NAVY,
+                      marginBottom: 6,
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    Gmail provider
+                  </div>
+                  <span
+                    data-testid="gmail-oauth-status-badge"
+                    data-status={gmailStatus}
+                    style={{
+                      display: "inline-block",
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: gmailStatusColor,
+                      backgroundColor: gmailStatusBg,
+                    }}
+                  >
+                    {loadingGmailConnection ? "Loading…" : gmailStatusLabel}
+                  </span>
+                  {gmailConnection?.connectedAccountEmail && (
+                    <div
+                      data-testid="gmail-connected-account"
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        color: "#374151",
+                      }}
+                    >
+                      {gmailConnection.connectedAccountEmail}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {(gmailStatus === "disconnected" ||
+                    gmailStatus === "token_expired") && (
+                    <button
+                      type="button"
+                      data-testid="gmail-oauth-connect"
+                      onClick={() => void handleConnectGmail()}
+                      disabled={connectingGmail || loadingGmailConnection}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: 4,
+                        border: "none",
+                        backgroundColor:
+                          connectingGmail || loadingGmailConnection ? "#e5e7eb" : NAVY,
+                        color:
+                          connectingGmail || loadingGmailConnection ? "#9ca3af" : "#fff",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor:
+                          connectingGmail || loadingGmailConnection
+                            ? "not-allowed"
+                            : "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {connectingGmail ? "Redirecting…" : "Connect Gmail"}
+                    </button>
+                  )}
+                  {gmailStatus === "connected" && (
+                    <button
+                      type="button"
+                      data-testid="gmail-oauth-disconnect"
+                      onClick={() => void handleDisconnectGmail()}
+                      disabled={disconnectingGmail}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: 4,
+                        border: "1px solid #d1d5db",
+                        backgroundColor: disconnectingGmail ? "#f3f4f6" : "#fff",
+                        color: disconnectingGmail ? "#9ca3af" : "#374151",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: disconnectingGmail ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {disconnectingGmail ? "Disconnecting…" : "Disconnect"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {gmailOAuthMessage && (
+                <p
+                  data-testid="gmail-oauth-message"
+                  style={{
+                    margin: "0 0 14px",
+                    fontSize: 12,
+                    color: gmailOAuthMessage.includes("failed") ? "#b91c1c" : "#166534",
+                    maxWidth: 560,
+                  }}
+                >
+                  {gmailOAuthMessage}
+                </p>
+              )}
               <div
                 style={{
                   display: "grid",

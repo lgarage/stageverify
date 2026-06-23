@@ -15,7 +15,7 @@ import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import { DispatcherPortalLinks } from "./PortalNavBar";
 import {
   firestoreDataService,
-  getAppSettings,
+  getEmailProviderConnection,
   markDeliveryShipped,
   mapOccupancyByLocationId,
   resolveMaterialIssue,
@@ -321,12 +321,9 @@ export function DispatcherDashboardPage() {
   }, []);
 
   useEffect(() => {
-    void getAppSettings()
-      .then((settings) => {
-        const connected =
-          settings.emailMonitoringEnabled === true &&
-          Boolean(settings.monitoringInboxEmail?.trim());
-        setEmailProviderConnected(connected);
+    void getEmailProviderConnection()
+      .then((connection) => {
+        setEmailProviderConnected(connection.status === "connected");
       })
       .catch(() => setEmailProviderConnected(false));
   }, []);
@@ -2732,7 +2729,11 @@ function DetailContent({
         )}
         {renderDrawerSection(
           "Vendor Communications",
-          <VendorCommunicationsPanel navy={navy} font={font} />,
+          <VendorCommunicationsPanel
+            navy={navy}
+            font={font}
+            emailProviderConnected={emailProviderConnected}
+          />,
         )}
         <StatusActionPanel
           details={details}

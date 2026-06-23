@@ -46,6 +46,9 @@ import type {
   StatusHistoryEvent,
   Vendor,
   AppSettings,
+  EmailProviderConnection,
+  EmailProviderConnectionStatus,
+  EmailProviderId,
   ShopStockLocationMapping,
   ShopStockLine,
 } from "./models";
@@ -1052,6 +1055,74 @@ export async function updateAppSettings(
 ): Promise<AppSettings> {
   await setDoc(APP_SETTINGS_DOC, settings, { merge: true });
   return getAppSettings();
+}
+
+const EMAIL_PROVIDER_DOC = doc(db, "emailProviderConnections", "gmail");
+
+const DEFAULT_EMAIL_PROVIDER_CONNECTION: EmailProviderConnection = {
+  provider: "gmail",
+  status: "disconnected",
+  updatedAt: new Date(0).toISOString(),
+};
+
+export function parseEmailProviderConnection(
+  data: Record<string, unknown> | undefined,
+): EmailProviderConnection {
+  if (!data) return { ...DEFAULT_EMAIL_PROVIDER_CONNECTION };
+  const status = data.status as EmailProviderConnectionStatus | undefined;
+  const validStatuses: EmailProviderConnectionStatus[] = [
+    "disconnected",
+    "connected",
+    "token_expired",
+  ];
+  return {
+    provider: (data.provider as EmailProviderId) ?? "gmail",
+    status:
+      status && validStatuses.includes(status) ? status : "disconnected",
+    connectedAccountEmail:
+      typeof data.connectedAccountEmail === "string"
+        ? data.connectedAccountEmail
+        : undefined,
+    connectedAt:
+      typeof data.connectedAt === "string" ? data.connectedAt : undefined,
+    connectedByUid:
+      typeof data.connectedByUid === "string" ? data.connectedByUid : undefined,
+    updatedAt:
+      typeof data.updatedAt === "string"
+        ? data.updatedAt
+        : new Date().toISOString(),
+  };
+}
+
+export async function getEmailProviderConnection(): Promise<EmailProviderConnection> {
+  const snap = await getDoc(EMAIL_PROVIDER_DOC);
+  if (!snap.exists()) return { ...DEFAULT_EMAIL_PROVIDER_CONNECTION };
+  return parseEmailProviderConnection(snap.data() as Record<string, unknown>);
+}
+
+export function isEmailProviderConnected(
+  connection: EmailProviderConnection | null | undefined,
+): boolean {
+  return connection?.status === "connected";
+}
+
+const initiateGmailOAuthCallable = httpsCallable<
+  { returnUrl?: string },
+  { authUrl: string; state: string; configured: boolean }
+>(functions, "initiateGmailOAuth");
+
+const disconnectGmailOAuthCallable = httpsCallable<object, { ok: boolean }>(
+  functions,
+  "disconnectGmailOAuth",
+);
+
+export async function initiateGmailOAuth(returnUrl: string): Promise<string> {
+  const response = await initiateGmailOAuthCallable({ returnUrl });
+  return response.data.authUrl;
+}
+
+export async function disconnectGmailOAuth(): Promise<void> {
+  await disconnectGmailOAuthCallable({});
 }
 
 export const firestoreDataService = new FirestoreDataService();

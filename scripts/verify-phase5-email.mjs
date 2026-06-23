@@ -152,7 +152,7 @@ async function ensureAuthenticated(page) {
     await page.getByTestId("vendor-communications-toggle").click();
     await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
     const vendorCommsEmpty = await page.getByTestId("vendor-communications-empty").innerText();
-    if (!/No messages yet/i.test(vendorCommsEmpty) || !/Phase 6/i.test(vendorCommsEmpty)) {
+    if (!/No messages yet/i.test(vendorCommsEmpty) || !/connect Gmail in Settings/i.test(vendorCommsEmpty)) {
       throw new Error(`Vendor Communications empty state unexpected: ${vendorCommsEmpty}`);
     }
     console.log("PASS: Vendor Communications read-only placeholder.");

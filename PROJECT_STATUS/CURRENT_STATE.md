@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-066** — Phase 6 foundation: vendor communication data model + drawer placeholder
+- Last shipped: **away-067** — Phase 6 slice 1: Gmail OAuth connection state (no send, no watch)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

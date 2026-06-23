@@ -255,7 +255,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
-- Configurable StageVerify inbox; dispatcher CC/intentional forward only — **no monitoring of all vendor mail**
+- **OAuth connect (away-067):** Gmail OAuth CFs + Settings Connect/Disconnect; `emailProviderConnections/gmail` metadata; refresh tokens admin-only; Email Vendor stays disabled until send CF
 - `emailDomain` on `Vendor` for matching when live monitoring starts
 - Live inbox monitoring with **human-reviewed proposed updates first**
 - Narrow automation only for explicitly approved, high-confidence event types — high confidence alone is not blanket permission to update records

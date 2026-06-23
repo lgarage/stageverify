@@ -1,16 +1,23 @@
 import { useState } from "react";
 
-const EMPTY_MESSAGE =
-  "No messages yet — connect email provider in Settings (Phase 6)";
+const EMPTY_DISCONNECTED =
+  "No messages yet — connect Gmail in Settings to enable vendor email.";
+const EMPTY_CONNECTED =
+  "No messages yet — outbound send and inbox watch ship in a later Phase 6 slice.";
 
 export function VendorCommunicationsPanel({
   navy,
   font,
+  emailProviderConnected,
 }: {
   navy: string;
   font: string;
+  emailProviderConnected: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const emptyMessage = emailProviderConnected
+    ? EMPTY_CONNECTED
+    : EMPTY_DISCONNECTED;
 
   return (
     <div
@@ -58,6 +65,7 @@ export function VendorCommunicationsPanel({
       {expanded && (
         <p
           data-testid="vendor-communications-empty"
+          data-connected={emailProviderConnected ? "true" : "false"}
           style={{
             margin: "12px 0 0",
             fontSize: 13,
@@ -65,7 +73,7 @@ export function VendorCommunicationsPanel({
             fontFamily: font,
           }}
         >
-          {EMPTY_MESSAGE}
+          {emptyMessage}
         </p>
       )}
     </div>
