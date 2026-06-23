@@ -461,7 +461,7 @@
       "id": "away-067",
       "title": "Phase 6 slice 1: Gmail OAuth connection state (no send, no watch)",
       "status": "complete",
-      "commit": "ce03ed1",
+      "commit": "c3129ec",
       "note": "COMPLETE final verification: trimSecret safeguard kept; OAuth debug logging removed; CF deploy; prod disconnect PASS; Connect reaches Google OAuth (manual Gmail consent for full connect/refresh/re-login); Email Vendor still disabled"
     }
   ],
