@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-068** follow-up — delivery list/drawer consistency (readiness-aware status, computed issue summary, drawer order)
+- Last shipped: **away-072** — delivery drawer exception-management UX (Issue Summary panel, deduped Action Required, section reorder)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

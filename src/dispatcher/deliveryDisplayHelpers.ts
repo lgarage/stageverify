@@ -194,3 +194,161 @@ function buildComputedIssueSummary(
 
   return "";
 }
+
+export type ItemIssueDisplayStatus =
+  | "Backordered"
+  | "Not Delivered"
+  | "Partial Delivery"
+  | "Delivered"
+  | "Resolved";
+
+export interface ItemIssueRow {
+  itemId: string;
+  description: string;
+  qty: number;
+  status: ItemIssueDisplayStatus;
+}
+
+export interface ReceivedItemRow {
+  itemId: string;
+  description: string;
+  qty: number;
+}
+
+export interface IssueSummaryPanelData {
+  deliveryStatusLabel: string;
+  itemsReceivedCount: number;
+  itemsTotalCount: number;
+  openIssuesCount: number;
+  issueRows: ItemIssueRow[];
+  receivedItems: ReceivedItemRow[];
+}
+
+export const ITEM_ISSUE_STATUS_COLOR: Record<ItemIssueDisplayStatus, string> = {
+  Backordered: "#f57c00",
+  "Not Delivered": "#c62828",
+  "Partial Delivery": "#d97706",
+  Delivered: "#2e7d32",
+  Resolved: "#2e7d32",
+};
+
+export function deriveItemIssueDisplayStatus(
+  item: Item,
+): ItemIssueDisplayStatus | null {
+  const outstanding = item.qtyOrdered - item.qtyReceived;
+  if (item.qtyBackordered > 0) {
+    return "Backordered";
+  }
+  if (outstanding <= 0 && item.qtyReceived > 0) {
+    return null;
+  }
+  if (item.qtyReceived === 0) {
+    return "Not Delivered";
+  }
+  if (item.qtyReceived > 0 && item.qtyReceived < item.qtyOrdered) {
+    return "Partial Delivery";
+  }
+  return null;
+}
+
+export function deriveItemIssueQty(item: Item, status: ItemIssueDisplayStatus): number {
+  if (status === "Backordered") {
+    return item.qtyBackordered;
+  }
+  if (status === "Not Delivered") {
+    return item.qtyOrdered;
+  }
+  if (status === "Partial Delivery") {
+    return item.qtyOrdered - item.qtyReceived;
+  }
+  return item.qtyOrdered;
+}
+
+export function buildIssueSummaryPanelData(
+  delivery: DeliveryOrder,
+  items: Item[],
+  materialIssues: MaterialIssue[] | undefined,
+  options?: ReadinessComputeOptions,
+): IssueSummaryPanelData {
+  const display = computeDeliveryDisplayState(
+    delivery,
+    items,
+    materialIssues,
+    options,
+  );
+  const itemsTotalCount = items.length;
+  const itemsReceivedCount = items.filter((item) => item.qtyReceived > 0).length;
+
+  const issueRows: ItemIssueRow[] = [];
+  for (const item of items) {
+    const status = deriveItemIssueDisplayStatus(item);
+    if (!status) continue;
+    issueRows.push({
+      itemId: item.id,
+      description: item.description,
+      qty: deriveItemIssueQty(item, status),
+      status,
+    });
+  }
+
+  const receivedItems: ReceivedItemRow[] = items
+    .filter((item) => item.qtyReceived > 0)
+    .map((item) => ({
+      itemId: item.id,
+      description: item.description,
+      qty: item.qtyReceived,
+    }));
+
+  const openMaterialCount = countOpenMaterialIssues(materialIssues);
+  const openIssuesCount = issueRows.length + openMaterialCount;
+
+  return {
+    deliveryStatusLabel: display.statusDisplayLabel,
+    itemsReceivedCount,
+    itemsTotalCount,
+    openIssuesCount,
+    issueRows,
+    receivedItems,
+  };
+}
+
+const RECOMMENDED_ACTION_BY_BLOCKER: Record<string, string> = {
+  "Vendor order not complete":
+    "Confirm vendor order completion or review pending vendor email",
+  "Physical drop-off not complete":
+    "Follow up on outstanding delivery items with the vendor",
+  "Staging location not assigned":
+    "Assign a staging location for received items",
+  "Open blocking material issues":
+    "Resolve open blocking material issues before pickup",
+  "Unresolved damage on items": "Review and resolve reported item damage",
+  "Unresolved backorder on items":
+    "Confirm backorder ETA or alternate sourcing with vendor",
+  "Vendor email needs review": "Review vendor email proposals in Vendor Communications",
+};
+
+export function buildRecommendedActions(blockerLabels: string[]): string[] {
+  const actions: string[] = [];
+  for (const label of blockerLabels) {
+    const mapped = RECOMMENDED_ACTION_BY_BLOCKER[label];
+    if (mapped && !actions.includes(mapped)) {
+      actions.push(mapped);
+      continue;
+    }
+    if (
+      !mapped &&
+      !label.includes(":") &&
+      !actions.some((a) => a.startsWith(label))
+    ) {
+      actions.push(`Address: ${label}`);
+      continue;
+    }
+    if (label.includes(":") && !actions.includes("Resolve reported material issue")) {
+      actions.push("Resolve reported material issue");
+    }
+  }
+  if (actions.length === 0) {
+    actions.push("Review delivery readiness evidence and take corrective action");
+  }
+  return actions;
+}

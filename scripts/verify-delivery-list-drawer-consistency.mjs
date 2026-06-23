@@ -1,12 +1,12 @@
 /**
- * Playwright: deliveries list status/issue summary vs drawer Action Required agreement.
+ * Playwright: deliveries list status/issue summary vs drawer hierarchy agreement.
  *
  * Usage (dev server on 5173):
  *   npm run verify:delivery-consistency
  */
 
 import { chromium } from "playwright";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { ensureAuthenticated, loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
@@ -14,6 +14,7 @@ import { ensureAuthenticated, loadEnvLocal } from "./dispatcherVerifyHelpers.mjs
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
+const screenshotDir = resolve(process.cwd(), "screenshots/delivery-drawer");
 loadEnvLocal();
 
 const results = [];
@@ -24,6 +25,8 @@ function record(name, pass, detail = "") {
 }
 
 (async () => {
+  mkdirSync(screenshotDir, { recursive: true });
+
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
@@ -48,6 +51,10 @@ function record(name, pass, detail = "") {
 
   await rows.first().click();
   await page.waitForTimeout(1200);
+
+  const issuePanel = page.getByTestId("issue-summary-panel");
+  await issuePanel.waitFor({ timeout: 15_000 });
+  record("Issue Summary panel visible", true);
 
   const banner = page.getByTestId("drawer-action-banner");
   await banner.waitFor({ timeout: 15_000 });
@@ -74,20 +81,89 @@ function record(name, pass, detail = "") {
   }
 
   const bodyText = await page.locator("body").innerText();
+  const issueIndex = bodyText.indexOf("ISSUE SUMMARY");
+  const actionIndex = bodyText.indexOf(heading.toUpperCase());
   const basicsIndex = bodyText.indexOf("DELIVERY BASICS");
   const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
+
+  record(
+    "Issue Summary precedes Action Required",
+    issueIndex >= 0 && actionIndex > issueIndex,
+    `issue@${issueIndex}, action@${actionIndex}`,
+  );
+  record(
+    "Action Required precedes Delivery Basics",
+    actionIndex >= 0 && basicsIndex > actionIndex,
+    `action@${actionIndex}, basics@${basicsIndex}`,
+  );
   record(
     "Delivery Basics precedes Readiness Evidence",
     basicsIndex >= 0 && readinessIndex > basicsIndex,
     `basics@${basicsIndex}, readiness@${readinessIndex}`,
   );
 
-  const actionIndex = bodyText.indexOf(heading.toUpperCase());
+  const summaryLines = page.getByTestId("issue-summary-lines");
+  const lineCount = await summaryLines.locator("li").count();
+  record("Issue Summary has summary lines", lineCount >= 3, `${lineCount} lines`);
+
+  const missingItemsBanner = page.getByTestId("drawer-action-banner-missing-items");
   record(
-    "Action banner precedes Delivery Basics",
-    actionIndex >= 0 && basicsIndex > actionIndex,
-    `banner@${actionIndex}, basics@${basicsIndex}`,
+    "Action Required does not duplicate item-level missing list",
+    (await missingItemsBanner.count()) === 0,
   );
+
+  const issueTable = page.getByTestId("issue-summary-table");
+  if ((await issueTable.count()) > 0) {
+    const firstQty = page.locator('[data-testid^="issue-summary-qty-"]').first();
+    const firstStatus = page.locator('[data-testid^="issue-summary-status-"]').first();
+    await firstQty.waitFor({ timeout: 5_000 });
+    await firstStatus.waitFor({ timeout: 5_000 });
+
+    const qtyBox = await firstQty.boundingBox();
+    const statusBox = await firstStatus.boundingBox();
+    if (qtyBox && statusBox) {
+      record(
+        "Issue table Status column right of Qty",
+        statusBox.x > qtyBox.x + qtyBox.width * 0.5,
+        `qty x=${Math.round(qtyBox.x)}, status x=${Math.round(statusBox.x)}`,
+      );
+    } else {
+      record("Issue table Qty/Status layout", false, "bounding boxes unavailable");
+    }
+  } else {
+    record("Issue table skipped (no open item issues)", true);
+  }
+
+  const receivedToggle = page.getByTestId("issue-summary-received-toggle");
+  if ((await receivedToggle.count()) > 0) {
+    const expandedBefore = await receivedToggle.getAttribute("aria-expanded");
+    record(
+      "Received Items collapsed by default",
+      expandedBefore === "false",
+      `aria-expanded=${expandedBefore}`,
+    );
+
+    await receivedToggle.click();
+    await page.waitForTimeout(300);
+
+    const receivedList = page.getByTestId("issue-summary-received-list");
+    await receivedList.waitFor({ timeout: 5_000 });
+    const firstReceived = receivedList.locator("li").first();
+    const receivedText = (await firstReceived.innerText()).trim();
+    record(
+      "Expanded received item shows qty in parentheses",
+      /\(\d+\)/.test(receivedText),
+      receivedText.slice(0, 60),
+    );
+  } else {
+    record("Received Items section skipped (none received)", true);
+  }
+
+  await page.screenshot({
+    path: resolve(screenshotDir, "drawer-after-away-072.png"),
+    fullPage: false,
+  });
+  record("Drawer screenshot saved", true, "screenshots/delivery-drawer/drawer-after-away-072.png");
 
   await browser.close();
 

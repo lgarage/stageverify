@@ -57,7 +57,6 @@ import {
   poReadinessDisplayLabel,
   showEverythingReadyBadge,
 } from "./dispatcher/jobReadinessDisplay";
-import { computeDeliveryDisplayState } from "./dispatcher/deliveryDisplayHelpers";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -68,6 +67,7 @@ import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
+import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -2613,11 +2613,6 @@ function DetailContent({
 
   if (!details.job) return null;
   const job = details.job;
-  const displayState = computeDeliveryDisplayState(
-    details.delivery,
-    details.items,
-    details.materialIssues,
-  );
 
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
@@ -2679,6 +2674,7 @@ function DetailContent({
           fontFamily: font,
         }}
       >
+        <IssueSummaryPanel details={details} navy={navy} font={font} />
         <DrawerActionBanner
           details={details}
           navy={navy}
@@ -2809,39 +2805,6 @@ function DetailContent({
                     }}
                   >
                     {details.delivery.notes}
-                  </p>
-                </div>
-              )}
-              {displayState.issueSummary && (
-                <div
-                  style={{
-                    borderTop: "1px solid #eaecf0",
-                    paddingTop: 10,
-                    marginTop: 2,
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#c62828",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      display: "block",
-                      marginBottom: 5,
-                    }}
-                  >
-                    ⚠ Issue
-                  </span>
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#c62828",
-                      backgroundColor: "#ffebee",
-                      padding: "8px 12px",
-                      borderRadius: 4,
-                      border: "1px solid #ef9a9a",
-                    }}
-                  >
-                    {displayState.issueSummary}
                   </p>
                 </div>
               )}

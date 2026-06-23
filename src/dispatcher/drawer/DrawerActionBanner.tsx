@@ -1,28 +1,15 @@
 import { useMemo, useState } from "react";
-import type { DeliveryDetails, Item } from "../models";
-import { computeDeliveryDisplayState } from "../deliveryDisplayHelpers";
+import type { DeliveryDetails } from "../models";
+import {
+  buildRecommendedActions,
+  computeDeliveryDisplayState,
+} from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
   getProposedEmailUpdates,
 } from "../email/getProposedEmailUpdates";
 import { hasVendorOrderCompleteApplyConflict } from "../email/emailApplyConflicts";
 import { proposalNeedsDrawerReview } from "../email/emailReviewHelpers";
-
-function missingItemLines(items: Item[]): string[] {
-  return items
-    .filter((item) => item.qtyMissing > 0)
-    .map((item) => `${item.description} (${item.qtyMissing} missing)`);
-}
-
-function itemReceiptSummary(items: Item[]): { ordered: number; received: number } {
-  return items.reduce(
-    (acc, item) => ({
-      ordered: acc.ordered + item.qtyOrdered,
-      received: acc.received + item.qtyReceived,
-    }),
-    { ordered: 0, received: 0 },
-  );
-}
 
 function telDigits(phone: string): string {
   return phone.replace(/\D/g, "");
@@ -111,8 +98,7 @@ export function DrawerActionBanner({
     !emailReviewRequired &&
     blockerLabels.length === 0;
 
-  const missingLines = missingItemLines(items);
-  const receipt = itemReceiptSummary(items);
+  const recommendedActions = buildRecommendedActions(blockerLabels);
 
   return (
     <>
@@ -160,7 +146,7 @@ export function DrawerActionBanner({
             >
               {allClear
                 ? "Ready for Pickup — vendor order complete, physical complete, no blocking issues."
-                : `Received ${receipt.received} of ${receipt.ordered} items ordered`}
+                : displayState.statusDisplayLabel}
             </p>
           </div>
           {!allClear && (
@@ -183,27 +169,11 @@ export function DrawerActionBanner({
           )}
         </div>
 
-        {!allClear && missingLines.length > 0 && (
-          <ul
-            data-testid="drawer-action-banner-missing-items"
-            style={{
-              margin: "0 0 10px",
-              paddingLeft: 18,
-              fontSize: 13,
-              color: "#7f1d1d",
-            }}
-          >
-            {missingLines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        )}
-
         {!allClear && blockerLabels.length > 0 && (
           <ul
             data-testid="drawer-action-banner-blockers"
             style={{
-              margin: missingLines.length > 0 ? "0 0 12px" : "0 0 12px",
+              margin: "0 0 10px",
               paddingLeft: 18,
               fontSize: 13,
               color: "#7f1d1d",
@@ -213,6 +183,35 @@ export function DrawerActionBanner({
               <li key={label}>{label}</li>
             ))}
           </ul>
+        )}
+
+        {!allClear && (
+          <div data-testid="drawer-action-recommended-actions">
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#991b1b",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Recommended Actions
+            </p>
+            <ul
+              style={{
+                margin: "0 0 12px",
+                paddingLeft: 18,
+                fontSize: 13,
+                color: "#7f1d1d",
+              }}
+            >
+              {recommendedActions.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {!allClear && (
