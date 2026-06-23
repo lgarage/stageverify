@@ -33,6 +33,25 @@ const ALLOWED_RETURN_ORIGINS = [
   "http://127.0.0.1:4173",
 ];
 
+function trimSecret(value: string | undefined): string {
+  return (value ?? "").trim();
+}
+
+function oauthCredentialLengths(): {
+  clientIdLen: number;
+  clientSecretLen: number;
+  redirectUri: string;
+} {
+  const clientIdRaw = gmailClientId.value() ?? "";
+  const clientSecretRaw = gmailClientSecret.value() ?? "";
+  const redirectUriRaw = gmailRedirectUri.value() ?? "";
+  return {
+    clientIdLen: trimSecret(clientIdRaw).length,
+    clientSecretLen: trimSecret(clientSecretRaw).length,
+    redirectUri: trimSecret(redirectUriRaw),
+  };
+}
+
 function getDb() {
   return admin.firestore();
 }
@@ -122,11 +141,11 @@ async function exchangeCodeForTokens(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
     throw new Error(`token exchange failed: ${res.status} ${text.slice(0, 200)}`);
   }
-  const data = (await res.json()) as {
+  const data = JSON.parse(text) as {
     refresh_token?: string;
     access_token?: string;
   };
@@ -153,11 +172,8 @@ async function revokeRefreshToken(refreshToken: string): Promise<void> {
 
 function oauthSecretsConfigured(): boolean {
   try {
-    return Boolean(
-      gmailClientId.value()?.trim() &&
-        gmailClientSecret.value()?.trim() &&
-        gmailRedirectUri.value()?.trim(),
-    );
+    const creds = oauthCredentialLengths();
+    return Boolean(creds.clientIdLen && creds.clientSecretLen && creds.redirectUri);
   } catch {
     return false;
   }
@@ -204,9 +220,10 @@ export const initiateGmailOAuth = onCall(
       expiresAt: new Date(now + OAUTH_STATE_TTL_MS).toISOString(),
     });
 
+    const creds = oauthCredentialLengths();
     const params = new URLSearchParams({
-      client_id: gmailClientId.value(),
-      redirect_uri: gmailRedirectUri.value(),
+      client_id: trimSecret(gmailClientId.value()),
+      redirect_uri: creds.redirectUri,
       response_type: "code",
       scope: GMAIL_SCOPES,
       access_type: "offline",
@@ -280,11 +297,12 @@ export const completeGmailOAuth = onRequest(
         return;
       }
 
+      const creds = oauthCredentialLengths();
       const tokens = await exchangeCodeForTokens(
         code,
-        gmailClientId.value(),
-        gmailClientSecret.value(),
-        gmailRedirectUri.value(),
+        trimSecret(gmailClientId.value()),
+        trimSecret(gmailClientSecret.value()),
+        creds.redirectUri,
       );
 
       if (!tokens.refreshToken) {
