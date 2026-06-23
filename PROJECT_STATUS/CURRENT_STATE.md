@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-068** — Phase 6 slice 2: `sendVendorEmail` CF + Email Vendor action + drawer outbound list
+- Last shipped: **away-068** — Phase 6 slice 2: Outbound sendVendorEmail + enable Email Vendor
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Gmail reply sync / watch** — away-069 (out of scope for away-068).
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 - See `docs/project_state.md` immediate next steps.
 
 ## Canonical references

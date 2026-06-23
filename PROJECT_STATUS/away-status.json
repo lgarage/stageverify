@@ -463,6 +463,13 @@
       "status": "built",
       "commit": "c3129ec",
       "note": "COMPLETE final verification: trimSecret safeguard kept; OAuth debug logging removed; CF deploy; prod disconnect PASS; Connect reaches Google OAuth (manual Gmail consent for full connect/refresh/re-login); Email Vendor still disabled"
+    },
+    {
+      "id": "away-068",
+      "title": "Phase 6 slice 2: Outbound sendVendorEmail + enable Email Vendor",
+      "status": "built",
+      "commit": "cd753c3",
+      "note": "sendVendorEmail CF, Email Vendor action, drawer outbound list; Sonnet LOW"
     }
   ],
   "summary": "away-067 complete; active queue empty — see docs/project_state.md immediate next steps"
