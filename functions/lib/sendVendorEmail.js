@@ -31,7 +31,7 @@ function asNonEmptyString(value, maxLen) {
     const trimmed = value.trim();
     if (!trimmed || trimmed.length > maxLen)
         return null;
-    if (/[\r\n]/.test(trimmed))
+    if ((0, gmailApi_1.containsCrlfInEmailHeader)(trimmed))
         return null;
     return trimmed;
 }
@@ -88,7 +88,7 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         throw new https_1.HttpsError("failed-precondition", "Gmail is not connected. Connect in Settings first.");
     }
     const fromEmail = conn.connectedAccountEmail?.trim();
-    if (!fromEmail || /[\r\n]/.test(fromEmail)) {
+    if (!fromEmail || (0, gmailApi_1.containsCrlfInEmailHeader)(fromEmail)) {
         throw new https_1.HttpsError("failed-precondition", "Gmail connection is missing account email. Reconnect in Settings.");
     }
     const secretSnap = await secretsRef(db).get();

@@ -8,6 +8,7 @@ import { randomUUID } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   buildGmailRawMessage,
+  containsCrlfInEmailHeader,
   gmailClientId,
   gmailClientSecret,
   refreshGmailAccessToken,
@@ -37,7 +38,7 @@ function asNonEmptyString(value: unknown, maxLen: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLen) return null;
-  if (/[\r\n]/.test(trimmed)) return null;
+  if (containsCrlfInEmailHeader(trimmed)) return null;
   return trimmed;
 }
 
@@ -124,7 +125,7 @@ export const sendVendorEmail = onCall(
     }
 
     const fromEmail = conn.connectedAccountEmail?.trim();
-    if (!fromEmail || /[\r\n]/.test(fromEmail)) {
+    if (!fromEmail || containsCrlfInEmailHeader(fromEmail)) {
       throw new HttpsError(
         "failed-precondition",
         "Gmail connection is missing account email. Reconnect in Settings.",

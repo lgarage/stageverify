@@ -43,10 +43,30 @@ export async function refreshGmailAccessToken(refreshToken: string): Promise<str
   return data.access_token;
 }
 
+/** True when value contains CR or LF (RFC 2822 header injection). */
+export function containsCrlfInEmailHeader(value: string): boolean {
+  return /[\r\n]/.test(value);
+}
+
+export function assertSafeEmailHeaderValue(value: string, field: string): void {
+  if (containsCrlfInEmailHeader(value)) {
+    throw new Error(`invalid email header value: ${field}`);
+  }
+}
+
+function formatEmailHeader(name: string, value: string): string {
+  assertSafeEmailHeaderValue(name, "header name");
+  assertSafeEmailHeaderValue(value, name);
+  return `${name}: ${value}`;
+}
+
 function encodeRfc2822Subject(subject: string): string {
-  if (/^[\x20-\x7E]*$/.test(subject)) return subject;
-  const encoded = Buffer.from(subject, "utf8").toString("base64");
-  return `=?UTF-8?B?${encoded}?=`;
+  assertSafeEmailHeaderValue(subject, "Subject");
+  const encoded = /^[\x20-\x7E]*$/.test(subject)
+    ? subject
+    : `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
+  assertSafeEmailHeaderValue(encoded, "Subject (encoded)");
+  return encoded;
 }
 
 /** Base64url-encoded RFC 2822 message for Gmail users.messages.send. */
@@ -55,23 +75,30 @@ export function buildGmailRawMessage(
   from: string,
   subject: string,
   bodyText: string,
+  replyTo?: string,
 ): string {
-  for (const value of [to, from, subject]) {
-    if (/[\r\n]/.test(value)) {
-      throw new Error("invalid email header value");
-    }
+  assertSafeEmailHeaderValue(to, "To");
+  assertSafeEmailHeaderValue(from, "From");
+  assertSafeEmailHeaderValue(subject, "Subject");
+  if (replyTo !== undefined) {
+    assertSafeEmailHeaderValue(replyTo, "Reply-To");
   }
 
-  const message = [
-    `To: ${to}`,
-    `From: ${from}`,
-    `Subject: ${encodeRfc2822Subject(subject)}`,
+  const headerLines = [
+    formatEmailHeader("To", to),
+    formatEmailHeader("From", from),
+    formatEmailHeader("Subject", encodeRfc2822Subject(subject)),
+  ];
+  if (replyTo !== undefined) {
+    headerLines.push(formatEmailHeader("Reply-To", replyTo));
+  }
+  headerLines.push(
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: 7bit",
-    "",
-    bodyText,
-  ].join("\r\n");
+  );
+
+  const message = [...headerLines, "", bodyText].join("\r\n");
 
   return Buffer.from(message, "utf8")
     .toString("base64")
