@@ -186,3 +186,55 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ## Recently shipped (away)
 
 **away-066 (2026-06-21)** — Phase 6 foundation: `VendorEmailEvent` direction/purpose/outbound audit types; read-only **Vendor Communications** drawer placeholder (empty until provider connected). Email Vendor stays disabled until real OAuth. Verify: `verify:dispatcher-nav`, `verify:phase5-email`.
+
+---
+
+## Draft away item (approve before queue)
+
+**away-067 — Phase 6 slice 1: Gmail OAuth connection state (no send, no watch)**
+
+**Goal:** Server-side provider connection + Settings connect/disconnect UI. Email Vendor stays disabled; no outbound send; no inbox watch.
+
+**In scope**
+
+- Provider connection doc (auth/admin read): `provider` (`gmail`), `status` (`disconnected` | `connected` | `token_expired`), `connectedAccountEmail`, `connectedAt`, `connectedByUid` — tokens via Admin SDK only
+- CFs: `initiateGmailOAuth` (auth, returns auth URL), `completeGmailOAuth` (callback, stores tokens), `disconnectGmailOAuth` (revoke + clear)
+- Secrets (names only): `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_OAUTH_REDIRECT_URI`; refresh token in Functions secrets or admin-only Firestore subcollection
+- Settings Email Monitoring card: Connect Gmail / Disconnect / status badge; keep `monitoringInboxEmail` + `emailMonitoringEnabled` separate from OAuth
+- Fix `emailProviderConnected`: true only when `status === connected` (never from `emailMonitoringEnabled` alone)
+- `VendorCommunicationsPanel`: empty state reflects disconnected vs connected (still 0 messages until send/watch)
+- Audit: connection/disconnect events only (no message bodies)
+
+**Out of scope:** `sendVendorEmail`, Gmail push/watch, enabling Email Vendor action, inbound auto-ingest, `emailDomain` on Vendor, readiness writes
+
+**Slice boundaries**
+
+| Layer | away-067 | Later |
+| ----- | -------- | ----- |
+| OAuth connect | ✓ | — |
+| Outbound send | — | away-068 |
+| Inbound watch → `processInboundVendorEmail` | — | away-069 |
+| Full message audit / thread in drawer | — | away-068+ |
+| Enable Email Vendor button | — | away-068+ after send CF |
+
+**Acceptance criteria**
+
+- OAuth round-trip works in dev; disconnect clears status
+- Resolve modal **Email Vendor** remains disabled
+- `emailMonitoringEnabled` + inbox set does **not** enable Email Vendor
+- Vendor Communications copy updates for disconnected vs connected
+- No client token exposure
+
+**Test plan**
+
+- `npm run build`
+- `verify:phase5-email` + `verify:settings-staging` (disconnected/connected UI asserts)
+- New `verify:email-oauth-connect` (mock/disconnected default; connected badge after OAuth in dev)
+- Sonnet security gate if rules or CF token storage paths change
+
+**Security notes (planning)**
+
+- P0: fix gate bypass where monitoring toggles could imply connected
+- Refresh tokens server-only; OAuth state param for CSRF
+- Token expiry → `token_expired` + Settings reconnect prompt
+- Sonnet review before push on any rules/CF token paths
