@@ -706,6 +706,22 @@ export interface IssueResolution {
   resolvedBy?: string;
 }
 
+/** Outbound vendor email from Resolve Issue (Phase 6 slice 2). */
+export interface SendVendorEmailInput {
+  deliveryOrderId: string;
+  materialIssueId?: string;
+  to: string;
+  subject: string;
+  body: string;
+}
+
+export interface SendVendorEmailResult {
+  eventId: string;
+  sourceMessageId: string;
+  threadId: string | null;
+  sentAt: string;
+}
+
 /** Vendor email ingestion — persisted when Phase 5+ gate active. */
 export interface VendorEmailEvent {
   id: string;

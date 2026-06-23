@@ -1,23 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { listVendorEmailEventsForDelivery } from "../firestoreService";
+import type { VendorEmailEvent } from "../models";
 
 const EMPTY_DISCONNECTED =
   "No messages yet — connect Gmail in Settings to enable vendor email.";
 const EMPTY_CONNECTED =
-  "No messages yet — outbound send and inbox watch ship in a later Phase 6 slice.";
+  "No outbound messages yet — send from Resolve Issue when vendor clarification is needed.";
+
+function formatSentAt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function outboundEvents(events: VendorEmailEvent[]): VendorEmailEvent[] {
+  return events.filter((e) => e.direction === "outbound");
+}
 
 export function VendorCommunicationsPanel({
   navy,
   font,
   emailProviderConnected,
+  deliveryOrderId,
+  refreshKey = 0,
 }: {
   navy: string;
   font: string;
   emailProviderConnected: boolean;
+  deliveryOrderId: string | null;
+  refreshKey?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [events, setEvents] = useState<VendorEmailEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const outbound = outboundEvents(events);
+  const count = outbound.length;
   const emptyMessage = emailProviderConnected
     ? EMPTY_CONNECTED
     : EMPTY_DISCONNECTED;
+
+  useEffect(() => {
+    if (!deliveryOrderId) {
+      setEvents([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    void listVendorEmailEventsForDelivery(deliveryOrderId)
+      .then((rows) => {
+        if (!cancelled) setEvents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError("Could not load vendor communications.");
+          setEvents([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deliveryOrderId, refreshKey]);
 
   return (
     <div
@@ -55,7 +110,7 @@ export function VendorCommunicationsPanel({
             letterSpacing: "0.02em",
           }}
         >
-          Vendor Communications (0)
+          Vendor Communications ({count})
         </span>
         <span style={{ fontSize: 11, color: "#64748b" }}>
           {expanded ? "Hide" : "Show"}
@@ -63,18 +118,99 @@ export function VendorCommunicationsPanel({
       </button>
 
       {expanded && (
-        <p
-          data-testid="vendor-communications-empty"
-          data-connected={emailProviderConnected ? "true" : "false"}
-          style={{
-            margin: "12px 0 0",
-            fontSize: 13,
-            color: "#9ca3af",
-            fontFamily: font,
-          }}
-        >
-          {emptyMessage}
-        </p>
+        <div style={{ marginTop: 12 }}>
+          {loading && (
+            <p
+              data-testid="vendor-communications-loading"
+              style={{ margin: 0, fontSize: 13, color: "#64748b", fontFamily: font }}
+            >
+              Loading…
+            </p>
+          )}
+          {!loading && loadError && (
+            <p
+              data-testid="vendor-communications-error"
+              style={{ margin: 0, fontSize: 13, color: "#b91c1c", fontFamily: font }}
+            >
+              {loadError}
+            </p>
+          )}
+          {!loading && !loadError && count === 0 && (
+            <p
+              data-testid="vendor-communications-empty"
+              data-connected={emailProviderConnected ? "true" : "false"}
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: "#9ca3af",
+                fontFamily: font,
+              }}
+            >
+              {emptyMessage}
+            </p>
+          )}
+          {!loading && !loadError && count > 0 && (
+            <ul
+              data-testid="vendor-communications-list"
+              style={{
+                margin: 0,
+                padding: 0,
+                listStyle: "none",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              {outbound.map((event) => (
+                <li
+                  key={event.id}
+                  data-testid="vendor-communications-item"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid #e2e8f0",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#111827",
+                      fontFamily: font,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {event.subject}
+                  </div>
+                  {event.bodyExcerpt && (
+                    <p
+                      style={{
+                        margin: "0 0 6px",
+                        fontSize: 12,
+                        color: "#475569",
+                        fontFamily: font,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {event.bodyExcerpt}
+                    </p>
+                  )}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      fontFamily: font,
+                    }}
+                  >
+                    Sent {formatSentAt(event.sentAt ?? event.receivedAt)}
+                    {event.sentBy ? ` · ${event.sentBy.slice(0, 8)}…` : ""}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

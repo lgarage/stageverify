@@ -177,7 +177,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Phase 6 outbound send** — away-068 (`sendVendorEmail` CF, enable Email Vendor action).
+1. **Gmail reply sync / watch** — away-069 (push/watch, inbound thread drawer).
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
 
@@ -185,19 +185,17 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Recently shipped (away)
 
-**away-067 (2026-06-22)** — Phase 6 slice 1: Gmail OAuth connection state. CFs `initiateGmailOAuth`, `completeGmailOAuth`, `disconnectGmailOAuth`; `emailProviderConnections/gmail` metadata + admin-only `emailProviderSecrets`; Settings Connect/Disconnect + status badge; `emailProviderConnected` true only when `status === connected`; Vendor Communications empty copy by connection; connect/disconnect audit only. Email Vendor stays disabled. **Final verification (2026-06-22):** prod disconnect PASS; Connect initiates Google OAuth redirect (manual Gmail consent required for full connect/refresh/re-login cycle); CF debug logging removed; `trimSecret()` safeguard kept on secret reads. Verify: `verify:email-oauth-connect`, `verify:phase5-email`, `verify:settings-staging`. Secrets: `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_OAUTH_REDIRECT_URI`.
+**away-068 (2026-06-22)** — Phase 6 slice 2: Outbound `sendVendorEmail` CF (Gmail API send via OAuth refresh token); Email Vendor enabled in Resolve Issue when `emailProviderConnected`; `vendorEmailEvents` outbound audit (`need_more_information`); Vendor Communications drawer lists outbound messages for delivery. Added `gmail.send` OAuth scope — **reconnect Gmail in Settings** after deploy. Sonnet security PASS (LOW; CRLF header hardening). Verify: `verify:email-oauth-connect`, `verify:phase5-email`, `verify:dispatcher-nav`. **Not built:** reply sync, push/watch, inbound auto-ingest (away-069).
+
+**away-067 (2026-06-22)** — Phase 6 slice 1: Gmail OAuth connection state. CFs `initiateGmailOAuth`, `completeGmailOAuth`, `disconnectGmailOAuth`; `emailProviderConnections/gmail` metadata + admin-only `emailProviderSecrets`; Settings Connect/Disconnect + status badge; `emailProviderConnected` true only when `status === connected`; Vendor Communications empty copy by connection; connect/disconnect audit only. **Final verification (2026-06-22):** prod disconnect PASS; Connect initiates Google OAuth redirect (manual Gmail consent required for full connect/refresh/re-login cycle); CF debug logging removed; `trimSecret()` safeguard kept on secret reads. Verify: `verify:email-oauth-connect`, `verify:phase5-email`, `verify:settings-staging`. Secrets: `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_OAUTH_REDIRECT_URI`.
 
 **away-066 (2026-06-21)** — Phase 6 foundation: `VendorEmailEvent` direction/purpose/outbound audit types; read-only **Vendor Communications** drawer placeholder (empty until provider connected). Email Vendor stays disabled until real OAuth. Verify: `verify:dispatcher-nav`, `verify:phase5-email`.
 
 ---
 
-## Draft away item (approve before queue)
+## Archived draft (shipped as away-068)
 
-**away-068 — Phase 6 slice 2: Outbound `sendVendorEmail` + enable Email Vendor**
-
-**Goal:** Server-side outbound vendor email from resolve flow; enable Email Vendor button when OAuth connected + send CF live.
-
-**Out of scope (away-068 planning draft):** Gmail push/watch (away-069), full thread drawer, inbound auto-ingest.
+**away-068 — Phase 6 slice 2: Outbound `sendVendorEmail` + enable Email Vendor** — shipped 2026-06-22.
 
 ---
 

@@ -244,10 +244,14 @@ function assertReadableInputColor(page, testId, label) {
     await page.getByTestId("vendor-communications-toggle").click();
     await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
     const emptyText = await page.getByTestId("vendor-communications-empty").innerText();
-    if (!/No messages yet/i.test(emptyText) || !/Phase 6/i.test(emptyText)) {
+    const okDisconnected =
+      /No messages yet/i.test(emptyText) && /connect Gmail in Settings/i.test(emptyText);
+    const okConnected =
+      /No outbound messages yet/i.test(emptyText) && /Resolve Issue/i.test(emptyText);
+    if (!okDisconnected && !okConnected) {
       throw new Error(`Vendor Communications empty state unexpected: ${emptyText}`);
     }
-    console.log("PASS: Vendor Communications read-only placeholder (no send).");
+    console.log("PASS: Vendor Communications read-only placeholder (away-068).");
 
     if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
       throw new Error("Need More Info button must be removed from action banner");

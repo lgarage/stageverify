@@ -18,10 +18,14 @@ export function ResolveIssueModal({
   resolutionNote,
   mutationLoading,
   emailProviderConnected,
+  emailVendorLoading,
+  emailVendorError,
+  emailVendorSuccess,
   navy,
   font,
   onResolutionTypeChange,
   onResolutionNoteChange,
+  onEmailVendor,
   onClose,
   onSubmit,
 }: {
@@ -31,10 +35,14 @@ export function ResolveIssueModal({
   resolutionNote: string;
   mutationLoading: boolean;
   emailProviderConnected: boolean;
+  emailVendorLoading: boolean;
+  emailVendorError: string | null;
+  emailVendorSuccess: boolean;
   navy: string;
   font: string;
   onResolutionTypeChange: (type: IssueResolutionType, issue: MaterialIssue) => void;
   onResolutionNoteChange: (note: string, touched: boolean) => void;
+  onEmailVendor: () => void;
   onClose: () => void;
   onSubmit: () => void;
 }) {
@@ -46,6 +54,11 @@ export function ResolveIssueModal({
   const showNeedMoreInfo = resolutionType === "need_more_information";
   const emailSubject = buildNeedMoreInfoEmailSubject(details);
   const emailBody = buildNeedMoreInfoEmailBody(details) ?? "";
+  const canSendEmail =
+    emailProviderConnected &&
+    !!vendorEmail &&
+    !!emailBody &&
+    !emailVendorLoading;
 
   return (
     <div
@@ -311,10 +324,13 @@ export function ResolveIssueModal({
               <button
                 type="button"
                 data-testid="resolve-email-vendor"
-                disabled={!emailProviderConnected}
+                disabled={!canSendEmail}
+                onClick={onEmailVendor}
                 title={
                   emailProviderConnected
-                    ? "Send email to vendor"
+                    ? vendorEmail && emailBody
+                      ? "Send email to vendor via Gmail"
+                      : "Vendor email or message preview required"
                     : "Email provider not connected yet."
                 }
                 style={{
@@ -322,15 +338,16 @@ export function ResolveIssueModal({
                   padding: "9px 16px",
                   borderRadius: 6,
                   border: "none",
-                  backgroundColor: emailProviderConnected ? navy : "#e5e7eb",
-                  color: emailProviderConnected ? "#fff" : "#9ca3af",
+                  backgroundColor: canSendEmail ? navy : "#e5e7eb",
+                  color: canSendEmail ? "#fff" : "#9ca3af",
                   fontSize: 13,
                   fontWeight: 700,
-                  cursor: emailProviderConnected ? "pointer" : "not-allowed",
+                  cursor: canSendEmail ? "pointer" : "not-allowed",
                   fontFamily: font,
+                  opacity: emailVendorLoading ? 0.7 : 1,
                 }}
               >
-                Email Vendor
+                {emailVendorLoading ? "Sending…" : "Email Vendor"}
               </button>
               {!emailProviderConnected && (
                 <p
@@ -343,6 +360,45 @@ export function ResolveIssueModal({
                   }}
                 >
                   Email provider not connected yet.
+                </p>
+              )}
+              {emailProviderConnected && !vendorEmail && (
+                <p
+                  data-testid="resolve-email-no-vendor-email"
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    color: "#64748b",
+                    fontFamily: font,
+                  }}
+                >
+                  Add vendor email on the Vendors page to send.
+                </p>
+              )}
+              {emailVendorError && (
+                <p
+                  data-testid="resolve-email-vendor-error"
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    color: "#b91c1c",
+                    fontFamily: font,
+                  }}
+                >
+                  {emailVendorError}
+                </p>
+              )}
+              {emailVendorSuccess && (
+                <p
+                  data-testid="resolve-email-vendor-success"
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    color: "#15803d",
+                    fontFamily: font,
+                  }}
+                >
+                  Email sent — see Vendor Communications in the drawer.
                 </p>
               )}
             </div>

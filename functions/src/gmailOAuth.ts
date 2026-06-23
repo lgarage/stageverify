@@ -22,6 +22,7 @@ const PROVIDER_ID = "gmail";
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 

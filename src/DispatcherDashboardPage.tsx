@@ -19,6 +19,7 @@ import {
   markDeliveryShipped,
   mapOccupancyByLocationId,
   resolveMaterialIssue,
+  sendVendorEmail,
   listShopStockMappings,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
@@ -66,6 +67,10 @@ import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
+import {
+  buildNeedMoreInfoEmailBody,
+  buildNeedMoreInfoEmailSubject,
+} from "./dispatcher/drawer/needMoreInfoDraft";
 import { ResolveIssueModal } from "./dispatcher/drawer/ResolveIssueModal";
 import { VendorCommunicationsPanel } from "./dispatcher/drawer/VendorCommunicationsPanel";
 import {
@@ -2461,6 +2466,10 @@ function DetailContent({
     useState<IssueResolutionType>("found_in_shop");
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolutionNoteTouched, setResolutionNoteTouched] = useState(false);
+  const [emailVendorLoading, setEmailVendorLoading] = useState(false);
+  const [emailVendorError, setEmailVendorError] = useState<string | null>(null);
+  const [emailVendorSuccess, setEmailVendorSuccess] = useState(false);
+  const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
 
   const resolutionContext = {
     orderNumber: details?.delivery.orderNumber ?? null,
@@ -2482,6 +2491,40 @@ function DetailContent({
       buildSuggestedResolutionNote(issue, defaultType, resolutionContext),
     );
     setResolutionNoteTouched(false);
+    setEmailVendorLoading(false);
+    setEmailVendorError(null);
+    setEmailVendorSuccess(false);
+  };
+
+  const handleEmailVendor = async () => {
+    if (!details || !resolveIssueId) return;
+    const vendorEmail = details.vendor.email?.trim();
+    const subject = buildNeedMoreInfoEmailSubject(details);
+    const body = buildNeedMoreInfoEmailBody(details);
+    if (!vendorEmail || !subject || !body) {
+      setEmailVendorError("Vendor email or message preview is missing.");
+      return;
+    }
+    setEmailVendorLoading(true);
+    setEmailVendorError(null);
+    setEmailVendorSuccess(false);
+    try {
+      await sendVendorEmail({
+        deliveryOrderId: details.delivery.id,
+        materialIssueId: resolveIssueId,
+        to: vendorEmail,
+        subject,
+        body,
+      });
+      setEmailVendorSuccess(true);
+      setVendorCommsRefresh((v) => v + 1);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to send vendor email.";
+      setEmailVendorError(message);
+    } finally {
+      setEmailVendorLoading(false);
+    }
   };
 
   if (loading) {
@@ -2733,6 +2776,8 @@ function DetailContent({
             navy={navy}
             font={font}
             emailProviderConnected={emailProviderConnected}
+            deliveryOrderId={details.delivery.id}
+            refreshKey={vendorCommsRefresh}
           />,
         )}
         <StatusActionPanel
@@ -3346,8 +3391,14 @@ function DetailContent({
           resolutionNote={resolutionNote}
           mutationLoading={mutationLoading}
           emailProviderConnected={emailProviderConnected}
+          emailVendorLoading={emailVendorLoading}
+          emailVendorError={emailVendorError}
+          emailVendorSuccess={emailVendorSuccess}
           navy={navy}
           font={font}
+          onEmailVendor={() => {
+            void handleEmailVendor();
+          }}
           onResolutionTypeChange={(nextType, issue) => {
             setResolutionType(nextType);
             if (!resolutionNoteTouched) {

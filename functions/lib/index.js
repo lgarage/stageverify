@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
+exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
@@ -34,6 +34,8 @@ const gmailOAuth_1 = require("./gmailOAuth");
 Object.defineProperty(exports, "initiateGmailOAuth", { enumerable: true, get: function () { return gmailOAuth_1.initiateGmailOAuth; } });
 Object.defineProperty(exports, "completeGmailOAuth", { enumerable: true, get: function () { return gmailOAuth_1.completeGmailOAuth; } });
 Object.defineProperty(exports, "disconnectGmailOAuth", { enumerable: true, get: function () { return gmailOAuth_1.disconnectGmailOAuth; } });
+const sendVendorEmail_1 = require("./sendVendorEmail");
+Object.defineProperty(exports, "sendVendorEmail", { enumerable: true, get: function () { return sendVendorEmail_1.sendVendorEmail; } });
 admin.initializeApp();
 const db = admin.firestore();
 const DEFAULT_AUTO_SUBMIT_MINUTES = 30;

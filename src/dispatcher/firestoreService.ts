@@ -51,6 +51,9 @@ import type {
   EmailProviderId,
   ShopStockLocationMapping,
   ShopStockLine,
+  SendVendorEmailInput,
+  SendVendorEmailResult,
+  VendorEmailEvent,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -58,6 +61,7 @@ import {
   parseStagingLocation,
   RECEIVE_BLOCKED_DELIVERY_STATUSES,
   ZONE_CLEARED_DELIVERY_STATUSES,
+  V2_COLLECTION_NAMES,
 } from "./models";
 import { findStagingLocationByCode, normalizeStagingCodeKey } from "./stagingCode";
 import {
@@ -1123,6 +1127,36 @@ export async function initiateGmailOAuth(returnUrl: string): Promise<string> {
 
 export async function disconnectGmailOAuth(): Promise<void> {
   await disconnectGmailOAuthCallable({});
+}
+
+const sendVendorEmailCallable = httpsCallable<
+  SendVendorEmailInput,
+  SendVendorEmailResult
+>(functions, "sendVendorEmail");
+
+export async function sendVendorEmail(
+  input: SendVendorEmailInput,
+): Promise<SendVendorEmailResult> {
+  const response = await sendVendorEmailCallable(input);
+  return response.data;
+}
+
+export async function listVendorEmailEventsForDelivery(
+  deliveryOrderId: string,
+): Promise<VendorEmailEvent[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, V2_COLLECTION_NAMES.vendorEmailEvents),
+      where("deliveryOrderId", "==", deliveryOrderId),
+    ),
+  );
+  const events = snap.docs.map((d) => d.data() as VendorEmailEvent);
+  events.sort((a, b) => {
+    const aTime = a.sentAt ?? a.receivedAt ?? a.createdAt;
+    const bTime = b.sentAt ?? b.receivedAt ?? b.createdAt;
+    return bTime.localeCompare(aTime);
+  });
+  return events;
 }
 
 export const firestoreDataService = new FirestoreDataService();

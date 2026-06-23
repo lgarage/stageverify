@@ -1,5 +1,5 @@
 /**
- * Playwright: Phase 6 slice 1 — Gmail OAuth connection UI gates (no live OAuth required).
+ * Playwright: Phase 6 slice 1–2 — Gmail OAuth gates + Email Vendor enabled when connected.
  *
  * Usage:
  *   npm run dev
@@ -73,7 +73,7 @@ function trySeed(status) {
   }
 }
 
-async function assertEmailVendorDisabled(page) {
+async function openResolveNeedMoreInfo(page) {
   await page.goto(`${appBase}/#/dispatcher`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -97,18 +97,47 @@ async function assertEmailVendorDisabled(page) {
   await page.waitForTimeout(800);
 
   const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
-  if (await resolveBtn.isEnabled().catch(() => false)) {
-    await resolveBtn.click();
-    await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
-    await page.getByTestId("resolution-type-select").selectOption("need_more_information");
-    await page.getByTestId("resolve-need-more-info-section").waitFor({ timeout: 10_000 });
-    const emailVendorBtn = page.getByTestId("resolve-email-vendor");
-    if (await emailVendorBtn.isEnabled()) {
-      throw new Error("Email Vendor must stay disabled until send CF ships (away-068+)");
-    }
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await page.waitForTimeout(300);
+  if (!(await resolveBtn.isEnabled().catch(() => false))) {
+    return false;
   }
+  await resolveBtn.click();
+  await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
+  await page.getByTestId("resolution-type-select").selectOption("need_more_information");
+  await page.getByTestId("resolve-need-more-info-section").waitFor({ timeout: 10_000 });
+  return true;
+}
+
+async function assertEmailVendorDisabledWhenDisconnected(page) {
+  const opened = await openResolveNeedMoreInfo(page);
+  if (!opened) {
+    console.log("SKIP resolve modal — no open issue on ORD-1007");
+    return;
+  }
+  const emailVendorBtn = page.getByTestId("resolve-email-vendor");
+  if (await emailVendorBtn.isEnabled()) {
+    throw new Error("Email Vendor must stay disabled when Gmail OAuth disconnected");
+  }
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(300);
+}
+
+async function assertEmailVendorEnabledWhenConnected(page) {
+  const opened = await openResolveNeedMoreInfo(page);
+  if (!opened) {
+    console.log("SKIP connected Email Vendor enable — no open issue on ORD-1007");
+    return;
+  }
+  const emailVendorBtn = page.getByTestId("resolve-email-vendor");
+  const vendorEmail = await page.getByTestId("resolve-vendor-email").innerText();
+  const hasVendorEmail = vendorEmail.includes("@");
+  if (hasVendorEmail && !(await emailVendorBtn.isEnabled())) {
+    throw new Error("Email Vendor must be enabled when OAuth connected and vendor email on file");
+  }
+  if (!hasVendorEmail && (await emailVendorBtn.isEnabled())) {
+    throw new Error("Email Vendor must stay disabled when vendor has no email");
+  }
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(300);
 }
 
 (async () => {
@@ -142,7 +171,7 @@ async function assertEmailVendorDisabled(page) {
   await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
 
   console.log("Monitoring enabled — Email Vendor must remain disabled…");
-  await assertEmailVendorDisabled(page);
+  await assertEmailVendorDisabledWhenDisconnected(page);
 
   await page.goto(`${appBase}/#/settings`, {
     waitUntil: "domcontentloaded",
@@ -188,7 +217,7 @@ async function assertEmailVendorDisabled(page) {
     await page.getByTestId("vendor-communications-toggle").click();
     await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
     const connectedEmpty = await page.getByTestId("vendor-communications-empty").innerText();
-    if (!/No messages yet/i.test(connectedEmpty) || !/later Phase 6 slice/i.test(connectedEmpty)) {
+    if (!/No outbound messages yet/i.test(connectedEmpty)) {
       throw new Error(`Connected empty copy unexpected: ${connectedEmpty}`);
     }
     const dataConnected = await page
@@ -198,8 +227,8 @@ async function assertEmailVendorDisabled(page) {
       throw new Error("vendor-communications-empty data-connected should be true");
     }
 
-    console.log("Connected — Email Vendor still disabled…");
-    await assertEmailVendorDisabled(page);
+    console.log("Connected — Email Vendor enabled when vendor email on file…");
+    await assertEmailVendorEnabledWhenConnected(page);
     trySeed("disconnected");
   }
 

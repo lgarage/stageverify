@@ -19,6 +19,7 @@ import {
   completeGmailOAuth,
   disconnectGmailOAuth,
 } from "./gmailOAuth";
+import { sendVendorEmail } from "./sendVendorEmail";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -149,4 +150,5 @@ export {
   initiateGmailOAuth,
   completeGmailOAuth,
   disconnectGmailOAuth,
+  sendVendorEmail,
 };

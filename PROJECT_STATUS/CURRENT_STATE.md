@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-067** — Phase 6 slice 1: Gmail OAuth connection state (final verification; Email Vendor still disabled)
+- Last shipped: **away-068** — Phase 6 slice 2: `sendVendorEmail` CF + Email Vendor action + drawer outbound list
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,8 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **Gmail reply sync / watch** — away-069 (out of scope for away-068).
+- See `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - **Librarian mini:** MEMORY.md router + `away:next` packet + `away:validate`
@@ -26,3 +27,4 @@
 
 ## Update Protocol
 - Ship away item: `npm run away:ship` → `npm run away:validate` → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
+- **Reconnect Gmail after deploy** — away-068 adds `gmail.send` scope; existing OAuth tokens need reconnect to send.
