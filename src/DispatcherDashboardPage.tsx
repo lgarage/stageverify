@@ -2469,6 +2469,11 @@ function DetailContent({
   const [emailVendorLoading, setEmailVendorLoading] = useState(false);
   const [emailVendorError, setEmailVendorError] = useState<string | null>(null);
   const [emailVendorSuccess, setEmailVendorSuccess] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [saveVendorEmail, setSaveVendorEmail] = useState(false);
+  const [emailFieldsTouched, setEmailFieldsTouched] = useState(false);
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
 
   const resolutionContext = {
@@ -2483,7 +2488,16 @@ function DetailContent({
       })),
   };
 
+  const resetNeedMoreInfoEmailFields = (deliveryDetails: DeliveryDetails) => {
+    setEmailTo(deliveryDetails.vendor.email?.trim() ?? "");
+    setEmailSubject(buildNeedMoreInfoEmailSubject(deliveryDetails));
+    setEmailBody(buildNeedMoreInfoEmailBody(deliveryDetails) ?? "");
+    setSaveVendorEmail(false);
+    setEmailFieldsTouched(false);
+  };
+
   const openResolveModal = (issue: MaterialIssue) => {
+    if (!details) return;
     const defaultType = defaultResolutionTypeForIssue(issue);
     setResolveIssueId(issue.id);
     setResolutionType(defaultType);
@@ -2491,6 +2505,7 @@ function DetailContent({
       buildSuggestedResolutionNote(issue, defaultType, resolutionContext),
     );
     setResolutionNoteTouched(false);
+    resetNeedMoreInfoEmailFields(details);
     setEmailVendorLoading(false);
     setEmailVendorError(null);
     setEmailVendorSuccess(false);
@@ -2498,11 +2513,21 @@ function DetailContent({
 
   const handleEmailVendor = async () => {
     if (!details || !resolveIssueId) return;
-    const vendorEmail = details.vendor.email?.trim();
-    const subject = buildNeedMoreInfoEmailSubject(details);
-    const body = buildNeedMoreInfoEmailBody(details);
-    if (!vendorEmail || !subject || !body) {
-      setEmailVendorError("Vendor email or message preview is missing.");
+    const to = emailTo.trim();
+    const subject = emailSubject.trim();
+    const body = emailBody.trim();
+    if (!to || !subject || !body) {
+      setEmailVendorError("To, subject, and message are required.");
+      return;
+    }
+    const vendorEmailOnFile = details.vendor.email?.trim().toLowerCase() ?? "";
+    const toNormalized = to.toLowerCase();
+    const needsSave =
+      !vendorEmailOnFile || toNormalized !== vendorEmailOnFile;
+    if (needsSave && !saveVendorEmail) {
+      setEmailVendorError(
+        "Confirm saving the email to the vendor record when the address differs or is new.",
+      );
       return;
     }
     setEmailVendorLoading(true);
@@ -2512,9 +2537,10 @@ function DetailContent({
       await sendVendorEmail({
         deliveryOrderId: details.delivery.id,
         materialIssueId: resolveIssueId,
-        to: vendorEmail,
+        to,
         subject,
         body,
+        saveVendorEmail: needsSave ? saveVendorEmail : undefined,
       });
       setEmailVendorSuccess(true);
       setVendorCommsRefresh((v) => v + 1);
@@ -3389,6 +3415,10 @@ function DetailContent({
           details={details}
           resolutionType={resolutionType}
           resolutionNote={resolutionNote}
+          emailTo={emailTo}
+          emailSubject={emailSubject}
+          emailBody={emailBody}
+          saveVendorEmail={saveVendorEmail}
           mutationLoading={mutationLoading}
           emailProviderConnected={emailProviderConnected}
           emailVendorLoading={emailVendorLoading}
@@ -3399,8 +3429,24 @@ function DetailContent({
           onEmailVendor={() => {
             void handleEmailVendor();
           }}
+          onEmailToChange={(value) => {
+            setEmailFieldsTouched(true);
+            setEmailTo(value);
+          }}
+          onEmailSubjectChange={(value) => {
+            setEmailFieldsTouched(true);
+            setEmailSubject(value);
+          }}
+          onEmailBodyChange={(value) => {
+            setEmailFieldsTouched(true);
+            setEmailBody(value);
+          }}
+          onSaveVendorEmailChange={setSaveVendorEmail}
           onResolutionTypeChange={(nextType, issue) => {
             setResolutionType(nextType);
+            if (nextType === "need_more_information" && !emailFieldsTouched) {
+              resetNeedMoreInfoEmailFields(details);
+            }
             if (!resolutionNoteTouched) {
               setResolutionNote(
                 buildSuggestedResolutionNote(issue, nextType, {

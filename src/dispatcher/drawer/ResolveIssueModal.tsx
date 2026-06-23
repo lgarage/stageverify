@@ -4,18 +4,23 @@ import {
   ISSUE_RESOLUTION_TYPES,
 } from "../models";
 import {
-  buildNeedMoreInfoEmailBody,
-  buildNeedMoreInfoEmailSubject,
-} from "./needMoreInfoDraft";
-import {
   DRAWER_MODAL_INPUT_STYLE,
 } from "./resolveIssueDefaults";
+
+function isValidEmail(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 254 && trimmed.includes("@");
+}
 
 export function ResolveIssueModal({
   issueId,
   details,
   resolutionType,
   resolutionNote,
+  emailTo,
+  emailSubject,
+  emailBody,
+  saveVendorEmail,
   mutationLoading,
   emailProviderConnected,
   emailVendorLoading,
@@ -25,6 +30,10 @@ export function ResolveIssueModal({
   font,
   onResolutionTypeChange,
   onResolutionNoteChange,
+  onEmailToChange,
+  onEmailSubjectChange,
+  onEmailBodyChange,
+  onSaveVendorEmailChange,
   onEmailVendor,
   onClose,
   onSubmit,
@@ -33,6 +42,10 @@ export function ResolveIssueModal({
   details: DeliveryDetails;
   resolutionType: IssueResolutionType;
   resolutionNote: string;
+  emailTo: string;
+  emailSubject: string;
+  emailBody: string;
+  saveVendorEmail: boolean;
   mutationLoading: boolean;
   emailProviderConnected: boolean;
   emailVendorLoading: boolean;
@@ -42,6 +55,10 @@ export function ResolveIssueModal({
   font: string;
   onResolutionTypeChange: (type: IssueResolutionType, issue: MaterialIssue) => void;
   onResolutionNoteChange: (note: string, touched: boolean) => void;
+  onEmailToChange: (value: string) => void;
+  onEmailSubjectChange: (value: string) => void;
+  onEmailBodyChange: (value: string) => void;
+  onSaveVendorEmailChange: (checked: boolean) => void;
   onEmailVendor: () => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -49,16 +66,28 @@ export function ResolveIssueModal({
   const issue = details.materialIssues.find((i) => i.id === issueId);
   const { vendor } = details;
   const vendorPhone = vendor.contactPhone?.trim() ?? "";
-  const vendorEmail = vendor.email?.trim() ?? "";
+  const vendorEmailOnFile = vendor.email?.trim() ?? "";
   const vendorAddress = vendor.address?.trim() ?? "";
   const showNeedMoreInfo = resolutionType === "need_more_information";
-  const emailSubject = buildNeedMoreInfoEmailSubject(details);
-  const emailBody = buildNeedMoreInfoEmailBody(details) ?? "";
+  const toNormalized = emailTo.trim().toLowerCase();
+  const vendorEmailNormalized = vendorEmailOnFile.toLowerCase();
+  const toDiffersFromOnFile =
+    !!toNormalized &&
+    !!vendorEmailNormalized &&
+    toNormalized !== vendorEmailNormalized;
+  const needsSaveCheckbox =
+    isValidEmail(emailTo) &&
+    (toDiffersFromOnFile || !vendorEmailOnFile);
   const canSendEmail =
     emailProviderConnected &&
-    !!vendorEmail &&
-    !!emailBody &&
-    !emailVendorLoading;
+    isValidEmail(emailTo) &&
+    !!emailSubject.trim() &&
+    !!emailBody.trim() &&
+    !emailVendorLoading &&
+    (!needsSaveCheckbox || saveVendorEmail);
+  const canSaveResolution =
+    !mutationLoading &&
+    (resolutionType !== "other" || !!resolutionNote.trim());
 
   return (
     <div
@@ -139,49 +168,55 @@ export function ResolveIssueModal({
             </option>
           ))}
         </select>
-        <label
-          htmlFor="resolution-note-input"
-          style={{
-            display: "block",
-            fontSize: 13,
-            fontWeight: 600,
-            marginBottom: 8,
-            fontFamily: font,
-          }}
-        >
-          Resolution note (saved on issue record)
-        </label>
-        <p
-          style={{
-            margin: "0 0 8px",
-            fontSize: 12,
-            color: "#64748b",
-            fontFamily: font,
-          }}
-        >
-          Suggested text below — edit before save. This is what technicians and
-          dispatch will see on the resolved issue.
-        </p>
-        <textarea
-          id="resolution-note-input"
-          data-testid="resolution-note-input"
-          value={resolutionNote}
-          onChange={(e) => onResolutionNoteChange(e.target.value, true)}
-          rows={8}
-          placeholder="What happened and next steps for the technician"
-          style={{
-            width: "100%",
-            marginBottom: showNeedMoreInfo ? 20 : 16,
-            padding: "12px 14px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            fontSize: 14,
-            lineHeight: 1.5,
-            fontFamily: font,
-            resize: "vertical",
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        />
+
+        {!showNeedMoreInfo && (
+          <>
+            <label
+              htmlFor="resolution-note-input"
+              style={{
+                display: "block",
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 8,
+                fontFamily: font,
+              }}
+            >
+              Resolution note
+              {resolutionType === "other" ? " (required)" : " (optional)"}
+            </label>
+            <p
+              style={{
+                margin: "0 0 8px",
+                fontSize: 12,
+                color: "#64748b",
+                fontFamily: font,
+              }}
+            >
+              Suggested text below — edit before save. This is what technicians and
+              dispatch will see on the resolved issue.
+            </p>
+            <textarea
+              id="resolution-note-input"
+              data-testid="resolution-note-input"
+              value={resolutionNote}
+              onChange={(e) => onResolutionNoteChange(e.target.value, true)}
+              rows={8}
+              placeholder="What happened and next steps for the technician"
+              style={{
+                width: "100%",
+                marginBottom: 16,
+                padding: "12px 14px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                fontSize: 14,
+                lineHeight: 1.5,
+                fontFamily: font,
+                resize: "vertical",
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
+            />
+          </>
+        )}
 
         {showNeedMoreInfo && (
           <section
@@ -230,9 +265,9 @@ export function ResolveIssueModal({
                 </dd>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <dt style={{ fontWeight: 700, marginBottom: 2 }}>Email</dt>
+                <dt style={{ fontWeight: 700, marginBottom: 2 }}>Email on file</dt>
                 <dd style={{ margin: 0 }} data-testid="resolve-vendor-email">
-                  {vendorEmail || (
+                  {vendorEmailOnFile || (
                     <span style={{ color: "#64748b" }}>No email on file</span>
                   )}
                 </dd>
@@ -256,8 +291,74 @@ export function ResolveIssueModal({
                 fontFamily: font,
               }}
             >
-              Email Preview
+              Email to vendor
             </h4>
+            <label
+              htmlFor="resolve-email-to"
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                marginBottom: 6,
+                fontFamily: font,
+              }}
+            >
+              To
+            </label>
+            <input
+              id="resolve-email-to"
+              data-testid="resolve-email-to"
+              type="email"
+              value={emailTo}
+              onChange={(e) => onEmailToChange(e.target.value)}
+              placeholder="vendor@example.com"
+              style={{
+                width: "100%",
+                marginBottom: 12,
+                padding: "10px 12px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                fontSize: 14,
+                fontFamily: font,
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
+            />
+            {toDiffersFromOnFile && (
+              <p
+                data-testid="resolve-email-to-warning"
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: 12,
+                  color: "#b45309",
+                  fontFamily: font,
+                }}
+              >
+                This address differs from the email on file for this vendor.
+              </p>
+            )}
+            {needsSaveCheckbox && (
+              <label
+                data-testid="resolve-save-vendor-email-label"
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  marginBottom: 14,
+                  fontSize: 12,
+                  fontFamily: font,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  data-testid="resolve-save-vendor-email"
+                  checked={saveVendorEmail}
+                  onChange={(e) => onSaveVendorEmailChange(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                <span>Save this email to vendor record for future use</span>
+              </label>
+            )}
             <label
               htmlFor="resolve-email-subject"
               style={{
@@ -273,8 +374,8 @@ export function ResolveIssueModal({
             <input
               id="resolve-email-subject"
               data-testid="resolve-email-subject"
-              readOnly
               value={emailSubject}
+              onChange={(e) => onEmailSubjectChange(e.target.value)}
               style={{
                 width: "100%",
                 marginBottom: 12,
@@ -301,12 +402,10 @@ export function ResolveIssueModal({
             <textarea
               id="resolve-email-message"
               data-testid="resolve-email-message"
-              readOnly
               rows={emailBody ? 10 : 4}
-              value={
-                emailBody ||
-                "Email preview unavailable — no open issues or missing items to include."
-              }
+              value={emailBody}
+              onChange={(e) => onEmailBodyChange(e.target.value)}
+              placeholder="Email message to vendor"
               style={{
                 width: "100%",
                 marginBottom: 14,
@@ -328,9 +427,9 @@ export function ResolveIssueModal({
                 onClick={onEmailVendor}
                 title={
                   emailProviderConnected
-                    ? vendorEmail && emailBody
+                    ? canSendEmail
                       ? "Send email to vendor via Gmail"
-                      : "Vendor email or message preview required"
+                      : "Complete email fields and confirm save if address changed"
                     : "Email provider not connected yet."
                 }
                 style={{
@@ -360,19 +459,6 @@ export function ResolveIssueModal({
                   }}
                 >
                   Email provider not connected yet.
-                </p>
-              )}
-              {emailProviderConnected && !vendorEmail && (
-                <p
-                  data-testid="resolve-email-no-vendor-email"
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    color: "#64748b",
-                    fontFamily: font,
-                  }}
-                >
-                  Add vendor email on the Vendors page to send.
                 </p>
               )}
               {emailVendorError && (
@@ -425,17 +511,17 @@ export function ResolveIssueModal({
           <button
             type="button"
             data-testid="confirm-resolve-issue"
-            disabled={mutationLoading || !resolutionNote.trim()}
+            disabled={!canSaveResolution}
             onClick={onSubmit}
             style={{
               padding: "9px 16px",
               borderRadius: 6,
               border: "none",
-              backgroundColor: navy,
-              color: "#fff",
+              backgroundColor: canSaveResolution ? navy : "#e5e7eb",
+              color: canSaveResolution ? "#fff" : "#9ca3af",
               fontSize: 14,
               fontWeight: 700,
-              cursor: mutationLoading ? "not-allowed" : "pointer",
+              cursor: canSaveResolution ? "pointer" : "not-allowed",
               opacity: mutationLoading ? 0.6 : 1,
               fontFamily: font,
             }}

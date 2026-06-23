@@ -152,8 +152,11 @@ async function ensureAuthenticated(page) {
     await page.getByTestId("vendor-communications-toggle").click();
     await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
     const vendorCommsEmpty = await page.getByTestId("vendor-communications-empty").innerText();
-    if (!/No messages yet/i.test(vendorCommsEmpty) || !/connect Gmail in Settings/i.test(vendorCommsEmpty)) {
+    if (!/No (outbound )?messages yet/i.test(vendorCommsEmpty)) {
       throw new Error(`Vendor Communications empty state unexpected: ${vendorCommsEmpty}`);
+    }
+    if (!/connect Gmail in Settings|Resolve Issue/i.test(vendorCommsEmpty)) {
+      throw new Error(`Vendor Communications empty state missing guidance: ${vendorCommsEmpty}`);
     }
     console.log("PASS: Vendor Communications read-only placeholder.");
 
@@ -176,12 +179,26 @@ async function ensureAuthenticated(page) {
       await page.getByTestId("resolve-issue-modal").waitFor({ timeout: 10_000 });
       await page.getByTestId("resolution-type-select").selectOption("need_more_information");
       await page.getByTestId("resolve-need-more-info-section").waitFor({ timeout: 10_000 });
+      if ((await page.getByTestId("resolution-note-input").count()) > 0) {
+        throw new Error("Resolution note must be hidden for Need More Information");
+      }
+      await page.getByTestId("resolve-email-to").waitFor({ timeout: 5000 });
+      const toReadOnly = await page.getByTestId("resolve-email-to").getAttribute("readOnly");
+      if (toReadOnly !== null) {
+        throw new Error("Email To must be editable in resolve modal");
+      }
       const emailVendorBtn = page.getByTestId("resolve-email-vendor");
       if (!(await emailVendorBtn.isVisible())) {
         throw new Error("Email Vendor button missing in resolve modal");
       }
       if (await emailVendorBtn.isEnabled()) {
         throw new Error("Email Vendor must stay disabled until real OAuth provider (away-066)");
+      }
+      await page.getByTestId("resolution-type-select").selectOption("other");
+      await page.getByTestId("resolution-note-input").waitFor({ timeout: 5000 });
+      await page.getByTestId("resolution-note-input").fill("");
+      if (await page.getByTestId("confirm-resolve-issue").isEnabled()) {
+        throw new Error("Other resolution requires note before save");
       }
       await page.getByRole("button", { name: "Cancel" }).click();
       await page.waitForTimeout(300);

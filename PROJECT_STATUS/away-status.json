@@ -469,7 +469,7 @@
       "title": "Phase 6 slice 2: Outbound sendVendorEmail + enable Email Vendor",
       "status": "built",
       "commit": "cd753c3",
-      "note": "sendVendorEmail CF, Email Vendor action, drawer outbound list; Sonnet LOW"
+      "note": "Follow-up: editable To/Subject/Body in Resolve modal; saveVendorEmail CF updates vendor.email; Other requires note; Sonnet LOW"
     }
   ],
   "summary": "away-067 complete; active queue empty — see docs/project_state.md immediate next steps"

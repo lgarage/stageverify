@@ -302,9 +302,23 @@ function assertReadableInputColor(page, testId, label) {
 
       await page.getByTestId("resolution-type-select").selectOption("need_more_information");
       await page.getByTestId("resolve-need-more-info-section").waitFor({ timeout: 10_000 });
+      if ((await page.getByTestId("resolution-note-input").count()) > 0) {
+        throw new Error("Resolution note must be hidden for Need More Information");
+      }
       await page.getByTestId("resolve-vendor-info").waitFor({ timeout: 5000 });
-      await page.getByTestId("resolve-email-subject").waitFor({ timeout: 5000 });
-      await page.getByTestId("resolve-email-message").waitFor({ timeout: 5000 });
+      await page.getByTestId("resolve-email-to").waitFor({ timeout: 5000 });
+      const toReadOnly = await page.getByTestId("resolve-email-to").getAttribute("readOnly");
+      if (toReadOnly !== null) {
+        throw new Error("Email To field must be editable");
+      }
+      const subjectReadOnly = await page.getByTestId("resolve-email-subject").getAttribute("readOnly");
+      if (subjectReadOnly !== null) {
+        throw new Error("Email subject must be editable");
+      }
+      const messageReadOnly = await page.getByTestId("resolve-email-message").getAttribute("readOnly");
+      if (messageReadOnly !== null) {
+        throw new Error("Email message must be editable");
+      }
       const emailVendorBtn = page.getByTestId("resolve-email-vendor");
       if (!(await emailVendorBtn.isVisible())) {
         throw new Error("Email Vendor button must appear when Need More Information selected");
@@ -313,11 +327,28 @@ function assertReadableInputColor(page, testId, label) {
         throw new Error("Email Vendor should be disabled when email provider not connected");
       }
       await page.getByTestId("resolve-email-provider-disconnected").waitFor({ timeout: 5000 });
+      const saveBtnNeedMore = page.getByTestId("confirm-resolve-issue");
+      if (!(await saveBtnNeedMore.isEnabled())) {
+        throw new Error("Save resolution should be enabled for Need More Information without note");
+      }
       await page.screenshot({
         path: resolve(outDir, "drawer-resolve-modal-need-more-info.png"),
         fullPage: false,
       });
-      console.log("PASS: Need More Information section shows vendor info + email preview.");
+      console.log("PASS: Need More Information shows editable email fields + Email Vendor.");
+
+      await page.getByTestId("resolution-type-select").selectOption("other");
+      await page.getByTestId("resolution-note-input").waitFor({ timeout: 5000 });
+      await page.getByTestId("resolution-note-input").fill("");
+      const saveBtnOther = page.getByTestId("confirm-resolve-issue");
+      if (await saveBtnOther.isEnabled()) {
+        throw new Error("Save resolution must be disabled for Other when note is empty");
+      }
+      await page.getByTestId("resolution-note-input").fill("Custom resolution note for other.");
+      if (!(await saveBtnOther.isEnabled())) {
+        throw new Error("Save resolution should enable when Other note is provided");
+      }
+      console.log("PASS: Other resolution type requires note before save.");
 
       await page.getByRole("button", { name: "Cancel" }).click();
       await page.waitForTimeout(400);

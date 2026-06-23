@@ -74,6 +74,7 @@
     "test:evidence-alignment": "npx tsx scripts/test-evidence-model-alignment.mjs",
     "test:email-parser": "npx tsx scripts/test-email-parser.mjs",
     "test:gmail-api": "npx tsx scripts/test-gmail-api.mjs",
+    "test:send-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-send-vendor-email.mjs\"",
     "test:process-inbound-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-process-inbound-vendor-email.mjs\"",
     "away:validate": "node scripts/away-validate.mjs",
     "away:next": "node scripts/away-next.mjs",

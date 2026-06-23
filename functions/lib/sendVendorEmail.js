@@ -111,12 +111,15 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         throw new https_1.HttpsError("not-found", "Vendor not found.");
     }
     const vendor = vendorSnap.data();
-    const vendorEmail = vendor.email?.trim().toLowerCase();
-    if (!vendorEmail) {
-        throw new https_1.HttpsError("failed-precondition", "Vendor has no email on file.");
+    const vendorEmail = vendor.email?.trim().toLowerCase() ?? "";
+    const saveVendorEmail = data.saveVendorEmail === true;
+    if (vendorEmail && to !== vendorEmail) {
+        if (!saveVendorEmail) {
+            throw new https_1.HttpsError("invalid-argument", "Recipient differs from vendor email on file. Confirm save to vendor record.");
+        }
     }
-    if (to !== vendorEmail) {
-        throw new https_1.HttpsError("invalid-argument", "Recipient must match vendor email on file.");
+    else if (!vendorEmail && !saveVendorEmail) {
+        throw new https_1.HttpsError("invalid-argument", "Vendor has no email on file. Confirm save to vendor record.");
     }
     if (materialIssueId) {
         const issueSnap = await db.collection("materialIssues").doc(materialIssueId).get();
@@ -127,6 +130,12 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         if (issue.deliveryOrderId !== deliveryOrderId) {
             throw new https_1.HttpsError("invalid-argument", "Material issue does not belong to this delivery.");
         }
+    }
+    if (saveVendorEmail && to !== vendorEmail) {
+        await db.collection("vendors").doc(delivery.vendorId).set({
+            email: to,
+            updatedAt: new Date().toISOString(),
+        }, { merge: true });
     }
     let accessToken;
     try {

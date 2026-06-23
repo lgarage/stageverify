@@ -713,6 +713,8 @@ export interface SendVendorEmailInput {
   to: string;
   subject: string;
   body: string;
+  /** When true, CF updates vendor.email to `to` before send (required if `to` differs from on-file email). */
+  saveVendorEmail?: boolean;
 }
 
 export interface SendVendorEmailResult {

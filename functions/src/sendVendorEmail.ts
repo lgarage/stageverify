@@ -68,6 +68,7 @@ interface SendVendorEmailRequest {
   to?: string;
   subject?: string;
   body?: string;
+  saveVendorEmail?: boolean;
 }
 
 export const sendVendorEmail = onCall(
@@ -164,17 +165,20 @@ export const sendVendorEmail = onCall(
     }
 
     const vendor = vendorSnap.data() as { email?: string };
-    const vendorEmail = vendor.email?.trim().toLowerCase();
-    if (!vendorEmail) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Vendor has no email on file.",
-      );
-    }
-    if (to !== vendorEmail) {
+    const vendorEmail = vendor.email?.trim().toLowerCase() ?? "";
+    const saveVendorEmail = data.saveVendorEmail === true;
+
+    if (vendorEmail && to !== vendorEmail) {
+      if (!saveVendorEmail) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Recipient differs from vendor email on file. Confirm save to vendor record.",
+        );
+      }
+    } else if (!vendorEmail && !saveVendorEmail) {
       throw new HttpsError(
         "invalid-argument",
-        "Recipient must match vendor email on file.",
+        "Vendor has no email on file. Confirm save to vendor record.",
       );
     }
 
@@ -190,6 +194,16 @@ export const sendVendorEmail = onCall(
           "Material issue does not belong to this delivery.",
         );
       }
+    }
+
+    if (saveVendorEmail && to !== vendorEmail) {
+      await db.collection("vendors").doc(delivery.vendorId).set(
+        {
+          email: to,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
     }
 
     let accessToken: string;
