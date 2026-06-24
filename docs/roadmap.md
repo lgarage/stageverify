@@ -252,6 +252,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Settings (away-053):** Email Monitoring card on Settings — `monitoringInboxEmail` + `emailMonitoringEnabled` (offline prototype copy; no live inbox); `verify:settings-staging` asserts save + reload
 - **Drawer evidence (away-058):** READINESS EVIDENCE panel in delivery drawer — Condition 1 offline proposals, Condition 2 physical fields, blockers (read-only)
 - **Condition 1 write (away-059):** `processInboundVendorEmail` callable CF (auth required) — auto-applies high-confidence `vendor_order_complete` to `vendorOrderComplete*` only; `vendorEmailEvents` audit; conflict → pending review; `test:process-inbound-vendor-email`; drawer ✓ Complete / Review Required from delivery fields
+- **Invoice import spec (docs):** `docs/vendor-import/johnstone-invoice-import-spec.md` — PDF batch → expected vendor orders; `pickup_at_vendor` displays as **Will-Call / Pickup.**; import ≠ shop receipt
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
