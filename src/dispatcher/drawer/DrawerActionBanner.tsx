@@ -109,18 +109,45 @@ export function DrawerActionBanner({
   );
 
   const allClear =
-    readiness.readyForPickup &&
-    !emailReviewRequired &&
-    displayState.blockerLabels.length === 0;
+    bannerContent.bannerMode === "all_clear" ||
+    (readiness.readyForPickup &&
+      !emailReviewRequired &&
+      displayState.blockerLabels.length === 0);
+
+  const calmWaiting = bannerContent.bannerMode === "calm_waiting";
+  const attentionRequired = bannerContent.bannerMode === "attention_required";
+
+  const borderColor = allClear ? "#2e7d32" : calmWaiting ? "#94a3b8" : "#bf0a30";
+  const backgroundColor = allClear
+    ? "#ecfdf5"
+    : calmWaiting
+      ? "#f8fafc"
+      : "#fff5f5";
+  const headingColor = allClear
+    ? "#166534"
+    : calmWaiting
+      ? "#475569"
+      : "#991b1b";
+  const summaryColor = allClear
+    ? "#166534"
+    : calmWaiting
+      ? "#64748b"
+      : "#7f1d1d";
+  const bannerHeading = allClear
+    ? "All Clear"
+    : calmWaiting
+      ? "Waiting on Delivery"
+      : "What Needs Attention";
 
   return (
     <>
       <section
         data-testid="drawer-action-banner"
+        data-banner-mode={bannerContent.bannerMode}
         style={{
           borderRadius: 8,
-          border: `2px solid ${allClear ? "#2e7d32" : "#bf0a30"}`,
-          backgroundColor: allClear ? "#ecfdf5" : "#fff5f5",
+          border: `2px solid ${borderColor}`,
+          backgroundColor,
           padding: "14px 16px",
           fontFamily: font,
         }}
@@ -131,7 +158,7 @@ export function DrawerActionBanner({
             alignItems: "flex-start",
             justifyContent: "space-between",
             gap: 12,
-            marginBottom: allClear ? 0 : 10,
+            marginBottom: allClear || calmWaiting ? 0 : 10,
           }}
         >
           <div>
@@ -143,18 +170,18 @@ export function DrawerActionBanner({
                 fontWeight: 800,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                color: allClear ? "#166534" : "#991b1b",
+                color: headingColor,
               }}
             >
-              {allClear ? "All Clear" : "What Needs Attention"}
+              {bannerHeading}
             </p>
             <p
               data-testid="drawer-action-banner-summary"
               style={{
                 margin: "6px 0 0",
                 fontSize: 14,
-                fontWeight: 600,
-                color: allClear ? "#166534" : "#7f1d1d",
+                fontWeight: calmWaiting ? 500 : 600,
+                color: summaryColor,
               }}
             >
               {allClear
@@ -162,7 +189,7 @@ export function DrawerActionBanner({
                 : bannerContent.attentionHeadline}
             </p>
           </div>
-          {!allClear && (
+          {attentionRequired && (
             <span
               style={{
                 flexShrink: 0,
@@ -182,7 +209,7 @@ export function DrawerActionBanner({
           )}
         </div>
 
-        {!allClear && bannerContent.whyBullets.length > 0 && (
+        {attentionRequired && bannerContent.whyBullets.length > 0 && (
           <div data-testid="drawer-action-banner-why">
             <p
               style={{
@@ -212,7 +239,7 @@ export function DrawerActionBanner({
           </div>
         )}
 
-        {!allClear && bannerContent.nextStepBullets.length > 0 && (
+        {attentionRequired && bannerContent.nextStepBullets.length > 0 && (
           <div data-testid="drawer-action-recommended-actions">
             <p
               style={{
@@ -242,7 +269,7 @@ export function DrawerActionBanner({
           </div>
         )}
 
-        {!allClear && (
+        {attentionRequired && (
           <div
             data-testid="drawer-action-banner-buttons"
             style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}
@@ -333,7 +360,7 @@ export function DrawerActionBanner({
           </div>
         )}
 
-        {!allClear && !canResolve && (
+        {attentionRequired && !canResolve && (
           <p
             id="drawer-action-resolve-hint"
             data-testid="drawer-action-resolve-hint"
@@ -348,7 +375,7 @@ export function DrawerActionBanner({
           </p>
         )}
 
-        {!allClear && bannerContent.showCallVendor && (
+        {attentionRequired && bannerContent.showCallVendor && (
           <p
             data-testid="drawer-vendor-phone-line"
             style={{

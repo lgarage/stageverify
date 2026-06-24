@@ -257,7 +257,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 
 - **OAuth connect (away-067):** ✅ Shipped — Gmail OAuth CFs + Settings Connect/Disconnect; `emailProviderConnections/gmail` metadata; refresh tokens admin-only
 - **Outbound send (away-068):** ✅ Shipped — `sendVendorEmail` CF (Gmail API); Email Vendor enabled in Resolve Issue when `emailProviderConnected`; outbound `vendorEmailEvents` audit
-- **Drawer/readiness UX (away-072, away-073, clarity pass):** ✅ Shipped — Issue Summary Open Issues accordion + What Needs Attention (Why/Next Step); list/filter/drawer use computed readiness; `verify:delivery-consistency` + `test:demo-matrix`
+- **Drawer/readiness UX (away-072, away-073, clarity correction):** ✅ Shipped — Issue Summary item table only (no Open Issues accordion); calm **Waiting on Delivery** banner for normal pending; **What Needs Attention** only for true exceptions; exception-only issue counts; `verify:delivery-consistency` + `test:demo-matrix`
 - `emailDomain` on `Vendor` for matching when live monitoring starts
 - Live inbox monitoring with **human-reviewed proposed updates first**
 - Narrow automation only for explicitly approved, high-confidence event types — high confidence alone is not blanket permission to update records

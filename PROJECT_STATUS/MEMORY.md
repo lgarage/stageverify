@@ -53,6 +53,12 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
 | ACES / Librarian (deferred) | `docs/aecs/librarian-plan.md` | Meta only when Dan asks |
 
+## Orchestration
+
+| Concern | File / section | When |
+| ------- | -------------- | ---- |
+| Parallel builds (disjoint domains) | `.cursor/rules/parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain task; prefer parallel Composer 2.5 executors when file ownership is clearly disjoint |
+
 ## Blockers & on-demand routes
 
 | Concern | File / command | When |

@@ -16,7 +16,6 @@ export function IssueSummaryPanel({
   font: string;
 }) {
   const [receivedExpanded, setReceivedExpanded] = useState(false);
-  const [openIssuesExpanded, setOpenIssuesExpanded] = useState(false);
 
   const summary = useMemo(
     () =>
@@ -32,10 +31,6 @@ export function IssueSummaryPanel({
     `Delivery Status: ${summary.deliveryStatusLabel}`,
     `${summary.itemsReceivedCount} of ${summary.itemsTotalCount} Items Received`,
   ];
-
-  const openIssuesLabel = `${summary.openIssuesCount} Open Issue${
-    summary.openIssuesCount === 1 ? "" : "s"
-  }`;
 
   return (
     <section data-testid="issue-summary-panel" style={{ fontFamily: font }}>
@@ -92,72 +87,6 @@ export function IssueSummaryPanel({
               {line}
             </li>
           ))}
-          {summary.openIssuesCount > 0 && (
-            <li style={{ margin: 0 }}>
-              <button
-                type="button"
-                data-testid="issue-summary-open-issues-toggle"
-                onClick={() => setOpenIssuesExpanded((v) => !v)}
-                aria-expanded={openIssuesExpanded}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  width: "100%",
-                  padding: 0,
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  fontFamily: font,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#334155",
-                  textAlign: "left",
-                }}
-              >
-                <span style={{ fontSize: 10, color: "#64748b" }}>
-                  {openIssuesExpanded ? "▼" : "▶"}
-                </span>
-                {openIssuesLabel}
-              </button>
-              {openIssuesExpanded && summary.openIssueExplanations.length > 0 && (
-                <ul
-                  data-testid="issue-summary-open-issues-list"
-                  style={{
-                    margin: "8px 0 0 22px",
-                    paddingLeft: 0,
-                    listStyle: "none",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
-                  {summary.openIssueExplanations.map((issue) => (
-                    <li
-                      key={issue.id}
-                      data-testid={`issue-summary-explanation-${issue.id}`}
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "#475569",
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {issue.text}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          )}
-          {summary.openIssuesCount === 0 && (
-            <li
-              data-testid="issue-summary-no-open-issues"
-              style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#2e7d32" }}
-            >
-              No open issues
-            </li>
-          )}
         </ul>
 
         {summary.issueRows.length > 0 && (

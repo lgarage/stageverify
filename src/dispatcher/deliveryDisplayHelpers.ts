@@ -268,7 +268,10 @@ const DISPATCHER_NEXT_BY_BLOCK_REASON: Record<string, string> = {
     "Confirm backorder ETA or alternate sourcing with the vendor",
 };
 
+export type DrawerBannerMode = "all_clear" | "calm_waiting" | "attention_required";
+
 export interface DrawerActionBannerContent {
+  bannerMode: DrawerBannerMode;
   attentionHeadline: string;
   whyBullets: string[];
   nextStepBullets: string[];
@@ -276,6 +279,103 @@ export interface DrawerActionBannerContent {
   showReviewIssues: boolean;
   showCallVendor: boolean;
   showEmailVendor: boolean;
+}
+
+const CALM_PENDING_BLOCK_REASONS = new Set([
+  "vendor_order_incomplete",
+  "physical_dropoff_incomplete",
+]);
+
+function vendorClaimsDelivered(delivery: DeliveryOrder): boolean {
+  return (
+    delivery.vendorPhysicalDropoffConfirmed === true ||
+    delivery.vendorOrderComplete === true
+  );
+}
+
+/** True when an item table row is a dispatcher exception (not normal pending-not-delivered). */
+export function isExceptionItemIssueRow(
+  row: ItemIssueRow,
+  itemsReceivedCount: number,
+  delivery: DeliveryOrder,
+): boolean {
+  if (row.status === "Backordered" || row.status === "Partial Delivery") {
+    return true;
+  }
+  if (row.status === "Not Delivered") {
+    if (itemsReceivedCount === 0 && !vendorClaimsDelivered(delivery)) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+export function filterExceptionItemIssueRows(
+  issueRows: ItemIssueRow[],
+  itemsReceivedCount: number,
+  delivery: DeliveryOrder,
+): ItemIssueRow[] {
+  return issueRows.filter((row) =>
+    isExceptionItemIssueRow(row, itemsReceivedCount, delivery),
+  );
+}
+
+function countExceptionOpenIssues(
+  delivery: DeliveryOrder,
+  items: Item[],
+  materialIssues: MaterialIssue[] | undefined,
+  issueRows: ItemIssueRow[],
+): number {
+  const itemsReceivedCount = sumItemQtyReceived(items);
+  const exceptionRows = filterExceptionItemIssueRows(
+    issueRows,
+    itemsReceivedCount,
+    delivery,
+  );
+  return exceptionRows.length + countOpenMaterialIssues(materialIssues);
+}
+
+function shouldIncludeReadinessBlockReasonForBanner(
+  reason: string,
+  itemsReceivedCount: number,
+  delivery: DeliveryOrder,
+): boolean {
+  if (
+    CALM_PENDING_BLOCK_REASONS.has(reason) &&
+    itemsReceivedCount === 0 &&
+    !vendorClaimsDelivered(delivery)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function deliveryNeedsVendorOutreach(
+  delivery: DeliveryOrder,
+  items: Item[],
+  materialIssues: MaterialIssue[] | undefined,
+  exceptionRows: ItemIssueRow[],
+  options?: { emailReviewRequired?: boolean },
+  readinessBlockReasons?: string[],
+): boolean {
+  if (options?.emailReviewRequired) return true;
+  if (openBlockingMaterialIssues(materialIssues).length > 0) return true;
+  if (
+    readinessBlockReasons?.includes("unresolved_backorder") ||
+    readinessBlockReasons?.includes("unresolved_damage")
+  ) {
+    return true;
+  }
+  if (
+    vendorClaimsDelivered(delivery) &&
+    sumItemQtyReceived(items) < sumItemQtyOrdered(items)
+  ) {
+    return true;
+  }
+  return exceptionRows.some(
+    (row) => row.status === "Backordered" || row.status === "Partial Delivery",
+  );
 }
 
 function explainItemIssueRow(row: ItemIssueRow): string {
@@ -313,22 +413,30 @@ export function buildOpenIssueExplanations(
     explanations.push({ id, text });
   };
 
-  if (issueRows.length === 0) {
+  const itemsReceivedCount = sumItemQtyReceived(items);
+  const exceptionRows = filterExceptionItemIssueRows(
+    issueRows,
+    itemsReceivedCount,
+    delivery,
+  );
+
+  if (exceptionRows.length === 0) {
     for (const reason of display.readiness.evidence.readinessBlockReasons) {
+      if (
+        !shouldIncludeReadinessBlockReasonForBanner(
+          reason,
+          itemsReceivedCount,
+          delivery,
+        )
+      ) {
+        continue;
+      }
       const text = DISPATCHER_WHY_BY_BLOCK_REASON[reason];
       if (text) push(`reason-${reason}`, text);
     }
-    const itemsReceivedCount = sumItemQtyReceived(items);
-    const itemsTotalCount = sumItemQtyOrdered(items);
-    if (itemsReceivedCount === 0 && itemsTotalCount > 0) {
-      push(
-        "no-material-received",
-        `No materials received at the shop yet (${itemsReceivedCount} of ${itemsTotalCount} units)`,
-      );
-    }
   }
 
-  for (const row of issueRows) {
+  for (const row of exceptionRows) {
     push(`item-${row.itemId}`, explainItemIssueRow(row));
   }
 
@@ -374,6 +482,13 @@ export function buildDrawerActionBannerContent(
   const nextStepBullets: string[] = [];
   const seenWhy = new Set<string>();
   const seenNext = new Set<string>();
+  const exceptionRows = filterExceptionItemIssueRows(
+    panel.issueRows,
+    panel.itemsReceivedCount,
+    delivery,
+  );
+  const readinessBlockReasons =
+    display.readiness.evidence.readinessBlockReasons;
 
   const pushWhy = (text: string) => {
     if (seenWhy.has(text)) return;
@@ -386,94 +501,146 @@ export function buildDrawerActionBannerContent(
     nextStepBullets.push(text);
   };
 
+  const calmWaiting =
+    !display.readiness.readyForPickup &&
+    panel.itemsReceivedCount === 0 &&
+    display.statusDisplayLabel === "Pending Delivery" &&
+    exceptionRows.length === 0 &&
+    openBlockingMaterialIssues(materialIssues).length === 0 &&
+    !options?.emailReviewRequired &&
+    !vendorClaimsDelivered(delivery);
+
   if (options?.emailReviewRequired) {
     pushWhy("Vendor email proposal needs dispatcher review");
     pushNext("Review vendor email proposals in Vendor Communications");
   }
 
-  for (const reason of display.readiness.evidence.readinessBlockReasons) {
-    const why = DISPATCHER_WHY_BY_BLOCK_REASON[reason];
-    const next = DISPATCHER_NEXT_BY_BLOCK_REASON[reason];
-    if (why) pushWhy(why);
-    if (next) pushNext(next);
-  }
-
-  if (
-    panel.itemsReceivedCount === 0 &&
-    panel.itemsTotalCount > 0 &&
-    display.readiness.evidence.readinessBlockReasons.includes(
-      "physical_dropoff_incomplete",
-    )
-  ) {
-    pushWhy(
-      `No materials received at the shop yet (${panel.itemsReceivedCount} of ${panel.itemsTotalCount} units)`,
-    );
-  }
-
-  for (const issue of openBlockingMaterialIssues(materialIssues)) {
-    const typeLabel = MATERIAL_ISSUE_TYPE_LABEL[issue.type];
-    const desc = issue.description?.trim();
-    pushWhy(
-      desc
-        ? `Blocking ${typeLabel.toLowerCase()}: ${desc}`
-        : `Blocking ${typeLabel.toLowerCase()} must be resolved`,
-    );
-    if (!seenNext.has("Resolve blocking material issues using Resolve Issue below")) {
-      pushNext("Resolve blocking material issues using Resolve Issue below");
+  if (!calmWaiting) {
+    for (const reason of readinessBlockReasons) {
+      if (
+        !shouldIncludeReadinessBlockReasonForBanner(
+          reason,
+          panel.itemsReceivedCount,
+          delivery,
+        )
+      ) {
+        continue;
+      }
+      const why = DISPATCHER_WHY_BY_BLOCK_REASON[reason];
+      const next = DISPATCHER_NEXT_BY_BLOCK_REASON[reason];
+      if (why) pushWhy(why);
+      if (next) pushNext(next);
     }
-  }
 
-  for (const row of panel.issueRows) {
-    if (row.status === "Backordered") {
+    if (
+      vendorClaimsDelivered(delivery) &&
+      panel.itemsReceivedCount < panel.itemsTotalCount
+    ) {
+      pushWhy(
+        "Vendor reported delivery but shop receipt does not match — verify material on site",
+      );
+      pushNext("Confirm physical receipt or follow up with vendor");
+    }
+
+    for (const issue of openBlockingMaterialIssues(materialIssues)) {
+      const typeLabel = MATERIAL_ISSUE_TYPE_LABEL[issue.type];
+      const desc = issue.description?.trim();
+      pushWhy(
+        desc
+          ? `Blocking ${typeLabel.toLowerCase()}: ${desc}`
+          : `Blocking ${typeLabel.toLowerCase()} must be resolved`,
+      );
+      if (
+        !seenNext.has("Resolve blocking material issues using Resolve Issue below")
+      ) {
+        pushNext("Resolve blocking material issues using Resolve Issue below");
+      }
+    }
+
+    for (const row of exceptionRows) {
       pushWhy(explainItemIssueRow(row));
+      if (row.status === "Backordered" || row.status === "Partial Delivery") {
+        pushNext("Confirm backorder ETA or follow up on outstanding items with vendor");
+      }
+    }
+
+    if (
+      !delivery.stagingLocationId?.trim() &&
+      items.some((item) => item.qtyReceived > 0)
+    ) {
+      pushWhy("Received items do not have a staging location assigned");
+      pushNext("Assign a staging location for received items");
     }
   }
 
-  if (
-    !delivery.stagingLocationId?.trim() &&
-    items.some((item) => item.qtyReceived > 0)
-  ) {
-    pushWhy("Received items do not have a staging location assigned");
-    pushNext("Assign a staging location for received items");
-  }
-
-  if (whyBullets.length === 0 && !display.readiness.readyForPickup) {
-    pushWhy(display.statusDisplayLabel);
-  }
-  if (nextStepBullets.length === 0 && !display.readiness.readyForPickup) {
-    pushNext("Review delivery readiness evidence and take corrective action");
-  }
+  const attentionRequired =
+    !display.readiness.readyForPickup &&
+    !calmWaiting &&
+    (whyBullets.length > 0 ||
+      openBlockingMaterialIssues(materialIssues).length > 0 ||
+      options?.emailReviewRequired === true);
 
   const openBlockingIssueCount = display.openBlockingIssueCount;
   let resolveDisabledReason: string;
   if (openBlockingIssueCount > 0) {
     resolveDisabledReason =
       "Opens resolve flow for the first blocking material issue";
-  } else if (panel.openIssuesCount > 0) {
+  } else if (attentionRequired && panel.openIssuesCount > 0) {
     resolveDisabledReason =
-      "No blocking material issue — review open items below or contact vendor";
+      "No blocking material issue — review item exceptions below or contact vendor";
   } else if (options?.emailReviewRequired) {
     resolveDisabledReason =
       "No material issue to resolve — review vendor email in Vendor Communications";
+  } else if (calmWaiting) {
+    resolveDisabledReason =
+      "No dispatcher action required while waiting on vendor delivery";
   } else {
     resolveDisabledReason = "No open blocking material issue to resolve";
   }
 
   const vendorPhone = options?.vendorPhone?.trim() ?? "";
   const vendorEmail = options?.vendorEmail?.trim() ?? "";
+  const needsVendorOutreach = deliveryNeedsVendorOutreach(
+    delivery,
+    items,
+    materialIssues,
+    exceptionRows,
+    options,
+    readinessBlockReasons,
+  );
+
+  let bannerMode: DrawerBannerMode;
+  let attentionHeadline: string;
+  if (display.readiness.readyForPickup && !options?.emailReviewRequired) {
+    bannerMode = "all_clear";
+    attentionHeadline =
+      "Ready for Pickup — vendor order complete, physical complete, no blocking issues.";
+  } else if (calmWaiting) {
+    bannerMode = "calm_waiting";
+    attentionHeadline =
+      "No material received yet. No dispatcher action required unless overdue or vendor says delivered.";
+  } else {
+    bannerMode = "attention_required";
+    attentionHeadline =
+      whyBullets[0] ??
+      (display.readiness.readyForPickup
+        ? "Review required before pickup"
+        : "Order not ready for pickup — review exceptions below");
+  }
 
   return {
-    attentionHeadline: display.readiness.readyForPickup
-      ? "Review required before pickup"
-      : "Order not ready for pickup",
-    whyBullets,
-    nextStepBullets,
+    bannerMode,
+    attentionHeadline,
+    whyBullets: calmWaiting ? [] : whyBullets,
+    nextStepBullets: calmWaiting ? [] : nextStepBullets,
     resolveDisabledReason,
     showReviewIssues:
-      panel.openIssuesCount > 0 ||
-      openBlockingMaterialIssues(materialIssues).length > 0,
-    showCallVendor: vendorPhone.length > 0,
-    showEmailVendor: vendorEmail.length > 0,
+      openBlockingMaterialIssues(materialIssues).length > 0 ||
+      (attentionRequired && panel.openIssuesCount > 0),
+    showCallVendor:
+      attentionRequired && needsVendorOutreach && vendorPhone.length > 0,
+    showEmailVendor:
+      attentionRequired && needsVendorOutreach && vendorEmail.length > 0,
   };
 }
 
@@ -552,8 +719,12 @@ export function buildIssueSummaryPanelData(
       qty: item.qtyReceived,
     }));
 
-  const openMaterialCount = countOpenMaterialIssues(materialIssues);
-  const openIssuesCount = issueRows.length + openMaterialCount;
+  const openIssuesCount = countExceptionOpenIssues(
+    delivery,
+    items,
+    materialIssues,
+    issueRows,
+  );
   const openIssueExplanations = buildOpenIssueExplanations(
     delivery,
     items,

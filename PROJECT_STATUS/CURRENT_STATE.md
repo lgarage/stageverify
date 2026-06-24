@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-073** — Readiness model alignment (qty=0 partial gate; list filter computed readiness) + drawer clarity pass (Open Issues accordion; What Needs Attention banner)
+- Last shipped: **drawer clarity correction** — calm Waiting on Delivery for ORD-005; Open Issues accordion removed; exception-only issue counts and action banner
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -21,6 +21,7 @@
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)
 - Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` (on demand) | Queue: `away-list.json` + `NEXT.md`
+- Orchestration: Dan standing preference — parallel Composer 2.5 domain executors when paths are disjoint (`parallel-agent-strategy.mdc` § Dan standing preference)
 - Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md`
 - Validate memory: `npm run away:validate` | Archive: `archives/away-batch-3.json`
 

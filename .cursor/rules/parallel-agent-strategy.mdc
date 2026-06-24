@@ -43,6 +43,15 @@ Parallel scouts/planning is the **default** for independent read-only work. Para
 | **Building** | **Single executor**; domain executors only for disjoint paths within one item | Coordinator merges; workers do not ship |
 | **Ship** | **Serial** — coordinator only | One build/verify/commit/push/deploy per item |
 
+### Dan standing preference (parallel builders)
+
+When a **single task or away item** spans **≥2 clearly disjoint file domains**, **prefer** parallel **Composer 2.5** domain executors (up to 4) over one serial builder — Dan does not need to ask. This **amplifies** § File-ownership batches; it does **not** override **Building ≠ max parallel**: one domain, shared/coordinator-only paths, or overlap doubt → single executor inline.
+
+- Coordinator maps allowed/forbidden paths per executor, merges diffs, resolves shared types **serially**, then runs **one** ship loop (build → Playwright → commit → push → deploy).
+- Parallel scouts remain the default for independent read-only work.
+- Away queue stays **one item at a time**; parallel executors apply **inside** the current item only.
+- Hard stops unchanged (§ Hard stops): same-file edits, deploy parallel, away-items-against-each-other, `backend-write-critical` implementation parallel.
+
 ## When to parallelize (DEFAULT)
 
 Dispatch parallel scouts when **all** hold:

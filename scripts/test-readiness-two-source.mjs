@@ -10,6 +10,7 @@ import {
 import {
   computeDeliveryDisplayState,
   countOpenBlockingIssues,
+  buildDrawerActionBannerContent,
   buildIssueSummaryPanelData,
   sumItemQtyOrdered,
   sumItemQtyReceived,
@@ -274,6 +275,27 @@ assert(
     "Pending Delivery",
   "ORD-005 direct label Pending Delivery",
 );
+assert(
+  ord005Panel.openIssuesCount === 0,
+  "ORD-005 pending-not-delivered lines are not counted as open issues",
+);
+assert(
+  ord005Panel.issueRows.length === 3,
+  "ORD-005 item table still lists not-delivered rows",
+);
+const ord005Banner = buildDrawerActionBannerContent(
+  ord005Delivery,
+  ord005Items,
+  [],
+);
+assert(
+  ord005Banner.bannerMode === "calm_waiting",
+  "ORD-005 drawer banner is calm waiting (not urgent)",
+);
+assert(
+  ord005Banner.showCallVendor === false && ord005Banner.showEmailVendor === false,
+  "ORD-005 does not promote vendor contact for normal pending",
+);
 
 function zeroQtyItemsFromOrd005() {
   return ord005Items.map((item) => ({ ...item }));
@@ -403,6 +425,19 @@ assert(
     buildIssueSummaryPanelData(partialDelivery, partialItems, [])
       .itemsTotalCount === 3,
   "partial delivery unit counts 2 of 3",
+);
+const partialBanner = buildDrawerActionBannerContent(
+  partialDelivery,
+  partialItems,
+  [],
+);
+assert(
+  partialBanner.bannerMode === "attention_required",
+  "partial delivery with outstanding qty shows attention banner",
+);
+assert(
+  buildIssueSummaryPanelData(partialDelivery, partialItems, []).openIssuesCount === 1,
+  "partial outstanding row counts as one exception issue",
 );
 
 const staleOpenIssueDelivery = {

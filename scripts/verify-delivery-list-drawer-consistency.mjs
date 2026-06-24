@@ -63,6 +63,7 @@ function record(name, pass, detail = "") {
   const banner = page.getByTestId("drawer-action-banner");
   await banner.waitFor({ timeout: 15_000 });
   const heading = (await page.getByTestId("drawer-action-banner-heading").innerText()).trim();
+  const headingNormalized = heading.toLowerCase();
   record("Drawer action banner visible", true, heading);
 
   const listStatus = (
@@ -143,11 +144,28 @@ function record(name, pass, detail = "") {
     record("ORD-005 row present in deliveries table", false);
   }
 
-  if (heading === "All Clear") {
+  if (headingNormalized === "all clear") {
     record(
       "All Clear aligns with Ready for Pickup list label",
       listStatus === "Ready for Pickup",
       listStatus,
+    );
+  } else if (headingNormalized === "waiting on delivery") {
+    record(
+      "ORD-005 calm Waiting on Delivery banner (not urgent)",
+      (await ord005Row.count()) === 0 || listStatus === "Pending Delivery",
+      listStatus,
+    );
+    record(
+      "Calm banner is not What Needs Attention",
+      headingNormalized !== "what needs attention",
+      heading,
+    );
+    const bannerMode = await banner.getAttribute("data-banner-mode");
+    record(
+      "Calm pending uses calm_waiting banner mode",
+      bannerMode === "calm_waiting",
+      bannerMode ?? "",
     );
   } else {
     record(
@@ -157,7 +175,7 @@ function record(name, pass, detail = "") {
     );
     record(
       "Banner headline is What Needs Attention",
-      heading.toLowerCase() === "what needs attention",
+      headingNormalized === "what needs attention",
       heading,
     );
   }
@@ -193,12 +211,18 @@ function record(name, pass, detail = "") {
 
   const bodyText = await page.locator("body").innerText();
   const issueIndex = bodyText.indexOf("ISSUE SUMMARY");
-  const actionIndex = bodyText.indexOf(heading.toUpperCase());
+  const actionIndex = bodyText.indexOf(heading);
   const basicsIndex = bodyText.indexOf("DELIVERY BASICS");
   const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
 
+  const actionBannerLabel =
+    heading === "All Clear"
+      ? "ALL CLEAR"
+      : heading === "Waiting on Delivery"
+        ? "WAITING ON DELIVERY"
+        : heading.toUpperCase();
   record(
-    "Issue Summary precedes What Needs Attention",
+    "Issue Summary precedes action banner",
     issueIndex >= 0 && actionIndex > issueIndex,
     `issue@${issueIndex}, action@${actionIndex}`,
   );
@@ -217,38 +241,28 @@ function record(name, pass, detail = "") {
   record("Issue Summary has summary lines", lineCount >= 2, `${lineCount} lines`);
 
   const openIssuesToggle = page.getByTestId("issue-summary-open-issues-toggle");
-  if ((await ord005Row.count()) > 0 && (await openIssuesToggle.count()) > 0) {
+  record(
+    "Open Issues accordion removed from Issue Summary",
+    (await openIssuesToggle.count()) === 0,
+  );
+
+  if ((await ord005Row.count()) > 0) {
     record(
-      "ORD-005 shows expandable Open Issues toggle",
-      true,
-      await openIssuesToggle.innerText(),
-    );
-    const expandedBefore = await openIssuesToggle.getAttribute("aria-expanded");
-    record(
-      "Open Issues collapsed by default",
-      expandedBefore === "false",
-      `aria-expanded=${expandedBefore}`,
-    );
-    await openIssuesToggle.click();
-    await page.waitForTimeout(300);
-    const explanations = page.getByTestId("issue-summary-open-issues-list");
-    await explanations.waitFor({ timeout: 5_000 });
-    const explanationText = (await explanations.innerText()).trim();
-    record(
-      "ORD-005 expanded issues use dispatcher language",
-      explanationText.length > 0 &&
-        !/Not Delivered|vendor_order/.test(explanationText),
-      explanationText.slice(0, 120),
+      "ORD-005 has no Open Issues toggle",
+      (await openIssuesToggle.count()) === 0,
     );
     record(
-      "ORD-005 Resolve Issue disabled without blocking material issue",
-      !(await page.getByTestId("drawer-action-resolve-issue").isEnabled()),
+      "ORD-005 calm banner (Waiting on Delivery, not red urgent)",
+      headingNormalized === "waiting on delivery",
+      heading,
     );
-    const resolveHint = page.getByTestId("drawer-action-resolve-hint");
     record(
-      "Resolve Issue shows disabled reason",
-      (await resolveHint.count()) > 0,
-      (await resolveHint.innerText().catch(() => "")).slice(0, 80),
+      "ORD-005 Resolve Issue button hidden on calm pending",
+      (await page.getByTestId("drawer-action-resolve-issue").count()) === 0,
+    );
+    record(
+      "ORD-005 Call Vendor not shown for normal pending",
+      (await page.getByTestId("drawer-action-call-vendor").count()) === 0,
     );
   }
 
@@ -313,10 +327,14 @@ function record(name, pass, detail = "") {
   }
 
   await page.screenshot({
-    path: resolve(screenshotDir, "drawer-after-away-072.png"),
+    path: resolve(screenshotDir, "drawer-after-away-073-correction.png"),
     fullPage: false,
   });
-  record("Drawer screenshot saved", true, "screenshots/delivery-drawer/drawer-after-away-072.png");
+  record(
+    "Drawer screenshot saved",
+    true,
+    "screenshots/delivery-drawer/drawer-after-away-073-correction.png",
+  );
 
   await browser.close();
 
