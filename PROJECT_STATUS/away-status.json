@@ -482,7 +482,7 @@
       "id": "away-073",
       "title": "Readiness model alignment — qty=0 cannot persist as partial",
       "status": "built",
-      "commit": "55ec8ff",
+      "commit": "474f334",
       "note": "Client+CF deliveryStatus promotion: partial only when anyReceived>0; submitCheckin gated; test:readiness + test:evidence-alignment PASS; CF deployed"
     }
   ],
