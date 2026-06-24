@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-23",
+  "lastRun": "2026-06-24",
   "batch": "away-001..041 archived; active queue away-042+",
   "results": [
     {
@@ -478,20 +478,34 @@
       "commit": "cc19045",
       "note": "Issue Summary top; Action Required deduped; section reorder; verify:delivery-consistency + verify:dispatcher-nav PASS"
     },
-{
-  "id": "away-073",
-  "title": "Readiness model alignment — qty=0 cannot persist as partial",
-  "status": "built",
-  "commit": "5ba4e0f",
-  "note": "474f334 CF+client partial gate; 4cf65a8 unit counts + Pending Delivery; 5ba4e0f list filter computed readiness + demo matrix; test:readiness + verify:delivery-consistency PASS; CF deployed"
-},
-{
-  "id": "away-074",
-  "title": "Copy Pickup Information token validity repair",
-  "status": "built",
+    {
+      "id": "away-073",
+      "title": "Readiness model alignment — qty=0 cannot persist as partial",
+      "status": "built",
+      "commit": "5ba4e0f",
+      "note": "474f334 CF+client partial gate; 4cf65a8 unit counts + Pending Delivery; 5ba4e0f list filter computed readiness + demo matrix; test:readiness + verify:delivery-consistency PASS; CF deployed"
+    },
+    {
+      "id": "away-074",
+      "title": "Copy Pickup Information token validity repair",
+      "status": "built",
       "commit": "8168668",
-  "note": "Validate sessionStorage token before copy reuse; fresh generate when stale; PickupTokenControls regen hint; verify:dispatcher-nav ORD-005 token lifecycle PASS"
-}
+      "note": "Validate sessionStorage token before copy reuse; fresh generate when stale; PickupTokenControls regen hint; verify:dispatcher-nav ORD-005 token lifecycle PASS"
+    },
+    {
+      "id": "away-075",
+      "title": "Mini-librarian: planning path dedup (Action 2)",
+      "status": "built",
+      "commit": "2c48c4e",
+      "note": "Planning path dedup: away:next --minimal first, skip scouts when queue head answers, index-only dossier in scout table; suggestion-verify reuse clause"
+    },
+    {
+      "id": "away-076",
+      "title": "Mini-librarian: extend context-index for roadmap + project_state (Action 3)",
+      "status": "built",
+      "commit": "2c48c4e",
+      "note": "Context-index sections for roadmap NOW/NEXT/LATER + project_state slices; context-lookup line-range slicing; away:validate drift checks"
+    }
   ],
   "summary": "away-074 shipped; active queue away-075+ — see docs/project_state.md immediate next steps"
 }

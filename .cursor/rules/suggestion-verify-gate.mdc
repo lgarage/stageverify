@@ -22,6 +22,8 @@ Skip for: pure code execution, typos, read-only answers already grounded in file
 
 ## Mandatory steps (Dan does not ask)
 
+**Reuse (planning turns):** If scout synthesis already cited source X this turn, do **not** re-read X unless a contradiction is suspected — trust scout paths/line ranges; spot-check only conflicting claims.
+
 1. **Cross-check** — read authoritative sources for the claim:
    - `PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`, root `NEXT.md`
    - `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`, `PROJECT_STATUS/away-list.json` (away/queue)

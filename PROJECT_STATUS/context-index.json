@@ -1,6 +1,62 @@
 {
-  "version": 1,
-  "description": "Concern → dossier tag / file pointers for npm run context:lookup -- --concern \"…\"",
+  "version": 2,
+  "description": "Concern → dossier tag / file / section slice pointers for npm run context:lookup -- --concern \"…\"",
+  "sections": [
+    {
+      "id": "roadmap-now",
+      "tags": ["roadmap-now", "now"],
+      "title": "Roadmap NOW (Phase 5 prototype)",
+      "file": "docs/roadmap.md",
+      "startLine": 50,
+      "endLine": 118,
+      "anchor": "## NOW (Phase 5 prototype)"
+    },
+    {
+      "id": "roadmap-next",
+      "tags": ["roadmap-next", "next"],
+      "title": "Roadmap NEXT",
+      "file": "docs/roadmap.md",
+      "startLine": 120,
+      "endLine": 235,
+      "anchor": "## NEXT"
+    },
+    {
+      "id": "roadmap-later",
+      "tags": ["roadmap-later", "later"],
+      "title": "Roadmap LATER",
+      "file": "docs/roadmap.md",
+      "startLine": 237,
+      "endLine": 302,
+      "anchor": "## LATER"
+    },
+    {
+      "id": "project-state-current-phase",
+      "tags": ["current-phase", "active-phase"],
+      "title": "Current Phase",
+      "file": "docs/project_state.md",
+      "startLine": 37,
+      "endLine": 87,
+      "anchor": "## Current Phase"
+    },
+    {
+      "id": "project-state-known-issues",
+      "tags": ["known-issues", "blockers"],
+      "title": "Known Issues",
+      "file": "docs/project_state.md",
+      "startLine": 122,
+      "endLine": 132,
+      "anchor": "## Known Issues"
+    },
+    {
+      "id": "project-state-immediate-next",
+      "tags": ["immediate-next", "next-steps"],
+      "title": "Immediate Next Steps",
+      "file": "docs/project_state.md",
+      "startLine": 178,
+      "endLine": 185,
+      "anchor": "## Immediate Next Steps"
+    }
+  ],
   "concerns": [
     {
       "concern": "vendor receive",
@@ -44,6 +100,36 @@
       "dossierTags": [],
       "files": ["PROJECT_STATUS/away-list.json", "PROJECT_STATUS/CURRENT_STATE.md"],
       "command": "npm run away:next"
+    },
+    {
+      "concern": "roadmap now",
+      "aliases": ["now", "phase 5 prototype", "roadmap phase 5"],
+      "sectionTags": ["roadmap-now"]
+    },
+    {
+      "concern": "roadmap next",
+      "aliases": ["next phase", "phase 3 roadmap"],
+      "sectionTags": ["roadmap-next"]
+    },
+    {
+      "concern": "roadmap later",
+      "aliases": ["later phases", "deferred roadmap"],
+      "sectionTags": ["roadmap-later"]
+    },
+    {
+      "concern": "current phase",
+      "aliases": ["active phase", "project phase"],
+      "sectionTags": ["current-phase"]
+    },
+    {
+      "concern": "known issues",
+      "aliases": ["blockers", "open issues"],
+      "sectionTags": ["known-issues"]
+    },
+    {
+      "concern": "immediate next steps",
+      "aliases": ["next steps", "project next"],
+      "sectionTags": ["immediate-next"]
     }
   ]
 }

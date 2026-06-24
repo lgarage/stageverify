@@ -18,7 +18,7 @@ import {
   renderNextMd,
   writeText,
 } from "./lib/away-memory-lib.mjs";
-import { loadDossierIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
+import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
 
 const errors = [];
 const warnings = [];
@@ -238,6 +238,16 @@ function validateDossierIndexRanges() {
   }
 }
 
+function validateContextIndexRanges() {
+  try {
+    const index = loadContextIndex();
+    const drift = validateContextIndex(index);
+    for (const msg of drift) warn(`context-index: ${msg}`);
+  } catch (err) {
+    fail(`context-index.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function main() {
   const list = validateAwayList();
   const archive = readJson(PATHS.awayArchive);
@@ -252,6 +262,7 @@ function main() {
   validateMemoryMd();
   validatePackageScripts();
   validateDossierIndexRanges();
+  validateContextIndexRanges();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);
   if (errors.length) {

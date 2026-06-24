@@ -2,12 +2,14 @@
 /**
  * Generic concern → index slice lookup (mini Librarian Indexer v1).
  * Run: npm run context:lookup -- --concern "vendor receive"
+ *      npm run context:lookup -- --concern "roadmap now"
  *      npm run context:lookup -- --list
  */
 import fs from "node:fs";
 import {
-  CONTEXT_INDEX_PATH,
   findByTag,
+  findSectionByTag,
+  loadContextIndex,
   loadDossierIndex,
   sliceEntry,
 } from "./lib/dossier-index-lib.mjs";
@@ -26,21 +28,21 @@ function matchesConcern(query, row) {
   return false;
 }
 
+/** @param {{ concerns: object[] }} contextIndex */
 function printList(contextIndex) {
   console.log("Context index — concerns:\n");
   for (const row of contextIndex.concerns) {
     const tags = (row.dossierTags ?? []).join(", ") || "(files only)";
-    console.log(`  ${row.concern.padEnd(22)} tags: ${tags}`);
+    const sections = (row.sectionTags ?? []).join(", ");
+    const extra = sections ? ` | sections: ${sections}` : "";
+    console.log(`  ${row.concern.padEnd(22)} tags: ${tags}${extra}`);
   }
   console.log('\nUsage: npm run context:lookup -- --concern "vendor receive"');
+  console.log('       npm run context:lookup -- --concern "roadmap now"');
 }
 
 function main() {
-  if (!fs.existsSync(CONTEXT_INDEX_PATH)) {
-    console.error("context-index.json not found");
-    process.exit(1);
-  }
-  const contextIndex = readJson(CONTEXT_INDEX_PATH);
+  const contextIndex = loadContextIndex();
 
   if (args.includes("--list") || args.length === 0) {
     printList(contextIndex);
@@ -73,16 +75,31 @@ function main() {
   }
   console.log("");
 
+  const sections = contextIndex.sections ?? [];
+  const printedSections = new Set();
+  for (const tag of row.sectionTags ?? []) {
+    const entry = findSectionByTag(sections, tag);
+    if (!entry) {
+      console.warn(`WARN: section tag not in index: ${tag}`);
+      continue;
+    }
+    if (printedSections.has(entry.id)) continue;
+    printedSections.add(entry.id);
+    console.log(`--- ${entry.file}:${entry.startLine}-${entry.endLine} (${entry.id}) ---`);
+    console.log(sliceEntry(entry));
+    console.log("");
+  }
+
   const dossierIndex = loadDossierIndex();
-  const printed = new Set();
+  const printedDossier = new Set();
   for (const tag of row.dossierTags ?? []) {
     const entry = findByTag(dossierIndex, tag);
     if (!entry) {
       console.warn(`WARN: dossier tag not in index: ${tag}`);
       continue;
     }
-    if (printed.has(entry.id)) continue;
-    printed.add(entry.id);
+    if (printedDossier.has(entry.id)) continue;
+    printedDossier.add(entry.id);
     console.log(`--- ${entry.file}:${entry.startLine}-${entry.endLine} (${entry.id}) ---`);
     console.log(sliceEntry(entry));
     console.log("");

@@ -16,6 +16,11 @@ export function loadDossierIndex() {
   return readJson(DOSSIER_INDEX_PATH);
 }
 
+/** @returns {{ version: number, sections?: DossierEntry[], concerns: object[] }} */
+export function loadContextIndex() {
+  return readJson(CONTEXT_INDEX_PATH);
+}
+
 /**
  * @typedef {{ id: string, tags: string[], title: string, file: string, startLine: number, endLine: number, anchor?: string, section?: string }} DossierEntry
  */
@@ -84,6 +89,26 @@ export function validateDossierIndex(index) {
     warnings.push(...validateEntryRange(entry));
   }
   return warnings;
+}
+
+/** @param {{ sections?: DossierEntry[] }} contextIndex */
+export function validateContextIndex(contextIndex) {
+  /** @type {string[]} */
+  const warnings = [];
+  for (const entry of contextIndex.sections ?? []) {
+    warnings.push(...validateEntryRange(entry));
+  }
+  return warnings;
+}
+
+/** @param {DossierEntry[]} sections @param {string} tag */
+export function findSectionByTag(sections, tag) {
+  return sections.find((e) => (e.tags ?? []).includes(tag)) ?? null;
+}
+
+/** @param {DossierEntry[]} sections @param {string} id */
+export function findSectionById(sections, id) {
+  return sections.find((e) => e.id === id) ?? null;
 }
 
 /** @param {{ entries: DossierEntry[] }} index @param {string} tag */

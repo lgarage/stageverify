@@ -75,15 +75,17 @@ Split multi-domain investigations by domain — one scout per domain, same turn.
 
 **Default:** dispatch **2–4 parallel scouts in one message** (`subagent_type: "explore"`, `readonly: true`). Do not wait for Dan to ask for parallel.
 
-**Skip scouts only when** both hold:
-1. `away-list.json` queue is **trivially empty** (no queued items, no draft additions), **and**
-2. Dan asked a **yes/no only** question (not "what should I work on?")
+**Skip scouts when** any hold (answer from queue head — no 2–4 scout fan-out):
+1. Dan asks a narrow **"what's next to build?"** and **`npm run away:next -- --minimal`** returns a non-empty queue head that answers the question — present from that JSON only.
+2. `away-list.json` queue is **trivially empty** (no queued items, no draft additions) **and** Dan asked a **yes/no only** question (not "what should I work on?").
+
+**Always run Scout A first (inline or alone)** before fan-out: `npm run away:next -- --minimal`. Expand to B–D scouts only when the minimal brief is empty, blocked, or the question needs roadmap/blockers/code-gaps/verify coverage beyond the queue head.
 
 ### Scout domains (stageverify)
 
 | Scout | Domain | Read / run |
 |-------|--------|------------|
-| **A — Queue & hot state** | Authoritative "what's next" | `PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`, root `NEXT.md`, `PROJECT_STATUS/away-list.json`; run or read output of `npm run away:next`, `npm run away:plan`, and `npm run away:validate` when checking drift |
+| **A — Queue & hot state** | Authoritative "what's next" | **First:** `npm run away:next -- --minimal`; expand to `CURRENT_STATE.md`, `MEMORY.md`, root `NEXT.md`, `away-list.json` only if minimal brief is empty/blocked. **MODEL_DOSSIER:** index only (lines 7–23) + exactly one § by tag match — never load full dossier or § session confidence / outcome log for planning scouts |
 | **B — Roadmap & blockers** | Planned work + constraints | `docs/roadmap.md`, `docs/project_state.md`, Active Blockers in CURRENT_STATE, `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` |
 | **C — Code gaps** | Open implementation work | Grep `TODO`/`FIXME`/`TBD` in `src/`; Phase markers in code; unfinished routes or stubs |
 | **D — Verify coverage** *(optional)* | Test gaps | `scripts/verify-*.mjs`, `package.json` verify scripts vs public/protected routes; missing Playwright gates per `composer-orchestrator.mdc` |

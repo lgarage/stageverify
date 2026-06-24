@@ -177,7 +177,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-075** — Mini-librarian planning path dedup (Action 2; away-075..076 token efficiency).
+1. **away-076** — Mini-librarian context-index for roadmap + project_state (Action 3; token efficiency).
 2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
@@ -185,6 +185,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ---
 
 ## Recently shipped (away)
+
+**away-075 (2026-06-23)** — Mini-librarian planning path dedup (Action 2): Scout A runs `away:next --minimal` first; skip scouts when queue head answers; index-only MODEL_DOSSIER in scout table; suggestion-verify reuse clause. Verify: `away:validate`.
 
 **away-074 (2026-06-23)** — Copy Pickup Information token validity: validate sessionStorage token via `validatePickupTokenClient` before reuse; generate fresh token when stale/revoked; drawer hint when active link exists without local plaintext; `verify:dispatcher-nav` ORD-005 copy/revoke/regen flow.
 
