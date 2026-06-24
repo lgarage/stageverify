@@ -178,7 +178,7 @@ function listStatusBadge(
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Picked Up") return STATUS_BADGE.picked_up;
   if (label === "Partial") return STATUS_BADGE.partial;
-  if (label === "Awaiting Vendor Delivery") {
+  if (label === "Pending Delivery" || label === "Awaiting Vendor Delivery") {
     return row.status === "shipped"
       ? STATUS_BADGE.shipped
       : STATUS_BADGE.pending;
@@ -1877,7 +1877,7 @@ function JobReadinessPanel({
     return null;
   }
 
-  const { readiness, deliveries, purchaseOrders } = breakdown;
+  const { readiness, deliveries, purchaseOrders, itemsByDelivery } = breakdown;
   const jobLabel = jobDispatchDisplayLabel(job, deliveries, readiness);
   const everythingReady = showEverythingReadyBadge(deliveries, readiness);
 
@@ -1887,6 +1887,7 @@ function JobReadinessPanel({
     label: deliveryReadinessDisplayLabel(
       delivery,
       readiness.deliveryResults[idx],
+      itemsByDelivery.get(delivery.id) ?? [],
     ),
   }));
 

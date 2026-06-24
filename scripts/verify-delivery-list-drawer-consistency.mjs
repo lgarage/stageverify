@@ -49,7 +49,11 @@ function record(name, pass, detail = "") {
     process.exit(1);
   }
 
-  await rows.first().click();
+  const ord005Row = page.locator("table tbody tr", { hasText: "ORD-005" });
+  const targetRow =
+    (await ord005Row.count()) > 0 ? ord005Row.first() : rows.first();
+
+  await targetRow.click();
   await page.waitForTimeout(1200);
 
   const issuePanel = page.getByTestId("issue-summary-panel");
@@ -62,9 +66,82 @@ function record(name, pass, detail = "") {
   record("Drawer action banner visible", true, heading);
 
   const listStatus = (
-    await rows.first().locator("td").first().innerText()
+    await targetRow.locator("td").first().innerText()
   ).trim();
   record("List status captured", listStatus.length > 0, listStatus);
+
+  const summaryLines = page.getByTestId("issue-summary-lines");
+  const lineTexts = await summaryLines.locator("li").allInnerTexts();
+  const deliveryStatusLine = lineTexts.find((line) =>
+    line.startsWith("Delivery Status:"),
+  );
+  const itemsReceivedLine = lineTexts.find((line) =>
+    line.includes("Items Received"),
+  );
+
+  if (deliveryStatusLine) {
+    const drawerStatus = deliveryStatusLine.replace("Delivery Status:", "").trim();
+    record(
+      "Drawer delivery status matches list status label",
+      drawerStatus === listStatus,
+      `list=${listStatus}, drawer=${drawerStatus}`,
+    );
+  } else {
+    record("Drawer delivery status line present", false);
+  }
+
+  if (itemsReceivedLine) {
+    const listItemsRecv = (
+      await targetRow.locator("td").nth(8).innerText()
+    ).trim();
+    const drawerMatch = itemsReceivedLine.match(/^(\d+) of (\d+) Items Received$/);
+    if (drawerMatch && /^\d+\/\d+$/.test(listItemsRecv)) {
+      const [listReceived, listTotal] = listItemsRecv.split("/");
+      record(
+        "Drawer item counts match list Items Recv. column",
+        drawerMatch[1] === listReceived && drawerMatch[2] === listTotal,
+        `list=${listItemsRecv}, drawer=${itemsReceivedLine}`,
+      );
+    } else {
+      record(
+        "Drawer/list item count formats comparable",
+        true,
+        `list=${listItemsRecv}, drawer=${itemsReceivedLine}`,
+      );
+    }
+  } else {
+    record("Drawer items received line present", false);
+  }
+
+  if ((await ord005Row.count()) > 0) {
+    const ord005ListStatus = listStatus;
+    const ord005StatusLine = deliveryStatusLine;
+    const ord005ItemsLine = itemsReceivedLine;
+
+    record(
+      "ORD-005 list status is Pending Delivery",
+      ord005ListStatus === "Pending Delivery",
+      ord005ListStatus,
+    );
+    record(
+      "ORD-005 drawer status matches list",
+      ord005StatusLine?.includes("Pending Delivery") === true &&
+        ord005ListStatus === "Pending Delivery",
+      ord005StatusLine ?? "",
+    );
+    record(
+      "ORD-005 drawer shows 0 of 9 Items Received",
+      ord005ItemsLine === "0 of 9 Items Received",
+      ord005ItemsLine ?? "",
+    );
+
+    await page.screenshot({
+      path: resolve(screenshotDir, "drawer-ord005-pending-delivery.png"),
+      fullPage: false,
+    });
+  } else {
+    record("ORD-005 row present in deliveries table", false);
+  }
 
   if (heading === "All Clear") {
     record(
@@ -102,7 +179,6 @@ function record(name, pass, detail = "") {
     `basics@${basicsIndex}, readiness@${readinessIndex}`,
   );
 
-  const summaryLines = page.getByTestId("issue-summary-lines");
   const lineCount = await summaryLines.locator("li").count();
   record("Issue Summary has summary lines", lineCount >= 3, `${lineCount} lines`);
 

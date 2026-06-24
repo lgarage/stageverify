@@ -18,6 +18,14 @@ export const READINESS_BLOCK_LABEL: Record<string, string> = {
 
 const OPEN_ISSUE_STATUSES = new Set(["open", "assigned"]);
 
+export function sumItemQtyOrdered(items: Item[]): number {
+  return items.reduce((sum, item) => sum + item.qtyOrdered, 0);
+}
+
+export function sumItemQtyReceived(items: Item[]): number {
+  return items.reduce((sum, item) => sum + item.qtyReceived, 0);
+}
+
 export function countOpenMaterialIssues(
   materialIssues?: MaterialIssue[],
 ): number {
@@ -74,7 +82,11 @@ export function computeDeliveryDisplayState(
     ...options,
     openBlockingIssueCount,
   });
-  const statusDisplayLabel = deliveryReadinessDisplayLabel(delivery, readiness);
+  const statusDisplayLabel = deliveryReadinessDisplayLabel(
+    delivery,
+    readiness,
+    items,
+  );
   const blockerLabels = buildBlockerLabels(
     delivery,
     items,
@@ -276,8 +288,8 @@ export function buildIssueSummaryPanelData(
     materialIssues,
     options,
   );
-  const itemsTotalCount = items.length;
-  const itemsReceivedCount = items.filter((item) => item.qtyReceived > 0).length;
+  const itemsTotalCount = sumItemQtyOrdered(items);
+  const itemsReceivedCount = sumItemQtyReceived(items);
 
   const issueRows: ItemIssueRow[] = [];
   for (const item of items) {

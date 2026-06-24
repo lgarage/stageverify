@@ -1,4 +1,4 @@
-import type { DeliveryOrder, Job } from "./models";
+import type { DeliveryOrder, Item, Job } from "./models";
 import type {
   DeliveryReadinessResult,
   JobReadinessResult,
@@ -8,6 +8,7 @@ import type {
 export function deliveryReadinessDisplayLabel(
   delivery: DeliveryOrder,
   readiness: DeliveryReadinessResult,
+  items: Item[] = [],
 ): string {
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return "Picked Up";
@@ -18,15 +19,27 @@ export function deliveryReadinessDisplayLabel(
   if (readiness.readyForPickup) {
     return "Ready for Pickup";
   }
-  if (delivery.status === "pending" || delivery.status === "shipped") {
-    return "Awaiting Vendor Delivery";
-  }
   if (delivery.status === "issue") {
     return "Issue / Review Required";
   }
-  if (delivery.status === "partial" || delivery.status === "arrived") {
+
+  const ordered = items.reduce((sum, item) => sum + item.qtyOrdered, 0);
+  const received = items.reduce((sum, item) => sum + item.qtyReceived, 0);
+
+  if (received > 0 && received < ordered) {
     return "Partial";
   }
+
+  if (
+    received === 0 &&
+    (delivery.status === "pending" ||
+      delivery.status === "shipped" ||
+      delivery.status === "arrived" ||
+      delivery.status === "partial")
+  ) {
+    return "Pending Delivery";
+  }
+
   return "Incomplete";
 }
 

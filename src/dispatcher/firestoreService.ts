@@ -383,6 +383,7 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveries: DeliveryOrder[];
     purchaseOrders: PurchaseOrder[];
     vendorsById: Map<string, Vendor>;
+    itemsByDelivery: Map<string, Item[]>;
   } | null> {
     const jobSnap = await getDoc(doc(db, "jobs", jobId));
     if (!jobSnap.exists()) return null;
@@ -413,7 +414,7 @@ export class FirestoreDataService implements DispatcherDataService {
     );
 
     const vendorsById = new Map(vendors.map((v) => [v.id, v]));
-    return { readiness, deliveries, purchaseOrders, vendorsById };
+    return { readiness, deliveries, purchaseOrders, vendorsById, itemsByDelivery };
   }
 
   async getDeliveryDetails(
