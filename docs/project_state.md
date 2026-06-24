@@ -186,6 +186,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Recently shipped (away)
 
+**Drawer clarity pass (2026-06-23)** — Dispatcher drawer top answers delivery/next-step questions: Issue Summary **Open Issues** accordion with dispatcher-readable explanations; **What Needs Attention** banner (headline + Why + Next Step bullets); Resolve Issue disabled with reason when no blocking material issue; Call/Email Vendor + Review Issues buttons. Display-only via `deliveryDisplayHelpers.ts` — no readiness/Firestore changes. Verify: `verify:delivery-consistency`, `test:readiness`, `test:demo-matrix`, `away:validate`.
+
 **away-073 (2026-06-23)** — Readiness model alignment: partial only when anyReceived>0 (client + CF `deliveryReadiness`); list filter/count uses computed readiness via `computeDeliveryDisplayState` (`5ba4e0f` wiring audit); unit-based display counts + Pending Delivery label (`4cf65a8`); demo matrix regression script. Verify: `test:readiness-two-source`, `test:demo-matrix`, `verify:delivery-consistency`. CF deployed.
 
 **away-072 (2026-06-23)** — Delivery drawer exception-management UX: new **Issue Summary** panel (status lines, color-coded issue table, collapsible Received Items); **Action Required** deduped (high-level blockers + Recommended Actions, no item-level missing list); section order Issue Summary → Action Required → Delivery Basics → Readiness Evidence → Material Issues → Vendor Communications. Reuses `deliveryDisplayHelpers.ts` shared truth. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`.

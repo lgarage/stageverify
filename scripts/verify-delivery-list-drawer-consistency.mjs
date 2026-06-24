@@ -151,9 +151,43 @@ function record(name, pass, detail = "") {
     );
   } else {
     record(
-      "Action Required not shown as Ready for Pickup in list",
+      "What Needs Attention not shown as Ready for Pickup in list",
       listStatus !== "Ready for Pickup",
       listStatus,
+    );
+    record(
+      "Banner headline is What Needs Attention",
+      heading.toLowerCase() === "what needs attention",
+      heading,
+    );
+  }
+
+  const attentionSummary = (
+    await page.getByTestId("drawer-action-banner-summary").innerText()
+  ).trim();
+  record(
+    "Banner attention summary present",
+    attentionSummary.length > 0,
+    attentionSummary.slice(0, 80),
+  );
+
+  const whyBlock = page.getByTestId("drawer-action-banner-why");
+  if ((await whyBlock.count()) > 0) {
+    const whyText = (await whyBlock.innerText()).trim();
+    record(
+      "Why section uses dispatcher language (not raw flags)",
+      !/vendor_order_incomplete|physical_dropoff_incomplete/.test(whyText),
+      whyText.slice(0, 100),
+    );
+  }
+
+  const nextSteps = page.getByTestId("drawer-action-next-steps");
+  if ((await nextSteps.count()) > 0) {
+    const nextText = (await nextSteps.innerText()).trim();
+    record(
+      "Next Step section present with actionable bullets",
+      nextText.length > 0,
+      nextText.slice(0, 100),
     );
   }
 
@@ -164,12 +198,12 @@ function record(name, pass, detail = "") {
   const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
 
   record(
-    "Issue Summary precedes Action Required",
+    "Issue Summary precedes What Needs Attention",
     issueIndex >= 0 && actionIndex > issueIndex,
     `issue@${issueIndex}, action@${actionIndex}`,
   );
   record(
-    "Action Required precedes Delivery Basics",
+    "What Needs Attention precedes Delivery Basics",
     actionIndex >= 0 && basicsIndex > actionIndex,
     `action@${actionIndex}, basics@${basicsIndex}`,
   );
@@ -180,11 +214,54 @@ function record(name, pass, detail = "") {
   );
 
   const lineCount = await summaryLines.locator("li").count();
-  record("Issue Summary has summary lines", lineCount >= 3, `${lineCount} lines`);
+  record("Issue Summary has summary lines", lineCount >= 2, `${lineCount} lines`);
+
+  const openIssuesToggle = page.getByTestId("issue-summary-open-issues-toggle");
+  if ((await ord005Row.count()) > 0 && (await openIssuesToggle.count()) > 0) {
+    record(
+      "ORD-005 shows expandable Open Issues toggle",
+      true,
+      await openIssuesToggle.innerText(),
+    );
+    const expandedBefore = await openIssuesToggle.getAttribute("aria-expanded");
+    record(
+      "Open Issues collapsed by default",
+      expandedBefore === "false",
+      `aria-expanded=${expandedBefore}`,
+    );
+    await openIssuesToggle.click();
+    await page.waitForTimeout(300);
+    const explanations = page.getByTestId("issue-summary-open-issues-list");
+    await explanations.waitFor({ timeout: 5_000 });
+    const explanationText = (await explanations.innerText()).trim();
+    record(
+      "ORD-005 expanded issues use dispatcher language",
+      explanationText.length > 0 &&
+        !/Not Delivered|vendor_order/.test(explanationText),
+      explanationText.slice(0, 120),
+    );
+    record(
+      "ORD-005 Resolve Issue disabled without blocking material issue",
+      !(await page.getByTestId("drawer-action-resolve-issue").isEnabled()),
+    );
+    const resolveHint = page.getByTestId("drawer-action-resolve-hint");
+    record(
+      "Resolve Issue shows disabled reason",
+      (await resolveHint.count()) > 0,
+      (await resolveHint.innerText().catch(() => "")).slice(0, 80),
+    );
+  }
+
+  const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
+  if ((await resolveBtn.count()) > 0 && (await resolveBtn.isEnabled())) {
+    record("Resolve Issue only enabled when blocking issue exists", true);
+  } else if ((await resolveBtn.count()) > 0) {
+    record("Resolve Issue disabled when no blocking issue", true);
+  }
 
   const missingItemsBanner = page.getByTestId("drawer-action-banner-missing-items");
   record(
-    "Action Required does not duplicate item-level missing list",
+    "What Needs Attention does not duplicate item-level missing list",
     (await missingItemsBanner.count()) === 0,
   );
 

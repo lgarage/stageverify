@@ -61,11 +61,11 @@ if (existsSync(envPath)) {
     timeout: 20_000,
   });
   const bannerText = await page.getByTestId("drawer-action-banner").innerText();
-  if (!/Action Required|All Clear/i.test(bannerText)) {
-    throw new Error(`Expected Action Required or All Clear banner: ${bannerText.slice(0, 200)}`);
+  if (!/What Needs Attention|All Clear/i.test(bannerText)) {
+    throw new Error(`Expected What Needs Attention or All Clear banner: ${bannerText.slice(0, 200)}`);
   }
-  if (/Blocking|missing|BLOCKING/i.test(bannerText)) {
-    console.log("PASS: Action Required banner shows blocking/missing context.");
+  if (/Blocking|missing|WHAT NEEDS|not ready/i.test(bannerText)) {
+    console.log("PASS: What Needs Attention banner shows blocking/missing context.");
   }
 
   const panel = page.getByTestId("material-issues-panel");
@@ -74,7 +74,7 @@ if (existsSync(envPath)) {
     const panelText = await panel.innerText();
     if (/BLOCKING/i.test(panelText)) {
       throw new Error(
-        "Blocking issues should appear in Action Required banner only, not Material Issues panel.",
+        "Blocking issues should appear in What Needs Attention banner only, not Material Issues panel.",
       );
     }
     console.log("PASS: Material Issues panel shows non-blocking or resolved only.");

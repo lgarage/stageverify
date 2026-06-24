@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **Drawer clarity pass** — expandable Open Issues + What Needs Attention banner (Why/Next Step); display-only helpers
+- Last shipped: **away-073** — Readiness model alignment (qty=0 partial gate; list filter computed readiness) + drawer clarity pass (Open Issues accordion; What Needs Attention banner)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps (away-069 Gmail reply sync next).
+- **away-074** — Mini-librarian slim execution packet (overnight batch; `npm run away:next`). Queued **away-074..076** — token efficiency per `LIBRARIAN_TOKEN_EFFICIENCY.md`.
 
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)

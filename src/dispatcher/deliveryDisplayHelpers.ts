@@ -233,8 +233,248 @@ export interface IssueSummaryPanelData {
   itemsReceivedCount: number;
   itemsTotalCount: number;
   openIssuesCount: number;
+  openIssueExplanations: OpenIssueExplanation[];
   issueRows: ItemIssueRow[];
   receivedItems: ReceivedItemRow[];
+}
+
+/** Dispatcher-readable open-issue line for Issue Summary accordion. */
+export interface OpenIssueExplanation {
+  id: string;
+  text: string;
+}
+
+const DISPATCHER_WHY_BY_BLOCK_REASON: Record<string, string> = {
+  vendor_order_incomplete: "Vendor has not confirmed this order is complete",
+  physical_dropoff_incomplete:
+    "Physical drop-off at the shop has not been confirmed",
+  staging_assignment_incomplete:
+    "Received items do not have a staging location assigned",
+  unresolved_blocking_issues: "Open blocking material issues must be resolved",
+  unresolved_damage: "Reported item damage has not been resolved",
+  unresolved_backorder: "One or more items are on backorder",
+};
+
+const DISPATCHER_NEXT_BY_BLOCK_REASON: Record<string, string> = {
+  vendor_order_incomplete:
+    "Call or email vendor to confirm order status and delivery schedule",
+  physical_dropoff_incomplete:
+    "Verify physical drop-off when material arrives; update received quantities",
+  staging_assignment_incomplete: "Assign a staging location for received items",
+  unresolved_blocking_issues:
+    "Resolve blocking material issues using Resolve Issue below",
+  unresolved_damage: "Review and resolve reported item damage with the vendor",
+  unresolved_backorder:
+    "Confirm backorder ETA or alternate sourcing with the vendor",
+};
+
+export interface DrawerActionBannerContent {
+  attentionHeadline: string;
+  whyBullets: string[];
+  nextStepBullets: string[];
+  resolveDisabledReason: string;
+  showReviewIssues: boolean;
+  showCallVendor: boolean;
+  showEmailVendor: boolean;
+}
+
+function explainItemIssueRow(row: ItemIssueRow): string {
+  if (row.status === "Not Delivered") {
+    return `${row.description} — none of ${row.qty} ordered unit${row.qty === 1 ? "" : "s"} received yet`;
+  }
+  if (row.status === "Partial Delivery") {
+    return `${row.description} — ${row.qty} unit${row.qty === 1 ? "" : "s"} still outstanding`;
+  }
+  if (row.status === "Backordered") {
+    return `${row.description} — ${row.qty} unit${row.qty === 1 ? "" : "s"} on backorder`;
+  }
+  return `${row.description} — ${row.status}`;
+}
+
+export function buildOpenIssueExplanations(
+  delivery: DeliveryOrder,
+  items: Item[],
+  materialIssues: MaterialIssue[] | undefined,
+  issueRows: ItemIssueRow[],
+  options?: ReadinessComputeOptions,
+): OpenIssueExplanation[] {
+  const display = computeDeliveryDisplayState(
+    delivery,
+    items,
+    materialIssues,
+    options,
+  );
+  const explanations: OpenIssueExplanation[] = [];
+  const seen = new Set<string>();
+
+  const push = (id: string, text: string) => {
+    if (seen.has(text)) return;
+    seen.add(text);
+    explanations.push({ id, text });
+  };
+
+  if (issueRows.length === 0) {
+    for (const reason of display.readiness.evidence.readinessBlockReasons) {
+      const text = DISPATCHER_WHY_BY_BLOCK_REASON[reason];
+      if (text) push(`reason-${reason}`, text);
+    }
+    const itemsReceivedCount = sumItemQtyReceived(items);
+    const itemsTotalCount = sumItemQtyOrdered(items);
+    if (itemsReceivedCount === 0 && itemsTotalCount > 0) {
+      push(
+        "no-material-received",
+        `No materials received at the shop yet (${itemsReceivedCount} of ${itemsTotalCount} units)`,
+      );
+    }
+  }
+
+  for (const row of issueRows) {
+    push(`item-${row.itemId}`, explainItemIssueRow(row));
+  }
+
+  if (materialIssues) {
+    for (const issue of materialIssues) {
+      if (!OPEN_ISSUE_STATUSES.has(issue.status)) continue;
+      const typeLabel = MATERIAL_ISSUE_TYPE_LABEL[issue.type];
+      const desc = issue.description?.trim();
+      push(
+        `material-${issue.id}`,
+        desc ? `${typeLabel}: ${desc}` : `${typeLabel} reported — needs review`,
+      );
+    }
+  }
+
+  return explanations;
+}
+
+export function buildDrawerActionBannerContent(
+  delivery: DeliveryOrder,
+  items: Item[],
+  materialIssues: MaterialIssue[] | undefined,
+  options?: {
+    emailReviewRequired?: boolean;
+    vendorPhone?: string;
+    vendorEmail?: string;
+  },
+  computeOptions?: ReadinessComputeOptions,
+): DrawerActionBannerContent {
+  const display = computeDeliveryDisplayState(
+    delivery,
+    items,
+    materialIssues,
+    computeOptions,
+  );
+  const panel = buildIssueSummaryPanelData(
+    delivery,
+    items,
+    materialIssues,
+    computeOptions,
+  );
+  const whyBullets: string[] = [];
+  const nextStepBullets: string[] = [];
+  const seenWhy = new Set<string>();
+  const seenNext = new Set<string>();
+
+  const pushWhy = (text: string) => {
+    if (seenWhy.has(text)) return;
+    seenWhy.add(text);
+    whyBullets.push(text);
+  };
+  const pushNext = (text: string) => {
+    if (seenNext.has(text)) return;
+    seenNext.add(text);
+    nextStepBullets.push(text);
+  };
+
+  if (options?.emailReviewRequired) {
+    pushWhy("Vendor email proposal needs dispatcher review");
+    pushNext("Review vendor email proposals in Vendor Communications");
+  }
+
+  for (const reason of display.readiness.evidence.readinessBlockReasons) {
+    const why = DISPATCHER_WHY_BY_BLOCK_REASON[reason];
+    const next = DISPATCHER_NEXT_BY_BLOCK_REASON[reason];
+    if (why) pushWhy(why);
+    if (next) pushNext(next);
+  }
+
+  if (
+    panel.itemsReceivedCount === 0 &&
+    panel.itemsTotalCount > 0 &&
+    display.readiness.evidence.readinessBlockReasons.includes(
+      "physical_dropoff_incomplete",
+    )
+  ) {
+    pushWhy(
+      `No materials received at the shop yet (${panel.itemsReceivedCount} of ${panel.itemsTotalCount} units)`,
+    );
+  }
+
+  for (const issue of openBlockingMaterialIssues(materialIssues)) {
+    const typeLabel = MATERIAL_ISSUE_TYPE_LABEL[issue.type];
+    const desc = issue.description?.trim();
+    pushWhy(
+      desc
+        ? `Blocking ${typeLabel.toLowerCase()}: ${desc}`
+        : `Blocking ${typeLabel.toLowerCase()} must be resolved`,
+    );
+    if (!seenNext.has("Resolve blocking material issues using Resolve Issue below")) {
+      pushNext("Resolve blocking material issues using Resolve Issue below");
+    }
+  }
+
+  for (const row of panel.issueRows) {
+    if (row.status === "Backordered") {
+      pushWhy(explainItemIssueRow(row));
+    }
+  }
+
+  if (
+    !delivery.stagingLocationId?.trim() &&
+    items.some((item) => item.qtyReceived > 0)
+  ) {
+    pushWhy("Received items do not have a staging location assigned");
+    pushNext("Assign a staging location for received items");
+  }
+
+  if (whyBullets.length === 0 && !display.readiness.readyForPickup) {
+    pushWhy(display.statusDisplayLabel);
+  }
+  if (nextStepBullets.length === 0 && !display.readiness.readyForPickup) {
+    pushNext("Review delivery readiness evidence and take corrective action");
+  }
+
+  const openBlockingIssueCount = display.openBlockingIssueCount;
+  let resolveDisabledReason: string;
+  if (openBlockingIssueCount > 0) {
+    resolveDisabledReason =
+      "Opens resolve flow for the first blocking material issue";
+  } else if (panel.openIssuesCount > 0) {
+    resolveDisabledReason =
+      "No blocking material issue — review open items below or contact vendor";
+  } else if (options?.emailReviewRequired) {
+    resolveDisabledReason =
+      "No material issue to resolve — review vendor email in Vendor Communications";
+  } else {
+    resolveDisabledReason = "No open blocking material issue to resolve";
+  }
+
+  const vendorPhone = options?.vendorPhone?.trim() ?? "";
+  const vendorEmail = options?.vendorEmail?.trim() ?? "";
+
+  return {
+    attentionHeadline: display.readiness.readyForPickup
+      ? "Review required before pickup"
+      : "Order not ready for pickup",
+    whyBullets,
+    nextStepBullets,
+    resolveDisabledReason,
+    showReviewIssues:
+      panel.openIssuesCount > 0 ||
+      openBlockingMaterialIssues(materialIssues).length > 0,
+    showCallVendor: vendorPhone.length > 0,
+    showEmailVendor: vendorEmail.length > 0,
+  };
 }
 
 export const ITEM_ISSUE_STATUS_COLOR: Record<ItemIssueDisplayStatus, string> = {
@@ -314,12 +554,20 @@ export function buildIssueSummaryPanelData(
 
   const openMaterialCount = countOpenMaterialIssues(materialIssues);
   const openIssuesCount = issueRows.length + openMaterialCount;
+  const openIssueExplanations = buildOpenIssueExplanations(
+    delivery,
+    items,
+    materialIssues,
+    issueRows,
+    options,
+  );
 
   return {
     deliveryStatusLabel: display.statusDisplayLabel,
     itemsReceivedCount,
     itemsTotalCount,
     openIssuesCount,
+    openIssueExplanations,
     issueRows,
     receivedItems,
   };

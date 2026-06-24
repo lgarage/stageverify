@@ -2685,6 +2685,11 @@ function DetailContent({
               ? () => openResolveModal(firstBlockingIssue)
               : undefined
           }
+          onReviewIssues={() => {
+            document
+              .querySelector('[data-testid="issue-summary-panel"]')
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
         />
         {renderDrawerSection(
           "Delivery Basics",

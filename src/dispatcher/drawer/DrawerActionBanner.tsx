@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { DeliveryDetails } from "../models";
 import {
-  buildRecommendedActions,
+  buildDrawerActionBannerContent,
   computeDeliveryDisplayState,
 } from "../deliveryDisplayHelpers";
 import {
@@ -20,11 +20,13 @@ export function DrawerActionBanner({
   navy,
   font,
   onResolveBlockingIssue,
+  onReviewIssues,
 }: {
   details: DeliveryDetails;
   navy: string;
   font: string;
   onResolveBlockingIssue?: () => void;
+  onReviewIssues?: () => void;
 }) {
   const [callVendorOpen, setCallVendorOpen] = useState(false);
 
@@ -34,6 +36,13 @@ export function DrawerActionBanner({
   const vendorEmail = vendor.email?.trim() ?? "";
   const vendorAddress = vendor.address?.trim() ?? "";
   const telHref = vendorPhone ? `tel:${telDigits(vendorPhone)}` : null;
+  const mailtoHref = vendorEmail
+    ? `mailto:${encodeURIComponent(vendorEmail)}?subject=${encodeURIComponent(
+        delivery.orderNumber
+          ? `Delivery ${delivery.orderNumber} — follow up`
+          : "Delivery follow up",
+      )}`
+    : null;
 
   const displayState = useMemo(
     () => computeDeliveryDisplayState(delivery, items, materialIssues),
@@ -87,18 +96,22 @@ export function DrawerActionBanner({
   }, [proposals, emailAutoApplied, delivery, items]);
 
   const hasBlockingIssues = displayState.openBlockingIssueCount > 0;
+  const canResolve = hasBlockingIssues && Boolean(onResolveBlockingIssue);
 
-  const blockerLabels = [...displayState.blockerLabels];
-  if (emailReviewRequired && !blockerLabels.includes("Vendor email needs review")) {
-    blockerLabels.unshift("Vendor email needs review");
-  }
+  const bannerContent = useMemo(
+    () =>
+      buildDrawerActionBannerContent(delivery, items, materialIssues, {
+        emailReviewRequired,
+        vendorPhone,
+        vendorEmail,
+      }),
+    [delivery, items, materialIssues, emailReviewRequired, vendorPhone, vendorEmail],
+  );
 
   const allClear =
     readiness.readyForPickup &&
     !emailReviewRequired &&
-    blockerLabels.length === 0;
-
-  const recommendedActions = buildRecommendedActions(blockerLabels);
+    displayState.blockerLabels.length === 0;
 
   return (
     <>
@@ -133,7 +146,7 @@ export function DrawerActionBanner({
                 color: allClear ? "#166534" : "#991b1b",
               }}
             >
-              {allClear ? "All Clear" : "Action Required"}
+              {allClear ? "All Clear" : "What Needs Attention"}
             </p>
             <p
               data-testid="drawer-action-banner-summary"
@@ -146,7 +159,7 @@ export function DrawerActionBanner({
             >
               {allClear
                 ? "Ready for Pickup — vendor order complete, physical complete, no blocking issues."
-                : displayState.statusDisplayLabel}
+                : bannerContent.attentionHeadline}
             </p>
           </div>
           {!allClear && (
@@ -169,23 +182,37 @@ export function DrawerActionBanner({
           )}
         </div>
 
-        {!allClear && blockerLabels.length > 0 && (
-          <ul
-            data-testid="drawer-action-banner-blockers"
-            style={{
-              margin: "0 0 10px",
-              paddingLeft: 18,
-              fontSize: 13,
-              color: "#7f1d1d",
-            }}
-          >
-            {blockerLabels.map((label) => (
-              <li key={label}>{label}</li>
-            ))}
-          </ul>
+        {!allClear && bannerContent.whyBullets.length > 0 && (
+          <div data-testid="drawer-action-banner-why">
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#991b1b",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Why
+            </p>
+            <ul
+              data-testid="drawer-action-banner-blockers"
+              style={{
+                margin: "0 0 10px",
+                paddingLeft: 18,
+                fontSize: 13,
+                color: "#7f1d1d",
+              }}
+            >
+              {bannerContent.whyBullets.map((label) => (
+                <li key={label}>{label}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
-        {!allClear && (
+        {!allClear && bannerContent.nextStepBullets.length > 0 && (
           <div data-testid="drawer-action-recommended-actions">
             <p
               style={{
@@ -197,9 +224,10 @@ export function DrawerActionBanner({
                 letterSpacing: "0.04em",
               }}
             >
-              Recommended Actions
+              Next Step
             </p>
             <ul
+              data-testid="drawer-action-next-steps"
               style={{
                 margin: "0 0 12px",
                 paddingLeft: 18,
@@ -207,7 +235,7 @@ export function DrawerActionBanner({
                 color: "#7f1d1d",
               }}
             >
-              {recommendedActions.map((action) => (
+              {bannerContent.nextStepBullets.map((action) => (
                 <li key={action}>{action}</li>
               ))}
             </ul>
@@ -222,65 +250,114 @@ export function DrawerActionBanner({
             <button
               type="button"
               data-testid="drawer-action-resolve-issue"
-              disabled={!hasBlockingIssues || !onResolveBlockingIssue}
-              title={
-                hasBlockingIssues
-                  ? "Open resolve flow for first blocking material issue"
-                  : "No open blocking material issues"
-              }
+              disabled={!canResolve}
+              title={canResolve ? bannerContent.resolveDisabledReason : bannerContent.resolveDisabledReason}
+              aria-describedby="drawer-action-resolve-hint"
               onClick={() => onResolveBlockingIssue?.()}
               style={{
                 padding: "7px 12px",
                 borderRadius: 6,
                 border: `1.5px solid ${navy}`,
-                backgroundColor: hasBlockingIssues ? navy : "#fff",
-                color: hasBlockingIssues ? "#fff" : "#9ca3af",
+                backgroundColor: canResolve ? navy : "#fff",
+                color: canResolve ? "#fff" : "#9ca3af",
                 fontSize: 12,
                 fontWeight: 700,
-                cursor: hasBlockingIssues && onResolveBlockingIssue ? "pointer" : "not-allowed",
+                cursor: canResolve ? "pointer" : "not-allowed",
                 fontFamily: font,
-                opacity: hasBlockingIssues ? 1 : 0.7,
+                opacity: canResolve ? 1 : 0.7,
               }}
             >
               Resolve Issue
             </button>
-            <button
-              type="button"
-              data-testid="drawer-action-call-vendor"
-              onClick={() => setCallVendorOpen(true)}
-              style={{
-                padding: "7px 12px",
-                borderRadius: 6,
-                border: `1.5px solid ${navy}`,
-                backgroundColor: "#fff",
-                color: navy,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: font,
-              }}
-            >
-              Call Vendor
-            </button>
+            {bannerContent.showReviewIssues && onReviewIssues && (
+              <button
+                type="button"
+                data-testid="drawer-action-review-issues"
+                onClick={() => onReviewIssues()}
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${navy}`,
+                  backgroundColor: "#fff",
+                  color: navy,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Review Issues
+              </button>
+            )}
+            {bannerContent.showCallVendor && (
+              <button
+                type="button"
+                data-testid="drawer-action-call-vendor"
+                onClick={() => setCallVendorOpen(true)}
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${navy}`,
+                  backgroundColor: "#fff",
+                  color: navy,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Call Vendor
+              </button>
+            )}
+            {bannerContent.showEmailVendor && mailtoHref && (
+              <a
+                href={mailtoHref}
+                data-testid="drawer-action-email-vendor"
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${navy}`,
+                  backgroundColor: "#fff",
+                  color: navy,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                  textDecoration: "none",
+                  display: "inline-block",
+                }}
+              >
+                Email Vendor
+              </a>
+            )}
           </div>
         )}
 
-        {!allClear && (
+        {!allClear && !canResolve && (
+          <p
+            id="drawer-action-resolve-hint"
+            data-testid="drawer-action-resolve-hint"
+            style={{
+              margin: "8px 0 0",
+              fontSize: 12,
+              color: "#9ca3af",
+              fontStyle: "italic",
+            }}
+          >
+            {bannerContent.resolveDisabledReason}
+          </p>
+        )}
+
+        {!allClear && bannerContent.showCallVendor && (
           <p
             data-testid="drawer-vendor-phone-line"
             style={{
               margin: "10px 0 0",
               fontSize: 12,
-              color: vendorPhone ? "#334155" : "#9ca3af",
+              color: "#334155",
             }}
           >
-            {vendorPhone ? (
-              <>Vendor phone: {vendorPhone}</>
-            ) : (
-              <span data-testid="drawer-vendor-phone-missing">
-                No vendor phone number saved
-              </span>
-            )}
+            Vendor phone: {vendorPhone}
           </p>
         )}
       </section>
