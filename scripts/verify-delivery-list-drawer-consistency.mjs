@@ -33,12 +33,49 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
   const actionIndex = bodyText.indexOf(heading);
   const basicsIndex = bodyText.indexOf("DELIVERY BASICS");
   const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
+  const actionButtons = page.getByTestId("drawer-action-buttons");
 
   record(
     `${label} — Delivery Basics precedes action banner`,
     basicsIndex >= 0 && actionIndex > basicsIndex,
     `basics@${basicsIndex}, action@${actionIndex}`,
   );
+
+  if ((await actionButtons.count()) > 0) {
+    const buttonsBox = await actionButtons.boundingBox();
+    const bannerBox = await page
+      .getByTestId("drawer-action-banner-heading")
+      .boundingBox();
+    record(
+      `${label} — action buttons precede action banner`,
+      Boolean(buttonsBox && bannerBox && buttonsBox.y < bannerBox.y),
+      `buttons y=${buttonsBox?.y ?? "?"}, banner y=${bannerBox?.y ?? "?"}`,
+    );
+    const display = await actionButtons.evaluate(
+      (el) => getComputedStyle(el).display,
+    );
+    record(
+      `${label} — action buttons use grid layout`,
+      display === "grid",
+      `display=${display}`,
+    );
+    const tokenControls = page.getByTestId("pickup-token-controls");
+    if ((await tokenControls.count()) > 0) {
+      const tokenBox = await tokenControls.boundingBox();
+      record(
+        `${label} — pickup link status below action buttons`,
+        Boolean(
+          buttonsBox &&
+            tokenBox &&
+            tokenBox.y >= buttonsBox.y + buttonsBox.height - 4,
+        ),
+        `buttons bottom=${buttonsBox ? buttonsBox.y + buttonsBox.height : "?"}, token y=${tokenBox?.y ?? "?"}`,
+      );
+    }
+  } else {
+    record(`${label} — action button grid present`, false);
+  }
+
   record(
     `${label} — Action banner precedes Issue Summary`,
     actionIndex >= 0 && issueIndex > actionIndex,
@@ -254,6 +291,27 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     basicsIndex >= 0 && actionIndex > basicsIndex,
     `basics@${basicsIndex}, action@${actionIndex}`,
   );
+
+  const actionButtons = page.getByTestId("drawer-action-buttons");
+  if ((await actionButtons.count()) > 0) {
+    const buttonsBox = await actionButtons.boundingBox();
+    const bannerBox = await page
+      .getByTestId("drawer-action-banner-heading")
+      .boundingBox();
+    record(
+      "Action buttons precede action banner",
+      Boolean(buttonsBox && bannerBox && buttonsBox.y < bannerBox.y),
+      `buttons y=${buttonsBox?.y ?? "?"}, banner y=${bannerBox?.y ?? "?"}`,
+    );
+    record(
+      "Action buttons use two-column grid",
+      (await actionButtons.evaluate((el) => getComputedStyle(el).display)) ===
+        "grid",
+    );
+  } else {
+    record("Action button grid present", false);
+  }
+
   record(
     "Action banner precedes Issue Summary",
     actionIndex >= 0 && issueIndex > actionIndex,
@@ -298,6 +356,18 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       "ORD-005 Show Vendor Check-In QR label",
       (await qrBtn.count()) > 0 &&
         (await qrBtn.innerText()).trim() === "Show Vendor Check-In QR",
+    );
+
+    const copyBtn = page.getByTestId("copy-pickup-information");
+    record(
+      "ORD-005 Copy Pickup Information label",
+      (await copyBtn.count()) > 0 &&
+        (await copyBtn.innerText()).trim() === "Copy Pickup Information",
+    );
+
+    record(
+      "ORD-005 Revoke hidden before active link",
+      (await page.getByTestId("revoke-pickup-link").count()) === 0,
     );
 
     record(

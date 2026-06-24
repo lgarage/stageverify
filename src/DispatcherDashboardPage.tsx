@@ -76,6 +76,64 @@ import {
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
 const NAVY = "#0a3161";
+
+const DRAWER_ACTION_BTN_BASE = {
+  borderRadius: 4,
+  padding: "8px 10px",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+  transition: "all 0.13s",
+  width: "100%",
+  textAlign: "center" as const,
+  boxSizing: "border-box" as const,
+};
+
+function drawerActionBtnMarkPickup(font: string, disabled: boolean) {
+  return {
+    ...DRAWER_ACTION_BTN_BASE,
+    fontFamily: font,
+    backgroundColor: "#e3f2fd",
+    color: "#1565c0",
+    border: "1.5px solid #90caf9",
+    cursor: disabled ? "wait" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+  };
+}
+
+function drawerActionBtnClearPickup(font: string, disabled: boolean) {
+  return {
+    ...DRAWER_ACTION_BTN_BASE,
+    fontFamily: font,
+    backgroundColor: "#fff",
+    color: NAVY,
+    border: `1.5px solid ${NAVY}`,
+    cursor: disabled ? "wait" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+  };
+}
+
+function drawerActionBtnVendorQr(font: string) {
+  return {
+    ...DRAWER_ACTION_BTN_BASE,
+    fontFamily: font,
+    backgroundColor: "#f5f3ff",
+    color: "#5b21b6",
+    border: "1.5px solid #c4b5fd",
+  };
+}
+
+function drawerActionBtnRevoke(font: string, disabled: boolean) {
+  return {
+    ...DRAWER_ACTION_BTN_BASE,
+    fontFamily: font,
+    backgroundColor: "#fff",
+    color: "#b91c1c",
+    border: "1.5px solid #b91c1c",
+    cursor: disabled ? "wait" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+  };
+}
 const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
@@ -1799,18 +1857,22 @@ function PagBtn({
 
 /* ─── Pickup token controls ──────────────────────────────────────────────── */
 
+type PickupTokenControlsRenderProps = {
+  hasActiveToken: boolean;
+  tokenBusy: boolean;
+  onRevoke: () => void;
+};
+
 function PickupTokenControls({
   jobId,
-  navy,
   font,
-  mutationLoading,
   refreshKey,
+  children,
 }: {
   jobId: string;
-  navy: string;
   font: string;
-  mutationLoading: boolean;
   refreshKey?: number;
+  children: (props: PickupTokenControlsRenderProps) => ReactNode;
 }) {
   const [statusLoading, setStatusLoading] = useState(true);
   const [tokenBusy, setTokenBusy] = useState(false);
@@ -1855,79 +1917,58 @@ function PickupTokenControls({
     }
   };
 
-  const buttonStyle = {
-    marginTop: 4,
-    backgroundColor: "#fff",
-    color: navy,
-    border: `1.5px solid ${navy}`,
-    borderRadius: 4,
-    padding: "6px 12px",
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: font,
-    alignSelf: "flex-start" as const,
-    transition: "all 0.13s",
-    opacity: mutationLoading || tokenBusy ? 0.7 : 1,
-  };
-
   return (
-    <div
-      data-testid="pickup-token-controls"
-      style={{ display: "flex", flexDirection: "column", gap: 4 }}
-    >
-      {statusLoading ? (
-        <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
-          Checking pickup link…
-        </span>
-      ) : hasActiveToken ? (
-        <>
-          <span
-            data-testid="pickup-token-active"
-            style={{ fontSize: 11, color: "#2e7d32", fontFamily: font }}
-          >
-            Active pickup link exists
-            {tokenExpiresAt
-              ? ` · expires ${new Date(tokenExpiresAt).toLocaleString()}`
-              : ""}
+    <>
+      {children({
+        hasActiveToken,
+        tokenBusy,
+        onRevoke: () => void handleRevoke(),
+      })}
+      <div
+        data-testid="pickup-token-controls"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          marginTop: 6,
+        }}
+      >
+        {statusLoading ? (
+          <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
+            Checking pickup link…
           </span>
-          {!readPickupTokenForJob(jobId) ? (
+        ) : hasActiveToken ? (
+          <>
             <span
-              data-testid="pickup-token-copy-regen-hint"
-              style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}
+              data-testid="pickup-token-active"
+              style={{ fontSize: 11, color: "#2e7d32", fontFamily: font }}
             >
-              Copy will generate a fresh secure link
+              Active pickup link exists
+              {tokenExpiresAt
+                ? ` · expires ${new Date(tokenExpiresAt).toLocaleString()}`
+                : ""}
             </span>
-          ) : null}
-        </>
-      ) : (
-        <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
-          No active pickup link
-        </span>
-      )}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {hasActiveToken ? (
-          <button
-            type="button"
-            data-testid="revoke-pickup-link"
-            disabled={mutationLoading || tokenBusy}
-            onClick={() => void handleRevoke()}
-            style={{
-              ...buttonStyle,
-              color: "#b91c1c",
-              borderColor: "#b91c1c",
-            }}
-          >
-            Revoke Pickup Link
-          </button>
+            {!readPickupTokenForJob(jobId) ? (
+              <span
+                data-testid="pickup-token-copy-regen-hint"
+                style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}
+              >
+                Copy will generate a fresh secure link
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
+            No active pickup link
+          </span>
+        )}
+        {tokenError ? (
+          <span style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}>
+            {tokenError}
+          </span>
         ) : null}
       </div>
-      {tokenError ? (
-        <span style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}>
-          {tokenError}
-        </span>
-      ) : null}
-    </div>
+    </>
   );
 }
 
@@ -1938,7 +1979,7 @@ function CopyPickupLinkButton({
   jobName,
   jobNumber,
   siteNumber,
-  navy,
+  navy: _navy,
   font,
   onTokenGenerated,
 }: {
@@ -2014,25 +2055,19 @@ function CopyPickupLinkButton({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
       <button
         type="button"
         data-testid="copy-pickup-information"
         disabled={busy}
         onClick={() => void handleCopy()}
         style={{
-          marginTop: 4,
+          ...DRAWER_ACTION_BTN_BASE,
           backgroundColor: copied ? "#e8f5e9" : "#fff",
-          color: copied ? "#2e7d32" : navy,
-          border: `1.5px solid ${copied ? "#a5d6a7" : navy}`,
-          borderRadius: 4,
-          padding: "6px 12px",
-          fontSize: 12,
-          fontWeight: 700,
+          color: "#2e7d32",
+          border: `1.5px solid ${copied ? "#a5d6a7" : "#2e7d32"}`,
           cursor: busy ? "wait" : "pointer",
           fontFamily: font,
-          alignSelf: "flex-start",
-          transition: "all 0.13s",
           opacity: busy ? 0.7 : 1,
         }}
       >
@@ -2571,17 +2606,28 @@ function DetailContent({
                 </div>
               )}
             </div>
+          </>,
+        )}
+        <PickupTokenControls
+          jobId={job.id}
+          font={font}
+          refreshKey={pickupTokenRefreshKey}
+        >
+          {({ hasActiveToken, tokenBusy, onRevoke }) => (
             <div
+              data-testid="drawer-action-buttons"
               style={{
-                display: "flex",
-                flexDirection: "column" as const,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
                 gap: 8,
+                width: "100%",
               }}
             >
-              {job.pickupScheduledAt && (
+              {job.pickupScheduledAt ? (
                 <span
                   data-testid="pickup-scheduled-badge"
                   style={{
+                    gridColumn: "1 / -1",
                     display: "inline-flex",
                     alignSelf: "flex-start",
                     alignItems: "center",
@@ -2598,27 +2644,18 @@ function DetailContent({
                 >
                   Pickup Scheduled
                 </span>
-              )}
+              ) : null}
               <button
                 type="button"
                 disabled={mutationLoading}
                 onClick={() =>
                   void onUpdateJobPickupScheduled(!job.pickupScheduledAt)
                 }
-                style={{
-                  backgroundColor: "#fff",
-                  color: navy,
-                  border: `1.5px solid ${navy}`,
-                  borderRadius: 4,
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: mutationLoading ? "wait" : "pointer",
-                  fontFamily: font,
-                  alignSelf: "flex-start",
-                  transition: "all 0.13s",
-                  opacity: mutationLoading ? 0.7 : 1,
-                }}
+                style={
+                  job.pickupScheduledAt
+                    ? drawerActionBtnClearPickup(font, mutationLoading)
+                    : drawerActionBtnMarkPickup(font, mutationLoading)
+                }
               >
                 {job.pickupScheduledAt
                   ? "Clear Pickup Scheduled"
@@ -2628,43 +2665,45 @@ function DetailContent({
                 type="button"
                 data-testid="show-vendor-checkin-qr"
                 onClick={() => setShowPrintLabel(true)}
-                style={{
-                  backgroundColor: "#fff",
-                  color: NAVY,
-                  border: `1.5px solid ${NAVY}`,
-                  borderRadius: 4,
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: font,
-                  alignSelf: "flex-start",
-                  transition: "all 0.13s",
-                }}
+                style={drawerActionBtnVendorQr(font)}
               >
                 Show Vendor Check-In QR
               </button>
-              <CopyPickupLinkButton
-                jobId={job.id}
-                jobName={job.jobName}
-                jobNumber={job.jobNumber}
-                siteNumber={job.siteNumber}
-                navy={navy}
-                font={font}
-                onTokenGenerated={() =>
-                  setPickupTokenRefreshKey((value) => value + 1)
-                }
-              />
-              <PickupTokenControls
-                jobId={job.id}
-                navy={navy}
-                font={font}
-                mutationLoading={mutationLoading}
-                refreshKey={pickupTokenRefreshKey}
-              />
+              <div
+                style={{
+                  gridColumn: hasActiveToken ? undefined : "1 / -1",
+                  minWidth: 0,
+                }}
+              >
+                <CopyPickupLinkButton
+                  jobId={job.id}
+                  jobName={job.jobName}
+                  jobNumber={job.jobNumber}
+                  siteNumber={job.siteNumber}
+                  navy={navy}
+                  font={font}
+                  onTokenGenerated={() =>
+                    setPickupTokenRefreshKey((value) => value + 1)
+                  }
+                />
+              </div>
+              {hasActiveToken ? (
+                <button
+                  type="button"
+                  data-testid="revoke-pickup-link"
+                  disabled={mutationLoading || tokenBusy}
+                  onClick={() => void onRevoke()}
+                  style={drawerActionBtnRevoke(
+                    font,
+                    mutationLoading || tokenBusy,
+                  )}
+                >
+                  Revoke Pickup Link
+                </button>
+              ) : null}
             </div>
-          </>,
-        )}
+          )}
+        </PickupTokenControls>
         <DrawerActionBanner
           details={details}
           navy={navy}
