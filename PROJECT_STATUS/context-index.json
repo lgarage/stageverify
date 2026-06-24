@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "description": "Concern → dossier tag / file pointers for npm run context:lookup -- --concern \"…\"",
+  "concerns": [
+    {
+      "concern": "vendor receive",
+      "aliases": ["receive", "vendor", "receiving", "pin gate"],
+      "dossierTags": ["qr-routing", "receive-deep-link", "agent-lessons"],
+      "files": ["src/pages/ReceivingPage.tsx", "src/scanRouting.ts"]
+    },
+    {
+      "concern": "pickup portal",
+      "aliases": ["pickup", "technician"],
+      "dossierTags": ["agent-lessons"],
+      "files": ["src/pages/PickupPortalPage.tsx"]
+    },
+    {
+      "concern": "qr scan",
+      "aliases": ["qr", "scan", "deep link", "camera"],
+      "dossierTags": ["qr-routing", "diagnose-before-tweak", "composer-trace"],
+      "files": ["src/scanRouting.ts", "src/receiveQrUrls.ts"]
+    },
+    {
+      "concern": "delivery display",
+      "aliases": ["list filter", "drawer", "readiness", "partial"],
+      "dossierTags": ["delivery-display-wiring"],
+      "files": ["src/dispatcher/deliveryDisplayHelpers.ts"]
+    },
+    {
+      "concern": "backend rules",
+      "aliases": ["firestore rules", "cloud function", "schema"],
+      "dossierTags": ["backend-critical", "billing"],
+      "files": ["firestore.rules", "functions/src/"]
+    },
+    {
+      "concern": "token efficiency",
+      "aliases": ["librarian", "indexer", "context packet"],
+      "dossierTags": ["index"],
+      "files": ["PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md", "PROJECT_STATUS/MEMORY.md"]
+    },
+    {
+      "concern": "away queue",
+      "aliases": ["what's next", "away batch", "sleep build"],
+      "dossierTags": [],
+      "files": ["PROJECT_STATUS/away-list.json", "PROJECT_STATUS/CURRENT_STATE.md"],
+      "command": "npm run away:next"
+    }
+  ]
+}

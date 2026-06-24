@@ -1,3 +1,20 @@
+## Mini Librarian Indexer (live)
+
+**Pattern:** index first → slice only what you need — never ingest whole markdown files to find one §.
+
+| Step | Command / file |
+| ---- | -------------- |
+| 1. Router | `PROJECT_STATUS/MEMORY.md` (hot tier STOP) |
+| 2. Dossier index | `PROJECT_STATUS/dossier-index.json` |
+| 3. Slice one § | `npm run dossier:slice -- --tag agent-lessons` or `--id qr-routing` |
+| 4. List tags | `npm run dossier:slice -- --list` |
+| 5. Concern lookup | `npm run context:lookup -- --concern "vendor receive"` |
+| 6. Drift check | `npm run away:validate` (warns on index ↔ file line drift) |
+
+Token-efficiency planning: `PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md`. Full ACES roles below remain deferred.
+
+---
+
 Knowledge System Hierarchy
 
 Librarian

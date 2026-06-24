@@ -18,6 +18,7 @@ import {
   renderNextMd,
   writeText,
 } from "./lib/away-memory-lib.mjs";
+import { loadDossierIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
 
 const errors = [];
 const warnings = [];
@@ -222,6 +223,19 @@ function validatePackageScripts() {
   if (!scripts["away:plan"]) {
     fail("package.json: missing away:plan script");
   }
+  if (!scripts["dossier:slice"]) {
+    fail("package.json: missing dossier:slice script");
+  }
+}
+
+function validateDossierIndexRanges() {
+  try {
+    const index = loadDossierIndex();
+    const drift = validateDossierIndex(index);
+    for (const msg of drift) warn(`dossier-index: ${msg}`);
+  } catch (err) {
+    fail(`dossier-index.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 function main() {
@@ -237,6 +251,7 @@ function main() {
   validateRoadmap();
   validateMemoryMd();
   validatePackageScripts();
+  validateDossierIndexRanges();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);
   if (errors.length) {

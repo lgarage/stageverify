@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **readiness persistence wiring** — staging recalc after assign; blocking issue demotes status; live issue labels
+- Last shipped: **away-073** — Readiness model alignment (qty=0 partial gate; list filter computed readiness)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -19,7 +19,7 @@
 - **Post-queue:** see `docs/project_state.md` immediate next steps (away-069 Gmail reply sync next).
 
 ## Canonical references
-- **Librarian mini:** MEMORY.md router + `away:next` packet + `away:validate`
+- **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)
 - Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` (on demand) | Queue: `away-list.json` + `NEXT.md`
 - Phase: `docs/project_state.md` | Roadmap: `docs/roadmap.md` | Warm: `MODEL_DOSSIER.md`
 - Validate memory: `npm run away:validate` | Archive: `archives/away-batch-3.json`

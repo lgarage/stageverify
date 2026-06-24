@@ -9,7 +9,7 @@
 | 1 | `PROJECT_STATUS/CURRENT_STATE.md` | Always first — phase, blockers, last shipped |
 | 2 | `PROJECT_STATUS/MEMORY.md` | Router + narrow "what's next" (this file) |
 
-**On demand (not session start):** `svscope_simple.md` (scope disputes) · `npm run away:next` · `MODEL_DOSSIER.md` § agent-lessons (pickup/receive/vendor).
+**On demand (not session start):** `svscope_simple.md` (scope disputes) · `npm run away:next` · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
 
 ## “What’s next to build?” (narrow — mandatory)
 
@@ -62,3 +62,5 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Delivery display / list-drawer consistency | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` + `test:demo-matrix` | List status, Partial/Pending Delivery, unit counts, filter bugs |
 | Readiness model / CF alignment | `readiness.ts`, `functions/src/deliveryReadiness.ts`, `test-readiness-two-source` | partial @ qty=0, stale persisted vs computed |
 | Readiness wiring audit | `archives/readiness-wiring-audit-2026-06-23.md` | RCA, stale status risks, away-072/073 context |
+| **Indexer (dossier §)** | `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` | MODEL_DOSSIER by tag — never ingest full dossier |
+| Token efficiency | `LIBRARIAN_TOKEN_EFFICIENCY.md` | Librarian ROI / index-first planning |

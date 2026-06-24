@@ -6,6 +6,8 @@
 
 ## Index
 
+> **Index-first:** `npm run dossier:slice -- --tag <tag>` — do not read this full file for one §.
+
 | Tag | Open when task touches… | One-line rule |
 |-----|-------------------------|---------------|
 | `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in Receive/Pickup; vendor UI is **only** `ReceivingPage` (`/#/receive`) |
