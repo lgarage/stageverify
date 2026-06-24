@@ -12,5 +12,16 @@
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
     "sequence": []
   },
-  "queue": []
+  "queue": [
+    {
+      "id": "away-069",
+      "title": "Phase 6 slice 3: Gmail reply sync / watch (spec only)",
+      "status": "blocked",
+      "dependsOn": "away-068",
+      "scope": "Gmail push/watch + inbound reply thread sync to Vendor Communications drawer. SPEC ONLY — do not implement until Dan queues and approves. Not blocked by ESL/shop map.",
+      "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
+      "tier": "T3",
+      "verifyBeforeNext": []
+    }
+  ]
 }

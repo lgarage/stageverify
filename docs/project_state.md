@@ -4,7 +4,7 @@
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
 > **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` — end-to-end product design; all features and agent work must align with scope § there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
 > **Maintained by:** Composer 2.5 (update after major milestones)
-> **Last reviewed:** 2026-06-18
+> **Last reviewed:** 2026-06-23
 
 ---
 
@@ -184,6 +184,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ---
 
 ## Recently shipped (away)
+
+**away-073 (2026-06-23)** — Readiness model alignment: partial only when anyReceived>0 (client + CF `deliveryReadiness`); list filter/count uses computed readiness via `computeDeliveryDisplayState` (`5ba4e0f` wiring audit); unit-based display counts + Pending Delivery label (`4cf65a8`); demo matrix regression script. Verify: `test:readiness-two-source`, `test:demo-matrix`, `verify:delivery-consistency`. CF deployed.
 
 **away-072 (2026-06-23)** — Delivery drawer exception-management UX: new **Issue Summary** panel (status lines, color-coded issue table, collapsible Received Items); **Action Required** deduped (high-level blockers + Recommended Actions, no item-level missing list); section order Issue Summary → Action Required → Delivery Basics → Readiness Evidence → Material Issues → Vendor Communications. Reuses `deliveryDisplayHelpers.ts` shared truth. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`.
 

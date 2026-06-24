@@ -17,6 +17,7 @@
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
 | `billing` | model / tier pick | Composer 2.5 default; Sonnet 4.6 for gate/review only |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
+| `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
 | `composer-trace` | 2nd fix failed, “still broken”, QR/scan/async | **§ Composer without Sonnet** — self-trace before more code or Sonnet |
 
@@ -56,6 +57,18 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 11. **Away batches:** follow `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` — orchestrator runs verify; parallel scouts read-only only.
 11. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
+
+## § delivery-display-wiring (2026-06-23 — away-072/073 arc)
+
+Hard-won rules — **read before list/drawer/filter readiness edits.**
+
+1. **List + drawer + filters use computed readiness** — `computeDeliveryDisplayState` / `deliveryDisplayHelpers.ts`; never raw `delivery.status` alone for Partial/Pending/Ready labels.
+2. **Unit counts (sum qty), not line counts** — received/total and partial progress are quantity-based (`4cf65a8`).
+3. **Partial only when anyReceived > 0** — qty=0 cannot persist or display as partial (`away-073`; client + CF alignment).
+4. **Live `materialIssues` override stale `openBlockingIssueCount`** — drawer/list blockers must reflect unresolved issues, not stale denormalized counts.
+5. **Verify before ship:** `npm run verify:delivery-consistency`, `npm run test:readiness-two-source`, `npm run test:demo-matrix`.
+
+**Known gap (stale status audit):** staging assignment without immediate readiness recalc can leave persisted status ahead of computed state — treat list filter fix (`5ba4e0f`) as UI guard; CF recalc on assign still TBD.
 
 ### Diagnose before tweak (2026-06-02 QR)
 

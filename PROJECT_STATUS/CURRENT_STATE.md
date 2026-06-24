@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **wiring audit** — delivery list filter/count uses computed readiness status (not stale persisted); demo matrix regression script; ORD-004 seed aligned to partial; away-073 CF redeployed
+- Last shipped: **away-073** — partial only when qtyReceived>0; list filter computed readiness; demo matrix script
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

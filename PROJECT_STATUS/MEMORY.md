@@ -17,7 +17,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 
 - Do **not** infer the next build item from `docs/roadmap.md` LATER/NEXT narrative sections.
 - Optional work sizing: `npm run away:preflight` (runs queued item `verifyBeforeNext`).
-- **Full program status** (Phase 3/4 gaps, LATER phases): separate question — then read `roadmap.md` + `project_state.md`.
+- **Full program status** (Phase 3/4+, LATER): separate question — read `roadmap.md` + `project_state.md`.
 
 ## Away / sleep workflow (mandatory — 4 phases)
 
@@ -29,8 +29,6 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | **Approve** | Dan says `go build it` (or similar) | Confirm scope; only then queue approved drafts |
 | **Queue** | After approval | Add approved items to `away-list.json` |
 | **Execute** | Queue ready | `npm run away:batch` — verify → `away:ship` → `away:validate` per item; halt on fail |
-
-Long batch (≥3 items) is Dan's default. If `batchSize` < 3 at plan time, use `suggestedAdditions` as drafts only.
 
 ## Authority chain (phase truth)
 
@@ -53,17 +51,14 @@ Long batch (≥3 items) is Dan's default. If `batchSize` < 3 at plan time, use `
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
 | Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
+| ACES / Librarian (deferred) | `docs/aecs/librarian-plan.md` | Meta only when Dan asks |
 
-## ACES / meta (deferred)
+## Blockers & on-demand routes
 
-| Concern | File | When |
-| ------- | ---- | ---- |
-| Full Librarian vision | `docs/aecs/librarian-plan.md` | Target ACES hierarchy — not built; mini = this file + `away:validate` |
-| ACES prototype | `aecs/README.md` | Control-plane meta-work only when Dan asks |
-
-## Blockers & hardware
-
-| Concern | File | When |
-| ------- | ---- | ---- |
+| Concern | File / command | When |
+| ------- | -------------- | ---- |
 | ESL / Minew | `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only in repo |
 | Nav / scope rejections | `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
+| Delivery display / list-drawer consistency | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` + `test:demo-matrix` | List status, Partial/Pending Delivery, unit counts, filter bugs |
+| Readiness model / CF alignment | `readiness.ts`, `functions/src/deliveryReadiness.ts`, `test-readiness-two-source` | partial @ qty=0, stale persisted vs computed |
+| Readiness wiring audit | `archives/readiness-wiring-audit-2026-06-23.md` | RCA, stale status risks, away-072/073 context |

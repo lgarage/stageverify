@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-06-18 (librarian Tier 1 tighten — validate v2, away:preflight, roadmap sync)
+> **Last updated:** 2026-06-23 (librarian memory sync — away-072/073 readiness display, Phase 6 OAuth/send)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
@@ -255,7 +255,9 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
-- **OAuth connect (away-067):** Gmail OAuth CFs + Settings Connect/Disconnect; `emailProviderConnections/gmail` metadata; refresh tokens admin-only; Email Vendor stays disabled until send CF
+- **OAuth connect (away-067):** ✅ Shipped — Gmail OAuth CFs + Settings Connect/Disconnect; `emailProviderConnections/gmail` metadata; refresh tokens admin-only
+- **Outbound send (away-068):** ✅ Shipped — `sendVendorEmail` CF (Gmail API); Email Vendor enabled in Resolve Issue when `emailProviderConnected`; outbound `vendorEmailEvents` audit
+- **Drawer/readiness UX (away-072, away-073):** ✅ Shipped — Issue Summary + Action Required hierarchy; list/filter/drawer use computed readiness (`computeDeliveryDisplayState`); partial only when qty received > 0; `verify:delivery-consistency` + `test:demo-matrix`
 - `emailDomain` on `Vendor` for matching when live monitoring starts
 - Live inbox monitoring with **human-reviewed proposed updates first**
 - Narrow automation only for explicitly approved, high-confidence event types — high confidence alone is not blanket permission to update records

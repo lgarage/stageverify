@@ -482,8 +482,8 @@
       "id": "away-073",
       "title": "Readiness model alignment — qty=0 cannot persist as partial",
       "status": "built",
-      "commit": "474f334",
-      "note": "Client+CF deliveryStatus promotion: partial only when anyReceived>0; submitCheckin gated; test:readiness + test:evidence-alignment PASS; CF deployed"
+      "commit": "5ba4e0f",
+      "note": "474f334 CF+client partial gate; 4cf65a8 unit counts + Pending Delivery; 5ba4e0f list filter computed readiness + demo matrix; test:readiness + verify:delivery-consistency PASS; CF deployed"
     }
   ],
   "summary": "away-073 shipped; active queue empty — see docs/project_state.md immediate next steps"
