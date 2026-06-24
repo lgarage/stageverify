@@ -24,6 +24,33 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+async function assertDeliveryFirstDrawerOrder(page, record, label) {
+  const bodyText = await page.locator("body").innerText();
+  const heading = (
+    await page.getByTestId("drawer-action-banner-heading").innerText()
+  ).trim();
+  const issueIndex = bodyText.indexOf("ISSUE SUMMARY");
+  const actionIndex = bodyText.indexOf(heading);
+  const basicsIndex = bodyText.indexOf("DELIVERY BASICS");
+  const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
+
+  record(
+    `${label} — Delivery Basics precedes action banner`,
+    basicsIndex >= 0 && actionIndex > basicsIndex,
+    `basics@${basicsIndex}, action@${actionIndex}`,
+  );
+  record(
+    `${label} — Action banner precedes Issue Summary`,
+    actionIndex >= 0 && issueIndex > actionIndex,
+    `action@${actionIndex}, issue@${issueIndex}`,
+  );
+  record(
+    `${label} — Issue Summary precedes Readiness Evidence`,
+    issueIndex >= 0 && readinessIndex > issueIndex,
+    `issue@${issueIndex}, readiness@${readinessIndex}`,
+  );
+}
+
 (async () => {
   mkdirSync(screenshotDir, { recursive: true });
 
@@ -223,19 +250,19 @@ function record(name, pass, detail = "") {
         ? "WAITING ON DELIVERY"
         : heading.toUpperCase();
   record(
-    "Issue Summary precedes action banner",
-    issueIndex >= 0 && actionIndex > issueIndex,
-    `issue@${issueIndex}, action@${actionIndex}`,
+    "Delivery Basics precedes action banner",
+    basicsIndex >= 0 && actionIndex > basicsIndex,
+    `basics@${basicsIndex}, action@${actionIndex}`,
   );
   record(
-    "What Needs Attention precedes Delivery Basics",
-    actionIndex >= 0 && basicsIndex > actionIndex,
-    `action@${actionIndex}, basics@${basicsIndex}`,
+    "Action banner precedes Issue Summary",
+    actionIndex >= 0 && issueIndex > actionIndex,
+    `action@${actionIndex}, issue@${issueIndex}`,
   );
   record(
-    "Delivery Basics precedes Readiness Evidence",
-    basicsIndex >= 0 && readinessIndex > basicsIndex,
-    `basics@${basicsIndex}, readiness@${readinessIndex}`,
+    "Issue Summary precedes Readiness Evidence",
+    issueIndex >= 0 && readinessIndex > issueIndex,
+    `issue@${issueIndex}, readiness@${readinessIndex}`,
   );
 
   const lineCount = await summaryLines.locator("li").count();
@@ -359,6 +386,53 @@ function record(name, pass, detail = "") {
     );
   } else {
     record("Received Items section skipped (none received)", true);
+  }
+
+  for (const order of ["ORD-002", "ORD-004"]) {
+    const partialRow = page.locator("table tbody tr", { hasText: order });
+    if ((await partialRow.count()) === 0) {
+      record(`${order} row present for section-order check`, false);
+      continue;
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    await partialRow.first().click({ force: true });
+    await page.waitForTimeout(1200);
+    await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+    const orderListStatus = (await partialRow.first().locator("td").first().innerText()).trim();
+    record(
+      `${order} list status captured`,
+      orderListStatus.length > 0,
+      orderListStatus,
+    );
+    if (orderListStatus === "Partial") {
+      record(`${order} Partial status unchanged`, true);
+    } else {
+      record(
+        `${order} Partial status (informational — live data may differ)`,
+        true,
+        `status=${orderListStatus}`,
+      );
+    }
+    await assertDeliveryFirstDrawerOrder(page, record, order);
+  }
+
+  const readyRow = page.locator("table tbody tr", { hasText: "Ready for Pickup" }).first();
+  if ((await readyRow.count()) > 0) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    await readyRow.click({ force: true });
+    await page.waitForTimeout(1200);
+    await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+    const readyListStatus = (await readyRow.locator("td").first().innerText()).trim();
+    record(
+      "Ready row list status is Ready for Pickup",
+      readyListStatus === "Ready for Pickup",
+      readyListStatus,
+    );
+    await assertDeliveryFirstDrawerOrder(page, record, "Ready for Pickup");
+  } else {
+    record("Ready for Pickup row present for order check", false, "skipped");
   }
 
   await page.screenshot({

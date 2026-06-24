@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **Readiness Evidence snapshot** — dispatcher-friendly collapsed labels + View Details (main `2ec792f`; **not deployed** to gh-pages per Dan)
+- Last shipped: **away-076** — mini-librarian context-index; **also on main:** dispatcher drawer delivery-first section order (layout only, not deployed)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

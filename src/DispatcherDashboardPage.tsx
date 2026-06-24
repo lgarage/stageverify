@@ -2447,22 +2447,6 @@ function DetailContent({
           fontFamily: font,
         }}
       >
-        <IssueSummaryPanel details={details} navy={navy} font={font} />
-        <DrawerActionBanner
-          details={details}
-          navy={navy}
-          font={font}
-          onResolveBlockingIssue={
-            firstBlockingIssue
-              ? () => openResolveModal(firstBlockingIssue)
-              : undefined
-          }
-          onReviewIssues={() => {
-            document
-              .querySelector('[data-testid="issue-summary-panel"]')
-              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        />
         {renderDrawerSection(
           "Delivery Basics",
           <>
@@ -2681,6 +2665,22 @@ function DetailContent({
             </div>
           </>,
         )}
+        <DrawerActionBanner
+          details={details}
+          navy={navy}
+          font={font}
+          onResolveBlockingIssue={
+            firstBlockingIssue
+              ? () => openResolveModal(firstBlockingIssue)
+              : undefined
+          }
+          onReviewIssues={() => {
+            document
+              .querySelector('[data-testid="issue-summary-panel"]')
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
+        <IssueSummaryPanel details={details} navy={navy} font={font} />
         {renderDrawerSection(
           "Readiness Evidence",
           <ReadinessEvidencePanel
