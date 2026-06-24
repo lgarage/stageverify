@@ -177,7 +177,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Gmail reply sync / watch** — away-069 (push/watch, inbound thread drawer).
+1. **away-074** — Mini-librarian slim execution packet (overnight batch; away-074..076 token efficiency).
+2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
 

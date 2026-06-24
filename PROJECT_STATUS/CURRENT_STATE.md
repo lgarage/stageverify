@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-073** — Readiness model alignment (qty=0 partial gate; list filter computed readiness)
+- Last shipped: **Drawer clarity pass** — expandable Open Issues + What Needs Attention banner (Why/Next Step); display-only helpers
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

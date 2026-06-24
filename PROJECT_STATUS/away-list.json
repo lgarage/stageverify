@@ -10,7 +10,11 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": []
+    "sequence": [
+      "away-074",
+      "away-075",
+      "away-076"
+    ]
   },
   "queue": [
     {
@@ -22,6 +26,60 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-074",
+      "title": "Mini-librarian: slim execution packet (Action 1)",
+      "status": "queued",
+      "scope": "Remove default svscope_simple.md from buildNextBrief() readFirst in scripts/lib/away-memory-lib.mjs. Document npm run away:next -- --minimal as default for coding sessions in PROJECT_STATUS/MEMORY.md (one router row). Optional away item flag scopeDispute: true may add svscope to readFirst later — do not implement flag unless trivial. ESL/shop map blockers do not apply.",
+      "acceptance": "buildNextBrief() readFirst no longer includes svscope_simple.md by default; MEMORY.md has one row pointing token-efficiency / away:next --minimal default; npm run away:next -- --minimal returns id/title/scope without svscope in readFirst; npm run away:validate passes.",
+      "tier": "T0",
+      "estimatedEffort": "~15 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 1)",
+        "scripts/lib/away-memory-lib.mjs (buildNextBrief)",
+        "PROJECT_STATUS/MEMORY.md"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate"
+      ]
+    },
+    {
+      "id": "away-075",
+      "title": "Mini-librarian: planning path dedup (Action 2)",
+      "status": "queued",
+      "scope": "Update planning scout protocol in .cursor/rules/parallel-agent-strategy.mdc: Scout A runs npm run away:next -- --minimal first; skip 2–4 scouts when queue head answers what's next; index-only MODEL_DOSSIER (lines 7–23 + one § by tag) in scout table. Add suggestion-verify reuse clause to .cursor/rules/suggestion-verify-gate.mdc (1–2 lines: do not re-read sources scouts already cited this turn unless contradiction suspected). No product code changes.",
+      "acceptance": "parallel-agent-strategy.mdc scout table documents away:next --minimal, skip-when-queue-head-answers, and index-only dossier; suggestion-verify-gate.mdc has explicit reuse clause; npm run away:validate passes.",
+      "tier": "T0",
+      "estimatedEffort": "~20 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 2)",
+        ".cursor/rules/parallel-agent-strategy.mdc",
+        ".cursor/rules/suggestion-verify-gate.mdc"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate"
+      ]
+    },
+    {
+      "id": "away-076",
+      "title": "Mini-librarian: extend context-index for roadmap + project_state (Action 3)",
+      "status": "queued",
+      "scope": "Extend PROJECT_STATUS/context-index.json with index→slice entries for key sections of docs/roadmap.md (NOW, NEXT, LATER headers) and docs/project_state.md (Current Phase, Immediate Next Steps, Known Issues). Update context-lookup.mjs (or shared indexer lib) to slice by line range like dossier:slice. Add away:validate checks for context-index line ranges (same pattern as dossier-index). ESL/shop map blockers do not apply.",
+      "acceptance": "context-index.json has startLine/endLine entries for ≥3 roadmap sections and ≥3 project_state sections; npm run context:lookup -- --concern \"roadmap now\" (or equivalent) prints sliced excerpt not full file; away:validate validates context-index ranges with warnings on drift; npm run away:validate passes.",
+      "tier": "T1",
+      "estimatedEffort": "~25 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 3 + § Medium)",
+        "PROJECT_STATUS/context-index.json",
+        "PROJECT_STATUS/dossier-index.json",
+        "scripts/context-lookup.mjs",
+        "scripts/lib/dossier-index-lib.mjs"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate",
+        "npm run build"
+      ]
     }
   ]
 }
