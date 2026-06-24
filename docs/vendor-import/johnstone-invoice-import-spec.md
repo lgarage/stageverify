@@ -201,12 +201,12 @@ These values apply to **vendor-order records created from invoice import**. They
 
 | Internal enum | When set | Dispatcher-facing label (ONLY) |
 | ------------- | -------- | -------------------------------- |
-| `pending` | Delivery order expected; no complete ship signal; not will-call | Pending |
+| `pending` | Delivery order expected; no complete ship signal; not will-call | Pending Delivery |
 | `partial` | Some lines shipped/qty short/backorder mix | Partial |
 | `ready_for_pickup` | All expected lines shipped to shop context; **shop-staged path** (normal delivery) | Ready for Pickup |
 | `pickup_at_vendor` | Will-call / branch pickup (Customer P/O # or fulfillment inference) | **Will-Call / Pickup.** |
 | `closed_picked_up` | Will-call order picked up from branch (manual or confirmed) | **Closed / Picked Up.** |
-| `issue` | Data conflict, parse failure, or business exception | Issue |
+| `issue` | Data conflict, parse failure, or business exception | Issue / Action Needed |
 
 **Critical terminology rule:** Dispatchers never see raw `pickup_at_vendor`. They see **"Will-Call / Pickup."** (including the period). After pickup, **"Closed / Picked Up."**
 
@@ -214,12 +214,12 @@ These values apply to **vendor-order records created from invoice import**. They
 
 | Planned import status | Current `DeliveryStatus` | Gap |
 | --------------------- | ------------------------ | --- |
-| `pending` | `pending` | Exists (label "Ordered" in V1 — import UX may use "Pending") |
+| `pending` | `pending` | Exists (V1 list may show "Ordered" — import dispatcher label **Pending Delivery**) |
 | `partial` | `partial` | Exists |
 | `ready_for_pickup` | `ready_for_pickup` | Exists (V1 label "Staged" — import/dispatcher copy should use readiness-aware labels via `deliveryDisplayHelpers.ts`) |
 | `pickup_at_vendor` | — | **Missing** — requires new enum or parallel `vendorOrderStatus` field |
 | `closed_picked_up` | — | **Missing** — distinct from `picked_up` (shop pickup complete) |
-| `issue` | `issue` | Exists |
+| `issue` | `issue` | Exists (import dispatcher label **Issue / Action Needed**; V1 readiness helper may show "Issue / Review Required") |
 
 **Implementation note (future):** Prefer a dedicated import/vendor-order status field rather than overloading V1 `DeliveryStatus` until readiness model alignment is designed. Display must go through `deliveryDisplayHelpers.ts` / `deliveryReadinessDisplayLabel` patterns — never raw enum in UI.
 
@@ -230,8 +230,8 @@ These values apply to **vendor-order records created from invoice import**. They
 | `fulfillmentMethod = will_call_pickup` and not closed | `pickup_at_vendor` | **Will-Call / Pickup.** |
 | Will-call confirmed picked up at branch | `closed_picked_up` | **Closed / Picked Up.** |
 | `fulfillmentMethod = delivery`, all lines fully shipped, no B/O | `ready_for_pickup` only when **separate** shop receipt evidence exists; else `partial` or `pending` | Use readiness display helpers |
-| Any line `quantityBackordered > 0` | At least `partial`; may set `issue` if unresolved | Partial / Issue per readiness |
-| Parse/conflict on re-upload | `issue` | Issue |
+| Any line `quantityBackordered > 0` | At least `partial`; may set `issue` if unresolved | Partial / Issue / Action Needed per readiness |
+| Parse/conflict on re-upload | `issue` | Issue / Action Needed |
 
 **Invoice import alone never sets shop `ready_for_pickup` readiness.** Expected lines populate Condition 1; physical receipt remains Condition 2.
 
@@ -408,12 +408,12 @@ Align with Phase 5 policy: **high confidence does not bypass human review for re
 
 | Internal `importStatus` | Dispatcher label |
 | ----------------------- | ---------------- |
-| `pending` | Pending |
+| `pending` | Pending Delivery |
 | `partial` | Partial |
 | `ready_for_pickup` | Ready for Pickup |
 | `pickup_at_vendor` | **Will-Call / Pickup.** |
 | `closed_picked_up` | **Closed / Picked Up.** |
-| `issue` | Issue |
+| `issue` | Issue / Action Needed |
 
 ### Table D — Customer P/O # → fulfillment (sample PDF)
 
