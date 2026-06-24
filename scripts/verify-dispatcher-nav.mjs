@@ -198,28 +198,38 @@ function assertReadableInputColor(page, testId, label) {
   }
   await receivePage.close();
 
-  console.log("Job readiness panel (Slice 3)…");
+  console.log("Drawer pickup actions (away-074)…");
   await page
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 15_000 });
   const firstViewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
   if (await firstViewBtn.isVisible().catch(() => false)) {
     await firstViewBtn.click();
-    await page.getByTestId("job-readiness-panel").waitFor({ timeout: 15_000 });
-    const everythingReady = page.getByTestId("everything-ready-badge");
-    if (await everythingReady.isVisible().catch(() => false)) {
-      console.log("Slice 3: Everything Ready badge visible (all deliveries ready).");
-    } else {
-      console.log("Slice 3: job-readiness-panel visible; no Everything Ready badge (expected when job incomplete).");
-    }
+    await page.getByTestId("copy-pickup-information").waitFor({ timeout: 15_000 });
 
-    console.log("Slice 5: pickup token copy link…");
+    const qrBtn = page.getByTestId("show-vendor-checkin-qr");
+    await qrBtn.waitFor({ timeout: 10_000 });
+    const qrLabel = (await qrBtn.innerText()).trim();
+    if (qrLabel !== "Show Vendor Check-In QR") {
+      throw new Error(`Expected Show Vendor Check-In QR button, got: ${qrLabel}`);
+    }
+    console.log("PASS: Show Vendor Check-In QR label.");
+
+    if ((await page.getByTestId("job-readiness-panel").count()) > 0) {
+      throw new Error("Job Status / job-readiness-panel must be removed from drawer");
+    }
+    console.log("PASS: Job Status section removed.");
+
+    if ((await page.getByTestId("generate-pickup-link").count()) > 0) {
+      throw new Error("Generate Pickup Link must be removed from main action area");
+    }
+    console.log("PASS: Generate Pickup Link removed from drawer actions.");
+
+    console.log("Slice 5: pickup copy auto secure link…");
     let clipboardText = "";
     for (let attempt = 0; attempt < 2; attempt++) {
-      await page.getByTestId("generate-pickup-link").click();
-      await page.getByTestId("pickup-token-reveal").waitFor({ timeout: 20_000 });
-      await page.getByRole("button", { name: "Copy Pickup Information" }).click();
-      await page.waitForTimeout(1500);
+      await page.getByTestId("copy-pickup-information").click();
+      await page.waitForTimeout(2000);
       clipboardText = await page.evaluate(async () => navigator.clipboard.readText()).catch(() => "");
       if (/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) break;
     }
@@ -228,7 +238,20 @@ function assertReadableInputColor(page, testId, label) {
         `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
       );
     }
+    if (!clipboardText.includes("Stage Location:")) {
+      throw new Error("Copy Pickup Information expected Stage Location: line");
+    }
     console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
+
+    console.log("Mark Pickup Scheduled wiring…");
+    const markBtn = page.getByRole("button", { name: "Mark Pickup Scheduled" });
+    if (await markBtn.isVisible().catch(() => false)) {
+      await markBtn.click();
+      await page.getByTestId("pickup-scheduled-badge").waitFor({ timeout: 15_000 });
+      console.log("PASS: Mark Pickup Scheduled updates drawer badge.");
+    } else {
+      console.log("Note: job already Pickup Scheduled — skipping toggle test.");
+    }
 
     console.log("Drawer action banner (away-065)…");
     const actionBanner = page.getByTestId("drawer-action-banner");
@@ -357,28 +380,32 @@ function assertReadableInputColor(page, testId, label) {
     }
 
     const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
-    const callVendorHref = await callVendorBtn.getAttribute("href");
-    if (callVendorHref) {
-      throw new Error("Call Vendor banner button must not be a direct tel: link");
+    if ((await callVendorBtn.count()) === 0) {
+      console.log("SKIP Call Vendor: not shown on calm pending delivery.");
+    } else {
+      const callVendorHref = await callVendorBtn.getAttribute("href");
+      if (callVendorHref) {
+        throw new Error("Call Vendor banner button must not be a direct tel: link");
+      }
+      await callVendorBtn.click();
+      await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
+      await page.getByTestId("call-vendor-name").waitFor({ timeout: 5000 });
+      const modalPhoneLink = page.getByTestId("call-vendor-phone-link");
+      const modalPhoneMissing = page.getByTestId("call-vendor-phone-missing");
+      if (
+        !(await modalPhoneLink.isVisible().catch(() => false)) &&
+        !(await modalPhoneMissing.isVisible().catch(() => false))
+      ) {
+        throw new Error("Call Vendor modal must show phone link or missing message");
+      }
+      console.log("PASS: Call Vendor opens StageVerify modal (no direct tel on banner).");
+      await page.screenshot({
+        path: resolve(outDir, "drawer-call-vendor-modal.png"),
+        fullPage: false,
+      });
+      await page.getByTestId("call-vendor-close").click();
+      await page.waitForTimeout(300);
     }
-    await callVendorBtn.click();
-    await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
-    await page.getByTestId("call-vendor-name").waitFor({ timeout: 5000 });
-    const modalPhoneLink = page.getByTestId("call-vendor-phone-link");
-    const modalPhoneMissing = page.getByTestId("call-vendor-phone-missing");
-    if (
-      !(await modalPhoneLink.isVisible().catch(() => false)) &&
-      !(await modalPhoneMissing.isVisible().catch(() => false))
-    ) {
-      throw new Error("Call Vendor modal must show phone link or missing message");
-    }
-    console.log("PASS: Call Vendor opens StageVerify modal (no direct tel on banner).");
-    await page.screenshot({
-      path: resolve(outDir, "drawer-call-vendor-modal.png"),
-      fullPage: false,
-    });
-    await page.getByTestId("call-vendor-close").click();
-    await page.waitForTimeout(300);
 
     if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
       throw new Error("Need More Info banner button must be removed (away-065)");

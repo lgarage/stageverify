@@ -429,8 +429,8 @@ export class FirestoreDataService implements DispatcherDataService {
     const vendorSnap = await getDoc(doc(db, "vendors", delivery.vendorId));
     if (!jobSnap.exists() || !vendorSnap.exists()) return null;
 
-    const job = jobSnap.data() as Job;
-    const vendor = vendorSnap.data() as Vendor;
+    const job = { ...(jobSnap.data() as Job), id: jobSnap.id };
+    const vendor = { ...(vendorSnap.data() as Vendor), id: vendorSnap.id };
 
     let purchaseOrder: PurchaseOrder | undefined;
     if (delivery.purchaseOrderId) {
@@ -779,7 +779,9 @@ export class FirestoreDataService implements DispatcherDataService {
     );
 
     const refreshed = await getDoc(jobRef);
-    return refreshed.exists() ? (refreshed.data() as Job) : null;
+    return refreshed.exists()
+      ? ({ ...(refreshed.data() as Job), id: jobId } satisfies Job)
+      : null;
   }
 
   async submitCheckin(

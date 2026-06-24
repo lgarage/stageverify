@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-073** — amber Waiting on Delivery banner for ORD-005 calm pending; readiness alignment + Pending Delivery
+- Last shipped: **away-074** — dispatcher drawer pickup/action cleanup (secure copy, QR label, Job Status removed, Mark Pickup Scheduled refresh)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-074** — Mini-librarian slim execution packet (overnight batch; `npm run away:next`). Queued **away-074..076** — token efficiency per `LIBRARIAN_TOKEN_EFFICIENCY.md`.
+- **away-075** — Mini-librarian slim execution packet (overnight batch; `npm run away:next`). Queued **away-075..077** — token efficiency per `LIBRARIAN_TOKEN_EFFICIENCY.md`.
 
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)

@@ -32,6 +32,7 @@ function record(name, pass, detail = "") {
     viewport: { width: 1280, height: 720 },
     ...(existsSync(authState) ? { storageState: authState } : {}),
   });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const page = await context.newPage();
 
   await ensureAuthenticated(page, appBase);
@@ -263,6 +264,40 @@ function record(name, pass, detail = "") {
     record(
       "ORD-005 Call Vendor not shown for normal pending",
       (await page.getByTestId("drawer-action-call-vendor").count()) === 0,
+    );
+
+    const qrBtn = page.getByTestId("show-vendor-checkin-qr");
+    record(
+      "ORD-005 Show Vendor Check-In QR label",
+      (await qrBtn.count()) > 0 &&
+        (await qrBtn.innerText()).trim() === "Show Vendor Check-In QR",
+    );
+
+    record(
+      "ORD-005 Job Status panel removed",
+      (await page.getByTestId("job-readiness-panel").count()) === 0,
+    );
+
+    record(
+      "ORD-005 Generate Pickup Link removed",
+      (await page.getByTestId("generate-pickup-link").count()) === 0,
+    );
+
+    await page.getByTestId("copy-pickup-information").click();
+    await page.waitForTimeout(2000);
+    let ord005Clipboard = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      ord005Clipboard = await page
+        .evaluate(async () => navigator.clipboard.readText())
+        .catch(() => "");
+      if (/#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard)) break;
+      await page.getByTestId("copy-pickup-information").click();
+      await page.waitForTimeout(2000);
+    }
+    record(
+      "ORD-005 Copy Pickup uses secure token URL",
+      /#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard),
+      ord005Clipboard.slice(0, 80),
     );
   }
 
