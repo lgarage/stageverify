@@ -30,12 +30,15 @@ export function VendorCommunicationsPanel({
   emailProviderConnected,
   deliveryOrderId,
   refreshKey = 0,
+  expandSignal = 0,
 }: {
   navy: string;
   font: string;
   emailProviderConnected: boolean;
   deliveryOrderId: string | null;
   refreshKey?: number;
+  /** Increment to expand panel (e.g. from Readiness Evidence View Full Email Chain). */
+  expandSignal?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [events, setEvents] = useState<VendorEmailEvent[]>([]);
@@ -47,6 +50,12 @@ export function VendorCommunicationsPanel({
   const emptyMessage = emailProviderConnected
     ? EMPTY_CONNECTED
     : EMPTY_DISCONNECTED;
+
+  useEffect(() => {
+    if (expandSignal > 0) {
+      setExpanded(true);
+    }
+  }, [expandSignal]);
 
   useEffect(() => {
     if (!deliveryOrderId) {

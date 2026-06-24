@@ -2256,7 +2256,16 @@ function DetailContent({
   const [saveVendorEmail, setSaveVendorEmail] = useState(false);
   const [emailFieldsTouched, setEmailFieldsTouched] = useState(false);
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
+  const [vendorCommsExpandSignal, setVendorCommsExpandSignal] = useState(0);
   const [pickupTokenRefreshKey, setPickupTokenRefreshKey] = useState(0);
+
+  const expandVendorCommunications = () => {
+    setVendorCommsExpandSignal((value) => value + 1);
+    requestAnimationFrame(() => {
+      const panel = document.querySelector('[data-testid="vendor-communications-panel"]');
+      panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   const resolutionContext = {
     orderNumber: details?.delivery.orderNumber ?? null,
@@ -2679,6 +2688,7 @@ function DetailContent({
             stagingLocations={stagingLocations}
             navy={navy}
             font={font}
+            onExpandVendorCommunications={expandVendorCommunications}
           />,
         )}
         {(nonBlockingOpenIssues.length > 0 || resolvedIssues.length > 0) &&
@@ -2806,6 +2816,7 @@ function DetailContent({
             emailProviderConnected={emailProviderConnected}
             deliveryOrderId={details.delivery.id}
             refreshKey={vendorCommsRefresh}
+            expandSignal={vendorCommsExpandSignal}
           />,
         )}
         <StatusActionPanel

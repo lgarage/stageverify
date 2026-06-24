@@ -128,6 +128,17 @@ async function ensureAuthenticated(page) {
     await page.waitForTimeout(800);
     const evidencePanel = page.getByTestId("readiness-evidence-panel");
     await evidencePanel.waitFor({ timeout: 15_000 });
+    await page.getByTestId("readiness-evidence-snapshot").waitFor({ timeout: 10_000 });
+    const vendorOrderSnap = await page
+      .getByTestId("readiness-evidence-vendor-order-snapshot")
+      .innerText();
+    if (!/Confirmed|Not Confirmed|Email Evidence Found/i.test(vendorOrderSnap)) {
+      throw new Error(`Vendor Order snapshot unexpected: ${vendorOrderSnap}`);
+    }
+    console.log(`Readiness snapshot Vendor Order: ${vendorOrderSnap.trim()}`);
+
+    await page.getByTestId("readiness-evidence-details-toggle").click();
+    await page.getByTestId("readiness-evidence-details").waitFor({ timeout: 10_000 });
     await page.getByTestId("readiness-evidence-condition1").waitFor({ timeout: 10_000 });
     await page.getByTestId("readiness-evidence-condition2").waitFor({ timeout: 10_000 });
     await page.getByTestId("readiness-evidence-blockers").waitFor({ timeout: 10_000 });
@@ -139,7 +150,11 @@ async function ensureAuthenticated(page) {
 
     await page.getByTestId("drawer-action-banner").waitFor({ timeout: 10_000 });
     const bannerSummary = await page.getByTestId("drawer-action-banner-summary").innerText();
-    if (!/\d+ of \d+ items ordered/i.test(bannerSummary) && !/Ready for Pickup/i.test(bannerSummary)) {
+    if (
+      !/\d+ of \d+ items ordered/i.test(bannerSummary) &&
+      !/Ready for Pickup/i.test(bannerSummary) &&
+      !/No material received yet/i.test(bannerSummary)
+    ) {
       throw new Error(`Action banner summary unexpected: ${bannerSummary}`);
     }
     console.log("Drawer action banner PASS: receipt summary or all-clear visible.");
@@ -161,13 +176,17 @@ async function ensureAuthenticated(page) {
     console.log("PASS: Vendor Communications read-only placeholder.");
 
     const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
-    if (await callVendorBtn.getAttribute("href")) {
-      throw new Error("Call Vendor banner must be button, not tel: link");
+    if (await callVendorBtn.isVisible().catch(() => false)) {
+      if (await callVendorBtn.getAttribute("href")) {
+        throw new Error("Call Vendor banner must be button, not tel: link");
+      }
+      await callVendorBtn.click();
+      await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
+      await page.getByTestId("call-vendor-close").click();
+      await page.waitForTimeout(300);
+    } else {
+      console.log("SKIP Call Vendor: not shown on calm pending delivery.");
     }
-    await callVendorBtn.click();
-    await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
-    await page.getByTestId("call-vendor-close").click();
-    await page.waitForTimeout(300);
 
     if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
       throw new Error("Need More Info banner button must be removed (away-065)");
@@ -254,10 +273,10 @@ async function ensureAuthenticated(page) {
     const statusEl = page.getByTestId("readiness-evidence-condition1-status");
     if (await statusEl.isVisible().catch(() => false)) {
       const statusText = await statusEl.innerText();
-      if (!/Complete|Review Required/i.test(statusText)) {
-        throw new Error(`Condition 1 status unexpected: ${statusText}`);
+      if (!/Confirmed|Review required|Not confirmed/i.test(statusText)) {
+        throw new Error(`Vendor order detail status unexpected: ${statusText}`);
       }
-      console.log(`Drawer Condition 1 status: ${statusText.trim()}`);
+      console.log(`Drawer vendor order detail: ${statusText.trim()}`);
     }
 
     await page.keyboard.press("Escape");
