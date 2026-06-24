@@ -351,7 +351,8 @@ export class FirestoreDataService implements DispatcherDataService {
 
       rows.push({
         deliveryId: delivery.id,
-        status: delivery.status,
+        // Authoritative for list filter chips / counts — matches statusDisplayLabel.
+        status: display.readiness.deliveryStatus,
         statusDisplayLabel: display.statusDisplayLabel,
         jobNumber: job.jobNumber,
         jobName: job.jobName,

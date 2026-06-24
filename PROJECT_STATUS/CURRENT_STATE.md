@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-073** — readiness model alignment: qtyReceived=0 no longer persists as `partial`; vendorOnly/physicalOnly one-source evidence preserves pending/shipped/arrived; submitCheckin promotes arrived→partial only when qty received > 0
+- Last shipped: **wiring audit** — delivery list filter/count uses computed readiness status (not stale persisted); demo matrix regression script; ORD-004 seed aligned to partial; away-073 CF redeployed
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

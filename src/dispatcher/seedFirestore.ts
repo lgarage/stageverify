@@ -220,7 +220,7 @@ const deliveryOrders: DeliveryOrder[] = [
     purchaseOrderId: "po-3",
     deliveryDate: "2026-05-30",
     stagingLocationId: "staging-4",
-    status: "arrived",
+    status: "partial",
     readinessStatus: "not_ready",
     currentLocationNote: "Receiving dock — forklift unload",
     availabilityStatus: "received",
