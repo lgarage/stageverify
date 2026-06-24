@@ -177,7 +177,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-074** — Mini-librarian slim execution packet (overnight batch; away-074..076 token efficiency).
+1. **away-075** — Mini-librarian planning path dedup (Action 2; away-075..076 token efficiency).
 2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 2. **ESL integration** — Phase 7; blocked on Minew credentials.
 3. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
@@ -185,6 +185,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ---
 
 ## Recently shipped (away)
+
+**away-074 (2026-06-23)** — Copy Pickup Information token validity: validate sessionStorage token via `validatePickupTokenClient` before reuse; generate fresh token when stale/revoked; drawer hint when active link exists without local plaintext; `verify:dispatcher-nav` ORD-005 copy/revoke/regen flow.
 
 **Drawer clarity pass (2026-06-23)** — Dispatcher drawer top answers delivery/next-step questions: Issue Summary **Open Issues** accordion with dispatcher-readable explanations; **What Needs Attention** banner (headline + Why + Next Step bullets); Resolve Issue disabled with reason when no blocking material issue; Call/Email Vendor + Review Issues buttons. Display-only via `deliveryDisplayHelpers.ts` — no readiness/Firestore changes. Verify: `verify:delivery-consistency`, `test:readiness`, `test:demo-matrix`, `away:validate`.
 

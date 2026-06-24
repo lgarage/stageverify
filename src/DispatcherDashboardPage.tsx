@@ -7,6 +7,7 @@ import {
   readPickupTokenForJob,
   storePickupTokenForJob,
 } from "./pickupTokenSession";
+import { validatePickupTokenClient } from "./validatePickupTokenClient";
 import { EslQrCode } from "./EslQrCode";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
@@ -1880,15 +1881,25 @@ function PickupTokenControls({
           Checking pickup link…
         </span>
       ) : hasActiveToken ? (
-        <span
-          data-testid="pickup-token-active"
-          style={{ fontSize: 11, color: "#2e7d32", fontFamily: font }}
-        >
-          Active pickup link
-          {tokenExpiresAt
-            ? ` · expires ${new Date(tokenExpiresAt).toLocaleString()}`
-            : ""}
-        </span>
+        <>
+          <span
+            data-testid="pickup-token-active"
+            style={{ fontSize: 11, color: "#2e7d32", fontFamily: font }}
+          >
+            Active pickup link exists
+            {tokenExpiresAt
+              ? ` · expires ${new Date(tokenExpiresAt).toLocaleString()}`
+              : ""}
+          </span>
+          {!readPickupTokenForJob(jobId) ? (
+            <span
+              data-testid="pickup-token-copy-regen-hint"
+              style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}
+            >
+              Copy will generate a fresh secure link
+            </span>
+          ) : null}
+        </>
       ) : (
         <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
           No active pickup link
@@ -1944,14 +1955,22 @@ function CopyPickupLinkButton({
   const [copyError, setCopyError] = useState<string | null>(null);
 
   const resolveSecurePickupLink = async (): Promise<string> => {
-    const status = await firestoreDataService.getPickupTokenStatus(jobId);
     const storedToken = readPickupTokenForJob(jobId);
-    if (status.hasActiveToken && storedToken) {
-      return buildPickupTokenUrl(storedToken);
+    if (storedToken) {
+      try {
+        const validated = await validatePickupTokenClient(storedToken);
+        if (validated.jobId === jobId) {
+          return buildPickupTokenUrl(storedToken);
+        }
+      } catch {
+        clearPickupTokenForJob(jobId);
+      }
     }
+
     const result = await firestoreDataService.generatePickupToken(jobId);
     storePickupTokenForJob(jobId, result.token);
     onTokenGenerated?.();
+    await validatePickupTokenClient(result.token);
     return buildPickupTokenUrl(result.token);
   };
 

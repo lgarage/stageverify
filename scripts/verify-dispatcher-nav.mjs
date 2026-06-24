@@ -87,6 +87,164 @@ function assertReadableInputColor(page, testId, label) {
   });
 }
 
+const RIVERSIDE_JOB_ID = "job-1";
+const STALE_PICKUP_TOKEN =
+  "d113403af1d6d98b9e9c96d19fcc91125aba2d611e6faca551ace710b91f5b26";
+
+function extractPickupToken(text) {
+  const match = text.match(/#\/pickup\?t=([a-f0-9]{64})/);
+  return match?.[1] ?? null;
+}
+
+async function copyPickupToken(page) {
+  await page.getByTestId("copy-pickup-information").click();
+  await page.waitForTimeout(2500);
+  const text = await page
+    .evaluate(async () => navigator.clipboard.readText())
+    .catch(() => "");
+  const token = extractPickupToken(text);
+  if (!token) {
+    throw new Error(
+      `Expected token URL in clipboard, got: ${text.slice(0, 120)}`,
+    );
+  }
+  return { token, text };
+}
+
+async function openOrd005Drawer(page) {
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+
+  const search = page.locator('input[placeholder*="Job #, name, PO"]');
+  await search.waitFor({ state: "visible", timeout: 15_000 });
+  await search.fill("");
+  await search.fill("ORD-005");
+  await page.waitForTimeout(1500);
+
+  const ordRow = page.locator("table tbody tr", { hasText: "ORD-005" }).first();
+  const viewBtn = ordRow.locator("button").filter({ hasText: /^View$/ });
+  if (await viewBtn.isVisible().catch(() => false)) {
+    await viewBtn.click({ force: true });
+  } else if (await ordRow.isVisible().catch(() => false)) {
+    await ordRow.click({ force: true });
+  } else {
+    await page.locator("button").filter({ hasText: /^View$/ }).first().click({ force: true });
+  }
+  await page.getByTestId("copy-pickup-information").waitFor({ timeout: 15_000 });
+}
+
+async function assertPickupPortalWithToken(browser, appBase, token) {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const pickupPage = await ctx.newPage();
+  await pickupPage.goto(`${appBase}/#/pickup?t=${token}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await pickupPage.waitForTimeout(2000);
+  if (await pickupPage.getByTestId("pickup-token-error").isVisible().catch(() => false)) {
+    const err = await pickupPage.getByTestId("pickup-token-error").innerText();
+    await ctx.close();
+    throw new Error(`Pickup portal token error: ${err.trim()}`);
+  }
+  await pickupPage.getByTestId("pickup-job-header").waitFor({ timeout: 20_000 });
+  const header = await pickupPage.getByTestId("pickup-job-header").innerText();
+  if (!/Riverside Medical Center/i.test(header)) {
+    await ctx.close();
+    throw new Error(`Expected Riverside in job header, got: ${header.slice(0, 200)}`);
+  }
+  if (!/JOB-2026-0421/.test(header)) {
+    await ctx.close();
+    throw new Error(`Expected JOB-2026-0421 in job header, got: ${header.slice(0, 200)}`);
+  }
+  const hasPortalContent =
+    (await pickupPage.getByTestId("pickup-item-row").count()) > 0 ||
+    (await pickupPage.getByTestId("pickup-location-section").count()) > 0 ||
+    (await pickupPage.getByTestId("expected-materials").count()) > 0 ||
+    (await pickupPage.getByTestId("pickup-not-ready-row").count()) > 0;
+  if (!hasPortalContent) {
+    await ctx.close();
+    throw new Error(
+      "Pickup portal loaded but no checklist/location content visible",
+    );
+  }
+  await ctx.close();
+}
+
+async function assertPickupTokenInvalid(browser, appBase, token) {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const pickupPage = await ctx.newPage();
+  await pickupPage.goto(`${appBase}/#/pickup?t=${token}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  const errorLocator = pickupPage.getByTestId("pickup-token-error");
+  const invalidText = pickupPage.getByText(/Invalid or expired pickup link/i);
+  await Promise.race([
+    errorLocator.waitFor({ state: "visible", timeout: 30_000 }),
+    invalidText.waitFor({ state: "visible", timeout: 30_000 }),
+  ]);
+  await ctx.close();
+}
+
+async function runPickupTokenValidityFlow(page, browser, appBase) {
+  console.log("Pickup token validity (ORD-005 / Riverside)…");
+  await page.goto(`${appBase}/#/dispatcher`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page
+    .getByRole("heading", { name: "Delivery Overview" })
+    .waitFor({ timeout: 15_000 });
+  await openOrd005Drawer(page);
+
+  await page.evaluate(
+    ({ jobId, staleToken }) => {
+      sessionStorage.setItem(`stageverify.pickupToken.${jobId}`, staleToken);
+    },
+    { jobId: RIVERSIDE_JOB_ID, staleToken: STALE_PICKUP_TOKEN },
+  );
+  console.log("Injected stale sessionStorage token (simulates away-074 bug).");
+
+  const firstCopy = await copyPickupToken(page);
+  await assertPickupPortalWithToken(browser, appBase, firstCopy.token);
+  console.log(
+    "PASS: stale sessionStorage replaced — copied token opens Riverside pickup portal.",
+  );
+
+  const secondCopy = await copyPickupToken(page);
+  if (secondCopy.token === firstCopy.token) {
+    console.log(
+      "PASS: second copy reused valid local token (first link not revoked).",
+    );
+  } else {
+    console.log(
+      "Note: second copy generated a new token (first link revoked by regen).",
+    );
+  }
+  await assertPickupPortalWithToken(browser, appBase, secondCopy.token);
+
+  const revokeBtn = page.getByTestId("revoke-pickup-link");
+  if (!(await revokeBtn.isVisible().catch(() => false))) {
+    throw new Error("Expected Revoke Pickup Link after copy generated active token");
+  }
+  await revokeBtn.click();
+  await page.getByText("No active pickup link").waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(1500);
+  await assertPickupTokenInvalid(browser, appBase, secondCopy.token);
+  console.log("PASS: revoked token shows invalid in clean browser context.");
+
+  const afterRevokeCopy = await copyPickupToken(page);
+  if (afterRevokeCopy.token === secondCopy.token) {
+    throw new Error("Copy after revoke must generate a fresh token");
+  }
+  await assertPickupPortalWithToken(browser, appBase, afterRevokeCopy.token);
+  console.log("PASS: copy after revoke generates working secure link.");
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -242,6 +400,8 @@ function assertReadableInputColor(page, testId, label) {
       throw new Error("Copy Pickup Information expected Stage Location: line");
     }
     console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
+
+    await runPickupTokenValidityFlow(page, browser, appBase);
 
     console.log("Mark Pickup Scheduled wiring…");
     const markBtn = page.getByRole("button", { name: "Mark Pickup Scheduled" });

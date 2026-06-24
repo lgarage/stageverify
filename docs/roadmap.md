@@ -171,7 +171,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 | ----------- | ------------------------ | ------ |
 | Job / PO / delivery readiness breakdown | Which deliveries ready, incomplete, issue, picked up; job must not show “Everything Ready” until all required material ready | ✅ Shipped |
 | **Pickup Scheduled** | Dispatcher marks job after BuildOps scheduling — distinct from vendor delivery schedule | ✅ Shipped |
-| **Copy Pickup Information** | One-click clipboard: site, job name, job number, pickup locations, pickup link | ✅ Shipped |
+| **Copy Pickup Information** | One-click clipboard: site, job name, job number, pickup locations, pickup link; validates stored token before reuse, fresh gen when stale | ✅ Shipped (`away-074` token validity) |
 | Ready-only pickup queue | Job appears in technician queue only when business readiness = `ready_for_pickup` | ✅ Shipped |
 
 ### Phase 3 Slice 4 — Vendor access hardening (shipped)

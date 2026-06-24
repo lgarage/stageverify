@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-074** — dispatcher drawer pickup/action cleanup (secure copy, QR label, Job Status removed, Mark Pickup Scheduled refresh)
+- Last shipped: **away-074** — Copy Pickup Information token validity (validate before reuse; fresh gen when sessionStorage stale; ORD-005 verify flow)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-075** — Mini-librarian slim execution packet (overnight batch; `npm run away:next`). Queued **away-075..077** — token efficiency per `LIBRARIAN_TOKEN_EFFICIENCY.md`.
+- **away-075** — Mini-librarian planning path dedup (Action 2; `npm run away:next`). Queued **away-075..076**.
 
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)
