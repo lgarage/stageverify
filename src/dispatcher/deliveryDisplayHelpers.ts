@@ -86,6 +86,7 @@ export function computeDeliveryDisplayState(
     delivery,
     readiness,
     items,
+    materialIssues,
   );
   const blockerLabels = buildBlockerLabels(
     delivery,

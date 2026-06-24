@@ -633,6 +633,7 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );

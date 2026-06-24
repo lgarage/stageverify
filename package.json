@@ -72,6 +72,7 @@
     "test:pickup-authority": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-pickup-authority.mjs\"",
     "test:auto-submit-readiness": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-auto-submit-readiness.mjs\"",
     "test:readiness": "npx tsx scripts/test-readiness-two-source.mjs",
+    "test:readiness-persistence": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-readiness-persistence.mjs\"",
     "test:demo-matrix": "npx tsx scripts/demo-delivery-matrix.mjs",
     "test:evidence-alignment": "npx tsx scripts/test-evidence-model-alignment.mjs",
     "test:email-parser": "npx tsx scripts/test-email-parser.mjs",

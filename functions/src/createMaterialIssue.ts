@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
 import {
   appendPickupMaterialIssueReadback,
   type PickupMaterialIssueReadback,
@@ -336,6 +337,17 @@ export const createMaterialIssue = onCall(
         updatedAt: now,
       });
     });
+
+    if (blocking) {
+      try {
+        await applyDeliveryReadinessTransaction(getDb(), deliveryOrderId, {
+          historyReason:
+            "Blocking material issue reported — readiness recalculation",
+        });
+      } catch {
+        // Issue persisted; readiness recalc is best-effort (matches resolveMaterialIssue).
+      }
+    }
 
     return {
       issueId,

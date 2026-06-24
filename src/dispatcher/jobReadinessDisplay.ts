@@ -1,19 +1,34 @@
-import type { DeliveryOrder, Item, Job } from "./models";
+import type { DeliveryOrder, Item, Job, MaterialIssue } from "./models";
 import type {
   DeliveryReadinessResult,
   JobReadinessResult,
   POReadinessResult,
 } from "./readiness";
 
+const OPEN_ISSUE_STATUSES = new Set(["open", "assigned"]);
+
+function countOpenIssuesForLabel(
+  delivery: Pick<DeliveryOrder, "openIssueCount">,
+  materialIssues?: MaterialIssue[],
+): number {
+  if (materialIssues !== undefined) {
+    return materialIssues.filter((issue) =>
+      OPEN_ISSUE_STATUSES.has(issue.status),
+    ).length;
+  }
+  return delivery.openIssueCount ?? 0;
+}
+
 export function deliveryReadinessDisplayLabel(
   delivery: DeliveryOrder,
   readiness: DeliveryReadinessResult,
   items: Item[] = [],
+  materialIssues?: MaterialIssue[],
 ): string {
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return "Picked Up";
   }
-  if ((delivery.openIssueCount ?? 0) > 0) {
+  if (countOpenIssuesForLabel(delivery, materialIssues) > 0) {
     return "Issue / Review Required";
   }
   if (readiness.readyForPickup) {

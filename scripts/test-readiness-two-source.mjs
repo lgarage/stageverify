@@ -405,6 +405,49 @@ assert(
   "partial delivery unit counts 2 of 3",
 );
 
+const staleOpenIssueDelivery = {
+  ...baseDelivery,
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "ready_for_pickup",
+  openIssueCount: 0,
+};
+const liveOpenIssue = [
+  {
+    id: "issue-live",
+    deliveryOrderId: "del-1",
+    jobId: "job-261042",
+    type: "missing",
+    status: "open",
+    reportedBy: "tech",
+    blocking: true,
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  },
+];
+const issueReadiness = computeDeliveryReadiness(
+  staleOpenIssueDelivery,
+  completeItems,
+  { openBlockingIssueCount: 1 },
+);
+assert(
+  deliveryReadinessDisplayLabel(
+    staleOpenIssueDelivery,
+    issueReadiness,
+    completeItems,
+    liveOpenIssue,
+  ) === "Issue / Review Required",
+  "live materialIssues override stale openIssueCount=0 for label",
+);
+assert(
+  computeDeliveryDisplayState(
+    staleOpenIssueDelivery,
+    completeItems,
+    liveOpenIssue,
+  ).statusDisplayLabel === "Issue / Review Required",
+  "computeDeliveryDisplayState passes live issues to label",
+);
+
 if (failures.length) {
   console.error("FAIL readiness tests:");
   for (const f of failures) console.error(" -", f);

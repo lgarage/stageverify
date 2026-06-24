@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-073** — partial only when qtyReceived>0; list filter computed readiness; demo matrix script
+- Last shipped: **readiness persistence wiring** — staging recalc after assign; blocking issue demotes status; live issue labels
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
