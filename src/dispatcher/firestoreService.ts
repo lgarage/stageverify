@@ -820,8 +820,13 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const now = new Date().toISOString();
+    const anyReceivedAfterCheckIn = itemUpdates.some(
+      (update) => update.qtyReceived > 0,
+    );
     const vendorStatus: DeliveryStatus =
-      delivery.status === "arrived" ? "partial" : delivery.status;
+      delivery.status === "arrived" && anyReceivedAfterCheckIn
+        ? "partial"
+        : delivery.status;
 
     batch.update(doc(db, "deliveries", deliveryId), {
       submittedAt: now,

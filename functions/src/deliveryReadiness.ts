@@ -195,8 +195,14 @@ export function computeDeliveryReadiness(
   const physicalOnly = physicalDropoffComplete && !vendorOrderComplete;
 
   let deliveryStatus: DeliveryStatus = delivery.status;
-  if (anyReceived || vendorOnly || physicalOnly) {
+  if (anyReceived) {
     deliveryStatus = "partial";
+  } else if (vendorOnly || physicalOnly) {
+    // One-source evidence with zero qty — not qty-partial.
+    deliveryStatus =
+      delivery.status === "pending" || delivery.status === "shipped"
+        ? delivery.status
+        : "arrived";
   } else if (
     delivery.status === "pending" ||
     delivery.status === "shipped" ||

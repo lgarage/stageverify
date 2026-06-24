@@ -77,6 +77,10 @@ const deliveredOnly = computeDeliveryReadiness(
 );
 assert(!deliveredOnly.readyForPickup, "DELIVERED alone is not Ready");
 assert(
+  deliveredOnly.deliveryStatus !== "partial",
+  "physicalOnly exception_only qty=0 persisted status is not partial",
+);
+assert(
   deliveredOnly.evidence.readinessBlockReasons.includes("vendor_order_incomplete"),
   "DELIVERED alone blocks on vendor order",
 );
@@ -88,6 +92,10 @@ const emailOnly = computeDeliveryReadiness(
   exceptionOnly,
 );
 assert(!emailOnly.readyForPickup, "vendor order alone is not Ready");
+assert(
+  emailOnly.deliveryStatus !== "partial",
+  "vendorOnly qty=0 persisted status is not partial",
+);
 assert(
   emailOnly.evidence.readinessBlockReasons.includes("physical_dropoff_incomplete"),
   "vendor order alone blocks on physical drop-off",
@@ -105,6 +113,10 @@ const bothReady = computeDeliveryReadiness(
   exceptionOnly,
 );
 assert(bothReady.readyForPickup, "both sources + staging → Ready");
+assert(
+  bothReady.deliveryStatus === "ready_for_pickup",
+  "exception_only both sources + staging qty=0 → ready_for_pickup persisted",
+);
 
 // 5 — full_checkin legacy still qty-gated (ignore vendor DELIVERED flag)
 assert(

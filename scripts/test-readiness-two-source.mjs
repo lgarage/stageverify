@@ -275,6 +275,10 @@ assert(
   "ORD-005 direct label Pending Delivery",
 );
 
+function zeroQtyItemsFromOrd005() {
+  return ord005Items.map((item) => ({ ...item }));
+}
+
 const arrivedZeroReceived = {
   ...ord005Delivery,
   status: "arrived",
@@ -290,6 +294,54 @@ assert(
     ord005Items,
   ) === "Pending Delivery",
   "arrived with 0 received is Pending Delivery not Partial",
+);
+assert(
+  arrivedReadiness.deliveryStatus !== "partial",
+  "arrived with 0 received persisted status is not partial",
+);
+assert(
+  arrivedReadiness.deliveryStatus === "arrived",
+  "arrived with 0 received persisted status stays arrived",
+);
+
+// vendorOnly + qty=0 → not partial (one-source evidence, zero qty)
+const vendorOnlyZero = computeDeliveryReadiness(
+  {
+    ...baseDelivery,
+    status: "arrived",
+    vendorOrderComplete: true,
+    stagingLocationId: "loc-g2",
+  },
+  zeroQtyItemsFromOrd005(),
+);
+assert(
+  vendorOnlyZero.deliveryStatus !== "partial",
+  "vendorOnly with qty=0 is not partial",
+);
+assert(
+  vendorOnlyZero.deliveryStatus === "arrived",
+  "vendorOnly with qty=0 on arrived stays arrived",
+);
+
+// physicalOnly + qty=0 (exception_only DELIVERED) → not partial
+const physicalOnlyZero = computeDeliveryReadiness(
+  {
+    ...baseDelivery,
+    status: "arrived",
+    vendorPhysicalDropoffConfirmed: true,
+    vendorOrderComplete: false,
+    stagingLocationId: "loc-g2",
+  },
+  zeroQtyItemsFromOrd005(),
+  { vendorDeliveryMode: "exception_only" },
+);
+assert(
+  physicalOnlyZero.deliveryStatus !== "partial",
+  "physicalOnly exception_only with qty=0 is not partial",
+);
+assert(
+  physicalOnlyZero.deliveryStatus === "arrived",
+  "physicalOnly exception_only with qty=0 on arrived stays arrived",
 );
 
 const partialItems = [
@@ -323,6 +375,10 @@ const partialDelivery = {
   status: "partial",
 };
 const partialReadiness = computeDeliveryReadiness(partialDelivery, partialItems);
+assert(
+  partialReadiness.deliveryStatus === "partial",
+  "qty received > 0 yields partial persisted status",
+);
 const partialDisplay = computeDeliveryDisplayState(
   partialDelivery,
   partialItems,

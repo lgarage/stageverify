@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **display qty/status consistency** — unit-based Issue Summary counts (0 of 9), Pending Delivery when 0 received (ORD-005 Riverside RCA), list/drawer label alignment
+- Last shipped: **away-073** — readiness model alignment: qtyReceived=0 no longer persists as `partial`; vendorOnly/physicalOnly one-source evidence preserves pending/shipped/arrived; submitCheckin promotes arrived→partial only when qty received > 0
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
