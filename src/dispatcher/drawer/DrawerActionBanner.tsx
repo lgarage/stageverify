@@ -117,21 +117,21 @@ export function DrawerActionBanner({
   const calmWaiting = bannerContent.bannerMode === "calm_waiting";
   const attentionRequired = bannerContent.bannerMode === "attention_required";
 
-  const borderColor = allClear ? "#2e7d32" : calmWaiting ? "#94a3b8" : "#bf0a30";
+  const borderColor = allClear ? "#2e7d32" : calmWaiting ? "#b45309" : "#bf0a30";
   const backgroundColor = allClear
     ? "#ecfdf5"
     : calmWaiting
-      ? "#f8fafc"
+      ? "#fffbeb"
       : "#fff5f5";
   const headingColor = allClear
     ? "#166534"
     : calmWaiting
-      ? "#475569"
+      ? "#78350f"
       : "#991b1b";
   const summaryColor = allClear
     ? "#166534"
     : calmWaiting
-      ? "#64748b"
+      ? "#92400e"
       : "#7f1d1d";
   const bannerHeading = allClear
     ? "All Clear"

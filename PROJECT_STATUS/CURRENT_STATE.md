@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **drawer clarity correction** — calm Waiting on Delivery for ORD-005; Open Issues accordion removed; exception-only issue counts and action banner
+- Last shipped: **away-073** — amber Waiting on Delivery banner for ORD-005 calm pending; readiness alignment + Pending Delivery
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
