@@ -19,6 +19,7 @@
 - **away-087** — Verify Action 1 readFirst excludes svscope unless scopeDispute (then away-083 → 085 → 086). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
+- **Session handoff:** `PROJECT_STATUS/MINI_LIBRARIAN_HANDOFF.md` — mini-librarian / ACES continuity for new chats
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)
 - Router: `PROJECT_STATUS/MEMORY.md` | Product: `svscope_simple.md` (on demand) | Queue: `away-list.json` + `NEXT.md`
 - Orchestration: Dan standing preference — parallel Composer 2.5 domain executors when paths are disjoint (`parallel-agent-strategy.mdc` § Dan standing preference)
