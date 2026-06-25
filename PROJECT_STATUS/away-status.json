@@ -517,7 +517,7 @@
       "id": "away-078",
       "title": "Pickup drawer controls cleanup — disabled copy, separate pills, 2x2 grid",
       "status": "built",
-      "commit": "pending",
+      "commit": "d72e548",
       "note": "No Items to Pick Up when 0 received; separate blue Pickup Scheduled + green active link pills; Clear Pickup Scheduled blue styling; verify:delivery-consistency PASS"
     }
   ],
