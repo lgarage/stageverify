@@ -2614,14 +2614,26 @@ function DetailContent({
           refreshKey={pickupTokenRefreshKey}
         >
           {({ hasActiveToken, tokenBusy, onRevoke }) => (
+            <>
+            <style>{`
+              .drawer-action-buttons-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                width: 100%;
+              }
+              @media (max-width: 480px) {
+                .drawer-action-buttons-grid {
+                  grid-template-columns: 1fr;
+                }
+                .drawer-action-buttons-grid .drawer-action-copy-span {
+                  grid-column: auto;
+                }
+              }
+            `}</style>
             <div
               data-testid="drawer-action-buttons"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
-                gap: 8,
-                width: "100%",
-              }}
+              className="drawer-action-buttons-grid"
             >
               {job.pickupScheduledAt ? (
                 <span
@@ -2670,6 +2682,7 @@ function DetailContent({
                 Show Vendor Check-In QR
               </button>
               <div
+                className={hasActiveToken ? undefined : "drawer-action-copy-span"}
                 style={{
                   gridColumn: hasActiveToken ? undefined : "1 / -1",
                   minWidth: 0,
@@ -2702,6 +2715,7 @@ function DetailContent({
                 </button>
               ) : null}
             </div>
+            </>
           )}
         </PickupTokenControls>
         <DrawerActionBanner

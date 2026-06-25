@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-076** — mini-librarian context-index; **also on main:** compact two-column drawer action button grid (layout only, not deployed)
+- Last shipped: **drawer action grid 2×2 balance** — forced `repeat(2, minmax(0,1fr))`; ORD-005 2+1 without link, 2×2 after copy; verify row/column checks
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

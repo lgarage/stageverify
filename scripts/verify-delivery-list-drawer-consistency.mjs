@@ -24,6 +24,72 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+/** Group action buttons by row using Y positions (tolerance px). */
+async function getActionButtonRows(page) {
+  const grid = page.getByTestId("drawer-action-buttons");
+  return grid.evaluate((el) => {
+    const tolerance = 8;
+    const buttons = Array.from(el.querySelectorAll("button"));
+    const rects = buttons.map((btn) => {
+      const r = btn.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    });
+    rects.sort((a, b) => a.y - b.y || a.x - b.x);
+    const rows = [];
+    for (const rect of rects) {
+      const row = rows.find((r) => Math.abs(r[0].y - rect.y) <= tolerance);
+      if (row) row.push(rect);
+      else rows.push([rect]);
+    }
+    return rows.map((row) => row.sort((a, b) => a.x - b.x));
+  });
+}
+
+async function assertActionButtonGridBalance(page, record, label, expectedCount) {
+  const grid = page.getByTestId("drawer-action-buttons");
+  if ((await grid.count()) === 0) {
+    record(`${label} — action button grid balance`, false, "grid missing");
+    return;
+  }
+
+  const gridCols = await grid.evaluate(
+    (el) => getComputedStyle(el).gridTemplateColumns,
+  );
+  record(
+    `${label} — action grid uses two explicit columns`,
+    /repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(gridCols) ||
+      gridCols.split(" ").length === 2,
+    `grid-template-columns=${gridCols}`,
+  );
+
+  const rows = await getActionButtonRows(page);
+  const counts = rows.map((r) => r.length);
+  const buttonCount = counts.reduce((sum, n) => sum + n, 0);
+
+  record(
+    `${label} — action button count`,
+    buttonCount === expectedCount,
+    `expected=${expectedCount}, actual=${buttonCount}, rows=${counts.join("+")}`,
+  );
+
+  if (expectedCount === 4) {
+    record(
+      `${label} — four action buttons in 2x2 grid (not 3+1)`,
+      counts.length === 2 && counts[0] === 2 && counts[1] === 2,
+      `row counts=${counts.join("+")}`,
+    );
+  } else if (expectedCount === 3) {
+    const balanced = counts.length === 2 && counts[0] === 2 && counts[1] === 1;
+    const threePlusOne =
+      counts.length >= 2 && counts.some((n) => n >= 3) && counts.some((n) => n === 1);
+    record(
+      `${label} — three action buttons balanced (2+1, not 3+1 orphan)`,
+      balanced && !threePlusOne,
+      `row counts=${counts.join("+")}`,
+    );
+  }
+}
+
 async function assertDeliveryFirstDrawerOrder(page, record, label) {
   const bodyText = await page.locator("body").innerText();
   const heading = (
@@ -58,6 +124,15 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       `${label} — action buttons use grid layout`,
       display === "grid",
       `display=${display}`,
+    );
+    const gridCols = await actionButtons.evaluate(
+      (el) => getComputedStyle(el).gridTemplateColumns,
+    );
+    record(
+      `${label} — action grid two-column template`,
+      /repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(gridCols) ||
+        gridCols.split(" ").length === 2,
+      `grid-template-columns=${gridCols}`,
     );
     const tokenControls = page.getByTestId("pickup-token-controls");
     if ((await tokenControls.count()) > 0) {
@@ -308,6 +383,15 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       (await actionButtons.evaluate((el) => getComputedStyle(el).display)) ===
         "grid",
     );
+    const mainGridCols = await actionButtons.evaluate(
+      (el) => getComputedStyle(el).gridTemplateColumns,
+    );
+    record(
+      "Action grid explicit two-column template",
+      /repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(mainGridCols) ||
+        mainGridCols.split(" ").length === 2,
+      `grid-template-columns=${mainGridCols}`,
+    );
   } else {
     record("Action button grid present", false);
   }
@@ -370,6 +454,8 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       (await page.getByTestId("revoke-pickup-link").count()) === 0,
     );
 
+    await assertActionButtonGridBalance(page, record, "ORD-005 (no link)", 3);
+
     record(
       "ORD-005 Job Status panel removed",
       (await page.getByTestId("job-readiness-panel").count()) === 0,
@@ -396,6 +482,23 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       /#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard),
       ord005Clipboard.slice(0, 80),
     );
+
+    await page.waitForTimeout(1500);
+    const revokeAfterCopy = page.getByTestId("revoke-pickup-link");
+    if ((await revokeAfterCopy.count()) > 0) {
+      await assertActionButtonGridBalance(
+        page,
+        record,
+        "ORD-005 (after copy)",
+        4,
+      );
+    } else {
+      record(
+        "ORD-005 Revoke visible after copy (for 2x2 check)",
+        false,
+        "revoke not shown after token generation",
+      );
+    }
   }
 
   const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
