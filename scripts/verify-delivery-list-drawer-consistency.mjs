@@ -684,6 +684,136 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
   );
 }
 
+/** Seed/demo orders that must share ORD-005 drawer presentation rules. */
+const DEMO_ORDER_NUMBERS = ["ORD-001", "ORD-002", "ORD-004", "ORD-005", "ORD-006"];
+
+async function openOrderDrawer(page, orderNumber) {
+  const row = page.locator("table tbody tr", { hasText: orderNumber }).first();
+  if ((await row.count()) === 0) return false;
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  await row.click({ force: true });
+  await page.waitForTimeout(1200);
+  await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+  return true;
+}
+
+/** ORD-005 layout rules applied to every demo order (non-mutating checks). */
+async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
+  await assertDeliveryBasicsNoTopNotes(page, record, orderNumber);
+  await assertDeliveryFirstDrawerOrder(page, record, orderNumber);
+
+  record(
+    `${orderNumber} — Assign Staging Location section present`,
+    (await page.getByTestId("staging-location-assignment").count()) > 0,
+  );
+
+  const assignHeadingEl = page.getByTestId("assign-staging-location-heading");
+  const assignHeadingText =
+    (await assignHeadingEl.count()) > 0
+      ? (await assignHeadingEl.innerText()).trim()
+      : "";
+  record(
+    `${orderNumber} — Assign Staging Location heading`,
+    assignHeadingText === "Assign Staging Location",
+    assignHeadingText,
+  );
+
+  const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
+  record(
+    `${orderNumber} — Advanced Manual Controls collapsed by default`,
+    (await advancedToggle.getAttribute("aria-expanded")) === "false",
+    `aria-expanded=${await advancedToggle.getAttribute("aria-expanded")}`,
+  );
+
+  record(
+    `${orderNumber} — Advanced Manual Controls heading text`,
+    (await page.getByTestId("manual-controls-heading").innerText()).trim() ===
+      "Advanced Manual Controls",
+  );
+
+  const stockToggle = page.getByTestId("experimental-stock-tools-toggle");
+  record(
+    `${orderNumber} — Experimental Stock Tools collapsed by default`,
+    (await stockToggle.getAttribute("aria-expanded")) === "false",
+    `aria-expanded=${await stockToggle.getAttribute("aria-expanded")}`,
+  );
+
+  record(
+    `${orderNumber} — no PO input in lower drawer`,
+    (await page.getByPlaceholder("Enter PO number").count()) === 0 &&
+      (await page.getByRole("button", { name: "Save PO" }).count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — manual mark buttons hidden when Advanced collapsed`,
+    (await page.getByTestId("manual-controls-section").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — workflow status badge removed`,
+    (await page.getByTestId("drawer-workflow-status-badge").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — no At Shop awaiting check-in pill`,
+    !(await page.locator("body").innerText()).includes("At Shop — awaiting check-in"),
+  );
+
+  record(
+    `${orderNumber} — Vendor Communications hidden in drawer`,
+    (await page.getByTestId("vendor-communications-panel").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — recently resolved material issues hidden`,
+    (await page.getByTestId("recently-resolved-material-issues").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — Need More Space button hidden in drawer`,
+    (await page.getByRole("button", { name: /Need More Space/i }).count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — Job Status panel removed`,
+    (await page.getByTestId("job-readiness-panel").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — Generate Pickup Link removed`,
+    (await page.getByTestId("generate-pickup-link").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — no Open Issues toggle in Issue Summary`,
+    (await page.getByTestId("issue-summary-open-issues-toggle").count()) === 0,
+  );
+
+  record(
+    `${orderNumber} — Items section present`,
+    (await page.getByTestId("drawer-items-section").count()) > 0,
+  );
+
+  const bodyText = await page.locator("body").innerText();
+  record(
+    `${orderNumber} — Status History renamed to Activity History`,
+    !bodyText.includes("STATUS HISTORY") && /Activity History/i.test(bodyText),
+  );
+
+  const activityToggle = page.getByTestId("activity-history-toggle");
+  record(
+    `${orderNumber} — Activity History collapsed by default`,
+    (await activityToggle.count()) > 0 &&
+      (await activityToggle.getAttribute("aria-expanded")) === "false",
+  );
+
+  record(
+    `${orderNumber} — Activity History content hidden when collapsed`,
+    (await page.getByTestId("activity-history-content").count()) === 0,
+  );
+}
+
 (async () => {
   mkdirSync(screenshotDir, { recursive: true });
 
@@ -1408,6 +1538,16 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     }
   } else {
     record("Assigned staging row present for no-banner test", false);
+  }
+
+  for (const orderNumber of DEMO_ORDER_NUMBERS) {
+    const opened = await openOrderDrawer(page, orderNumber);
+    if (!opened) {
+      record(`${orderNumber} row present for uniform drawer check`, false);
+      continue;
+    }
+    record(`${orderNumber} row opened for uniform drawer check`, true);
+    await assertUniformDemoDrawerPresentation(page, record, orderNumber);
   }
 
   await page.screenshot({

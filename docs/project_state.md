@@ -188,6 +188,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Recently shipped (away)
 
+**Demo drawer uniformity (2026-06-24)** — All seed/demo orders (ORD-001..006) use the same dispatcher drawer structure as ORD-005: Delivery Basics (no top notes) → pickup pills + 2×2 action grid → staging banner when unassigned → status banner → Issue Summary → Readiness Evidence → Assign Staging Location → Advanced Manual Controls (collapsed) → Experimental Stock Tools (collapsed) → Items → Activity History. Vendor Communications, Recently Resolved, Need More Space, workflow status pill, and PO editor hidden globally (`DRAWER_HIDE_*`). Verify: `verify:delivery-consistency` loops all demo orders.
+
 **away-084 (2026-06-24)** — Drawer lower-section UI: Items show neutral "Not received yet" at qty 0 (not green pickup-ready); Pickup Summary hidden when 0 received; Status History renamed **Activity History** (collapsed default, max 3 friendly events, Show Full History audit expand); Delivery Notes compact above history. Display-only via `deliveryDisplayHelpers.ts`. Verify: `verify:delivery-consistency`.
 
 **Drawer top cleanup (2026-06-24)** — Delivery Basics shows Job #, Job Name, Order #, Vendor, PO #, Staging only (notes moved to Activity History audit read-only); pickup scheduled + active link expiry combined in compact pill inside action grid (no floating line below buttons); 2×2 button grid unchanged. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`, `test:readiness` ×3.

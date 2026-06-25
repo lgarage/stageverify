@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-082** — Mini-librarian Action 1: slim readFirst (svscope on demand only)
+- Last shipped: **away-082** — Mini-librarian Action 1; demo drawer ORD-005 layout verified on all seed orders (ORD-001..006)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
