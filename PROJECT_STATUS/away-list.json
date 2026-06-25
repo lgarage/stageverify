@@ -11,7 +11,6 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
     "sequence": [
-      "away-082",
       "away-083",
       "away-084",
       "away-085",
@@ -28,23 +27,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-082",
-      "title": "Mini-librarian phase 3: slim execution packet (Action 1)",
-      "status": "queued",
-      "scope": "Remove default svscope_simple.md from buildNextBrief() readFirst in scripts/lib/away-memory-lib.mjs. Document npm run away:next -- --minimal as default for coding sessions in PROJECT_STATUS/MEMORY.md (one router row). Optional away item flag scopeDispute: true may add svscope to readFirst later — implement only if trivial. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only. ESL/shop map blockers do not apply.",
-      "acceptance": "buildNextBrief() readFirst no longer includes svscope_simple.md by default; MEMORY.md has one row for token-efficiency / away:next --minimal default; npm run away:next JSON readFirst excludes svscope; npm run away:validate passes.",
-      "tier": "T0",
-      "estimatedEffort": "~20 min",
-      "readFirst": [
-        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 1)",
-        "scripts/lib/away-memory-lib.mjs (buildNextBrief)",
-        "PROJECT_STATUS/MEMORY.md"
-      ],
-      "verifyBeforeNext": [
-        "npm run away:validate"
-      ]
     },
     {
       "id": "away-083",

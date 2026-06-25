@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-24",
+  "lastRun": "2026-06-25",
   "batch": "away-001..041 archived; away-042..076 built; queue empty except blocked away-069",
   "results": [
     {
@@ -533,6 +533,13 @@
       "status": "built",
       "commit": "a64e7c1",
       "note": "Prominent Assign Staging Location card; Advanced Manual Controls + Experimental Stock Tools collapsed; PO edit removed from lower drawer; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-082",
+      "title": "Mini-librarian phase 3: slim execution packet (Action 1)",
+      "status": "built",
+      "commit": "3694102",
+      "note": "Assign Staging Location card green when assigned, orange warning when unassigned"
     }
   ],
   "summary": "away-081 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"

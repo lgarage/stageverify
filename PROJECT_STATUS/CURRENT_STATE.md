@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-082** — Assign Staging Location card: green success when assigned (code badge), orange warning when unassigned; verify delivery-consistency card-state checks
+- Last shipped: **away-082** — Assign Staging Location card: green success when assigned, orange warning when unassigned
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-083** — Mini-librarian phase 3: slim execution packet (Action 1; offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **away-083** — Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)
