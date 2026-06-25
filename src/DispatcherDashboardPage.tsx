@@ -3644,9 +3644,6 @@ function StatusActionPanel({
   }, [showReasonInput, showPickupInput, editingIssue]);
 
   const currentStatus = details.delivery.status;
-  const currentStagingLabel = details.stagingLocation
-    ? `${details.stagingLocation.code} — ${details.stagingLocation.label}`
-    : "Not Assigned";
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
   const revertTarget = DISPATCHER_REVERT_TARGETS[currentStatus];
 
@@ -3699,11 +3696,16 @@ function StatusActionPanel({
       {/* ── 1. Assign Staging Location (prominent) ── */}
       <div
         data-testid="staging-location-assignment"
+        data-staging-card-state={
+          details.stagingLocation ? "assigned" : "unassigned"
+        }
         style={{
           padding: "14px 16px",
           borderRadius: 8,
-          border: `1.5px solid ${details.stagingLocation ? "#cbd5e1" : "#fdba74"}`,
-          backgroundColor: details.stagingLocation ? "#fff" : "#fffbeb",
+          border: `1.5px solid ${
+            details.stagingLocation ? "#a5d6a7" : "#fdba74"
+          }`,
+          backgroundColor: details.stagingLocation ? "#e8f5e9" : "#fffbeb",
         }}
       >
         {(details.delivery.combinationStagingGroupId ||
@@ -3776,11 +3778,36 @@ function StatusActionPanel({
             margin: "0 0 12px",
             fontSize: 13,
             fontWeight: 600,
-            color: details.stagingLocation ? "#111827" : "#ea580c",
+            color: details.stagingLocation ? "#2e7d32" : "#ea580c",
             fontFamily: font,
+            lineHeight: 1.5,
           }}
         >
-          Current: {currentStagingLabel}
+          {details.stagingLocation ? (
+            <>
+              Current:{" "}
+              <span
+                data-testid="staging-assigned-code"
+                style={{
+                  fontFamily: "monospace",
+                  fontWeight: 700,
+                  backgroundColor: "#fff",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  color: "#2e7d32",
+                  border: "1px solid #a5d6a7",
+                }}
+              >
+                {details.stagingLocation.code}
+              </span>
+              <span style={{ color: "#4b5563", fontWeight: 500 }}>
+                {" "}
+                {details.stagingLocation.label}
+              </span>
+            </>
+          ) : (
+            <>Current: Not Assigned</>
+          )}
         </p>
         <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
           <select

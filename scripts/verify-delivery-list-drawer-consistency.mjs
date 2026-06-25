@@ -24,6 +24,77 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+async function assertStagingLocationCard(page, record, label, expectAssigned) {
+  const card = page.getByTestId("staging-location-assignment");
+  if ((await card.count()) === 0) {
+    record(`${label} — staging assignment card present`, false);
+    return;
+  }
+
+  const cardState = await card.getAttribute("data-staging-card-state");
+  record(
+    `${label} — staging card state attribute`,
+    cardState === (expectAssigned ? "assigned" : "unassigned"),
+    cardState ?? "",
+  );
+
+  const bgColor = await card.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const borderColor = await card.evaluate(
+    (el) => getComputedStyle(el).borderTopColor,
+  );
+
+  if (expectAssigned) {
+    record(
+      `${label} — assigned staging card green background`,
+      /rgb\(232,\s*245,\s*233\)|#e8f5e9/i.test(bgColor),
+      bgColor,
+    );
+    record(
+      `${label} — assigned staging card green border (no orange)`,
+      /rgb\(165,\s*214,\s*167\)|#a5d6a7/i.test(borderColor) &&
+        !/rgb\(253,\s*186,\s*116\)|#fdba74/i.test(borderColor),
+      borderColor,
+    );
+
+    const assignedCode = page.getByTestId("staging-assigned-code");
+    record(
+      `${label} — assigned location code shown`,
+      (await assignedCode.count()) > 0 && (await assignedCode.innerText()).trim().length > 0,
+      (await assignedCode.count()) > 0
+        ? (await assignedCode.innerText()).trim()
+        : "missing",
+    );
+
+    const currentLine = page.getByTestId("staging-current-location");
+    const currentText = (await currentLine.innerText()).trim();
+    record(
+      `${label} — current location line not orange warning text`,
+      !/^Current:\s*Not Assigned$/i.test(currentText),
+      currentText.slice(0, 80),
+    );
+  } else {
+    record(
+      `${label} — unassigned staging card warning background`,
+      /rgb\(255,\s*251,\s*235\)|#fffbeb/i.test(bgColor),
+      bgColor,
+    );
+    record(
+      `${label} — unassigned staging card orange border`,
+      /rgb\(253,\s*186,\s*116\)|#fdba74/i.test(borderColor),
+      borderColor,
+    );
+    record(
+      `${label} — unassigned shows Not Assigned`,
+      (await page.getByTestId("staging-current-location").innerText()).trim() ===
+        "Current: Not Assigned",
+    );
+    record(
+      `${label} — no assigned code badge when unassigned`,
+      (await page.getByTestId("staging-assigned-code").count()) === 0,
+    );
+  }
+}
+
 async function assertStagingLocationBanner(page, record, label, expectVisible) {
   const banner = page.getByTestId("drawer-staging-location-banner");
   const actionBannerHeading = page.getByTestId("drawer-action-banner-heading");
@@ -573,6 +644,12 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0;
   await assertDeliveryBasicsStaging(page, record, "Drawer", drawerStagingUnassigned);
   await assertStagingLocationBanner(page, record, "Drawer", drawerStagingUnassigned);
+  await assertStagingLocationCard(
+    page,
+    record,
+    "Drawer",
+    !drawerStagingUnassigned,
+  );
 
   const banner = page.getByTestId("drawer-action-banner");
   await banner.waitFor({ timeout: 15_000 });
@@ -865,6 +942,25 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     await page.getByTestId("staging-location-assignment").scrollIntoViewIfNeeded();
     await page.waitForTimeout(300);
 
+    const ord005StagingUnassigned =
+      (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0;
+    await assertStagingLocationCard(
+      page,
+      record,
+      "ORD-005",
+      !ord005StagingUnassigned,
+    );
+    if (!ord005StagingUnassigned) {
+      const ord005Code = (
+        await page.getByTestId("staging-assigned-code").innerText()
+      ).trim();
+      record(
+        "ORD-005 Riverside — assigned location code visible in card",
+        ord005Code.length > 0,
+        ord005Code,
+      );
+    }
+
     record(
       "ORD-005 Assign Staging Location heading present",
       (await page.getByTestId("assign-staging-location-heading").count()) > 0 &&
@@ -1122,6 +1218,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     );
     await assertDeliveryBasicsStaging(page, record, unassignedOrder, true);
     await assertStagingLocationBanner(page, record, unassignedOrder, true);
+    await assertStagingLocationCard(page, record, unassignedOrder, false);
   } else {
     record(
       "Unassigned staging row present for banner test",
@@ -1139,6 +1236,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     );
     await assertDeliveryBasicsStaging(page, record, assignedOrder, false);
     await assertStagingLocationBanner(page, record, assignedOrder, false);
+    await assertStagingLocationCard(page, record, assignedOrder, true);
     if (assignedOrder === "ORD-005") {
       record(
         "ORD-005 Riverside — no staging banner when S1-A assigned",
