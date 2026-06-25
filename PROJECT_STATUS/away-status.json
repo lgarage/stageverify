@@ -510,7 +510,7 @@
       "id": "away-077",
       "title": "Drawer staging-location banner when unassigned",
       "status": "built",
-      "commit": "pending",
+      "commit": "0a44d26",
       "note": "Orange STAGING LOCATION NEEDED banner before status banner; Delivery Basics Not Assigned; Assign Location scroll/focus; verify:delivery-consistency PASS"
     }
   ],
