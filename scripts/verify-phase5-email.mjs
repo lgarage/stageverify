@@ -159,18 +159,22 @@ async function ensureAuthenticated(page) {
     }
     console.log("Drawer action banner PASS: receipt summary or all-clear visible.");
 
-    console.log("Vendor Communications placeholder (away-066)…");
-    await page.getByTestId("vendor-communications-panel").waitFor({ timeout: 10_000 });
-    if (await page.getByTestId("vendor-communications-empty").isVisible().catch(() => false)) {
-      throw new Error("Vendor Communications empty state must be collapsed by default");
+    const vendorCommsPanel = page.getByTestId("vendor-communications-panel");
+    if ((await vendorCommsPanel.count()) > 0) {
+      console.log("Vendor Communications placeholder (away-066)…");
+      if (await page.getByTestId("vendor-communications-empty").isVisible().catch(() => false)) {
+        throw new Error("Vendor Communications empty state must be collapsed by default");
+      }
+      await page.getByTestId("vendor-communications-toggle").click();
+      await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
+      const vendorCommsEmpty = await page.getByTestId("vendor-communications-empty").innerText();
+      if (vendorCommsEmpty.trim() !== "No vendor communications yet.") {
+        throw new Error(`Vendor Communications empty state unexpected: ${vendorCommsEmpty}`);
+      }
+      console.log("PASS: Vendor Communications read-only placeholder.");
+    } else {
+      console.log("SKIP Vendor Communications: hidden from lower drawer (away-080).");
     }
-    await page.getByTestId("vendor-communications-toggle").click();
-    await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
-    const vendorCommsEmpty = await page.getByTestId("vendor-communications-empty").innerText();
-    if (vendorCommsEmpty.trim() !== "No vendor communications yet.") {
-      throw new Error(`Vendor Communications empty state unexpected: ${vendorCommsEmpty}`);
-    }
-    console.log("PASS: Vendor Communications read-only placeholder.");
 
     const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
     if (await callVendorBtn.isVisible().catch(() => false)) {

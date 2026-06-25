@@ -519,7 +519,14 @@
       "status": "built",
       "commit": "d72e548",
       "note": "No Items to Pick Up when 0 received; separate blue Pickup Scheduled + green active link pills; Clear Pickup Scheduled blue styling; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-080",
+      "title": "Lower dispatcher drawer simplification",
+      "status": "built",
+      "commit": "baeb33f",
+      "note": "Hide vendor comms, resolved material issues, Need More Space in drawer; remove workflow status pill; Manual Controls heading"
     }
   ],
-  "summary": "away-078 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
+  "summary": "away-080 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
 }

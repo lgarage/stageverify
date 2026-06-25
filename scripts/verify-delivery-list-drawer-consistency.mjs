@@ -758,23 +758,23 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       !(await copyBtn.isEnabled()),
     );
 
-    const workflowHeading = page.getByTestId("drawer-workflow-status-heading");
-    await workflowHeading.scrollIntoViewIfNeeded();
+    const manualHeading = page.getByTestId("manual-controls-heading");
+    await manualHeading.scrollIntoViewIfNeeded();
     await page.waitForTimeout(400);
 
-    const workflowBadge = page.getByTestId("drawer-workflow-status-badge");
-    if ((await workflowBadge.count()) > 0) {
-      const workflowLabel = (await workflowBadge.innerText()).trim();
-      record(
-        "ORD-005 workflow status does not say Received",
-        workflowLabel !== "Received",
-        workflowLabel,
-      );
-      record(
-        "ORD-005 Order Workflow Status heading present",
-        (await page.getByTestId("drawer-workflow-status-heading").count()) > 0,
-      );
-    }
+    record(
+      "ORD-005 Manual Controls heading present",
+      (await manualHeading.count()) > 0 &&
+        (await manualHeading.innerText()).trim().toUpperCase() === "MANUAL CONTROLS",
+    );
+    record(
+      "ORD-005 workflow status badge removed",
+      (await page.getByTestId("drawer-workflow-status-badge").count()) === 0,
+    );
+    record(
+      "ORD-005 no At Shop awaiting check-in pill",
+      !(await page.locator("body").innerText()).includes("At Shop — awaiting check-in"),
+    );
 
     const assignHeading = page.getByTestId("assign-staging-location-heading");
     await assignHeading.scrollIntoViewIfNeeded();
@@ -795,51 +795,25 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       const manualText = (await manualControls.innerText()).trim();
       record(
         "ORD-005 Manual Controls groups Mark buttons",
-        /Manual Controls/i.test(manualText) &&
-          (/Mark Issue/i.test(manualText) || /Mark Received/i.test(manualText)),
+        /Mark Partial/i.test(manualText) &&
+          /Mark Staged/i.test(manualText) &&
+          /Mark Issue/i.test(manualText),
         manualText.slice(0, 80),
       );
     }
 
-    await page.getByTestId("vendor-communications-toggle").scrollIntoViewIfNeeded();
-    await page.getByTestId("vendor-communications-toggle").click();
-    await page.waitForTimeout(300);
-    const vendorEmpty = page.getByTestId("vendor-communications-empty");
-    if ((await vendorEmpty.count()) > 0) {
-      record(
-        "ORD-005 vendor comms empty state calm copy",
-        (await vendorEmpty.innerText()).trim() === "No vendor communications yet.",
-      );
-    } else {
-      record("ORD-005 vendor comms empty state (has messages)", true, "skipped");
-    }
-
-    const resolvedPanel = page.getByTestId("recently-resolved-material-issues");
-    if ((await resolvedPanel.count()) > 0) {
-      const firstShowDetails = resolvedPanel
-        .locator('[data-testid^="resolved-issue-show-details-"]')
-        .first();
-      record(
-        "Resolved issues compact with Show Details by default",
-        (await firstShowDetails.count()) > 0,
-      );
-      if ((await firstShowDetails.count()) > 0) {
-        const issueId = (
-          await firstShowDetails.getAttribute("data-testid")
-        )?.replace("resolved-issue-show-details-", "");
-        await firstShowDetails.click();
-        await page.waitForTimeout(200);
-        record(
-          "Resolved issue details expand on Show Details",
-          issueId
-            ? (await page.getByTestId(`resolved-issue-details-${issueId}`).count()) >
-              0
-            : false,
-        );
-      }
-    } else {
-      record("Recently resolved material issues section", true, "none on ORD-005");
-    }
+    record(
+      "ORD-005 Vendor Communications hidden in drawer",
+      (await page.getByTestId("vendor-communications-panel").count()) === 0,
+    );
+    record(
+      "ORD-005 recently resolved material issues hidden",
+      (await page.getByTestId("recently-resolved-material-issues").count()) === 0,
+    );
+    record(
+      "ORD-005 Need More Space button hidden in drawer",
+      (await page.getByRole("button", { name: /Need More Space/i }).count()) === 0,
+    );
   }
 
   const ord002Row = page.locator("table tbody tr", { hasText: "ORD-002" });

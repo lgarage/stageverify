@@ -224,15 +224,10 @@ const STATUS_COUNT_COLORS: Record<
 const STATUS_LABEL = (status: DeliveryStatus): string =>
   DELIVERY_STATUS_LABEL[status];
 
-/** Drawer-only workflow labels — avoid implying all material is received. */
-const DRAWER_WORKFLOW_STATUS_LABEL: Partial<Record<DeliveryStatus, string>> = {
-  arrived: "At Shop — awaiting check-in",
-  ready_for_pickup: "Staged for pickup",
-};
-
-function drawerWorkflowStatusLabel(status: DeliveryStatus): string {
-  return DRAWER_WORKFLOW_STATUS_LABEL[status] ?? STATUS_LABEL(status);
-}
+/** Drawer UI simplification (away-080) — sections hidden pending redesign; logic preserved. */
+const DRAWER_HIDE_VENDOR_COMMUNICATIONS = true;
+const DRAWER_HIDE_RESOLVED_MATERIAL_ISSUES = true;
+const DRAWER_HIDE_NEED_MORE_SPACE = true;
 
 function resolvedIssueShortSummary(issue: MaterialIssue): string {
   if (issue.resolutionType) {
@@ -2815,11 +2810,9 @@ function DetailContent({
             onExpandVendorCommunications={expandVendorCommunications}
           />,
         )}
-        {(nonBlockingOpenIssues.length > 0 || resolvedIssues.length > 0) &&
+        {nonBlockingOpenIssues.length > 0 &&
           renderDrawerSection(
-            nonBlockingOpenIssues.length > 0
-              ? `Material Issues (${nonBlockingOpenIssues.length})`
-              : "Material Issues — recently resolved",
+            `Material Issues (${nonBlockingOpenIssues.length})`,
             <div
               data-testid="material-issues-panel"
               style={{
@@ -2890,7 +2883,8 @@ function DetailContent({
                   </button>
                 </div>
               ))}
-              {resolvedIssues.length > 0 && (
+              {!DRAWER_HIDE_RESOLVED_MATERIAL_ISSUES &&
+                resolvedIssues.length > 0 && (
                 <div
                   data-testid="recently-resolved-material-issues"
                   style={{ marginTop: nonBlockingOpenIssues.length > 0 ? 12 : 0 }}
@@ -3072,17 +3066,18 @@ function DetailContent({
               )}
             </div>,
           )}
-        {renderDrawerSection(
-          "Vendor Communications",
-          <VendorCommunicationsPanel
-            navy={navy}
-            font={font}
-            emailProviderConnected={emailProviderConnected}
-            deliveryOrderId={details.delivery.id}
-            refreshKey={vendorCommsRefresh}
-            expandSignal={vendorCommsExpandSignal}
-          />,
-        )}
+        {!DRAWER_HIDE_VENDOR_COMMUNICATIONS &&
+          renderDrawerSection(
+            "Vendor Communications",
+            <VendorCommunicationsPanel
+              navy={navy}
+              font={font}
+              emailProviderConnected={emailProviderConnected}
+              deliveryOrderId={details.delivery.id}
+              refreshKey={vendorCommsRefresh}
+              expandSignal={vendorCommsExpandSignal}
+            />,
+          )}
         <StatusActionPanel
           details={details}
           loading={mutationLoading}
@@ -3723,8 +3718,6 @@ function StatusActionPanel({
     }
   };
 
-  const b = STATUS_BADGE[currentStatus];
-
   return (
     <section
       style={{
@@ -3736,9 +3729,9 @@ function StatusActionPanel({
       }}
     >
       <h3
-        data-testid="drawer-workflow-status-heading"
+        data-testid="manual-controls-heading"
         style={{
-          margin: "0 0 4px",
+          margin: "0 0 12px",
           fontSize: 11,
           fontWeight: 700,
           color: "#9ca3af",
@@ -3746,58 +3739,8 @@ function StatusActionPanel({
           letterSpacing: "0.10em",
         }}
       >
-        Order Workflow Status
+        Manual Controls
       </h3>
-      <p
-        style={{
-          margin: "0 0 12px",
-          fontSize: 12,
-          color: "#6b7280",
-          lineHeight: 1.45,
-          fontFamily: font,
-        }}
-      >
-        Tracks the order lifecycle stage — not how many items are checked in. See
-        Issue Summary for receipt counts.
-      </p>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
-        <span
-          data-testid="drawer-workflow-status-badge"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 12px",
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: "normal",
-            backgroundColor: b.bg,
-            color: b.text,
-            border: `1px solid ${b.border}`,
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              backgroundColor: b.dot,
-              flexShrink: 0,
-            }}
-          />
-          {drawerWorkflowStatusLabel(currentStatus)}
-        </span>
-      </div>
 
       {currentStatus === "pending" && !showReasonInput && !showPickupInput && (
         <div style={{ marginBottom: 12 }}>
@@ -3835,29 +3778,6 @@ function StatusActionPanel({
             backgroundColor: "#fafafa",
           }}
         >
-          <h3
-            style={{
-              margin: "0 0 4px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#9ca3af",
-              textTransform: "uppercase",
-              letterSpacing: "0.10em",
-            }}
-          >
-            Manual Controls
-          </h3>
-          <p
-            style={{
-              margin: "0 0 10px",
-              fontSize: 11,
-              color: "#9ca3af",
-              lineHeight: 1.4,
-              fontFamily: font,
-            }}
-          >
-            Fallback status updates when the normal workflow is not enough.
-          </p>
           {possibleNext.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {possibleNext.map((status) => (
@@ -4328,17 +4248,18 @@ function StatusActionPanel({
             {loading ? "Saving…" : "Assign"}
           </button>
         </div>
-        {getAllStagingLocationIds(details.delivery).length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <NeedMoreSpaceButton
-              delivery={details.delivery}
-              onDeliveryUpdated={(updated) => {
-                onDeliveryOrderUpdated(updated);
-                void mapOccupancyByLocationId(updated.id).then(setZoneOccupancy);
-              }}
-            />
-          </div>
-        )}
+        {!DRAWER_HIDE_NEED_MORE_SPACE &&
+          getAllStagingLocationIds(details.delivery).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <NeedMoreSpaceButton
+                delivery={details.delivery}
+                onDeliveryUpdated={(updated) => {
+                  onDeliveryOrderUpdated(updated);
+                  void mapOccupancyByLocationId(updated.id).then(setZoneOccupancy);
+                }}
+              />
+            </div>
+          )}
       </div>
 
       <div style={{ marginTop: 16 }}>
