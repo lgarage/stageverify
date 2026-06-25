@@ -512,7 +512,14 @@
       "status": "built",
       "commit": "0a44d26",
       "note": "Orange STAGING LOCATION NEEDED banner before status banner; Delivery Basics Not Assigned; Assign Location scroll/focus; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-078",
+      "title": "Pickup drawer controls cleanup — disabled copy, separate pills, 2x2 grid",
+      "status": "built",
+      "commit": "pending",
+      "note": "No Items to Pick Up when 0 received; separate blue Pickup Scheduled + green active link pills; Clear Pickup Scheduled blue styling; verify:delivery-consistency PASS"
     }
   ],
-  "summary": "away-077 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
+  "summary": "away-078 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
 }

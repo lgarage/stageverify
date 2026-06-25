@@ -63,6 +63,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
+import { sumItemQtyReceived } from "./dispatcher/deliveryDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -106,9 +107,9 @@ function drawerActionBtnClearPickup(font: string, disabled: boolean) {
   return {
     ...DRAWER_ACTION_BTN_BASE,
     fontFamily: font,
-    backgroundColor: "#fff",
-    color: NAVY,
-    border: `1.5px solid ${NAVY}`,
+    backgroundColor: "#e3f2fd",
+    color: "#1565c0",
+    border: "1.5px solid #90caf9",
     cursor: disabled ? "wait" : "pointer",
     opacity: disabled ? 0.7 : 1,
   };
@@ -1942,16 +1943,16 @@ function CopyPickupLinkButton({
   jobName,
   jobNumber,
   siteNumber,
-  navy: _navy,
   font,
+  hasReceivedItems,
   onTokenGenerated,
 }: {
   jobId: string;
   jobName: string;
   jobNumber: string;
   siteNumber?: string;
-  navy: string;
   font: string;
+  hasReceivedItems: boolean;
   onTokenGenerated?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -2017,28 +2018,45 @@ function CopyPickupLinkButton({
     }
   };
 
+  const canCopy = hasReceivedItems;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
       <button
         type="button"
         data-testid="copy-pickup-information"
-        disabled={busy}
-        onClick={() => void handleCopy()}
+        disabled={!canCopy || busy}
+        aria-disabled={!canCopy || busy}
+        onClick={() => {
+          if (canCopy) void handleCopy();
+        }}
         style={{
           ...DRAWER_ACTION_BTN_BASE,
-          backgroundColor: copied ? "#e8f5e9" : "#fff",
-          color: "#2e7d32",
-          border: `1.5px solid ${copied ? "#a5d6a7" : "#2e7d32"}`,
-          cursor: busy ? "wait" : "pointer",
           fontFamily: font,
-          opacity: busy ? 0.7 : 1,
+          ...(canCopy
+            ? {
+                backgroundColor: copied ? "#e8f5e9" : "#fff",
+                color: "#2e7d32",
+                border: `1.5px solid ${copied ? "#a5d6a7" : "#2e7d32"}`,
+                cursor: busy ? "wait" : "pointer",
+                opacity: busy ? 0.7 : 1,
+              }
+            : {
+                backgroundColor: "#f3f4f6",
+                color: "#9ca3af",
+                border: "1.5px solid #d1d5db",
+                cursor: "not-allowed",
+                opacity: 1,
+              }),
         }}
       >
-        {busy
-          ? "Preparing…"
-          : copied
-            ? "Pickup information copied with secure pickup link."
-            : "Copy Pickup Information"}
+        {!canCopy
+          ? "No Items to Pick Up"
+          : busy
+            ? "Preparing…"
+            : copied
+              ? "Pickup information copied with secure pickup link."
+              : "Copy Pickup Information"}
       </button>
       {copyError ? (
         <span style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}>
@@ -2384,6 +2402,8 @@ function DetailContent({
 
   if (!details.job) return null;
   const job = details.job;
+  const itemsReceivedCount = sumItemQtyReceived(details.items);
+  const hasReceivedItemsForPickup = itemsReceivedCount > 0;
 
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
@@ -2575,9 +2595,6 @@ function DetailContent({
                 .drawer-action-buttons-grid {
                   grid-template-columns: 1fr;
                 }
-                .drawer-action-buttons-grid .drawer-action-copy-span {
-                  grid-column: auto;
-                }
               }
             `}</style>
             <div
@@ -2602,39 +2619,49 @@ function DetailContent({
                     </span>
                   ) : (
                     <>
-                      {(job.pickupScheduledAt || hasActiveToken) && (
-                        <span
-                          data-testid={
-                            job.pickupScheduledAt
-                              ? "pickup-scheduled-badge"
-                              : "pickup-status-indicator"
-                          }
+                      {(job.pickupScheduledAt || hasActiveToken) ? (
+                        <div
                           style={{
-                            display: "inline-flex",
-                            alignSelf: "flex-start",
-                            alignItems: "center",
+                            display: "flex",
                             flexWrap: "wrap",
-                            gap: 4,
-                            backgroundColor: "#e8f4f0",
-                            color: navy,
-                            border: "1px solid #a7d4c7",
-                            borderRadius: 999,
-                            padding: "4px 10px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: "0.02em",
+                            gap: 6,
+                            alignItems: "center",
                           }}
                         >
-                          {job.pickupScheduledAt ? "Pickup Scheduled" : null}
-                          {job.pickupScheduledAt && hasActiveToken ? (
-                            <span style={{ color: "#6b7280", fontWeight: 400 }}>
-                              ·
+                          {job.pickupScheduledAt ? (
+                            <span
+                              data-testid="pickup-scheduled-badge"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                backgroundColor: "#e3f2fd",
+                                color: "#1565c0",
+                                border: "1px solid #90caf9",
+                                borderRadius: 999,
+                                padding: "4px 10px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: "0.02em",
+                              }}
+                            >
+                              Pickup Scheduled
                             </span>
                           ) : null}
                           {hasActiveToken ? (
                             <span
                               data-testid="pickup-token-active"
-                              style={{ color: "#2e7d32", fontWeight: 600 }}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                backgroundColor: "#e8f5e9",
+                                color: "#2e7d32",
+                                border: "1px solid #a5d6a7",
+                                borderRadius: 999,
+                                padding: "4px 10px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: "0.02em",
+                              }}
                             >
                               Active link expires{" "}
                               {tokenExpiresAt
@@ -2642,8 +2669,8 @@ function DetailContent({
                                 : "…"}
                             </span>
                           ) : null}
-                        </span>
-                      )}
+                        </div>
+                      ) : null}
                       {hasActiveToken && !readPickupTokenForJob(job.id) ? (
                         <span
                           data-testid="pickup-token-copy-regen-hint"
@@ -2691,20 +2718,14 @@ function DetailContent({
               >
                 Show Vendor Check-In QR
               </button>
-              <div
-                className={hasActiveToken ? undefined : "drawer-action-copy-span"}
-                style={{
-                  gridColumn: hasActiveToken ? undefined : "1 / -1",
-                  minWidth: 0,
-                }}
-              >
+              <div style={{ minWidth: 0 }}>
                 <CopyPickupLinkButton
                   jobId={job.id}
                   jobName={job.jobName}
                   jobNumber={job.jobNumber}
                   siteNumber={job.siteNumber}
-                  navy={navy}
                   font={font}
+                  hasReceivedItems={hasReceivedItemsForPickup}
                   onTokenGenerated={() =>
                     setPickupTokenRefreshKey((value) => value + 1)
                   }

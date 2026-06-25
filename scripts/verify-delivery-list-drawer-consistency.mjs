@@ -216,6 +216,79 @@ async function assertActionButtonGridBalance(page, record, label, expectedCount)
   }
 }
 
+async function assertSeparatePickupPills(page, record, label) {
+  const scheduledBadge = page.getByTestId("pickup-scheduled-badge");
+  const activeToken = page.getByTestId("pickup-token-active");
+  const scheduledCount = await scheduledBadge.count();
+  const activeCount = await activeToken.count();
+
+  if (scheduledCount === 0 && activeCount === 0) {
+    record(`${label} — separate pickup pills (none present)`, true, "no pills");
+    return;
+  }
+
+  if (scheduledCount > 0 && activeCount > 0) {
+    const scheduledText = (await scheduledBadge.innerText()).trim();
+    const activeText = (await activeToken.innerText()).trim();
+    record(
+      `${label} — Pickup Scheduled pill separate from active link`,
+      scheduledText === "Pickup Scheduled" &&
+        /Active link expires/i.test(activeText) &&
+        !scheduledText.includes("Active link"),
+      `scheduled="${scheduledText}", active="${activeText.slice(0, 60)}"`,
+    );
+
+    const scheduledParent = await scheduledBadge.evaluate((el) => el.parentElement);
+    const activeParent = await activeToken.evaluate((el) => el.parentElement);
+    record(
+      `${label} — pickup pills are sibling elements (not combined)`,
+      scheduledParent === activeParent &&
+        scheduledBadge !== activeToken,
+      `same parent=${scheduledParent === activeParent}`,
+    );
+
+    const scheduledBg = await scheduledBadge.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    record(
+      `${label} — Pickup Scheduled pill uses blue styling`,
+      /rgb\(227,\s*242,\s*253\)|#e3f2fd/i.test(scheduledBg),
+      scheduledBg,
+    );
+
+    const activeBg = await activeToken.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    record(
+      `${label} — active link pill uses green styling`,
+      /rgb\(232,\s*245,\s*233\)|#e8f5e9/i.test(activeBg),
+      activeBg,
+    );
+  } else if (activeCount > 0) {
+    const activeText = (await activeToken.innerText()).trim();
+    record(
+      `${label} — active link pill present alone`,
+      /Active link expires/i.test(activeText),
+      activeText.slice(0, 80),
+    );
+    const activeBg = await activeToken.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    record(
+      `${label} — active link pill uses green styling`,
+      /rgb\(232,\s*245,\s*233\)|#e8f5e9/i.test(activeBg),
+      activeBg,
+    );
+  } else {
+    const scheduledText = (await scheduledBadge.innerText()).trim();
+    record(
+      `${label} — Pickup Scheduled pill present alone`,
+      scheduledText === "Pickup Scheduled",
+      scheduledText,
+    );
+  }
+}
+
 async function assertPickupStatusInGrid(page, record, label) {
   const grid = page.getByTestId("drawer-action-buttons");
   const tokenControls = page.getByTestId("pickup-token-controls");
@@ -268,6 +341,8 @@ async function assertPickupStatusInGrid(page, record, label) {
     `${label} — legacy floating active-link copy removed`,
     (await bodyFloatingLine.count()) === 0,
   );
+
+  await assertSeparatePickupPills(page, record, label);
 }
 
 async function assertDeliveryBasicsNoTopNotes(page, record, label) {
@@ -638,9 +713,13 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
 
     const copyBtn = page.getByTestId("copy-pickup-information");
     record(
-      "ORD-005 Copy Pickup Information label",
+      "ORD-005 No Items to Pick Up when 0 received",
       (await copyBtn.count()) > 0 &&
-        (await copyBtn.innerText()).trim() === "Copy Pickup Information",
+        (await copyBtn.innerText()).trim() === "No Items to Pick Up",
+    );
+    record(
+      "ORD-005 copy disabled when 0 received",
+      (await copyBtn.count()) > 0 && (await copyBtn.isDisabled()),
     );
 
     const revokeBtn = page.getByTestId("revoke-pickup-link");
@@ -660,6 +739,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
 
     await assertActionButtonGridBalance(page, record, "ORD-005 (no link)", 3);
     await assertPickupStatusInGrid(page, record, "ORD-005 (no link)");
+    await assertSeparatePickupPills(page, record, "ORD-005 (no link)");
 
     record(
       "ORD-005 Job Status panel removed",
@@ -671,21 +751,49 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       (await page.getByTestId("generate-pickup-link").count()) === 0,
     );
 
+    record(
+      "ORD-005 copy does not run when 0 received (disabled)",
+      !(await copyBtn.isEnabled()),
+    );
+  }
+
+  const ord002Row = page.locator("table tbody tr", { hasText: "ORD-002" });
+  if ((await ord002Row.count()) > 0) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    await ord002Row.first().click({ force: true });
+    await page.waitForTimeout(1200);
+    await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+
+    const ord002CopyBtn = page.getByTestId("copy-pickup-information");
+    record(
+      "ORD-002 Copy Pickup Information enabled when received",
+      (await ord002CopyBtn.count()) > 0 &&
+        (await ord002CopyBtn.innerText()).trim() === "Copy Pickup Information" &&
+        (await ord002CopyBtn.isEnabled()),
+    );
+
+    const ord002Revoke = page.getByTestId("revoke-pickup-link");
+    if ((await ord002Revoke.count()) > 0) {
+      await ord002Revoke.click();
+      await page.waitForTimeout(2000);
+    }
+
     await page.getByTestId("copy-pickup-information").click();
     await page.waitForTimeout(2000);
-    let ord005Clipboard = "";
+    let ord002Clipboard = "";
     for (let attempt = 0; attempt < 2; attempt++) {
-      ord005Clipboard = await page
+      ord002Clipboard = await page
         .evaluate(async () => navigator.clipboard.readText())
         .catch(() => "");
-      if (/#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard)) break;
+      if (/#\/pickup\?t=[a-f0-9]{64}/.test(ord002Clipboard)) break;
       await page.getByTestId("copy-pickup-information").click();
       await page.waitForTimeout(2000);
     }
     record(
-      "ORD-005 Copy Pickup uses secure token URL",
-      /#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard),
-      ord005Clipboard.slice(0, 80),
+      "ORD-002 Copy Pickup uses secure token URL",
+      /#\/pickup\?t=[a-f0-9]{64}/.test(ord002Clipboard),
+      ord002Clipboard.slice(0, 80),
     );
 
     await page.waitForTimeout(1500);
@@ -694,32 +802,41 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     if ((await tokenActive.count()) > 0) {
       const tokenText = (await tokenActive.innerText()).trim();
       record(
-        "ORD-005 pickup status includes link expiry after copy",
+        "ORD-002 pickup status includes link expiry after copy",
         /expires/i.test(tokenText),
         tokenText.slice(0, 80),
       );
     } else {
       record(
-        "ORD-005 pickup status includes link expiry after copy",
+        "ORD-002 pickup status includes link expiry after copy",
         false,
         "pickup-token-active missing after copy",
       );
     }
-    await assertPickupStatusInGrid(page, record, "ORD-005 (after copy)");
+    await assertPickupStatusInGrid(page, record, "ORD-002 (after copy)");
+    await assertSeparatePickupPills(page, record, "ORD-002 (after copy)");
     if ((await revokeAfterCopy.count()) > 0) {
       await assertActionButtonGridBalance(
         page,
         record,
-        "ORD-005 (after copy)",
+        "ORD-002 (after copy)",
         4,
       );
     } else {
       record(
-        "ORD-005 Revoke visible after copy (for 2x2 check)",
+        "ORD-002 Revoke visible after copy (for 2x2 check)",
         false,
         "revoke not shown after token generation",
       );
     }
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    await ord005Row.click({ force: true });
+    await page.waitForTimeout(1200);
+    await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+  } else {
+    record("ORD-002 row present for copy-enabled test", false);
   }
 
   const resolveBtn = page.getByTestId("drawer-action-resolve-issue");
