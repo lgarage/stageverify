@@ -3834,7 +3834,13 @@ function StatusActionPanel({
               const occupant = zoneOccupancy[loc.id];
               const inUse = Boolean(occupant);
               return (
-                <option key={loc.id} value={loc.id} disabled={inUse}>
+                <option
+                  key={loc.id}
+                  value={loc.id}
+                  disabled={inUse}
+                  data-staging-occupied={inUse ? "true" : undefined}
+                  style={{ color: inUse ? "#bf0a30" : "#333" }}
+                >
                   {loc.code} — {loc.label}
                   {inUse ? ` (in use: ${occupant.orderNumber})` : ""}
                 </option>
@@ -3864,6 +3870,17 @@ function StatusActionPanel({
             {loading ? "Saving…" : "Assign"}
           </button>
         </div>
+        <p
+          data-testid="staging-location-occupied-helper"
+          style={{
+            margin: "8px 0 0",
+            fontSize: 12,
+            color: "#6b7280",
+            lineHeight: 1.4,
+          }}
+        >
+          Red locations are already assigned to another delivery.
+        </p>
         {!DRAWER_HIDE_NEED_MORE_SPACE &&
           getAllStagingLocationIds(details.delivery).length > 0 && (
             <div style={{ marginTop: 12 }}>

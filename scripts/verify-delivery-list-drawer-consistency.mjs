@@ -244,6 +244,90 @@ async function getActionButtonRows(page) {
   });
 }
 
+async function assertStagingOccupiedDropdown(page, record, label) {
+  const helper = page.getByTestId("staging-location-occupied-helper");
+  const helperText = (await helper.innerText()).trim();
+  record(
+    `${label} — occupied helper note present`,
+    (await helper.count()) > 0 &&
+      helperText === "Red locations are already assigned to another delivery.",
+    helperText,
+  );
+
+  const select = page.getByTestId("staging-location-select");
+  if ((await select.count()) === 0) {
+    record(`${label} — staging select for occupied styling`, false, "select missing");
+    return;
+  }
+
+  const options = await select.locator("option").evaluateAll((opts) =>
+    opts.map((o) => ({
+      value: o.value,
+      text: (o.textContent ?? "").trim(),
+      disabled: o.disabled,
+      occupiedAttr: o.getAttribute("data-staging-occupied") === "true",
+      color: o.style.color || getComputedStyle(o).color,
+    })),
+  );
+
+  const occupied = options.filter((o) => o.text.includes("(in use:"));
+  record(
+    `${label} — at least one occupied staging option`,
+    occupied.length > 0,
+    `${occupied.length} occupied`,
+  );
+
+  for (const opt of occupied) {
+    record(
+      `${label} — occupied option "${opt.text.slice(0, 40)}" has red styling`,
+      /#bf0a30|rgb\(191,\s*10,\s*48\)/i.test(opt.color),
+      opt.color || "no color",
+    );
+    record(
+      `${label} — occupied option disabled`,
+      opt.disabled,
+      opt.text.slice(0, 50),
+    );
+    record(
+      `${label} — occupied option data-staging-occupied`,
+      opt.occupiedAttr,
+      opt.text.slice(0, 50),
+    );
+  }
+
+  const available = options.filter(
+    (o) => o.value && !o.text.includes("(in use:"),
+  );
+  for (const opt of available.slice(0, 2)) {
+    record(
+      `${label} — available option dark text`,
+      /#333|rgb\(51,\s*51,\s*51\)/i.test(opt.color) || opt.color === "",
+      `${opt.text.slice(0, 40)} color=${opt.color || "default"}`,
+    );
+  }
+
+  const currentAssignedId = await select.inputValue();
+  if (currentAssignedId) {
+    const currentOpt = options.find((o) => o.value === currentAssignedId);
+    record(
+      `${label} — current assignment not shown as occupied by another delivery`,
+      Boolean(
+        currentOpt &&
+          !currentOpt.text.includes("(in use:") &&
+          !currentOpt.disabled,
+      ),
+      currentOpt?.text.slice(0, 60) ?? "missing option",
+    );
+    record(
+      `${label} — assign button disabled when selection matches current`,
+      !(await page
+        .getByTestId("staging-location-assignment")
+        .getByRole("button", { name: "Assign" })
+        .isEnabled()),
+    );
+  }
+}
+
 async function assertLowerDrawerLayout(page, record, label) {
   const stagingAssignment = page.getByTestId("staging-location-assignment");
   const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
@@ -969,6 +1053,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     );
 
     await assertLowerDrawerLayout(page, record, "ORD-005");
+    await assertStagingOccupiedDropdown(page, record, "ORD-005");
 
     record(
       "ORD-005 Advanced Manual Controls heading present",
