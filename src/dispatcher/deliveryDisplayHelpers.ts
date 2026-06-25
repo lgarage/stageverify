@@ -1,5 +1,15 @@
-import type { DeliveryOrder, Item, MaterialIssue } from "./models";
-import { MATERIAL_ISSUE_TYPE_LABEL } from "./models";
+import type {
+  DeliveryOrder,
+  Item,
+  MaterialIssue,
+  PickupEvent,
+  StatusHistoryEvent,
+} from "./models";
+import {
+  DELIVERY_STATUS_LABEL,
+  MATERIAL_ISSUE_TYPE_LABEL,
+  type DeliveryStatus,
+} from "./models";
 import { deliveryReadinessDisplayLabel } from "./jobReadinessDisplay";
 import {
   computeDeliveryReadiness,
@@ -783,4 +793,90 @@ export function buildRecommendedActions(blockerLabels: string[]): string[] {
     actions.push("Review delivery readiness evidence and take corrective action");
   }
   return actions;
+}
+
+const ACTIVITY_ACTOR_LABEL: Record<string, string> = {
+  dispatcher: "Dispatcher",
+  vendor: "Vendor",
+  system: "System",
+  technician: "Technician",
+};
+
+const DELIVERY_ACTIVITY_HEADLINE: Partial<Record<DeliveryStatus, string>> = {
+  pending: "Order placed — awaiting delivery",
+  shipped: "Shipment marked in transit",
+  arrived: "Delivery received at shop",
+  partial: "Partial delivery recorded",
+  ready_for_pickup: "Items staged for pickup",
+  complete: "Delivery marked complete",
+  issue: "Delivery flagged with an issue",
+  picked_up: "Pickup completed",
+  installed: "Delivery marked installed",
+};
+
+export function formatActivityHistoryHeadline(event: StatusHistoryEvent): string {
+  const to = event.toStatus.toLowerCase();
+  if (event.entityType === "delivery_order") {
+    if (to === "pending" || to === "ordered" || to.includes("pending")) {
+      return "Order placed — awaiting delivery";
+    }
+    const deliveryStatus = to as DeliveryStatus;
+    const mapped = DELIVERY_ACTIVITY_HEADLINE[deliveryStatus];
+    if (mapped) return mapped;
+    const label = DELIVERY_STATUS_LABEL[deliveryStatus];
+    if (label) return `Delivery marked as ${label}`;
+    const human = to.replace(/_/g, " ");
+    return `Delivery updated — ${human}`;
+  }
+  if (event.entityType === "item") {
+    if (to === "backordered") {
+      return event.reason
+        ? `Item backordered — ${event.reason}`
+        : "Item marked backordered";
+    }
+    if (to === "received") return "Item received at shop";
+    if (to === "damaged") return "Item damage reported";
+    if (to === "pending") return "Item awaiting delivery";
+    return `Item updated — ${to.replace(/_/g, " ")}`;
+  }
+  return "Activity recorded";
+}
+
+export function formatActivityHistoryMeta(event: StatusHistoryEvent): string {
+  const actor = ACTIVITY_ACTOR_LABEL[event.actorType] ?? event.actorType;
+  const name = event.actorName ? ` · ${event.actorName}` : "";
+  return `${actor}${name} · ${new Date(event.createdAt).toLocaleString()}`;
+}
+
+/** Compact view: newest first, drop consecutive duplicate status keys. */
+export function filterCompactActivityHistory(
+  events: StatusHistoryEvent[],
+): StatusHistoryEvent[] {
+  const sorted = [...events].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
+  const deduped: StatusHistoryEvent[] = [];
+  let lastKey = "";
+  for (const event of sorted) {
+    const key = `${event.entityType}:${event.toStatus}:${event.reason ?? ""}`;
+    if (key === lastKey) continue;
+    lastKey = key;
+    deduped.push(event);
+  }
+  return deduped;
+}
+
+export function selectTopActivityHistoryEvents(
+  events: StatusHistoryEvent[],
+  max = 3,
+): StatusHistoryEvent[] {
+  return filterCompactActivityHistory(events).slice(0, max);
+}
+
+/** Hide pickup summary when nothing received (avoids stale/demo noise at 0 qty). */
+export function shouldShowPickupSummaryPanel(
+  items: Item[],
+  _pickupEvents: PickupEvent[],
+): boolean {
+  return sumItemQtyReceived(items) > 0;
 }

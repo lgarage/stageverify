@@ -1087,6 +1087,84 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       "ORD-005 Need More Space button hidden in drawer",
       (await page.getByRole("button", { name: /Need More Space/i }).count()) === 0,
     );
+
+    record(
+      "ORD-005 Pickup Summary hidden when 0 received",
+      (await page.getByTestId("pickup-summary-panel").count()) === 0,
+    );
+
+    const itemsSection = page.getByTestId("drawer-items-section");
+    record(
+      "ORD-005 Items section present",
+      (await itemsSection.count()) > 0,
+    );
+    if ((await itemsSection.count()) > 0) {
+      const itemsText = (await itemsSection.innerText()).trim();
+      record(
+        "ORD-005 Items show Not received yet (not pickup-ready green)",
+        /Not received yet/i.test(itemsText),
+        itemsText.slice(0, 120),
+      );
+      record(
+        "ORD-005 Items still show ordered/received/missing counts",
+        /\bOrdered\b/i.test(itemsText) &&
+          /\bMissing\b/i.test(itemsText) &&
+          /\b0\b/.test(itemsText),
+        itemsText.slice(0, 120),
+      );
+    }
+
+    record(
+      "ORD-005 Status History renamed to Activity History",
+      !(await page.locator("body").innerText()).includes("STATUS HISTORY") &&
+        /Activity History/i.test(await page.locator("body").innerText()),
+    );
+
+    const activityToggle = page.getByTestId("activity-history-toggle");
+    record(
+      "ORD-005 Activity History collapsed by default",
+      (await activityToggle.count()) > 0 &&
+        (await activityToggle.getAttribute("aria-expanded")) === "false",
+    );
+    record(
+      "ORD-005 Activity History content hidden when collapsed",
+      (await page.getByTestId("activity-history-content").count()) === 0,
+    );
+
+    await activityToggle.click();
+    await page.waitForTimeout(300);
+    record(
+      "ORD-005 Activity History expands on toggle",
+      (await activityToggle.getAttribute("aria-expanded")) === "true",
+    );
+
+    const compactHistory = page.getByTestId("activity-history-compact");
+    if ((await compactHistory.count()) > 0) {
+      const compactText = (await compactHistory.innerText()).trim();
+      record(
+        "ORD-005 Activity History uses friendly language",
+        (/Order placed|awaiting delivery|Delivery (marked|updated)/i.test(compactText) ||
+          !/delivery_order\s*→/i.test(compactText)) &&
+          !/delivery_order\s*→/i.test(compactText),
+        compactText.slice(0, 120),
+      );
+      record(
+        "ORD-005 Activity History compact shows at most 3 events",
+        (await compactHistory.locator("[data-testid^='activity-history-event-']").count()) <= 3,
+      );
+    } else {
+      record("ORD-005 Activity History compact list present", false);
+    }
+
+    const deliveryNotes = page.getByTestId("delivery-notes-audit");
+    if ((await deliveryNotes.count()) > 0) {
+      const notesText = (await deliveryNotes.innerText()).trim();
+      record(
+        "ORD-005 Delivery Notes readable and compact",
+        /Delivery Notes/i.test(notesText) && notesText.length < 400,
+        `${notesText.length} chars`,
+      );
+    }
   }
 
   const ord002Row = page.locator("table tbody tr", { hasText: "ORD-002" });

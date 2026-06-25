@@ -63,7 +63,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { sumItemQtyReceived } from "./dispatcher/deliveryDisplayHelpers";
+import { sumItemQtyReceived, shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, formatActivityHistoryHeadline, formatActivityHistoryMeta } from "./dispatcher/deliveryDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -2258,9 +2258,16 @@ function DetailContent({
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
   const [vendorCommsExpandSignal, setVendorCommsExpandSignal] = useState(0);
   const [pickupTokenRefreshKey, setPickupTokenRefreshKey] = useState(0);
+  const [activityHistoryExpanded, setActivityHistoryExpanded] = useState(false);
+  const [activityHistoryFullView, setActivityHistoryFullView] = useState(false);
   const [expandedResolvedIssueIds, setExpandedResolvedIssueIds] = useState<
     Set<string>
   >(new Set());
+
+  useEffect(() => {
+    setActivityHistoryExpanded(false);
+    setActivityHistoryFullView(false);
+  }, [details?.delivery.id]);
 
   const expandVendorCommunications = () => {
     setVendorCommsExpandSignal((value) => value + 1);
@@ -3064,7 +3071,8 @@ function DetailContent({
           navy={navy}
           font={font}
         />
-        {renderDrawerSection(
+        {shouldShowPickupSummaryPanel(details.items, details.pickupEvents)
+          ? renderDrawerSection(
           "Pickup Summary",
           (() => {
             const latest = latestPickupEvent(details.pickupEvents);
@@ -3100,10 +3108,12 @@ function DetailContent({
               </div>
             );
           })(),
-        )}
+        )
+          : null}
         {renderDrawerSection(
           `Items (${details.items.length})`,
           <div
+            data-testid="drawer-items-section"
             style={{
               display: "flex",
               flexDirection: "column" as const,
@@ -3111,14 +3121,19 @@ function DetailContent({
             }}
           >
             {details.items.map((item) => {
-              const sb = STATUS_BADGE_LOCAL[item.status] ?? {
-                bg: "#f8f9fa",
-                text: "#495057",
-                border: "#ced4da",
-              };
+              const notReceivedYet = item.qtyReceived === 0;
+              const sb = notReceivedYet
+                ? { bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db" }
+                : (STATUS_BADGE_LOCAL[item.status] ?? {
+                    bg: "#f8f9fa",
+                    text: "#495057",
+                    border: "#ced4da",
+                  });
+              const statusLabel = notReceivedYet ? "Not received yet" : item.status;
               return (
                 <div
                   key={item.id}
+                  data-testid={`drawer-item-row-${item.id}`}
                   style={{
                     border: "1px solid #e0e3e8",
                     borderRadius: 8,
@@ -3158,20 +3173,21 @@ function DetailContent({
                       </p>
                     </div>
                     <span
+                      data-testid={`drawer-item-status-${item.id}`}
                       style={{
                         flexShrink: 0,
                         padding: "3px 8px",
                         borderRadius: 4,
                         fontSize: 10,
                         fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
+                        textTransform: notReceivedYet ? "none" : "uppercase",
+                        letterSpacing: notReceivedYet ? "0" : "0.06em",
                         backgroundColor: sb.bg,
                         color: sb.text,
                         border: `1px solid ${sb.border}`,
                       }}
                     >
-                      {item.status}
+                      {statusLabel}
                     </span>
                   </div>
                   <div
@@ -3184,24 +3200,24 @@ function DetailContent({
                     {[
                       {
                         label: "Ordered",
-                        value: item.qtyOrdered,
+                        value: String(item.qtyOrdered),
                         bg: "#f8f9fa",
                         text: "#333",
                         border: "#e0e3e8",
                       },
                       {
-                        label: "Received",
-                        value: item.qtyReceived,
-                        bg: "#e8f5e9",
-                        text: "#2e7d32",
-                        border: "#a5d6a7",
+                        label: notReceivedYet ? "Not received yet" : "Received",
+                        value: notReceivedYet ? "0" : String(item.qtyReceived),
+                        bg: notReceivedYet ? "#f3f4f6" : "#e8f5e9",
+                        text: notReceivedYet ? "#6b7280" : "#2e7d32",
+                        border: notReceivedYet ? "#d1d5db" : "#a5d6a7",
                       },
                       {
                         label: "Missing",
-                        value: item.qtyMissing,
-                        bg: "#ffebee",
-                        text: "#c62828",
-                        border: "#ef9a9a",
+                        value: String(item.qtyMissing),
+                        bg: item.qtyMissing > 0 ? "#ffebee" : "#f8f9fa",
+                        text: item.qtyMissing > 0 ? "#c62828" : "#333",
+                        border: item.qtyMissing > 0 ? "#ef9a9a" : "#e0e3e8",
                       },
                     ].map(({ label, value, bg, text, border }) => (
                       <div
@@ -3220,8 +3236,9 @@ function DetailContent({
                             fontWeight: 700,
                             color: text,
                             marginBottom: 2,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
+                            textTransform: label === "Not received yet" ? "none" : "uppercase",
+                            letterSpacing: label === "Not received yet" ? "0" : "0.06em",
+                            lineHeight: 1.2,
                           }}
                         >
                           {label}
@@ -3244,123 +3261,199 @@ function DetailContent({
             })}
           </div>,
         )}
-        {renderDrawerSection(
-          "Status History",
-          <div>
-            {details.delivery.notes ? (
-              <div
-                data-testid="delivery-notes-audit"
+        <section data-testid="activity-history-section">
+          <button
+            type="button"
+            data-testid="activity-history-toggle"
+            aria-expanded={activityHistoryExpanded}
+            onClick={() => setActivityHistoryExpanded((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: 0,
+              margin: "0 0 10px",
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              fontFamily: font,
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#9ca3af",
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
+              textAlign: "left",
+            }}
+          >
+            <span style={{ fontSize: 10, color: "#64748b" }}>
+              {activityHistoryExpanded ? "▼" : "▶"}
+            </span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 16,
+                height: 2,
+                backgroundColor: navy,
+                borderRadius: 2,
+                flexShrink: 0,
+              }}
+            />
+            Activity History
+            {details.statusHistory.length > 0 && !activityHistoryExpanded ? (
+              <span
                 style={{
-                  marginBottom: 16,
-                  padding: "10px 12px",
-                  backgroundColor: "#f8fafc",
-                  border: "1px solid #e0e3e8",
-                  borderRadius: 8,
+                  fontWeight: 400,
+                  textTransform: "none",
+                  letterSpacing: 0,
+                  color: "#6b7280",
+                  fontSize: 12,
                 }}
               >
-                <p
+                ({Math.min(3, filterCompactActivityHistory(details.statusHistory).length)} recent)
+              </span>
+            ) : null}
+          </button>
+          {activityHistoryExpanded ? (
+            <div data-testid="activity-history-content">
+              {details.delivery.notes ? (
+                <div
+                  data-testid="delivery-notes-audit"
                   style={{
-                    margin: "0 0 6px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#6b7280",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
+                    marginBottom: 12,
+                    padding: "8px 10px",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #e0e3e8",
+                    borderRadius: 6,
                   }}
                 >
-                  Delivery Notes
-                </p>
-                <p style={{ margin: 0, fontSize: 13, color: "#333" }}>
-                  {details.delivery.notes}
-                </p>
-              </div>
-            ) : null}
-            <div
-              style={{
-                position: "relative",
-                paddingLeft: 20,
-                borderLeft: `2px solid #e0e3e8`,
-                marginLeft: 8,
-                display: "flex",
-                flexDirection: "column" as const,
-                gap: 16,
-              }}
-            >
-            {details.statusHistory.length ? (
-              details.statusHistory.map((event) => (
-                <div key={event.id} style={{ position: "relative" }}>
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: -27,
-                      top: 4,
-                      width: 14,
-                      height: 14,
-                      borderRadius: "50%",
-                      backgroundColor: "#fff",
-                      border: `2px solid ${navy}`,
-                      boxShadow: `0 0 0 3px #eef2ff`,
-                    }}
-                  />
-                  <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
-                    {event.entityType}{" "}
-                    <span
-                      style={{
-                        color: "#9ca3af",
-                        fontWeight: 400,
-                        fontSize: 12,
-                      }}
-                    >
-                      →
-                    </span>{" "}
-                    <span
-                      style={{
-                        textTransform: "uppercase",
-                        fontSize: 11,
-                        letterSpacing: "0.06em",
-                        color: navy,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {event.toStatus}
-                    </span>
-                  </p>
                   <p
                     style={{
-                      margin: "3px 0 0",
-                      fontSize: 12,
-                      color: "#9ca3af",
+                      margin: "0 0 4px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
                     }}
                   >
-                    {event.actorType}
-                    {event.actorName ? ` · ${event.actorName}` : ""} ·{" "}
-                    {new Date(event.createdAt).toLocaleString()}
+                    Delivery Notes
                   </p>
-                  {event.reason && (
-                    <p
+                  <p style={{ margin: 0, fontSize: 12, color: "#333", lineHeight: 1.45 }}>
+                    {details.delivery.notes}
+                  </p>
+                </div>
+              ) : null}
+              {details.statusHistory.length ? (
+                <>
+                  <div
+                    data-testid="activity-history-compact"
+                    style={{
+                      display: "flex",
+                      flexDirection: "column" as const,
+                      gap: 10,
+                    }}
+                  >
+                    {(activityHistoryFullView
+                      ? filterCompactActivityHistory(details.statusHistory)
+                      : selectTopActivityHistoryEvents(details.statusHistory)
+                    ).map((event) =>
+                      activityHistoryFullView ? (
+                        <div
+                          key={event.id}
+                          data-testid={`activity-history-audit-${event.id}`}
+                          style={{
+                            border: "1px solid #e0e3e8",
+                            borderRadius: 6,
+                            padding: "10px 12px",
+                            backgroundColor: "#fff",
+                          }}
+                        >
+                          <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                            {event.entityType}{" "}
+                            <span style={{ color: "#9ca3af", fontWeight: 400, fontSize: 12 }}>
+                              →
+                            </span>{" "}
+                            <span
+                              style={{
+                                textTransform: "uppercase",
+                                fontSize: 11,
+                                letterSpacing: "0.06em",
+                                color: navy,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {event.toStatus}
+                            </span>
+                          </p>
+                          <p style={{ margin: "3px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                            {formatActivityHistoryMeta(event)}
+                          </p>
+                          {event.reason ? (
+                            <p
+                              style={{
+                                margin: "6px 0 0",
+                                fontSize: 12,
+                                color: "#333",
+                                backgroundColor: "#f8fafc",
+                                padding: "6px 8px",
+                                borderRadius: 4,
+                                border: "1px solid #e0e3e8",
+                              }}
+                            >
+                              {event.reason}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div
+                          key={event.id}
+                          data-testid={`activity-history-event-${event.id}`}
+                          style={{
+                            borderLeft: `3px solid ${navy}`,
+                            paddingLeft: 10,
+                          }}
+                        >
+                          <p style={{ margin: 0, fontWeight: 600, color: "#111", fontSize: 13 }}>
+                            {formatActivityHistoryHeadline(event)}
+                          </p>
+                          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
+                            {formatActivityHistoryMeta(event)}
+                          </p>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  {filterCompactActivityHistory(details.statusHistory).length > 3 ? (
+                    <button
+                      type="button"
+                      data-testid="activity-history-full-toggle"
+                      onClick={() => setActivityHistoryFullView((v) => !v)}
                       style={{
-                        margin: "6px 0 0",
-                        fontSize: 13,
-                        color: "#333",
-                        backgroundColor: "#f8fafc",
-                        padding: "7px 10px",
-                        borderRadius: 4,
+                        marginTop: 10,
+                        padding: "6px 10px",
                         border: "1px solid #e0e3e8",
+                        borderRadius: 4,
+                        backgroundColor: "#fff",
+                        color: navy,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: font,
                       }}
                     >
-                      {event.reason}
-                    </p>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p style={{ color: "#9ca3af", fontSize: 13 }}>
-                No status history found.
-              </p>
-            )}
+                      {activityHistoryFullView ? "Show Recent Only" : "Show Full History"}
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <p style={{ color: "#9ca3af", fontSize: 13, margin: 0 }}>
+                  No activity recorded yet.
+                </p>
+              )}
             </div>
-          </div>,
-        )}
+          ) : null}
+        </section>
         {renderDrawerSection(
           "Pickup Events",
           <div
