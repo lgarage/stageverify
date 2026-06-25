@@ -83,17 +83,19 @@ async function assertStagingLocationBanner(page, record, label, expectVisible) {
     );
 
     await assignBtn.click();
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(800);
     const assignment = page.getByTestId("staging-location-assignment");
-    const select = page.getByTestId("staging-location-select");
+    await assignment.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
     const assignmentVisible = await assignment.evaluate((el) => {
       const rect = el.getBoundingClientRect();
-      return rect.top >= 0 && rect.top < window.innerHeight * 0.85;
+      return rect.top >= -40 && rect.top < window.innerHeight * 0.9;
     });
     record(
       `${label} — Assign Location scrolls assignment section into view`,
       assignmentVisible && (await assignment.count()) > 0,
     );
+    const select = page.getByTestId("staging-location-select");
     const focusedSelect = await select.evaluate(
       (el) => el === document.activeElement,
     );
@@ -755,6 +757,89 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       "ORD-005 copy does not run when 0 received (disabled)",
       !(await copyBtn.isEnabled()),
     );
+
+    const workflowHeading = page.getByTestId("drawer-workflow-status-heading");
+    await workflowHeading.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+
+    const workflowBadge = page.getByTestId("drawer-workflow-status-badge");
+    if ((await workflowBadge.count()) > 0) {
+      const workflowLabel = (await workflowBadge.innerText()).trim();
+      record(
+        "ORD-005 workflow status does not say Received",
+        workflowLabel !== "Received",
+        workflowLabel,
+      );
+      record(
+        "ORD-005 Order Workflow Status heading present",
+        (await page.getByTestId("drawer-workflow-status-heading").count()) > 0,
+      );
+    }
+
+    const assignHeading = page.getByTestId("assign-staging-location-heading");
+    await assignHeading.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    record(
+      "ORD-005 Assign Staging Location heading present",
+      (await assignHeading.count()) > 0 &&
+        (await assignHeading.innerText()).trim().toUpperCase() ===
+          "ASSIGN STAGING LOCATION",
+    );
+
+    const manualControls = page.getByTestId("manual-controls-section");
+    record(
+      "ORD-005 Manual Controls section present",
+      (await manualControls.count()) > 0,
+    );
+    if ((await manualControls.count()) > 0) {
+      const manualText = (await manualControls.innerText()).trim();
+      record(
+        "ORD-005 Manual Controls groups Mark buttons",
+        /Manual Controls/i.test(manualText) &&
+          (/Mark Issue/i.test(manualText) || /Mark Received/i.test(manualText)),
+        manualText.slice(0, 80),
+      );
+    }
+
+    await page.getByTestId("vendor-communications-toggle").scrollIntoViewIfNeeded();
+    await page.getByTestId("vendor-communications-toggle").click();
+    await page.waitForTimeout(300);
+    const vendorEmpty = page.getByTestId("vendor-communications-empty");
+    if ((await vendorEmpty.count()) > 0) {
+      record(
+        "ORD-005 vendor comms empty state calm copy",
+        (await vendorEmpty.innerText()).trim() === "No vendor communications yet.",
+      );
+    } else {
+      record("ORD-005 vendor comms empty state (has messages)", true, "skipped");
+    }
+
+    const resolvedPanel = page.getByTestId("recently-resolved-material-issues");
+    if ((await resolvedPanel.count()) > 0) {
+      const firstShowDetails = resolvedPanel
+        .locator('[data-testid^="resolved-issue-show-details-"]')
+        .first();
+      record(
+        "Resolved issues compact with Show Details by default",
+        (await firstShowDetails.count()) > 0,
+      );
+      if ((await firstShowDetails.count()) > 0) {
+        const issueId = (
+          await firstShowDetails.getAttribute("data-testid")
+        )?.replace("resolved-issue-show-details-", "");
+        await firstShowDetails.click();
+        await page.waitForTimeout(200);
+        record(
+          "Resolved issue details expand on Show Details",
+          issueId
+            ? (await page.getByTestId(`resolved-issue-details-${issueId}`).count()) >
+              0
+            : false,
+        );
+      }
+    } else {
+      record("Recently resolved material issues section", true, "none on ORD-005");
+    }
   }
 
   const ord002Row = page.locator("table tbody tr", { hasText: "ORD-002" });

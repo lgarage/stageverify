@@ -35,7 +35,7 @@ export async function ensureAuthenticated(page, appBase) {
 
 export async function openDeliveryDrawer(page, orderNumber, deliveryId) {
   const drawerOpen = await page
-    .getByText("Current Status", { exact: false })
+    .getByText("Order Workflow Status", { exact: false })
     .first()
     .isVisible()
     .catch(() => false);
@@ -77,7 +77,7 @@ export async function clickMarkStatus(page, labelPattern) {
 export async function assignStagingIfUnassigned(page) {
   const section = page
     .locator("div")
-    .filter({ has: page.getByText("Staging Location", { exact: true }) })
+    .filter({ has: page.getByText("Assign Staging Location", { exact: true }) })
     .first();
   const select = section.locator("select");
   if (!(await select.isVisible().catch(() => false))) return false;

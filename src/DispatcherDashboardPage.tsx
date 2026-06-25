@@ -224,6 +224,25 @@ const STATUS_COUNT_COLORS: Record<
 const STATUS_LABEL = (status: DeliveryStatus): string =>
   DELIVERY_STATUS_LABEL[status];
 
+/** Drawer-only workflow labels — avoid implying all material is received. */
+const DRAWER_WORKFLOW_STATUS_LABEL: Partial<Record<DeliveryStatus, string>> = {
+  arrived: "At Shop — awaiting check-in",
+  ready_for_pickup: "Staged for pickup",
+};
+
+function drawerWorkflowStatusLabel(status: DeliveryStatus): string {
+  return DRAWER_WORKFLOW_STATUS_LABEL[status] ?? STATUS_LABEL(status);
+}
+
+function resolvedIssueShortSummary(issue: MaterialIssue): string {
+  if (issue.resolutionType) {
+    return ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType];
+  }
+  const desc = issue.description?.trim();
+  if (desc) return desc.length > 80 ? `${desc.slice(0, 80)}…` : desc;
+  return "Issue resolved";
+}
+
 function listStatusBadge(
   row: DeliveryListRow,
 ): (typeof STATUS_BADGE)[DeliveryStatus] {
@@ -2274,6 +2293,9 @@ function DetailContent({
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
   const [vendorCommsExpandSignal, setVendorCommsExpandSignal] = useState(0);
   const [pickupTokenRefreshKey, setPickupTokenRefreshKey] = useState(0);
+  const [expandedResolvedIssueIds, setExpandedResolvedIssueIds] = useState<
+    Set<string>
+  >(new Set());
 
   const expandVendorCommunications = () => {
     setVendorCommsExpandSignal((value) => value + 1);
@@ -2758,7 +2780,7 @@ function DetailContent({
                 '[data-testid="staging-location-assignment"]',
               );
               if (target instanceof HTMLElement) {
-                target.scrollIntoView({ behavior: "smooth", block: "start" });
+                target.scrollIntoView({ behavior: "smooth", block: "center" });
                 const select = target.querySelector("select");
                 if (select instanceof HTMLSelectElement) {
                   select.focus({ preventScroll: true });
@@ -2869,7 +2891,10 @@ function DetailContent({
                 </div>
               ))}
               {resolvedIssues.length > 0 && (
-                <div style={{ marginTop: nonBlockingOpenIssues.length > 0 ? 12 : 0 }}>
+                <div
+                  data-testid="recently-resolved-material-issues"
+                  style={{ marginTop: nonBlockingOpenIssues.length > 0 ? 12 : 0 }}
+                >
                   <p
                     style={{
                       margin: "0 0 8px",
@@ -2880,32 +2905,169 @@ function DetailContent({
                       letterSpacing: "0.04em",
                     }}
                   >
-                    Recently resolved
+                    Recently Resolved Material Issues
                   </p>
-                  {resolvedIssues.slice(0, 3).map((issue) => (
-                    <div
-                      key={issue.id}
-                      style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        backgroundColor: "#f9fafb",
-                        marginBottom: 6,
-                      }}
-                    >
-                      <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700 }}>
-                        {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
-                        {issue.resolutionType
-                          ? ` → ${ISSUE_RESOLUTION_TYPE_LABEL[issue.resolutionType]}`
-                          : ""}
-                      </p>
-                      {issue.resolutionNote && (
-                        <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>
-                          {issue.resolutionNote}
+                  {resolvedIssues.slice(0, 3).map((issue) => {
+                    const expanded = expandedResolvedIssueIds.has(issue.id);
+                    const shortSummary = resolvedIssueShortSummary(issue);
+                    return (
+                      <div
+                        key={issue.id}
+                        data-testid={`resolved-issue-compact-${issue.id}`}
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          backgroundColor: "#fff",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 8,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: "#333",
+                              fontFamily: font,
+                            }}
+                          >
+                            {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
+                          </p>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                              color: "#2e7d32",
+                              backgroundColor: "#e8f5e9",
+                              border: "1px solid #a5d6a7",
+                              borderRadius: 4,
+                              padding: "2px 6px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Resolved
+                          </span>
+                        </div>
+                        <p
+                          style={{
+                            margin: "0 0 6px",
+                            fontSize: 12,
+                            color: "#555",
+                            fontFamily: font,
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {shortSummary}
                         </p>
-                      )}
-                    </div>
-                  ))}
+                        {!expanded && (
+                          <button
+                            type="button"
+                            data-testid={`resolved-issue-show-details-${issue.id}`}
+                            onClick={() =>
+                              setExpandedResolvedIssueIds((prev) => {
+                                const next = new Set(prev);
+                                next.add(issue.id);
+                                return next;
+                              })
+                            }
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              color: "#2563eb",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              fontFamily: font,
+                              textDecoration: "underline",
+                            }}
+                          >
+                            Show Details
+                          </button>
+                        )}
+                        {expanded && (
+                          <div
+                            data-testid={`resolved-issue-details-${issue.id}`}
+                            style={{ marginTop: 4 }}
+                          >
+                            {issue.description?.trim() && (
+                              <p
+                                style={{
+                                  margin: "0 0 6px",
+                                  fontSize: 12,
+                                  color: "#374151",
+                                  fontFamily: font,
+                                  lineHeight: 1.45,
+                                }}
+                              >
+                                {issue.description.trim()}
+                              </p>
+                            )}
+                            {issue.resolutionNote?.trim() && (
+                              <p
+                                style={{
+                                  margin: "0 0 6px",
+                                  fontSize: 12,
+                                  color: "#6b7280",
+                                  fontFamily: font,
+                                  lineHeight: 1.45,
+                                }}
+                              >
+                                {issue.resolutionNote.trim()}
+                              </p>
+                            )}
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 11,
+                                color: "#9ca3af",
+                                fontFamily: font,
+                              }}
+                            >
+                              Reported by {issue.reportedBy}
+                              {issue.resolvedAt
+                                ? ` · Resolved ${new Date(issue.resolvedAt).toLocaleString()}`
+                                : ""}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedResolvedIssueIds((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(issue.id);
+                                  return next;
+                                })
+                              }
+                              style={{
+                                marginTop: 6,
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                color: "#64748b",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontFamily: font,
+                              }}
+                            >
+                              Hide Details
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>,
@@ -3574,8 +3736,9 @@ function StatusActionPanel({
       }}
     >
       <h3
+        data-testid="drawer-workflow-status-heading"
         style={{
-          margin: "0 0 12px",
+          margin: "0 0 4px",
           fontSize: 11,
           fontWeight: 700,
           color: "#9ca3af",
@@ -3583,8 +3746,20 @@ function StatusActionPanel({
           letterSpacing: "0.10em",
         }}
       >
-        Current Status
+        Order Workflow Status
       </h3>
+      <p
+        style={{
+          margin: "0 0 12px",
+          fontSize: 12,
+          color: "#6b7280",
+          lineHeight: 1.45,
+          fontFamily: font,
+        }}
+      >
+        Tracks the order lifecycle stage — not how many items are checked in. See
+        Issue Summary for receipt counts.
+      </p>
       <div
         style={{
           display: "flex",
@@ -3595,6 +3770,7 @@ function StatusActionPanel({
         }}
       >
         <span
+          data-testid="drawer-workflow-status-badge"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -3619,7 +3795,7 @@ function StatusActionPanel({
               flexShrink: 0,
             }}
           />
-          {STATUS_LABEL(currentStatus)}
+          {drawerWorkflowStatusLabel(currentStatus)}
         </span>
       </div>
 
@@ -3646,11 +3822,22 @@ function StatusActionPanel({
         </div>
       )}
 
-      {possibleNext.length > 0 && !showReasonInput && !showPickupInput && (
-        <div>
+      {(possibleNext.length > 0 || revertTarget) &&
+        !showReasonInput &&
+        !showPickupInput && (
+        <div
+          data-testid="manual-controls-section"
+          style={{
+            marginTop: 16,
+            padding: "12px",
+            borderRadius: 8,
+            border: "1px dashed #d1d5db",
+            backgroundColor: "#fafafa",
+          }}
+        >
           <h3
             style={{
-              margin: "16px 0 8px",
+              margin: "0 0 4px",
               fontSize: 11,
               fontWeight: 700,
               color: "#9ca3af",
@@ -3658,66 +3845,66 @@ function StatusActionPanel({
               letterSpacing: "0.10em",
             }}
           >
-            Update Status
+            Manual Controls
           </h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {possibleNext.map((status) => (
+          <p
+            style={{
+              margin: "0 0 10px",
+              fontSize: 11,
+              color: "#9ca3af",
+              lineHeight: 1.4,
+              fontFamily: font,
+            }}
+          >
+            Fallback status updates when the normal workflow is not enough.
+          </p>
+          {possibleNext.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {possibleNext.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleActionClick(status)}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? "#f3f4f6" : "#fff",
+                    color: loading ? "#9ca3af" : "#6b7280",
+                    border: `1px solid ${loading ? "#d1d5db" : "#d1d5db"}`,
+                    borderRadius: 4,
+                    padding: "5px 10px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    fontFamily: font,
+                    transition: "all 0.13s",
+                  }}
+                >
+                  {loading ? "Updating…" : `Mark ${STATUS_LABEL(status)}`}
+                </button>
+              ))}
+            </div>
+          )}
+          {revertTarget && (
+            <div style={{ marginTop: possibleNext.length > 0 ? 10 : 0 }}>
               <button
-                key={status}
-                onClick={() => handleActionClick(status)}
+                onClick={() => void onRevertStatus()}
                 disabled={loading}
                 style={{
                   backgroundColor: loading ? "#f3f4f6" : "#fff",
-                  color: loading ? "#9ca3af" : navy,
-                  border: `1.5px solid ${loading ? "#d1d5db" : navy}`,
+                  color: loading ? "#9ca3af" : "#9ca3af",
+                  border: `1px solid ${loading ? "#d1d5db" : "#d1d5db"}`,
                   borderRadius: 4,
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
+                  padding: "5px 10px",
+                  fontSize: 11,
+                  fontWeight: 600,
                   cursor: loading ? "not-allowed" : "pointer",
                   fontFamily: font,
                   transition: "all 0.13s",
                 }}
               >
-                {loading ? "Updating…" : `Mark ${STATUS_LABEL(status)}`}
+                {loading ? "Updating…" : `Revert to ${STATUS_LABEL(revertTarget)}`}
               </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {revertTarget && !showReasonInput && !showPickupInput && (
-        <div style={{ marginTop: 12 }}>
-          <h3
-            style={{
-              margin: "0 0 8px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#9ca3af",
-              textTransform: "uppercase",
-              letterSpacing: "0.10em",
-            }}
-          >
-            Revert
-          </h3>
-          <button
-            onClick={() => void onRevertStatus()}
-            disabled={loading}
-            style={{
-              backgroundColor: loading ? "#f3f4f6" : "#fff",
-              color: loading ? "#9ca3af" : "#6b7280",
-              border: `1.5px solid ${loading ? "#d1d5db" : "#9ca3af"}`,
-              borderRadius: 4,
-              padding: "6px 12px",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: loading ? "not-allowed" : "pointer",
-              fontFamily: font,
-              transition: "all 0.13s",
-            }}
-          >
-            {loading ? "Updating…" : `Revert to ${STATUS_LABEL(revertTarget)}`}
-          </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -4076,6 +4263,7 @@ function StatusActionPanel({
         style={{ marginTop: 16 }}
       >
         <h3
+          data-testid="assign-staging-location-heading"
           style={{
             margin: "0 0 8px",
             fontSize: 11,
@@ -4085,7 +4273,7 @@ function StatusActionPanel({
             letterSpacing: "0.10em",
           }}
         >
-          Staging Location
+          Assign Staging Location
         </h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <select

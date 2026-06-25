@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { listVendorEmailEventsForDelivery } from "../firestoreService";
 import type { VendorEmailEvent } from "../models";
 
-const EMPTY_DISCONNECTED =
-  "No messages yet — connect Gmail in Settings to enable vendor email.";
-const EMPTY_CONNECTED =
-  "No outbound messages yet — send from Resolve Issue when vendor clarification is needed.";
+const EMPTY_MESSAGE = "No vendor communications yet.";
 
 function formatSentAt(iso: string): string {
   try {
@@ -47,9 +44,7 @@ export function VendorCommunicationsPanel({
 
   const outbound = outboundEvents(events);
   const count = outbound.length;
-  const emptyMessage = emailProviderConnected
-    ? EMPTY_CONNECTED
-    : EMPTY_DISCONNECTED;
+  const emptyMessage = EMPTY_MESSAGE;
 
   useEffect(() => {
     if (expandSignal > 0) {
