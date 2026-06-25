@@ -538,16 +538,16 @@
       "id": "away-082",
       "title": "Mini-librarian phase 3: slim execution packet (Action 1)",
       "status": "built",
-      "commit": "3694102",
-      "note": "Assign Staging Location card green when assigned, orange warning when unassigned"
+      "commit": "7ff2a52",
+      "note": "Action 1: buildNextBrief readFirst drops default svscope_simple.md; scopeDispute flag adds it on demand; renderNextMd updated"
     },
     {
       "id": "away-084",
       "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
-      "status": "built",
-      "commit": "5fab28e",
-      "note": "Items not-received-yet styling; hide Pickup Summary at 0 recv; Activity History collapsed + friendly labels; verify:delivery-consistency PASS"
+      "status": "deferred",
+      "commit": "n/a",
+      "note": "MISLABEL corrected (Opus review): commit 5fab28e was drawer lower-section UI (see project_state Recently shipped), not librarian gotcha map. Librarian scope unbuilt — re-queue when approved."
     }
   ],
-  "summary": "away-081 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
+  "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"
 }

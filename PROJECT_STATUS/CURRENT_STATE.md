@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-084** — Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI
+- Last shipped: **away-082** — Mini-librarian Action 1: slim readFirst (svscope on demand only)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-083** — Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **away-087** — Verify Action 1 readFirst excludes svscope unless scopeDispute (then away-083 → 085 → 086). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)

@@ -116,7 +116,7 @@ Run: \`npm run away:next\`
 **Title:** ${next.title}
 
 1. Read \`PROJECT_STATUS/MEMORY.md\` → hot-tier router  
-2. Read \`PROJECT_STATUS/svscope_simple.md\` on demand — align to scope §  
+2. Read \`PROJECT_STATUS/svscope_simple.md\` only on scope dispute — align to scope §  
 3. \`npm run away:next\` — confirm dependsOn satisfied  
 4. \`npm run away:preflight\` — optional before coding (runs verifyBeforeNext)  
 5. Implement → verify → \`npm run away:ship -- --id ${next.id} --note "..."\`
@@ -181,11 +181,27 @@ export function buildBatchBrief(list, archive) {
 }
 
 /** @param {Record<string, unknown>} item */
+export function itemScopeDispute(item) {
+  if (item.scopeDispute === true) return true;
+  const scope = typeof item.scope === "string" ? item.scope : "";
+  return /scopeDispute\s*:\s*true/i.test(scope) || /\bscope dispute\b/i.test(scope);
+}
+
+/** @param {Record<string, unknown>} item */
 export function buildNextBrief(item) {
   const scope = typeof item.scope === "string" ? item.scope : "";
   const blockersApply = /Minew ESL and shop map blockers do not apply|ESL\/shop map do not block/i.test(scope)
     ? false
     : true;
+  const scopeDispute = itemScopeDispute(item);
+
+  /** @type {string[]} */
+  const readFirst = [
+    "PROJECT_STATUS/MEMORY.md",
+    "PROJECT_STATUS/CURRENT_STATE.md",
+    ...(scopeDispute ? ["PROJECT_STATUS/svscope_simple.md (scope dispute)"] : []),
+    `PROJECT_STATUS/away-list.json (item ${item.id})`,
+  ];
 
   return {
     id: item.id,
@@ -196,12 +212,8 @@ export function buildNextBrief(item) {
     verifyBeforeNext: item.verifyBeforeNext ?? [],
     dependsOn: item.dependsOn ?? null,
     blockersApply,
-    readFirst: [
-      "PROJECT_STATUS/MEMORY.md",
-      "PROJECT_STATUS/CURRENT_STATE.md",
-      "PROJECT_STATUS/svscope_simple.md",
-      `PROJECT_STATUS/away-list.json (item ${item.id})`,
-    ],
+    scopeDispute,
+    readFirst,
     note:
       "Answer 'what's next to build?' from this object only. Do not infer next work from docs/roadmap.md LATER/NEXT sections.",
   };

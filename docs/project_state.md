@@ -179,7 +179,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-083** — Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next (offline; `npm run away:next`).
+1. **away-087** — Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute (overnight gate; then away-083).
 2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 3. **ESL integration** — Phase 7; blocked on Minew credentials.
 4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.

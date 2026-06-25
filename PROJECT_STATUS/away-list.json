@@ -11,6 +11,7 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
     "sequence": [
+      "away-087",
       "away-083",
       "away-085",
       "away-086"
@@ -28,12 +29,29 @@
       "verifyBeforeNext": []
     },
     {
+      "id": "away-087",
+      "title": "Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute",
+      "status": "queued",
+      "scope": "Confirm scripts/lib/away-memory-lib.mjs buildNextBrief() default readFirst omits PROJECT_STATUS/svscope_simple.md; only includes svscope when item.scopeDispute === true or scope string flags scopeDispute. Run npm run away:next on queue head and inspect readFirst array. No product code.",
+      "acceptance": "npm run away:next JSON for away-083 (or any queued head after verify item) shows readFirst without svscope_simple.md; itemScopeDispute(true) adds svscope path; npm run away:validate passes.",
+      "tier": "T0",
+      "estimatedEffort": "~10 min",
+      "readFirst": [
+        "scripts/lib/away-memory-lib.mjs (buildNextBrief, itemScopeDispute)",
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 1)"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate",
+        "npm run build"
+      ]
+    },
+    {
       "id": "away-083",
       "title": "Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next",
       "status": "queued",
       "dependsOn": "away-082",
-      "scope": "Extend away:ship (and away:validate auto-sync if needed) so docs/project_state.md ## Immediate Next Steps item #1 stays in sync with queue head (same rule as CURRENT_STATE + NEXT.md). Fix stale away-076 line in project_state.md as part of this item. Add helper in away-memory-lib.mjs; no product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
-      "acceptance": "away:ship updates project_state.md Immediate Next Steps #1 to next queued id+title (or post-queue fallback when queue empty); away:validate passes with queue head === project_state #1 === CURRENT_STATE immediate next; stale away-076 reference removed from project_state.md.",
+      "scope": "Extend away:ship (and away:validate auto-sync if needed) so docs/project_state.md ## Immediate Next Steps item #1 stays in sync with queue head (same rule as CURRENT_STATE + NEXT.md). Add helper in away-memory-lib.mjs; no product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
+      "acceptance": "away:ship updates project_state.md Immediate Next Steps #1 to next queued id+title (or post-queue fallback when queue empty); away:validate passes with queue head === project_state #1 === CURRENT_STATE immediate next.",
       "tier": "T1",
       "estimatedEffort": "~35 min",
       "readFirst": [
@@ -51,7 +69,7 @@
       "id": "away-085",
       "title": "Mini-librarian phase 3: context:packet + away:next --packet",
       "status": "queued",
-      "dependsOn": "away-084",
+      "dependsOn": "away-083",
       "scope": "Add scripts/context-packet.mjs and npm run context:packet -- --tags <tag1,tag2> — Context Packet Builder lite: hot tier pointers + dossier § slices + optional away:next --minimal. Extend away-next.mjs with --packet flag merging queue brief + tag-derived § slices + blocker one-liner from CURRENT_STATE. Register scripts in package.json. No product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
       "acceptance": "npm run context:packet -- --tags agent-lessons emits JSON or markdown packet with sliced § excerpts (not full dossier); npm run away:next -- --packet includes merged packet when queue non-empty; npm run build passes; npm run away:validate passes.",
       "tier": "T1",
