@@ -540,6 +540,13 @@
       "status": "built",
       "commit": "3694102",
       "note": "Assign Staging Location card green when assigned, orange warning when unassigned"
+    },
+    {
+      "id": "away-084",
+      "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
+      "status": "built",
+      "commit": "5fab28e",
+      "note": "Items not-received-yet styling; hide Pickup Summary at 0 recv; Activity History collapsed + friendly labels; verify:delivery-consistency PASS"
     }
   ],
   "summary": "away-081 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
