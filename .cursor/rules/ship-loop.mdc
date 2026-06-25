@@ -7,35 +7,90 @@ alwaysApply: true
 
 After **any** substantive code or config change in this repo, complete the ship loop before declaring done.
 
-## Sequence
+## Default deploy policy
 
-1. `git status` — stage **only** task-related files.
-2. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
-3. `git push origin main` — must succeed.
-4. `npm run deploy` — GitHub Pages; must succeed or report failure clearly.
+**Default deploy policy:** For frontend-only StageVerify changes that pass validation, agents should commit, push, deploy gh-pages, and run production verification unless Dan explicitly says not to deploy (e.g. "do not deploy", "hold deploy", "local only", "commit and push only", or work is WIP on a branch). Backend deploys, Firestore rules, Cloud Functions, Gmail sync/watch behavior, and security-sensitive changes still require **explicit Dan approval** before any production deploy — agents must ask first.
 
-If **Firestore rules** or **public unauthenticated writes** changed, also:
+**Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, production verification, backend guardrails, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
 
-```
-firebase deploy --only firestore:rules --project stageverify-db
-```
+## Sequence (frontend / UI default)
+
+1. **Validate** — `npm run build` clean; local Playwright / `verify:*` for affected routes (per `composer-orchestrator.mdc`). If any test fails, **do not deploy** — fix and re-run.
+2. `git status` — stage **only** task-related files.
+3. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
+4. `git push origin main` — must succeed.
+5. **`npm run deploy`** — GitHub Pages (`https://lgarage.github.io/stageverify`); must succeed or report failure clearly.
+6. **Production verification** — after deploy, run matching prod checks (see below). If gh-pages is not yet serving the new bundle, wait **15 seconds** and retry once.
+7. **Report** — live URL `https://lgarage.github.io/stageverify` and deployed commit hash (`git rev-parse HEAD` after push).
+
+Rules-only or docs-only tasks that do not change the frontend bundle: commit + push only; skip steps 5–7 unless Dan asks to deploy.
+
+## When to deploy (gh-pages)
+
+Deploy by default when the change is **frontend-only** (UI, client routing, static assets, verify scripts that exercise the deployed bundle) **and** validation in step 1 passed.
+
+Do **not** auto-deploy gh-pages when:
+
+- Dan explicitly skips deploy (see **When to skip**).
+- Build or Playwright / `verify:*` failed.
+- The change is backend-only, security-sensitive, or touches Firestore rules / Cloud Functions / Gmail production behavior — **ask Dan before any deploy** (frontend or backend).
+
+## Production verification
+
+After `npm run deploy`, run prod checks for routes touched by the change:
+
+| Script | Prod invocation |
+|--------|-----------------|
+| Any script with `:prod` suffix | e.g. `npm run verify:pickup:prod` |
+| `verify:delivery-consistency` | `STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:delivery-consistency` |
+| `verify:phase5-email` | `STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:phase5-email` |
+| `verify:dispatcher-nav` | `STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:dispatcher-nav` |
+
+Run only scripts relevant to the shipped change. Retry once after **15s** if failure looks like gh-pages propagation lag.
+
+## Backend and security guardrails (explicit approval required)
+
+Agents must **not** auto-run these without Dan's explicit approval in the session:
+
+| Action | Command / behavior |
+|--------|-------------------|
+| Firestore rules | `firebase deploy --only firestore:rules --project stageverify-db` |
+| Cloud Functions | `firebase deploy --only functions --project stageverify-db` (or scoped function names) |
+| Gmail watch / sync / inbound auto-ingest | Any CF or config that enables production email sync |
+| Other backend / security deploys | Auth changes, secrets, public unauthenticated writes, schema migrations |
+
+When an approved backend deploy is required, run it in the **same session** as the related change, after any Sonnet security gate (`model-audit-gate.mdc`). Report what was deployed separately from gh-pages.
 
 ## When to skip
 
-Skip commit, push, and deploy **only** when Dan explicitly says hold off or work is WIP on a branch.
+Skip commit, push, and/or deploy when:
+
+- Dan explicitly says hold off, do not deploy, hold deploy, local only, commit and push only, or similar.
+- Work is WIP on a branch (not `main`).
+- Validation failed (build, Playwright, or relevant `verify:*`).
+- Change is risky backend/security/data and Dan has not approved deploy.
+
+Partial skip: Dan may allow commit + push without gh-pages — honor that; do not deploy.
 
 ## Overrides
 
-This workspace rule **overrides** the generic Cursor user rule “only commit when requested.” In stageverify, ship unless Dan says otherwise.
+This workspace rule **overrides** the generic Cursor user rule “only commit when requested.” In stageverify, ship (including default gh-pages deploy for passing frontend work) unless Dan says otherwise.
+
+Multitask / tight-scope prompts that say "no deploy unless required" apply **only to that task's stated scope** — they do not override this default for normal frontend/UI work.
 
 ## Done gate
 
-Do **not** declare done until push succeeded and deploy succeeded (or you clearly report deploy failure and next steps).
+Do **not** declare done until:
+
+- Push succeeded, and
+- For frontend/UI work: deploy succeeded (or deploy failure is clearly reported with next steps), prod verification ran when applicable, and live URL + commit hash are reported.
+
+Backend-only or rules-only work: done after push (and approved backend deploy if applicable) — no gh-pages deploy required unless the bundle changed.
 
 ## UI changes
 
 - Playwright verify **before** commit (build + local verify per `composer-orchestrator.mdc`).
-- After deploy, run `:prod` verify scripts when they exist (e.g. `verify:pickup:prod`).
+- After deploy, run `:prod` or `STAGEVERIFY_BASE_URL=…` prod scripts when they exist for affected routes.
 
 ## PROJECT_STATUS
 

@@ -211,16 +211,8 @@ When Dan stated a time window, append **Remaining time options** after cleanup/m
 
 Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
 
-### Deploy (default after substantive UI/backend changes)
-After pushes that ship user-visible or testable behavior:
-
-1. **`npm run deploy`** — GitHub Pages (frontend).
-2. If the change touches **Firestore rules** or **public unauthenticated writes**, also run:
-   ```
-   firebase deploy --only firestore:rules --project stageverify-db
-   ```
-
-Skip deploy only when Dan says to hold off.
+### Deploy
+Default commit/push/gh-pages deploy, prod verification, backend guardrails, and skip triggers: **`ship-loop.mdc`** (authoritative). Do not auto-deploy Firestore rules, Cloud Functions, or Gmail production behavior without explicit Dan approval.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
