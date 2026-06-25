@@ -9,8 +9,14 @@
       "acceptance criteria cannot be met without schema or rules change not listed in item scope — mark blocked, do not widen scope"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate.",
-    "sequence": []
+    "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
+    "sequence": [
+      "away-082",
+      "away-083",
+      "away-084",
+      "away-085",
+      "away-086"
+    ]
   },
   "queue": [
     {
@@ -22,6 +28,102 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-082",
+      "title": "Mini-librarian phase 3: slim execution packet (Action 1)",
+      "status": "queued",
+      "scope": "Remove default svscope_simple.md from buildNextBrief() readFirst in scripts/lib/away-memory-lib.mjs. Document npm run away:next -- --minimal as default for coding sessions in PROJECT_STATUS/MEMORY.md (one router row). Optional away item flag scopeDispute: true may add svscope to readFirst later — implement only if trivial. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only. ESL/shop map blockers do not apply.",
+      "acceptance": "buildNextBrief() readFirst no longer includes svscope_simple.md by default; MEMORY.md has one row for token-efficiency / away:next --minimal default; npm run away:next JSON readFirst excludes svscope; npm run away:validate passes.",
+      "tier": "T0",
+      "estimatedEffort": "~20 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 1)",
+        "scripts/lib/away-memory-lib.mjs (buildNextBrief)",
+        "PROJECT_STATUS/MEMORY.md"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate"
+      ]
+    },
+    {
+      "id": "away-083",
+      "title": "Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next",
+      "status": "queued",
+      "dependsOn": "away-082",
+      "scope": "Extend away:ship (and away:validate auto-sync if needed) so docs/project_state.md ## Immediate Next Steps item #1 stays in sync with queue head (same rule as CURRENT_STATE + NEXT.md). Fix stale away-076 line in project_state.md as part of this item. Add helper in away-memory-lib.mjs; no product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
+      "acceptance": "away:ship updates project_state.md Immediate Next Steps #1 to next queued id+title (or post-queue fallback when queue empty); away:validate passes with queue head === project_state #1 === CURRENT_STATE immediate next; stale away-076 reference removed from project_state.md.",
+      "tier": "T1",
+      "estimatedEffort": "~35 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Stale multi-doc answers)",
+        "scripts/away-ship.mjs",
+        "scripts/away-validate.mjs",
+        "scripts/lib/away-memory-lib.mjs",
+        "docs/project_state.md (Immediate Next Steps)"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate"
+      ]
+    },
+    {
+      "id": "away-084",
+      "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
+      "status": "queued",
+      "dependsOn": "away-083",
+      "scope": "Add task-trigger entries to PROJECT_STATUS/context-index.json mapping composer-orchestrator session-start steps 6-8 (MODEL_DOSSIER index/§ by tag, agent-lessons, USER_SCOPE_REJECTIONS) to npm run context:lookup -- --concern \"…\" slices or dossier:slice tags. Update MEMORY.md and/or composer-orchestrator.mdc to prefer CLI lookup over full-file reads for those triggers. No product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
+      "acceptance": "context-index.json has ≥3 taskTrigger rows (dossier-index, agent-lessons, scope-rejections or equivalent); npm run context:lookup -- --concern \"agent lessons\" (or documented alias) returns dossier slice not full MODEL_DOSSIER.md; orchestrator/MEMORY references CLI path for steps 6-8; npm run away:validate passes.",
+      "tier": "T0",
+      "estimatedEffort": "~25 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Session-start creep)",
+        ".cursor/rules/composer-orchestrator.mdc (steps 6-8)",
+        "PROJECT_STATUS/context-index.json",
+        "scripts/context-lookup.mjs"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate"
+      ]
+    },
+    {
+      "id": "away-085",
+      "title": "Mini-librarian phase 3: context:packet + away:next --packet",
+      "status": "queued",
+      "dependsOn": "away-084",
+      "scope": "Add scripts/context-packet.mjs and npm run context:packet -- --tags <tag1,tag2> — Context Packet Builder lite: hot tier pointers + dossier § slices + optional away:next --minimal. Extend away-next.mjs with --packet flag merging queue brief + tag-derived § slices + blocker one-liner from CURRENT_STATE. Register scripts in package.json. No product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
+      "acceptance": "npm run context:packet -- --tags agent-lessons emits JSON or markdown packet with sliced § excerpts (not full dossier); npm run away:next -- --packet includes merged packet when queue non-empty; npm run build passes; npm run away:validate passes.",
+      "tier": "T1",
+      "estimatedEffort": "~45 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Medium — context:packet)",
+        "scripts/away-next.mjs",
+        "scripts/context-lookup.mjs",
+        "scripts/dossier-slice.mjs",
+        "scripts/lib/dossier-index-lib.mjs"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "away-086",
+      "title": "Mini-librarian phase 3: rotate cold dossier § to archives (optional)",
+      "status": "queued",
+      "dependsOn": "away-085",
+      "scope": "OPTIONAL — skip if prior items consumed batch time. Move outcome log + session confidence tables from PROJECT_STATUS/MODEL_DOSSIER.md to PROJECT_STATUS/archives/dossier-notes.md; keep index + active § in main dossier; update dossier-index.json line ranges if needed; away:validate dossier-index drift checks still pass. No product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
+      "acceptance": "MODEL_DOSSIER.md trimmed (cold tables in archives/dossier-notes.md); npm run dossier:slice -- --tag agent-lessons still works; dossier-index.json ranges valid; npm run away:validate passes with no new dossier-index errors.",
+      "tier": "T0",
+      "estimatedEffort": "~35 min",
+      "readFirst": [
+        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Rotate dossier bloat)",
+        "PROJECT_STATUS/MODEL_DOSSIER.md",
+        "PROJECT_STATUS/archives/dossier-notes.md",
+        "PROJECT_STATUS/dossier-index.json"
+      ],
+      "verifyBeforeNext": [
+        "npm run away:validate"
+      ]
     }
   ]
 }

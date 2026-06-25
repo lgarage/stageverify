@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **away-082** — Mini-librarian phase 3: slim execution packet (Action 1; offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
 - **Mini-librarian indexer live:** `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` (index-first § lookup)
