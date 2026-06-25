@@ -156,6 +156,9 @@ Replace `#/settings` with the affected route.
 ### Failure behavior
 If screenshots or an interactive verify script fails, do NOT commit or say the task is fixed. Debug and re-run the full loop (build → Playwright → commit).
 
+### Fast UI task template
+For small frontend/UI/layout/copy tasks, use `PROJECT_STATUS/FAST_UI_PROMPT.md` as the standard Fast UI task template. It defines Agent mode, one-agent execution, route-specific verification, gh-pages deploy default, production verification, and compact final reports for routine UI work.
+
 ## TypeScript Discipline
 - Never use `any` type — find the correct type or add it to `src/dispatcher/models.ts`.
 - New shared interfaces and types belong in `src/dispatcher/models.ts`, following existing patterns.
