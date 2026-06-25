@@ -538,7 +538,7 @@
       "id": "away-082",
       "title": "Mini-librarian phase 3: slim execution packet (Action 1)",
       "status": "built",
-      "commit": "7ff2a52",
+      "commit": "af8f79a",
       "note": "Action 1: buildNextBrief readFirst drops default svscope_simple.md; scopeDispute flag adds it on demand; renderNextMd updated"
     },
     {
