@@ -531,7 +531,7 @@
       "id": "away-081",
       "title": "Lower drawer refocus on staging assignment",
       "status": "built",
-      "commit": "428a20a",
+      "commit": "a64e7c1",
       "note": "Prominent Assign Staging Location card; Advanced Manual Controls + Experimental Stock Tools collapsed; PO edit removed from lower drawer; verify:delivery-consistency PASS"
     }
   ],
