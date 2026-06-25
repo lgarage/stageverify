@@ -13,6 +13,13 @@ After **any** substantive code or config change in this repo, complete the ship 
 
 **Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, production verification, backend guardrails, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
 
+### Frontend/UI agents (deploy default)
+
+- **Default:** frontend-only changes that pass validation → commit, push, deploy gh-pages, prod verification — unless Dan explicitly says not to deploy.
+- **Ask first:** Firestore rules, Cloud Functions, Gmail sync/watch, backend/security/data, or other risky production behavior — require Dan's explicit approval before any deploy.
+
+Do not hesitate on normal frontend/UI ship; do not auto-deploy backend or security-sensitive paths.
+
 ## Sequence (frontend / UI default)
 
 1. **Validate** — `npm run build` clean; local Playwright / `verify:*` for affected routes (per `composer-orchestrator.mdc`). If any test fails, **do not deploy** — fix and re-run.

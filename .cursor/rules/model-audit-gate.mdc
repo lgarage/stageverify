@@ -38,9 +38,13 @@ Run a short review **only if** the change (before push) touched any of:
 
 ## Audit output (mandatory in assistant reply)
 
-Complete the **ship loop** (`ship-loop.mdc`) before declaring done — commit, push, and deploy must succeed (or deploy failure reported clearly).
+Complete the **ship loop** (`ship-loop.mdc`) before declaring done for **code or config changes** — commit, push, and deploy must succeed (or deploy failure reported clearly). Read-only audits and rules/docs-only work: commit + push when applicable; no gh-pages deploy unless the bundle changed.
 
-End substantive work with a compact block:
+### Low-risk exemption (no full table)
+
+For read-only audits, docs-only updates, rules-only updates, and other T0 non-product work, the final report does **not** need the full model audit table unless model choice or escalation was material. A short line is enough — e.g. `Model routing: T0 docs/rules; no escalation`.
+
+End substantive **code/config** work with a compact block:
 
 ```
 ### Model audit

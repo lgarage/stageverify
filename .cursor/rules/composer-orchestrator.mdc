@@ -90,6 +90,10 @@ If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify f
 
 Static screenshots prove appearance; **interaction scripts prove behavior** (enabled buttons, success screens, no error banners).
 
+### Existing verify scripts (script OR screenshots — not both)
+
+For UI work, if an existing focused Playwright/UI verification script already exercises the affected route/component and validates the relevant layout/behavior, **that script may satisfy the visual validation requirement** — do not also run before/after screenshots for the same concern. Screenshots remain useful when the route is not covered, visual balance is subjective, or the task explicitly asks for screenshot review.
+
 ### Screenshot steps (visual regressions)
 1. **Before screenshot(s)** — start the local dev server (`npm run dev`, default port 5173). For each affected route, take a Playwright screenshot named `before-<route>.png` (e.g. `before-settings.png`, `before-dispatcher.png`).
 2. **Make the code changes.**
@@ -191,7 +195,7 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 **Ship loop:** see `ship-loop.mdc` (authoritative for commit/push/deploy). Ship-loop overrides generic Cursor `user_rules` “commit only when requested” for this workspace.
 
 ### Post-change model audit (mandatory)
-After every substantive change, run the **model audit** protocol in `.cursor/rules/model-audit-gate.mdc` and include the audit table in your reply before declaring done.
+After every substantive **code or config** change, run the **model audit** protocol in `.cursor/rules/model-audit-gate.mdc`; include the full audit table unless the low-risk exemption in that file applies.
 
 ### Session cleanup (mandatory)
 **Always clean up your messes.** After every substantive task, run the **cleanup** protocol in `.cursor/rules/session-cleanup-gate.mdc` (stop dev servers, kill background shells, delete ephemeral Playwright PNGs, fix dirty git status, confirm ports clear).
@@ -212,7 +216,7 @@ When Dan stated a time window, append **Remaining time options** after cleanup/m
 Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
 
 ### Deploy
-Default commit/push/gh-pages deploy, prod verification, backend guardrails, and skip triggers: **`ship-loop.mdc`** (authoritative). Do not auto-deploy Firestore rules, Cloud Functions, or Gmail production behavior without explicit Dan approval.
+Default commit/push/gh-pages deploy, prod verification, backend guardrails, and skip triggers: **`ship-loop.mdc`** (authoritative). **Frontend-only UI:** deploy after validation unless Dan says not to — see `ship-loop.mdc` § Default deploy policy. Do not auto-deploy Firestore rules, Cloud Functions, or Gmail production behavior without explicit Dan approval.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
