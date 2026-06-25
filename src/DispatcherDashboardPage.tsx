@@ -61,6 +61,7 @@ import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
+import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
 import {
   buildNeedMoreInfoEmailBody,
@@ -2509,7 +2510,12 @@ function DetailContent({
                       </span>
                     </>
                   ) : (
-                    "—"
+                    <span
+                      data-testid="delivery-basics-staging-unassigned"
+                      style={{ color: "#9ca3af", fontStyle: "italic" }}
+                    >
+                      Not Assigned
+                    </span>
                   ),
                 },
               ].map(({ label, value }) => (
@@ -2723,6 +2729,23 @@ function DetailContent({
             );
           }}
         </PickupTokenControls>
+        {!details.stagingLocation ? (
+          <StagingLocationBanner
+            font={font}
+            onAssignLocation={() => {
+              const target = document.querySelector(
+                '[data-testid="staging-location-assignment"]',
+              );
+              if (target instanceof HTMLElement) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+                const select = target.querySelector("select");
+                if (select instanceof HTMLSelectElement) {
+                  select.focus({ preventScroll: true });
+                }
+              }
+            }}
+          />
+        ) : null}
         <DrawerActionBanner
           details={details}
           navy={navy}
@@ -4027,7 +4050,10 @@ function StatusActionPanel({
         </div>
       )}
 
-      <div style={{ marginTop: 16 }}>
+      <div
+        data-testid="staging-location-assignment"
+        style={{ marginTop: 16 }}
+      >
         <h3
           style={{
             margin: "0 0 8px",
@@ -4042,6 +4068,7 @@ function StatusActionPanel({
         </h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <select
+            data-testid="staging-location-select"
             value={pendingLocationId}
             onChange={(e) => setPendingLocationId(e.target.value)}
             disabled={loading}

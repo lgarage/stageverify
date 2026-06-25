@@ -24,6 +24,132 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+async function assertStagingLocationBanner(page, record, label, expectVisible) {
+  const banner = page.getByTestId("drawer-staging-location-banner");
+  const actionBannerHeading = page.getByTestId("drawer-action-banner-heading");
+
+  if (expectVisible) {
+    if ((await banner.count()) === 0) {
+      record(`${label} — staging location banner visible`, false, "banner missing");
+      return;
+    }
+
+    const heading = (
+      await page.getByTestId("drawer-staging-location-banner-heading").innerText()
+    ).trim();
+    record(
+      `${label} — staging banner title STAGING LOCATION NEEDED`,
+      heading.toUpperCase() === "STAGING LOCATION NEEDED",
+      heading,
+    );
+
+    const body = (
+      await page.getByTestId("drawer-staging-location-banner-body").innerText()
+    ).trim();
+    record(
+      `${label} — staging banner body copy`,
+      body === "Assign a location for receiving and pickup.",
+      body,
+    );
+
+    const bannerMode = await banner.getAttribute("data-banner-mode");
+    record(
+      `${label} — staging banner uses orange staging_needed mode`,
+      bannerMode === "staging_needed",
+      bannerMode ?? "",
+    );
+
+    const borderColor = await banner.evaluate(
+      (el) => getComputedStyle(el).borderTopColor,
+    );
+    record(
+      `${label} — staging banner orange border styling`,
+      /rgb\(234,\s*88,\s*12\)|#ea580c/i.test(borderColor),
+      borderColor,
+    );
+
+    const assignBtn = page.getByTestId("drawer-staging-location-assign");
+    record(
+      `${label} — Assign Location button label`,
+      (await assignBtn.innerText()).trim() === "Assign Location",
+    );
+
+    const stagingBox = await banner.boundingBox();
+    const actionBox = await actionBannerHeading.boundingBox();
+    record(
+      `${label} — staging banner before status banner (DOM order)`,
+      Boolean(stagingBox && actionBox && stagingBox.y < actionBox.y),
+      `staging y=${stagingBox?.y ?? "?"}, status y=${actionBox?.y ?? "?"}`,
+    );
+
+    await assignBtn.click();
+    await page.waitForTimeout(600);
+    const assignment = page.getByTestId("staging-location-assignment");
+    const select = page.getByTestId("staging-location-select");
+    const assignmentVisible = await assignment.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.top >= 0 && rect.top < window.innerHeight * 0.85;
+    });
+    record(
+      `${label} — Assign Location scrolls assignment section into view`,
+      assignmentVisible && (await assignment.count()) > 0,
+    );
+    const focusedSelect = await select.evaluate(
+      (el) => el === document.activeElement,
+    );
+    record(
+      `${label} — Assign Location focuses staging select`,
+      focusedSelect,
+      `focused=${focusedSelect}`,
+    );
+  } else {
+    record(
+      `${label} — no staging location banner when assigned`,
+      (await banner.count()) === 0,
+      (await banner.count()) > 0 ? "banner unexpectedly visible" : "absent",
+    );
+  }
+}
+
+async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned) {
+  const unassigned = page.getByTestId("delivery-basics-staging-unassigned");
+  if (expectUnassigned) {
+    record(
+      `${label} — Delivery Basics shows Staging: Not Assigned`,
+      (await unassigned.count()) > 0 &&
+        (await unassigned.innerText()).trim() === "Not Assigned",
+    );
+  } else {
+    record(
+      `${label} — Delivery Basics shows assigned staging (not unassigned)`,
+      (await unassigned.count()) === 0,
+    );
+  }
+}
+
+/** Staging Loc. column index in deliveries table (0-based). */
+const STAGING_COLUMN_INDEX = 7;
+
+async function openRowByStagingAssignment(page, wantUnassigned) {
+  const rows = page.locator("table tbody tr");
+  const count = await rows.count();
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    const stagingText = (await row.locator("td").nth(STAGING_COLUMN_INDEX).innerText()).trim();
+    const isUnassigned = stagingText === "—" || stagingText.length === 0;
+    if (isUnassigned === wantUnassigned) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+      await row.click({ force: true });
+      await page.waitForTimeout(1200);
+      await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+      const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
+      return orderNumber;
+    }
+  }
+  return null;
+}
+
 /** Group action buttons by row using Y positions (tolerance px). */
 async function getActionButtonRows(page) {
   const grid = page.getByTestId("drawer-action-buttons");
@@ -262,6 +388,11 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
 
   await assertDeliveryBasicsNoTopNotes(page, record, "Drawer");
   await assertPickupStatusInGrid(page, record, "Drawer");
+
+  const drawerStagingUnassigned =
+    (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0;
+  await assertDeliveryBasicsStaging(page, record, "Drawer", drawerStagingUnassigned);
+  await assertStagingLocationBanner(page, record, "Drawer", drawerStagingUnassigned);
 
   const banner = page.getByTestId("drawer-action-banner");
   await banner.waitFor({ timeout: 15_000 });
@@ -677,6 +808,22 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
         `status=${orderListStatus}`,
       );
     }
+    if (order === "ORD-002") {
+      const ord002StagingUnassigned =
+        (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0;
+      await assertDeliveryBasicsStaging(
+        page,
+        record,
+        order,
+        ord002StagingUnassigned,
+      );
+      await assertStagingLocationBanner(
+        page,
+        record,
+        order,
+        ord002StagingUnassigned,
+      );
+    }
     await assertDeliveryFirstDrawerOrder(page, record, order);
   }
 
@@ -696,6 +843,42 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     await assertDeliveryFirstDrawerOrder(page, record, "Ready for Pickup");
   } else {
     record("Ready for Pickup row present for order check", false, "skipped");
+  }
+
+  const unassignedOrder = await openRowByStagingAssignment(page, true);
+  if (unassignedOrder) {
+    record(
+      "Unassigned staging row opened for banner test",
+      true,
+      unassignedOrder,
+    );
+    await assertDeliveryBasicsStaging(page, record, unassignedOrder, true);
+    await assertStagingLocationBanner(page, record, unassignedOrder, true);
+  } else {
+    record(
+      "Unassigned staging row present for banner test",
+      false,
+      "no row with empty Staging Loc.",
+    );
+  }
+
+  const assignedOrder = await openRowByStagingAssignment(page, false);
+  if (assignedOrder) {
+    record(
+      "Assigned staging row opened for no-banner test",
+      true,
+      assignedOrder,
+    );
+    await assertDeliveryBasicsStaging(page, record, assignedOrder, false);
+    await assertStagingLocationBanner(page, record, assignedOrder, false);
+    if (assignedOrder === "ORD-005") {
+      record(
+        "ORD-005 Riverside — no staging banner when S1-A assigned",
+        (await page.getByTestId("drawer-staging-location-banner").count()) === 0,
+      );
+    }
+  } else {
+    record("Assigned staging row present for no-banner test", false);
   }
 
   await page.screenshot({

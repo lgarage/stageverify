@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-076** — drawer top cleanup: Delivery Basics slimmed (notes → Status History audit); combined pickup status pill in action grid; 2×2 grid preserved
+- Last shipped: **away-077** — orange staging-location banner in drawer when unassigned; Delivery Basics shows Not Assigned; Assign Location scrolls to assignment section
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

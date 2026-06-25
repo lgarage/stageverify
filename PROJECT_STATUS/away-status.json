@@ -505,7 +505,14 @@
       "status": "built",
       "commit": "61f3c5856d8ba2c94e72287363936f7f8e06fe3e",
       "note": "Context-index sections for roadmap NOW/NEXT/LATER + project_state slices; context-lookup line-range slicing; away:validate drift checks"
+    },
+    {
+      "id": "away-077",
+      "title": "Drawer staging-location banner when unassigned",
+      "status": "built",
+      "commit": "pending",
+      "note": "Orange STAGING LOCATION NEEDED banner before status banner; Delivery Basics Not Assigned; Assign Location scroll/focus; verify:delivery-consistency PASS"
     }
   ],
-  "summary": "away-076 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
+  "summary": "away-077 shipped; queue empty except blocked away-069 — see docs/project_state.md immediate next steps"
 }
