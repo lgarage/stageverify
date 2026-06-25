@@ -449,6 +449,16 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
         (await copyBtn.innerText()).trim() === "Copy Pickup Information",
     );
 
+    const revokeBtn = page.getByTestId("revoke-pickup-link");
+    if ((await revokeBtn.count()) > 0) {
+      await revokeBtn.click();
+      await page.waitForTimeout(2000);
+      record(
+        "ORD-005 cleared stale active link before balance test",
+        (await page.getByTestId("revoke-pickup-link").count()) === 0,
+      );
+    }
+
     record(
       "ORD-005 Revoke hidden before active link",
       (await page.getByTestId("revoke-pickup-link").count()) === 0,
