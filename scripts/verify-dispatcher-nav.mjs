@@ -232,7 +232,8 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
     throw new Error("Expected Revoke Pickup Link after copy generated active token");
   }
   await revokeBtn.click();
-  await page.getByText("No active pickup link").waitFor({ timeout: 15_000 });
+  await page.getByTestId("revoke-pickup-link").waitFor({ state: "hidden", timeout: 15_000 });
+  await page.getByTestId("pickup-token-active").waitFor({ state: "hidden", timeout: 15_000 });
   await page.waitForTimeout(1500);
   await assertPickupTokenInvalid(browser, appBase, secondCopy.token);
   console.log("PASS: revoked token shows invalid in clean browser context.");

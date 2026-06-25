@@ -90,6 +90,78 @@ async function assertActionButtonGridBalance(page, record, label, expectedCount)
   }
 }
 
+async function assertPickupStatusInGrid(page, record, label) {
+  const grid = page.getByTestId("drawer-action-buttons");
+  const tokenControls = page.getByTestId("pickup-token-controls");
+  if ((await grid.count()) === 0) {
+    record(`${label} — pickup status inside action grid`, false, "grid missing");
+    return;
+  }
+  if ((await tokenControls.count()) === 0) {
+    record(
+      `${label} — no pickup status area when idle (OK)`,
+      true,
+      "pickup-token-controls absent",
+    );
+    record(
+      `${label} — no floating active-link line below grid`,
+      true,
+      "no separate token controls",
+    );
+    return;
+  }
+
+  const controlsInsideGrid = await page.evaluate(() => {
+    const gridEl = document.querySelector('[data-testid="drawer-action-buttons"]');
+    const controlsEl = document.querySelector('[data-testid="pickup-token-controls"]');
+    return Boolean(gridEl && controlsEl && gridEl.contains(controlsEl));
+  });
+  record(
+    `${label} — pickup status inside action button grid`,
+    controlsInsideGrid,
+    `inside grid=${controlsInsideGrid}`,
+  );
+
+  const buttonsBox = await grid.boundingBox();
+  const tokenBox = await tokenControls.boundingBox();
+  record(
+    `${label} — no floating active-link line below grid`,
+    Boolean(
+      controlsInsideGrid &&
+        buttonsBox &&
+        tokenBox &&
+        tokenBox.y <= buttonsBox.y + buttonsBox.height + 4,
+    ),
+    `grid bottom=${buttonsBox ? buttonsBox.y + buttonsBox.height : "?"}, token y=${tokenBox?.y ?? "?"}`,
+  );
+
+  const bodyFloatingLine = page
+    .locator("body")
+    .getByText(/^Active pickup link exists/);
+  record(
+    `${label} — legacy floating active-link copy removed`,
+    (await bodyFloatingLine.count()) === 0,
+  );
+}
+
+async function assertDeliveryBasicsNoTopNotes(page, record, label) {
+  const basicsCard = page.getByTestId("delivery-basics-card");
+  if ((await basicsCard.count()) === 0) {
+    record(`${label} — Delivery Basics card present`, false);
+    return;
+  }
+  const notesInBasics = basicsCard.getByText(/^Notes$/);
+  record(
+    `${label} — Delivery Basics has no notes box at top`,
+    (await notesInBasics.count()) === 0,
+  );
+  const textareaInBasics = basicsCard.locator("textarea");
+  record(
+    `${label} — Delivery Basics has no notes textarea`,
+    (await textareaInBasics.count()) === 0,
+  );
+}
+
 async function assertDeliveryFirstDrawerOrder(page, record, label) {
   const bodyText = await page.locator("body").innerText();
   const heading = (
@@ -134,19 +206,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
         gridCols.split(" ").length === 2,
       `grid-template-columns=${gridCols}`,
     );
-    const tokenControls = page.getByTestId("pickup-token-controls");
-    if ((await tokenControls.count()) > 0) {
-      const tokenBox = await tokenControls.boundingBox();
-      record(
-        `${label} — pickup link status below action buttons`,
-        Boolean(
-          buttonsBox &&
-            tokenBox &&
-            tokenBox.y >= buttonsBox.y + buttonsBox.height - 4,
-        ),
-        `buttons bottom=${buttonsBox ? buttonsBox.y + buttonsBox.height : "?"}, token y=${tokenBox?.y ?? "?"}`,
-      );
-    }
+    await assertPickupStatusInGrid(page, record, label);
   } else {
     record(`${label} — action button grid present`, false);
   }
@@ -199,6 +259,9 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
   const issuePanel = page.getByTestId("issue-summary-panel");
   await issuePanel.waitFor({ timeout: 15_000 });
   record("Issue Summary panel visible", true);
+
+  await assertDeliveryBasicsNoTopNotes(page, record, "Drawer");
+  await assertPickupStatusInGrid(page, record, "Drawer");
 
   const banner = page.getByTestId("drawer-action-banner");
   await banner.waitFor({ timeout: 15_000 });
@@ -465,6 +528,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     );
 
     await assertActionButtonGridBalance(page, record, "ORD-005 (no link)", 3);
+    await assertPickupStatusInGrid(page, record, "ORD-005 (no link)");
 
     record(
       "ORD-005 Job Status panel removed",
@@ -495,6 +559,22 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
 
     await page.waitForTimeout(1500);
     const revokeAfterCopy = page.getByTestId("revoke-pickup-link");
+    const tokenActive = page.getByTestId("pickup-token-active");
+    if ((await tokenActive.count()) > 0) {
+      const tokenText = (await tokenActive.innerText()).trim();
+      record(
+        "ORD-005 pickup status includes link expiry after copy",
+        /expires/i.test(tokenText),
+        tokenText.slice(0, 80),
+      );
+    } else {
+      record(
+        "ORD-005 pickup status includes link expiry after copy",
+        false,
+        "pickup-token-active missing after copy",
+      );
+    }
+    await assertPickupStatusInGrid(page, record, "ORD-005 (after copy)");
     if ((await revokeAfterCopy.count()) > 0) {
       await assertActionButtonGridBalance(
         page,

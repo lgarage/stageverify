@@ -188,6 +188,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Recently shipped (away)
 
+**Drawer top cleanup (2026-06-24)** — Delivery Basics shows Job #, Job Name, Order #, Vendor, PO #, Staging only (notes moved to Status History audit read-only); pickup scheduled + active link expiry combined in compact pill inside action grid (no floating line below buttons); 2×2 button grid unchanged. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`, `test:readiness` ×3.
+
 **away-075 (2026-06-23)** — Mini-librarian planning path dedup (Action 2): Scout A runs `away:next --minimal` first; skip scouts when queue head answers; index-only MODEL_DOSSIER in scout table; suggestion-verify reuse clause. Verify: `away:validate`.
 
 **away-074 (2026-06-23)** — Copy Pickup Information token validity: validate sessionStorage token via `validatePickupTokenClient` before reuse; generate fresh token when stale/revoked; drawer hint when active link exists without local plaintext; `verify:dispatcher-nav` ORD-005 copy/revoke/regen flow.

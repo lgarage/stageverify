@@ -1860,12 +1860,15 @@ function PagBtn({
 type PickupTokenControlsRenderProps = {
   hasActiveToken: boolean;
   tokenBusy: boolean;
+  tokenExpiresAt: string | null;
+  statusLoading: boolean;
+  tokenError: string | null;
   onRevoke: () => void;
 };
 
 function PickupTokenControls({
   jobId,
-  font,
+  font: _font,
   refreshKey,
   children,
 }: {
@@ -1922,52 +1925,11 @@ function PickupTokenControls({
       {children({
         hasActiveToken,
         tokenBusy,
+        tokenExpiresAt,
+        statusLoading,
+        tokenError,
         onRevoke: () => void handleRevoke(),
       })}
-      <div
-        data-testid="pickup-token-controls"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          marginTop: 6,
-        }}
-      >
-        {statusLoading ? (
-          <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
-            Checking pickup link…
-          </span>
-        ) : hasActiveToken ? (
-          <>
-            <span
-              data-testid="pickup-token-active"
-              style={{ fontSize: 11, color: "#2e7d32", fontFamily: font }}
-            >
-              Active pickup link exists
-              {tokenExpiresAt
-                ? ` · expires ${new Date(tokenExpiresAt).toLocaleString()}`
-                : ""}
-            </span>
-            {!readPickupTokenForJob(jobId) ? (
-              <span
-                data-testid="pickup-token-copy-regen-hint"
-                style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}
-              >
-                Copy will generate a fresh secure link
-              </span>
-            ) : null}
-          </>
-        ) : (
-          <span style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}>
-            No active pickup link
-          </span>
-        )}
-        {tokenError ? (
-          <span style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}>
-            {tokenError}
-          </span>
-        ) : null}
-      </div>
     </>
   );
 }
@@ -2486,6 +2448,7 @@ function DetailContent({
           "Delivery Basics",
           <>
             <div
+              data-testid="delivery-basics-card"
               style={{
                 backgroundColor: "#f8fafc",
                 border: "1px solid #e0e3e8",
@@ -2571,40 +2534,6 @@ function DetailContent({
                   <span style={{ color: "#333", textAlign: "right" }}>{value}</span>
                 </div>
               ))}
-
-              {details.delivery.notes && (
-                <div
-                  style={{
-                    borderTop: "1px solid #eaecf0",
-                    paddingTop: 10,
-                    marginTop: 2,
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#6b7280",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      display: "block",
-                      marginBottom: 5,
-                    }}
-                  >
-                    Notes
-                  </span>
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#333",
-                      backgroundColor: "#fff",
-                      padding: "8px 12px",
-                      borderRadius: 4,
-                      border: "1px solid #e0e3e8",
-                    }}
-                  >
-                    {details.delivery.notes}
-                  </p>
-                </div>
-              )}
             </div>
           </>,
         )}
@@ -2613,7 +2542,21 @@ function DetailContent({
           font={font}
           refreshKey={pickupTokenRefreshKey}
         >
-          {({ hasActiveToken, tokenBusy, onRevoke }) => (
+          {({
+            hasActiveToken,
+            tokenBusy,
+            tokenExpiresAt,
+            statusLoading,
+            tokenError,
+            onRevoke,
+          }) => {
+            const showPickupStatus =
+              statusLoading ||
+              Boolean(job.pickupScheduledAt) ||
+              hasActiveToken ||
+              Boolean(tokenError);
+
+            return (
             <>
             <style>{`
               .drawer-action-buttons-grid {
@@ -2635,27 +2578,88 @@ function DetailContent({
               data-testid="drawer-action-buttons"
               className="drawer-action-buttons-grid"
             >
-              {job.pickupScheduledAt ? (
-                <span
-                  data-testid="pickup-scheduled-badge"
+              {showPickupStatus ? (
+                <div
+                  data-testid="pickup-token-controls"
                   style={{
                     gridColumn: "1 / -1",
-                    display: "inline-flex",
-                    alignSelf: "flex-start",
-                    alignItems: "center",
-                    gap: 6,
-                    backgroundColor: "#e3f2fd",
-                    color: navy,
-                    border: `1px solid ${navy}`,
-                    borderRadius: 999,
-                    padding: "4px 10px",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.02em",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
                   }}
                 >
-                  Pickup Scheduled
-                </span>
+                  {statusLoading ? (
+                    <span
+                      style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}
+                    >
+                      Checking pickup link…
+                    </span>
+                  ) : (
+                    <>
+                      {(job.pickupScheduledAt || hasActiveToken) && (
+                        <span
+                          data-testid={
+                            job.pickupScheduledAt
+                              ? "pickup-scheduled-badge"
+                              : "pickup-status-indicator"
+                          }
+                          style={{
+                            display: "inline-flex",
+                            alignSelf: "flex-start",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: 4,
+                            backgroundColor: "#e8f4f0",
+                            color: navy,
+                            border: "1px solid #a7d4c7",
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {job.pickupScheduledAt ? "Pickup Scheduled" : null}
+                          {job.pickupScheduledAt && hasActiveToken ? (
+                            <span style={{ color: "#6b7280", fontWeight: 400 }}>
+                              ·
+                            </span>
+                          ) : null}
+                          {hasActiveToken ? (
+                            <span
+                              data-testid="pickup-token-active"
+                              style={{ color: "#2e7d32", fontWeight: 600 }}
+                            >
+                              Active link expires{" "}
+                              {tokenExpiresAt
+                                ? new Date(tokenExpiresAt).toLocaleString()
+                                : "…"}
+                            </span>
+                          ) : null}
+                        </span>
+                      )}
+                      {hasActiveToken && !readPickupTokenForJob(job.id) ? (
+                        <span
+                          data-testid="pickup-token-copy-regen-hint"
+                          style={{
+                            fontSize: 11,
+                            color: "#6b7280",
+                            fontFamily: font,
+                          }}
+                        >
+                          Copy will generate a fresh secure link
+                        </span>
+                      ) : null}
+                    </>
+                  )}
+                  {tokenError ? (
+                    <span
+                      style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}
+                    >
+                      {tokenError}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
               <button
                 type="button"
@@ -2716,7 +2720,8 @@ function DetailContent({
               ) : null}
             </div>
             </>
-          )}
+            );
+          }}
         </PickupTokenControls>
         <DrawerActionBanner
           details={details}
@@ -3071,17 +3076,46 @@ function DetailContent({
         )}
         {renderDrawerSection(
           "Status History",
-          <div
-            style={{
-              position: "relative",
-              paddingLeft: 20,
-              borderLeft: `2px solid #e0e3e8`,
-              marginLeft: 8,
-              display: "flex",
-              flexDirection: "column" as const,
-              gap: 16,
-            }}
-          >
+          <div>
+            {details.delivery.notes ? (
+              <div
+                data-testid="delivery-notes-audit"
+                style={{
+                  marginBottom: 16,
+                  padding: "10px 12px",
+                  backgroundColor: "#f8fafc",
+                  border: "1px solid #e0e3e8",
+                  borderRadius: 8,
+                }}
+              >
+                <p
+                  style={{
+                    margin: "0 0 6px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#6b7280",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Delivery Notes
+                </p>
+                <p style={{ margin: 0, fontSize: 13, color: "#333" }}>
+                  {details.delivery.notes}
+                </p>
+              </div>
+            ) : null}
+            <div
+              style={{
+                position: "relative",
+                paddingLeft: 20,
+                borderLeft: `2px solid #e0e3e8`,
+                marginLeft: 8,
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 16,
+              }}
+            >
             {details.statusHistory.length ? (
               details.statusHistory.map((event) => (
                 <div key={event.id} style={{ position: "relative" }}>
@@ -3154,6 +3188,7 @@ function DetailContent({
                 No status history found.
               </p>
             )}
+            </div>
           </div>,
         )}
         {renderDrawerSection(
