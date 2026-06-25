@@ -347,6 +347,7 @@ export class FirestoreDataService implements DispatcherDataService {
         delivery,
         lineItems,
         materialIssues,
+        { jobPickupScheduled: Boolean(job.pickupScheduledAt) },
       );
 
       rows.push({

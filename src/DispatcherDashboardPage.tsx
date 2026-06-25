@@ -63,7 +63,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { sumItemQtyReceived, shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, formatActivityHistoryHeadline, formatActivityHistoryMeta } from "./dispatcher/deliveryDisplayHelpers";
+import { sumItemQtyReceived, shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta } from "./dispatcher/deliveryDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -1447,11 +1447,16 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: "1px solid #eaecf0",
-                            color: row.issueSummary ? "#c62828" : "#9ca3af",
+                            color:
+                              row.issueSummary === "Pickup Scheduled"
+                                ? NAVY
+                                : row.issueSummary
+                                  ? "#c62828"
+                                  : "#9ca3af",
                             maxWidth: 200,
                           }}
                         >
-                          {row.openIssueCount > 0 && (
+                          {row.openIssueCount > 0 && row.issueSummary !== "Pickup Scheduled" && (
                             <span
                               data-testid={`open-issue-badge-${row.deliveryId}`}
                               style={{
@@ -1476,9 +1481,11 @@ export function DispatcherDashboardPage() {
                                 gap: 5,
                               }}
                             >
-                              <span style={{ flexShrink: 0, marginTop: 1 }}>
-                                ⚠
-                              </span>
+                              {row.issueSummary !== "Pickup Scheduled" ? (
+                                <span style={{ flexShrink: 0, marginTop: 1 }}>
+                                  ⚠
+                                </span>
+                              ) : null}
                               {row.issueSummary}
                             </span>
                           ) : row.openIssueCount > 0 ? null : (
@@ -2068,9 +2075,17 @@ function PrintLabelModal({
   zoneCode: string | null;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   return (
     <div
+      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -2083,6 +2098,7 @@ function PrintLabelModal({
       }}
     >
       <div
+        onClick={(event) => event.stopPropagation()}
         style={{
           backgroundColor: "#fff",
           borderRadius: 12,
@@ -2154,7 +2170,7 @@ function PrintLabelModal({
               fontFamily: FONT,
             }}
           >
-            Print
+            Push to E-Tag
           </button>
           <button
             type="button"
@@ -3355,7 +3371,7 @@ function DetailContent({
                     }}
                   >
                     {(activityHistoryFullView
-                      ? filterCompactActivityHistory(details.statusHistory)
+                      ? sortActivityHistoryNewestFirst(details.statusHistory)
                       : selectTopActivityHistoryEvents(details.statusHistory)
                     ).map((event) =>
                       activityHistoryFullView ? (
@@ -3424,7 +3440,9 @@ function DetailContent({
                       ),
                     )}
                   </div>
-                  {filterCompactActivityHistory(details.statusHistory).length > 3 ? (
+                  {(details.statusHistory.length > 3 ||
+                    filterCompactActivityHistory(details.statusHistory).length <
+                      details.statusHistory.length) ? (
                     <button
                       type="button"
                       data-testid="activity-history-full-toggle"

@@ -68,6 +68,11 @@ export function openBlockingMaterialIssues(
   );
 }
 
+export interface DeliveryDisplayOptions {
+  /** List Issue Summary shows Pickup Scheduled when delivery is ready for pickup. */
+  jobPickupScheduled?: boolean;
+}
+
 export interface DeliveryDisplayState {
   readiness: DeliveryReadinessResult;
   statusDisplayLabel: string;
@@ -82,7 +87,7 @@ export function computeDeliveryDisplayState(
   delivery: DeliveryOrder,
   items: Item[],
   materialIssues?: MaterialIssue[],
-  options?: ReadinessComputeOptions,
+  options?: ReadinessComputeOptions & DeliveryDisplayOptions,
 ): DeliveryDisplayState {
   const openBlockingIssueCount = countOpenBlockingIssues(
     delivery,
@@ -109,6 +114,7 @@ export function computeDeliveryDisplayState(
     items,
     materialIssues,
     readiness,
+    options,
   );
   const openIssueCount =
     materialIssues !== undefined
@@ -160,8 +166,12 @@ function buildComputedIssueSummary(
   items: Item[],
   materialIssues: MaterialIssue[] | undefined,
   readiness: DeliveryReadinessResult,
+  displayOptions?: DeliveryDisplayOptions,
 ): string {
   if (readiness.readyForPickup) {
+    if (displayOptions?.jobPickupScheduled) {
+      return "Pickup Scheduled";
+    }
     return "";
   }
 
@@ -848,22 +858,36 @@ export function formatActivityHistoryMeta(event: StatusHistoryEvent): string {
   return `${actor}${name} · ${new Date(event.createdAt).toLocaleString()}`;
 }
 
-/** Compact view: newest first, drop consecutive duplicate status keys. */
+function activityHistoryCollapseKey(event: StatusHistoryEvent): string {
+  if (event.entityType === "item") {
+    return `${event.entityType}:${event.entityId}:${event.toStatus.toLowerCase()}`;
+  }
+  return `${event.entityType}:${event.toStatus.toLowerCase()}`;
+}
+
+/** Compact view: newest first, keep one entry per entity/status (drops repeated arrived/partial noise). */
 export function filterCompactActivityHistory(
   events: StatusHistoryEvent[],
 ): StatusHistoryEvent[] {
   const sorted = [...events].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
+  const seen = new Set<string>();
   const deduped: StatusHistoryEvent[] = [];
-  let lastKey = "";
   for (const event of sorted) {
-    const key = `${event.entityType}:${event.toStatus}:${event.reason ?? ""}`;
-    if (key === lastKey) continue;
-    lastKey = key;
+    const key = activityHistoryCollapseKey(event);
+    if (seen.has(key)) continue;
+    seen.add(key);
     deduped.push(event);
   }
   return deduped;
+}
+
+/** Full view: all events newest first (no collapse). */
+export function sortActivityHistoryNewestFirst(
+  events: StatusHistoryEvent[],
+): StatusHistoryEvent[] {
+  return [...events].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function selectTopActivityHistoryEvents(
