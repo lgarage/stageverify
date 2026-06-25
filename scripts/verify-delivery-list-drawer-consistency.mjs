@@ -173,6 +173,109 @@ async function getActionButtonRows(page) {
   });
 }
 
+async function assertLowerDrawerLayout(page, record, label) {
+  const stagingAssignment = page.getByTestId("staging-location-assignment");
+  const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
+  const stockToggle = page.getByTestId("experimental-stock-tools-toggle");
+
+  record(
+    `${label} — Assign Staging Location section present`,
+    (await stagingAssignment.count()) > 0,
+  );
+
+  const assignHeading = page.getByTestId("assign-staging-location-heading");
+  const assignHeadingText =
+    (await assignHeading.count()) > 0
+      ? (await assignHeading.innerText()).trim()
+      : "";
+  record(
+    `${label} — Assign Staging Location heading`,
+    assignHeadingText === "Assign Staging Location",
+    assignHeadingText,
+  );
+
+  const stagingBox = await stagingAssignment.boundingBox();
+  const advancedBox = await advancedToggle.boundingBox();
+  record(
+    `${label} — staging assignment precedes Advanced Manual Controls`,
+    Boolean(stagingBox && advancedBox && stagingBox.y < advancedBox.y),
+    `staging y=${stagingBox?.y ?? "?"}, advanced y=${advancedBox?.y ?? "?"}`,
+  );
+
+  record(
+    `${label} — Advanced Manual Controls collapsed by default`,
+    (await advancedToggle.getAttribute("aria-expanded")) === "false",
+    `aria-expanded=${await advancedToggle.getAttribute("aria-expanded")}`,
+  );
+
+  record(
+    `${label} — Advanced Manual Controls heading text`,
+    (await page.getByTestId("manual-controls-heading").innerText()).trim() ===
+      "Advanced Manual Controls",
+  );
+
+  record(
+    `${label} — Experimental Stock Tools collapsed by default`,
+    (await stockToggle.getAttribute("aria-expanded")) === "false",
+    `aria-expanded=${await stockToggle.getAttribute("aria-expanded")}`,
+  );
+
+  record(
+    `${label} — no PO input in lower drawer`,
+    (await page.getByPlaceholder("Enter PO number").count()) === 0 &&
+      (await page.getByRole("button", { name: "Save PO" }).count()) === 0,
+  );
+
+  const basicsCard = page.getByTestId("delivery-basics-card");
+  if ((await basicsCard.count()) > 0) {
+    const basicsText = (await basicsCard.innerText()).trim();
+    record(
+      `${label} — Delivery Basics still shows PO #`,
+      /PO\s*#/i.test(basicsText),
+      basicsText.slice(0, 120),
+    );
+  } else {
+    record(`${label} — Delivery Basics card present for PO check`, false);
+  }
+
+  const manualSection = page.getByTestId("manual-controls-section");
+  record(
+    `${label} — manual mark buttons hidden when Advanced collapsed`,
+    (await manualSection.count()) === 0,
+  );
+
+  await advancedToggle.click();
+  await page.waitForTimeout(300);
+  record(
+    `${label} — Advanced Manual Controls expands on click`,
+    (await advancedToggle.getAttribute("aria-expanded")) === "true",
+  );
+  if ((await manualSection.count()) > 0) {
+    const manualText = (await manualSection.innerText()).trim();
+    record(
+      `${label} — Advanced Manual Controls groups Mark buttons`,
+      /Mark Partial/i.test(manualText) &&
+        /Mark Staged/i.test(manualText) &&
+        /Mark Issue/i.test(manualText),
+      manualText.slice(0, 80),
+    );
+  } else {
+    record(`${label} — manual-controls-section present when expanded`, false);
+  }
+
+  await stockToggle.click();
+  await page.waitForTimeout(300);
+  record(
+    `${label} — Experimental Stock Tools expands on click`,
+    (await stockToggle.getAttribute("aria-expanded")) === "true",
+  );
+  record(
+    `${label} — shop stock pick list inside experimental section`,
+    (await page.getByTestId("experimental-stock-tools-section").count()) > 0 &&
+      (await page.locator("#shop-stock-pick-list").count()) > 0,
+  );
+}
+
 async function assertActionButtonGridBalance(page, record, label, expectedCount) {
   const grid = page.getByTestId("drawer-action-buttons");
   if ((await grid.count()) === 0) {
@@ -759,13 +862,22 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
     );
 
     const manualHeading = page.getByTestId("manual-controls-heading");
-    await manualHeading.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(400);
+    await page.getByTestId("staging-location-assignment").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
 
     record(
-      "ORD-005 Manual Controls heading present",
+      "ORD-005 Assign Staging Location heading present",
+      (await page.getByTestId("assign-staging-location-heading").count()) > 0 &&
+        (await page.getByTestId("assign-staging-location-heading").innerText()).trim() ===
+          "Assign Staging Location",
+    );
+
+    await assertLowerDrawerLayout(page, record, "ORD-005");
+
+    record(
+      "ORD-005 Advanced Manual Controls heading present",
       (await manualHeading.count()) > 0 &&
-        (await manualHeading.innerText()).trim().toUpperCase() === "MANUAL CONTROLS",
+        (await manualHeading.innerText()).trim() === "Advanced Manual Controls",
     );
     record(
       "ORD-005 workflow status badge removed",
@@ -776,31 +888,11 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
       !(await page.locator("body").innerText()).includes("At Shop — awaiting check-in"),
     );
 
-    const assignHeading = page.getByTestId("assign-staging-location-heading");
-    await assignHeading.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(300);
+    const manualControls = page.getByTestId("advanced-manual-controls-section");
     record(
-      "ORD-005 Assign Staging Location heading present",
-      (await assignHeading.count()) > 0 &&
-        (await assignHeading.innerText()).trim().toUpperCase() ===
-          "ASSIGN STAGING LOCATION",
-    );
-
-    const manualControls = page.getByTestId("manual-controls-section");
-    record(
-      "ORD-005 Manual Controls section present",
+      "ORD-005 Advanced Manual Controls section present when expanded",
       (await manualControls.count()) > 0,
     );
-    if ((await manualControls.count()) > 0) {
-      const manualText = (await manualControls.innerText()).trim();
-      record(
-        "ORD-005 Manual Controls groups Mark buttons",
-        /Mark Partial/i.test(manualText) &&
-          /Mark Staged/i.test(manualText) &&
-          /Mark Issue/i.test(manualText),
-        manualText.slice(0, 80),
-      );
-    }
 
     record(
       "ORD-005 Vendor Communications hidden in drawer",

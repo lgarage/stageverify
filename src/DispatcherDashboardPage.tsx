@@ -451,33 +451,6 @@ export function DispatcherDashboardPage() {
     }
   };
 
-  const handleUpdatePurchaseOrder = async (
-    poNumber: string,
-  ): Promise<void> => {
-    if (!selectedDeliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updated = await firestoreDataService.updatePurchaseOrder(
-        selectedDeliveryId,
-        poNumber,
-      );
-      if (updated) {
-        setSelectedDetails(updated);
-        await fetchAllData();
-      } else {
-        setMutationError("Failed to update purchase order.");
-      }
-    } catch (e) {
-      setMutationError(
-        "An unexpected error occurred while updating purchase order.",
-      );
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
   const handleUpdateJobPickupScheduled = async (
     scheduled: boolean,
   ): Promise<void> => {
@@ -1805,7 +1778,6 @@ export function DispatcherDashboardPage() {
                 onUpdateShopStockPickList={handleUpdateShopStockPickList}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
-                onUpdatePurchaseOrder={handleUpdatePurchaseOrder}
                 onUpdateJobPickupScheduled={handleUpdateJobPickupScheduled}
                 onDeliveryOrderUpdated={(delivery) => {
                   setSelectedDetails((prev) =>
@@ -2236,7 +2208,6 @@ function DetailContent({
   onUpdateShopStockPickList,
   stagingLocations,
   onUpdateStagingLocation,
-  onUpdatePurchaseOrder,
   onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
   onResolveMaterialIssue,
@@ -2261,7 +2232,6 @@ function DetailContent({
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
-  onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   onResolveMaterialIssue: (
@@ -3089,7 +3059,6 @@ function DetailContent({
           onUpdateIssueSummary={onUpdateIssueSummary}
           onUpdateShopStockPickList={onUpdateShopStockPickList}
           onUpdateStagingLocation={onUpdateStagingLocation}
-          onUpdatePurchaseOrder={onUpdatePurchaseOrder}
           onDeliveryOrderUpdated={onDeliveryOrderUpdated}
           stagingLocations={stagingLocations}
           navy={navy}
@@ -3564,7 +3533,6 @@ function StatusActionPanel({
   onUpdateIssueSummary,
   onUpdateShopStockPickList,
   onUpdateStagingLocation,
-  onUpdatePurchaseOrder,
   onDeliveryOrderUpdated,
   stagingLocations,
   navy,
@@ -3584,7 +3552,6 @@ function StatusActionPanel({
     linkedMappingId?: string,
   ) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
-  onUpdatePurchaseOrder: (poNumber: string) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   stagingLocations: StagingLocation[];
   navy: string;
@@ -3602,9 +3569,8 @@ function StatusActionPanel({
   const [pendingLocationId, setPendingLocationId] = useState<string>(
     details.stagingLocation?.id ?? "",
   );
-  const [pendingPoNumber, setPendingPoNumber] = useState(
-    details.purchaseOrder?.poNumber ?? "",
-  );
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
+  const [stockToolsExpanded, setStockToolsExpanded] = useState(false);
   const [zoneOccupancy, setZoneOccupancy] = useState<
     Record<string, StagingLocationOccupant>
   >({});
@@ -3624,9 +3590,6 @@ function StatusActionPanel({
     details.delivery.shopStockLocationNote ?? "",
   );
   const isDirty = pendingLocationId !== (details.stagingLocation?.id ?? "");
-  const originalPoNumber = details.purchaseOrder?.poNumber ?? "";
-  const isPoDirty =
-    pendingPoNumber.trim() !== originalPoNumber.trim();
   const savedShopStockLocationNote =
     details.delivery.shopStockLocationNote ?? "";
   const parsedPickList = parseShopStockPickListLines(pickListText);
@@ -3639,10 +3602,6 @@ function StatusActionPanel({
   useEffect(() => {
     setPendingLocationId(details.stagingLocation?.id ?? "");
   }, [details.stagingLocation?.id, details.delivery.id]);
-
-  useEffect(() => {
-    setPendingPoNumber(details.purchaseOrder?.poNumber ?? "");
-  }, [details.purchaseOrder?.poNumber, details.delivery.id]);
 
   useEffect(() => {
     setPickListText(
@@ -3678,7 +3637,16 @@ function StatusActionPanel({
     }
   }, [editingIssue]);
 
+  useEffect(() => {
+    if (showReasonInput || showPickupInput || editingIssue) {
+      setAdvancedExpanded(true);
+    }
+  }, [showReasonInput, showPickupInput, editingIssue]);
+
   const currentStatus = details.delivery.status;
+  const currentStagingLabel = details.stagingLocation
+    ? `${details.stagingLocation.code} — ${details.stagingLocation.label}`
+    : "Not Assigned";
   const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
   const revertTarget = DISPATCHER_REVERT_TARGETS[currentStatus];
 
@@ -3728,20 +3696,203 @@ function StatusActionPanel({
         marginBottom: 20,
       }}
     >
-      <h3
-        data-testid="manual-controls-heading"
+      {/* ── 1. Assign Staging Location (prominent) ── */}
+      <div
+        data-testid="staging-location-assignment"
         style={{
-          margin: "0 0 12px",
-          fontSize: 11,
-          fontWeight: 700,
-          color: "#9ca3af",
-          textTransform: "uppercase",
-          letterSpacing: "0.10em",
+          padding: "14px 16px",
+          borderRadius: 8,
+          border: `1.5px solid ${details.stagingLocation ? "#cbd5e1" : "#fdba74"}`,
+          backgroundColor: details.stagingLocation ? "#fff" : "#fffbeb",
         }}
       >
-        Manual Controls
-      </h3>
+        {(details.delivery.combinationStagingGroupId ||
+          (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0) && (
+          <div
+            data-testid="combination-staging-group-label"
+            style={{
+              marginBottom: 12,
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #e0e3e8",
+              backgroundColor: "#f9fafb",
+            }}
+          >
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#9ca3af",
+                textTransform: "uppercase",
+                letterSpacing: "0.10em",
+              }}
+            >
+              Combination Staging Group
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: "#333" }}>
+              {details.delivery.combinationStagingGroupId ?? "—"}
+            </p>
+            {(details.delivery.combinationMemberLocationIds?.length ?? 0) > 0 && (
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#6b7280" }}>
+                Members:{" "}
+                {details.delivery.combinationMemberLocationIds
+                  ?.map(
+                    (id) =>
+                      stagingLocations.find((loc) => loc.id === id)?.code ?? id,
+                  )
+                  .join(", ")}
+              </p>
+            )}
+          </div>
+        )}
 
+        <h3
+          data-testid="assign-staging-location-heading"
+          style={{
+            margin: "0 0 6px",
+            fontSize: 14,
+            fontWeight: 700,
+            color: navy,
+            letterSpacing: "0.02em",
+          }}
+        >
+          Assign Staging Location
+        </h3>
+        <p
+          style={{
+            margin: "0 0 10px",
+            fontSize: 13,
+            color: "#6b7280",
+            lineHeight: 1.45,
+            fontFamily: font,
+          }}
+        >
+          Choose where this delivery will be staged for receiving and pickup.
+        </p>
+        <p
+          data-testid="staging-current-location"
+          style={{
+            margin: "0 0 12px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: details.stagingLocation ? "#111827" : "#ea580c",
+            fontFamily: font,
+          }}
+        >
+          Current: {currentStagingLabel}
+        </p>
+        <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+          <select
+            data-testid="staging-location-select"
+            value={pendingLocationId}
+            onChange={(e) => setPendingLocationId(e.target.value)}
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              border: isDirty ? `2px solid ${navy}` : "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: font,
+              color: "#333",
+              backgroundColor: loading ? "#f9fafb" : "#fff",
+              outline: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              minHeight: 44,
+            }}
+          >
+            <option value="">— Unassigned —</option>
+            {stagingLocations.map((loc) => {
+              const occupant = zoneOccupancy[loc.id];
+              const inUse = Boolean(occupant);
+              return (
+                <option key={loc.id} value={loc.id} disabled={inUse}>
+                  {loc.code} — {loc.label}
+                  {inUse ? ` (in use: ${occupant.orderNumber})` : ""}
+                </option>
+              );
+            })}
+          </select>
+          <button
+            onClick={() =>
+              void onUpdateStagingLocation(pendingLocationId || null)
+            }
+            disabled={loading || !isDirty}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: loading || !isDirty ? "not-allowed" : "pointer",
+              backgroundColor: loading || !isDirty ? "#f3f4f6" : navy,
+              color: loading || !isDirty ? "#9ca3af" : "#fff",
+              border: `1.5px solid ${loading || !isDirty ? "#d1d5db" : navy}`,
+              transition: "all 0.13s",
+              whiteSpace: "nowrap",
+              minHeight: 44,
+            }}
+          >
+            {loading ? "Saving…" : "Assign"}
+          </button>
+        </div>
+        {!DRAWER_HIDE_NEED_MORE_SPACE &&
+          getAllStagingLocationIds(details.delivery).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <NeedMoreSpaceButton
+                delivery={details.delivery}
+                onDeliveryUpdated={(updated) => {
+                  onDeliveryOrderUpdated(updated);
+                  void mapOccupancyByLocationId(updated.id).then(setZoneOccupancy);
+                }}
+              />
+            </div>
+          )}
+      </div>
+
+      {/* ── 2. Advanced Manual Controls (collapsed default) ── */}
+      <div style={{ marginTop: 16 }}>
+        <button
+          type="button"
+          data-testid="advanced-manual-controls-toggle"
+          aria-expanded={advancedExpanded}
+          onClick={() => setAdvancedExpanded((v) => !v)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            width: "100%",
+            padding: "8px 0",
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+            fontFamily: font,
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#9ca3af",
+            letterSpacing: "0.04em",
+            textAlign: "left",
+          }}
+        >
+          <span style={{ fontSize: 10, color: "#64748b" }}>
+            {advancedExpanded ? "▼" : "▶"}
+          </span>
+          <span data-testid="manual-controls-heading">Advanced Manual Controls</span>
+        </button>
+        <p
+          style={{
+            margin: "0 0 8px",
+            fontSize: 12,
+            color: "#6b7280",
+            lineHeight: 1.45,
+            fontFamily: font,
+          }}
+        >
+          Use only for admin correction or demo recovery.
+        </p>
+        {advancedExpanded && (
+          <div data-testid="advanced-manual-controls-section">
       {currentStatus === "pending" && !showReasonInput && !showPickupInput && (
         <div style={{ marginBottom: 12 }}>
           <button
@@ -4135,146 +4286,39 @@ function StatusActionPanel({
           </div>
         </div>
       )}
-
-      {/* ── Staging Location Assignment ── */}
-      {(details.delivery.combinationStagingGroupId ||
-        (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0) && (
-        <div
-          data-testid="combination-staging-group-label"
-          style={{
-            marginTop: 16,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid #e0e3e8",
-            backgroundColor: "#f9fafb",
-          }}
-        >
-          <p
-            style={{
-              margin: "0 0 6px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#9ca3af",
-              textTransform: "uppercase",
-              letterSpacing: "0.10em",
-            }}
-          >
-            Combination Staging Group
-          </p>
-          <p style={{ margin: 0, fontSize: 13, color: "#333" }}>
-            {details.delivery.combinationStagingGroupId ?? "—"}
-          </p>
-          {(details.delivery.combinationMemberLocationIds?.length ?? 0) > 0 && (
-            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#6b7280" }}>
-              Members:{" "}
-              {details.delivery.combinationMemberLocationIds
-                ?.map(
-                  (id) =>
-                    stagingLocations.find((loc) => loc.id === id)?.code ?? id,
-                )
-                .join(", ")}
-            </p>
-          )}
-        </div>
-      )}
-
-      <div
-        data-testid="staging-location-assignment"
-        style={{ marginTop: 16 }}
-      >
-        <h3
-          data-testid="assign-staging-location-heading"
-          style={{
-            margin: "0 0 8px",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#9ca3af",
-            textTransform: "uppercase",
-            letterSpacing: "0.10em",
-          }}
-        >
-          Assign Staging Location
-        </h3>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select
-            data-testid="staging-location-select"
-            value={pendingLocationId}
-            onChange={(e) => setPendingLocationId(e.target.value)}
-            disabled={loading}
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              border: isDirty ? `1.5px solid ${navy}` : "1.5px solid #ccd0d7",
-              borderRadius: 6,
-              fontSize: 13,
-              fontFamily: font,
-              color: "#333",
-              backgroundColor: loading ? "#f9fafb" : "#fff",
-              outline: "none",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            <option value="">— Unassigned —</option>
-            {stagingLocations.map((loc) => {
-              const occupant = zoneOccupancy[loc.id];
-              const inUse = Boolean(occupant);
-              return (
-                <option key={loc.id} value={loc.id} disabled={inUse}>
-                  {loc.code} — {loc.label}
-                  {inUse ? ` (in use: ${occupant.orderNumber})` : ""}
-                </option>
-              );
-            })}
-          </select>
-          <button
-            onClick={() =>
-              void onUpdateStagingLocation(pendingLocationId || null)
-            }
-            disabled={loading || !isDirty}
-            style={{
-              padding: "7px 14px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: font,
-              cursor: loading || !isDirty ? "not-allowed" : "pointer",
-              backgroundColor: loading || !isDirty ? "#f3f4f6" : navy,
-              color: loading || !isDirty ? "#9ca3af" : "#fff",
-              border: `1.5px solid ${loading || !isDirty ? "#d1d5db" : navy}`,
-              transition: "all 0.13s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {loading ? "Saving…" : "Assign"}
-          </button>
-        </div>
-        {!DRAWER_HIDE_NEED_MORE_SPACE &&
-          getAllStagingLocationIds(details.delivery).length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <NeedMoreSpaceButton
-                delivery={details.delivery}
-                onDeliveryUpdated={(updated) => {
-                  onDeliveryOrderUpdated(updated);
-                  void mapOccupancyByLocationId(updated.id).then(setZoneOccupancy);
-                }}
-              />
-            </div>
-          )}
+          </div>
+        )}
       </div>
 
+      {/* ── 3. Experimental Stock Tools (collapsed default) ── */}
       <div style={{ marginTop: 16 }}>
-        <h3
+        <button
+          type="button"
+          data-testid="experimental-stock-tools-toggle"
+          aria-expanded={stockToolsExpanded}
+          onClick={() => setStockToolsExpanded((v) => !v)}
           style={{
-            margin: "0 0 8px",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            width: "100%",
+            padding: "8px 0",
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+            fontFamily: font,
             fontSize: 11,
             fontWeight: 700,
             color: "#9ca3af",
-            textTransform: "uppercase",
-            letterSpacing: "0.10em",
+            letterSpacing: "0.04em",
+            textAlign: "left",
           }}
         >
-          Shop Stock Pick List
-        </h3>
+          <span style={{ fontSize: 10, color: "#64748b" }}>
+            {stockToolsExpanded ? "▼" : "▶"}
+          </span>
+          Experimental Stock Tools
+        </button>
         <p
           style={{
             margin: "0 0 8px",
@@ -4284,9 +4328,11 @@ function StatusActionPanel({
             fontFamily: font,
           }}
         >
-          One shop-stock item per line for the technician pickup screen. Link to
-          the stock directory for permanent location codes.
+          Early concept for tracking shop-stock items used on jobs. Not part of the
+          main delivery workflow yet.
         </p>
+        {stockToolsExpanded && (
+          <div data-testid="experimental-stock-tools-section">
         {stockMappings.filter((m) => m.active).length > 0 && (
           <div style={{ marginBottom: 10 }}>
             <label
@@ -4433,59 +4479,8 @@ function StatusActionPanel({
         >
           {loading ? "Saving…" : "Save Pick List"}
         </button>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <h3
-          style={{
-            margin: "0 0 8px",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#9ca3af",
-            textTransform: "uppercase",
-            letterSpacing: "0.10em",
-          }}
-        >
-          PO Number
-        </h3>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input
-            value={pendingPoNumber}
-            onChange={(e) => setPendingPoNumber(e.target.value)}
-            disabled={loading}
-            placeholder="Enter PO number"
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              border: isPoDirty ? `1.5px solid ${navy}` : "1.5px solid #ccd0d7",
-              borderRadius: 6,
-              fontSize: 13,
-              fontFamily: font,
-              color: "#333",
-              backgroundColor: loading ? "#f9fafb" : "#fff",
-              outline: "none",
-            }}
-          />
-          <button
-            onClick={() => void onUpdatePurchaseOrder(pendingPoNumber)}
-            disabled={loading || !isPoDirty}
-            style={{
-              padding: "7px 14px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: font,
-              cursor: loading || !isPoDirty ? "not-allowed" : "pointer",
-              backgroundColor: loading || !isPoDirty ? "#f3f4f6" : navy,
-              color: loading || !isPoDirty ? "#9ca3af" : "#fff",
-              border: `1.5px solid ${loading || !isPoDirty ? "#d1d5db" : navy}`,
-              transition: "all 0.13s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {loading ? "Saving…" : "Save PO"}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {error && (

@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-080** — lower drawer simplified: hide vendor comms/resolved issues/Need More Space; Manual Controls heading replaces workflow status pill
+- Last shipped: **away-081** — lower drawer refocused on staging: prominent Assign Staging Location; Advanced Manual Controls + Experimental Stock Tools collapsed; PO edit removed from lower drawer
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
