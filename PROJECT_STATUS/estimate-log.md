@@ -63,7 +63,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 6 | away-088 | 2026-07-03T15:16:00-05:00 | 2026-07-03T15:19:12-05:00 | 35 | 3 | scripts-only | n | Johnstone invoice import Slice 1; offline parser + fixtures |
 | 7 | invoice-backorder-fix | 2026-07-03T18:03:00-05:00 | 2026-07-03T18:05:00-05:00 | 35 | 2 | service-logic | n | backorder-safe fulfillment/status; 10/10 fixtures 100%; completedAt=7b3b90e |
 | 8 | estimate-table+parser-audit | 2026-07-03T18:09:00-05:00 | 2026-07-03T18:10:44-05:00 | 35 | 2 | multi-file | n | completion report table + Johnstone parser audit; 13/13 fixtures 100%; completedAt=60ea8b3 |
-| 9 | away-089 | 2026-07-03T18:14:00-05:00 | | 35 | | service-logic | n | Johnstone invoice Slice 2; test:invoice-batch 27/27 |
+| 9 | away-089 | 2026-07-03T18:14:00-05:00 | 2026-07-03T18:16:58-05:00 | 35 | 3 | service-logic | n | Johnstone invoice Slice 2; test:invoice-batch 27/27; completedAt=92635a0 |
 | 10 | | | | | | | | |
 | 11 | | | | | | | | |
 | 12 | | | | | | | | |

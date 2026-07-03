@@ -582,7 +582,14 @@
       "status": "built",
       "commit": "87fa640",
       "note": "src/dispatcher/invoice/ + test:invoice-parser 100% gate; timing: estimate-log row 6"
+    },
+    {
+      "id": "away-089",
+      "title": "Johnstone invoice import Slice 2 — PDF adapter + batch processor",
+      "status": "built",
+      "commit": "92635a0",
+      "note": "pdfTextAdapter + processInvoiceBatch; test:invoice-batch 27/27; timing: estimate-log row 9"
     }
   ],
-  "summary": "away-088 Johnstone invoice Slice 1 shipped; away-084 librarian phase 3; queue blocked away-069"
+  "summary": "away-089 Johnstone invoice Slice 2 shipped; away-088 Slice 1 parser; queue blocked away-069"
 }
