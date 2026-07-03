@@ -7,11 +7,14 @@
  * --note should include timing (human-readable; stored verbatim in away-status.json).
  * Also append a full row to PROJECT_STATUS/estimate-log.md (source of truth).
  *
+ * Timing: startedAt = Dan approval ISO (or unknown); completedAt = ship commit time
+ *   git show -s --format=%cI <hash>  (not agent runtime or Dan's observed minutes)
+ *
  * Format:
  *   started:<ISO-8601|unknown> completed:<ISO-8601> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>
  *
  * Example:
- *   --note "started:2026-07-03T14:30:00-05:00 completed:2026-07-03T14:45:00-05:00 est:35m actual:15m tag:scripts-only deploy:n project_state Immediate Next sync"
+ *   --note "started:2026-07-03T14:59:00-05:00 completed:2026-07-03T15:02:04-05:00 est:35m actual:3m tag:scripts-only deploy:n gotcha map + context:gotcha CLI"
  */
 import { execSync } from "node:child_process";
 import {
