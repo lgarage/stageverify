@@ -52,7 +52,7 @@ Completion report (chat): one line stating actual vs budget from this log (or "a
 | 3 | away-085 | unknown | 2026-07-03T14:37:28-05:00 | 45 | unknown | scripts-only | n | context:packet + away:next --packet; completedAt=4626672; no approval logged |
 | 4 | away-086 | unknown | 2026-07-03T14:49:18-05:00 | 35 | unknown | docs-update | n | Dossier cold-table rotation; completedAt=83c59eb; no approval logged |
 | 5 | away-084 | 2026-07-03T14:59:00-05:00 | 2026-07-03T15:02:04-05:00 | 35 | 3 | scripts-only | n | Dan: "away-084 makes sense now" after ~2:59 PM scout; completedAt=2ca348a (feat 4b2ca83) |
-| 6 | | | | | | | | |
+| 6 | away-088 | 2026-07-03T15:16:00-05:00 | 2026-07-03T15:19:12-05:00 | 35 | 3 | scripts-only | n | Johnstone invoice import Slice 1; offline parser + fixtures |
 | 7 | | | | | | | | |
 | 8 | | | | | | | | |
 | 9 | | | | | | | | |

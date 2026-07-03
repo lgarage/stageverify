@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-084** — Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI
+- Last shipped: **away-088** — Johnstone invoice import Slice 1: offline parser + `test:invoice-parser` ≥95% gate
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

@@ -575,7 +575,14 @@
       "status": "built",
       "commit": "4b2ca83",
       "note": "task-trigger gotcha map + context:gotcha CLI (orchestrator steps 6-8); timing: estimate-log row 5"
+    },
+    {
+      "id": "away-088",
+      "title": "Johnstone invoice import Slice 1 — offline parser prototype",
+      "status": "built",
+      "commit": "9f92db1",
+      "note": "src/dispatcher/invoice/ + test:invoice-parser 100% gate; timing: estimate-log row 6"
     }
   ],
-  "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"
+  "summary": "away-088 Johnstone invoice Slice 1 shipped; away-084 librarian phase 3; queue blocked away-069"
 }

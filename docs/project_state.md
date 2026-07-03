@@ -60,6 +60,8 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Phase 5 design (docs):** Johnstone branch invoice PDF import spec — `docs/vendor-import/johnstone-invoice-import-spec.md` (expected vendor orders; Will-Call / Pickup. labels; not shop receipt).
 
+**Johnstone invoice import Slice 1 (shipped 2026-07-03):** Offline prototype — `src/dispatcher/invoice/` parses text-extracted invoice pages (fixtures mimic Sioux Falls PDF batch); derives `pickup_at_vendor` / **Will-Call / Pickup.** labels, excludes core/return lines, routes backorders to review; `npm run test:invoice-parser` ≥95% gate. No upload UI, PDF pipeline, or Firestore writes in this slice.
+
 **Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged.
 
 **Slice 2 (shipped 2026-06-08):** Clear pickup location labels on public pickup (`Pickup at`, `Also check`, `Find it at`, `Shop stock`); hides internal PARTIAL/COMPLETE chips. Display-only — queue, QR, rules, CF unchanged.
