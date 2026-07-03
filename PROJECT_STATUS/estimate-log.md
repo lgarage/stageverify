@@ -62,7 +62,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 5 | away-084 | 2026-07-03T14:59:00-05:00 | 2026-07-03T15:02:04-05:00 | 35 | 3 | scripts-only | n | Dan: "away-084 makes sense now" after ~2:59 PM scout; completedAt=2ca348a (feat 4b2ca83) |
 | 6 | away-088 | 2026-07-03T15:16:00-05:00 | 2026-07-03T15:19:12-05:00 | 35 | 3 | scripts-only | n | Johnstone invoice import Slice 1; offline parser + fixtures |
 | 7 | invoice-backorder-fix | 2026-07-03T18:03:00-05:00 | 2026-07-03T18:05:00-05:00 | 35 | 2 | service-logic | n | backorder-safe fulfillment/status; 10/10 fixtures 100%; completedAt=7b3b90e |
-| 8 | | | | | | | | |
+| 8 | estimate-table+parser-audit | 2026-07-03T18:09:00-05:00 | 2026-07-03T18:10:44-05:00 | 35 | 2 | multi-file | n | completion report table + Johnstone parser audit; 13/13 fixtures 100%; completedAt=60ea8b3 |
 | 9 | | | | | | | | |
 | 10 | | | | | | | | |
 | 11 | | | | | | | | |
