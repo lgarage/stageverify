@@ -48,12 +48,12 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
 | Next item packet | `npm run away:next` / root `NEXT.md` | Before coding queued work |
 | Context packet (tags) | `npm run context:packet -- --tags <tags>` | Hot tier + dossier § slices; `--queue` for queue head |
+| Task gotcha map | `npm run context:gotcha -- --task "<…>"` | Orchestrator steps 6–8 on-demand reads by task trigger |
 | Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes; log row in `estimate-log.md` |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
 | Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
-| ACES / Librarian (deferred) | `docs/aecs/librarian-plan.md` | Meta only when Dan asks |
 
 ## Orchestration
 
@@ -66,9 +66,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Concern | File / command | When |
 | ------- | -------------- | ---- |
 | ESL / Minew | `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only in repo |
-| Nav / scope rejections | `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
-| Delivery display / list-drawer consistency | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` + `test:demo-matrix` | List status, Partial/Pending Delivery, unit counts, filter bugs |
-| Readiness model / CF alignment | `readiness.ts`, `functions/src/deliveryReadiness.ts`, `test-readiness-two-source` | partial @ qty=0, stale persisted vs computed |
-| Readiness wiring audit | `archives/readiness-wiring-audit-2026-06-23.md` | RCA, stale status risks, away-072/073 context |
+| Nav / scope rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
+| Delivery display | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` | List/drawer readiness consistency |
 | **Indexer (dossier §)** | `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` | MODEL_DOSSIER by tag — never ingest full dossier |
-| Token efficiency | `LIBRARIAN_TOKEN_EFFICIENCY.md` | Librarian ROI / index-first planning |
+| Gotcha map (steps 6–8) | `gotcha-map.json` + `npm run context:gotcha -- --task "<…>"` | Task trigger → dossier § / files / rules |

@@ -49,6 +49,7 @@ Full ACES roles (Note Taker, Archivist, Specialist Agents) remain **deferred** p
 | **away-075** | Planning path dedup (Action 2) | `61f3c58` | Scout A → `away:next --minimal` first; skip scouts when queue head answers; index-only dossier in scout table |
 | **away-076** | context-index v2 (Action 3) | `61f3c58` | Roadmap NOW/NEXT/LATER + project_state section slices in context-index; context-lookup line-range slicing |
 | **away-082** | Slim execution packet (Action 1) | `af8f79a` | `buildNextBrief()` drops default `svscope_simple.md` from readFirst; `scopeDispute` flag adds it on demand |
+| **away-084** | Task-trigger gotcha map + steps 6–8 CLI | `3c7153a` | `gotcha-map.json` + `npm run context:gotcha`; 12 triggers; away-validate drift checks |
 
 ### Rules & bookkeeping
 
@@ -113,7 +114,6 @@ npm run away:batch
 
 | Item | Why deferred | Priority |
 |------|--------------|----------|
-| **away-084** (librarian gotcha map) | Mislabeled — commit `5fab28e` was drawer UI, not gotcha map. Librarian scope **unbuilt**. | **HIGH SV ROI** — re-queue after tonight; prevents repeated agent mistakes on task triggers |
 | **away-069** | Gmail reply sync/watch — SPEC ONLY; blocked on Dan queue + approval | Phase 6; not overnight |
 | **alwaysApply rule diet** | Biggest per-turn token win (~12 `.mdc` files injected every turn) | **Daytime only** — needs careful editing + verify; do not rush overnight |
 | **Full Note Taker / Archivist** | Wrong-promotion risk; automation cost | Deferred per librarian-plan.md |
@@ -214,6 +214,7 @@ Bootstrap checklist for new repo: hot tier files → dossier-index → context-i
 | `npm run away:validate` | Drift checks before commit; after memory edits |
 | `npm run dossier:slice -- --tag <tag>` | One MODEL_DOSSIER § |
 | `npm run context:lookup -- --concern "…"` | Concern → files + slices |
+| `npm run context:gotcha -- --task "…"` | Task trigger → orchestrator steps 6–8 reads |
 | `npm run build` | TypeScript gate after script changes |
 
 ---

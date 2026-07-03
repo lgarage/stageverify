@@ -67,7 +67,7 @@
     },
     {
       "id": "diagnose-before-tweak",
-      "tags": ["html5-qr-type", "qr-preview", "qr-perf"],
+      "tags": ["html5-qr-type", "qr-preview", "qr-perf", "diagnose-before-tweak"],
       "title": "Diagnose before tweak (appear vs tap)",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
       "startLine": 75,

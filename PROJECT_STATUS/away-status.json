@@ -542,13 +542,6 @@
       "note": "Action 1: buildNextBrief readFirst drops default svscope_simple.md; scopeDispute flag adds it on demand; renderNextMd updated"
     },
     {
-      "id": "away-084",
-      "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
-      "status": "deferred",
-      "commit": "n/a",
-      "note": "MISLABEL corrected (Opus review): commit 5fab28e was drawer lower-section UI (see project_state Recently shipped), not librarian gotcha map. Librarian scope unbuilt — re-queue when approved."
-    },
-    {
       "id": "away-087",
       "title": "Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute",
       "status": "built",
@@ -575,6 +568,13 @@
       "status": "built",
       "commit": "c00ac38",
       "note": "est:35m actual:8m tag:docs-update deploy:n rotate cold dossier tables to archive"
+    },
+    {
+      "id": "away-084",
+      "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
+      "status": "built",
+      "commit": "3c7153a",
+      "note": "started:2026-07-03T15:00:00-05:00 completed:2026-07-03T15:12:30-05:00 est:35m actual:13m tag:scripts-only deploy:n task-trigger gotcha map + context:gotcha CLI (orchestrator steps 6-8)"
     }
   ],
   "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"

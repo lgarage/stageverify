@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "description": "Task-trigger → orchestrator on-demand reads (composer-orchestrator steps 6–8). Use npm run context:gotcha -- --task \"…\"",
+  "orchestratorSteps": {
+    "6": {
+      "label": "MODEL_DOSSIER index",
+      "when": "Model routing, QR/zones, backend-critical, or dossier-tagged domain work",
+      "source": ".cursor/rules/composer-orchestrator.mdc step 6",
+      "action": "Read MODEL_DOSSIER index (lines 7–23); open exactly one § by tag via dossier:slice — never load full dossier"
+    },
+    "7": {
+      "label": "§ agent-lessons",
+      "when": "Public routes, pickup portal, vendor receive, or UI fixes on unauthenticated flows",
+      "source": ".cursor/rules/composer-orchestrator.mdc step 7",
+      "action": "npm run dossier:slice -- --tag agent-lessons before editing Receive/Pickup/public routes"
+    },
+    "8": {
+      "label": "USER_SCOPE_REJECTIONS",
+      "when": "Dispatcher portal nav, Settings IA, sidebar, or Vendors vs Settings merge",
+      "source": ".cursor/rules/composer-orchestrator.mdc step 8",
+      "action": "Read PROJECT_STATUS/USER_SCOPE_REJECTIONS.md (≤8 rows) — do not re-introduce rejected nav"
+    }
+  },
+  "triggers": [
+    {
+      "id": "qr-scan",
+      "match": ["qr", "scan", "deep link", "camera", "hash race", "esl tag", "applyHashFromScannedQr"],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["qr-routing", "composer-trace", "diagnose-before-tweak"],
+      "files": ["src/scanRouting.ts", "src/receiveQrUrls.ts"],
+      "rules": ["vendor-phone-qr.mdc"],
+      "commands": ["npm run dossier:slice -- --tag qr-routing", "npm run context:packet -- --tags qr-routing,composer-trace"]
+    },
+    {
+      "id": "vendor-receive",
+      "match": ["vendor receive", "receiving", "pin gate", "checkin", "/receive", "ReceivingPage"],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["qr-routing", "receive-deep-link", "agent-lessons"],
+      "files": ["src/pages/ReceivingPage.tsx", "src/scanRouting.ts"],
+      "rules": ["vendor-phone-qr.mdc"],
+      "commands": ["npm run context:lookup -- --concern \"vendor receive\""]
+    },
+    {
+      "id": "pickup-portal",
+      "match": ["pickup portal", "pickup", "technician", "PickupPortal", "All Items Picked Up"],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["agent-lessons", "qr-routing"],
+      "files": ["src/pages/PickupPortalPage.tsx", "src/pages/PickupDemoScanPage.tsx"],
+      "rules": [],
+      "commands": ["npm run dossier:slice -- --tag agent-lessons", "npm run verify:pickup"]
+    },
+    {
+      "id": "delivery-display",
+      "match": ["drawer", "list filter", "readiness", "partial", "delivery display", "qty 0", "staging assignment"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["delivery-display-wiring"],
+      "files": ["src/dispatcher/deliveryDisplayHelpers.ts"],
+      "rules": [],
+      "commands": ["npm run dossier:slice -- --tag delivery-display-wiring", "npm run verify:delivery-consistency"]
+    },
+    {
+      "id": "dispatcher-nav",
+      "match": ["dispatcher nav", "sidebar", "settings tab", "vendors tab", "portal nav", "merged settings"],
+      "orchestratorSteps": [6, 8],
+      "dossierTags": ["scope-rejections-nav"],
+      "files": ["PROJECT_STATUS/USER_SCOPE_REJECTIONS.md"],
+      "rules": [],
+      "commands": ["npm run dossier:slice -- --tag scope-rejections-nav"]
+    },
+    {
+      "id": "backend-critical",
+      "match": ["firestore rules", "cloud function", "schema migration", "backend deploy", "pickup token", "auth guard"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical", "billing"],
+      "files": ["firestore.rules", "functions/src/"],
+      "rules": ["ship-loop.mdc", "minew-nda-compliance.mdc"],
+      "commands": ["npm run dossier:slice -- --tag backend-critical"]
+    },
+    {
+      "id": "zone-staging",
+      "match": ["zone", "staging code", "staging location", "getDeliveryDetailsByStagingCode", "eslTagId"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["zone-lookup", "encode-qr"],
+      "files": ["src/dispatcher/firestoreService.ts"],
+      "rules": ["minew-nda-compliance.mdc"],
+      "commands": ["npm run dossier:slice -- --tag zone-lookup"]
+    },
+    {
+      "id": "public-ui-fix",
+      "match": ["ui fix", "layout", "playwright", "public route", "css restyle", "mobile safari"],
+      "orchestratorSteps": [7],
+      "dossierTags": ["agent-lessons"],
+      "files": [],
+      "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": ["npm run dossier:slice -- --tag agent-lessons"]
+    },
+    {
+      "id": "second-fix-failed",
+      "match": ["still broken", "second fix", "qr bug", "async race", "appear vs tap"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["composer-trace", "diagnose-before-tweak"],
+      "files": [],
+      "rules": [],
+      "commands": ["npm run dossier:slice -- --tag composer-trace"]
+    },
+    {
+      "id": "planning-whats-next",
+      "match": ["what's next", "what else can be worked", "roadmap priority", "away batch", "overnight"],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "files": ["PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
+      "rules": ["parallel-agent-strategy.mdc § Planning question protocol", "suggestion-verify-gate.mdc"],
+      "commands": ["npm run away:next -- --minimal", "npm run away:plan"]
+    },
+    {
+      "id": "librarian-context",
+      "match": ["librarian", "context packet", "index-first", "token efficiency", "dossier slice"],
+      "orchestratorSteps": [],
+      "dossierTags": ["index"],
+      "files": ["PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md", "PROJECT_STATUS/MEMORY.md"],
+      "rules": [],
+      "commands": ["npm run context:packet -- --tags index", "npm run context:gotcha -- --list"]
+    },
+    {
+      "id": "scope-dispute",
+      "match": ["scope dispute", "svscope", "product authority", "scope wins"],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "files": ["PROJECT_STATUS/svscope_simple.md"],
+      "rules": ["composer-orchestrator.mdc § Scope Discipline"],
+      "commands": ["npm run away:next"]
+    }
+  ]
+}

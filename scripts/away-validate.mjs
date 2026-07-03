@@ -20,6 +20,7 @@ import {
   writeText,
 } from "./lib/away-memory-lib.mjs";
 import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
+import { loadGotchaMap, validateGotchaMap } from "./lib/gotcha-map-lib.mjs";
 
 const errors = [];
 const warnings = [];
@@ -242,6 +243,9 @@ function validatePackageScripts() {
   if (!scripts["dossier:slice"]) {
     fail("package.json: missing dossier:slice script");
   }
+  if (!scripts["context:gotcha"]) {
+    fail("package.json: missing context:gotcha script");
+  }
 }
 
 function validateDossierIndexRanges() {
@@ -264,6 +268,16 @@ function validateContextIndexRanges() {
   }
 }
 
+function validateGotchaMapRanges() {
+  try {
+    const map = loadGotchaMap();
+    const drift = validateGotchaMap(map);
+    for (const msg of drift) warn(`gotcha-map: ${msg}`);
+  } catch (err) {
+    fail(`gotcha-map.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function main() {
   const list = validateAwayList();
   const archive = readJson(PATHS.awayArchive);
@@ -280,6 +294,7 @@ function main() {
   validatePackageScripts();
   validateDossierIndexRanges();
   validateContextIndexRanges();
+  validateGotchaMapRanges();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);
   if (errors.length) {

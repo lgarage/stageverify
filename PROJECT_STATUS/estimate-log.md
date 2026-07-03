@@ -53,7 +53,7 @@ started:2026-07-03T14:37:28-05:00 completed:2026-07-03T14:49:18-05:00 est:35m ac
 | 2 | away-083 | unknown | 2026-07-03T14:30:50-05:00 | 35 | unknown | scripts-only | n | away:ship + validate sync project_state; no reliable start timestamp |
 | 3 | away-085 | 2026-07-03T14:30:50-05:00 | 2026-07-03T14:37:28-05:00 | 45 | ~7 approx | scripts-only | n | context:packet + away:next --packet; start=away-083 feat commit |
 | 4 | away-086 | 2026-07-03T14:37:28-05:00 | 2026-07-03T14:49:18-05:00 | 35 | ~12 approx | docs-update | n | Dossier cold-table rotation; elapsed from ship commits after away-085 |
-| 5 | | | | | | | | |
+| 5 | away-084 | 2026-07-03T15:00:00-05:00 | 2026-07-03T15:12:30-05:00 | 35 | 13 | scripts-only | n | task-trigger gotcha map + context:gotcha CLI (orchestrator steps 6-8) |
 | 6 | | | | | | | | |
 | 7 | | | | | | | | |
 | 8 | | | | | | | | |

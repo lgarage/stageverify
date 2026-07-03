@@ -188,6 +188,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Recently shipped (away)
 
+**away-084 (2026-07-03)** — Mini-librarian phase 3: `PROJECT_STATUS/gotcha-map.json` maps task triggers to composer-orchestrator steps 6–8 (MODEL_DOSSIER index, § agent-lessons, USER_SCOPE_REJECTIONS). New `npm run context:gotcha -- --task "<…>"` CLI (JSON/markdown); validated in `away:validate`. Corrects prior mislabel — drawer UI work was never librarian scope. Verify: `away:validate`, `build`.
+
 **away-086 (2026-07-03)** — Mini-librarian phase 3: rotated QR confidence, session confidence, and outcome log tables from `MODEL_DOSSIER.md` to `archives/dossier-notes.md`; trimmed warm dossier to 134 lines; updated `dossier-index.json` line ranges. Verify: `dossier:slice --tag agent-lessons`, `away:validate`, `build`.
 
 **away-085 (2026-07-03)** — Mini-librarian phase 3: `npm run context:packet -- --tags <tags>` (hot tier + dossier § slices + optional `--queue`); `npm run away:next -- --packet` merges queue brief + blocker one-liner + tag slices. Shared lib `context-packet-lib.mjs`. Verify: `away:validate`, `build`.
@@ -200,7 +202,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 **Demo drawer uniformity (2026-06-24)** — All seed/demo orders (ORD-001..006) use the same dispatcher drawer structure as ORD-005: Delivery Basics (no top notes) → pickup pills + 2×2 action grid → staging banner when unassigned → status banner → Issue Summary → Readiness Evidence → Assign Staging Location → Advanced Manual Controls (collapsed) → Experimental Stock Tools (collapsed) → Items → Activity History. Vendor Communications, Recently Resolved, Need More Space, workflow status pill, and PO editor hidden globally (`DRAWER_HIDE_*`). Verify: `verify:delivery-consistency` loops all demo orders.
 
-**away-084 (2026-06-24)** — Drawer lower-section UI: Items show neutral "Not received yet" at qty 0 (not green pickup-ready); Pickup Summary hidden when 0 received; Status History renamed **Activity History** (collapsed default, max 3 friendly events, Show Full History audit expand); Delivery Notes compact above history. Display-only via `deliveryDisplayHelpers.ts`. Verify: `verify:delivery-consistency`.
+**Drawer lower-section UI (mislabeled away-084, 2026-06-24)** — Items show neutral "Not received yet" at qty 0 (not green pickup-ready); Pickup Summary hidden when 0 received; Status History renamed **Activity History** (collapsed default, max 3 friendly events, Show Full History audit expand); Delivery Notes compact above history. Display-only via `deliveryDisplayHelpers.ts`. Verify: `verify:delivery-consistency`.
 
 **Drawer top cleanup (2026-06-24)** — Delivery Basics shows Job #, Job Name, Order #, Vendor, PO #, Staging only (notes moved to Activity History audit read-only); pickup scheduled + active link expiry combined in compact pill inside action grid (no floating line below buttons); 2×2 button grid unchanged. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`, `test:readiness` ×3.
 
