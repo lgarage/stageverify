@@ -561,6 +561,13 @@
       "status": "built",
       "commit": "f5c8dfb",
       "note": "away:ship + validate auto-sync project_state Immediate Next #1"
+    },
+    {
+      "id": "away-085",
+      "title": "Mini-librarian phase 3: context:packet + away:next --packet",
+      "status": "built",
+      "commit": "133c98a",
+      "note": "context:packet + away:next --packet CLI; dossier slices by tag"
     }
   ],
   "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"

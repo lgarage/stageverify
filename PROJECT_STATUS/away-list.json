@@ -11,7 +11,6 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
     "sequence": [
-      "away-085",
       "away-086"
     ]
   },
@@ -25,27 +24,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-085",
-      "title": "Mini-librarian phase 3: context:packet + away:next --packet",
-      "status": "queued",
-      "dependsOn": "away-083",
-      "scope": "Add scripts/context-packet.mjs and npm run context:packet -- --tags <tag1,tag2> — Context Packet Builder lite: hot tier pointers + dossier § slices + optional away:next --minimal. Extend away-next.mjs with --packet flag merging queue brief + tag-derived § slices + blocker one-liner from CURRENT_STATE. Register scripts in package.json. No product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
-      "acceptance": "npm run context:packet -- --tags agent-lessons emits JSON or markdown packet with sliced § excerpts (not full dossier); npm run away:next -- --packet includes merged packet when queue non-empty; npm run build passes; npm run away:validate passes.",
-      "tier": "T1",
-      "estimatedEffort": "~45 min",
-      "readFirst": [
-        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Medium — context:packet)",
-        "scripts/away-next.mjs",
-        "scripts/context-lookup.mjs",
-        "scripts/dossier-slice.mjs",
-        "scripts/lib/dossier-index-lib.mjs"
-      ],
-      "verifyBeforeNext": [
-        "npm run away:validate",
-        "npm run build"
-      ]
     },
     {
       "id": "away-086",

@@ -47,6 +47,8 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
 | Next item packet | `npm run away:next` / root `NEXT.md` | Before coding queued work |
+| Context packet (tags) | `npm run context:packet -- --tags <tags>` | Hot tier + dossier § slices; `--queue` for queue head |
+| Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
