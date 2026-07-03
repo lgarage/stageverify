@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-085** — Mini-librarian phase 3: context:packet + away:next --packet
+- Last shipped: **away-086** — Mini-librarian phase 3: rotate cold dossier § to archives (optional)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-086** — Mini-librarian phase 3: rotate cold dossier § to archives (optional) (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - **Session handoff:** `PROJECT_STATUS/MINI_LIBRARIAN_HANDOFF.md` — mini-librarian / ACES continuity for new chats

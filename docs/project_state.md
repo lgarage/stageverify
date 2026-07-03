@@ -179,7 +179,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-086** — Mini-librarian phase 3: rotate cold dossier § to archives (optional).
+1. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready.
 2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 3. **ESL integration** — Phase 7; blocked on Minew credentials.
 4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
@@ -187,6 +187,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ---
 
 ## Recently shipped (away)
+
+**away-086 (2026-07-03)** — Mini-librarian phase 3: rotated QR confidence, session confidence, and outcome log tables from `MODEL_DOSSIER.md` to `archives/dossier-notes.md`; trimmed warm dossier to 134 lines; updated `dossier-index.json` line ranges. Verify: `dossier:slice --tag agent-lessons`, `away:validate`, `build`.
 
 **away-085 (2026-07-03)** — Mini-librarian phase 3: `npm run context:packet -- --tags <tags>` (hot tier + dossier § slices + optional `--queue`); `npm run away:next -- --packet` merges queue brief + blocker one-liner + tag slices. Shared lib `context-packet-lib.mjs`. Verify: `away:validate`, `build`.
 

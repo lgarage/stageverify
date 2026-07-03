@@ -16,7 +16,7 @@ Rolling log for the **last 15 shipped away tasks**. At `away:ship`, append one r
 | 1 | away-087 | 10m | 3m | verify-only | n | Verify bundle / prod checks |
 | 2 | away-083 | 35m | 2m | scripts-only | n | Away tooling scripts |
 | 3 | away-085 | 45m | 2m | scripts-only | n | context:packet + away:next --packet |
-| 4 | | | | | | |
+| 4 | away-086 | 35m | 8m | docs-update | n | Rotate cold dossier tables to archive |
 | 5 | | | | | | |
 | 6 | | | | | | |
 | 7 | | | | | | |

@@ -10,9 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
-    "sequence": [
-      "away-086"
-    ]
+    "sequence": []
   },
   "queue": [
     {
@@ -24,25 +22,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-086",
-      "title": "Mini-librarian phase 3: rotate cold dossier § to archives (optional)",
-      "status": "queued",
-      "dependsOn": "away-085",
-      "scope": "OPTIONAL — skip if prior items consumed batch time. Move outcome log + session confidence tables from PROJECT_STATUS/MODEL_DOSSIER.md to PROJECT_STATUS/archives/dossier-notes.md; keep index + active § in main dossier; update dossier-index.json line ranges if needed; away:validate dossier-index drift checks still pass. No product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
-      "acceptance": "MODEL_DOSSIER.md trimmed (cold tables in archives/dossier-notes.md); npm run dossier:slice -- --tag agent-lessons still works; dossier-index.json ranges valid; npm run away:validate passes with no new dossier-index errors.",
-      "tier": "T0",
-      "estimatedEffort": "~35 min",
-      "readFirst": [
-        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Rotate dossier bloat)",
-        "PROJECT_STATUS/MODEL_DOSSIER.md",
-        "PROJECT_STATUS/archives/dossier-notes.md",
-        "PROJECT_STATUS/dossier-index.json"
-      ],
-      "verifyBeforeNext": [
-        "npm run away:validate"
-      ]
     }
   ]
 }

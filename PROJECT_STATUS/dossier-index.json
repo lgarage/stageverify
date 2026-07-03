@@ -75,39 +75,39 @@
       "anchor": "### Diagnose before tweak"
     },
     {
+      "id": "composer-without-sonnet",
+      "tags": ["composer-trace", "composer-without-sonnet"],
+      "title": "§ Composer without Sonnet",
+      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
+      "startLine": 92,
+      "endLine": 134,
+      "anchor": "## § Composer without Sonnet"
+    },
+    {
       "id": "qr-confidence",
       "tags": ["qr-confidence", "encode-qr-detail"],
       "title": "QR confidence scoring",
-      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 92,
-      "endLine": 112,
+      "file": "PROJECT_STATUS/archives/dossier-notes.md",
+      "startLine": 20,
+      "endLine": 40,
       "anchor": "### QR confidence scoring"
     },
     {
       "id": "session-confidence",
       "tags": ["session-confidence"],
       "title": "Session confidence full thread",
-      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 113,
-      "endLine": 134,
+      "file": "PROJECT_STATUS/archives/dossier-notes.md",
+      "startLine": 41,
+      "endLine": 62,
       "anchor": "### Session confidence"
-    },
-    {
-      "id": "composer-without-sonnet",
-      "tags": ["composer-trace", "composer-without-sonnet"],
-      "title": "§ Composer without Sonnet",
-      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 135,
-      "endLine": 178,
-      "anchor": "## § Composer without Sonnet"
     },
     {
       "id": "outcome-log",
       "tags": ["outcome-log"],
       "title": "Active outcome log",
-      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 179,
-      "endLine": 190,
+      "file": "PROJECT_STATUS/archives/dossier-notes.md",
+      "startLine": 63,
+      "endLine": 73,
       "anchor": "## Active outcome log"
     },
     {

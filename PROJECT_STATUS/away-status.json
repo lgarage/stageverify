@@ -568,6 +568,13 @@
       "status": "built",
       "commit": "133c98a",
       "note": "context:packet + away:next --packet CLI; dossier slices by tag"
+    },
+    {
+      "id": "away-086",
+      "title": "Mini-librarian phase 3: rotate cold dossier § to archives (optional)",
+      "status": "built",
+      "commit": "c00ac38",
+      "note": "est:35m actual:8m tag:docs-update deploy:n rotate cold dossier tables to archive"
     }
   ],
   "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"
