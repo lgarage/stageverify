@@ -49,7 +49,7 @@ Full ACES roles (Note Taker, Archivist, Specialist Agents) remain **deferred** p
 | **away-075** | Planning path dedup (Action 2) | `61f3c58` | Scout A → `away:next --minimal` first; skip scouts when queue head answers; index-only dossier in scout table |
 | **away-076** | context-index v2 (Action 3) | `61f3c58` | Roadmap NOW/NEXT/LATER + project_state section slices in context-index; context-lookup line-range slicing |
 | **away-082** | Slim execution packet (Action 1) | `af8f79a` | `buildNextBrief()` drops default `svscope_simple.md` from readFirst; `scopeDispute` flag adds it on demand |
-| **away-084** | Task-trigger gotcha map + steps 6–8 CLI | `3c7153a` | `gotcha-map.json` + `npm run context:gotcha`; 12 triggers; away-validate drift checks |
+| **away-084** | Task-trigger gotcha map + steps 6–8 CLI | `4b2ca83` | `gotcha-map.json` + `npm run context:gotcha`; 12 triggers; away-validate drift checks |
 
 ### Rules & bookkeeping
 

@@ -573,7 +573,7 @@
       "id": "away-084",
       "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
       "status": "built",
-      "commit": "3c7153a",
+      "commit": "4b2ca83",
       "note": "started:2026-07-03T15:00:00-05:00 completed:2026-07-03T15:12:30-05:00 est:35m actual:13m tag:scripts-only deploy:n task-trigger gotcha map + context:gotcha CLI (orchestrator steps 6-8)"
     }
   ],
