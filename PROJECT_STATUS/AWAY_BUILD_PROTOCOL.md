@@ -113,7 +113,7 @@ For each id in `executionProtocol.sequence`:
 3. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 4. Run **all** `verifyBeforeNext` commands.
 5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
-6. Set item `status: done` via **`npm run away:ship -- --id <id> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically).
+6. Set item `status: done` via **`npm run away:ship -- --id <id> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). In `--note`, prefix estimate fields: `est:Xm actual:Ym tag:<type> deploy:y|n` then a short summary (e.g. `--note "est:25m actual:18m tag:ui-component deploy:y settings drawer polish"`). Append the same row to `PROJECT_STATUS/estimate-log.md` (rolling 15 rows). Completion report: one line stating actual vs budget.
 7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
 9. Session cleanup — then next item.

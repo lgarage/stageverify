@@ -50,7 +50,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Context packet (tags) | `npm run context:packet -- --tags <tags>` | Hot tier + dossier § slices; `--queue` for queue head |
 | Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
-| Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes |
+| Ship one item | `npm run away:ship -- --id … --note "…"` | After verify passes; log row in `estimate-log.md` |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
 | Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
 | ACES / Librarian (deferred) | `docs/aecs/librarian-plan.md` | Meta only when Dan asks |
