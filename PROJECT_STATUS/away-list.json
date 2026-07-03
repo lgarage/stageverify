@@ -11,7 +11,6 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
     "sequence": [
-      "away-083",
       "away-085",
       "away-086"
     ]
@@ -26,26 +25,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-083",
-      "title": "Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next",
-      "status": "queued",
-      "dependsOn": "away-082",
-      "scope": "Extend away:ship (and away:validate auto-sync if needed) so docs/project_state.md ## Immediate Next Steps item #1 stays in sync with queue head (same rule as CURRENT_STATE + NEXT.md). Add helper in away-memory-lib.mjs; no product code. CONSTRAINTS: no product UI, Firebase, CF, Firestore rules, readiness, pickup, vendor, or Gmail behavior changes; no gh-pages or firebase deploy; docs/scripts/rules only.",
-      "acceptance": "away:ship updates project_state.md Immediate Next Steps #1 to next queued id+title (or post-queue fallback when queue empty); away:validate passes with queue head === project_state #1 === CURRENT_STATE immediate next.",
-      "tier": "T1",
-      "estimatedEffort": "~35 min",
-      "readFirst": [
-        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Stale multi-doc answers)",
-        "scripts/away-ship.mjs",
-        "scripts/away-validate.mjs",
-        "scripts/lib/away-memory-lib.mjs",
-        "docs/project_state.md (Immediate Next Steps)"
-      ],
-      "verifyBeforeNext": [
-        "npm run away:validate"
-      ]
     },
     {
       "id": "away-085",

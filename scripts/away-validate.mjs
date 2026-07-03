@@ -16,6 +16,7 @@ import {
   readJson,
   readText,
   renderNextMd,
+  updateImmediateNextInProjectState,
   writeText,
 } from "./lib/away-memory-lib.mjs";
 import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
@@ -217,6 +218,21 @@ function syncNextIfNeeded(list, archive) {
   }
 }
 
+function syncProjectStateIfNeeded(list, archive) {
+  const next = firstRunnableItem(list.queue, archive);
+  const nextId = next?.id ?? null;
+  const projectState = readText(PATHS.projectState);
+  const projectFirst = parseFirstQueuedFromProjectState(projectState);
+
+  if (nextId && projectFirst !== nextId) {
+    writeText(PATHS.projectState, updateImmediateNextInProjectState(projectState, next));
+    warn(`project_state.md auto-synced item #1 to queue head ${nextId} (was ${projectFirst ?? "missing"})`);
+  } else if (!nextId && projectFirst && /^away-\d+$/.test(projectFirst)) {
+    writeText(PATHS.projectState, updateImmediateNextInProjectState(projectState, null));
+    warn(`project_state.md auto-synced item #1 to post-queue fallback (was ${projectFirst})`);
+  }
+}
+
 function validatePackageScripts() {
   const pkg = readJson(path.join(REPO_ROOT, "package.json"));
   const scripts = pkg.scripts ?? {};
@@ -255,6 +271,7 @@ function main() {
   if (list) {
     statusDoc = validateAwayStatus(list);
     syncNextIfNeeded(list, archive);
+    syncProjectStateIfNeeded(list, archive);
     validateNextIdSync(list, archive, statusDoc);
   }
   validateArchive();

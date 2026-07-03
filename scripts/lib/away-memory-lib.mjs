@@ -93,11 +93,12 @@ export function parseFirstQueuedFromProjectState(md) {
 
 /** @param {{ results?: { id: string, status: string }[] }} statusDoc */
 export function deriveLastShippedFromStatus(statusDoc) {
-  const built = (statusDoc.results ?? []).filter(
-    (r) => r.status === "built" && /^away-\d+$/.test(r.id),
-  );
-  built.sort((a, b) => awayIdNum(a.id) - awayIdNum(b.id));
-  return built.length ? built[built.length - 1].id : null;
+  const results = statusDoc.results ?? [];
+  for (let i = results.length - 1; i >= 0; i--) {
+    const r = results[i];
+    if (r.status === "built" && /^away-\d+$/.test(r.id)) return r.id;
+  }
+  return null;
 }
 
 /** @param {{ id: string, title: string, scope?: string, acceptance?: string, verifyBeforeNext?: string[], tier?: string, dependsOn?: string } | null} next */
@@ -234,6 +235,21 @@ export function updateImmediateNextInCurrentState(md, nextItem) {
     ? `- **${nextItem.id}** — ${nextItem.title} (offline; \`npm run away:next\`). ESL/shop map do not block unless scope says otherwise.`
     : `- **Post-queue:** see \`docs/project_state.md\` immediate next steps.`;
   return md.replace(/(## Immediate Next Step\n)- .+\n/m, `$1${line}\n`);
+}
+
+/** @param {{ id: string, title: string } | null} nextItem */
+export function renderImmediateNextLineInProjectState(nextItem) {
+  if (nextItem) {
+    const title = nextItem.title.endsWith(".") ? nextItem.title : `${nextItem.title}.`;
+    return `1. **${nextItem.id}** — ${title}`;
+  }
+  return `1. **Post-queue:** see \`docs/roadmap.md\` NOW bucket and \`PROJECT_STATUS/CURRENT_STATE.md\` — refill queue via \`away-list.json\` when ready.`;
+}
+
+/** @param {string} md @param {{ id: string, title: string } | null} nextItem */
+export function updateImmediateNextInProjectState(md, nextItem) {
+  const line = renderImmediateNextLineInProjectState(nextItem);
+  return md.replace(/(## Immediate Next Steps\n\n)1\. .+\n/m, `$1${line}\n`);
 }
 
 /** Roadmap patterns that must not regress (Verifier). */

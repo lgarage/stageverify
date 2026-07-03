@@ -554,6 +554,13 @@
       "status": "built",
       "commit": "8e1f0f4",
       "note": "Verified buildNextBrief readFirst omits svscope unless scopeDispute; away:validate+build pass"
+    },
+    {
+      "id": "away-083",
+      "title": "Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next",
+      "status": "built",
+      "commit": "f5c8dfb",
+      "note": "away:ship + validate auto-sync project_state Immediate Next #1"
     }
   ],
   "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"

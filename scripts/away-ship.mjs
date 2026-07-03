@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Atomic away completion: away-list + away-status + CURRENT_STATE + NEXT.md
+ * Atomic away completion: away-list + away-status + CURRENT_STATE + NEXT.md + project_state.md
  * Usage:
  *   node scripts/away-ship.mjs --id away-042 --commit abc1234 --note "summary" [--status built|blocked|deferred]
  */
@@ -12,6 +12,7 @@ import {
   readText,
   renderNextMd,
   updateImmediateNextInCurrentState,
+  updateImmediateNextInProjectState,
   updateLastShippedInCurrentState,
   writeJson,
   writeText,
@@ -75,12 +76,20 @@ function main() {
   currentState = updateLastShippedInCurrentState(currentState, args.id, item.title);
   const nextItem = firstRunnableItem(list.queue, archive, statusDoc.results);
   currentState = updateImmediateNextInCurrentState(currentState, nextItem);
+  let projectState = readText(PATHS.projectState);
+  projectState = updateImmediateNextInProjectState(projectState, nextItem);
   const nextMd = renderNextMd(nextItem);
 
   if (args.dryRun) {
     console.log(
       JSON.stringify(
-        { list, statusDoc, currentStatePreview: currentState.split("\n").slice(7, 20), nextMd },
+        {
+          list,
+          statusDoc,
+          currentStatePreview: currentState.split("\n").slice(7, 20),
+          projectStatePreview: projectState.split("\n").slice(178, 186),
+          nextMd,
+        },
         null,
         2,
       ),
@@ -91,6 +100,7 @@ function main() {
   writeJson(PATHS.awayList, list);
   writeJson(PATHS.awayStatus, statusDoc);
   writeText(PATHS.currentState, currentState);
+  writeText(PATHS.projectState, projectState);
   writeText(PATHS.nextMd, nextMd);
 
   console.log(`away-ship: ${args.id} → shipped (${args.status}, ${args.commit})`);

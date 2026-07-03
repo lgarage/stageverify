@@ -179,7 +179,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-083** — Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next.
+1. **away-085** — Mini-librarian phase 3: context:packet + away:next --packet.
 2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 3. **ESL integration** — Phase 7; blocked on Minew credentials.
 4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
@@ -187,6 +187,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ---
 
 ## Recently shipped (away)
+
+**away-083 (2026-07-03)** — Mini-librarian phase 3: `away:ship` + `away:validate` auto-sync `docs/project_state.md` Immediate Next Steps #1 with queue head (same rule as CURRENT_STATE + NEXT.md). Helpers in `away-memory-lib.mjs`. Verify: `away:validate`, `build`.
 
 **away-087 (2026-07-03)** — Verified Action 1: `buildNextBrief()` readFirst omits `svscope_simple.md` unless `scopeDispute`; `itemScopeDispute()` adds svscope on flag or scope string. Verify: `away:validate`, `build`.
 
