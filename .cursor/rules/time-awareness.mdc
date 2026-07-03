@@ -100,6 +100,7 @@ When presenting work that might fit a stated window, use **two numbers**:
 
 - **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
 - **After ship/verify:** when Dan gave a time window, note **actual elapsed** in "what was done" (feeds future calibration).
+- **Away ships:** log wall-clock timing in `PROJECT_STATUS/estimate-log.md` at `away:ship` — see `AWAY_BUILD_PROTOCOL.md` § per-item loop step 6; use `unknown` when start was not tracked.
 - **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
 
 ### Wrong vs right (budget vs typical)

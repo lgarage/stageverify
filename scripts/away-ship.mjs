@@ -2,7 +2,16 @@
 /**
  * Atomic away completion: away-list + away-status + CURRENT_STATE + NEXT.md + project_state.md
  * Usage:
- *   node scripts/away-ship.mjs --id away-042 --commit abc1234 --note "summary" [--status built|blocked|deferred]
+ *   node scripts/away-ship.mjs --id away-042 --commit abc1234 --note "..." [--status built|blocked|deferred]
+ *
+ * --note should include timing (human-readable; stored verbatim in away-status.json).
+ * Also append a full row to PROJECT_STATUS/estimate-log.md (source of truth).
+ *
+ * Format:
+ *   started:<ISO-8601|unknown> completed:<ISO-8601> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>
+ *
+ * Example:
+ *   --note "started:2026-07-03T14:30:00-05:00 completed:2026-07-03T14:45:00-05:00 est:35m actual:15m tag:scripts-only deploy:n project_state Immediate Next sync"
  */
 import { execSync } from "node:child_process";
 import {
@@ -19,9 +28,12 @@ import {
 } from "./lib/away-memory-lib.mjs";
 
 function usage() {
-  console.error(
-    `Usage: node scripts/away-ship.mjs --id away-NNN --commit HASH --note "text" [--status built|blocked|deferred] [--dry-run]`,
-  );
+  console.error(`Usage: node scripts/away-ship.mjs --id away-NNN --commit HASH --note "..." [--status built|blocked|deferred] [--dry-run]
+
+--note timing prefix (append summary after deploy flag):
+  started:<ISO|unknown> completed:<ISO> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>
+
+Also append row to PROJECT_STATUS/estimate-log.md — see AWAY_BUILD_PROTOCOL.md step 6.`);
   process.exit(1);
 }
 

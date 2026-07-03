@@ -113,7 +113,17 @@ For each id in `executionProtocol.sequence`:
 3. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 4. Run **all** `verifyBeforeNext` commands.
 5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
-6. Set item `status: done` via **`npm run away:ship -- --id <id> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). In `--note`, prefix estimate fields: `est:Xm actual:Ym tag:<type> deploy:y|n` then a short summary (e.g. `--note "est:25m actual:18m tag:ui-component deploy:y settings drawer polish"`). Append the same row to `PROJECT_STATUS/estimate-log.md` (rolling 15 rows). Completion report: one line stating actual vs budget.
+6. Set item `status: done` via **`npm run away:ship -- --id <id> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Record timing at ship** (see `PROJECT_STATUS/estimate-log.md`):
+   - `startedAt` — when work on this item began (session start or first commit); **`unknown`** if not tracked
+   - `completedAt` — ship time (now or ship-commit timestamp)
+   - `budgetMin` — from `time-awareness.mdc` calibration
+   - `actualElapsedMin` — wall-clock start→complete; **`unknown`** if start missing — do not guess
+   - task tag, deploy flag, one-line notes
+   - Append one row to `PROJECT_STATUS/estimate-log.md` (rolling 15 rows; file is source of truth — no JSON schema in `away-status.json` yet).
+   - **`--note` format** (verbatim in `away-status.json`):  
+     `started:<ISO|unknown> completed:<ISO> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>`  
+     Example: `--note "started:2026-07-03T14:30:00-05:00 completed:2026-07-03T14:45:00-05:00 est:35m actual:15m tag:scripts-only deploy:n away:ship project_state sync"`
+   - Completion report: one line stating actual vs budget (or "actual unknown").
 7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
 9. Session cleanup — then next item.

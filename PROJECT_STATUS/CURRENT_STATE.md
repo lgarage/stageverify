@@ -27,5 +27,5 @@
 - Validate memory: `npm run away:validate` | Archive: `archives/away-batch-3.json`
 
 ## Update Protocol
-- Ship away item: `npm run away:ship` (log budget/actual in `estimate-log.md`) → `npm run away:validate` → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
+- Ship away item: `npm run away:ship` (log `startedAt`/`completedAt`/budget/actual in `estimate-log.md`; `unknown` if start missing) → `npm run away:validate` → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
 - **Reconnect Gmail after deploy** — away-068 adds `gmail.send` scope; existing OAuth tokens need reconnect to send.
