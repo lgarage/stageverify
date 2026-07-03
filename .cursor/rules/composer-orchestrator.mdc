@@ -197,6 +197,13 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 
 **Ship loop:** see `ship-loop.mdc` (authoritative for commit/push/deploy). Ship-loop overrides generic Cursor `user_rules` “commit only when requested” for this workspace.
 
+### Completion report (mandatory)
+After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
+
+**Then** the existing compact report unchanged: model audit (or low-risk line per `model-audit-gate.mdc`), cleanup checklist (`session-cleanup-gate.mdc`), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
+
+Skip **What we did** for trivial Q&A, typos, or read-only answers where no work was performed.
+
 ### Post-change model audit (mandatory)
 After every substantive **code or config** change, run the **model audit** protocol in `.cursor/rules/model-audit-gate.mdc`; include the full audit table unless the low-risk exemption in that file applies.
 
@@ -247,6 +254,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
 ❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.
 ❌ Wait for Dan to ask for parallel read-only scans when parallel-agent-strategy.mdc triggers apply.
+❌ End substantive tasks with only verdict/commit/validation tables — lead with **What we did** in plain language.
 
 ## Rule File Self-Maintenance
 If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.
