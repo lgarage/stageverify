@@ -113,15 +113,11 @@ For each id in `executionProtocol.sequence`:
 3. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 4. Run **all** `verifyBeforeNext` commands.
 5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
-6. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Record timing at ship** (see `PROJECT_STATUS/estimate-log.md`):
-   - **Approval→commit timing (canonical):** Parent/coordinator records Dan's approval ISO at task kickoff (`go`, `continue`, `away-NNN makes sense now`, or `<timestamp>` from Dan's message). Executor sets `completedAt` from the ship commit: `git show -s --format=%cI <hash>`. `actualElapsedMin` = wall-clock approval→commit; compare to `budgetMin` in the log. No observed-time or agent-runtime fields — if approval was not logged, `startedAt: unknown` and `actualElapsedMin: unknown`.
-   - `budgetMin` — from `time-awareness.mdc` calibration
-   - task tag, deploy flag, one-line notes
-   - Append one row to `PROJECT_STATUS/estimate-log.md` (rolling 15 rows; file is source of truth — no JSON schema in `away-status.json` yet).
-   - **`--note` format** (verbatim in `away-status.json`):  
-     `started:<ISO|unknown> completed:<ISO> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>`  
-     Example: `--note "started:2026-07-03T14:59:00-05:00 completed:2026-07-03T15:02:04-05:00 est:35m actual:3m tag:scripts-only deploy:n gotcha map + context:gotcha CLI"`
-   - Completion report: one line stating actual vs budget (or "actual unknown").
+6. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Timing audit — `PROJECT_STATUS/estimate-log.md` only** (single source of truth; do not store est/actual in `away-status.json`):
+   - Append one row to `estimate-log.md` (rolling 15 rows): `startedAt`, `completedAt`, `budgetMin`, `actualElapsedMin`, task tag, deploy flag, notes — see that file for methodology.
+   - Parent/coordinator records Dan's approval ISO at kickoff (`go`, `continue`, `away-NNN makes sense now`, or `<timestamp>` from Dan's message). Executor sets `completedAt` from `git show -s --format=%cI <hash>`. If approval was not logged: `startedAt: unknown`, `actualElapsedMin: unknown`.
+   - **`--note`**: short ship summary only (what shipped, verify results). Optional: `timing: estimate-log row N`. Example: `--note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"`.
+   - Completion report: one line actual vs budget from estimate-log (or "actual unknown").
 7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
 9. Session cleanup — then next item.
@@ -143,6 +139,7 @@ See `away-list.json` → `executionProtocol.sequence`. Copy-paste starters: `PRO
 | Topic | File |
 |-------|------|
 | **Memory router** | `PROJECT_STATUS/MEMORY.md` |
+| **Timing audit (SSOT)** | `PROJECT_STATUS/estimate-log.md` |
 | **Product authority (wins on conflict)** | `PROJECT_STATUS/svscope_simple.md` |
 | Playwright commands | `.cursor/rules/composer-orchestrator.mdc` |
 | Parallel scouts | `.cursor/rules/parallel-agent-strategy.mdc` |

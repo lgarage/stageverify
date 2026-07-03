@@ -1,6 +1,8 @@
-# Away ship estimate log
+# Away ship estimate log — single source of truth for away timing audit
 
-Rolling log for the **last 15 shipped away tasks**. At `away:ship`, append one row (shift oldest off when full). **Source of truth** — no JSON schema in `away-status.json` yet.
+Rolling log for the **last 15 shipped away tasks**. At `away:ship`, append one row here (shift oldest off when full). **This file is the only place** approval→commit elapsed vs budget is stored — do not duplicate timing in `away-status.json` notes or elsewhere.
+
+Planning budgets (`time-awareness.mdc` calibration, queue item scope) stay separate; they are not actual elapsed storage.
 
 ## What counts as "actual"
 
@@ -14,7 +16,7 @@ Rolling log for the **last 15 shipped away tasks**. At `away:ship`, append one r
 
 **Canonical interval:** Dan approval → last ship commit. Agent tool time and Dan's subjective "felt like N minutes" are irrelevant.
 
-Priority when researching backfills: Dan approval message timestamp → ship commit (`git log`) → `away-status` `--note` → prior estimate-log rows.
+Priority when researching backfills: Dan approval message timestamp → ship commit (`git log`) → prior estimate-log rows.
 
 ## Columns
 
@@ -31,24 +33,15 @@ Priority when researching backfills: Dan approval message timestamp → ship com
 
 ## Ship-time rule (mandatory)
 
-At each `npm run away:ship`, record in this log **and** echo key fields in `--note` (see `AWAY_BUILD_PROTOCOL.md`):
+At each `npm run away:ship` (see `AWAY_BUILD_PROTOCOL.md` step 6):
 
-- Parent/coordinator sets `startedAt` from Dan's approval message (or `unknown`)
-- Executor sets `completedAt` from the ship commit hash (`git show -s --format=%cI`)
-- `budgetMin`, `actualElapsedMin`, task tag, deploy flag, notes
-- If approval time was not tracked: `startedAt: unknown` and `actualElapsedMin: unknown` — honest beats guessed
+1. **Append one row to this file** with `startedAt`, `completedAt`, `budgetMin`, `actualElapsedMin`, task tag, deploy flag, and notes.
+2. Parent/coordinator sets `startedAt` from Dan's approval message (or `unknown`).
+3. Executor sets `completedAt` from the ship commit hash (`git show -s --format=%cI`).
+4. If approval time was not tracked: `startedAt: unknown` and `actualElapsedMin: unknown` — honest beats guessed.
+5. **`away:ship --note`** — short ship summary only (what shipped, verify results). Optional cross-ref: `timing: estimate-log row N`. Do **not** repeat est/actual/started/completed in the note.
 
-**`--note` string format** (parsed by humans only; stored verbatim in `away-status.json`):
-
-```
-started:<ISO|unknown> completed:<ISO> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>
-```
-
-Example:
-
-```
-started:2026-07-03T14:59:00-05:00 completed:2026-07-03T15:02:04-05:00 est:35m actual:3m tag:scripts-only deploy:n gotcha map + context:gotcha CLI
-```
+Completion report (chat): one line stating actual vs budget from this log (or "actual unknown").
 
 ## Log
 

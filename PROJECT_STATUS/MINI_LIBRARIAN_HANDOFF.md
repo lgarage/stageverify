@@ -210,7 +210,7 @@ Bootstrap checklist for new repo: hot tier files → dossier-index → context-i
 | `npm run away:plan` | Away/sleep first question — suggest only, no queue writes |
 | `npm run away:batch` | Execute queued sequence — verify → ship → validate per item |
 | `npm run away:preflight` | Run verifyBeforeNext for queued items before bedtime |
-| `npm run away:ship -- --id <id> --note "…"` | Mark item built after verify passes |
+| `npm run away:ship -- --id <id> --note "…"` | Mark item built after verify; `--note` = summary only; timing → `estimate-log.md` |
 | `npm run away:validate` | Drift checks before commit; after memory edits |
 | `npm run dossier:slice -- --tag <tag>` | One MODEL_DOSSIER § |
 | `npm run context:lookup -- --concern "…"` | Concern → files + slices |

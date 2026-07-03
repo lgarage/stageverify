@@ -4,17 +4,12 @@
  * Usage:
  *   node scripts/away-ship.mjs --id away-042 --commit abc1234 --note "..." [--status built|blocked|deferred]
  *
- * --note should include timing (human-readable; stored verbatim in away-status.json).
- * Also append a full row to PROJECT_STATUS/estimate-log.md (source of truth).
- *
- * Timing: startedAt = Dan approval ISO (or unknown); completedAt = ship commit time
- *   git show -s --format=%cI <hash>  (not agent runtime or Dan's observed minutes)
- *
- * Format:
- *   started:<ISO-8601|unknown> completed:<ISO-8601> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>
+ * --note: short ship summary only (stored verbatim in away-status.json). Do not duplicate
+ * est/actual/started/completed here — append timing row to PROJECT_STATUS/estimate-log.md
+ * separately (single source of truth). Optional cross-ref: "timing: estimate-log row N".
  *
  * Example:
- *   --note "started:2026-07-03T14:59:00-05:00 completed:2026-07-03T15:02:04-05:00 est:35m actual:3m tag:scripts-only deploy:n gotcha map + context:gotcha CLI"
+ *   --note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"
  */
 import { execSync } from "node:child_process";
 import {
@@ -33,10 +28,8 @@ import {
 function usage() {
   console.error(`Usage: node scripts/away-ship.mjs --id away-NNN --commit HASH --note "..." [--status built|blocked|deferred] [--dry-run]
 
---note timing prefix (append summary after deploy flag):
-  started:<ISO|unknown> completed:<ISO> est:<N>m actual:<N>m|unknown tag:<type> deploy:y|n <summary>
-
-Also append row to PROJECT_STATUS/estimate-log.md — see AWAY_BUILD_PROTOCOL.md step 6.`);
+--note: short ship summary only (no est/actual duplication). Append timing to
+PROJECT_STATUS/estimate-log.md separately — see AWAY_BUILD_PROTOCOL.md step 6.`);
   process.exit(1);
 }
 

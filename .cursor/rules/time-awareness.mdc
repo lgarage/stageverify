@@ -99,8 +99,8 @@ When presenting work that might fit a stated window, use **two numbers**:
 ### Rules
 
 - **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
-- **After ship/verify:** when Dan gave a time window, note **actual elapsed** in "what was done" (feeds future calibration).
-- **Away ships:** log **Dan approval → ship commit** wall-clock in `PROJECT_STATUS/estimate-log.md` at `away:ship` — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; `startedAt: unknown` when approval was not recorded (no agent-runtime or observed-time fields).
+- **After ship/verify:** when Dan gave a time window, note **actual elapsed** in the chat completion report (feeds calibration) — cite `estimate-log.md` for away ships; do not store actuals in `away-status.json`.
+- **Away ships:** append approval→commit timing **only** to `PROJECT_STATUS/estimate-log.md` at ship — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; `startedAt: unknown` when approval was not recorded (no agent-runtime or observed-time fields).
 - **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
 
 ### Wrong vs right (budget vs typical)
@@ -163,7 +163,7 @@ Or: *"If you have ~25+ min left, say go build away-054"* — nonsensical when th
 
 ## Remaining time options (post-ship — mandatory)
 
-Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section. When a window was stated, also note **actual elapsed** for the task just completed (feeds **Time estimate calibration**). Apply **Time-bound suggestions** — only in-budget items are actionable.
+Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section. When a window was stated, also note **actual elapsed** for the task just completed in chat (away ships: cite `estimate-log.md` row). Apply **Time-bound suggestions** — only in-budget items are actionable.
 
 ### When to include
 
