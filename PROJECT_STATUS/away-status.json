@@ -580,7 +580,7 @@
       "id": "away-088",
       "title": "Johnstone invoice import Slice 1 — offline parser prototype",
       "status": "built",
-      "commit": "9f92db1",
+      "commit": "87fa640",
       "note": "src/dispatcher/invoice/ + test:invoice-parser 100% gate; timing: estimate-log row 6"
     }
   ],
