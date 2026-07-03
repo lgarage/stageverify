@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-06-25",
+  "lastRun": "2026-07-03",
   "batch": "away-001..041 archived; away-042..076 built; queue empty except blocked away-069",
   "results": [
     {
@@ -547,6 +547,13 @@
       "status": "deferred",
       "commit": "n/a",
       "note": "MISLABEL corrected (Opus review): commit 5fab28e was drawer lower-section UI (see project_state Recently shipped), not librarian gotcha map. Librarian scope unbuilt — re-queue when approved."
+    },
+    {
+      "id": "away-087",
+      "title": "Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute",
+      "status": "built",
+      "commit": "8e1f0f4",
+      "note": "Verified buildNextBrief readFirst omits svscope unless scopeDispute; away:validate+build pass"
     }
   ],
   "summary": "away-082 Action 1 shipped; away-084 librarian deferred (UI mis-ID); overnight queue away-087 → 083 → 085 → 086"

@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **Fast UI pass** — delivery label outside-click close + Push to E-Tag label; activity history collapse dedup + raw full view; Issue Summary column shows Pickup Scheduled when ready
+- Last shipped: **away-087** — Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -16,7 +16,7 @@
 3. **Physical shop map** — not created.
 
 ## Immediate Next Step
-- **away-087** — Verify Action 1 readFirst excludes svscope unless scopeDispute (then away-083 → 085 → 086). ESL/shop map do not block unless scope says otherwise.
+- **away-083** — Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
 - **Session handoff:** `PROJECT_STATUS/MINI_LIBRARIAN_HANDOFF.md` — mini-librarian / ACES continuity for new chats

@@ -179,7 +179,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-087** — Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute (overnight gate; then away-083).
+1. **away-083** — Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next.
 2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
 3. **ESL integration** — Phase 7; blocked on Minew credentials.
 4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
@@ -187,6 +187,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 ---
 
 ## Recently shipped (away)
+
+**away-087 (2026-07-03)** — Verified Action 1: `buildNextBrief()` readFirst omits `svscope_simple.md` unless `scopeDispute`; `itemScopeDispute()` adds svscope on flag or scope string. Verify: `away:validate`, `build`.
 
 **Fast UI pass (2026-06-24)** — Delivery label modal closes on outside click / Escape; primary action renamed **Push to E-Tag** (copy only). Activity History: collapse repeated entity/status events in compact view; **Show Full History** shows raw audit list. List **Issue Summary** column prioritizes **Pickup Scheduled** when delivery is ready and job is scheduled (display-only). Verify: `verify:delivery-consistency` (361 checks).
 

@@ -11,7 +11,6 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
     "sequence": [
-      "away-087",
       "away-083",
       "away-085",
       "away-086"
@@ -27,23 +26,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-087",
-      "title": "Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute",
-      "status": "queued",
-      "scope": "Confirm scripts/lib/away-memory-lib.mjs buildNextBrief() default readFirst omits PROJECT_STATUS/svscope_simple.md; only includes svscope when item.scopeDispute === true or scope string flags scopeDispute. Run npm run away:next on queue head and inspect readFirst array. No product code.",
-      "acceptance": "npm run away:next JSON for away-083 (or any queued head after verify item) shows readFirst without svscope_simple.md; itemScopeDispute(true) adds svscope path; npm run away:validate passes.",
-      "tier": "T0",
-      "estimatedEffort": "~10 min",
-      "readFirst": [
-        "scripts/lib/away-memory-lib.mjs (buildNextBrief, itemScopeDispute)",
-        "PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md (§ Action 1)"
-      ],
-      "verifyBeforeNext": [
-        "npm run away:validate",
-        "npm run build"
-      ]
     },
     {
       "id": "away-083",
