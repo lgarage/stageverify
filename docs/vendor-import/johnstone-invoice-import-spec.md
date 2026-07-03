@@ -114,6 +114,7 @@ Captured for search and job matching; typically identical on sample invoices:
 | `buyerName` | Buyer | e.g. `CONNOR SMITH`, `GAVIN PHILIPPON` |
 | `shipViaRaw` | Ship Via column | e.g. `TRUCK DELIVE`, blank on pickup rows |
 | `fulfillmentMethod` | Inferred (light) | `delivery` \| `will_call_pickup` \| `unknown` — see §4.1 |
+| `shipCompletePolicy` | Inferred (light) | `hold_until_complete` \| `allow_partial` \| `unknown` — see §4.2 |
 | `freightTermsRaw` | Freight Terms | Capture raw; do not drive business logic |
 | `jobNumberRaw` | Job Number | Often blank on samples |
 | `importBatchId` | System | Links multi-invoice PDF upload |
@@ -121,13 +122,30 @@ Captured for search and job matching; typically identical on sample invoices:
 
 ### 4.1 Fulfillment method inference (light)
 
+**Rule:** Fulfillment method comes **only** from explicit header/shipping language. Backorder lines, partial qty, and ship-complete policy do **not** change fulfillment method.
+
 | Signal | `fulfillmentMethod` | Typical import status |
 | ------ | ------------------- | --------------------- |
-| Customer P/O # contains `PICKUP` (e.g. PLANET FITNESS PICKUP, EXHAUST FANS PICKUP, TRUCK STOCK PICKUP, TOPS STOCK PICKUP, inventory PICKUP) | `will_call_pickup` | `pickup_at_vendor` |
-| Ship Via = `TRUCK DELIVE` (truncated "DELIVERY") | `delivery` | `pending` / `partial` / `ready_for_pickup` per line qty |
-| Ambiguous (repair PO text, missing both) | `unknown` | `pending` + review flag if high value |
+| Customer P/O # contains `PICKUP` (e.g. PLANET FITNESS PICKUP, EXHAUST FANS PICKUP, TRUCK STOCK PICKUP, TOPS STOCK PICKUP, inventory PICKUP) | `will_call_pickup` | `pickup_at_vendor` when complete; `partial` when lines incomplete |
+| Ship Via = `TRUCK DELIVE` (truncated "DELIVERY") | `delivery` | `pending` / `partial` per line qty — not Will-Call |
+| `DELIVERY ROUTE` / `DELIVERED BY JOHNSTONE` in header/message | `delivery` | `pending` / `partial` |
+| Ambiguous (repair PO text, missing both) | `unknown` | `pending` + review flag |
+
+**Do not** infer delivery from `SHIP COMPLETE`, `DELIVERY HOLD`, or backorder qty alone.
 
 **Do not** overwrite `customerPoOrReference` when inferring; inference is a separate field.
+
+### 4.2 Ship-complete policy (separate from fulfillment)
+
+Johnstone accounts may ship partial deliveries **unless** ship-complete is selected. This is a **hold/completeness policy**, not fulfillment method.
+
+| Signal | `shipCompletePolicy` | Behavior |
+| ------ | -------------------- | -------- |
+| `SHIP COMPLETE` or `DELIVERY HOLD` in invoice message | `hold_until_complete` | Hold delivery until all lines available; incomplete invoice ⇒ `partial` + review |
+| Explicit partial-ship OK language | `allow_partial` | Partial truck delivery allowed |
+| No explicit language | `unknown` | Do not assume hold; completeness still driven by line qty |
+
+**Backorder / completeness:** Any line with `quantityBackordered > 0`, partial ship, or zero shipped material ⇒ import status at least `partial` — regardless of fulfillment method or ship-complete policy.
 
 ---
 

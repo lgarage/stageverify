@@ -48,6 +48,13 @@ function evaluateFixture(pageId, result, expected) {
       detail: result.parsed.header.fulfillmentMethod,
     });
   }
+  if (expected.shipCompletePolicy) {
+    checks.push({
+      label: "shipCompletePolicy",
+      pass: result.parsed.header.shipCompletePolicy === expected.shipCompletePolicy,
+      detail: result.parsed.header.shipCompletePolicy,
+    });
+  }
   if (expected.importStatus) {
     checks.push({
       label: "importStatus",
@@ -189,6 +196,33 @@ const FIXTURE_EXPECTATIONS = {
   "inv-ambiguous-all-backorder": {
     customerPoOrReference: "KALAFAT Tuesday John",
     fulfillmentMethod: "unknown",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-partial-delivery": {
+    customerPoOrReference: "La Crosse PF",
+    fulfillmentMethod: "delivery",
+    shipCompletePolicy: "unknown",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-ship-complete-hold": {
+    customerPoOrReference: "La Crosse PF",
+    fulfillmentMethod: "delivery",
+    shipCompletePolicy: "hold_until_complete",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-backorder-truck-delive": {
+    customerPoOrReference: "La Crosse PF",
+    fulfillmentMethod: "delivery",
+    shipCompletePolicy: "unknown",
     importStatus: "partial",
     displayLabel: "Partial",
     humanReviewRequired: true,

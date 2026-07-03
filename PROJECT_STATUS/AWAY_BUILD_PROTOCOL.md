@@ -117,7 +117,7 @@ For each id in `executionProtocol.sequence`:
    - Append one row to `estimate-log.md` (rolling 15 rows): `startedAt`, `completedAt`, `budgetMin`, `actualElapsedMin`, task tag, deploy flag, notes — see that file for methodology.
    - Parent/coordinator records Dan's approval ISO at kickoff (`go`, `continue`, `away-NNN makes sense now`, or `<timestamp>` from Dan's message). Executor sets `completedAt` from `git show -s --format=%cI <hash>`. If approval was not logged: `startedAt: unknown`, `actualElapsedMin: unknown`.
    - **`--note`**: short ship summary only (what shipped, verify results). Optional: `timing: estimate-log row N`. Example: `--note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"`.
-   - Completion report: one line actual vs budget from estimate-log (or "actual unknown").
+   - Completion report: estimate **table** from estimate-log — `| | Budget | Actual | Commit |` when budget exists; `| Actual | Commit |` only when no budget (see `estimate-log.md` + `composer-orchestrator.mdc`).
 7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
 9. Session cleanup — then next item.

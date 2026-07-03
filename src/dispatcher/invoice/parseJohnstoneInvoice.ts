@@ -5,7 +5,7 @@ import type {
   ParsedInvoiceLine,
   ParsedJohnstoneInvoice,
 } from "./types";
-import { inferFulfillmentMethod } from "./inferImportStatus";
+import { inferFulfillmentMethod, inferShipCompletePolicy } from "./inferImportStatus";
 
 function capture(label: RegExp, text: string): string | undefined {
   const m = text.match(label);
@@ -111,6 +111,7 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
   if (!customerPoOrReference) parseWarnings.push("missing customerPoOrReference");
 
   const fulfillmentMethod = inferFulfillmentMethod(customerPoOrReference, shipViaRaw, text);
+  const shipCompletePolicy = inferShipCompletePolicy(text);
 
   const header: ParsedInvoiceHeader = {
     customerAccountNumber,
@@ -131,6 +132,7 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     shipToName: shipToName.trim(),
     shipToAddress: shipToAddress.trim(),
     fulfillmentMethod,
+    shipCompletePolicy,
   };
 
   const lines: ParsedInvoiceLine[] = [];

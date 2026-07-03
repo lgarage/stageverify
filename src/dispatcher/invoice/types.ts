@@ -9,6 +9,9 @@ export type VendorInvoiceImportStatus =
 
 export type InvoiceFulfillmentMethod = "delivery" | "will_call_pickup" | "unknown";
 
+/** Ship-complete account policy — separate from fulfillment method and backorder completeness. */
+export type ShipCompletePolicy = "hold_until_complete" | "allow_partial" | "unknown";
+
 export type InvoiceLineType = "product" | "core_charge" | "return" | "freight" | "ignored";
 
 export type InvoiceConfidenceTier = "high" | "medium" | "low";
@@ -40,6 +43,7 @@ export interface ParsedInvoiceHeader {
   shipToName: string;
   shipToAddress: string;
   fulfillmentMethod: InvoiceFulfillmentMethod;
+  shipCompletePolicy: ShipCompletePolicy;
 }
 
 export interface ParsedInvoiceLine {

@@ -41,7 +41,15 @@ At each `npm run away:ship` (see `AWAY_BUILD_PROTOCOL.md` step 6):
 4. If approval time was not tracked: `startedAt: unknown` and `actualElapsedMin: unknown` — honest beats guessed.
 5. **`away:ship --note`** — short ship summary only (what shipped, verify results). Optional cross-ref: `timing: estimate-log row N`. Do **not** repeat est/actual/started/completed in the note.
 
-Completion report (chat): one line stating actual vs budget from this log (or "actual unknown").
+Completion report (chat): **table format** after **What we did** — see `composer-orchestrator.mdc` § Completion report.
+
+| When budget exists | Columns |
+| ------------------ | ------- |
+| Pre-ship budget logged | `\| \| Budget \| Actual \| Commit \|` — one row with task label, `budgetMin`, `actualElapsedMin` (or `unknown`), short commit hash |
+| No budget | `\| Actual \| Commit \|` only — do **not** add a fake Budget column |
+
+Example (budget): `| johnstone parser audit | 35 min | 12 min | a1b2c3d |`  
+Example (no budget): `| 8 min | a1b2c3d |`
 
 ## Log
 

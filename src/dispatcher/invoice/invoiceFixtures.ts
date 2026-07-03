@@ -333,4 +333,102 @@ LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
 please call 605-338-2652
 `.trim(),
   },
+  {
+    pageId: "inv-partial-delivery",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 14,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164304
+Invoice #: 6164304
+Customer P/O #: La Crosse PF
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: GAVIN PHILIPPON
+Ship Via: TRUCK DELIVE
+Job Number:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 3 2 0 L46-668 TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK
+2 1 1 0 B86-380 4050-08 SEALANT REFRIGERATIO EASYSEAL
+
+please call 605-338-2652
+`.trim(),
+  },
+  {
+    pageId: "inv-ship-complete-hold",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 15,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164305
+Invoice #: 6164305
+Customer P/O #: La Crosse PF
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: GAVIN PHILIPPON
+Ship Via: TRUCK DELIVE
+Job Number:
+
+Invoice Message: SHIP COMPLETE — DELIVERY HOLD until all lines available
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 0 2 NS10762605 105105 GREENHECK FAN
+2 1 0 1 NS99999999 999999 BACKORDERED PART
+
+please call 605-338-2652
+`.trim(),
+  },
+  {
+    pageId: "inv-backorder-truck-delive",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 16,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164306
+Invoice #: 6164306
+Customer P/O #: La Crosse PF
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: GAVIN PHILIPPON
+Ship Via: TRUCK DELIVE
+Job Number:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 0 1 NS10762605 105105 GREENHECK FAN
+2 2 1 1 B86-380 4050-08 SEALANT REFRIGERATIO EASYSEAL
+
+please call 605-338-2652
+`.trim(),
+  },
 ];

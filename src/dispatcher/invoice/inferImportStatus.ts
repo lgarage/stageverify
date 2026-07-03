@@ -1,10 +1,11 @@
 import type {
   InvoiceFulfillmentMethod,
   ParsedJohnstoneInvoice,
+  ShipCompletePolicy,
   VendorInvoiceImportStatus,
 } from "./types";
 
-/** Fulfillment method from explicit header/shipping language only — never from backorder lines. */
+/** Fulfillment method from explicit header/shipping language only — never from backorder lines or ship-complete policy. */
 export function inferFulfillmentMethod(
   customerPoOrReference: string,
   shipViaRaw?: string,
@@ -21,9 +22,18 @@ export function inferFulfillmentMethod(
   if (shipVia && /TRUCK\s+DELIVE/i.test(shipVia)) return "delivery";
   if (/DELIVERY\s+ROUTE/i.test(text)) return "delivery";
   if (/DELIVERED\s+BY\s+JOHNSTONE/i.test(text)) return "delivery";
-  if (/SHIP\s+COMPLETE/i.test(text)) return "delivery";
-  if (/DELIVERY\s+HOLD/i.test(text)) return "delivery";
 
+  return "unknown";
+}
+
+/** Ship-complete hold policy from explicit header/message language — not fulfillment method. */
+export function inferShipCompletePolicy(pageText?: string): ShipCompletePolicy {
+  const text = pageText ?? "";
+  if (/\bSHIP\s+COMPLETE\b/i.test(text)) return "hold_until_complete";
+  if (/\bDELIVERY\s+HOLD\b/i.test(text)) return "hold_until_complete";
+  if (/\bPARTIAL\s+(?:SHIP(?:MENT)?|DELIVERY)\s+(?:OK|ALLOWED)\b/i.test(text)) {
+    return "allow_partial";
+  }
   return "unknown";
 }
 
@@ -103,7 +113,10 @@ export function scoreInvoiceConfidence(parsed: ParsedJohnstoneInvoice): {
   ];
   const missingRequired = required.filter((v) => !v).length;
   const productLines = parsed.lines.filter((l) => l.lineType === "product");
-  const { hasBackorder, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);
+  const { hasBackorder, hasPartialShip, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);
+  const shipCompleteHold =
+    parsed.header.shipCompletePolicy === "hold_until_complete" &&
+    (hasBackorder || noFulfilledMaterial);
 
   let score = 100;
   score -= missingRequired * 15;
@@ -120,7 +133,9 @@ export function scoreInvoiceConfidence(parsed: ParsedJohnstoneInvoice): {
     tier !== "high" ||
     parsed.header.fulfillmentMethod === "unknown" ||
     hasBackorder ||
-    noFulfilledMaterial;
+    hasPartialShip ||
+    noFulfilledMaterial ||
+    shipCompleteHold;
 
   return { tier, score, humanReviewRequired };
 }
