@@ -4,34 +4,80 @@ import type {
   VendorInvoiceImportStatus,
 } from "./types";
 
+/** Fulfillment method from explicit header/shipping language only — never from backorder lines. */
 export function inferFulfillmentMethod(
   customerPoOrReference: string,
   shipViaRaw?: string,
+  pageText?: string,
 ): InvoiceFulfillmentMethod {
+  const shipVia = (shipViaRaw ?? "").trim();
+  const text = pageText ?? "";
+
   if (/\bPICKUP\b/i.test(customerPoOrReference)) return "will_call_pickup";
-  if (shipViaRaw && /TRUCK DELIVE/i.test(shipViaRaw)) return "delivery";
+  if (/\bWILL\s*[- ]?\s*CALL\b/i.test(customerPoOrReference)) return "will_call_pickup";
+  if (/\bWILL\s*CALL\b/i.test(text)) return "will_call_pickup";
+  if (/\bCUSTOMER\s+PICKUP\b/i.test(text)) return "will_call_pickup";
+
+  if (shipVia && /TRUCK\s+DELIVE/i.test(shipVia)) return "delivery";
+  if (/DELIVERY\s+ROUTE/i.test(text)) return "delivery";
+  if (/DELIVERED\s+BY\s+JOHNSTONE/i.test(text)) return "delivery";
+  if (/SHIP\s+COMPLETE/i.test(text)) return "delivery";
+  if (/DELIVERY\s+HOLD/i.test(text)) return "delivery";
+
   return "unknown";
 }
 
-/** Derive import-domain status from parsed invoice — never sets shop readiness (spec §7). */
-export function deriveImportStatus(parsed: ParsedJohnstoneInvoice): VendorInvoiceImportStatus {
-  const { header, lines, parseWarnings } = parsed;
-  if (parseWarnings.some((w) => w.includes("missing vendorInvoiceNumber"))) {
-    return "issue";
+export interface InvoiceFulfillmentCompleteness {
+  allFulfilled: boolean;
+  hasBackorder: boolean;
+  hasPartialShip: boolean;
+  noFulfilledMaterial: boolean;
+}
+
+/** Line-level completeness — backorders affect status/review, not fulfillment method. */
+export function assessFulfillmentCompleteness(
+  parsed: ParsedJohnstoneInvoice,
+): InvoiceFulfillmentCompleteness {
+  const expectedLines = parsed.lines.filter((l) => !l.excludeFromExpectedItems);
+  if (expectedLines.length === 0) {
+    return {
+      allFulfilled: false,
+      hasBackorder: false,
+      hasPartialShip: false,
+      noFulfilledMaterial: true,
+    };
   }
 
-  const expectedLines = lines.filter((l) => !l.excludeFromExpectedItems);
   const hasBackorder = expectedLines.some((l) => l.quantityBackordered > 0);
   const hasPartialShip = expectedLines.some(
     (l) => l.quantityShipped < l.quantityOrdered && l.quantityBackordered === 0,
   );
+  const noFulfilledMaterial = expectedLines.every((l) => l.quantityShipped === 0);
+  const allFulfilled = expectedLines.every(
+    (l) => l.quantityShipped >= l.quantityOrdered && l.quantityBackordered === 0,
+  );
 
-  if (header.fulfillmentMethod === "will_call_pickup") {
-    return "pickup_at_vendor";
+  return { allFulfilled, hasBackorder, hasPartialShip, noFulfilledMaterial };
+}
+
+/** Derive import-domain status from parsed invoice — never sets shop readiness (spec §7). */
+export function deriveImportStatus(parsed: ParsedJohnstoneInvoice): VendorInvoiceImportStatus {
+  const { header, parseWarnings } = parsed;
+  if (parseWarnings.some((w) => w.includes("missing vendorInvoiceNumber"))) {
+    return "issue";
   }
 
-  if (hasBackorder || hasPartialShip) {
+  const { allFulfilled, hasBackorder, hasPartialShip, noFulfilledMaterial } =
+    assessFulfillmentCompleteness(parsed);
+
+  const incomplete = hasBackorder || hasPartialShip || noFulfilledMaterial;
+  if (incomplete) {
+    // Backorders / unfulfilled qty affect completeness only — do not assume future pickup or delivery.
     return "partial";
+  }
+
+  if (allFulfilled && header.fulfillmentMethod === "will_call_pickup") {
+    return "pickup_at_vendor";
   }
 
   if (header.fulfillmentMethod === "delivery") {
@@ -57,9 +103,7 @@ export function scoreInvoiceConfidence(parsed: ParsedJohnstoneInvoice): {
   ];
   const missingRequired = required.filter((v) => !v).length;
   const productLines = parsed.lines.filter((l) => l.lineType === "product");
-  const hasBackorder = parsed.lines.some(
-    (l) => !l.excludeFromExpectedItems && l.quantityBackordered > 0,
-  );
+  const { hasBackorder, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);
 
   let score = 100;
   score -= missingRequired * 15;
@@ -75,6 +119,8 @@ export function scoreInvoiceConfidence(parsed: ParsedJohnstoneInvoice): {
   const humanReviewRequired =
     tier !== "high" ||
     parsed.header.fulfillmentMethod === "unknown" ||
-    hasBackorder;
+    hasBackorder ||
+    noFulfilledMaterial;
+
   return { tier, score, humanReviewRequired };
 }

@@ -162,6 +162,38 @@ const FIXTURE_EXPECTATIONS = {
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
+  "inv-pickup-all-backorder": {
+    customerPoOrReference: "PLANET FITNESS PICKUP",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-pickup-partial-backorder": {
+    customerPoOrReference: "TRUCK STOCK PICKUP",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-delivery-all-backorder": {
+    customerPoOrReference: "La Crosse PF",
+    fulfillmentMethod: "delivery",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-ambiguous-all-backorder": {
+    customerPoOrReference: "KALAFAT Tuesday John",
+    fulfillmentMethod: "unknown",
+    importStatus: "partial",
+    displayLabel: "Partial",
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
 };
 
 const failures = [];

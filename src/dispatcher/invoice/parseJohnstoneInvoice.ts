@@ -110,7 +110,7 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
   if (!vendorInvoiceNumber) parseWarnings.push("missing vendorInvoiceNumber");
   if (!customerPoOrReference) parseWarnings.push("missing customerPoOrReference");
 
-  const fulfillmentMethod = inferFulfillmentMethod(customerPoOrReference, shipViaRaw);
+  const fulfillmentMethod = inferFulfillmentMethod(customerPoOrReference, shipViaRaw, text);
 
   const header: ParsedInvoiceHeader = {
     customerAccountNumber,

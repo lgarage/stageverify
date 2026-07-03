@@ -206,4 +206,131 @@ please call 605-338-2652
     pageIndexInBatch: 99,
     extractedText: INV_6164159_TEXT,
   },
+  {
+    pageId: "inv-pickup-all-backorder",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 10,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164300
+Invoice #: 6164300
+Customer P/O #: PLANET FITNESS PICKUP
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: CONNOR SMITH
+Ship Via:
+Job Number:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 0 2 L46-668 TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK
+2 1 0 1 B86-380 4050-08 SEALANT REFRIGERATIO EASYSEAL
+
+please call 605-338-2652
+`.trim(),
+  },
+  {
+    pageId: "inv-pickup-partial-backorder",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 11,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164301
+Invoice #: 6164301
+Customer P/O #: TRUCK STOCK PICKUP
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: CONNOR SMITH
+Ship Via:
+Job Number:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-100 TEST-001 FILTER DRIER
+2 2 0 2 B86-200 TEST-002 EXPANSION VALVE
+
+please call 605-338-2652
+`.trim(),
+  },
+  {
+    pageId: "inv-delivery-all-backorder",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 12,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164302
+Invoice #: 6164302
+Customer P/O #: La Crosse PF
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: GAVIN PHILIPPON
+Ship Via: TRUCK DELIVE
+Job Number:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 0 1 NS10762605 105105 GREENHECK FAN
+2 3 0 3 NS99999999 999999 BACKORDERED PART
+
+please call 605-338-2652
+`.trim(),
+  },
+  {
+    pageId: "inv-ambiguous-all-backorder",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 13,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6164303
+Invoice #: 6164303
+Customer P/O #: KALAFAT Tuesday John
+Order Date: 06/24/2026
+Invoice Date: 06/24/2026
+Ship Date: 06/24/2026
+Buyer: GAVIN PHILIPPON
+Ship Via:
+Job Number:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 0 2 L46-200 PART-001 REPAIR PART
+
+please call 605-338-2652
+`.trim(),
+  },
 ];
