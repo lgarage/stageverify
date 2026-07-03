@@ -74,6 +74,25 @@ export function firstRunnableItem(queue, archive, statusResults) {
 }
 
 /** @param {string} md */
+export function parseBlockersFromCurrentState(md) {
+  const section = md.match(/## Active Blockers\n([\s\S]*?)(?=\n## |$)/);
+  if (!section) return [];
+  return section[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^\d+\.\s+\*\*/.test(line))
+    .map((line) => line.replace(/^\d+\.\s+/, "").replace(/\*\*/g, "").trim());
+}
+
+/** @param {string[]} blockers */
+export function blockersOneLiner(blockers) {
+  if (blockers.length === 0) return "No active blockers.";
+  if (blockers.length === 1) return blockers[0];
+  const short = blockers.map((b) => b.split(" — ")[0].trim());
+  return `${blockers.length} active blockers: ${short.join("; ")}`;
+}
+
+/** @param {string} md */
 export function parseLastShippedFromCurrentState(md) {
   const match = md.match(/Last shipped:\s*\*\*(away-\d+)\*\*/i);
   return match ? match[1] : null;

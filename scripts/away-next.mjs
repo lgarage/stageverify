@@ -4,6 +4,7 @@
  * Run: npm run away:next
  * Preflight: npm run away:next -- --preflight
  * Minimal id/title: npm run away:next -- --minimal
+ * Merged context packet: npm run away:next -- --packet [--tags tag1,tag2]
  */
 import { execSync } from "node:child_process";
 import {
@@ -13,10 +14,24 @@ import {
   firstRunnableItem,
   readJson,
 } from "./lib/away-memory-lib.mjs";
+import {
+  buildAwayNextPacket,
+  renderAwayNextPacketMarkdown,
+} from "./lib/context-packet-lib.mjs";
 
 const args = process.argv.slice(2);
 const preflight = args.includes("--preflight");
 const minimal = args.includes("--minimal");
+const packet = args.includes("--packet");
+
+function parseTags(argv) {
+  const idx = argv.indexOf("--tags");
+  if (idx < 0 || !argv[idx + 1]) return [];
+  return argv[idx + 1]
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
 
 const list = readJson(PATHS.awayList);
 const archive = readJson(PATHS.awayArchive);
@@ -37,6 +52,19 @@ if (!next) {
 
 if (minimal) {
   console.log(JSON.stringify({ id: next.id, title: next.title, dependsOn: next.dependsOn ?? null }, null, 2));
+  process.exit(0);
+}
+
+if (packet) {
+  const tags = parseTags(args);
+  const merged = buildAwayNextPacket({ tags, list, archive });
+  const formatIdx = args.indexOf("--format");
+  const format = formatIdx >= 0 ? args[formatIdx + 1] : "json";
+  if (format === "markdown") {
+    process.stdout.write(renderAwayNextPacketMarkdown(merged));
+    process.exit(0);
+  }
+  console.log(JSON.stringify(merged, null, 2));
   process.exit(0);
 }
 

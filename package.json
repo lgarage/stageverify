@@ -87,7 +87,8 @@
     "away:sync-next": "node scripts/away-sync-next.mjs",
     "away:ship": "node scripts/away-ship.mjs",
     "dossier:slice": "node scripts/dossier-slice.mjs",
-    "context:lookup": "node scripts/context-lookup.mjs"
+    "context:lookup": "node scripts/context-lookup.mjs",
+    "context:packet": "node scripts/context-packet.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
