@@ -311,7 +311,7 @@ Sample PDF: **8 invoices**, each `Page 1/1`, one invoice per PDF page.
 | Failure isolation | Page-level parse errors do not discard successful pages; mark failed pages `issue` |
 | Ordering | Process pages in sequence; preserve `pageIndexInBatch` |
 
----
+**Slice 2 implementation (shipped 2026-07-03):** Offline batch pipeline in `src/dispatcher/invoice/` — `pdfTextAdapter.ts` splits/joins page boundaries; `processInvoiceBatch` assigns one `importBatchId` and classifies each page as **processed** / **needs_review** / **failed** before feeding Slice 1 `processInvoicePage`. Tests: `npm run test:invoice-batch`.
 
 ## 12. Re-upload / dedup / change detection
 

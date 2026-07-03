@@ -3,4 +3,7 @@ export * from "./invoiceDisplayHelpers";
 export * from "./parseJohnstoneInvoice";
 export * from "./inferImportStatus";
 export * from "./processInvoicePage";
+export * from "./processInvoiceBatch";
+export * from "./pdfTextAdapter";
 export * from "./invoiceFixtures";
+export * from "./invoiceBatchFixtures";
