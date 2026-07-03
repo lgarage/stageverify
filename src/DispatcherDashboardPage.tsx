@@ -78,6 +78,10 @@ import {
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
 const NAVY = "#0a3161";
+/** Dark orange — dispatcher table rows needing staging assignment. */
+const DISPATCHER_ACTION_REQUIRED_BG = "#c2410c";
+const DISPATCHER_ACTION_REQUIRED_HOVER = "#b45309";
+const DISPATCHER_ACTION_REQUIRED_SELECTED = "#9a3412";
 
 const DRAWER_ACTION_BTN_BASE = {
   borderRadius: 4,
@@ -1268,10 +1272,43 @@ export function DispatcherDashboardPage() {
                 <tbody>
                   {paged.items.map((row, idx) => {
                     const selected = selectedDeliveryId === row.deliveryId;
+                    const actionRequired = row.missingStagingAssignment;
                     const b = listStatusBadge(row);
+                    const defaultRowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                    const rowBg = selected
+                      ? actionRequired
+                        ? DISPATCHER_ACTION_REQUIRED_SELECTED
+                        : "#eef4ff"
+                      : actionRequired
+                        ? DISPATCHER_ACTION_REQUIRED_BG
+                        : defaultRowBg;
+                    const cellText = actionRequired ? "#fff" : undefined;
+                    const cellMuted = actionRequired ? "rgba(255,255,255,0.75)" : "#666";
+                    const cellStrong = actionRequired ? "#fff" : "#111";
+                    const cellBody = actionRequired ? "#fff" : "#333";
+                    const issueSummaryColor =
+                      row.issueSummary === "Pickup Scheduled"
+                        ? actionRequired
+                          ? "#fff"
+                          : NAVY
+                        : row.issueSummary
+                          ? actionRequired
+                            ? "#fff"
+                            : "#c62828"
+                          : actionRequired
+                            ? "rgba(255,255,255,0.75)"
+                            : "#9ca3af";
                     return (
                       <tr
                         key={row.deliveryId}
+                        className={
+                          actionRequired ? "dispatcher-action-required" : undefined
+                        }
+                        data-testid={
+                          actionRequired
+                            ? `dispatcher-action-required-${row.deliveryId}`
+                            : undefined
+                        }
                         tabIndex={0}
                         role="button"
                         onClick={() => void selectDelivery(row.deliveryId)}
@@ -1282,37 +1319,55 @@ export function DispatcherDashboardPage() {
                           }
                         }}
                         style={{
-                          backgroundColor: selected
-                            ? "#eef4ff"
-                            : idx % 2 === 0
-                              ? "#fff"
-                              : "#fafbfc",
+                          backgroundColor: rowBg,
                           cursor: "pointer",
                           outline: "none",
                           borderLeft: selected
-                            ? `3px solid ${NAVY}`
+                            ? `3px solid ${actionRequired ? "#fff" : NAVY}`
                             : "3px solid transparent",
                           transition: "background-color 0.1s",
+                          color: cellText,
                         }}
                         onMouseEnter={(e) => {
-                          if (!selected)
+                          if (!selected) {
                             (
                               e.currentTarget as HTMLElement
-                            ).style.backgroundColor = "#f5f8ff";
+                            ).style.backgroundColor = actionRequired
+                              ? DISPATCHER_ACTION_REQUIRED_HOVER
+                              : "#f5f8ff";
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          if (!selected)
+                          if (!selected) {
                             (
                               e.currentTarget as HTMLElement
-                            ).style.backgroundColor =
-                              idx % 2 === 0 ? "#fff" : "#fafbfc";
+                            ).style.backgroundColor = actionRequired
+                              ? DISPATCHER_ACTION_REQUIRED_BG
+                              : defaultRowBg;
+                          }
+                        }}
+                        onFocus={(e) => {
+                          (
+                            e.currentTarget as HTMLElement
+                          ).style.backgroundColor = actionRequired
+                            ? DISPATCHER_ACTION_REQUIRED_HOVER
+                            : selected
+                              ? "#eef4ff"
+                              : "#f5f8ff";
+                        }}
+                        onBlur={(e) => {
+                          (
+                            e.currentTarget as HTMLElement
+                          ).style.backgroundColor = rowBg;
                         }}
                       >
                         {/* Status badge */}
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                           }}
                         >
                           <span
@@ -1346,9 +1401,11 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#333",
+                            color: cellMuted,
                             fontWeight: 600,
                             fontSize: 13,
                           }}
@@ -1358,9 +1415,11 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                             fontWeight: 600,
-                            color: "#111",
+                            color: cellStrong,
                           }}
                         >
                           {row.jobName}
@@ -1368,9 +1427,11 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#666",
+                            color: cellMuted,
                             fontSize: 13,
                           }}
                         >
@@ -1379,9 +1440,11 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#666",
+                            color: cellMuted,
                             fontSize: 13,
                           }}
                         >
@@ -1390,8 +1453,10 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
-                            color: "#333",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
+                            color: cellBody,
                           }}
                         >
                           {row.vendorName}
@@ -1399,8 +1464,10 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
-                            color: "#333",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
+                            color: cellBody,
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -1409,7 +1476,9 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                           }}
                         >
                           {row.stagingLocationCode ? (
@@ -1418,26 +1487,40 @@ export function DispatcherDashboardPage() {
                                 display: "inline-block",
                                 padding: "3px 8px",
                                 borderRadius: 4,
-                                backgroundColor: "#eef2ff",
-                                color: NAVY,
+                                backgroundColor: actionRequired
+                                  ? "rgba(255,255,255,0.2)"
+                                  : "#eef2ff",
+                                color: actionRequired ? "#fff" : NAVY,
                                 fontSize: 12,
                                 fontWeight: 700,
                                 fontFamily: "monospace",
-                                border: `1px solid #c7d4f0`,
+                                border: actionRequired
+                                  ? "1px solid rgba(255,255,255,0.45)"
+                                  : `1px solid #c7d4f0`,
                               }}
                             >
                               {row.stagingLocationCode}
                             </span>
                           ) : (
-                            <span style={{ color: "#9ca3af" }}>—</span>
+                            <span
+                              style={{
+                                color: actionRequired
+                                  ? "rgba(255,255,255,0.75)"
+                                  : "#9ca3af",
+                              }}
+                            >
+                              —
+                            </span>
                           )}
                         </td>
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                             fontFamily: "monospace",
-                            color: "#333",
+                            color: cellBody,
                             fontWeight: 600,
                           }}
                         >
@@ -1446,13 +1529,10 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
-                            color:
-                              row.issueSummary === "Pickup Scheduled"
-                                ? NAVY
-                                : row.issueSummary
-                                  ? "#c62828"
-                                  : "#9ca3af",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
+                            color: issueSummaryColor,
                             maxWidth: 200,
                           }}
                         >
@@ -1464,10 +1544,15 @@ export function DispatcherDashboardPage() {
                                 marginBottom: row.issueSummary ? 6 : 0,
                                 padding: "2px 8px",
                                 borderRadius: 999,
-                                backgroundColor: "#ffebee",
-                                color: "#c62828",
+                                backgroundColor: actionRequired
+                                  ? "rgba(255,255,255,0.2)"
+                                  : "#ffebee",
+                                color: actionRequired ? "#fff" : "#c62828",
                                 fontSize: 11,
                                 fontWeight: 700,
+                                border: actionRequired
+                                  ? "1px solid rgba(255,255,255,0.35)"
+                                  : undefined,
                               }}
                             >
                               Issues ({row.openIssueCount})
@@ -1495,7 +1580,9 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: "1px solid #eaecf0",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
                             textAlign: "right",
                           }}
                         >
@@ -1505,9 +1592,21 @@ export function DispatcherDashboardPage() {
                               void selectDelivery(row.deliveryId);
                             }}
                             style={{
-                              backgroundColor: selected ? NAVY : "#fff",
-                              color: selected ? "#fff" : NAVY,
-                              border: `1.5px solid ${NAVY}`,
+                              backgroundColor: actionRequired
+                                ? selected
+                                  ? "#fff"
+                                  : "rgba(255,255,255,0.15)"
+                                : selected
+                                  ? NAVY
+                                  : "#fff",
+                              color: actionRequired
+                                ? DISPATCHER_ACTION_REQUIRED_BG
+                                : selected
+                                  ? "#fff"
+                                  : NAVY,
+                              border: actionRequired
+                                ? "1.5px solid #fff"
+                                : `1.5px solid ${NAVY}`,
                               borderRadius: 4,
                               padding: "4px 10px",
                               fontSize: 12,
@@ -1520,12 +1619,22 @@ export function DispatcherDashboardPage() {
                             }}
                             onMouseEnter={(e) => {
                               const el = e.currentTarget as HTMLElement;
-                              el.style.backgroundColor = NAVY;
-                              el.style.color = "#fff";
+                              if (actionRequired) {
+                                el.style.backgroundColor = "#fff";
+                                el.style.color = DISPATCHER_ACTION_REQUIRED_BG;
+                              } else {
+                                el.style.backgroundColor = NAVY;
+                                el.style.color = "#fff";
+                              }
                             }}
                             onMouseLeave={(e) => {
                               const el = e.currentTarget as HTMLElement;
-                              if (!selected) {
+                              if (actionRequired) {
+                                el.style.backgroundColor = selected
+                                  ? "#fff"
+                                  : "rgba(255,255,255,0.15)";
+                                el.style.color = DISPATCHER_ACTION_REQUIRED_BG;
+                              } else if (!selected) {
                                 el.style.backgroundColor = "#fff";
                                 el.style.color = NAVY;
                               }

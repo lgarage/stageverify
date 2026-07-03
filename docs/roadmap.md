@@ -263,6 +263,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Drawer/readiness UX (away-072, away-073, clarity correction):** ✅ Shipped — Issue Summary item table only (no Open Issues accordion); calm **Waiting on Delivery** banner for normal pending; **What Needs Attention** only for true exceptions; exception-only issue counts; `verify:delivery-consistency` + `test:demo-matrix`
 - **Demo drawer uniformity (2026-06-24):** ✅ Shipped — ORD-005 layout/rules on all seed orders (ORD-001..006); hidden lower sections global; verify loop per demo order
 - **Dispatcher list/drawer polish (2026-06-24):** ✅ Shipped — delivery label modal dismiss + Push to E-Tag copy; activity history compact dedup + raw full view; Issue Summary column Pickup Scheduled priority when ready
+- **Dispatcher staging-action rows (2026-07-03):** ✅ Shipped — deliveries table `dispatcher-action-required` dark-orange full row when staging zone missing (received material); Issue Summary **Assign staging location**; `verify:delivery-consistency` asserts ORD-001/002 styling
 - `emailDomain` on `Vendor` for matching when live monitoring starts
 - Live inbox monitoring with **human-reviewed proposed updates first**
 - Narrow automation only for explicitly approved, high-confidence event types — high confidence alone is not blanket permission to update records

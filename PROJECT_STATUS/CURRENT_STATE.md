@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-089** — Johnstone invoice Slice 2: PDF text adapter + batch processor + `test:invoice-batch`
+- Last shipped: **dispatcher staging-action rows** — dark-orange `dispatcher-action-required` table rows + Issue Summary **Assign staging location** when staging zone missing (display-only; ORD-001/002 verify)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

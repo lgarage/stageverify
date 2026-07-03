@@ -202,6 +202,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 **away-087 (2026-07-03)** — Verified Action 1: `buildNextBrief()` readFirst omits `svscope_simple.md` unless `scopeDispute`; `itemScopeDispute()` adds svscope on flag or scope string. Verify: `away:validate`, `build`.
 
+**Dispatcher staging-action rows (2026-07-03)** — Display-only: deliveries table rows with missing staging assignment use dark-orange `dispatcher-action-required` styling (white text, readable badge/View button); Issue Summary column prioritizes **Assign staging location**. Verify: `verify:delivery-consistency`, `verify:phase5-email` prod.
+
 **Fast UI pass (2026-06-24)** — Delivery label modal closes on outside click / Escape; primary action renamed **Push to E-Tag** (copy only). Activity History: collapse repeated entity/status events in compact view; **Show Full History** shows raw audit list. List **Issue Summary** column prioritizes **Pickup Scheduled** when delivery is ready and job is scheduled (display-only). Verify: `verify:delivery-consistency` (361 checks).
 
 **Demo drawer uniformity (2026-06-24)** — All seed/demo orders (ORD-001..006) use the same dispatcher drawer structure as ORD-005: Delivery Basics (no top notes) → pickup pills + 2×2 action grid → staging banner when unassigned → status banner → Issue Summary → Readiness Evidence → Assign Staging Location → Advanced Manual Controls (collapsed) → Experimental Stock Tools (collapsed) → Items → Activity History. Vendor Communications, Recently Resolved, Need More Space, workflow status pill, and PO editor hidden globally (`DRAWER_HIDE_*`). Verify: `verify:delivery-consistency` loops all demo orders.

@@ -365,6 +365,7 @@ export class FirestoreDataService implements DispatcherDataService {
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary: display.issueSummary,
         openIssueCount: display.openIssueCount,
+        missingStagingAssignment: display.missingStagingAssignment,
       });
     }
 

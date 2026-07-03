@@ -202,6 +202,56 @@ async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned
 
 /** Staging Loc. column index in deliveries table (0-based). */
 const STAGING_COLUMN_INDEX = 7;
+/** Issue Summary column index in deliveries table (0-based). */
+const ISSUE_SUMMARY_COLUMN_INDEX = 9;
+
+async function assertDispatcherStagingActionRows(page, record) {
+  const rows = page.locator("table tbody tr");
+  const count = await rows.count();
+  let actionCount = 0;
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    const hasClass = await row.evaluate((el) =>
+      el.classList.contains("dispatcher-action-required"),
+    );
+    if (!hasClass) continue;
+    actionCount++;
+    const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
+    const issueText = (
+      await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
+    ).trim();
+    const bg = await row.evaluate((el) => getComputedStyle(el).backgroundColor);
+    record(
+      `${orderNumber} — dispatcher-action-required dark orange row`,
+      /194,\s*65,\s*12/.test(bg),
+      bg,
+    );
+    record(
+      `${orderNumber} — Issue Summary Assign staging location`,
+      issueText.includes("Assign staging location"),
+      issueText,
+    );
+    const viewBtn = row.getByRole("button", { name: "View" });
+    if ((await viewBtn.count()) > 0) {
+      const styles = await viewBtn.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { color: s.color, border: s.borderColor, bg: s.backgroundColor };
+      });
+      record(
+        `${orderNumber} — View button contrast on action row`,
+        styles.border.includes("255") || styles.bg.includes("255"),
+        JSON.stringify(styles),
+      );
+    }
+  }
+  record(
+    "dispatcher-action-required rows scanned",
+    true,
+    actionCount > 0
+      ? `${actionCount} row(s) styled`
+      : "none in live data (pending-only deliveries OK)",
+  );
+}
 
 async function openRowByStagingAssignment(page, wantUnassigned) {
   const rows = page.locator("table tbody tr");
@@ -834,6 +884,8 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
   const rows = page.locator("table tbody tr");
   const rowCount = await rows.count();
   record("Deliveries table has rows", rowCount > 0, `${rowCount} rows`);
+
+  await assertDispatcherStagingActionRows(page, record);
 
   if (rowCount === 0) {
     await browser.close();

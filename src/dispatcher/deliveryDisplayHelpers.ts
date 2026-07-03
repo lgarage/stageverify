@@ -73,11 +73,17 @@ export interface DeliveryDisplayOptions {
   jobPickupScheduled?: boolean;
 }
 
+/** List Issue Summary when staging zone is required but unassigned. */
+export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
+  "Assign staging location";
+
 export interface DeliveryDisplayState {
   readiness: DeliveryReadinessResult;
   statusDisplayLabel: string;
   issueSummary: string;
   actionRequired: boolean;
+  /** Table row: received material without assigned staging zone. */
+  missingStagingAssignment: boolean;
   blockerLabels: string[];
   openIssueCount: number;
   openBlockingIssueCount: number;
@@ -120,12 +126,17 @@ export function computeDeliveryDisplayState(
     materialIssues !== undefined
       ? countOpenMaterialIssues(materialIssues)
       : (delivery.openIssueCount ?? 0);
+  const missingStagingAssignment =
+    readiness.evidence.readinessBlockReasons.includes(
+      "staging_assignment_incomplete",
+    );
 
   return {
     readiness,
     statusDisplayLabel,
     issueSummary,
     actionRequired: blockerLabels.length > 0 || !readiness.readyForPickup,
+    missingStagingAssignment,
     blockerLabels,
     openIssueCount,
     openBlockingIssueCount,
@@ -175,6 +186,11 @@ function buildComputedIssueSummary(
     return "";
   }
 
+  const reasons = readiness.evidence.readinessBlockReasons;
+  if (reasons.includes("staging_assignment_incomplete")) {
+    return DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY;
+  }
+
   const blockingIssues = openBlockingMaterialIssues(materialIssues);
   if (blockingIssues.length > 0) {
     const first = blockingIssues[0];
@@ -187,7 +203,6 @@ function buildComputedIssueSummary(
     return desc ? `${typeLabel}: ${desc}${suffix}` : `${typeLabel}${suffix}`;
   }
 
-  const reasons = readiness.evidence.readinessBlockReasons;
   if (reasons.includes("unresolved_backorder")) {
     const backordered = items.filter((item) => item.qtyBackordered > 0);
     if (backordered.length > 0) {
@@ -198,9 +213,6 @@ function buildComputedIssueSummary(
   }
   if (reasons.includes("unresolved_damage")) {
     return "Unresolved damage";
-  }
-  if (reasons.includes("staging_assignment_incomplete")) {
-    return "Staging not assigned";
   }
   if (reasons.includes("vendor_order_incomplete")) {
     return "Vendor order incomplete";
