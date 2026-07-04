@@ -1,10 +1,6 @@
+import type { CSSProperties } from "react";
 import type { VendorInvoiceImportReview } from "../models";
-import {
-  buildExpectedJohnstoneFieldChecklist,
-  statusColor,
-  statusLabel,
-  type ExpectedFieldRow,
-} from "./invoiceExpectedFieldsChecklist";
+import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChecklist";
 import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
@@ -14,6 +10,15 @@ import {
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const CELL_TEXT = "#111827";
+const MUTED = "#4b5563";
+
+const TABLE_CELL: CSSProperties = {
+  padding: "10px 12px",
+  color: CELL_TEXT,
+  verticalAlign: "top",
+  lineHeight: 1.45,
+};
 
 function formatJson(value: unknown): string {
   try {
@@ -23,52 +28,9 @@ function formatJson(value: unknown): string {
   }
 }
 
-function ExpectedFieldsTable({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: ExpectedFieldRow[];
-}) {
-  return (
-    <>
-      <h4 style={{ fontSize: 13, fontWeight: 700, color: NAVY, margin: "16px 0 8px" }}>
-        {title}
-      </h4>
-      <div style={{ overflowX: "auto", marginBottom: 8 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f8fafc", textAlign: "left" }}>
-              <th style={{ padding: "8px 10px" }}>Field</th>
-              <th style={{ padding: "8px 10px" }}>Expected for invoice?</th>
-              <th style={{ padding: "8px 10px" }}>Actual value</th>
-              <th style={{ padding: "8px 10px" }}>Status</th>
-              <th style={{ padding: "8px 10px" }}>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.field} style={{ borderTop: "1px solid #e5e7eb" }}>
-                <td style={{ padding: "8px 10px", fontWeight: 600 }}>{row.field}</td>
-                <td style={{ padding: "8px 10px" }}>{row.expectedForInvoice}</td>
-                <td style={{ padding: "8px 10px" }}>{row.actualValue}</td>
-                <td
-                  style={{
-                    padding: "8px 10px",
-                    fontWeight: 600,
-                    color: statusColor(row.status),
-                  }}
-                >
-                  {statusLabel(row.status)}
-                </td>
-                <td style={{ padding: "8px 10px", color: "#6b7280" }}>{row.notes || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+function dash(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === "") return "—";
+  return String(value);
 }
 
 export function InvoiceParsedInspectModal({
@@ -106,13 +68,14 @@ export function InvoiceParsedInspectModal({
         data-testid="invoice-parsed-inspect-panel"
         style={{
           width: "100%",
-          maxWidth: 920,
+          maxWidth: 960,
           maxHeight: "90vh",
           overflowY: "auto",
           backgroundColor: "#fff",
           borderRadius: 12,
           padding: "24px 28px",
           boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+          color: CELL_TEXT,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -136,7 +99,7 @@ export function InvoiceParsedInspectModal({
             >
               Parsed import data
             </h2>
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: MUTED }}>
               {importRow.pageId} · batch {importRow.importBatchId}
             </p>
           </div>
@@ -181,19 +144,19 @@ export function InvoiceParsedInspectModal({
             }}
           >
             <div>
-              <div style={{ color: "#6b7280", fontWeight: 600 }}>Document type</div>
+              <div style={{ color: MUTED, fontWeight: 600 }}>Document type</div>
               <div data-testid="invoice-parsed-inspect-doc-type">{checklist.documentType}</div>
             </div>
             <div>
-              <div style={{ color: "#6b7280", fontWeight: 600 }}>Import status</div>
+              <div style={{ color: MUTED, fontWeight: 600 }}>Import status</div>
               <div>{checklist.importStatus}</div>
             </div>
             <div>
-              <div style={{ color: "#6b7280", fontWeight: 600 }}>Review status</div>
+              <div style={{ color: MUTED, fontWeight: 600 }}>Review status</div>
               <div>{checklist.reviewStatus}</div>
             </div>
             <div>
-              <div style={{ color: "#6b7280", fontWeight: 600 }}>Approval eligible</div>
+              <div style={{ color: MUTED, fontWeight: 600 }}>Approval eligible</div>
               <div
                 data-testid="invoice-parsed-inspect-approval"
                 style={{
@@ -205,11 +168,11 @@ export function InvoiceParsedInspectModal({
               </div>
             </div>
             <div>
-              <div style={{ color: "#6b7280", fontWeight: 600 }}>Line count</div>
-              <div>{lineCount}</div>
+              <div style={{ color: MUTED, fontWeight: 600 }}>Line count</div>
+              <div data-testid="invoice-parsed-inspect-line-count">{lineCount}</div>
             </div>
             <div>
-              <div style={{ color: "#6b7280", fontWeight: 600 }}>Gmail message</div>
+              <div style={{ color: MUTED, fontWeight: 600 }}>Gmail message</div>
               <div style={{ wordBreak: "break-all" }}>{importRow.gmailMessageId}</div>
             </div>
           </div>
@@ -239,22 +202,15 @@ export function InvoiceParsedInspectModal({
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
-          Expected vs actual fields
-        </h3>
-        <div data-testid="invoice-parsed-inspect-expected-fields">
-          <ExpectedFieldsTable title="Header fields" rows={checklist.rows} />
-          <ExpectedFieldsTable title="Line items" rows={checklist.lineRows} />
-        </div>
-
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
           Parsed header
         </h3>
         {headerRows.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
+          <p style={{ fontSize: 13, color: MUTED, marginBottom: 20 }}>
             No parsed header fields on this import — check parse warnings or raw payload below.
           </p>
         ) : (
           <div
+            data-testid="invoice-parsed-inspect-header"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -265,8 +221,8 @@ export function InvoiceParsedInspectModal({
           >
             {headerRows.map((row) => (
               <div key={row.key}>
-                <div style={{ color: "#6b7280", fontWeight: 600 }}>{row.label}</div>
-                <div style={{ color: NAVY, fontWeight: row.key === "customerPoOrReference" ? 600 : 400 }}>
+                <div style={{ color: MUTED, fontWeight: 600 }}>{row.label}</div>
+                <div style={{ color: NAVY, fontWeight: row.key === "customerPoOrReference" ? 600 : 500 }}>
                   {row.value}
                 </div>
               </div>
@@ -295,9 +251,14 @@ export function InvoiceParsedInspectModal({
             <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
               Order notes
             </h3>
-            <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 13 }}>
+            <ul
+              data-testid="invoice-parsed-inspect-order-notes"
+              style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 13, color: CELL_TEXT }}
+            >
               {orderNotes.map((note) => (
-                <li key={note}>{note}</li>
+                <li key={note} style={{ marginBottom: 4 }}>
+                  {note}
+                </li>
               ))}
             </ul>
           </>
@@ -306,36 +267,56 @@ export function InvoiceParsedInspectModal({
         <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
           Parsed lines ({parsedLines.length})
         </h3>
-        <div style={{ overflowX: "auto", marginBottom: 20 }}>
+        <div
+          data-testid="invoice-parsed-inspect-lines"
+          style={{ overflowX: "auto", marginBottom: 20 }}
+        >
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#f8fafc", textAlign: "left" }}>
-                <th style={{ padding: "8px 10px" }}>LN</th>
-                <th style={{ padding: "8px 10px" }}>Product</th>
-                <th style={{ padding: "8px 10px" }}>Description</th>
-                <th style={{ padding: "8px 10px" }}>Ord</th>
-                <th style={{ padding: "8px 10px" }}>Ship</th>
-                <th style={{ padding: "8px 10px" }}>B/O</th>
-                <th style={{ padding: "8px 10px" }}>Type</th>
+              <tr style={{ backgroundColor: "#f1f5f9", textAlign: "left" }}>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>LN</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY, minWidth: 88 }}>Product</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY, minWidth: 100 }}>Mfg / model</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY, minWidth: 220 }}>Description</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>Ord</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>Ship</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>B/O</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>UOM</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>Extension</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: NAVY }}>Type</th>
               </tr>
             </thead>
             <tbody>
               {parsedLines.map((line) => (
-                <tr key={line.lineNumber} style={{ borderTop: "1px solid #e5e7eb" }}>
-                  <td style={{ padding: "8px 10px" }}>{line.lineNumber}</td>
-                  <td style={{ padding: "8px 10px", fontWeight: 600 }}>
-                    {line.vendorProductNumber}
+                <tr
+                  key={line.lineNumber}
+                  data-testid={`invoice-parsed-inspect-line-${line.lineNumber}`}
+                  style={{ borderTop: "1px solid #d1d5db" }}
+                >
+                  <td style={TABLE_CELL}>{line.lineNumber}</td>
+                  <td style={{ ...TABLE_CELL, fontWeight: 700 }}>{dash(line.vendorProductNumber)}</td>
+                  <td style={{ ...TABLE_CELL, fontSize: 12 }}>{dash(line.manufacturerOrModelNumber)}</td>
+                  <td
+                    style={{
+                      ...TABLE_CELL,
+                      whiteSpace: "normal",
+                      wordBreak: "break-word",
+                      maxWidth: 360,
+                    }}
+                  >
+                    {dash(line.description)}
                   </td>
-                  <td style={{ padding: "8px 10px" }}>{line.description}</td>
-                  <td style={{ padding: "8px 10px" }}>{line.quantityOrdered}</td>
-                  <td style={{ padding: "8px 10px" }}>{line.quantityShipped}</td>
-                  <td style={{ padding: "8px 10px" }}>{line.quantityBackordered}</td>
-                  <td style={{ padding: "8px 10px" }}>{line.lineType}</td>
+                  <td style={TABLE_CELL}>{dash(line.quantityOrdered)}</td>
+                  <td style={TABLE_CELL}>{dash(line.quantityShipped)}</td>
+                  <td style={TABLE_CELL}>{dash(line.quantityBackordered)}</td>
+                  <td style={TABLE_CELL}>{dash(line.unitOfMeasure)}</td>
+                  <td style={TABLE_CELL}>{dash(line.lineExtension)}</td>
+                  <td style={{ ...TABLE_CELL, fontSize: 12, color: MUTED }}>{dash(line.lineType)}</td>
                 </tr>
               ))}
               {parsedLines.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: 16, color: "#6b7280" }}>
+                  <td colSpan={10} style={{ ...TABLE_CELL, color: MUTED, textAlign: "center" }}>
                     No parsed lines stored on this import.
                   </td>
                 </tr>
@@ -368,6 +349,7 @@ export function InvoiceParsedInspectModal({
               overflowX: "auto",
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
+              color: CELL_TEXT,
             }}
           >
             {formatJson({

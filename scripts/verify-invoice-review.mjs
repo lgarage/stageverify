@@ -158,11 +158,8 @@ async function main() {
     if (await inspectRow.isVisible().catch(() => false)) {
       await inspectRow.click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
-      await page.getByTestId("invoice-parsed-inspect-expected-fields").waitFor({
-        timeout: 10_000,
-      });
       await page.getByTestId("invoice-parsed-inspect-summary").waitFor({ timeout: 10_000 });
-      console.log("PASS: Inspect modal shows expected-vs-actual fields section");
+      console.log("PASS: Inspect modal shows review summary");
 
       await page.getByTestId("invoice-parsed-inspect-doc-type").waitFor({ timeout: 5000 });
       const docType = await page.getByTestId("invoice-parsed-inspect-doc-type").innerText();
@@ -174,11 +171,14 @@ async function main() {
       await page.getByTestId("invoice-parsed-inspect-approval").waitFor({ timeout: 5000 });
       console.log("PASS: approval eligibility shown in inspect summary");
 
-      const expectedTable = await page.getByTestId("invoice-parsed-inspect-expected-fields").innerText();
-      if (!/Found|Missing|Questionable|N\/A/.test(expectedTable)) {
-        throw new Error("Expected-vs-actual field verdicts not shown in inspect modal");
+      await page.getByTestId("invoice-parsed-inspect-lines").waitFor({ timeout: 5000 });
+      console.log("PASS: parsed lines table visible in inspect modal");
+
+      const expectedFields = page.getByTestId("invoice-parsed-inspect-expected-fields");
+      if (await expectedFields.count()) {
+        throw new Error("Expected-vs-actual checklist removed — inspect modal should not show it");
       }
-      console.log("PASS: field verdicts (Found/Missing/Questionable/N/A) present");
+      console.log("PASS: redundant expected-vs-actual checklist removed");
 
       await page.getByTestId("invoice-parsed-inspect-close").click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({

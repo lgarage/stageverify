@@ -817,6 +817,8 @@ export interface VendorInvoiceImportParsedLine {
   vendorProductNumber: string;
   manufacturerOrModelNumber?: string;
   description: string;
+  unitOfMeasure?: string;
+  lineExtension?: string;
   filteredNotes: string[];
   lineType: string;
   excludeFromExpectedItems: boolean;

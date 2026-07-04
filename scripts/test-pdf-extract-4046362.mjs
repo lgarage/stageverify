@@ -46,7 +46,24 @@ const result = processInvoicePage(page, { byPageId: new Map(), byFingerprint: ne
 assert("parses vendorOrderNumber 4046362", result.parsed.header.vendorOrderNumber === "4046362");
 assert("parses customer account", result.parsed.header.customerAccountNumber === "0008745");
 assert("parses PO blackduck", /blackduck/i.test(result.parsed.header.customerPoOrReference));
-assert("has parsed lines", result.parsed.lines.length > 0);
+assert("has 5 parsed lines", result.parsed.lines.length === 5);
+const productCodes = result.parsed.lines.map((l) => l.vendorProductNumber);
+assert(
+  "product codes match PDF",
+  ["L97-525", "L97-532", "L63-264", "P33-332", "P34-544"].every((code) =>
+    productCodes.includes(code),
+  ),
+);
+assert(
+  "invoice message in orderNotes not lines",
+  result.parsed.orderNotes.some((n) => /SHIP COMPLETE/i.test(n)) &&
+    !result.parsed.lines.some((l) => /Invoice Message/i.test(l.description)),
+);
+assert("first line has UOM", result.parsed.lines[0]?.unitOfMeasure === "EA");
+assert(
+  "first line full description",
+  /PLEATED EXTENDED SURFACE/i.test(result.parsed.lines[0]?.description ?? ""),
+);
 assert("issue import (no invoice #)", result.importStatus === "issue");
 
 const badDoc = {

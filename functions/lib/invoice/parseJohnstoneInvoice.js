@@ -173,6 +173,124 @@ function classifyLine(vendorProductNumber, quantityShipped, description) {
     return { lineType: "product", excludeFromExpectedItems: false };
 }
 const LINE_ROW = /^(\d+)\s+(\d+)\s+(-?\d+)\s+(\d+)\s+(.+?)(?:\s{2,}|$)\s*(.*)$/;
+/** Johnstone invoice PDFs with price columns: LN ord ship bo PRODUCT MFG DESC UOM list net $ext */
+const LINE_ROW_EXTENDED = /^(\d+)\s+(\d+)\s+(-?\d+)\s+(\d+)\s+([A-Z][A-Z0-9-]+)\s+(\S+)\s+(.+)\s+(EA|PK|CS|BX|FT|LB|GAL|PR|RL|BG)\s+[\d.]+\s+[\d.]+\s+(\$[\d,.]+)\s*$/i;
+const LINE_TABLE_HEADER = /^(LN|QNTY|ORD|SHI|B\/O|PRODUCT|NUMBER|DESCRIPTION|PRICE|UOM|LIST|NET|EXTENSION)/i;
+function isLineTableNoise(trimmed) {
+    if (!trimmed || /^[-=*]+$/.test(trimmed))
+        return true;
+    if (LINE_TABLE_HEADER.test(trimmed))
+        return true;
+    if (/^please call/i.test(trimmed))
+        return true;
+    if (/^\*{2,}\s*Invoice Message/i.test(trimmed))
+        return true;
+    if (/^\.{3,}/.test(trimmed))
+        return true;
+    if (/^\[ C O N T I N U E D \]/i.test(trimmed))
+        return true;
+    if (/^Page \d+\/\d+/i.test(trimmed))
+        return true;
+    if (/^(Sold To|Ship To|Customer #|Invoice #|Telephone#|Merchandise|Freight|Sub Total|TOTAL|Terms)/i.test(trimmed)) {
+        return true;
+    }
+    return false;
+}
+function isDescriptionContinuation(trimmed) {
+    if (isLineTableNoise(trimmed))
+        return false;
+    if (LINE_ROW.test(trimmed) || LINE_ROW_EXTENDED.test(trimmed))
+        return false;
+    if (/REPAIR/i.test(trimmed))
+        return false;
+    if (/2 DAY LEAD|NON STOCK|RESTOCK FEE/i.test(trimmed))
+        return false;
+    if (/^(Suspended|Equipment|of damage|Misc Charges|Taxable|POS Copy)/i.test(trimmed))
+        return false;
+    return true;
+}
+/** Pull invoice message / delivery instructions out of the line table — not product rows. */
+function extractInvoiceMessageBlock(lineSection) {
+    const notes = [];
+    const match = lineSection.match(/\*{2,}\s*Invoice Message[\s\S]*?(?=\n\d+\s+\d+\s+-?\d+\s+\d+\s+[A-Z])/i);
+    if (!match)
+        return { notes, remainder: lineSection };
+    for (const rawLine of match[0].split("\n")) {
+        const trimmed = rawLine.trim();
+        if (!trimmed || /^[*=\-]+$/.test(trimmed))
+            continue;
+        if (/^\*{2,}\s*Invoice Message/i.test(trimmed))
+            continue;
+        notes.push(trimmed);
+    }
+    const remainder = lineSection.slice(0, match.index ?? 0) +
+        lineSection.slice((match.index ?? 0) + match[0].length);
+    return { notes, remainder };
+}
+function pushParsedLine(lines, parsed) {
+    const { lineType, excludeFromExpectedItems } = classifyLine(parsed.vendorProductNumber, parsed.quantityShipped, parsed.description);
+    lines.push({
+        ...parsed,
+        filteredNotes: [],
+        lineType,
+        excludeFromExpectedItems,
+    });
+}
+function parseLineTableRows(lineSection, orderNotes) {
+    const { notes: messageNotes, remainder } = extractInvoiceMessageBlock(lineSection);
+    orderNotes.push(...messageNotes);
+    const lines = [];
+    for (const rawLine of remainder.split("\n")) {
+        const trimmed = rawLine.trim();
+        if (isLineTableNoise(trimmed))
+            continue;
+        const extended = trimmed.match(LINE_ROW_EXTENDED);
+        if (extended) {
+            const [, ln, ord, ship, bo, product, mfg, descBody, uom, extension] = extended;
+            pushParsedLine(lines, {
+                lineNumber: Number(ln),
+                quantityOrdered: Number(ord),
+                quantityShipped: Number(ship),
+                quantityBackordered: Number(bo),
+                vendorProductNumber: product ?? "",
+                manufacturerOrModelNumber: mfg,
+                description: descBody?.trim() ?? "",
+                unitOfMeasure: uom?.toUpperCase(),
+                lineExtension: extension,
+            });
+            continue;
+        }
+        const simple = trimmed.match(LINE_ROW);
+        if (simple) {
+            const [, ln, ord, ship, bo, productCol, descCol] = simple;
+            const { vendorProductNumber, manufacturerOrModelNumber, descriptionTail } = parseProductTokens(productCol ?? "");
+            const description = [descriptionTail, descCol?.trim()].filter(Boolean).join(" ").trim();
+            pushParsedLine(lines, {
+                lineNumber: Number(ln),
+                quantityOrdered: Number(ord),
+                quantityShipped: Number(ship),
+                quantityBackordered: Number(bo),
+                vendorProductNumber,
+                manufacturerOrModelNumber,
+                description,
+            });
+            continue;
+        }
+        if (/REPAIR/i.test(trimmed)) {
+            orderNotes.push(trimmed);
+        }
+        else if (/2 DAY LEAD|NON STOCK|RESTOCK FEE/i.test(trimmed)) {
+            if (lines.length > 0) {
+                lines[lines.length - 1].filteredNotes.push(trimmed);
+            }
+        }
+        else if (lines.length > 0 && isDescriptionContinuation(trimmed)) {
+            const prev = lines[lines.length - 1];
+            prev.description = [prev.description, trimmed].filter(Boolean).join(" ").trim();
+        }
+    }
+    return lines;
+}
 function pageTextFingerprint(page) {
     const normalized = page.extractedText.replace(/\s+/g, " ").trim().toLowerCase();
     let hash = 0;
@@ -244,41 +362,8 @@ function parseJohnstoneInvoicePage(page) {
         fulfillmentMethod,
         shipCompletePolicy,
     };
-    const lines = [];
     const lineSection = text.split(/LN\s+QNTY ORD/i)[1] ?? text;
-    for (const rawLine of lineSection.split("\n")) {
-        const trimmed = rawLine.trim();
-        if (!trimmed || /^[-=]+$/.test(trimmed))
-            continue;
-        const m = trimmed.match(LINE_ROW);
-        if (!m) {
-            if (/REPAIR/i.test(trimmed))
-                orderNotes.push(trimmed);
-            else if (/2 DAY LEAD|NON STOCK|RESTOCK FEE/i.test(trimmed)) {
-                if (lines.length > 0) {
-                    lines[lines.length - 1].filteredNotes.push(trimmed);
-                }
-            }
-            continue;
-        }
-        const [, ln, ord, ship, bo, productCol, descCol] = m;
-        const { vendorProductNumber, manufacturerOrModelNumber, descriptionTail } = parseProductTokens(productCol ?? "");
-        const description = [descriptionTail, descCol?.trim()].filter(Boolean).join(" ").trim();
-        const quantityShipped = Number(ship);
-        const { lineType, excludeFromExpectedItems } = classifyLine(vendorProductNumber, quantityShipped, description);
-        lines.push({
-            lineNumber: Number(ln),
-            quantityOrdered: Number(ord),
-            quantityShipped,
-            quantityBackordered: Number(bo),
-            vendorProductNumber,
-            manufacturerOrModelNumber,
-            description,
-            filteredNotes: [],
-            lineType,
-            excludeFromExpectedItems,
-        });
-    }
+    const lines = parseLineTableRows(lineSection, orderNotes);
     return { header, lines, orderNotes, parseWarnings };
 }
 //# sourceMappingURL=parseJohnstoneInvoice.js.map

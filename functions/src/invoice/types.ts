@@ -54,6 +54,8 @@ export interface ParsedInvoiceLine {
   vendorProductNumber: string;
   manufacturerOrModelNumber?: string;
   description: string;
+  unitOfMeasure?: string;
+  lineExtension?: string;
   filteredNotes: string[];
   lineType: InvoiceLineType;
   excludeFromExpectedItems: boolean;

@@ -16,6 +16,8 @@ export function sanitizeParsedLines(lines: ParsedInvoiceLine[]): VendorInvoiceIm
     vendorProductNumber: line.vendorProductNumber.slice(0, MAX_PRODUCT_NUMBER_LEN),
     manufacturerOrModelNumber: line.manufacturerOrModelNumber?.slice(0, MAX_PRODUCT_NUMBER_LEN),
     description: line.description.slice(0, MAX_DESCRIPTION_LEN),
+    unitOfMeasure: line.unitOfMeasure?.slice(0, 16),
+    lineExtension: line.lineExtension?.slice(0, 32),
     filteredNotes: line.filteredNotes
       .slice(0, MAX_NOTES_PER_LINE)
       .map((n) => n.slice(0, MAX_NOTE_LEN)),
