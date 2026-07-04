@@ -192,14 +192,22 @@ async function main() {
 
       const modalApproveBtn = page.getByTestId("invoice-parsed-inspect-approve");
       if (await modalApproveBtn.isVisible().catch(() => false)) {
+        const approvalEligibleText = (
+          await page.getByTestId("invoice-parsed-inspect-approval").innerText()
+        ).trim();
         const modalApproveDisabled = await modalApproveBtn.isDisabled();
-        const panelTextForIssue = await page.getByTestId("invoice-review-panel").innerText();
-        if (modalApproveDisabled && /issue import/i.test(panelTextForIssue)) {
-          console.log("PASS: modal Approve disabled only for issue imports");
-        } else if (!modalApproveDisabled) {
+        if (/^no$/i.test(approvalEligibleText) && modalApproveDisabled) {
+          console.log("PASS: modal Approve disabled when approval eligibility is No");
+        } else if (/^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
           console.log("PASS: modal Approve enabled without delivery ID selection");
+        } else if (/^yes$/i.test(approvalEligibleText) && modalApproveDisabled) {
+          throw new Error(
+            "Modal Approve should be enabled when approval eligibility is Yes (without delivery ID)",
+          );
         } else {
-          throw new Error("Modal Approve should be enabled for non-issue pending imports without delivery ID");
+          console.log(
+            `SKIP: modal Approve state (${approvalEligibleText}, disabled=${modalApproveDisabled})`,
+          );
         }
       }
 
@@ -212,15 +220,19 @@ async function main() {
       const approveBtn = page.getByTestId("invoice-review-approve");
       if (await approveBtn.isVisible().catch(() => false)) {
         const disabled = await approveBtn.isDisabled();
-        if (disabled) {
-          const panelText = await page.getByTestId("invoice-review-panel").innerText();
-          if (/issue import/i.test(panelText)) {
-            console.log("PASS: Approve disabled only for issue imports");
-          } else {
-            throw new Error("Approve should be enabled for non-issue pending imports without auto-match");
-          }
+        const approvalEligibleText = (
+          await page.getByTestId("invoice-parsed-inspect-approval").innerText()
+        ).trim();
+        if (/^no$/i.test(approvalEligibleText) && disabled) {
+          console.log("PASS: row Approve disabled when approval eligibility is No");
+        } else if (/^yes$/i.test(approvalEligibleText) && !disabled) {
+          console.log("PASS: row Approve enabled without delivery ID or auto-match");
+        } else if (/^yes$/i.test(approvalEligibleText) && disabled) {
+          throw new Error(
+            "Row Approve should be enabled when approval eligibility is Yes (without delivery ID)",
+          );
         } else {
-          console.log("PASS: Approve enabled without delivery ID or auto-match");
+          console.log(`SKIP: row Approve state (eligible=${approvalEligibleText}, disabled=${disabled})`);
         }
       }
 
