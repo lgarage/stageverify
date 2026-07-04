@@ -13,6 +13,7 @@
 - Also shipped (standalone): **retryOnError atomic overwrite** â€” error retry no longer delete+set; emulator test `test:retry-on-error-inbound` (6476b2a MEDIUM-2 fix)
 - Also shipped (standalone): **Gmail sync clarity + shared dispatcher header** (6476b2a) â€” sync banner distinguishes scanned vs queued invoices; manual Refresh Now retries error-status messages; `DispatcherPortalTopBar` on Dashboard, Staging Map, Vendors, Invoice Review, Settings
 - Also shipped (standalone): **Invoice Review inspect + header fields** â€” alias-aware P/O, buyer, and header grid; Confidence column removed; **View parsed** / **Inspect parsed data** modal on queue rows and detail pane
+- Also shipped (standalone): **Johnstone S/O header parser hardening** â€” tabular PDF headers, optional-colon labels, stacked pairs; S/O 4046362 fixture; issue status when Invoice # missing; reparse from cached text
 - Also shipped: **Refresh Now Gmail sync** â€” dispatcher Refresh Now triggers `triggerInboundGmailSyncCallable` (same path as scheduled `syncInboundGmail`) then refreshes delivery list
 - Also shipped (standalone): **security protocol** (68c6bd7) â€” enforce real Sonnet security-review Task gate before push
 - Also shipped (standalone): **demo order cleanup** â€” prod ORD-001..006 removed; `npm run cleanup:demo-data` (`scripts/cleanup-demo-firestore.mjs`)

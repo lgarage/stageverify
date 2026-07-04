@@ -27,6 +27,20 @@ function evaluateFixture(pageId, result, expected) {
   /** @type {ExpectResult[]} */
   const checks = [];
 
+  if (expected.vendorOrderNumber) {
+    checks.push({
+      label: "vendorOrderNumber",
+      pass: result.parsed.header.vendorOrderNumber === expected.vendorOrderNumber,
+      detail: result.parsed.header.vendorOrderNumber,
+    });
+  }
+  if (expected.buyerName) {
+    checks.push({
+      label: "buyerName",
+      pass: result.parsed.header.buyerName === expected.buyerName,
+      detail: result.parsed.header.buyerName ?? "null",
+    });
+  }
   if (expected.vendorInvoiceNumber) {
     checks.push({
       label: "vendorInvoiceNumber",
@@ -226,6 +240,35 @@ const FIXTURE_EXPECTATIONS = {
     importStatus: "partial",
     displayLabel: "Partial",
     humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-so-4046362": {
+    vendorOrderNumber: "4046362",
+    customerPoOrReference: "blackduck hartford",
+    buyerName: "CONNOR SMITH",
+    fulfillmentMethod: "delivery",
+    importStatus: "issue",
+    displayLabel: "Issue / Action Needed",
+    expectedLineCount: 1,
+    humanReviewRequired: true,
+    notAutoProcessed: true,
+  },
+  "inv-so-4046362-colon": {
+    vendorOrderNumber: "4046362",
+    customerPoOrReference: "blackduck hartford",
+    buyerName: "CONNOR SMITH",
+    importStatus: "issue",
+    displayLabel: "Issue / Action Needed",
+    expectedLineCount: 1,
+    notAutoProcessed: true,
+  },
+  "inv-so-4046362-invoice-date": {
+    vendorOrderNumber: "4046362",
+    customerPoOrReference: "blackduck hartford",
+    buyerName: "CONNOR SMITH",
+    importStatus: "issue",
+    displayLabel: "Issue / Action Needed",
+    expectedLineCount: 1,
     notAutoProcessed: true,
   },
 };

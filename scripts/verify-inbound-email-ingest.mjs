@@ -107,6 +107,53 @@ assert("S/O not in failed bucket", soBatch.summary.failed === 0 || soBatch.summa
 const soLines = sanitizeParsedLines(soFirst?.processing?.parsed.lines ?? []);
 assert("S/O parsed lines preserved", soLines.length > 0);
 
+console.log("\n3c. S/O tabular header (4046362 / blackduck hartford) extracts review fields");
+const SO_TABULAR_TEXT = `
+Johnstone Supply - Sioux Falls
+SALES ORDER CONFIRMATION
+Customer # Sales Order # Customer P/O # Order Date
+0018114 4046362 blackduck hartford 06/23/2026
+Buyer Ship Via Job Number
+CONNOR SMITH TRUCK DELIVE
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 2 0 L46-668 THERMOSTAT PROGRAMMABLE
+`.trim();
+const tabularBatch = parseInboundInvoiceText(SO_TABULAR_TEXT, {
+  importBatchId: "batch-verify-so-tabular-4046362",
+  gmailMessageId: "msg-fixture-so-tabular-4046362",
+});
+const tabularFirst = tabularBatch.results[0];
+const tabularHeader = tabularFirst?.processing?.parsed.header;
+assert("tabular S/O vendorOrderNumber", tabularHeader?.vendorOrderNumber === "4046362");
+assert("tabular S/O customerPoOrReference", tabularHeader?.customerPoOrReference === "blackduck hartford");
+assert("tabular S/O buyerName", tabularHeader?.buyerName === "CONNOR SMITH");
+assert("tabular S/O importStatus issue", tabularFirst?.processing?.importStatus === "issue");
+assert("tabular S/O lines preserved", (tabularFirst?.processing?.parsed.lines ?? []).length > 0);
+
+console.log("\n3d. S/O with Invoice Date but no Invoice # stays issue (no false invoice #)");
+const SO_INVOICE_DATE_TEXT = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4046362
+Customer P/O #: blackduck hartford
+Order Date: 06/23/2026
+Invoice Date: 06/23/2026
+Buyer: CONNOR SMITH
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 THERMOSTAT
+`.trim();
+const invoiceDateBatch = parseInboundInvoiceText(SO_INVOICE_DATE_TEXT, {
+  importBatchId: "batch-verify-so-invoice-date-4046362",
+  gmailMessageId: "msg-fixture-so-invoice-date-4046362",
+});
+const invoiceDateFirst = invoiceDateBatch.results[0];
+const invoiceDateHeader = invoiceDateFirst?.processing?.parsed.header;
+assert("invoice-date S/O no vendorInvoiceNumber", !invoiceDateHeader?.vendorInvoiceNumber);
+assert("invoice-date S/O importStatus issue", invoiceDateFirst?.processing?.importStatus === "issue");
+assert("invoice-date S/O missing invoice warning", (invoiceDateFirst?.processing?.parsed.parseWarnings ?? []).some((w) => w.includes("missing vendorInvoiceNumber")));
+
 console.log("\n4. parsedLines persistence shape (Table B)");
 const rawLines = first?.processing?.parsed.lines ?? [];
 const parsedLines = sanitizeParsedLines(rawLines);

@@ -431,4 +431,62 @@ LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
 please call 605-338-2652
 `.trim(),
   },
+  {
+    pageId: "inv-so-4046362",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 20,
+    extractedText: `
+Johnstone Supply - Sioux Falls
+SALES ORDER CONFIRMATION
+Remit To: Johnstone Supply
+335 N Weber Ave Sioux Falls SD 57103
+
+Customer # Sales Order # Customer P/O # Order Date
+0018114 4046362 blackduck hartford 06/23/2026
+Buyer Ship Via Job Number
+CONNOR SMITH TRUCK DELIVE
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 2 0 L46-668 THERMOSTAT PROGRAMMABLE
+
+please call 605-338-2652
+`.trim(),
+  },
+  {
+    pageId: "inv-so-4046362-colon",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 21,
+    extractedText: `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4046362
+Customer P/O #: blackduck hartford
+Order Date: 06/23/2026
+Buyer: CONNOR SMITH
+Ship Via: TRUCK DELIVE
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 THERMOSTAT
+`.trim(),
+  },
+  {
+    pageId: "inv-so-4046362-invoice-date",
+    importBatchId: BATCH_ID,
+    pageIndexInBatch: 22,
+    extractedText: `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4046362
+Customer P/O #: blackduck hartford
+Order Date: 06/23/2026
+Invoice Date: 06/23/2026
+Buyer: CONNOR SMITH
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 THERMOSTAT
+`.trim(),
+  },
 ];
