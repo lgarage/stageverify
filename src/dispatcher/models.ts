@@ -821,10 +821,44 @@ export interface VendorInvoiceImportReview {
   importStatus: string;
   confidenceScore: number;
   humanReviewRequired: boolean;
+  parsedHeader?: Record<string, unknown>;
   parsedLines?: VendorInvoiceImportParsedLine[];
   parsedLineCount?: number;
+  parseWarnings?: string[];
+  linkedDeliveryOrderId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InvoiceDeliveryMatchCandidate {
+  deliveryId: string;
+  orderNumber: string;
+  jobId: string;
+  vendorId: string;
+  purchaseOrderId?: string;
+  confidenceScore: number;
+  matchReasons: string[];
+}
+
+export interface InvoiceMatchResult {
+  vendorInvoiceImportId: string;
+  purchaseOrderId?: string;
+  jobId?: string;
+  vendorId?: string;
+  deliveryOrderId?: string;
+  candidates: InvoiceDeliveryMatchCandidate[];
+  confidenceScore: number;
+  confidenceReason: string;
+  humanReviewRequired: boolean;
+  importStatus?: string;
+  reviewStatus?: string;
+}
+
+export interface ApproveVendorInvoiceImportResult {
+  vendorInvoiceImportId: string;
+  reviewStatus: "approved" | "rejected";
+  deliveryOrderId?: string;
+  itemsApplied?: number;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

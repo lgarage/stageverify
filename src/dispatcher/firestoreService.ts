@@ -54,6 +54,9 @@ import type {
   SendVendorEmailInput,
   SendVendorEmailResult,
   VendorEmailEvent,
+  VendorInvoiceImportReview,
+  InvoiceMatchResult,
+  ApproveVendorInvoiceImportResult,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -1999,4 +2002,50 @@ export async function markDeliveryInstalled(deliveryId: string): Promise<void> {
   });
 
   await batch.commit();
+}
+
+const listVendorInvoiceImportsCallable = httpsCallable<
+  { limit?: number; inboundEmailProcessingId?: string },
+  { items: VendorInvoiceImportReview[]; count: number }
+>(functions, "listVendorInvoiceImports");
+
+const matchInvoiceToRecordsCallable = httpsCallable<
+  { vendorInvoiceImportId: string },
+  InvoiceMatchResult
+>(functions, "matchInvoiceToRecordsCallable");
+
+const approveVendorInvoiceImportCallable = httpsCallable<
+  {
+    vendorInvoiceImportId: string;
+    action: "approve" | "reject";
+    deliveryOrderId?: string;
+  },
+  ApproveVendorInvoiceImportResult
+>(functions, "approveVendorInvoiceImport");
+
+export async function listVendorInvoiceImports(options?: {
+  limit?: number;
+  inboundEmailProcessingId?: string;
+}): Promise<VendorInvoiceImportReview[]> {
+  const response = await listVendorInvoiceImportsCallable({
+    limit: options?.limit,
+    inboundEmailProcessingId: options?.inboundEmailProcessingId,
+  });
+  return response.data.items ?? [];
+}
+
+export async function matchInvoiceToRecords(
+  vendorInvoiceImportId: string,
+): Promise<InvoiceMatchResult> {
+  const response = await matchInvoiceToRecordsCallable({ vendorInvoiceImportId });
+  return response.data;
+}
+
+export async function approveVendorInvoiceImport(input: {
+  vendorInvoiceImportId: string;
+  action: "approve" | "reject";
+  deliveryOrderId?: string;
+}): Promise<ApproveVendorInvoiceImportResult> {
+  const response = await approveVendorInvoiceImportCallable(input);
+  return response.data;
 }

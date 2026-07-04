@@ -229,7 +229,7 @@ const STATUS_LABEL = (status: DeliveryStatus): string =>
   DELIVERY_STATUS_LABEL[status];
 
 /** Drawer UI simplification (away-080) — sections hidden pending redesign; logic preserved. */
-const DRAWER_HIDE_VENDOR_COMMUNICATIONS = true;
+const DRAWER_HIDE_VENDOR_COMMUNICATIONS = false;
 const DRAWER_HIDE_RESOLVED_MATERIAL_ISSUES = true;
 const DRAWER_HIDE_NEED_MORE_SPACE = true;
 

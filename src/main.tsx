@@ -19,6 +19,9 @@ const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").t
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
 const ZoneManagementPage = lazy(() => import("./ZoneManagementPage").then(m => ({ default: m.ZoneManagementPage })));
 const VendorsPage = lazy(() => import("./VendorsPage").then(m => ({ default: m.VendorsPage })));
+const InvoiceReviewPage = lazy(() =>
+  import("./InvoiceReviewPage").then((m) => ({ default: m.InvoiceReviewPage })),
+);
 const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
 const VendorDemoScanPage = lazy(() =>
@@ -82,6 +85,7 @@ const renderApp = () => {
                 <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/vendors" element={<VendorsPage />} />
+                <Route path="/invoice-review" element={<InvoiceReviewPage />} />
                 <Route path="/zones" element={<ZoneManagementPage />} />
                 <Route path="/hub" element={<MobileHubPage />} />
               </Route>

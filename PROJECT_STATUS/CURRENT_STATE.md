@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-094** — approveVendorInvoiceImport CF + firestore.rules
+- Last shipped: **away-095** — dispatcher invoice review UI (`/invoice-review`)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -17,7 +17,7 @@
 4. **Inbound Gmail CF + rules deploy** — push ingest + watch renewal shipped in code; Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM, then `firebase deploy --only functions,firestore:rules`.
 
 ## Immediate Next Step
-- **away-095** — dispatcher review UI (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **away-096** — harden inspect callables (`npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
 - **Session handoff:** `PROJECT_STATUS/MINI_LIBRARIAN_HANDOFF.md` — mini-librarian / ACES continuity for new chats
