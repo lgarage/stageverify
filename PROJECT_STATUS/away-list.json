@@ -11,7 +11,6 @@
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow AWAY_BUILD_PROTOCOL.md. Invoice ingest LIVE — extend only. One item at a time. Composer 2.5 orchestrator owns verify/ship/deploy. haltOnFailure: mark blocked, log away-status.json, STOP batch.",
     "sequence": [
-      "away-094",
       "away-095",
       "away-096",
       "away-097"
@@ -27,22 +26,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-094",
-      "title": "approveVendorInvoiceImport CF + firestore.rules",
-      "status": "queued",
-      "dependsOn": "away-093",
-      "tier": "T3",
-      "budget": "~50m",
-      "escalateBeforeShip": true,
-      "scope": "WILL add approveVendorInvoiceImport CF + firestore.rules — create/update expected delivery+items ONLY on explicit approve; will NOT set qtyReceived/staging/readiness",
-      "acceptance": "Sonnet PASS before push; firebase deploy functions+rules stageverify-db; test:firestore-rules + approve emulator test PASS",
-      "verifyBeforeNext": [
-        "cd functions && npm run build",
-        "npm run test:firestore-rules",
-        "node scripts/test-approve-vendor-invoice-import.mjs"
-      ]
     },
     {
       "id": "away-095",

@@ -105,6 +105,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 17 | deploy-pages-poll-gate | unknown | 2026-07-04T00:35:00-05:00 | 35 | unknown | scripts-only | pipeline-hook | y | deploy-gh-pages.mjs polls Pages build + live bundle; ship-loop + lesson; verify:email-oauth-connect:prod PASS |
 | 18 | away-092 | 2026-07-04T01:17:00-05:00 | 2026-07-04T01:25:00-05:00 | 35 | 8 | service-logic | parser-slice | y | parsedLines Table B on vendorInvoiceImports; verify:inbound-email-ingest PASS; commit=5a57fc2 |
 | 19 | away-093 | 2026-07-04T01:25:00-05:00 | 2026-07-04T01:35:00-05:00 | 35 | 10 | service-logic | firestore-read | y | matchInvoiceToRecords callable + emulator test; commit=58f392d |
+| 20 | away-094 | 2026-07-04T01:35:00-05:00 | 2026-07-04T01:50:00-05:00 | 50 | 15 | service-logic | firestore-read | y | approveVendorInvoiceImport CF; Sonnet MEDIUM reject txn fix; test PASS; commit=518a0a1 |
 
 ## Audit every 15 rows (mandatory)
 
