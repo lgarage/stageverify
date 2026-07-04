@@ -24,6 +24,10 @@
 8. **`away:validate` before memory commits** — `CURRENT_STATE.md` requires `Last shipped: **away-NNN**`; narrative after the id is OK.
 9. **Gotcha supplements this file** — `npm run context:gotcha -- --task "…"` on task match; read here for rolling lessons, dossier § for domain depth.
 - **Lessons index + slice CLI:** type/subtype maps to LIBRARIAN_LESSONS section; away:validate fails on index drift; gotcha prepends matched section.
+10. **Security gate on merged commits** — code on main → empty branch diff; use `git diff <commit>^..<commit>` or `git show --stat`; never claim Sonnet PASS without real security-review subagent.
+11. **One deploy worker** — after gate: coordinator serially `firebase functions:list` → deploy only if missing → verify; no parallel deploy subagents; interrupt duplicates on request.
+12. **Verify ship state before gate/deploy** — confirm `git rev-parse HEAD` vs `origin/main` and `firebase functions:list` for expected CF names; committed ≠ deployed.
+13. **Temp secret files** — `.tmp-*secret*` etc.: add to `.gitignore` at creation; delete before session end.
 
 ## Timing (pointer only)
 

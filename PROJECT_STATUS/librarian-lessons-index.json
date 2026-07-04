@@ -29,14 +29,14 @@
       "title": "Process / agents",
       "anchor": "## Process / agents",
       "startLine": 21,
-      "endLine": 26
+      "endLine": 30
     },
     {
       "id": "timing-pointer",
       "title": "Timing (pointer only)",
       "anchor": "## Timing (pointer only)",
-      "startLine": 28,
-      "endLine": 30
+      "startLine": 32,
+      "endLine": 34
     }
   ],
   "entries": [

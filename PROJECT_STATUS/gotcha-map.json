@@ -163,6 +163,36 @@
       "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
       "rules": [],
       "commands": ["npm run away:validate"]
+    },
+    {
+      "id": "security-gate",
+      "match": ["security gate", "security review", "backend-write-critical review", "sonnet verifier"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "process-agents",
+      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "firestore.rules", "functions/src/"],
+      "rules": ["model-audit-gate.mdc", "ship-loop.mdc"],
+      "commands": ["npm run dossier:slice -- --tag backend-critical"]
+    },
+    {
+      "id": "sonnet-gate",
+      "match": ["sonnet gate", "sonnet pass", "merged on main", "commit-range diff", "branch changes empty"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "process-agents",
+      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md"],
+      "rules": ["model-audit-gate.mdc"],
+      "commands": []
+    },
+    {
+      "id": "firebase-deploy",
+      "match": ["firebase deploy", "cloud functions deploy", "functions:list", "CF deploy", "one deploy worker"],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "process-agents",
+      "files": ["functions/src/"],
+      "rules": ["ship-loop.mdc", "parallel-agent-strategy.mdc"],
+      "commands": ["firebase functions:list --project stageverify-db"]
     }
   ]
 }

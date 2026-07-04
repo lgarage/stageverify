@@ -183,7 +183,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 - Same-file edits
 - Schema / DB / Firestore rules design
 - Security-sensitive **implementation** (scan may be parallel; fix is serial)
-- Deploy (`npm run deploy`, `firebase deploy`)
+- Deploy (`npm run deploy`, `firebase deploy`) — one coordinator worker per gate pass; never parallel Firebase deploy or multiple deploy subagents (detail: LIBRARIAN_LESSONS § process-agents #11)
 - Ordered tasks (B depends on A's write)
 - Inconsistent repo state
 - Playwright on same dev server port

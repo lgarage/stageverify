@@ -13,7 +13,7 @@ After **every substantive code or config change** in this session, perform a **b
 
 ## Security gate timing
 
-Run the Sonnet 4.6 security gate **before pushing** — not after commit. If Sonnet returns HIGH risk, fix before `git push origin main`.
+Run the Sonnet 4.6 security gate **before pushing** — not after commit. If Sonnet returns HIGH risk, fix before `git push origin main`. **Merged on main:** use commit-range diff (`git diff <commit>^..<commit>`); Sonnet/security-review subagent required before claiming PASS (detail: LIBRARIAN_LESSONS § process-agents #10).
 
 ## When to audit with a higher model (Sonnet 4.6 via Task subagent)
 
