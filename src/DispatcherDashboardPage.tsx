@@ -63,7 +63,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { sumItemQtyReceived, shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta } from "./dispatcher/deliveryDisplayHelpers";
+import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText } from "./dispatcher/deliveryDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -2041,25 +2041,19 @@ function PickupTokenControls({
 /* ─── Copy Pickup Link ───────────────────────────────────────────────────── */
 
 function CopyPickupLinkButton({
-  jobId,
-  jobName,
-  jobNumber,
-  siteNumber,
+  details,
   font,
-  hasReceivedItems,
   onTokenGenerated,
 }: {
-  jobId: string;
-  jobName: string;
-  jobNumber: string;
-  siteNumber?: string;
+  details: DeliveryDetails;
   font: string;
-  hasReceivedItems: boolean;
   onTokenGenerated?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const job = details.job;
+  const jobId = job?.id ?? details.delivery.jobId;
 
   const resolveSecurePickupLink = async (): Promise<string> => {
     const storedToken = readPickupTokenForJob(jobId);
@@ -2085,30 +2079,9 @@ function CopyPickupLinkButton({
     setBusy(true);
     setCopyError(null);
     try {
-      const result = await firestoreDataService.listDeliveries({
-        jobId,
-        pageSize: 100,
-      });
-      const zones = [
-        ...new Set(
-          result.items
-            .map((d) => d.stagingLocationCode)
-            .filter((code): code is string => Boolean(code)),
-        ),
-      ].join(", ");
       const link = await resolveSecurePickupLink();
-      const siteLabel = siteNumber?.trim() || jobName;
-      const lines = [
-        "StageVerify Pickup",
-        `Stage Location: ${siteLabel}`,
-        `Job: ${jobName}`,
-        `Job Number: ${jobNumber}`,
-        zones ? `Pickup Locations: ${zones}` : "Pickup Locations:",
-        "",
-        "Open pickup checklist:",
-        link,
-      ];
-      await navigator.clipboard.writeText(lines.join("\n"));
+      const text = buildPickupInformationClipboardText(details, link);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
     } catch (err) {
@@ -2120,7 +2093,7 @@ function CopyPickupLinkButton({
     }
   };
 
-  const canCopy = hasReceivedItems;
+  const canCopy = deliveryHasCopyPickupIdentifyingInfo(details);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
@@ -2153,7 +2126,7 @@ function CopyPickupLinkButton({
         }}
       >
         {!canCopy
-          ? "No Items to Pick Up"
+          ? "Insufficient order info"
           : busy
             ? "Preparing…"
             : copied
@@ -2521,8 +2494,6 @@ function DetailContent({
 
   if (!details.job) return null;
   const job = details.job;
-  const itemsReceivedCount = sumItemQtyReceived(details.items);
-  const hasReceivedItemsForPickup = itemsReceivedCount > 0;
 
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
@@ -2839,12 +2810,8 @@ function DetailContent({
               </button>
               <div style={{ minWidth: 0 }}>
                 <CopyPickupLinkButton
-                  jobId={job.id}
-                  jobName={job.jobName}
-                  jobNumber={job.jobNumber}
-                  siteNumber={job.siteNumber}
+                  details={details}
                   font={font}
-                  hasReceivedItems={hasReceivedItemsForPickup}
                   onTokenGenerated={() =>
                     setPickupTokenRefreshKey((value) => value + 1)
                   }

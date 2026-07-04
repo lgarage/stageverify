@@ -1268,13 +1268,14 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
 
     const copyBtn = page.getByTestId("copy-pickup-information");
     record(
-      "ORD-005 No Items to Pick Up when 0 received",
+      "ORD-005 Copy Pickup Information enabled when unreceived",
       (await copyBtn.count()) > 0 &&
-        (await copyBtn.innerText()).trim() === "No Items to Pick Up",
+        (await copyBtn.innerText()).trim() === "Copy Pickup Information" &&
+        (await copyBtn.isEnabled()),
     );
     record(
-      "ORD-005 copy disabled when 0 received",
-      (await copyBtn.count()) > 0 && (await copyBtn.isDisabled()),
+      "ORD-005 copy enabled when 0 received (identifying info present)",
+      (await copyBtn.count()) > 0 && (await copyBtn.isEnabled()),
     );
 
     const revokeBtn = page.getByTestId("revoke-pickup-link");
@@ -1306,9 +1307,23 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
       (await page.getByTestId("generate-pickup-link").count()) === 0,
     );
 
+    let ord005Clipboard = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!(await copyBtn.isEnabled())) break;
+      await copyBtn.click();
+      await page.waitForTimeout(2500);
+      ord005Clipboard = await page
+        .evaluate(async () => navigator.clipboard.readText())
+        .catch(() => "");
+      if (/#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard)) break;
+    }
     record(
-      "ORD-005 copy does not run when 0 received (disabled)",
-      !(await copyBtn.isEnabled()),
+      "ORD-005 copy runs when unreceived (enabled + clipboard)",
+      /#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard) &&
+        /Staging location:/i.test(ord005Clipboard) &&
+        /Vendor:/i.test(ord005Clipboard) &&
+        /Order #:/i.test(ord005Clipboard),
+      ord005Clipboard.slice(0, 80),
     );
 
     const manualHeading = page.getByTestId("manual-controls-heading");
@@ -1536,6 +1551,25 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
     await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
   } else {
     record("ORD-002 row present for copy-enabled test", false);
+  }
+
+  const ord001Row = page.locator("table tbody tr", { hasText: "ORD-001" });
+  if ((await ord001Row.count()) > 0) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    await ord001Row.first().click({ force: true });
+    await page.waitForTimeout(1200);
+    await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
+
+    const ord001CopyBtn = page.getByTestId("copy-pickup-information");
+    record(
+      "ORD-001 Copy Pickup Information enabled when unreceived",
+      (await ord001CopyBtn.count()) > 0 &&
+        (await ord001CopyBtn.innerText()).trim() === "Copy Pickup Information" &&
+        (await ord001CopyBtn.isEnabled()),
+    );
+  } else {
+    record("ORD-001 row present for unreceived copy test", false);
   }
 
   const resolveBtn = page.getByTestId("drawer-action-resolve-issue");

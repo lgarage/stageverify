@@ -1,4 +1,5 @@
 import type {
+  DeliveryDetails,
   DeliveryOrder,
   Item,
   MaterialIssue,
@@ -926,4 +927,96 @@ export function shouldShowPickupSummaryPanel(
   _pickupEvents: PickupEvent[],
 ): boolean {
   return sumItemQtyReceived(items) > 0;
+}
+
+type CopyPickupDetails = Pick<
+  DeliveryDetails,
+  "delivery" | "job" | "vendor" | "purchaseOrder"
+>;
+
+/** True when dispatcher can copy a meaningful pickup/order summary (no received qty required). */
+export function deliveryHasCopyPickupIdentifyingInfo(
+  details: CopyPickupDetails,
+): boolean {
+  const job = details.job;
+  const hasJobIdentifier = Boolean(
+    job?.jobNumber?.trim() || job?.jobName?.trim(),
+  );
+  const vendorName =
+    details.vendor?.name?.trim() || details.delivery.vendorName?.trim() || "";
+  const hasVendor = vendorName.length > 0;
+  const delivery = details.delivery;
+  const hasOrderIdentifier = Boolean(
+    details.purchaseOrder?.poNumber?.trim() ||
+      delivery.orderNumber?.trim() ||
+      delivery.id?.trim(),
+  );
+  return hasJobIdentifier && hasVendor && hasOrderIdentifier;
+}
+
+export function buildPickupInformationClipboardText(
+  details: DeliveryDetails,
+  pickupLink: string,
+  materialIssues?: MaterialIssue[],
+): string {
+  const { delivery, job, vendor, purchaseOrder, stagingLocation, items } =
+    details;
+  const panel = buildIssueSummaryPanelData(
+    delivery,
+    items,
+    materialIssues ?? details.materialIssues,
+  );
+
+  const lines: string[] = ["StageVerify Pickup"];
+
+  const jobNumber = job?.jobNumber?.trim();
+  if (jobNumber) lines.push(`Job #: ${jobNumber}`);
+
+  const jobName = job?.jobName?.trim();
+  if (jobName) lines.push(`Job name: ${jobName}`);
+
+  const vendorName =
+    vendor?.name?.trim() || delivery.vendorName?.trim() || "";
+  if (vendorName) lines.push(`Vendor: ${vendorName}`);
+
+  const poNumber = purchaseOrder?.poNumber?.trim();
+  if (poNumber) lines.push(`PO #: ${poNumber}`);
+
+  const orderNumber = delivery.orderNumber?.trim();
+  if (orderNumber) lines.push(`Order #: ${orderNumber}`);
+
+  if (stagingLocation?.code?.trim()) {
+    const code = stagingLocation.code.trim();
+    const label = stagingLocation.label?.trim();
+    lines.push(
+      label
+        ? `Staging location: ${code} (${label})`
+        : `Staging location: ${code}`,
+    );
+  } else {
+    lines.push("Staging location: Not assigned");
+  }
+
+  lines.push(`Status: ${panel.deliveryStatusLabel}`);
+
+  if (items.length > 0) {
+    lines.push("Items:");
+    for (const item of items) {
+      lines.push(
+        `- ${item.description} (ordered: ${item.qtyOrdered}, received: ${item.qtyReceived})`,
+      );
+    }
+  }
+
+  if (panel.itemsTotalCount > 0) {
+    lines.push(
+      `Received: ${panel.itemsReceivedCount} of ${panel.itemsTotalCount} items`,
+    );
+  }
+
+  lines.push("");
+  lines.push("Open pickup checklist:");
+  lines.push(pickupLink);
+
+  return lines.join("\n");
 }
