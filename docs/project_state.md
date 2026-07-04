@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Configure Gmail push ingest (Dan)** — create Pub/Sub topic `gmail-inbox-notifications`, grant `gmail-api-push@system.gserviceaccount.com` Publisher on topic, set secret `GMAIL_PUBSUB_TOPIC=projects/stageverify-db/topics/gmail-inbox-notifications`, deploy CF, reconnect Gmail OAuth.
+1. **away-093** — matchInvoiceToRecords callable.
 2. **Deploy inbound Gmail ingestion** — `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 3. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
 4. **ESL integration** — Phase 7; blocked on Minew credentials.
