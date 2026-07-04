@@ -65,7 +65,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 8 | estimate-table+parser-audit | 2026-07-03T18:09:00-05:00 | 2026-07-03T18:10:44-05:00 | 35 | 2 | multi-file | n | completion report table + Johnstone parser audit; 13/13 fixtures 100%; completedAt=60ea8b3 |
 | 9 | away-089 | 2026-07-03T18:14:00-05:00 | 2026-07-03T18:16:58-05:00 | 35 | 3 | service-logic | n | Johnstone invoice Slice 2; test:invoice-batch 27/27; completedAt=92635a0 |
 | 10 | dispatcher-staging-action-rows | 2026-07-03T18:34:00-05:00 | 2026-07-03T18:38:30-05:00 | 35 | 4 | ui-component | y | dark-orange action rows + Assign staging location; verify:delivery-consistency ORD-001/002; completedAt=6857f05 |
-| 11 | | | | | | | | |
+| 11 | dispatcher-staging-action-rows-tighten | 2026-07-03T19:52:00-05:00 | | 35 | | ui-component | y | missing staging alone triggers action row; offline+live verify; |
 | 12 | | | | | | | | |
 | 13 | | | | | | | | |
 | 14 | | | | | | | | |

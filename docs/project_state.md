@@ -202,7 +202,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 **away-087 (2026-07-03)** — Verified Action 1: `buildNextBrief()` readFirst omits `svscope_simple.md` unless `scopeDispute`; `itemScopeDispute()` adds svscope on flag or scope string. Verify: `away:validate`, `build`.
 
-**Dispatcher staging-action rows (2026-07-03)** — Display-only: deliveries table rows with missing staging assignment use dark-orange `dispatcher-action-required` styling (white text, readable badge/View button); Issue Summary column prioritizes **Assign staging location**. Verify: `verify:delivery-consistency`, `verify:phase5-email` prod.
+**Dispatcher staging-action rows (2026-07-03, tightened)** — Display-only: any delivery with missing staging (regardless of received qty or status; `installed` exempt) gets dark-orange `dispatcher-action-required` table row + Issue Summary **Assign staging location** first. Drawer readiness unchanged. Verify: offline gate + live Staging Loc. column in `verify:delivery-consistency`.
 
 **Fast UI pass (2026-06-24)** — Delivery label modal closes on outside click / Escape; primary action renamed **Push to E-Tag** (copy only). Activity History: collapse repeated entity/status events in compact view; **Show Full History** shows raw audit list. List **Issue Summary** column prioritizes **Pickup Scheduled** when delivery is ready and job is scheduled (display-only). Verify: `verify:delivery-consistency` (361 checks).
 

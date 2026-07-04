@@ -77,12 +77,24 @@ export interface DeliveryDisplayOptions {
 export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
   "Assign staging location";
 
+/**
+ * Dispatcher deliveries table: dark-orange action row when staging zone is
+ * missing. Display-only — does not affect drawer readiness evidence.
+ * Terminal installed deliveries are excluded (closed record).
+ */
+export function isDispatcherTableStagingActionRequired(
+  delivery: Pick<DeliveryOrder, "stagingLocationId" | "status">,
+): boolean {
+  if (delivery.status === "installed") return false;
+  return !delivery.stagingLocationId?.trim();
+}
+
 export interface DeliveryDisplayState {
   readiness: DeliveryReadinessResult;
   statusDisplayLabel: string;
   issueSummary: string;
   actionRequired: boolean;
-  /** Table row: received material without assigned staging zone. */
+  /** Table row: delivery exists but staging zone is unassigned. */
   missingStagingAssignment: boolean;
   blockerLabels: string[];
   openIssueCount: number;
@@ -127,9 +139,7 @@ export function computeDeliveryDisplayState(
       ? countOpenMaterialIssues(materialIssues)
       : (delivery.openIssueCount ?? 0);
   const missingStagingAssignment =
-    readiness.evidence.readinessBlockReasons.includes(
-      "staging_assignment_incomplete",
-    );
+    isDispatcherTableStagingActionRequired(delivery);
 
   return {
     readiness,
@@ -179,6 +189,10 @@ function buildComputedIssueSummary(
   readiness: DeliveryReadinessResult,
   displayOptions?: DeliveryDisplayOptions,
 ): string {
+  if (isDispatcherTableStagingActionRequired(delivery)) {
+    return DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY;
+  }
+
   if (readiness.readyForPickup) {
     if (displayOptions?.jobPickupScheduled) {
       return "Pickup Scheduled";
@@ -187,9 +201,6 @@ function buildComputedIssueSummary(
   }
 
   const reasons = readiness.evidence.readinessBlockReasons;
-  if (reasons.includes("staging_assignment_incomplete")) {
-    return DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY;
-  }
 
   const blockingIssues = openBlockingMaterialIssues(materialIssues);
   if (blockingIssues.length > 0) {

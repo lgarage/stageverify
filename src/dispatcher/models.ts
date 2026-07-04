@@ -813,7 +813,7 @@ export interface DeliveryListRow {
   itemsReceivedLabel: string;
   issueSummary: string;
   openIssueCount: number;
-  /** Dispatcher table: dark-orange action row when staging zone is missing. */
+  /** Dispatcher table: dark-orange action row when staging zone is unassigned. */
   missingStagingAssignment: boolean;
 }
 

@@ -10,6 +10,11 @@ import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { ensureAuthenticated, loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+import {
+  computeDeliveryDisplayState,
+  DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
+  isDispatcherTableStagingActionRequired,
+} from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
@@ -23,6 +28,71 @@ function record(name, pass, detail = "") {
   results.push({ name, pass, detail });
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
+
+function assertOfflineStagingActionRules() {
+  const pendingNoStaging = {
+    id: "offline-pending",
+    orderNumber: "OFF-PEND",
+    status: "pending",
+    stagingLocationId: "",
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    deliveryDate: "2026-07-03",
+    createdAt: "2026-07-03T00:00:00Z",
+    updatedAt: "2026-07-03T00:00:00Z",
+  };
+  const zeroReceivedItems = [
+    {
+      id: "item-off",
+      deliveryOrderId: "offline-pending",
+      sku: "SKU-1",
+      description: "Test item",
+      qtyOrdered: 3,
+      qtyReceived: 0,
+      qtyMissing: 3,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "pending",
+    },
+  ];
+  record(
+    "offline — pending + 0 received + no staging requires action",
+    isDispatcherTableStagingActionRequired(pendingNoStaging),
+  );
+  const display = computeDeliveryDisplayState(
+    pendingNoStaging,
+    zeroReceivedItems,
+    [],
+  );
+  record(
+    "offline — missingStagingAssignment without received qty gate",
+    display.missingStagingAssignment,
+  );
+  record(
+    "offline — Issue Summary Assign staging location (top priority)",
+    display.issueSummary === DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
+    display.issueSummary,
+  );
+  const withStaging = {
+    ...pendingNoStaging,
+    stagingLocationId: "staging-2",
+  };
+  record(
+    "offline — assigned staging clears action row",
+    !isDispatcherTableStagingActionRequired(withStaging),
+  );
+  const installedNoStaging = {
+    ...pendingNoStaging,
+    status: "installed",
+    stagingLocationId: "",
+  };
+  record(
+    "offline — installed closed record exempt from action row",
+    !isDispatcherTableStagingActionRequired(installedNoStaging),
+  );
+}
+
+assertOfflineStagingActionRules();
 
 async function assertStagingLocationCard(page, record, label, expectAssigned) {
   const card = page.getByTestId("staging-location-assignment");
@@ -205,6 +275,40 @@ const STAGING_COLUMN_INDEX = 7;
 /** Issue Summary column index in deliveries table (0-based). */
 const ISSUE_SUMMARY_COLUMN_INDEX = 9;
 
+async function assertStagingActionRowsMatchStagingColumn(page, record) {
+  const rows = page.locator("table tbody tr");
+  const count = await rows.count();
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
+    const stagingText = (
+      await row.locator("td").nth(STAGING_COLUMN_INDEX).innerText()
+    ).trim();
+    const stagingUnassigned =
+      stagingText.length === 0 || stagingText === "—" || stagingText === "-";
+    const hasClass = await row.evaluate((el) =>
+      el.classList.contains("dispatcher-action-required"),
+    );
+    record(
+      `${orderNumber} — action row matches empty Staging Loc.`,
+      hasClass === stagingUnassigned,
+      stagingUnassigned
+        ? "empty staging → orange"
+        : `assigned (${stagingText}) → normal`,
+    );
+    if (stagingUnassigned) {
+      const issueText = (
+        await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
+      ).trim();
+      record(
+        `${orderNumber} — Issue Summary Assign staging location`,
+        issueText.includes("Assign staging location"),
+        issueText,
+      );
+    }
+  }
+}
+
 async function assertDispatcherStagingActionRows(page, record) {
   const rows = page.locator("table tbody tr");
   const count = await rows.count();
@@ -249,8 +353,11 @@ async function assertDispatcherStagingActionRows(page, record) {
     true,
     actionCount > 0
       ? `${actionCount} row(s) styled`
-      : "none in live data (pending-only deliveries OK)",
+      : "none in live data",
   );
+
+  // Missing staging alone triggers action row (independent of received qty).
+  await assertStagingActionRowsMatchStagingColumn(page, record);
 }
 
 async function openRowByStagingAssignment(page, wantUnassigned) {
