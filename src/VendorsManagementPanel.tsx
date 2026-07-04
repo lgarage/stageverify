@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties, type FormEvent } from "react";
+import { useState, useEffect, useRef, type CSSProperties, type FormEvent } from "react";
 import type { Vendor } from "./dispatcher/models";
 import { listVendors, createVendor, updateVendor } from "./dispatcher/firestoreService";
 
@@ -20,9 +20,16 @@ const cardStyle = {
   boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
 };
 
-export function VendorsManagementPanel() {
+export function VendorsManagementPanel({
+  syncedVendors,
+  refreshGeneration = 0,
+}: {
+  syncedVendors?: Vendor[] | null;
+  refreshGeneration?: number;
+}) {
   const [, setRefresh] = useState(0);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const lastAppliedGeneration = useRef(0);
   const [name, setName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -86,8 +93,15 @@ export function VendorsManagementPanel() {
   };
 
   useEffect(() => {
-    void listVendors().then(setVendors);
-  }, []);
+    if (syncedVendors && refreshGeneration > lastAppliedGeneration.current) {
+      lastAppliedGeneration.current = refreshGeneration;
+      setVendors(syncedVendors);
+      return;
+    }
+    if (refreshGeneration === 0 && syncedVendors == null) {
+      void listVendors().then(setVendors);
+    }
+  }, [syncedVendors, refreshGeneration]);
 
   const handleAddVendor = async (e: FormEvent) => {
     e.preventDefault();

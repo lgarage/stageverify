@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
 import { normalizeLegacyAppHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
@@ -82,11 +83,13 @@ const renderApp = () => {
               <Route path="/demo/pickup-scan" element={<PickupDemoScanPage />} />
               <Route path="/display" element={<EntryDisplayPage />} />
               <Route element={<ProtectedRoute />}>
-                <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/vendors" element={<VendorsPage />} />
-                <Route path="/invoice-review" element={<InvoiceReviewPage />} />
-                <Route path="/zones" element={<ZoneManagementPage />} />
+                <Route element={<DispatcherPortalRouteLayout />}>
+                  <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/vendors" element={<VendorsPage />} />
+                  <Route path="/invoice-review" element={<InvoiceReviewPage />} />
+                  <Route path="/zones" element={<ZoneManagementPage />} />
+                </Route>
                 <Route path="/hub" element={<MobileHubPage />} />
               </Route>
               <Route path="/" element={<RootRedirect />} />

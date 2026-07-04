@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-098** — mini-librarian indexer + gotcha hygiene; lessons index dedupe
+- Last shipped: **shared dispatcher Refresh Now sync** — `DispatcherPortalProvider` caches invoice queue, vendors, zones; Refresh Now on any portal tab updates all tabs
+- Also shipped: **away-098** — mini-librarian indexer + gotcha hygiene; lessons index dedupe
 - Also shipped (standalone): **retryOnError atomic overwrite** — error retry no longer delete+set; emulator test `test:retry-on-error-inbound` (6476b2a MEDIUM-2 fix)
 - Also shipped (standalone): **Gmail sync clarity + shared dispatcher header** (6476b2a) — sync banner distinguishes scanned vs queued invoices; manual Refresh Now retries error-status messages; `DispatcherPortalTopBar` on Dashboard, Staging Map, Vendors, Invoice Review, Settings
 - Also shipped: **Refresh Now Gmail sync** — dispatcher Refresh Now triggers `triggerInboundGmailSyncCallable` (same path as scheduled `syncInboundGmail`) then refreshes delivery list

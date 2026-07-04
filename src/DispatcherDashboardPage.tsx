@@ -21,7 +21,7 @@ import {
   listShopStockMappings,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
-import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
+import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import { isShopStockLocationReservedError } from "./dispatcher/shopStockMapping";
 import {
@@ -329,6 +329,7 @@ export function DispatcherDashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const fetchAllDataRef = useRef<() => Promise<void>>(async () => {});
+  const lastRefreshGeneration = useRef(0);
   const {
     emailProviderConnected,
     refreshBusy,
@@ -336,11 +337,8 @@ export function DispatcherDashboardPage() {
     lastUpdated: refreshLastUpdated,
     setLastUpdated,
     handleRefreshNow,
-  } = useDispatcherGmailRefresh({
-    onAfterRefresh: async () => {
-      await fetchAllDataRef.current();
-    },
-  });
+    refreshGeneration,
+  } = useDispatcherPortal();
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
@@ -384,6 +382,13 @@ export function DispatcherDashboardPage() {
   useEffect(() => {
     fetchAllDataRef.current = fetchAllData;
   }, [fetchAllData]);
+
+  useEffect(() => {
+    if (refreshGeneration > lastRefreshGeneration.current) {
+      lastRefreshGeneration.current = refreshGeneration;
+      void fetchAllData();
+    }
+  }, [refreshGeneration, fetchAllData]);
 
   useEffect(() => {
     const state = location.state as { openNewDelivery?: boolean } | null;

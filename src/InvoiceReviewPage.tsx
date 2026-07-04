@@ -1,8 +1,7 @@
-import { useCallback, useRef } from "react";
 import { PortalSidebar } from "./PortalSidebar";
 import { InvoiceReviewPanel } from "./dispatcher/invoice/InvoiceReviewPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
-import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
+import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -13,22 +12,14 @@ const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function InvoiceReviewPage() {
-  const loadQueueRef = useRef<() => Promise<void>>(async () => {});
-
-  const handleRegisterLoadQueue = useCallback((loadQueue: () => Promise<void>) => {
-    loadQueueRef.current = loadQueue;
-  }, []);
-
   const {
     refreshBusy,
     gmailSyncMessage,
     lastUpdated,
     handleRefreshNow,
-  } = useDispatcherGmailRefresh({
-    onAfterRefresh: async () => {
-      await loadQueueRef.current();
-    },
-  });
+    invoiceImports,
+    refreshGeneration,
+  } = useDispatcherPortal();
 
   return (
     <div
@@ -81,7 +72,10 @@ export function InvoiceReviewPage() {
               </p>
             </div>
 
-            <InvoiceReviewPanel onRegisterLoadQueue={handleRegisterLoadQueue} />
+            <InvoiceReviewPanel
+              syncedImports={invoiceImports}
+              refreshGeneration={refreshGeneration}
+            />
           </div>
         </div>
       </div>

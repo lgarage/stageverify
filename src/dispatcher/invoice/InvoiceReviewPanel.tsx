@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   InvoiceDeliveryMatchCandidate,
   InvoiceMatchResult,
@@ -97,9 +97,11 @@ function StatusChip({
 }
 
 export function InvoiceReviewPanel({
-  onRegisterLoadQueue,
+  syncedImports,
+  refreshGeneration = 0,
 }: {
-  onRegisterLoadQueue?: (loadQueue: () => Promise<void>) => void;
+  syncedImports?: VendorInvoiceImportReview[] | null;
+  refreshGeneration?: number;
 }) {
   const [imports, setImports] = useState<VendorInvoiceImportReview[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -110,6 +112,16 @@ export function InvoiceReviewPanel({
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const lastAppliedGeneration = useRef(0);
+
+  const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
+    setImports(items);
+    setSelectedId((prev) => {
+      if (prev && items.some((i) => i.id === prev)) return prev;
+      const firstPending = items.find((i) => i.reviewStatus === "pending_review");
+      return firstPending?.id ?? items[0]?.id ?? null;
+    });
+  }, []);
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
@@ -117,26 +129,29 @@ export function InvoiceReviewPanel({
     try {
       const items = await listVendorInvoiceImports({ limit: 50 });
       items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      setImports(items);
-      setSelectedId((prev) => {
-        if (prev && items.some((i) => i.id === prev)) return prev;
-        const firstPending = items.find((i) => i.reviewStatus === "pending_review");
-        return firstPending?.id ?? items[0]?.id ?? null;
-      });
+      applyImports(items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load invoice imports.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyImports]);
 
   useEffect(() => {
-    void loadQueue();
-  }, [loadQueue]);
-
-  useEffect(() => {
-    onRegisterLoadQueue?.(loadQueue);
-  }, [loadQueue, onRegisterLoadQueue]);
+    if (
+      syncedImports &&
+      refreshGeneration > lastAppliedGeneration.current
+    ) {
+      lastAppliedGeneration.current = refreshGeneration;
+      applyImports(syncedImports);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    if (refreshGeneration === 0 && syncedImports == null) {
+      void loadQueue();
+    }
+  }, [syncedImports, refreshGeneration, applyImports, loadQueue]);
 
   const selected = useMemo(
     () => imports.find((i) => i.id === selectedId) ?? null,

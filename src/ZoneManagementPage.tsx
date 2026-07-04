@@ -36,7 +36,7 @@ import {
 import { PortalSidebar } from "./PortalSidebar";
 import { ShopStockDirectoryPanel } from "./ShopStockDirectoryPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
-import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
+import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -225,17 +225,15 @@ function typeBadgeStyle(type: ZoneType): CSSProperties {
 }
 
 export function ZoneManagementPage() {
-  const loadZonesRef = useRef<() => Promise<void>>(async () => {});
+  const lastRefreshGeneration = useRef(0);
   const {
     refreshBusy,
     gmailSyncMessage,
     lastUpdated,
     handleRefreshNow,
-  } = useDispatcherGmailRefresh({
-    onAfterRefresh: async () => {
-      await loadZonesRef.current();
-    },
-  });
+    zonesSnapshot,
+    refreshGeneration,
+  } = useDispatcherPortal();
   const [zones, setZones] = useState<StagingLocation[]>([]);
   const [occupancyByZoneCode, setOccupancyByZoneCode] = useState<
     Record<string, ZoneOccupancySummary>
@@ -277,12 +275,27 @@ export function ZoneManagementPage() {
   }, []);
 
   useEffect(() => {
-    loadZonesRef.current = loadZones;
-  }, [loadZones]);
-
-  useEffect(() => {
-    void loadZones();
-  }, [loadZones]);
+    if (
+      zonesSnapshot &&
+      refreshGeneration > lastRefreshGeneration.current
+    ) {
+      lastRefreshGeneration.current = refreshGeneration;
+      setZones(zonesSnapshot.zones);
+      setOccupancyByZoneCode(zonesSnapshot.occupancyByZoneCode);
+      setShopStockByCode(zonesSnapshot.shopStockByCode);
+      setEslDrafts(
+        Object.fromEntries(
+          zonesSnapshot.zones.map((z) => [z.id, z.eslTagId ?? ""]),
+        ),
+      );
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    if (refreshGeneration === 0 && zonesSnapshot == null) {
+      void loadZones();
+    }
+  }, [zonesSnapshot, refreshGeneration, loadZones]);
 
   const visibleZones = useMemo(
     () => (showInactive ? zones : zones.filter(isLocationActive)),

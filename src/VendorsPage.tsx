@@ -1,7 +1,7 @@
 import { PortalSidebar } from "./PortalSidebar";
 import { VendorsManagementPanel } from "./VendorsManagementPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
-import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
+import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -17,7 +17,9 @@ export function VendorsPage() {
     gmailSyncMessage,
     lastUpdated,
     handleRefreshNow,
-  } = useDispatcherGmailRefresh();
+    vendors,
+    refreshGeneration,
+  } = useDispatcherPortal();
 
   return (
     <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
@@ -68,7 +70,10 @@ export function VendorsPage() {
               </p>
             </div>
 
-            <VendorsManagementPanel />
+            <VendorsManagementPanel
+              syncedVendors={vendors}
+              refreshGeneration={refreshGeneration}
+            />
           </div>
         </div>
       </div>

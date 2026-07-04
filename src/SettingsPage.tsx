@@ -31,7 +31,7 @@ import {
 import { portalNavFocus } from "./dispatcherPortalNav";
 import { PortalSidebar } from "./PortalSidebar";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
-import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
+import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -105,7 +105,7 @@ export function SettingsPage() {
     gmailSyncMessage,
     lastUpdated,
     handleRefreshNow,
-  } = useDispatcherGmailRefresh();
+  } = useDispatcherPortal();
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
