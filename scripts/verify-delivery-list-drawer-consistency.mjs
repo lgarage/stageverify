@@ -38,7 +38,8 @@ function isShortPickupClipboard(text) {
   if (/^Status:/m.test(text)) return false;
   if (/^Items:/m.test(text)) return false;
   if (/^Received:\s+\d+\s+of\s+\d+/m.test(text)) return false;
-  if (/ordered:\s*\d+/i.test(text)) return false;
+  if (/^-\s.+\(ordered:/m.test(text)) return false;
+  if (/\(ordered:\s*\d+,\s*received:/i.test(text)) return false;
   return true;
 }
 
