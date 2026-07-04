@@ -1,5 +1,5 @@
 ---
-description: Challenge-revise-present before every substantive reply — never ship first draft to Dan.
+description: Challenge-revise-present before every substantive reply — never ship first draft to Dan. Handoff/new-chat prompts must be best on first present.
 alwaysApply: true
 ---
 
@@ -7,27 +7,53 @@ alwaysApply: true
 
 **Authority:** This rule owns **don't ship first draft** for all substantive interactions. Run the loop **before Dan sees your answer** — not after.
 
+## Handoff / new-chat prompt (mandatory — best on first present)
+
+Dan standing preference: whenever Dan asks for a **prompt to paste into the next conversation** (handoff, new chat, overnight execute, away batch kickoff), deliver the **final** prompt on the **first** present — no v1, no "want me to improve?", no draft-then-iterate.
+
+### Triggers (non-exhaustive)
+
+"prompt for new conversation", "next chat", "handoff", "paste in new chat", "new chat prompt", "overnight", away execute prompt, "what should I paste", "kick off the batch", "go build it" handoff, etc.
+
+Also runs when Dan says **"best prompt"**, **"best reply"**, or similar — full gate; no shortcuts.
+
+### Mandatory before first present (handoffs)
+
+1. **Read queue state** — `PROJECT_STATUS/away-list.json` + `PROJECT_STATUS/away-status.json` (queue head / in-progress id). If away-related: read `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` (Plan → Approve → Queue → Execute).
+2. **Verify npm scripts** — confirm every verify/deploy command cited exists in root `package.json`; **never invent** script names.
+3. **Self-contained block** — assume zero thread context: goal, scope, allowed/forbidden paths, real away-NNN ids only (`npm run away:next -- --minimal` or away-list head), verify commands, do-not-widen constraints.
+4. **Internal challenge-revise loop — min 2 passes** for handoffs (gather → draft → challenge → revise → challenge again → final). Present **only** the final fenced/copy-paste block.
+5. **Execute handoffs must include:**
+   - `startedAt: <ISO placeholder>` for estimate-log timing
+   - Explicit **"go build it"** (or Dan's approval phrase) when the prompt is for away **execute**, not plan-only
+   - **Sonnet security gate before push** + **Firebase deploy** hard stops when scope touches `backend-write-critical` (CF, rules, auth writes)
+   - Time-bound filter per `time-awareness.mdc` when Dan stated a window (budget ≤ remaining; no out-of-budget CTAs in the handoff)
+
+### Forbidden (handoffs)
+
+❌ Show a draft, then ask Dan to iterate ("want me to improve?", "should I refine?", "here's v1").
+❌ Invent away-NNN ids, npm script names, or scope Dan did not queue.
+❌ Rely on "see previous chat" — new chat has no prior messages.
+
+✅ One polished, copy-paste-ready prompt block per request.
+
 ## Scope — run the gate
 
 Plans, handoffs, recommendations, architecture, away prompts, "what's next", code explanations with action items, overnight batches, rule/process suggestions, post-ship **Remaining time options**.
 
 **Skip:** trivial typos, single-fact read-only answers grounded in one source you just read, pure code execution with no recommendation.
 
-## Dan triggers (no shortcuts)
-
-When Dan says **"best prompt"**, **"best reply"**, or similar — run this full gate; do not shortcut to v1.
-
-## Mandatory loop (before first present)
+## Mandatory loop (before first present — all substantive replies)
 
 1. **Gather** — read authoritative sources (repo files, rules, queue state); not memory alone.
 2. **Draft privately** — full answer in working context only.
 3. **Challenge** — What did I miss? Wrong away IDs? Contradicts rules/docs? Too long or vague? Will Dan have to ask again? First-draft syndrome?
-4. **Revise once** — rules files: max **2** passes total (same as `suggestion-verify-gate.mdc`).
+4. **Revise once** — rules files: max **2** passes total (same as `suggestion-verify-gate.mdc`). **Handoffs:** min **2** internal passes before present (see § Handoff above).
 5. **Present ONLY the final version** — never v1 + "want me to improve?" / "should I refine?" / "here's a draft."
 
-## Away / handoff specifics
+## Away / handoff cross-checks
 
-When the reply is an away plan, queue recommendation, or **new-chat handoff prompt**:
+When the reply is an away plan, queue recommendation, or **new-chat handoff prompt** (see § Handoff for full checklist):
 
 - Verify queue head via `npm run away:next -- --minimal` or `away-list.json` — **real away-NNN ids only**.
 - Cross-check `AWAY_BUILD_PROTOCOL.md` schema (Plan → Approve → Queue → Execute).
@@ -55,7 +81,9 @@ When both apply: run **best-reply loop first**; layer suggestion-verify steps fo
 ❌ Present first draft and offer to improve later.
 ❌ Ask Dan to verify your suggestions — you run the loop.
 ❌ Answer "what's next" from roadmap or memory without authoritative sources.
-❌ Invent away-NNN ids or skip self-contained handoff context.
+❌ Invent away-NNN ids, npm script names, or skip self-contained handoff context.
+❌ Hand off with "as discussed above" — new chat has zero thread context.
 
 ✅ One polished answer per turn on substantive topics.
+✅ Handoffs: one copy-paste block, best version, first present.
 ✅ Note sources cross-checked when editing rules or presenting plans.
