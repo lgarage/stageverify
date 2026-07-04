@@ -9,7 +9,7 @@
 | 1 | `PROJECT_STATUS/CURRENT_STATE.md` | Always first — phase, blockers, last shipped |
 | 2 | `PROJECT_STATUS/MEMORY.md` | Router + narrow "what's next" (this file) |
 
-**On demand (not session start):** `svscope_simple.md` (scope disputes) · `npm run away:next` · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
+**On demand (not session start):** `svscope_simple.md` (scope disputes) · **`npm run away:next -- --packet`** (coding sessions — queue brief + dossier slices first) · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
 
 ## “What’s next to build?” (narrow — mandatory)
 

@@ -9,12 +9,8 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Invoice ingest LIVE — extend only. One item at a time. Composer 2.5 owns verify/ship/deploy. Run away-098 ONLY after away-097 ships successfully; never parallelize 092–098.",
-    "sequence": [
-      "away-092",
-      "away-093",
-      "away-094"
-    ]
+    "instructions": "Invoice ingest LIVE — queue empty except blocked away-069 (Gmail watch spec). Post-queue: see docs/project_state.md. Composer 2.5 owns verify/ship when new items are queued.",
+    "sequence": []
   },
   "queue": [
     {
@@ -26,50 +22,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-092",
-      "title": "Persist parsed.lines[] on vendorInvoiceImports",
-      "status": "built",
-      "dependsOn": null,
-      "tier": "T1",
-      "budget": "~35m",
-      "scope": "Persist parsed.lines[] on vendorInvoiceImports — review queue only",
-      "acceptance": "build, functions build, verify:inbound-email-ingest PASS",
-      "verifyBeforeNext": [
-        "npm run build",
-        "cd functions && npm run build",
-        "npm run verify:inbound-email-ingest"
-      ]
-    },
-    {
-      "id": "away-093",
-      "title": "matchInvoiceToRecords CF",
-      "status": "built",
-      "dependsOn": "away-092",
-      "tier": "T1",
-      "budget": "~35m",
-      "scope": "matchInvoiceToRecords callable — read-only PO/sales order match",
-      "acceptance": "functions build, build, test-match script PASS",
-      "verifyBeforeNext": [
-        "cd functions && npm run build",
-        "npm run build",
-        "node scripts/test-match-invoice-records.mjs"
-      ]
-    },
-    {
-      "id": "away-094",
-      "title": "approveVendorInvoiceImport CF + rules",
-      "status": "built",
-      "dependsOn": "away-093",
-      "tier": "T3",
-      "budget": "~50m",
-      "scope": "approveVendorInvoiceImport CF + firestore.rules — Sonnet before push",
-      "acceptance": "approve/reject writes expected items only; Sonnet gate PASS",
-      "verifyBeforeNext": [
-        "cd functions && npm run build",
-        "node scripts/test-approve-vendor-invoice-import.mjs"
-      ]
     }
   ]
 }

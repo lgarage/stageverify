@@ -877,6 +877,35 @@
         "npm run verify:pickup:prod"
       ],
       "status": "done"
+    },
+    {
+      "id": "away-092",
+      "title": "Persist parsed.lines[] on vendorInvoiceImports",
+      "status": "done",
+      "tier": "T1",
+      "scope": "Persist parsed.lines[] on vendorInvoiceImports — review queue only",
+      "acceptance": "build, functions build, verify:inbound-email-ingest PASS",
+      "archivedFrom": "away-list.json orchestrator hygiene 2026-07-04"
+    },
+    {
+      "id": "away-093",
+      "title": "matchInvoiceToRecords CF",
+      "status": "done",
+      "dependsOn": "away-092",
+      "tier": "T1",
+      "scope": "matchInvoiceToRecords callable — read-only PO/sales order match",
+      "acceptance": "functions build, build, test-match script PASS",
+      "archivedFrom": "away-list.json orchestrator hygiene 2026-07-04"
+    },
+    {
+      "id": "away-094",
+      "title": "approveVendorInvoiceImport CF + rules",
+      "status": "done",
+      "dependsOn": "away-093",
+      "tier": "T3",
+      "scope": "approveVendorInvoiceImport CF + firestore.rules — Sonnet before push",
+      "acceptance": "approve/reject writes expected items only; Sonnet gate PASS",
+      "archivedFrom": "away-list.json orchestrator hygiene 2026-07-04"
     }
   ],
   "statusSnapshot": {

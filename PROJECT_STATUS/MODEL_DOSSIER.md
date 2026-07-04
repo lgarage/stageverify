@@ -60,7 +60,7 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd fail → Sonnet diagnose-only**; Composer implements after Sonnet returns.
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 11. **Away batches:** follow `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` — orchestrator runs verify; parallel scouts read-only only.
-11. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
+12. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
 
 ## § delivery-display-wiring (2026-06-23 — away-072/073 arc)
 

@@ -53,7 +53,7 @@
       "title": "§ agent-lessons",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
       "startLine": 46,
-      "endLine": 62,
+      "endLine": 63,
       "anchor": "## § agent-lessons"
     },
     {
@@ -61,8 +61,8 @@
       "tags": ["delivery-display-wiring"],
       "title": "§ delivery-display-wiring",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 63,
-      "endLine": 74,
+      "startLine": 65,
+      "endLine": 76,
       "anchor": "## § delivery-display-wiring"
     },
     {
@@ -70,8 +70,8 @@
       "tags": ["html5-qr-type", "qr-preview", "qr-perf", "diagnose-before-tweak"],
       "title": "Diagnose before tweak (appear vs tap)",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 75,
-      "endLine": 91,
+      "startLine": 77,
+      "endLine": 92,
       "anchor": "### Diagnose before tweak"
     },
     {
@@ -79,8 +79,8 @@
       "tags": ["composer-trace", "composer-without-sonnet"],
       "title": "§ Composer without Sonnet",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 92,
-      "endLine": 134,
+      "startLine": 94,
+      "endLine": 136,
       "anchor": "## § Composer without Sonnet"
     },
     {

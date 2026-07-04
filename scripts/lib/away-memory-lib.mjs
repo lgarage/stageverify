@@ -92,10 +92,44 @@ export function blockersOneLiner(blockers) {
   return `${blockers.length} active blockers: ${short.join("; ")}`;
 }
 
-/** @param {string} md */
+/**
+ * Parse Last shipped from CURRENT_STATE Snapshot.
+ * Accepts **away-NNN** or standalone **title** (standalone <hash>|chore).
+ * @param {string} md
+ * @returns {{ kind: "away", id: string } | { kind: "standalone", title: string, hash?: string } | null}
+ */
 export function parseLastShippedFromCurrentState(md) {
-  const match = md.match(/Last shipped:\s*\*\*(away-\d+)\*\*/i);
-  return match ? match[1] : null;
+  const lineMatch = md.match(/^- Last shipped:\s*(.+)$/m);
+  if (!lineMatch) return null;
+  const line = lineMatch[1];
+
+  const awayMatch = line.match(/\*\*(away-\d+)\*\*/i);
+  if (awayMatch) return { kind: "away", id: awayMatch[1] };
+
+  const standaloneHash = line.match(/\*\*(.+?)\*\*.*\(standalone\s+([a-f0-9]{6,40}|chore)\)/i);
+  if (standaloneHash) {
+    const hash = standaloneHash[2].toLowerCase();
+    return {
+      kind: "standalone",
+      title: standaloneHash[1].trim(),
+      ...(hash !== "chore" ? { hash } : {}),
+    };
+  }
+
+  const titleOnly = line.match(/\*\*(.+?)\*\*/);
+  if (titleOnly && !/\*\*away-\d+\*\*/i.test(line)) {
+    return { kind: "standalone", title: titleOnly[1].trim() };
+  }
+
+  return null;
+}
+
+/** @param {ReturnType<typeof parseLastShippedFromCurrentState>} parsed */
+export function formatLastShippedLabel(parsed) {
+  if (!parsed) return null;
+  if (parsed.kind === "away") return parsed.id;
+  if (parsed.hash) return `${parsed.title} (standalone ${parsed.hash})`;
+  return `${parsed.title} (standalone)`;
 }
 
 /** @param {string} md */

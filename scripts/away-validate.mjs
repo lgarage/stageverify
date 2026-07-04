@@ -67,6 +67,10 @@ function validateAwayList() {
       fail(`away-list.json: ${item.id} is done in active queue — remove or archive (active queue: queued/blocked/built only)`);
     }
 
+    if (item.status === "built") {
+      warn(`away-list.json: ${item.id} is built in active queue — archive to PROJECT_STATUS/archives/away-batch-3.json`);
+    }
+
     if (item.dependsOn && (item.status === "queued" || item.status === "built")) {
       const sequence = list.executionProtocol?.sequence ?? [];
       const pred = list.queue.find((q) => q.id === item.dependsOn);
@@ -123,6 +127,15 @@ function validateAwayStatus(list) {
     return status;
   }
 
+  const seenIds = new Set();
+  for (const row of status.results) {
+    if (!row?.id) continue;
+    if (seenIds.has(row.id)) {
+      fail(`away-status.json: duplicate id ${row.id}`);
+    }
+    seenIds.add(row.id);
+  }
+
   const statusById = new Map(status.results.map((r) => [r.id, r]));
 
   for (const item of list.queue) {
@@ -173,9 +186,11 @@ function validateNextIdSync(list, archive, statusDoc) {
   const lastInState = parseLastShippedFromCurrentState(currentState);
   const lastInStatus = deriveLastShippedFromStatus(statusDoc);
   if (!lastInState) {
-    fail("CURRENT_STATE.md: missing Last shipped: **away-NNN**");
-  } else if (lastInStatus && lastInState !== lastInStatus) {
-    fail(`CURRENT_STATE last shipped (${lastInState}) !== away-status last built (${lastInStatus})`);
+    fail("CURRENT_STATE.md: missing Last shipped (**away-NNN** or standalone **title** (standalone <hash>|chore))");
+  } else if (lastInState.kind === "away" && lastInStatus && lastInState.id !== lastInStatus) {
+    fail(
+      `CURRENT_STATE last shipped (${lastInState.id}) !== away-status last built (${lastInStatus})`,
+    );
   }
 }
 
@@ -190,8 +205,9 @@ function validateRoadmap() {
 
 function validateMemoryMd() {
   const md = readText(PATHS.memoryMd);
-  if (md.split("\n").length > 70) {
-    warn(`MEMORY.md: ${md.split("\n").length} lines (target ≤70)`);
+  const lineCount = md.split("\n").length;
+  if (lineCount > 70) {
+    warn(`MEMORY.md: ${lineCount} lines (target ≤70)`);
   }
   for (const pointer of [
     "CURRENT_STATE.md",
@@ -268,26 +284,22 @@ function validatePackageScripts() {
   }
 }
 
+function validateCurrentStateHotTier() {
+  const md = readText(PATHS.currentState);
+  const lineCount = md.split("\n").length;
+  if (lineCount > 35) {
+    warn(`CURRENT_STATE.md: ${lineCount} lines (hot-tier target ~30)`);
+  }
+}
+
 function validateDossierIndexRanges() {
   try {
     const index = loadDossierIndex();
     const drift = validateDossierIndex(index);
-    let hardDrift = 0;
-    for (const msg of drift) {
-      if (
-        msg.includes("endLine") ||
-        msg.includes("startLine must") ||
-        msg.includes("missing file")
-      ) {
-        fail(`dossier-index: ${msg}`);
-        hardDrift += 1;
-      } else {
-        warn(`dossier-index: ${msg}`);
-      }
-    }
-    if (hardDrift > 0) {
+    if (drift.length > 0) {
+      for (const msg of drift) fail(`dossier-index: ${msg}`);
       fail(
-        "dossier-index.json line ranges invalid for source files — update startLine/endLine in dossier-index.json",
+        "dossier-index.json line ranges drift from MODEL_DOSSIER.md — update startLine/endLine in dossier-index.json",
       );
     }
   } catch (err) {
@@ -378,6 +390,7 @@ function main() {
   validateArchive();
   validateRoadmap();
   validateMemoryMd();
+  validateCurrentStateHotTier();
   validatePackageScripts();
   validateDossierIndexRanges();
   validateContextIndexRanges();
