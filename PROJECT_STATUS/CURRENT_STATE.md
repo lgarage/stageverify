@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **stranded-processing TOCTOU** — transaction guard + emulator tests (`test:recover-stranded-processing`)
+- Last shipped: **away-098** — mini-librarian gotcha triggers + lessons index hygiene
+- Also shipped (standalone): stranded-processing TOCTOU — transaction guard + emulator tests (`test:recover-stranded-processing`, b0a2448)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
