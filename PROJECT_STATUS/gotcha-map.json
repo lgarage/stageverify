@@ -185,6 +185,16 @@
       "commands": []
     },
     {
+      "id": "best-reply",
+      "match": ["best reply", "best prompt", "handoff prompt", "first draft", "want me to improve", "challenge revise", "best-reply-gate"],
+      "orchestratorSteps": [],
+      "dossierTags": ["agent-lessons"],
+      "lessonsSection": "process-agents",
+      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/away-list.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md"],
+      "rules": ["best-reply-gate.mdc", "Final-Answer-Review-Gate.mdc", "suggestion-verify-gate.mdc"],
+      "commands": ["npm run away:next -- --minimal"]
+    },
+    {
       "id": "firebase-deploy",
       "match": ["firebase deploy", "cloud functions deploy", "functions:list", "CF deploy", "one deploy worker"],
       "orchestratorSteps": [6],

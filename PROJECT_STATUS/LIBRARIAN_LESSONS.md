@@ -28,6 +28,7 @@
 11. **One deploy worker** — after gate: coordinator serially `firebase functions:list` → deploy only if missing → verify; no parallel deploy subagents; interrupt duplicates on request.
 12. **Verify ship state before gate/deploy** — confirm `git rev-parse HEAD` vs `origin/main` and `firebase functions:list` for expected CF names; committed ≠ deployed.
 13. **Temp secret files** — `.tmp-*secret*` etc.: add to `.gitignore` at creation; delete before session end.
+14. **Best reply gate** — gather → draft → challenge → revise → present once; never v1 + "want improvements?"; handoffs self-contained with verified away-list IDs (`best-reply-gate.mdc`).
 
 ## Timing (pointer only)
 
