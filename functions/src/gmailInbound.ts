@@ -197,6 +197,26 @@ export interface GmailWatchResult {
   expiration: string;
 }
 
+export interface GmailPushNotification {
+  emailAddress: string;
+  historyId: string;
+}
+
+/** Decode Gmail Pub/Sub push payload (base64 JSON with emailAddress + historyId). */
+export function parseGmailPushNotification(base64Data: string): GmailPushNotification | null {
+  try {
+    const json = Buffer.from(base64Data, "base64").toString("utf8");
+    const data = JSON.parse(json) as Partial<GmailPushNotification>;
+    if (!data.emailAddress?.trim() || !data.historyId?.trim()) return null;
+    return {
+      emailAddress: data.emailAddress.trim().toLowerCase(),
+      historyId: data.historyId.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Register Gmail push watch — requires Pub/Sub topic configured in GCP. */
 export async function registerGmailWatch(
   accessToken: string,

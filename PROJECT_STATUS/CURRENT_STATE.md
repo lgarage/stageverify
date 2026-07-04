@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-091** — Reset Pickup Link drawer label (was Revoke Pickup Link)
+- Last shipped: **Gmail push ingest** — Pub/Sub `gmailInboxPushIngest` + watch on OAuth connect; bot inbox `svbotmail@gmail.com`
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -14,7 +14,7 @@
 1. **Minew ESL creds** — live ESL demo only (Phase 7).
 2. **Shelving decision (Jake Korb)** — shop map / location IDs.
 3. **Physical shop map** — not created.
-4. **Inbound Gmail CF + rules deploy** — code ready; Dan must approve `firebase deploy --only functions,firestore:rules`.
+4. **Inbound Gmail CF + rules deploy** — push ingest + watch renewal shipped in code; Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM, then `firebase deploy --only functions,firestore:rules`.
 
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.

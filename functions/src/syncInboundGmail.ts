@@ -1,6 +1,9 @@
 /**
- * Scheduled Gmail inbound sync — polls inbox for PDF invoice emails.
- * Fallback when push/watch is not configured; idempotent by gmailMessageId.
+ * Scheduled Gmail inbound sync — fallback poll for PDF invoice emails.
+ *
+ * Primary path: Gmail users.watch → Pub/Sub → gmailInboxPushIngest → runInboundGmailSync.
+ * This schedule runs every 30 minutes when push/watch is unavailable or as a safety net.
+ * Idempotent by gmailMessageId.
  */
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -145,7 +148,7 @@ export async function runInboundGmailSync(): Promise<{
 
 export const syncInboundGmail = onSchedule(
   {
-    schedule: "every 5 minutes",
+    schedule: "every 30 minutes",
     region: "us-central1",
     secrets: [gmailClientId, gmailClientSecret],
     timeoutSeconds: 300,

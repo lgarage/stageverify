@@ -151,7 +151,7 @@ export const EMAIL_FIXTURES: InboundEmailMessage[] = [
       "Correction to our earlier email: PO-45821 ORD-1007 for job 26-1042 is backordered on item 4x Duct section, not shipped as previously stated.",
     receivedAt: "2026-06-13T14:00:00Z",
   },
-  /** Demo dispatcher rows ORD-002..ORD-006 — Johnstone Reply-All after dispatcher CC'd svbot@gmail.com. */
+  /** Demo dispatcher rows ORD-002..ORD-006 — Johnstone Reply-All after dispatcher CC'd svbotmail@gmail.com. */
   {
     sourceMessageId: "msg-demo-ord002-la-crosse-partial",
     threadId: "thread-johnstone-po88392",

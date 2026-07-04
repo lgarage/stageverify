@@ -4,7 +4,7 @@
  *
  * Usage: npm run verify:inbound-email-ingest
  */
-import { findPdfAttachments, parseGmailHeaders } from "../functions/src/gmailInbound.ts";
+import { findPdfAttachments, parseGmailHeaders, parseGmailPushNotification } from "../functions/src/gmailInbound.ts";
 import { parseInboundInvoiceText } from "../functions/src/invoice/processInvoiceForInbound.ts";
 import { INVOICE_FIXTURES } from "../src/dispatcher/invoice/invoiceFixtures.ts";
 
@@ -90,6 +90,16 @@ const multiPdfMessage = {
 };
 const multi = findPdfAttachments(multiPdfMessage.payload);
 assert("finds two PDFs", multi.length === 2);
+
+console.log("\n5. Gmail Pub/Sub push notification decode");
+const pushPayload = Buffer.from(
+  JSON.stringify({ emailAddress: "svbotmail@gmail.com", historyId: "1234567890" }),
+  "utf8",
+).toString("base64");
+const push = parseGmailPushNotification(pushPayload);
+assert("push emailAddress", push?.emailAddress === "svbotmail@gmail.com");
+assert("push historyId", push?.historyId === "1234567890");
+assert("invalid push rejected", parseGmailPushNotification("not-json") === null);
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);
 if (failed > 0) process.exit(1);

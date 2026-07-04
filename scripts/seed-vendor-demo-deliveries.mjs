@@ -63,7 +63,7 @@ const DEMO_DELIVERIES = [
       deliveryDate: today,
       status: "pending",
       issueSummary: "",
-      notes: "Email ingest (svbot@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged.",
+      notes: "Email ingest (svbotmail@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged.",
       createdAt: now,
       updatedAt: now,
     },
@@ -112,7 +112,7 @@ const DEMO_DELIVERIES = [
       status: "shipped",
       issueSummary: "",
       notes:
-        "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6164100 — TRUCK STOCK PICKUP shipped. Assign staging before check-in.",
+        "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6164100 — TRUCK STOCK PICKUP shipped. Assign staging before check-in.",
       createdAt: now,
       updatedAt: now,
     },

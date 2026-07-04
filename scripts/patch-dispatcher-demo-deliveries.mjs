@@ -82,7 +82,7 @@ const deliveries = {
     status: "partial",
     issueSummary: "1 item backordered",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6163986 — Customer P/O La Crosse PF. Partial ship + line 2 backorder. Dispatcher: confirm split vs ship-complete hold.",
+      "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6163986 — Customer P/O La Crosse PF. Partial ship + line 2 backorder. Dispatcher: confirm split vs ship-complete hold.",
     updatedAt: "2026-06-01T11:20:00Z",
   },
   "delivery-3": {
@@ -100,7 +100,7 @@ const deliveries = {
     availabilityStatus: "received",
     issueSummary: "Received qty below vendor ship qty",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6164304 claimed 3× thermostat shipped; shop receipt shows 2. Dispatcher: reconcile lines before readiness.",
+      "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6164304 claimed 3× thermostat shipped; shop receipt shows 2. Dispatcher: reconcile lines before readiness.",
     updatedAt: "2026-06-02T07:45:00Z",
   },
   "delivery-demo-vendor-1": {
@@ -115,7 +115,7 @@ const deliveries = {
     status: "pending",
     issueSummary: "",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged. Assign staging when material arrives (orange row).",
+      "Email ingest (svbotmail@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged. Assign staging when material arrives (orange row).",
     updatedAt: "2026-06-02T12:00:00Z",
   },
   "delivery-demo-vendor-2": {
@@ -130,7 +130,7 @@ const deliveries = {
     status: "shipped",
     issueSummary: "",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6164100 — Customer P/O TRUCK STOCK PICKUP shipped on truck. Driver ETA 2–4 pm. Assign staging before check-in.",
+      "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6164100 — Customer P/O TRUCK STOCK PICKUP shipped on truck. Driver ETA 2–4 pm. Assign staging before check-in.",
     updatedAt: "2026-06-03T06:30:00Z",
   },
 };

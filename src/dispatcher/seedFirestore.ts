@@ -225,7 +225,7 @@ const deliveryOrders: DeliveryOrder[] = [
     status: "partial",
     issueSummary: "1 item backordered",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6163986 — Customer P/O La Crosse PF. Partial ship + line 2 backorder. Dispatcher: confirm split vs ship-complete hold.",
+      "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6163986 — Customer P/O La Crosse PF. Partial ship + line 2 backorder. Dispatcher: confirm split vs ship-complete hold.",
     createdAt: "2026-05-28T09:00:00Z",
     updatedAt: "2026-06-01T11:20:00Z",
   },
@@ -244,7 +244,7 @@ const deliveryOrders: DeliveryOrder[] = [
     availabilityStatus: "received",
     issueSummary: "Received qty below vendor ship qty",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6164304 claimed 3× thermostat shipped; shop receipt shows 2. Dispatcher: reconcile lines before readiness.",
+      "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6164304 claimed 3× thermostat shipped; shop receipt shows 2. Dispatcher: reconcile lines before readiness.",
     createdAt: "2026-05-30T14:00:00Z",
     updatedAt: "2026-06-02T07:45:00Z",
   },
@@ -259,7 +259,7 @@ const deliveryOrders: DeliveryOrder[] = [
     status: "pending",
     issueSummary: "",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged. Assign staging when material arrives (orange row).",
+      "Email ingest (svbotmail@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged. Assign staging when material arrives (orange row).",
     createdAt: "2026-06-02T12:00:00Z",
     updatedAt: "2026-06-02T12:00:00Z",
   },
@@ -274,7 +274,7 @@ const deliveryOrders: DeliveryOrder[] = [
     status: "shipped",
     issueSummary: "",
     notes:
-      "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6164100 — Customer P/O TRUCK STOCK PICKUP shipped on truck. Driver ETA 2–4 pm. Assign staging before check-in.",
+      "Email ingest (svbotmail@gmail.com): Johnstone Reply-All SO#6164100 — Customer P/O TRUCK STOCK PICKUP shipped on truck. Driver ETA 2–4 pm. Assign staging before check-in.",
     createdAt: "2026-06-02T16:00:00Z",
     updatedAt: "2026-06-03T06:30:00Z",
   },

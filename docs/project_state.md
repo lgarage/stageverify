@@ -183,16 +183,34 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Deploy inbound Gmail ingestion** — `firebase deploy --only functions,firestore:rules` after Dan approval; set `GMAIL_PUBSUB_TOPIC` optional for push watch.
-2. **Post-deploy:** reconnect Gmail if needed; call `registerGmailWatchCallable` or rely on `syncInboundGmail` (every 5 min poll).
-3. **ESL integration** — Phase 7; blocked on Minew credentials.
-4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
+1. **Configure Gmail push ingest (Dan)** — create Pub/Sub topic `gmail-inbox-notifications`, grant `gmail-api-push@system.gserviceaccount.com` Publisher on topic, set secret `GMAIL_PUBSUB_TOPIC=projects/stageverify-db/topics/gmail-inbox-notifications`, deploy CF, reconnect Gmail OAuth.
+2. **Deploy inbound Gmail ingestion** — `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
+3. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
+4. **ESL integration** — Phase 7; blocked on Minew credentials.
+5. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
+
+### Gmail push ingest — Dan GCP checklist
+
+| Step | Action |
+|------|--------|
+| 1 | Create Pub/Sub topic **`gmail-inbox-notifications`** in project **`stageverify-db`**. |
+| 2 | Grant **`roles/pubsub.publisher`** on that topic to **`gmail-api-push@system.gserviceaccount.com`**. |
+| 3 | Set Firebase secret: `firebase functions:secrets:set GMAIL_PUBSUB_TOPIC` → `projects/stageverify-db/topics/gmail-inbox-notifications` |
+| 4 | Deploy: `firebase deploy --only functions,firestore:rules --project stageverify-db` |
+| 5 | Reconnect Gmail in Settings (registers `users.watch` + initial sync). Callable **`registerGmailWatchCallable`** available for manual re-register. |
+| 6 | **`renewGmailWatch`** runs daily (~7-day watch expiry). **`gmailInboxPushIngest`** is primary ingest; **`syncInboundGmail`** polls every 30 min as fallback. |
+
+No manual push subscription to Cloud Functions — Firebase Eventarc subscribes to the topic when **`gmailInboxPushIngest`** deploys.
+
+**Canonical ingest inbox:** `svbotmail@gmail.com` (CC vendor order emails; OAuth mailbox should match or forward to it).
 
 ---
 
 ## Recently shipped (away)
 
-**Inbound Gmail invoice ingest foundation (2026-07-04)** — M1+M2 code: `syncInboundGmail` scheduled poll, PDF text extract (`pdf-parse`), `inboundEmailProcessing` + `vendorInvoiceImports` review queue, Johnstone parser wired review-only (no delivery writes). Callable inspect: `listInboundEmailProcessing`, `getInboundEmailProcessing`, `listVendorInvoiceImports`. Verify: `npm run verify:inbound-email-ingest`. **Not deployed** — CF + rules await Dan approval.
+**Gmail push ingest + svbotmail (2026-07-04)** — Primary ingest: `gmailInboxPushIngest` (Pub/Sub from `users.watch`), watch on OAuth connect + daily `renewGmailWatch`. Fallback poll `syncInboundGmail` every 30 min. Canonical bot inbox **`svbotmail@gmail.com`**. Verify: `npm run verify:inbound-email-ingest`. Deploy after Dan configures `GMAIL_PUBSUB_TOPIC` + topic IAM.
+
+**Inbound Gmail invoice ingest foundation (2026-07-04)** — M1+M2 code: PDF text extract (`pdf-parse`), `inboundEmailProcessing` + `vendorInvoiceImports` review queue, Johnstone parser wired review-only (no delivery writes). Callable inspect: `listInboundEmailProcessing`, `getInboundEmailProcessing`, `listVendorInvoiceImports`.
 
 **away-084 (2026-07-03)** — Mini-librarian phase 3: `PROJECT_STATUS/gotcha-map.json` maps task triggers to composer-orchestrator steps 6–8 (MODEL_DOSSIER index, § agent-lessons, USER_SCOPE_REJECTIONS). New `npm run context:gotcha -- --task "<…>"` CLI (JSON/markdown); validated in `away:validate`. Corrects prior mislabel — drawer UI work was never librarian scope. Verify: `away:validate`, `build`.
 

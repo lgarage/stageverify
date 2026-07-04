@@ -22,6 +22,7 @@ import {
   disconnectGmailOAuth,
 } from "./dispatcher/firestoreService";
 import type { EmailProviderConnection } from "./dispatcher/models";
+import { STAGEVERIFY_BOT_INBOX } from "./dispatcher/email/stageverifyBotInbox";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -916,7 +917,8 @@ export function SettingsPage() {
                       }}
                     >
                       StageVerify monitors the connected Gmail mailbox for vendor
-                      emails.
+                      emails. CC or forward vendor order emails to{" "}
+                      <strong>{STAGEVERIFY_BOT_INBOX}</strong> (recommended ingest inbox).
                     </p>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {gmailStatus === "token_expired" && (
@@ -1076,9 +1078,9 @@ export function SettingsPage() {
                       maxWidth: 560,
                     }}
                   >
-                    Connect Gmail for vendor email send/receive. Set a monitoring inbox
-                    address below, or connect first — the connected account becomes the
-                    monitored mailbox.
+                    Connect Gmail for vendor email send/receive. Recommended monitoring inbox:{" "}
+                    <strong>{STAGEVERIFY_BOT_INBOX}</strong>. Set an address below, or connect
+                    first — the connected account becomes the monitored mailbox.
                   </p>
                   <div
                     style={{
@@ -1181,7 +1183,7 @@ export function SettingsPage() {
                         type="email"
                         value={monitoringInboxEmail}
                         onChange={(e) => setMonitoringInboxEmail(e.target.value)}
-                        placeholder="orders@yourshop.com"
+                        placeholder={STAGEVERIFY_BOT_INBOX}
                         style={inputStyle}
                       />
                     </div>

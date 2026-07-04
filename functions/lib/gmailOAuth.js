@@ -16,6 +16,7 @@ const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const params_1 = require("firebase-functions/params");
 const https_1 = require("firebase-functions/v2/https");
+const gmailWatchShared_1 = require("./gmailWatchShared");
 const gmailClientId = (0, params_1.defineSecret)("GMAIL_OAUTH_CLIENT_ID");
 const gmailClientSecret = (0, params_1.defineSecret)("GMAIL_OAUTH_CLIENT_SECRET");
 const gmailRedirectUri = (0, params_1.defineSecret)("GMAIL_OAUTH_REDIRECT_URI");
@@ -197,7 +198,7 @@ exports.initiateGmailOAuth = (0, https_1.onCall)({
 });
 exports.completeGmailOAuth = (0, https_1.onRequest)({
     region: "us-central1",
-    secrets: [gmailClientId, gmailClientSecret, gmailRedirectUri],
+    secrets: [gmailClientId, gmailClientSecret, gmailRedirectUri, gmailWatchShared_1.gmailPubsubTopic],
 }, async (req, res) => {
     const db = getDb();
     const fallbackRedirect = "https://lgarage.github.io/stageverify/#/settings?gmailOAuth=error&reason=unknown";
@@ -250,6 +251,20 @@ exports.completeGmailOAuth = (0, https_1.onRequest)({
         });
         await writeAuditEvent(db, "connected", stateData.uid, accountEmail);
         await stateSnap.ref.delete();
+        const topicName = (0, gmailWatchShared_1.getGmailPubsubTopicName)();
+        if (topicName) {
+            try {
+                await (0, gmailWatchShared_1.registerGmailWatchForConnection)(db, {
+                    accessToken: tokens.accessToken,
+                    topicName,
+                    runInitialSync: true,
+                });
+            }
+            catch (watchErr) {
+                const watchMessage = watchErr instanceof Error ? watchErr.message : String(watchErr);
+                console.warn("completeGmailOAuth: watch registration failed (poll fallback active):", watchMessage);
+            }
+        }
         res.redirect(302, settingsReturnUrl(stateData.returnUrl, "gmailOAuth=success"));
     }
     catch (err) {

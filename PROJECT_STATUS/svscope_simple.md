@@ -248,7 +248,7 @@ Gavin or another dispatcher intentionally sends or CCs vendor order emails to th
 
 An example inbox could be:
 
-[svbot@gmail.com](mailto:svbot@gmail.com)
+[svbotmail@gmail.com](mailto:svbotmail@gmail.com)
 
 The inbox address must be configurable and must not be hard-coded into StageVerify.
 

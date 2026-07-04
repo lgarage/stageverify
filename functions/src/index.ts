@@ -22,6 +22,8 @@ import {
 import { sendVendorEmail } from "./sendVendorEmail";
 import { syncInboundGmail } from "./syncInboundGmail";
 import { registerGmailWatchCallable } from "./registerGmailWatch";
+import { gmailInboxPushIngest } from "./gmailPubSubIngest";
+import { renewGmailWatch } from "./renewGmailWatch";
 import {
   listInboundEmailProcessing,
   getInboundEmailProcessing,
@@ -160,6 +162,8 @@ export {
   sendVendorEmail,
   syncInboundGmail,
   registerGmailWatchCallable,
+  gmailInboxPushIngest,
+  renewGmailWatch,
   listInboundEmailProcessing,
   getInboundEmailProcessing,
   listVendorInvoiceImports,

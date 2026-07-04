@@ -13,6 +13,11 @@ import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
 import { defineSecret } from "firebase-functions/params";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import {
+  getGmailPubsubTopicName,
+  gmailPubsubTopic,
+  registerGmailWatchForConnection,
+} from "./gmailWatchShared";
 
 const gmailClientId = defineSecret("GMAIL_OAUTH_CLIENT_ID");
 const gmailClientSecret = defineSecret("GMAIL_OAUTH_CLIENT_SECRET");
@@ -243,7 +248,7 @@ export const initiateGmailOAuth = onCall(
 export const completeGmailOAuth = onRequest(
   {
     region: "us-central1",
-    secrets: [gmailClientId, gmailClientSecret, gmailRedirectUri],
+    secrets: [gmailClientId, gmailClientSecret, gmailRedirectUri, gmailPubsubTopic],
   },
   async (req, res) => {
     const db = getDb();
@@ -333,6 +338,24 @@ export const completeGmailOAuth = onRequest(
 
       await writeAuditEvent(db, "connected", stateData.uid, accountEmail);
       await stateSnap.ref.delete();
+
+      const topicName = getGmailPubsubTopicName();
+      if (topicName) {
+        try {
+          await registerGmailWatchForConnection(db, {
+            accessToken: tokens.accessToken,
+            topicName,
+            runInitialSync: true,
+          });
+        } catch (watchErr) {
+          const watchMessage =
+            watchErr instanceof Error ? watchErr.message : String(watchErr);
+          console.warn(
+            "completeGmailOAuth: watch registration failed (poll fallback active):",
+            watchMessage,
+          );
+        }
+      }
 
       res.redirect(
         302,

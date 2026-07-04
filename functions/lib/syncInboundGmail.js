@@ -3,8 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.syncInboundGmail = void 0;
 exports.runInboundGmailSync = runInboundGmailSync;
 /**
- * Scheduled Gmail inbound sync — polls inbox for PDF invoice emails.
- * Fallback when push/watch is not configured; idempotent by gmailMessageId.
+ * Scheduled Gmail inbound sync — fallback poll for PDF invoice emails.
+ *
+ * Primary path: Gmail users.watch → Pub/Sub → gmailInboxPushIngest → runInboundGmailSync.
+ * This schedule runs every 30 minutes when push/watch is unavailable or as a safety net.
+ * Idempotent by gmailMessageId.
  */
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -112,7 +115,7 @@ async function runInboundGmailSync() {
     return { processed, skipped, errors };
 }
 exports.syncInboundGmail = (0, scheduler_1.onSchedule)({
-    schedule: "every 5 minutes",
+    schedule: "every 30 minutes",
     region: "us-central1",
     secrets: [gmailApi_1.gmailClientId, gmailApi_1.gmailClientSecret],
     timeoutSeconds: 300,

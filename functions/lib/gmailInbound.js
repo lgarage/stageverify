@@ -9,6 +9,7 @@ exports.downloadGmailAttachment = downloadGmailAttachment;
 exports.listRecentInboxMessageIds = listRecentInboxMessageIds;
 exports.listGmailHistory = listGmailHistory;
 exports.getGmailProfile = getGmailProfile;
+exports.parseGmailPushNotification = parseGmailPushNotification;
 exports.registerGmailWatch = registerGmailWatch;
 exports.gmailOAuthSecretsConfigured = gmailOAuthSecretsConfigured;
 exports.decodeGmailBodyData = decodeGmailBodyData;
@@ -136,6 +137,22 @@ async function listGmailHistory(accessToken, startHistoryId) {
 }
 async function getGmailProfile(accessToken) {
     return gmailJson(accessToken, "/profile");
+}
+/** Decode Gmail Pub/Sub push payload (base64 JSON with emailAddress + historyId). */
+function parseGmailPushNotification(base64Data) {
+    try {
+        const json = Buffer.from(base64Data, "base64").toString("utf8");
+        const data = JSON.parse(json);
+        if (!data.emailAddress?.trim() || !data.historyId?.trim())
+            return null;
+        return {
+            emailAddress: data.emailAddress.trim().toLowerCase(),
+            historyId: data.historyId.trim(),
+        };
+    }
+    catch {
+        return null;
+    }
 }
 /** Register Gmail push watch — requires Pub/Sub topic configured in GCP. */
 async function registerGmailWatch(accessToken, topicName) {
