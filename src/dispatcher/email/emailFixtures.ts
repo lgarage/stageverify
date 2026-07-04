@@ -1,4 +1,8 @@
 import type { InboundEmailMessage } from "./types";
+import {
+  DISPATCHER_DEMO_EMAIL,
+  STAGEVERIFY_BOT_INBOX,
+} from "./stageverifyBotInbox";
 
 /** Controlled fixtures for email parser/matcher tests — not production data. */
 export const EMAIL_FIXTURES: InboundEmailMessage[] = [
@@ -147,6 +151,69 @@ export const EMAIL_FIXTURES: InboundEmailMessage[] = [
       "Correction to our earlier email: PO-45821 ORD-1007 for job 26-1042 is backordered on item 4x Duct section, not shipped as previously stated.",
     receivedAt: "2026-06-13T14:00:00Z",
   },
+  /** Demo dispatcher rows ORD-002..ORD-006 — Johnstone Reply-All after dispatcher CC'd svbot@gmail.com. */
+  {
+    sourceMessageId: "msg-demo-ord002-la-crosse-partial",
+    threadId: "thread-johnstone-po88392",
+    senderEmail: "dispatch@johnstone.com",
+    recipientEmails: [DISPATCHER_DEMO_EMAIL, STAGEVERIFY_BOT_INBOX],
+    subject: "Re: PO-88392 La Crosse PF — partial ship SO#6163986",
+    bodyText:
+      "Reply-All from Johnstone Sioux Falls (605-338-2652):\n\n" +
+      "Sales Order #: 6163986 | Invoice #: 6163986 | Customer P/O #: La Crosse PF\n" +
+      "ORD-002 | PO-88392 | JOB-2026-0389 Oakwood Office Park\n\n" +
+      "LN  PRODUCT      ORD  SHIP  B/O  DESCRIPTION\n" +
+      "1  NS10762605    1    1     0   GREENHECK FAN 105105\n" +
+      "2  NS99999999    1    0     1   BACKORDERED PART — 2 DAY LEAD\n\n" +
+      "Ship Via: TRUCK DELIVE. Partial shipment — remainder when backorder releases.",
+    receivedAt: "2026-06-01T09:45:00Z",
+  },
+  {
+    sourceMessageId: "msg-demo-ord004-qty-mismatch",
+    threadId: "thread-johnstone-po88393",
+    senderEmail: "dispatch@johnstone.com",
+    recipientEmails: [DISPATCHER_DEMO_EMAIL, STAGEVERIFY_BOT_INBOX],
+    subject: "Re: PO-88393 La Crosse PF — shipped SO#6164304",
+    bodyText:
+      "Reply-All — Johnstone Sioux Falls:\n\n" +
+      "Sales Order #: 6164304 | Customer P/O #: La Crosse PF | ORD-004 | PO-88393\n" +
+      "JOB-2026-0450 Downtown Highrise\n\n" +
+      "Shipped on truck today:\n" +
+      "3× L46-668 TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK\n" +
+      "1× B86-380 4050-08 SEALANT REFRIGERATIO EASYSEAL\n\n" +
+      "Dispatcher: reconcile shop receipt if received qty differs from invoice ship qty.",
+    receivedAt: "2026-06-02T07:30:00Z",
+  },
+  {
+    sourceMessageId: "msg-demo-ord005-planet-fitness-pickup",
+    threadId: "thread-johnstone-po88390",
+    senderEmail: "dispatch@johnstone.com",
+    recipientEmails: [DISPATCHER_DEMO_EMAIL, STAGEVERIFY_BOT_INBOX],
+    subject: "Re: PO-88390 PLANET FITNESS PICKUP — will-call SO#6164159",
+    bodyText:
+      "Reply-All — Johnstone Sioux Falls will-call (not truck delivery):\n\n" +
+      "Sales Order #: 6164159 | Customer P/O #: PLANET FITNESS PICKUP | ORD-005 | PO-88390\n" +
+      "JOB-2026-0421 Riverside Medical Center\n\n" +
+      "1× L46-668 TH8320R1003/U THERMOSTAT\n" +
+      "6× B86-380 EASYSEAL\n" +
+      "2× L46-100 FILTER DRIER\n\n" +
+      "Awaiting pickup / delivery check-in. Assign staging when material arrives at shop.",
+    receivedAt: "2026-06-02T11:50:00Z",
+  },
+  {
+    sourceMessageId: "msg-demo-ord006-truck-stock-shipped",
+    threadId: "thread-johnstone-po88394",
+    senderEmail: "dispatch@johnstone.com",
+    recipientEmails: [DISPATCHER_DEMO_EMAIL, STAGEVERIFY_BOT_INBOX],
+    subject: "Re: PO-88394 TRUCK STOCK PICKUP — shipped SO#6164100",
+    bodyText:
+      "Reply-All — Johnstone Sioux Falls:\n\n" +
+      "Sales Order #: 6164100 | Customer P/O #: TRUCK STOCK PICKUP | ORD-006 | PO-88394\n" +
+      "JOB-2026-0389 Oakwood Office Park | Ship Via: truck\n\n" +
+      "1× L46-100 TEST-001 FILTER DRIER — shipped, driver ETA 2–4 pm.\n\n" +
+      "Material not yet checked in at shop — assign staging location before DELIVERED tap.",
+    receivedAt: "2026-06-03T06:00:00Z",
+  },
 ];
 
 export const MULTI_VENDOR_MATCH_CONTEXT = {
@@ -156,6 +223,12 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
       name: "Johnstone Supply",
       email: "dispatch@johnstone.com",
       createdAt: "2026-01-01T00:00:00Z",
+    },
+    {
+      id: "vendor-1",
+      name: "Johnstone Supply",
+      email: "dispatch@johnstone.com",
+      createdAt: "2026-05-01T08:00:00Z",
     },
     {
       id: "vendor-first",
@@ -178,6 +251,30 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
   ],
   jobs: [
     {
+      id: "job-1",
+      jobNumber: "JOB-2026-0421",
+      jobName: "Riverside Medical Center",
+      status: "active" as const,
+      createdAt: "2026-05-20T08:00:00Z",
+      updatedAt: "2026-05-29T15:00:00Z",
+    },
+    {
+      id: "job-2",
+      jobNumber: "JOB-2026-0389",
+      jobName: "Oakwood Office Park",
+      status: "active" as const,
+      createdAt: "2026-05-18T09:00:00Z",
+      updatedAt: "2026-05-28T10:10:00Z",
+    },
+    {
+      id: "job-3",
+      jobNumber: "JOB-2026-0450",
+      jobName: "Downtown Highrise",
+      status: "active" as const,
+      createdAt: "2026-05-22T13:30:00Z",
+      updatedAt: "2026-05-30T09:30:00Z",
+    },
+    {
       id: "job-261042",
       jobNumber: "26-1042",
       jobName: "Multi-vendor readiness fixture",
@@ -187,6 +284,34 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
     },
   ],
   purchaseOrders: [
+    {
+      id: "po-4",
+      poNumber: "PO-88392",
+      jobId: "job-2",
+      vendorId: "vendor-1",
+      status: "partially_received" as const,
+    },
+    {
+      id: "po-5",
+      poNumber: "PO-88393",
+      jobId: "job-3",
+      vendorId: "vendor-1",
+      status: "partially_received" as const,
+    },
+    {
+      id: "po-6",
+      poNumber: "PO-88394",
+      jobId: "job-2",
+      vendorId: "vendor-1",
+      status: "open" as const,
+    },
+    {
+      id: "po-demo-vendor-1",
+      poNumber: "PO-88390",
+      jobId: "job-1",
+      vendorId: "vendor-1",
+      status: "open" as const,
+    },
     {
       id: "po-johnstone-45821",
       poNumber: "PO-45821",
@@ -224,6 +349,51 @@ export const MULTI_VENDOR_MATCH_CONTEXT = {
     },
   ],
   deliveries: [
+    {
+      id: "delivery-2",
+      orderNumber: "ORD-002",
+      jobId: "job-2",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-4",
+      deliveryDate: "2026-06-01",
+      status: "partial" as const,
+      createdAt: "2026-05-28T09:00:00Z",
+      updatedAt: "2026-06-01T11:20:00Z",
+    },
+    {
+      id: "delivery-3",
+      orderNumber: "ORD-004",
+      jobId: "job-3",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-5",
+      deliveryDate: "2026-06-02",
+      stagingLocationId: "staging-4",
+      status: "partial" as const,
+      createdAt: "2026-05-30T14:00:00Z",
+      updatedAt: "2026-06-02T07:45:00Z",
+    },
+    {
+      id: "delivery-demo-vendor-1",
+      orderNumber: "ORD-005",
+      jobId: "job-1",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-demo-vendor-1",
+      deliveryDate: "2026-06-02",
+      status: "pending" as const,
+      createdAt: "2026-06-02T12:00:00Z",
+      updatedAt: "2026-06-02T12:00:00Z",
+    },
+    {
+      id: "delivery-demo-vendor-2",
+      orderNumber: "ORD-006",
+      jobId: "job-2",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-6",
+      deliveryDate: "2026-06-03",
+      status: "shipped" as const,
+      createdAt: "2026-06-02T16:00:00Z",
+      updatedAt: "2026-06-03T06:30:00Z",
+    },
     {
       id: "del-johnstone-1007",
       orderNumber: "ORD-1007",

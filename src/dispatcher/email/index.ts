@@ -3,6 +3,7 @@ export * from "./parseVendorEmail";
 export * from "./matchEmailToRecords";
 export * from "./processEmailMessage";
 export * from "./emailFixtures";
+export * from "./stageverifyBotInbox";
 export * from "./getProposedEmailUpdates";
 export * from "./emailReviewHelpers";
 export * from "./NeedsReviewEmailStrip";

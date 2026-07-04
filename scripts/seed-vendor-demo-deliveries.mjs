@@ -63,7 +63,7 @@ const DEMO_DELIVERIES = [
       deliveryDate: today,
       status: "pending",
       issueSummary: "",
-      notes: "Vendor demo — Ordered, awaiting truck. Driver scans delivery QR and taps DELIVERED.",
+      notes: "Email ingest (svbot@gmail.com): Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP. Vendor demo QR unchanged.",
       createdAt: now,
       updatedAt: now,
     },
@@ -79,20 +79,20 @@ const DEMO_DELIVERIES = [
     items: [
       {
         id: "item-demo-v1-1",
-        sku: "AHU-3T",
-        description: "Air handler 3-ton horizontal",
+        sku: "L46-668",
+        description: "TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK",
         qtyOrdered: 1,
       },
       {
         id: "item-demo-v1-2",
-        sku: "FILT-16x25",
-        description: "Filter rack 16x25 MERV 11",
+        sku: "B86-380",
+        description: "4050-08 SEALANT REFRIGERATIO EASYSEAL",
         qtyOrdered: 6,
       },
       {
         id: "item-demo-v1-3",
-        sku: "CTRL-BAS",
-        description: "BAS controller module",
+        sku: "L46-100",
+        description: "TEST-001 FILTER DRIER",
         qtyOrdered: 2,
       },
     ],
@@ -105,37 +105,24 @@ const DEMO_DELIVERIES = [
     delivery: {
       id: "delivery-demo-vendor-2",
       orderNumber: "ORD-006",
-      jobId: "job-3",
-      vendorId: "vendor-3",
-      purchaseOrderId: "po-demo-vendor-2",
+      jobId: "job-2",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-6",
       deliveryDate: today,
       status: "shipped",
       issueSummary: "",
-      notes: "Vendor demo — Shipped, driver en route. Scan QR and tap DELIVERED when dropped off.",
+      notes:
+        "Email ingest (svbot@gmail.com): Johnstone Reply-All SO#6164100 — TRUCK STOCK PICKUP shipped. Assign staging before check-in.",
       createdAt: now,
       updatedAt: now,
     },
-    purchaseOrder: {
-      id: "po-demo-vendor-2",
-      poNumber: "PO-88391",
-      jobId: "job-3",
-      vendorId: "vendor-3",
-      orderDate: today,
-      expectedDeliveryDate: today,
-      status: "open",
-    },
+    purchaseOrder: null,
     items: [
       {
         id: "item-demo-v2-1",
-        sku: "VAV-12",
-        description: "VAV box 12 inch",
-        qtyOrdered: 4,
-      },
-      {
-        id: "item-demo-v2-2",
-        sku: "SENS-TEMP",
-        description: "Duct temperature sensor",
-        qtyOrdered: 8,
+        sku: "L46-100",
+        description: "TEST-001 FILTER DRIER",
+        qtyOrdered: 1,
       },
     ],
     history: {
@@ -201,7 +188,9 @@ function historyDoc(entityId, spec) {
     }
 
     const batch = writeBatch(db);
-    batch.set(doc(db, "purchaseOrders", demo.purchaseOrder.id), demo.purchaseOrder);
+    if (demo.purchaseOrder) {
+      batch.set(doc(db, "purchaseOrders", demo.purchaseOrder.id), demo.purchaseOrder);
+    }
     batch.set(doc(db, "deliveries", deliveryId), demo.delivery);
     for (const row of demo.items) {
       batch.set(doc(db, "items", row.id), itemDoc(deliveryId, row));

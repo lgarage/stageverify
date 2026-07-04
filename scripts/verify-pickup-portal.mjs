@@ -521,9 +521,9 @@ async function assertPickupItemPoLabels(page) {
     );
   }
   const cardBody = await page.locator("body").innerText();
-  if (/Ferguson HVAC/i.test(cardBody)) {
+  if (/Johnstone Supply/i.test(cardBody)) {
     throw new Error(
-      "Pickup item row FAIL: vendor name Ferguson HVAC should be hidden on delivery-3 card.",
+      "Pickup item row FAIL: vendor name Johnstone Supply should be hidden on delivery-3 card.",
     );
   }
   console.log("Pickup item PO PASS: PO prefix visible on item row; vendor hidden.");

@@ -22,6 +22,7 @@
     "seed:vendor-demo": "node scripts/seed-vendor-demo-deliveries.mjs",
     "verify:vendor-demo": "node scripts/verify-vendor-demo.mjs",
     "seed:vendor-pins": "node scripts/seed-vendor-pin-data.mjs",
+    "patch:dispatcher-demos": "node scripts/patch-dispatcher-demo-deliveries.mjs",
     "verify:vendor-pin": "node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-pin.mjs",
     "verify:vendor-pin:prod": "node scripts/verify-vendor-pin.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:vendor-demo:prod": "node scripts/verify-vendor-demo.mjs --base-url=https://lgarage.github.io/stageverify",

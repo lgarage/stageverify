@@ -202,7 +202,7 @@ const ord005Items = [
   {
     id: "item-demo-v1-1",
     deliveryOrderId: "delivery-demo-vendor-1",
-    description: "Air handler 3-ton horizontal",
+    description: "TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK",
     qtyOrdered: 1,
     qtyReceived: 0,
     qtyMissing: 1,
@@ -213,7 +213,7 @@ const ord005Items = [
   {
     id: "item-demo-v1-2",
     deliveryOrderId: "delivery-demo-vendor-1",
-    description: "Filter rack 16x25 MERV 11",
+    description: "4050-08 SEALANT REFRIGERATIO EASYSEAL",
     qtyOrdered: 6,
     qtyReceived: 0,
     qtyMissing: 6,
@@ -224,7 +224,7 @@ const ord005Items = [
   {
     id: "item-demo-v1-3",
     deliveryOrderId: "delivery-demo-vendor-1",
-    description: "BAS controller module",
+    description: "TEST-001 FILTER DRIER",
     qtyOrdered: 2,
     qtyReceived: 0,
     qtyMissing: 2,
@@ -370,9 +370,9 @@ const partialItems = [
   {
     id: "item-7",
     deliveryOrderId: "delivery-3",
-    description: "Pump circulator 5HP",
-    qtyOrdered: 2,
-    qtyReceived: 1,
+    description: "TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK",
+    qtyOrdered: 3,
+    qtyReceived: 2,
     qtyMissing: 1,
     qtyDamaged: 0,
     qtyBackordered: 0,
@@ -381,7 +381,7 @@ const partialItems = [
   {
     id: "item-6",
     deliveryOrderId: "delivery-3",
-    description: "Chiller 50-ton modular",
+    description: "4050-08 SEALANT REFRIGERATIO EASYSEAL",
     qtyOrdered: 1,
     qtyReceived: 1,
     qtyMissing: 0,
@@ -421,10 +421,10 @@ assert(
 );
 assert(
   buildIssueSummaryPanelData(partialDelivery, partialItems, [])
-    .itemsReceivedCount === 2 &&
+    .itemsReceivedCount === 3 &&
     buildIssueSummaryPanelData(partialDelivery, partialItems, [])
-      .itemsTotalCount === 3,
-  "partial delivery unit counts 2 of 3",
+      .itemsTotalCount === 4,
+  "partial delivery unit counts 3 of 4",
 );
 const partialBanner = buildDrawerActionBannerContent(
   partialDelivery,

@@ -53,10 +53,10 @@ const vendors = [
 
 const deliveries = [
   { id: "delivery-1", vendorName: "Johnstone Supply", pin: "1234" },
-  { id: "delivery-2", vendorName: "First Supply", pin: "2345" },
-  { id: "delivery-3", vendorName: "Ferguson HVAC", pin: "3456" },
+  { id: "delivery-2", vendorName: "Johnstone Supply", pin: "1234" },
+  { id: "delivery-3", vendorName: "Johnstone Supply", pin: "1234" },
   { id: "delivery-demo-vendor-1", vendorName: "Johnstone Supply", pin: "1234" },
-  { id: "delivery-demo-vendor-2", vendorName: "Ferguson HVAC", pin: "3456" },
+  { id: "delivery-demo-vendor-2", vendorName: "Johnstone Supply", pin: "1234" },
 ];
 
 const now = new Date().toISOString();
