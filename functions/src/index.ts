@@ -29,6 +29,7 @@ import {
   getInboundEmailProcessing,
   listVendorInvoiceImports,
 } from "./inboundEmailProcessingApi";
+import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -167,4 +168,5 @@ export {
   listInboundEmailProcessing,
   getInboundEmailProcessing,
   listVendorInvoiceImports,
+  matchInvoiceToRecordsCallable,
 };
