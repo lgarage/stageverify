@@ -89,6 +89,25 @@ async function collectRetryOnErrorMessageIds(
   return { messageIds: [...ids], reparseStaleReviewIds };
 }
 
+async function collectStaleIssueImportMessageIds(
+  db: admin.firestore.Firestore,
+): Promise<Set<string>> {
+  const reparseStaleReviewIds = new Set<string>();
+  const issueReviewSnap = await db
+    .collection(REVIEW_COLLECTION)
+    .where("reviewStatus", "==", "pending_review")
+    .where("importStatus", "==", "issue")
+    .limit(50)
+    .get();
+
+  for (const doc of issueReviewSnap.docs) {
+    const gmailMessageId = (doc.data() as VendorInvoiceImportDoc).gmailMessageId;
+    if (gmailMessageId) reparseStaleReviewIds.add(gmailMessageId);
+  }
+
+  return reparseStaleReviewIds;
+}
+
 interface InboundSyncState {
   lastHistoryId?: string;
   lastSyncAt?: string;
@@ -204,10 +223,15 @@ export async function runInboundGmailSync(
     if (profile.historyId) latestHistoryId = profile.historyId;
   }
 
-  let reparseStaleReviewIds = new Set<string>();
+  let reparseStaleReviewIds = await collectStaleIssueImportMessageIds(db);
+  messageIds = [...new Set([...messageIds, ...reparseStaleReviewIds])];
+
   if (options?.retryOnError) {
     const backfill = await collectRetryOnErrorMessageIds(db);
-    reparseStaleReviewIds = backfill.reparseStaleReviewIds;
+    reparseStaleReviewIds = new Set([
+      ...reparseStaleReviewIds,
+      ...backfill.reparseStaleReviewIds,
+    ]);
     messageIds = [...new Set([...messageIds, ...backfill.messageIds])];
   }
 

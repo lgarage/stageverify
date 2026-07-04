@@ -15,7 +15,7 @@ export const triggerInboundGmailSyncCallable = onCall(
     timeoutSeconds: 300,
   },
   async (request) => {
-    requireDispatcherAuth(request);
+    await requireDispatcherAuth(request);
 
     if (!gmailOAuthSecretsConfigured()) {
       throw new HttpsError(

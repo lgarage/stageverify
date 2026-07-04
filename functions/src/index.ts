@@ -32,6 +32,7 @@ import {
 } from "./inboundEmailProcessingApi";
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
+import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -158,6 +159,7 @@ export {
   resolveMaterialIssue,
   recalculateDeliveryReadiness,
   markVendorDelivered,
+  assignVendorStagingLocation,
   processInboundVendorEmail,
   initiateGmailOAuth,
   completeGmailOAuth,

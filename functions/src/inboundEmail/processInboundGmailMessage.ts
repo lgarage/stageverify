@@ -89,24 +89,27 @@ export function shouldReprocessExistingDoc(
   data: InboundEmailProcessingDoc,
   options?: ProcessInboundGmailMessageOptions,
 ): boolean {
-  if (!options?.retryOnError) return false;
-  if (data.processingStatus === "error") return true;
   const cached = data.combinedExtractedText?.trim();
-  if (cached && hasCustomFontPdfEncoding(cached)) return true;
-  if (data.processingStatus !== "parsed") return false;
   const reviewIds = data.parseResult?.reviewRecordIds ?? [];
   const total = data.parseResult?.total ?? 0;
-  // Backfill any parsed email with pages but zero queued review rows.
-  if (total > 0 && reviewIds.length === 0) return true;
-  // Re-parse cached clean text when review rows are stale issue imports (Refresh Now backfill).
+
+  // Stale issue reparse — scheduled sync + Refresh Now backfill (no full error retry required).
   if (
     options?.reparseStaleReviews &&
     cached &&
     !hasCustomFontPdfEncoding(cached) &&
+    data.processingStatus === "parsed" &&
     reviewIds.length > 0
   ) {
     return true;
   }
+
+  if (!options?.retryOnError) return false;
+  if (data.processingStatus === "error") return true;
+  if (cached && hasCustomFontPdfEncoding(cached)) return true;
+  if (data.processingStatus !== "parsed") return false;
+  // Backfill any parsed email with pages but zero queued review rows.
+  if (total > 0 && reviewIds.length === 0) return true;
   return false;
 }
 

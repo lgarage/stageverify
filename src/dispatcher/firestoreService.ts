@@ -592,6 +592,28 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     stagingLocationId: string | null,
   ): Promise<DeliveryDetails | null> {
+    if (!getAuth().currentUser) {
+      const sessionToken = getVendorSessionToken(deliveryId);
+      if (!sessionToken) {
+        throw new VendorSessionError("Session expired. Enter your PIN again.");
+      }
+      const callable = httpsCallable(functions, "assignVendorStagingLocation");
+      try {
+        await callable({
+          deliveryId,
+          sessionToken,
+          stagingLocationId,
+          mode: "primary",
+        });
+      } catch (err) {
+        throw new VendorSessionError(vendorSessionErrorMessage(err));
+      }
+      await invokeRecalculateDeliveryReadiness(deliveryId);
+      return hydrateAfterVendorWrite(deliveryId, (id) =>
+        this.getDeliveryDetails(id),
+      );
+    }
+
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
@@ -1208,6 +1230,25 @@ export async function addStagingLocation(
   deliveryId: string,
   locationId: string,
 ): Promise<void> {
+  if (!getAuth().currentUser) {
+    const sessionToken = getVendorSessionToken(deliveryId);
+    if (!sessionToken) {
+      throw new VendorSessionError("Session expired. Enter your PIN again.");
+    }
+    const callable = httpsCallable(functions, "assignVendorStagingLocation");
+    try {
+      await callable({
+        deliveryId,
+        sessionToken,
+        stagingLocationId: locationId,
+        mode: "additional",
+      });
+    } catch (err) {
+      throw new VendorSessionError(vendorSessionErrorMessage(err));
+    }
+    return;
+  }
+
   const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
   if (!deliverySnap.exists()) return;
   const delivery = deliverySnap.data() as DeliveryOrder;
@@ -2029,7 +2070,7 @@ const matchInvoiceToRecordsCallable = httpsCallable<
 const approveVendorInvoiceImportCallable = httpsCallable<
   {
     vendorInvoiceImportId: string;
-    action: "approve" | "reject" | "reopen";
+    action: "approve" | "reject" | "reopen" | "link";
     deliveryOrderId?: string;
   },
   ApproveVendorInvoiceImportResult
@@ -2055,7 +2096,7 @@ export async function matchInvoiceToRecords(
 
 export async function approveVendorInvoiceImport(input: {
   vendorInvoiceImportId: string;
-  action: "approve" | "reject" | "reopen";
+  action: "approve" | "reject" | "reopen" | "link";
   deliveryOrderId?: string;
 }): Promise<ApproveVendorInvoiceImportResult> {
   const response = await approveVendorInvoiceImportCallable(input);

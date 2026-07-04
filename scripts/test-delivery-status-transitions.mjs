@@ -239,15 +239,27 @@ try {
   }
 
   try {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(deliveryRef(unauthed.firestore()), {
         stagingLocationId: "loc-g1",
         updatedAt: new Date().toISOString(),
       }),
     );
-    pass("stagingLocationId-only update allowed (vendor zone pick)");
+    pass("stagingLocationId-only update denied (vendor CF required)");
   } catch (err) {
-    fail("stagingLocationId-only update should be allowed", err);
+    fail("stagingLocationId-only update should be denied", err);
+  }
+
+  try {
+    await assertFails(
+      updateDoc(deliveryRef(unauthed.firestore()), {
+        additionalStagingLocationIds: ["loc-g2"],
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("additionalStagingLocationIds update denied (vendor CF required)");
+  } catch (err) {
+    fail("additionalStagingLocationIds update should be denied", err);
   }
 
   try {

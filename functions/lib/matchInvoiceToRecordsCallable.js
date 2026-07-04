@@ -68,7 +68,7 @@ async function loadDeliveryNotes(deliveryIds) {
     return map;
 }
 exports.matchInvoiceToRecordsCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const importId = typeof data.vendorInvoiceImportId === "string"
         ? data.vendorInvoiceImportId.trim()

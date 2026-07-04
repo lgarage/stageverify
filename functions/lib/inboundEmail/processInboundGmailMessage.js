@@ -49,27 +49,28 @@ function issueReviewError(proc, rowError) {
 }
 /** Exported for sync backfill collection on Refresh Now. */
 function shouldReprocessExistingDoc(data, options) {
+    const cached = data.combinedExtractedText?.trim();
+    const reviewIds = data.parseResult?.reviewRecordIds ?? [];
+    const total = data.parseResult?.total ?? 0;
+    // Stale issue reparse — scheduled sync + Refresh Now backfill (no full error retry required).
+    if (options?.reparseStaleReviews &&
+        cached &&
+        !(0, normalizePdfText_1.hasCustomFontPdfEncoding)(cached) &&
+        data.processingStatus === "parsed" &&
+        reviewIds.length > 0) {
+        return true;
+    }
     if (!options?.retryOnError)
         return false;
     if (data.processingStatus === "error")
         return true;
-    const cached = data.combinedExtractedText?.trim();
     if (cached && (0, normalizePdfText_1.hasCustomFontPdfEncoding)(cached))
         return true;
     if (data.processingStatus !== "parsed")
         return false;
-    const reviewIds = data.parseResult?.reviewRecordIds ?? [];
-    const total = data.parseResult?.total ?? 0;
     // Backfill any parsed email with pages but zero queued review rows.
     if (total > 0 && reviewIds.length === 0)
         return true;
-    // Re-parse cached clean text when review rows are stale issue imports (Refresh Now backfill).
-    if (options?.reparseStaleReviews &&
-        cached &&
-        !(0, normalizePdfText_1.hasCustomFontPdfEncoding)(cached) &&
-        reviewIds.length > 0) {
-        return true;
-    }
     return false;
 }
 async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, gmailMessageId) {

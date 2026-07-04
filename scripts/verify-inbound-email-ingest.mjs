@@ -5,6 +5,7 @@
  * Usage: npm run verify:inbound-email-ingest
  */
 import { sanitizeParsedLines } from "../functions/src/inboundEmail/sanitizeParsedLines.ts";
+import { shouldReprocessExistingDoc } from "../functions/src/inboundEmail/processInboundGmailMessage.ts";
 import { findPdfAttachments, parseGmailHeaders, parseGmailPushNotification } from "../functions/src/gmailInbound.ts";
 import { parseInboundInvoiceText } from "../functions/src/invoice/processInvoiceForInbound.ts";
 import { INVOICE_FIXTURES } from "../src/dispatcher/invoice/invoiceFixtures.ts";
@@ -202,6 +203,33 @@ const push = parseGmailPushNotification(pushPayload);
 assert("push emailAddress", push?.emailAddress === "svbotmail@gmail.com");
 assert("push historyId", push?.historyId === "1234567890");
 assert("invalid push rejected", parseGmailPushNotification("not-json") === null);
+
+console.log("\n7. Stale issue-import reparse eligibility");
+const staleParsedDoc = {
+  processingStatus: "parsed",
+  combinedExtractedText: "Invoice 6164159 test text",
+  parseResult: { reviewRecordIds: ["vii-stale-1"], total: 1 },
+};
+assert(
+  "reparse stale issue when retryOnError + reparseStaleReviews",
+  shouldReprocessExistingDoc(staleParsedDoc, {
+    retryOnError: true,
+    reparseStaleReviews: true,
+  }),
+);
+assert(
+  "reparse stale issue on scheduled sync (reparseStaleReviews only)",
+  shouldReprocessExistingDoc(staleParsedDoc, {
+    reparseStaleReviews: true,
+  }),
+);
+assert(
+  "skip reparse without reparseStaleReviews flag",
+  !shouldReprocessExistingDoc(staleParsedDoc, {
+    retryOnError: true,
+    reparseStaleReviews: false,
+  }),
+);
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);
 if (failed > 0) process.exit(1);

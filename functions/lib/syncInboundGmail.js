@@ -67,6 +67,21 @@ async function collectRetryOnErrorMessageIds(db) {
     }
     return { messageIds: [...ids], reparseStaleReviewIds };
 }
+async function collectStaleIssueImportMessageIds(db) {
+    const reparseStaleReviewIds = new Set();
+    const issueReviewSnap = await db
+        .collection(REVIEW_COLLECTION)
+        .where("reviewStatus", "==", "pending_review")
+        .where("importStatus", "==", "issue")
+        .limit(50)
+        .get();
+    for (const doc of issueReviewSnap.docs) {
+        const gmailMessageId = doc.data().gmailMessageId;
+        if (gmailMessageId)
+            reparseStaleReviewIds.add(gmailMessageId);
+    }
+    return reparseStaleReviewIds;
+}
 async function loadRefreshToken(db) {
     const conn = await connectionRef(db).get();
     if (!conn.exists)
@@ -144,10 +159,14 @@ async function runInboundGmailSync(options) {
         if (profile.historyId)
             latestHistoryId = profile.historyId;
     }
-    let reparseStaleReviewIds = new Set();
+    let reparseStaleReviewIds = await collectStaleIssueImportMessageIds(db);
+    messageIds = [...new Set([...messageIds, ...reparseStaleReviewIds])];
     if (options?.retryOnError) {
         const backfill = await collectRetryOnErrorMessageIds(db);
-        reparseStaleReviewIds = backfill.reparseStaleReviewIds;
+        reparseStaleReviewIds = new Set([
+            ...reparseStaleReviewIds,
+            ...backfill.reparseStaleReviewIds,
+        ]);
         messageIds = [...new Set([...messageIds, ...backfill.messageIds])];
     }
     let processed = 0;

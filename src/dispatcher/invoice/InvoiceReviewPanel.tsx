@@ -325,13 +325,16 @@ export function InvoiceReviewPanel({
   }, []);
 
   useEffect(() => {
-    if (
-      !inspectImport ||
-      (inspectImport.reviewStatus !== "pending_review" &&
-        inspectImport.reviewStatus !== "rejected")
-    ) {
-      return;
-    }
+    if (!inspectImport) return;
+
+    const needsDeliveryPicker =
+      (inspectImport.reviewStatus === "pending_review" ||
+        inspectImport.reviewStatus === "rejected" ||
+        (inspectImport.reviewStatus === "approved" &&
+          !inspectImport.linkedDeliveryOrderId?.trim())) &&
+      inspectImport.importStatus !== "issue";
+
+    if (!needsDeliveryPicker) return;
 
     void loadRecentDeliveries();
 
@@ -419,6 +422,30 @@ export function InvoiceReviewPanel({
       await loadQueue();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Re-open failed.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleLink = async (row: VendorInvoiceImportReview, deliveryId?: string) => {
+    if (row.importStatus === "issue" || row.linkedDeliveryOrderId?.trim()) return;
+    const trimmedDeliveryId = deliveryId?.trim() ?? "";
+    if (!trimmedDeliveryId) {
+      setError("Select a delivery to link.");
+      return;
+    }
+    setActionLoadingId(row.id);
+    setError(null);
+    try {
+      await approveVendorInvoiceImport({
+        vendorInvoiceImportId: row.id,
+        action: "link",
+        deliveryOrderId: trimmedDeliveryId,
+      });
+      setInspectImport(null);
+      await loadQueue();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Link failed.");
     } finally {
       setActionLoadingId(null);
     }
@@ -935,6 +962,14 @@ export function InvoiceReviewPanel({
             inspectImport.reviewStatus === "rejected"
               ? () => {
                   void handleReopen(inspectImport);
+                }
+              : undefined
+          }
+          onLink={
+            inspectImport.reviewStatus === "approved" &&
+            !inspectImport.linkedDeliveryOrderId?.trim()
+              ? () => {
+                  void handleLink(inspectImport, inspectSelectedDeliveryId);
                 }
               : undefined
           }

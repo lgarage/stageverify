@@ -54,6 +54,7 @@ export function InvoiceParsedInspectModal({
   onApprove,
   onReject,
   onReopen,
+  onLink,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -67,6 +68,7 @@ export function InvoiceParsedInspectModal({
   onApprove?: () => void;
   onReject?: () => void;
   onReopen?: () => void;
+  onLink?: () => void;
 }) {
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
@@ -78,13 +80,19 @@ export function InvoiceParsedInspectModal({
   const lineCount = importRow.parsedLineCount ?? parsedLines.length;
   const isPending = importRow.reviewStatus === "pending_review";
   const isRejected = importRow.reviewStatus === "rejected";
+  const isApprovedUnlinked =
+    importRow.reviewStatus === "approved" && !importRow.linkedDeliveryOrderId?.trim();
   const approveBlocked = importRow.importStatus === "issue";
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
+  const showDeliveryPicker =
+    isPending || isRejected || isApprovedUnlinked;
   const showActions =
     (isPending && (onApprove || onReject)) ||
-    (isRejected && (onApprove || onReopen));
+    (isRejected && (onApprove || onReopen)) ||
+    (isApprovedUnlinked && onLink);
   const approveDisabled = actionLoading || approveBlocked;
+  const linkDisabled = actionLoading || approveBlocked || !selectedDeliveryId?.trim();
 
   return (
     <div
@@ -160,7 +168,7 @@ export function InvoiceParsedInspectModal({
           </button>
         </div>
 
-        {isPending && onSelectDelivery && (
+        {showDeliveryPicker && onSelectDelivery && (
           <InvoiceDeliveryMatchSection
             importRow={importRow}
             matchResult={matchResult}
@@ -506,6 +514,28 @@ export function InvoiceParsedInspectModal({
                 }}
               >
                 Approve
+              </button>
+            )}
+            {onLink && isApprovedUnlinked && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-link"
+                disabled={linkDisabled}
+                title={!selectedDeliveryId?.trim() ? "Select a delivery to link" : undefined}
+                onClick={onLink}
+                style={{
+                  backgroundColor: NAVY,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: linkDisabled ? "not-allowed" : "pointer",
+                  opacity: linkDisabled ? 0.55 : 1,
+                }}
+              >
+                Link to delivery
               </button>
             )}
           </div>

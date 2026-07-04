@@ -41,6 +41,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isDispatcher() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.active != false;
+    }
+
     function isValidDeliveryStatus(status) {
       return status in [
         'pending',
@@ -102,8 +108,6 @@ service cloud.firestore {
           'submittedAt',
           'updatedAt',
           'lastCheckmarkAt',
-          'stagingLocationId',
-          'additionalStagingLocationIds',
           'vendorPhysicalDropoffConfirmed',
           'vendorPhysicalDropoffConfirmedAt',
           'deliveredAt',
@@ -241,15 +245,21 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // Inbound Gmail invoice ingestion — auth read; CF Admin SDK writes only.
+    // Inbound Gmail invoice ingestion — dispatcher read; CF Admin SDK writes only.
     match /inboundEmailProcessing/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isDispatcher();
       allow create, update, delete: if false;
     }
 
-    // Johnstone invoice import review queue — auth read; no auto-apply to deliveries.
+    // Johnstone invoice import review queue — dispatcher read; no auto-apply to deliveries.
     match /vendorInvoiceImports/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if isDispatcher();
+      allow create, update, delete: if false;
+    }
+
+    // Dispatcher role registry — CF Admin SDK writes; self-read for UI hints.
+    match /dispatcherRoles/{uid} {
+      allow read: if isAuthenticated() && request.auth.uid == uid;
       allow create, update, delete: if false;
     }
 

@@ -666,6 +666,20 @@
       "status": "built",
       "commit": "3ef06e6",
       "note": "context-index drift fix, MEMORY trim, packet dedup cap, idx-004/005 product entries"
+    },
+    {
+      "id": "away-104",
+      "title": "Functions deploy: firebase predeploy tsc",
+      "status": "built",
+      "commit": "d504b7f",
+      "note": "\\"
+    },
+    {
+      "id": "away-105",
+      "title": "Security scan (Sonnet readonly ONLY)",
+      "status": "built",
+      "commit": "d504b7f",
+      "note": "\\"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"

@@ -9,10 +9,61 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Invoice ingest LIVE — queue empty except blocked away-069 (Gmail watch spec). Post-queue: see docs/project_state.md. Composer 2.5 owns verify/ship when new items are queued.",
-    "sequence": []
+    "instructions": "Overnight batch 2026-07-04: away-104..108 invoice ingest + security. Composer 2.5 owns verify/ship. Halt on fail.",
+    "sequence": [
+      "away-103",
+      "away-106",
+      "away-107",
+      "away-108"
+    ]
   },
   "queue": [
+    {
+      "id": "away-103",
+      "title": "Link-after-approve",
+      "status": "queued",
+      "scope": "CF action link for approved+unlinked imports; UI in approved inspect modal. Sonnet gate before push.",
+      "acceptance": "test-approve scripts + verify:invoice-review PASS",
+      "tier": "T2",
+      "verifyBeforeNext": [
+        "node scripts/test-approve-vendor-invoice-import.mjs",
+        "npm run verify:invoice-review"
+      ]
+    },
+    {
+      "id": "away-106",
+      "title": "Security implement: dispatcher role gate",
+      "status": "queued",
+      "scope": "Implement away-105 finding — dispatcher role gate on invoice/Gmail CFs. Sonnet gate before push.",
+      "acceptance": "requireDispatcherAuth checks role; tests pass; Sonnet gate PASS",
+      "tier": "T3",
+      "verifyBeforeNext": [
+        "cd functions && npm run build",
+        "npm run verify:inbound-email-ingest"
+      ]
+    },
+    {
+      "id": "away-107",
+      "title": "Security implement: unauth staging write restriction",
+      "status": "queued",
+      "scope": "Implement away-105 finding — restrict unauth stagingLocationId writes in firestore.rules. Sonnet gate before push.",
+      "acceptance": "unauth vendor cannot set stagingLocationId; test:firestore-rules PASS",
+      "tier": "T3",
+      "verifyBeforeNext": [
+        "npm run test:firestore-rules"
+      ]
+    },
+    {
+      "id": "away-108",
+      "title": "Inbound reparse stale issue-import backfill",
+      "status": "queued",
+      "scope": "CF inbound paths — scheduled sync reparse stale pending_review+issue imports. Sonnet gate before push.",
+      "acceptance": "verify:inbound-email-ingest reparse asserts PASS; CF deploy",
+      "tier": "T3",
+      "verifyBeforeNext": [
+        "npm run verify:inbound-email-ingest"
+      ]
+    },
     {
       "id": "away-069",
       "title": "Phase 6 slice 3: Gmail reply sync / watch (spec only)",

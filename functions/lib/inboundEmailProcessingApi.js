@@ -35,7 +35,7 @@ function sanitizeDocForClient(doc) {
     return out;
 }
 exports.listInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const limit = (0, dispatcherAuth_1.clampListLimit)(data.limit, 25, MAX_LIST);
     const snap = await getDb()
@@ -49,7 +49,7 @@ exports.listInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1"
     return { items, count: items.length };
 });
 exports.getInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const id = typeof data.id === "string" ? data.id.trim() : "";
     if (!id || id.length > 256) {
@@ -65,7 +65,7 @@ exports.getInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" 
     return sanitizeDocForClient(recovered);
 });
 exports.listVendorInvoiceImports = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const inboundId = typeof data.inboundEmailProcessingId === "string"
         ? data.inboundEmailProcessingId.trim()

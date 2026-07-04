@@ -46,7 +46,7 @@ function sanitizeDocForClient(doc: InboundEmailProcessingDoc): Record<string, un
 export const listInboundEmailProcessing = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireDispatcherAuth(request);
+    await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { limit?: number };
     const limit = clampListLimit(data.limit, 25, MAX_LIST);
 
@@ -67,7 +67,7 @@ export const listInboundEmailProcessing = onCall(
 export const getInboundEmailProcessing = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireDispatcherAuth(request);
+    await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { id?: string };
     const id = typeof data.id === "string" ? data.id.trim() : "";
     if (!id || id.length > 256) {
@@ -90,7 +90,7 @@ export const getInboundEmailProcessing = onCall(
 export const listVendorInvoiceImports = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireDispatcherAuth(request);
+    await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { inboundEmailProcessingId?: string; limit?: number };
     const inboundId =
       typeof data.inboundEmailProcessingId === "string"

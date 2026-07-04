@@ -15,7 +15,7 @@ exports.triggerInboundGmailSyncCallable = (0, https_1.onCall)({
     secrets: [gmailApi_1.gmailClientId, gmailApi_1.gmailClientSecret],
     timeoutSeconds: 300,
 }, async (request) => {
-    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     if (!(0, gmailInbound_1.gmailOAuthSecretsConfigured)()) {
         throw new https_1.HttpsError("failed-precondition", "Gmail OAuth is not configured on the server.");
     }

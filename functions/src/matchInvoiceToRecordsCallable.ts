@@ -77,7 +77,7 @@ async function loadDeliveryNotes(
 export const matchInvoiceToRecordsCallable = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireDispatcherAuth(request);
+    await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { vendorInvoiceImportId?: string };
     const importId =
       typeof data.vendorInvoiceImportId === "string"

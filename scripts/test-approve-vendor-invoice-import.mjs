@@ -224,14 +224,21 @@ try {
   }
 }
 
+let dispatcherUid;
 try {
-  await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+  const signedIn = await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+  dispatcherUid = signedIn.user.uid;
 } catch {
-  await createUserWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+  const created = await createUserWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+  dispatcherUid = created.user.uid;
 }
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "dispatcherRoles", dispatcherUid), {
+    active: true,
+    email: TEST_EMAIL,
+  });
   await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-review-only-test"), {
     id: "vii-review-only-test",
     inboundEmailProcessingId: "inbound-test-2",
@@ -281,6 +288,44 @@ if (
   pass("import marked approved with no linked delivery");
 } else {
   fail("review-only import state", reviewOnlySnap.data());
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", "delivery-link-test"), {
+    id: "delivery-link-test",
+    jobId: "job-1",
+    vendorId: "vendor-test",
+    orderNumber: "ORD-LINK",
+    status: "pending",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let linkResult;
+try {
+  linkResult = await approveImport({
+    vendorInvoiceImportId: "vii-review-only-test",
+    action: "link",
+    deliveryOrderId: "delivery-link-test",
+  });
+} catch (err) {
+  fail("link call failed", err?.message);
+}
+
+const linkData = linkResult?.data ?? {};
+if (linkData.reviewStatus === "approved" && linkData.deliveryOrderId === "delivery-link-test") {
+  pass("link returned approved with delivery");
+} else {
+  fail("link response", linkData);
+}
+
+const linkedImportSnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-review-only-test"));
+if (linkedImportSnap.data()?.linkedDeliveryOrderId === "delivery-link-test") {
+  pass("import linked to delivery");
+} else {
+  fail("import link state", linkedImportSnap.data());
 }
 
 let approveResult;
