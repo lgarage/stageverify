@@ -127,7 +127,7 @@ For each id in `executionProtocol.sequence`:
 | Trigger | Action |
 |---------|--------|
 | CF / rules / auth / idempotency (T2+) | Sonnet 4.6 security gate **before push** |
-| Same verify fails twice after one fix | Sonnet or self-trace (`MODEL_DOSSIER.md` § Composer without Sonnet) |
+| Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — mandatory (`MODEL_DOSSIER.md` § Composer without Sonnet); 1st fail → self-trace prep |
 | Acceptance needs out-of-scope schema/rules | Mark `blocked` — do not widen scope |
 
 ## Current queue

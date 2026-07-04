@@ -21,7 +21,7 @@
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
-| `composer-trace` | 2nd fail → self-trace; 3rd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — Composer implements; Sonnet never edits |
+| `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — Composer implements; Sonnet never edits |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -55,7 +55,7 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 6. **Confidence downgrade when user still sees the bug.** Code-only fix that doesn't deploy rules or pass E2E → lower conf, do not mark ok until Playwright + user path green.
 7. **Auto-submit and Done must share the same gates** (shop stock + staged item checklists) — any second code path bypassing a gate will reproduce the bug.
 8. **Scope:** do not add portal pickers, cross-links, or hub buttons unless Dan asked. Check `USER_SCOPE_REJECTIONS.md` before `PortalNavBar` / `MobileHubPage` edits.
-9. **2nd fix failed → § Composer without Sonnet** self-trace; **3rd fail → Sonnet diagnose-only**; Composer implements after Sonnet returns.
+9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd fail → Sonnet diagnose-only**; Composer implements after Sonnet returns.
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 11. **Away batches:** follow `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` — orchestrator runs verify; parallel scouts read-only only.
 11. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
@@ -91,16 +91,16 @@ Map **appear** vs **tap** before camera/fps tweaks (Sonnet postmortem on double-
 
 ## § Composer without Sonnet (make Composer “best”)
 
-**Goal:** Sonnet only for (1) security gate / `backend-write-critical`, (2) **3rd failed fix** on same task — diagnosis only; Composer implements after Sonnet returns.
+**Goal:** Sonnet only for (1) security gate / `backend-write-critical`, (2) **2nd failed fix** on same task — diagnosis only; Composer implements after Sonnet returns.
 
 ### Before any code (session start on scan/nav/async)
 
 1. Read `§ agent-lessons` + symptom table if task touches QR, pickup, receive, or portal.
 2. State **one sentence**: what Dan asked vs what you will not add.
 
-### On 2nd failed fix OR “still broken” (mandatory self-trace — no exceptions)
+### On 1st failed fix (recommended self-trace prep)
 
-Composer stops coding and posts this block **in the reply** (not only in docs). On **3rd failure** on the same task, dispatch Sonnet for diagnosis only — Composer implements after findings.
+Composer posts this block **in the reply** (not only in docs) before the retry. On **2nd failure** on the same task, dispatch Sonnet for diagnosis only (mandatory) — include this block or repost at escalation; Composer implements after findings.
 
 ```
 Symptom: (a) decode | (b) slow after decode | (c) wrong route after tap
@@ -111,7 +111,7 @@ Hypothesis: one sentence
 Next change: one file/behavior only
 ```
 
-Only after that: one fix + one verify script run. **Do not** call Sonnet for diagnosis until this block exists on 2nd fail (or on 3rd fail if 2nd-fail trace was skipped) — security gate Sonnet runs remain separate.
+Only after that: one fix + one verify script run. **Do not** call Sonnet for diagnosis before 2nd fail on same task — security gate Sonnet runs remain separate.
 
 ### What Dan can do (high leverage)
 
@@ -127,8 +127,8 @@ Only after that: one fix + one verify script run. **Do not** call Sonnet for dia
 
 - **confStart** = tier table default.
 - **confAfter** = after verify + Dan signal; downgrade ≥15 if “still broken” without new hypothesis.
-- Tag `composer-trace` when avoiding Sonnet via self-trace; `outcome: escalate` only if Sonnet ran for diagnosis.
+- Tag `composer-trace` when self-trace prep ran on 1st fail; `outcome: escalate` when Sonnet ran for 2nd-fail diagnosis.
 
 ### Rule file alignment
 
-`composer-orchestrator.mdc` § **3-fail diagnose-only rule**: 2nd fail → self-trace here; 3rd fail → Sonnet diagnosis only; Composer implements + verify + ship. Sonnet stays mandatory for rules/auth gate, not for routine tweaks before self-trace.
+`composer-orchestrator.mdc` § **2-fail diagnose-only rule**: 1st fail → self-trace prep here; 2nd fail → Sonnet diagnosis only (mandatory); Composer implements + verify + ship. Sonnet stays mandatory for rules/auth gate, not for routine first attempts.

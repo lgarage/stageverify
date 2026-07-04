@@ -23,11 +23,11 @@ alwaysApply: true
 | T2 | `multi-file-feature` with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline, escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF write paths, schema migrations) | **Composer 2.5 Fast** (inline, trial active) — Sonnet 4.6 security gate runs automatically before pushing |
 
-## Escalation triggers — Sonnet 4.6 rare (see `parallel-agent-strategy.mdc`, `composer-orchestrator.mdc` § **3-fail diagnose-only rule**)
+## Escalation triggers — Sonnet 4.6 rare (see `parallel-agent-strategy.mdc`, `composer-orchestrator.mdc` § **2-fail diagnose-only rule**)
 - Security **verifier** before push (`backend-write-critical`, auth/Firestore T2)
-- **Third failed fix on the same task** — Sonnet **diagnosis only**; Composer implements + verify + ship after findings (2nd fail → Composer self-trace first)
+- **Second failed fix on the same task** — Sonnet **diagnosis only** (mandatory); Composer implements + verify + ship after findings (1st fail → optional self-trace prep)
 - Architecture unclear after synthesis + one Composer pass; confStart < 70
-- **Not** for scouts, routine T0/T1/T2 implementation, or QR bugs before 2nd-fail self-trace
+- **Not** for scouts or routine T0/T1/T2 implementation before 1st fail + retry
 
 ## What NOT to do
 
