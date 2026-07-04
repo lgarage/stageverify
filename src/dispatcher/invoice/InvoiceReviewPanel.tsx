@@ -13,6 +13,7 @@ import { vendorInvoiceImportDisplayLabel } from "./invoiceDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import {
   formatInvoiceHeaderField,
+  matchUnavailableReason,
   queueRowIssueSummary,
   queueRowLineCount,
   queueRowTitle,
@@ -112,12 +113,14 @@ function MatchSection({
   row,
   matchResult,
   matchLoading,
+  matchUnavailable,
   selectedDeliveryId,
   onSelectDelivery,
 }: {
   row: VendorInvoiceImportReview;
   matchResult: InvoiceMatchResult | null;
   matchLoading: boolean;
+  matchUnavailable: string | null;
   selectedDeliveryId: string;
   onSelectDelivery: (deliveryId: string) => void;
 }) {
@@ -135,10 +138,18 @@ function MatchSection({
       <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>
         Match to delivery
       </div>
-      {matchLoading && (
+      {matchUnavailable && (
+        <p
+          data-testid="invoice-review-match-unavailable"
+          style={{ fontSize: 12, color: "#9a3412", margin: 0, lineHeight: 1.4 }}
+        >
+          {matchUnavailable}
+        </p>
+      )}
+      {matchLoading && !matchUnavailable && (
         <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>Finding candidates…</p>
       )}
-      {!matchLoading && matchResult && (
+      {!matchLoading && !matchUnavailable && matchResult && (
         <>
           <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
             {matchResult.confidenceReason} (score {matchResult.confidenceScore})
@@ -202,6 +213,9 @@ export function InvoiceReviewPanel({
   const [imports, setImports] = useState<VendorInvoiceImportReview[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [matchById, setMatchById] = useState<Record<string, InvoiceMatchResult>>({});
+  const [matchUnavailableById, setMatchUnavailableById] = useState<Record<string, string>>(
+    {},
+  );
   const [deliveryById, setDeliveryById] = useState<Record<string, string>>({});
   const [matchLoadingId, setMatchLoadingId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -256,35 +270,71 @@ export function InvoiceReviewPanel({
   }, [imports, filter]);
 
   const loadMatchForRow = useCallback(async (rowId: string) => {
+    const row = imports.find((i) => i.id === rowId);
+    if (!row) return;
+
+    const unavailable = matchUnavailableReason(row);
+    if (unavailable) {
+      setMatchUnavailableById((prev) =>
+        prev[rowId] === unavailable ? prev : { ...prev, [rowId]: unavailable },
+      );
+      return;
+    }
+
     setMatchLoadingId(rowId);
-    setError(null);
     try {
       const result = await matchInvoiceToRecords(rowId);
       setMatchById((prev) => ({ ...prev, [rowId]: result }));
+      setMatchUnavailableById((prev) => {
+        if (!prev[rowId]) return prev;
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
       const top =
         result.deliveryOrderId ?? result.candidates[0]?.deliveryId ?? "";
       if (top) {
         setDeliveryById((prev) => ({ ...prev, [rowId]: top }));
       }
     } catch (err) {
-      setMatchById((prev) => {
-        const next = { ...prev };
-        delete next[rowId];
-        return next;
-      });
-      setError(err instanceof Error ? err.message : "Match lookup failed.");
+      const message = err instanceof Error ? err.message : "Match lookup failed.";
+      setMatchUnavailableById((prev) =>
+        prev[rowId] === message ? prev : { ...prev, [rowId]: message },
+      );
     } finally {
       setMatchLoadingId((current) => (current === rowId ? null : current));
     }
-  }, []);
+  }, [imports]);
 
   useEffect(() => {
     if (!expandedId) return;
     const row = imports.find((i) => i.id === expandedId);
     if (!row || row.reviewStatus !== "pending_review") return;
-    if (matchById[expandedId] || matchLoadingId === expandedId) return;
+
+    const unavailable = matchUnavailableReason(row);
+    if (unavailable) {
+      setMatchUnavailableById((prev) =>
+        prev[expandedId] === unavailable ? prev : { ...prev, [expandedId]: unavailable },
+      );
+      return;
+    }
+
+    if (
+      matchById[expandedId] ||
+      matchLoadingId === expandedId ||
+      matchUnavailableById[expandedId]
+    ) {
+      return;
+    }
     void loadMatchForRow(expandedId);
-  }, [expandedId, imports, matchById, matchLoadingId, loadMatchForRow]);
+  }, [
+    expandedId,
+    imports,
+    matchById,
+    matchLoadingId,
+    matchUnavailableById,
+    loadMatchForRow,
+  ]);
 
   const handleApprove = async (row: VendorInvoiceImportReview) => {
     const deliveryId = deliveryById[row.id];
@@ -401,6 +451,7 @@ export function InvoiceReviewPanel({
           const lineCount = queueRowLineCount(row);
           const expanded = expandedId === row.id;
           const matchResult = matchById[row.id] ?? null;
+          const matchUnavailable = matchUnavailableById[row.id] ?? null;
           const selectedDeliveryId = deliveryById[row.id] ?? "";
           const rowActionLoading = actionLoadingId === row.id;
           const isFirstPending = row.id === firstPendingRowId;
@@ -632,6 +683,7 @@ export function InvoiceReviewPanel({
                   row={row}
                   matchResult={matchResult}
                   matchLoading={matchLoadingId === row.id}
+                  matchUnavailable={matchUnavailable}
                   selectedDeliveryId={selectedDeliveryId}
                   onSelectDelivery={(deliveryId) =>
                     setDeliveryById((prev) => ({ ...prev, [row.id]: deliveryId }))

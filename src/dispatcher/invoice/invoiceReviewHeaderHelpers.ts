@@ -140,6 +140,19 @@ export function queueRowSubtitle(importRow: VendorInvoiceImportReview): string {
 }
 
 /** One-line issue/warning summary for queue rows. */
+/** When set, skip matchInvoiceToRecords CF — show stable inline copy instead. */
+export function matchUnavailableReason(importRow: VendorInvoiceImportReview): string | null {
+  if (importRow.reviewStatus !== "pending_review") return null;
+  if (importRow.importStatus === "issue") {
+    return "Match unavailable — missing Invoice # on issue import.";
+  }
+  const invoiceNum = readInvoiceHeaderField(importRow.parsedHeader, "vendorInvoiceNumber");
+  if (!invoiceNum) {
+    return "Match unavailable — Invoice # required for delivery lookup.";
+  }
+  return null;
+}
+
 export function queueRowIssueSummary(importRow: VendorInvoiceImportReview): string {
   const error = importRow.error?.trim();
   if (error) return error;

@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5â€“6 â€” Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-100** — mini-librarian indexer hygiene; context-index drift fix, MEMORY trim, packet dedup (top-2 cap), product-domain indexer entries idx-004/005
+- Last shipped: **Invoice Review match loop fix** — issue imports skip `matchInvoiceToRecords` CF; stable inline "Match unavailable" copy; no retry loop or console 400 spam
+- Also shipped: **away-100** — mini-librarian indexer hygiene; context-index drift fix, MEMORY trim, packet dedup (top-2 cap), product-domain indexer entries idx-004/005
 - Also shipped: **away-099** — intelligent indexer ingest + deterministic packet retrieval (`indexer:ingest`, `indexer-memory.json`, `away:next --packet`)
 - Also shipped: **Johnstone PDF U+XX00 extraction fix** — pdf.js primary extract + U+XX00 normalizer + layout adapter; Refresh Now re-fetches bad-encoded imports; `test:pdf-text-normalize` + `test:pdf-extract-4046362`
 - Also shipped (standalone): **Invoice Review row-card + inspect expected fields** (bd4d08f) — one row per import; Inspect/Approve/Reject on row; expected-vs-actual Johnstone fields in inspect modal
