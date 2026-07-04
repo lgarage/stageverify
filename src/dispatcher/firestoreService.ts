@@ -49,6 +49,7 @@ import type {
   EmailProviderConnection,
   EmailProviderConnectionStatus,
   EmailProviderId,
+  InboundGmailSyncResult,
   ShopStockLocationMapping,
   ShopStockLine,
   SendVendorEmailInput,
@@ -1158,6 +1159,17 @@ export async function initiateGmailOAuth(returnUrl: string): Promise<string> {
 
 export async function disconnectGmailOAuth(): Promise<void> {
   await disconnectGmailOAuthCallable({});
+}
+
+const triggerInboundGmailSyncCallable = httpsCallable<
+  object,
+  InboundGmailSyncResult
+>(functions, "triggerInboundGmailSyncCallable");
+
+/** Manual inbound Gmail sync — same path as scheduled syncInboundGmail. */
+export async function triggerInboundGmailSync(): Promise<InboundGmailSyncResult> {
+  const response = await triggerInboundGmailSyncCallable({});
+  return response.data;
 }
 
 const sendVendorEmailCallable = httpsCallable<

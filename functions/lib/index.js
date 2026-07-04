@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.approveVendorInvoiceImport = exports.matchInvoiceToRecordsCallable = exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.listInboundEmailProcessing = exports.renewGmailWatch = exports.gmailInboxPushIngest = exports.registerGmailWatchCallable = exports.syncInboundGmail = exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
+exports.approveVendorInvoiceImport = exports.matchInvoiceToRecordsCallable = exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.listInboundEmailProcessing = exports.renewGmailWatch = exports.gmailInboxPushIngest = exports.triggerInboundGmailSyncCallable = exports.registerGmailWatchCallable = exports.syncInboundGmail = exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
@@ -40,6 +40,8 @@ const syncInboundGmail_1 = require("./syncInboundGmail");
 Object.defineProperty(exports, "syncInboundGmail", { enumerable: true, get: function () { return syncInboundGmail_1.syncInboundGmail; } });
 const registerGmailWatch_1 = require("./registerGmailWatch");
 Object.defineProperty(exports, "registerGmailWatchCallable", { enumerable: true, get: function () { return registerGmailWatch_1.registerGmailWatchCallable; } });
+const triggerInboundGmailSyncCallable_1 = require("./triggerInboundGmailSyncCallable");
+Object.defineProperty(exports, "triggerInboundGmailSyncCallable", { enumerable: true, get: function () { return triggerInboundGmailSyncCallable_1.triggerInboundGmailSyncCallable; } });
 const gmailPubSubIngest_1 = require("./gmailPubSubIngest");
 Object.defineProperty(exports, "gmailInboxPushIngest", { enumerable: true, get: function () { return gmailPubSubIngest_1.gmailInboxPushIngest; } });
 const renewGmailWatch_1 = require("./renewGmailWatch");

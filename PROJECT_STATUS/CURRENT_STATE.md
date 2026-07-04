@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-098** — mini-librarian gotcha triggers + lessons index hygiene
+- Last shipped: **Refresh Now Gmail sync** — dispatcher Refresh Now triggers `triggerInboundGmailSyncCallable` (same path as scheduled `syncInboundGmail`) then refreshes delivery list
 - Also shipped (standalone): **demo order cleanup** — prod ORD-001..006 removed; `npm run cleanup:demo-data` (`scripts/cleanup-demo-firestore.mjs`)
 - Also shipped (standalone): stranded-processing TOCTOU — transaction guard + emulator tests (`test:recover-stranded-processing`, b0a2448)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
@@ -16,7 +16,7 @@
 1. **Minew ESL creds** — live ESL demo only (Phase 7).
 2. **Shelving decision (Jake Korb)** — shop map / location IDs.
 3. **Physical shop map** — not created.
-4. **Inbound Gmail CF + rules deploy** — push ingest + watch renewal shipped in code; Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM, then `firebase deploy --only functions,firestore:rules`.
+4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM (`gmail-inbox-notifications`), then `firebase deploy --only functions,firestore:rules`. gcloud auth expired in agent session — manual GCP console steps in `docs/project_state.md` Gmail checklist.
 
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.

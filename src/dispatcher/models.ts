@@ -185,6 +185,14 @@ export interface EmailProviderConnection {
   updatedAt: string;
 }
 
+/** Result from manual inbound Gmail sync callable (Refresh Now). */
+export interface InboundGmailSyncResult {
+  ok: boolean;
+  processed: number;
+  skipped: number;
+  errors: number;
+}
+
 /** Connect/disconnect audit — no message bodies. */
 export type EmailProviderAuditAction =
   | "connected"

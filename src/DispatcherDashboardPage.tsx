@@ -22,6 +22,7 @@ import {
   resolveMaterialIssue,
   sendVendorEmail,
   listShopStockMappings,
+  triggerInboundGmailSync,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
@@ -332,6 +333,8 @@ export function DispatcherDashboardPage() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [emailProviderConnected, setEmailProviderConnected] = useState(false);
+  const [gmailSyncMessage, setGmailSyncMessage] = useState<string | null>(null);
+  const [refreshBusy, setRefreshBusy] = useState(false);
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
@@ -371,6 +374,48 @@ export function DispatcherDashboardPage() {
       setListLoading(false);
     }
   }, [query]);
+
+  const handleRefreshNow = useCallback(async () => {
+    if (refreshBusy) return;
+    setRefreshBusy(true);
+    setGmailSyncMessage("Syncing mailbox…");
+    try {
+      if (emailProviderConnected) {
+        const syncResult = await triggerInboundGmailSync();
+        const parts: string[] = [];
+        if (syncResult.processed > 0) {
+          parts.push(
+            `${syncResult.processed} new email${syncResult.processed === 1 ? "" : "s"}`,
+          );
+        }
+        if (syncResult.skipped > 0) {
+          parts.push(`${syncResult.skipped} already processed`);
+        }
+        if (syncResult.errors > 0) {
+          parts.push(`${syncResult.errors} error${syncResult.errors === 1 ? "" : "s"}`);
+        }
+        setGmailSyncMessage(
+          parts.length > 0
+            ? `Mailbox sync complete — ${parts.join(", ")}.`
+            : "Mailbox sync complete — no new emails.",
+        );
+      } else {
+        setGmailSyncMessage(null);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Mailbox sync failed.";
+      setGmailSyncMessage(message);
+    }
+    try {
+      await fetchAllData();
+    } finally {
+      setRefreshBusy(false);
+      if (emailProviderConnected) {
+        window.setTimeout(() => setGmailSyncMessage(null), 6000);
+      }
+    }
+  }, [refreshBusy, emailProviderConnected, fetchAllData]);
 
   useEffect(() => {
     let mounted = true;
@@ -810,23 +855,37 @@ export function DispatcherDashboardPage() {
             </button>
             <button
               type="button"
-              onClick={() => void fetchAllData()}
-              disabled={listLoading}
+              onClick={() => void handleRefreshNow()}
+              disabled={refreshBusy || listLoading}
+              data-testid="dispatcher-refresh-now"
               style={{
                 padding: "5px 12px",
                 borderRadius: 4,
                 border: `1.5px solid ${NAVY}`,
-                backgroundColor: listLoading ? "#f3f4f6" : "#fff",
-                color: listLoading ? "#9ca3af" : NAVY,
+                backgroundColor: refreshBusy || listLoading ? "#f3f4f6" : "#fff",
+                color: refreshBusy || listLoading ? "#9ca3af" : NAVY,
                 fontWeight: 700,
                 fontSize: 12,
-                cursor: listLoading ? "not-allowed" : "pointer",
+                cursor: refreshBusy || listLoading ? "not-allowed" : "pointer",
                 fontFamily: FONT,
                 outline: "none",
               }}
             >
-              Refresh Now
+              {refreshBusy ? "Syncing…" : "Refresh Now"}
             </button>
+            {gmailSyncMessage && (
+              <span
+                data-testid="gmail-sync-message"
+                style={{
+                  fontSize: 12,
+                  color: gmailSyncMessage.includes("failed") ? "#b91c1c" : "#166534",
+                  fontWeight: 600,
+                  maxWidth: 280,
+                }}
+              >
+                {gmailSyncMessage}
+              </span>
+            )}
             <div style={{ fontSize: 12, color: "#6b7280" }}>
               Last updated:{" "}
               <span style={{ fontWeight: 600, color: "#374151" }}>
