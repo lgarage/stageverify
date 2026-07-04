@@ -86,6 +86,11 @@
       "sectionId": "process-agents"
     },
     {
+      "type": "docs-update",
+      "subtype": "process",
+      "sectionId": "process-agents"
+    },
+    {
       "type": "service-logic",
       "subtype": "parser-slice",
       "sectionId": "invoice-parser"
@@ -143,6 +148,11 @@
     {
       "type": "ui-component",
       "subtype": "layout-style",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "settings-email",
       "sectionId": "dispatcher-ui"
     }
   ],

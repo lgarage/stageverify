@@ -82,7 +82,16 @@ export function buildGotchaResult(matched, orchestratorSteps) {
     for (const s of trigger.orchestratorSteps ?? []) stepNums.add(s);
     for (const tag of trigger.dossierTags ?? []) dossierTags.add(tag);
     if (trigger.lessonsSection) lessonsSectionIds.add(trigger.lessonsSection);
-    for (const f of trigger.files ?? []) files.add(f);
+    for (const f of trigger.files ?? []) {
+      if (
+        trigger.lessonsSection &&
+        (f === "PROJECT_STATUS/LIBRARIAN_LESSONS.md" ||
+          f.endsWith("/LIBRARIAN_LESSONS.md"))
+      ) {
+        continue;
+      }
+      files.add(f);
+    }
     for (const r of trigger.rules ?? []) rules.add(r);
     for (const c of trigger.commands ?? []) commands.add(c);
   }
@@ -192,6 +201,19 @@ export function validateGotchaMap(map) {
     for (const step of trigger.orchestratorSteps ?? []) {
       if (![6, 7, 8].includes(step)) {
         warnings.push(`gotcha-map: ${trigger.id} invalid orchestratorStep ${step} (expected 6, 7, or 8)`);
+      }
+    }
+
+    if (trigger.lessonsSection) {
+      for (const f of trigger.files ?? []) {
+        if (
+          f === "PROJECT_STATUS/LIBRARIAN_LESSONS.md" ||
+          f.endsWith("/LIBRARIAN_LESSONS.md")
+        ) {
+          warnings.push(
+            `gotcha-map: ${trigger.id} lists LIBRARIAN_LESSONS.md in files[] but has lessonsSection — remove file (slice via context:lessons)`,
+          );
+        }
       }
     }
   }

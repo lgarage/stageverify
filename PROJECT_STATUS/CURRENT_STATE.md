@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-096** — harden inspect callables
+- Last shipped: **away-098** — mini-librarian indexer + gotcha hygiene
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -17,7 +17,7 @@
 4. **Inbound Gmail CF + rules deploy** — push ingest + watch renewal shipped in code; Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM, then `firebase deploy --only functions,firestore:rules`.
 
 ## Immediate Next Step
-- **away-098** — mini-librarian indexer + gotcha hygiene (`npm run away:next`).
+- Queue next work via `npm run away:plan` when Dan approves (batch 092–098 complete).
 
 ## Canonical references
 - **Session handoff:** `PROJECT_STATUS/MINI_LIBRARIAN_HANDOFF.md` — mini-librarian / ACES continuity for new chats

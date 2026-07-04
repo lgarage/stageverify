@@ -109,7 +109,7 @@
     },
     {
       "id": "planning-whats-next",
-      "match": ["what's next", "what else can be worked", "roadmap priority", "away batch", "overnight"],
+      "match": ["what's next", "what else can be worked", "roadmap priority", "away batch"],
       "orchestratorSteps": [],
       "dossierTags": [],
       "files": ["PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
@@ -140,7 +140,7 @@
       "orchestratorSteps": [],
       "dossierTags": [],
       "lessonsSection": "ship-verify",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md"],
+      "files": [],
       "rules": ["ship-loop.mdc"],
       "commands": ["npm run deploy"]
     },
@@ -150,7 +150,7 @@
       "orchestratorSteps": [7],
       "dossierTags": ["agent-lessons"],
       "lessonsSection": "dispatcher-ui",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "src/DispatcherDashboardPage.tsx"],
+      "files": ["src/DispatcherDashboardPage.tsx"],
       "rules": [],
       "commands": ["npm run verify:delivery-consistency"]
     },
@@ -160,7 +160,7 @@
       "orchestratorSteps": [],
       "dossierTags": [],
       "lessonsSection": "process-agents",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
+      "files": ["PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
       "rules": [],
       "commands": ["npm run away:validate"]
     },
@@ -170,7 +170,7 @@
       "orchestratorSteps": [6],
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "firestore.rules", "functions/src/"],
+      "files": ["firestore.rules", "functions/src/"],
       "rules": ["model-audit-gate.mdc", "ship-loop.mdc"],
       "commands": ["npm run dossier:slice -- --tag backend-critical"]
     },
@@ -180,7 +180,7 @@
       "orchestratorSteps": [6],
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md"],
+      "files": [],
       "rules": ["model-audit-gate.mdc"],
       "commands": []
     },
@@ -190,7 +190,7 @@
       "orchestratorSteps": [],
       "dossierTags": ["agent-lessons"],
       "lessonsSection": "process-agents",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/away-list.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md"],
+      "files": ["PROJECT_STATUS/away-list.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md"],
       "rules": ["best-reply-gate.mdc", "Final-Answer-Review-Gate.mdc", "suggestion-verify-gate.mdc"],
       "commands": ["npm run away:next -- --minimal"]
     },
@@ -200,7 +200,7 @@
       "orchestratorSteps": [],
       "dossierTags": ["agent-lessons"],
       "lessonsSection": "process-agents",
-      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/away-list.json", "PROJECT_STATUS/away-status.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md", "package.json"],
+      "files": ["PROJECT_STATUS/away-list.json", "PROJECT_STATUS/away-status.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md", "package.json"],
       "rules": ["best-reply-gate.mdc", "Final-Answer-Review-Gate.mdc", "suggestion-verify-gate.mdc", "time-awareness.mdc"],
       "commands": ["npm run away:next -- --minimal"]
     },
@@ -213,6 +213,62 @@
       "files": ["functions/src/"],
       "rules": ["ship-loop.mdc", "parallel-agent-strategy.mdc"],
       "commands": ["firebase functions:list --project stageverify-db"]
+    },
+    {
+      "id": "invoice-import",
+      "match": [
+        "invoice import",
+        "vendor invoice",
+        "johnstone invoice",
+        "approve vendor invoice import",
+        "vendorInvoiceImports",
+        "invoice review"
+      ],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "functions/src/approveVendorInvoiceImport.ts",
+        "src/dispatcher/invoice/",
+        "src/InvoiceReviewPage.tsx"
+      ],
+      "rules": ["minew-nda-compliance.mdc", "ship-loop.mdc"],
+      "commands": [
+        "npm run verify:inbound-email-ingest",
+        "npm run verify:invoice-review"
+      ]
+    },
+    {
+      "id": "inbound-email",
+      "match": [
+        "inbound email",
+        "inbound gmail",
+        "gmail ingest",
+        "inboundEmailProcessing",
+        "pdf extract inbound"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "ship-verify",
+      "files": ["functions/src/inboundEmail/"],
+      "rules": ["ship-loop.mdc"],
+      "commands": ["npm run verify:inbound-email-ingest"]
+    },
+    {
+      "id": "settings-email",
+      "match": [
+        "settings email",
+        "gmail oauth",
+        "mailbox connect",
+        "email provider",
+        "Settings Gmail"
+      ],
+      "orchestratorSteps": [7, 8],
+      "dossierTags": ["agent-lessons"],
+      "lessonsSection": "dispatcher-ui",
+      "files": ["src/SettingsPage.tsx"],
+      "rules": [],
+      "commands": ["npm run verify:email-oauth-connect"]
     }
   ]
 }

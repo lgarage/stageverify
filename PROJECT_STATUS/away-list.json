@@ -14,7 +14,6 @@
       "away-092",
       "away-093",
       "away-094",
-      "away-097",
       "away-098"
     ]
   },
@@ -74,24 +73,9 @@
       ]
     },
     {
-      "id": "away-097",
-      "title": "verify-invoice-review Playwright script",
-      "status": "built",
-      "dependsOn": "away-095",
-      "tier": "T1",
-      "budget": "~35m",
-      "scope": "WILL CREATE scripts/verify-invoice-review.mjs + npm run verify:invoice-review (+ :prod); will NOT exist until you add it",
-      "acceptance": "Local + prod Playwright PASS on review UI; skip if batch time exhausted after 095",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:invoice-review",
-        "npm run verify:invoice-review:prod"
-      ]
-    },
-    {
       "id": "away-098",
       "title": "Mini-librarian indexer + gotcha hygiene",
-      "status": "queued",
+      "status": "built",
       "dependsOn": "away-097",
       "tier": "T0",
       "budget": "~20m",

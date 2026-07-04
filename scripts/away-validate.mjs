@@ -57,20 +57,20 @@ function validateAwayList() {
     if (ids.has(item.id)) fail(`away-list.json: duplicate id ${item.id}`);
     ids.add(item.id);
 
-    if (!["queued", "done", "blocked"].includes(item.status)) {
+    if (!["queued", "done", "blocked", "built"].includes(item.status)) {
       fail(`away-list.json: ${item.id} invalid status ${item.status}`);
     }
 
     if (item.status === "done") {
-      fail(`away-list.json: ${item.id} is done in active queue — remove or archive (active queue: queued/blocked only)`);
+      fail(`away-list.json: ${item.id} is done in active queue — remove or archive (active queue: queued/blocked/built only)`);
     }
 
-    if (item.dependsOn && item.status === "queued") {
+    if (item.dependsOn && (item.status === "queued" || item.status === "built")) {
       const sequence = list.executionProtocol?.sequence ?? [];
       const pred = list.queue.find((q) => q.id === item.dependsOn);
       if (pred) {
-        if (pred.status === "done") {
-          // ok
+        if (pred.status === "done" || pred.status === "built") {
+          // ok — predecessor shipped in this batch listing
         } else if (pred.status === "queued") {
           const predIdx = sequence.indexOf(item.dependsOn);
           const itemIdx = sequence.indexOf(item.id);
