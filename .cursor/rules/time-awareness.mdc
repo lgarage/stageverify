@@ -100,7 +100,7 @@ When presenting work that might fit a stated window, use **two numbers**:
 
 - **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
 - **After ship/verify:** when Dan gave a time window, note **actual elapsed** in the chat completion report (feeds calibration) — cite `estimate-log.md` for away ships; do not store actuals in `away-status.json`.
-- **Away ships:** append approval→commit timing **only** to `PROJECT_STATUS/estimate-log.md` at ship — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; `startedAt: unknown` when approval was not recorded (no agent-runtime or observed-time fields).
+- **Away ships:** append approval→commit timing **only** to `PROJECT_STATUS/estimate-log.md` at ship — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; log **Type** + **Subtype** per taxonomy; recalibrate budgets by subtype median at 15 rows; `startedAt: unknown` when approval was not recorded (no agent-runtime or observed-time fields).
 - **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
 
 ### Wrong vs right (budget vs typical)
