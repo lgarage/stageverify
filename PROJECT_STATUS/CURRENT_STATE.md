@@ -6,8 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Option A issue-import queue** — S/O / missing Invoice # parses now create `vendorInvoiceImports` review rows; Approve blocked server+UI; Refresh Now backfills legacy 0-queue parsed emails
-- Also shipped: **away-098** — mini-librarian indexer + gotcha hygiene; lessons index dedupe
+- Last shipped: **away-098** — mini-librarian indexer + gotcha hygiene; lessons index dedupe
+- Also shipped (standalone): **Option A issue-import queue** (b43ec6e) — S/O / missing Invoice # parses now create `vendorInvoiceImports` review rows; Approve blocked server+UI; Refresh Now backfills legacy 0-queue parsed emails
 - Also shipped (standalone): **shared dispatcher Refresh Now sync** (c125d86) — `DispatcherPortalProvider` caches invoice queue, vendors, zones; Refresh Now on any portal tab updates all tabs
 - Also shipped (standalone): **retryOnError atomic overwrite** — error retry no longer delete+set; emulator test `test:retry-on-error-inbound` (6476b2a MEDIUM-2 fix)
 - Also shipped (standalone): **Gmail sync clarity + shared dispatcher header** (6476b2a) — sync banner distinguishes scanned vs queued invoices; manual Refresh Now retries error-status messages; `DispatcherPortalTopBar` on Dashboard, Staging Map, Vendors, Invoice Review, Settings
