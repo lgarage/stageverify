@@ -9,6 +9,7 @@
 - Last shipped: **Invoice Review rejected archive + reversible reject** — side-by-side **Approved invoices** / **Rejected invoices** bottom nav; rejected list with re-open/approve; CF `reopen` + approve-from-rejected
 - Also shipped: **Invoice Review approved archive** — read-only list with invoice/S-O/PO/buyer/approved date + linked badge; inspect modal without re-approve
 - Also shipped: **Invoice Review approve CF deploy fix** — rebuilt `functions/lib/approveVendorInvoiceImport.js` (TS fix from 8ff639b was never compiled/deployed); review-only approve now live in production
+- Also shipped: **Verify-failure auto-learning** — `run-verify-with-learning.mjs` wrapper queues failures to `learning-pending.json`; `away:ship` merges pending; demo-verify-failure regression in away:validate
 - Also shipped: **Automatic indexer learning on away:ship** — `--learned`/`--failure`+`--fix` inline capture; demo-packet regression in away:validate; gateWarnings auto-inject in packet
 - Also shipped: **Indexer learning loop — stale gh-pages prod-verify** — gotcha-map gateCandidate warning + injectBefore; idx-006 timing; demo packet positive/negative asserts
 - Also shipped: **Invoice Review manual approve** — Approve without auto-match; delivery picker in inspect modal (candidates + manual ID + recent deliveries); row match section removed

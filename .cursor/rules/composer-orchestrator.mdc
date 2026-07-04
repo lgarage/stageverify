@@ -231,7 +231,7 @@ When **no budget** was set — omit Budget column:
 
 Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only — never as Actual in the table.
 
-**Learning capture (automatic):** When a task hit failure, regression, or a security finding worth remembering, ship with `npm run away:ship -- --id away-NNN --note "…" --learned "…"` (or `--failure` + `--fix`) — **do not** run manual `npm run indexer:ingest`. Auto-parse of `--note` (`root cause:`, `fix:`, `prod verify fail`, `stale gh-pages`) also triggers capture. Future similar work: `npm run away:next -- --packet` injects `gateWarnings` + lessons § + indexer matches (see `docs/aecs/librarian-plan.md` learning loop).
+**Learning capture (automatic):** When a task hit failure, regression, or a security finding worth remembering, ship with `npm run away:ship -- --id away-NNN --note "…" --learned "…"` (or `--failure` + `--fix`) — **do not** run manual `npm run indexer:ingest`. Auto-parse of `--note` (`root cause:`, `fix:`, `prod verify fail`, `stale gh-pages`) also triggers capture. **`verify:*` failures** auto-queue to `learning-pending.json` (wrapper in package.json); `away:ship` merges pending on ship — review `learning-pending.json` if verify failed mid-task. Future similar work: `npm run away:next -- --packet` injects `gateWarnings` + lessons § + indexer matches (see `docs/aecs/librarian-plan.md` learning loop).
 
 **Then** the existing compact report unchanged: model audit (or low-risk line per `model-audit-gate.mdc`), cleanup checklist (`session-cleanup-gate.mdc`), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
 

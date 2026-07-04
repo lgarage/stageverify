@@ -28,6 +28,7 @@ import {
   validateIndexerMemory,
   validateIndexerMemorySlices,
 } from "./lib/indexer-ingest-lib.mjs";
+import { validatePendingLearnings } from "./lib/verify-learning-hook.mjs";
 import {
   auditDueWarning,
   loadAuditSnapshot,
@@ -287,6 +288,12 @@ function validatePackageScripts() {
   if (!scripts["indexer:demo-packet"]) {
     fail("package.json: missing indexer:demo-packet script");
   }
+  if (!scripts["indexer:demo-verify-failure"]) {
+    fail("package.json: missing indexer:demo-verify-failure script");
+  }
+  if (!scripts["run-verify-with-learning"]) {
+    fail("package.json: missing run-verify-with-learning script (verify learning wrapper)");
+  }
   if (!scripts["estimate:audit"]) {
     fail("package.json: missing estimate:audit script");
   }
@@ -400,6 +407,34 @@ function validateLessonsIndexRanges() {
   }
 }
 
+function validateIndexerDemoVerifyFailure() {
+  try {
+    execSync("node scripts/indexer-demo-verify-failure.mjs --assert", {
+      cwd: REPO_ROOT,
+      stdio: "pipe",
+      encoding: "utf8",
+    });
+  } catch (err) {
+    const detail =
+      err instanceof Error && "stderr" in err
+        ? String(/** @type {{ stdout?: string, stderr?: string }} */ (err).stderr ?? "")
+        : "";
+    fail(
+      `indexer:demo-verify-failure regression failed${detail ? `: ${detail.trim().slice(0, 200)}` : ""}`,
+    );
+  }
+}
+
+function validatePendingLearningsStore() {
+  try {
+    const { errors, warnings } = validatePendingLearnings();
+    for (const msg of warnings) warn(msg);
+    for (const msg of errors) fail(msg);
+  } catch (err) {
+    fail(`learning-pending.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function validateIndexerDemoPacket() {
   try {
     execSync("node scripts/indexer-demo-packet.mjs --assert", {
@@ -457,6 +492,8 @@ function main() {
   validateIndexerMemoryStore();
   validateLessonsIndexRanges();
   validateIndexerDemoPacket();
+  validateIndexerDemoVerifyFailure();
+  validatePendingLearningsStore();
   validateRecentShipLearnings();
   validateEstimateLogRows();
   validateEstimateAuditDue();

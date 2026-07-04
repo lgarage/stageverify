@@ -33,6 +33,7 @@ import {
   writeText,
 } from "./lib/away-memory-lib.mjs";
 import { captureLearningFromShip } from "./lib/indexer-ingest-lib.mjs";
+import { mergePendingVerifyLearnings } from "./lib/verify-learning-hook.mjs";
 
 function usage() {
   console.error(`Usage: node scripts/away-ship.mjs --id away-NNN --commit HASH --note "..."
@@ -108,8 +109,13 @@ function main() {
   const item = list.queue[idx];
 
   let learningResult = null;
+  let pendingMergeResult = null;
   try {
     learningResult = captureLearningFromShip(args, item, { dryRun: args.dryRun === "true" });
+    pendingMergeResult = mergePendingVerifyLearnings({
+      sourceTask: args.id,
+      dryRun: args.dryRun === "true",
+    });
   } catch (err) {
     console.error(`away-ship learning capture failed: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
@@ -148,6 +154,7 @@ function main() {
           list,
           statusDoc,
           learning: learningResult,
+          pendingVerifyMerge: pendingMergeResult,
           currentStatePreview: currentState.split("\n").slice(7, 20),
           projectStatePreview: projectState.split("\n").slice(178, 186),
           nextMd,
@@ -169,6 +176,11 @@ function main() {
   if (learningMeta) {
     console.log(
       `Learning captured: ${learningMeta.action}${learningMeta.id ? ` → ${learningMeta.id}` : ""}`,
+    );
+  }
+  if (pendingMergeResult?.merged?.length) {
+    console.log(
+      `Pending verify failures merged: ${pendingMergeResult.merged.length} → indexer-memory`,
     );
   }
   if (nextItem) console.log(`Next queued: ${nextItem.id}`);
