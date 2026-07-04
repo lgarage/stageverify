@@ -19,6 +19,18 @@ import {
   loadDossierIndex,
   sliceEntry,
 } from "./dossier-index-lib.mjs";
+import {
+  buildGotchaResult,
+  buildLessonsSliceForTypeKey,
+  loadGotchaMap,
+  matchTriggers,
+  renderGotchaMarkdown,
+} from "./gotcha-map-lib.mjs";
+import {
+  buildIndexerMemoryResult,
+  renderIndexerMemoryMarkdown,
+} from "./indexer-ingest-lib.mjs";
+import { renderLessonsSliceMarkdown } from "./librarian-lessons-lib.mjs";
 
 /**
  * @param {string[]} tags
@@ -64,6 +76,56 @@ export function buildDossierSlicesForTags(tags) {
   }
 
   return [...byId.values()];
+}
+
+/** @param {Record<string, unknown>} item */
+function buildTaskQueryFromItem(item) {
+  /** @type {string[]} */
+  const parts = [];
+  if (typeof item.title === "string" && item.title.trim()) parts.push(item.title.trim());
+  if (typeof item.scope === "string" && item.scope.trim()) parts.push(item.scope.trim());
+  return parts.join(" ");
+}
+
+/** @param {Record<string, unknown>} item @returns {string | null} */
+function resolveTypeKeyFromItem(item) {
+  const type = typeof item.type === "string" ? item.type.trim() : "";
+  const subtype = typeof item.subtype === "string" ? item.subtype.trim() : "";
+  if (!type) return null;
+  return subtype ? `${type}/${subtype}` : type;
+}
+
+/** @param {Record<string, unknown>} item */
+function buildGotchaForItem(item) {
+  const task = buildTaskQueryFromItem(item);
+  const map = loadGotchaMap();
+  const matched = matchTriggers(task, map.triggers ?? []);
+  /** @type {Record<string, unknown>} */
+  const gotcha = {
+    task,
+    ...buildGotchaResult(matched, map.orchestratorSteps ?? {}),
+  };
+  if (matched.length === 0) {
+    gotcha.fallback = {
+      message: "No gotcha trigger match — use hot tier only (CURRENT_STATE.md + MEMORY.md)",
+      hotTier: ["PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
+    };
+  }
+  return gotcha;
+}
+
+/** @param {Record<string, unknown>} item */
+function buildLessonsSliceForItem(item) {
+  const typeKey = resolveTypeKeyFromItem(item);
+  if (!typeKey) return null;
+  return buildLessonsSliceForTypeKey(typeKey);
+}
+
+/** @param {Record<string, unknown>} item */
+function buildIndexerMemoryForItem(item) {
+  const task = buildTaskQueryFromItem(item);
+  const typeKey = resolveTypeKeyFromItem(item);
+  return buildIndexerMemoryResult(task, typeKey);
 }
 
 /**
@@ -120,13 +182,22 @@ export function buildAwayNextPacket(opts = {}) {
 
   const brief = buildNextBrief(next);
   const packet = buildContextPacket({ tags, includeQueue: false });
+  const gotcha = buildGotchaForItem(next);
+  const lessonsSlice = buildLessonsSliceForItem(next);
+  const indexerMemory = buildIndexerMemoryForItem(next);
+
+  /** @type {Record<string, unknown>} */
+  const executionPacket = {
+    hotTier: packet.hotTier,
+    dossierSlices: packet.dossierSlices,
+    gotcha,
+  };
+  if (lessonsSlice) executionPacket.lessonsSlice = lessonsSlice;
+  if (indexerMemory.entries.length > 0) executionPacket.indexerMemory = indexerMemory;
 
   return {
     ...brief,
-    packet: {
-      hotTier: packet.hotTier,
-      dossierSlices: packet.dossierSlices,
-    },
+    packet: executionPacket,
   };
 }
 
@@ -175,6 +246,24 @@ export function renderPacketMarkdown(packet) {
       lines.push(slice.excerpt);
       lines.push("");
     }
+  }
+
+  const gotcha = /** @type {Record<string, unknown> | undefined} */ (packet.gotcha);
+  if (gotcha) {
+    lines.push(renderGotchaMarkdown(gotcha).trim());
+    lines.push("");
+  }
+
+  const lessonsSlice = /** @type {Record<string, unknown> | undefined} */ (packet.lessonsSlice);
+  if (lessonsSlice) {
+    lines.push(renderLessonsSliceMarkdown(lessonsSlice).trim());
+    lines.push("");
+  }
+
+  const indexerMemory = /** @type {Record<string, unknown> | undefined} */ (packet.indexerMemory);
+  if (indexerMemory) {
+    lines.push(renderIndexerMemoryMarkdown(indexerMemory).trim());
+    lines.push("");
   }
 
   return `${lines.join("\n").trim()}\n`;

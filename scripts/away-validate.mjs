@@ -22,6 +22,7 @@ import {
 import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
 import { loadGotchaMap, validateGotchaMap } from "./lib/gotcha-map-lib.mjs";
 import { loadLessonsIndex, validateLessonsIndex } from "./lib/librarian-lessons-lib.mjs";
+import { loadIndexerMemory, validateIndexerMemory } from "./lib/indexer-ingest-lib.mjs";
 import {
   auditDueWarning,
   loadAuditSnapshot,
@@ -259,6 +260,9 @@ function validatePackageScripts() {
   if (!scripts["lessons:append"]) {
     fail("package.json: missing lessons:append script");
   }
+  if (!scripts["indexer:ingest"]) {
+    fail("package.json: missing indexer:ingest script");
+  }
   if (!scripts["estimate:audit"]) {
     fail("package.json: missing estimate:audit script");
   }
@@ -268,7 +272,24 @@ function validateDossierIndexRanges() {
   try {
     const index = loadDossierIndex();
     const drift = validateDossierIndex(index);
-    for (const msg of drift) warn(`dossier-index: ${msg}`);
+    let hardDrift = 0;
+    for (const msg of drift) {
+      if (
+        msg.includes("endLine") ||
+        msg.includes("startLine must") ||
+        msg.includes("missing file")
+      ) {
+        fail(`dossier-index: ${msg}`);
+        hardDrift += 1;
+      } else {
+        warn(`dossier-index: ${msg}`);
+      }
+    }
+    if (hardDrift > 0) {
+      fail(
+        "dossier-index.json line ranges invalid for source files — update startLine/endLine in dossier-index.json",
+      );
+    }
   } catch (err) {
     fail(`dossier-index.json: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -318,6 +339,17 @@ function validateEstimateAuditDue() {
   }
 }
 
+function validateIndexerMemoryStore() {
+  try {
+    const store = loadIndexerMemory();
+    const { errors, warnings } = validateIndexerMemory(store);
+    for (const msg of warnings) warn(msg);
+    for (const msg of errors) fail(msg);
+  } catch (err) {
+    fail(`indexer-memory.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function validateLessonsIndexRanges() {
   try {
     const index = loadLessonsIndex();
@@ -350,6 +382,7 @@ function main() {
   validateDossierIndexRanges();
   validateContextIndexRanges();
   validateGotchaMapRanges();
+  validateIndexerMemoryStore();
   validateLessonsIndexRanges();
   validateEstimateLogRows();
   validateEstimateAuditDue();

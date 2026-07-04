@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "description": "Structured indexer overflow — references SSOTs; retrieve via exact trigger term + type/subtype match (npm run away:next -- --packet). Ingest via npm run indexer:ingest.",
+  "entries": [
+    {
+      "id": "idx-001",
+      "category": "decision",
+      "summary": "Indexer retrieval stays deterministic: match triggerTerms against task title+scope plus type/subtype gate — no LLM at retrieval time.",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": "away-099",
+      "sourceCommit": null,
+      "tags": [
+        "indexer",
+        "mini-librarian",
+        "retrieval"
+      ],
+      "triggerTerms": [
+        "indexer",
+        "mini-librarian",
+        "context packet",
+        "indexer-memory"
+      ],
+      "type": "service-logic",
+      "subtype": "indexer",
+      "slice": {
+        "file": "docs/aecs/librarian-plan.md",
+        "startLine": 69,
+        "endLine": 82
+      },
+      "relatedFiles": [
+        "scripts/lib/indexer-ingest-lib.mjs",
+        "scripts/lib/context-packet-lib.mjs"
+      ],
+      "confidence": 0.95,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "createdAt": "2026-07-04T15:00:00.000Z",
+      "notes": "Indexer role excerpt from librarian-plan — slice only, not full file."
+    },
+    {
+      "id": "idx-002",
+      "category": "model-routing note",
+      "summary": "backend-write-critical and CF ingest paths require Sonnet security-review Task before push — Composer implements inline.",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "backend-critical",
+        "security-gate"
+      ],
+      "triggerTerms": [
+        "security-review task",
+        "sonnet before push",
+        "cf-ingest gate",
+        "backend-write-critical trial"
+      ],
+      "type": "backend-write-critical",
+      "subtype": "cf-ingest",
+      "slice": {
+        "file": "PROJECT_STATUS/MEMORY.md",
+        "startLine": 58,
+        "endLine": 62
+      },
+      "relatedFiles": [
+        "functions/src/",
+        "firestore.rules"
+      ],
+      "confidence": 0.9,
+      "injectBeforeWork": true,
+      "promotionCandidate": true,
+      "createdAt": "2026-07-04T15:00:00.000Z",
+      "notes": "Promotion candidate — unique trigger terms; gotcha-map already covers generic backend/inbound phrases."
+    },
+    {
+      "id": "idx-003",
+      "category": "future task idea",
+      "summary": "Full ACES librarian deferred — extend mini-librarian indexer before multi-agent orchestration.",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "aecs",
+        "librarian"
+      ],
+      "triggerTerms": [
+        "aces librarian",
+        "full librarian"
+      ],
+      "type": null,
+      "subtype": null,
+      "slice": null,
+      "relatedFiles": [
+        "docs/aecs/librarian-plan.md"
+      ],
+      "confidence": 0.8,
+      "injectBeforeWork": false,
+      "promotionCandidate": false,
+      "createdAt": "2026-07-04T15:00:00.000Z",
+      "notes": "Not injected before work — lookup only when explicitly querying future-task entries."
+    }
+  ]
+}

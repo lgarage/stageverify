@@ -106,7 +106,9 @@
     "context:packet": "node scripts/context-packet.mjs",
     "context:gotcha": "node scripts/context-gotcha.mjs",
     "context:lessons": "node scripts/context-lessons.mjs",
-    "lessons:append": "node scripts/lessons-append.mjs"
+    "lessons:append": "node scripts/lessons-append.mjs",
+    "indexer:ingest": "node scripts/indexer-ingest.mjs",
+    "indexer:demo-packet": "node scripts/indexer-demo-packet.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
