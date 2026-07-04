@@ -3,15 +3,9 @@
 > Canonical instructions for running `away-list.json` batches and substantive agent builds in this repo.
 > Rules detail: `.cursor/rules/composer-orchestrator.mdc`, `parallel-agent-strategy.mdc`, `ship-loop.mdc`.
 
-## Session start (hot tier — STOP)
+## Session start
 
-1. Read `PROJECT_STATUS/CURRENT_STATE.md` then `PROJECT_STATUS/MEMORY.md` (router + “what’s next” rules).
-2. Apply `time-awareness.mdc` (alwaysApply) — binds every reply; see `composer-orchestrator.mdc` session start step 0.
-
-**STOP here** for generic tasks. On demand only:
-3. **`npm run away:next`** — canonical next build brief (not roadmap LATER/NEXT alone).
-4. **`PROJECT_STATUS/svscope_simple.md`** — product authority; scope disputes only.
-5. `PROJECT_STATUS/MODEL_DOSSIER.md` § **agent-lessons** — before UI, pickup, receive, vendor, or public-route work.
+**Authoritative:** `.cursor/rules/composer-orchestrator.mdc` § Session Start (hot tier STOP + on-demand steps 3–8). Away-specific on-demand reads: **`npm run away:next`** (canonical next brief), `svscope_simple.md` (scope disputes), `MODEL_DOSSIER.md` § **agent-lessons** (UI/pickup/receive/vendor).
 
 ## Away / sleep workflow (4 phases — Dan confirmed order)
 
@@ -57,18 +51,9 @@ The **parent Composer 2.5 Fast session** is the orchestrator. It:
 
 Subagents **must not** commit, push, deploy, or mark away items done. The orchestrator owns ship loop + `away-status.json`.
 
-## Parallel agents (default when safe)
+## Parallel agents
 
-Fan out **2–4 read-only scouts in one turn** when work is independent (repo scan, file inventory, read similar components, verify script discovery). **Do not ask Dan** — launch when triggers in `parallel-agent-strategy.mdc` apply.
-
-| OK in parallel | Never in parallel |
-|----------------|-------------------|
-| Read-only scouts (`explore` Task, `readonly: true`) | Same-file edits |
-| Pre-implementation file/pattern search | Firestore rules / schema design |
-| Security scan (report only) | Deploy, `firebase deploy`, Playwright on one dev server |
-| Independent domain scouts before synthesis | Ordered away items (021 before 022) |
-
-**Pipeline:** classify → parallel scouts (if any) → **synthesis block in reply** → single executor **or** parallel domain executors within the item (coordinator merges) → verify → ship.
+**Authoritative:** `.cursor/rules/parallel-agent-strategy.mdc` — scouts parallel by default; **building ≠ max parallel**; away items run **one at a time** (never parallelize ordered away IDs). Pipeline: classify → scouts (if any) → synthesis → executor(s) → verify → ship.
 
 ## Verify before “done” (mandatory)
 
@@ -113,7 +98,7 @@ For each id in `executionProtocol.sequence`:
 3. State scope in one line (what you will / will not add) — **cite matching `svscope_simple.md` §**; do not implement outside scope.
 4. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 5. Run **all** `verifyBeforeNext` commands.
-6. If `escalateWhen` or `escalateBeforeShip`: **security-review Task before push** — one Task only: `subagent_type: "security-review"`, `model: "claude-4.6-sonnet-medium-thinking"`, `readonly: true`, `run_in_background: false`; prompt per `model-audit-gate.mdc`. Await verdict; fix HIGH; completion report must include subagent id + verdict (NOT RUN if gate did not complete). Never self-report Sonnet PASS.
+6. If `escalateWhen` or `escalateBeforeShip`: security-review Task **before push** — one Task only per `model-audit-gate.mdc` § Security gate invocation. Await verdict; fix HIGH; completion report must include subagent id + verdict (NOT RUN if gate did not complete).
 7. **Worker `task-finish` (hard rule):** Immediately before completion report, post `task-finish` with `finishedAt`, `actualElapsedMin` from timestamp math, `timingSource: worker_reported_timestamps`. Optional `pausedAt`/`resumedAt` when blocking.
 8. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Timing audit — `PROJECT_STATUS/estimate-log.md` only** (single source of truth; do not store est/actual in `away-status.json`):
    - **Librarian records** worker `task-start`/`task-finish` into `estimate-log.md` (rolling 15 rows): `startedAt`, `finishedAt`, `budgetMin`, `actualElapsedMin`, `timingSource`, **Type**, **Subtype**, deploy flag, notes — see that file for methodology.
@@ -132,7 +117,7 @@ For each id in `executionProtocol.sequence`:
 
 | Trigger | Action |
 |---------|--------|
-| CF / rules / auth / idempotency (T2+) | security-review Task **before push** — `model: claude-4.6-sonnet-medium-thinking` mandatory; see `model-audit-gate.mdc` |
+| CF / rules / auth / idempotency (T2+) | security-review Task **before push** — see `model-audit-gate.mdc` § Security gate invocation |
 | Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — mandatory (`MODEL_DOSSIER.md` § Composer without Sonnet); 1st fail → self-trace prep |
 | Acceptance needs out-of-scope schema/rules | Mark `blocked` — do not widen scope |
 

@@ -13,19 +13,9 @@ git source `C:\Projects\cursor-agent-brain`). Follow it every session.
 - **Trials:** `.cursor/trials.json` (per-project; NOT `cursor-agent-brain/trials.json`)
 - **Authority:** This file wins over SKILL.md on orchestration; SKILL.md wins on outcome schema and tier table.
 
-## Mini librarian (stageverify — until full ACES)
-- **Router:** `PROJECT_STATUS/MEMORY.md` — concern → file → when to read
-- **Execution packet:** `npm run away:next` / `PROJECT_STATUS/away-list.json`
-- **Verifier:** `npm run away:validate` (before commit; after memory edits)
-- **Hot tier (session start STOP):** `CURRENT_STATE.md` + `MEMORY.md` only (+ `time-awareness.mdc` alwaysApply)
-- **Full ACES librarian:** deferred — see `docs/aecs/librarian-plan.md`
+## Mini librarian + session start
 
-## Session start (read order — STOP after hot tier)
-1. `PROJECT_STATUS/CURRENT_STATE.md` (hot tier).
-2. `PROJECT_STATUS/MEMORY.md` (router + narrow "what's next" rules).
-3. `.cursor/rules/time-awareness.mdc` — alwaysApply; time constraints bind every reply.
-**STOP here** for generic tasks. Task-specific reads: follow `composer-orchestrator.mdc` Session Start steps 3–8 (planning scouts, away workflow, MODEL_DOSSIER, USER_SCOPE_REJECTIONS, etc.) — on demand only. Do **not** read `svscope_simple.md` unless scope dispute.
-Do NOT read archives, `outcomes/*.jsonl`, or the agent-ops `SKILL.md` tier table at session start — classify from `model-dispatch-gate.mdc` when editing.
+**Authoritative:** `.cursor/rules/composer-orchestrator.mdc` § Mini librarian and § Session Start — follow every session; do not duplicate here.
 
 ## During work
 - Classify each task into an archetype and route to the tier-table default model.

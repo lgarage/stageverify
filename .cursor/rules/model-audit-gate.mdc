@@ -31,7 +31,7 @@ Invoke **only** via **one** `Task` call per ship cycle. **Never** self-report "S
 | `run_in_background` | `false` (await completion before push) |
 | `description` | `"Security Review"` |
 
-**Prompt shape** — per `review-security` SKILL.md (workspace override in `composer-orchestrator.mdc` § Security gate):
+**Prompt shape** — per `review-security` SKILL.md; model lock in `security-review-gate.mdc`:
 
 ```text
 Full Repository Path: <absolute repo path>

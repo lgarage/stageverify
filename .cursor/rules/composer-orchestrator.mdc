@@ -264,35 +264,16 @@ When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` 
 
 ### Security gate
 
-**Authority:** invocation details in `security-review-gate.mdc` (model lock) and `model-audit-gate.mdc` § Security gate invocation. Workspace rules override global `review-security` SKILL when they conflict (mandatory `model` param).
+**Authoritative invocation + timing:** `model-audit-gate.mdc` § Security gate invocation; model lock: `security-review-gate.mdc`. Workspace rules override global `review-security` SKILL when they conflict.
 
-Run **automatically** (exactly **one** `Task` per ship — await before push) when change touches:
+Run **automatically** (exactly **one** Task per ship — await before push) when change touches:
 - Every `backend-write-critical` path (firestore.rules, Cloud Function write paths, auth logic)
 - Every T2 commit that touches auth UI, route guards, or Firestore reads
 
-**Copy-paste invocation template:**
-
-```
-Task({
-  subagent_type: "security-review",
-  model: "claude-4.6-sonnet-medium-thinking",
-  readonly: true,
-  run_in_background: false,
-  description: "Security Review",
-  prompt: "Full Repository Path: c:\\Projects\\stageverify\nDiff: uncommitted changes"
-})
-```
-
-Add `Custom Instructions: …` only when Dan gave specific review scope. Do not launch a second empty security Task in the same turn.
-
-**Completion report (mandatory when gate triggered):** include subagent id, `model: claude-4.6-sonnet-medium-thinking`, verdict (PASS/MEDIUM/HIGH/NOT RUN), one-line finding — per `model-audit-gate.mdc` Escalation review row. Missing subagent id → **NOT RUN**, not PASS.
-
-**Cursor UI note:** parent orchestrator tasks may still label **Composer 2.5 Fast**; the security-review **child** must run `claude-4.6-sonnet-medium-thinking`. Trust **subagent id + model line in the report**, not the parent label. If the UI shows Composer 2.5 on Security Review and the report lacks a Sonnet subagent id → verdict **NOT RUN** (`security-review-gate.mdc`).
-
-Do not wait to be asked. If verdict is HIGH, fix before pushing. If subagent fails twice, stop ship and report blocker — no Composer self-review substitute.
+Do not wait to be asked. Completion report, Cursor UI note, hard stops, and retry policy — all per `model-audit-gate.mdc` § Security gate invocation.
 
 ### T3 / backend-write-critical during Composer trial
-Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` change, run the security gate Task above before `git push`. Do not dispatch Opus unless security-review returns HIGH that Composer cannot resolve.
+Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` change, run the security gate per `model-audit-gate.mdc` before `git push`. Do not dispatch Opus unless security-review returns HIGH that Composer cannot resolve.
 
 ### Workspace rules override global skill
 stageverify workspace rules (`.cursor/rules/`) override the global agent-ops skill where they conflict. When in doubt, follow the workspace rule.
