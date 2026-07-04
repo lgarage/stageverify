@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-03",
+  "lastRun": "2026-07-04",
   "batch": "away-001..041 archived; away-042..076 built; queue empty except blocked away-069",
   "results": [
     {
@@ -603,6 +603,20 @@
       "status": "built",
       "commit": "9ed8944",
       "note": "Drawer action label Reset Pickup Link; behavior unchanged; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-092",
+      "title": "Persist parsed.lines[] on vendorInvoiceImports",
+      "status": "built",
+      "commit": "5a57fc2",
+      "note": "\\"
+    },
+    {
+      "id": "away-093",
+      "title": "matchInvoiceToRecords callable",
+      "status": "built",
+      "commit": "58f392d",
+      "note": "matchInvoiceToRecords"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"

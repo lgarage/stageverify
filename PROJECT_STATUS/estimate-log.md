@@ -104,6 +104,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 16 | estimate-15-audit | 2026-07-03T23:24:00-05:00 | 2026-07-03T23:45:00-05:00 | 35 | 21 | docs-update | process | n | estimate:audit CLI + 15-row workflow; away:validate warn; first audit --apply |
 | 17 | deploy-pages-poll-gate | unknown | 2026-07-04T00:35:00-05:00 | 35 | unknown | scripts-only | pipeline-hook | y | deploy-gh-pages.mjs polls Pages build + live bundle; ship-loop + lesson; verify:email-oauth-connect:prod PASS |
 | 18 | away-092 | 2026-07-04T01:17:00-05:00 | 2026-07-04T01:25:00-05:00 | 35 | 8 | service-logic | parser-slice | y | parsedLines Table B on vendorInvoiceImports; verify:inbound-email-ingest PASS; commit=5a57fc2 |
+| 19 | away-093 | 2026-07-04T01:25:00-05:00 | 2026-07-04T01:35:00-05:00 | 35 | 10 | service-logic | firestore-read | y | matchInvoiceToRecords callable + emulator test; commit=58f392d |
 
 ## Audit every 15 rows (mandatory)
 

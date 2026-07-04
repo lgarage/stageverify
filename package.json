@@ -84,6 +84,7 @@
     "test:send-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-send-vendor-email.mjs\"",
     "test:process-inbound-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-process-inbound-vendor-email.mjs\"",
     "test:match-invoice-records": "cd functions && npm run build && cd .. && node scripts/test-match-invoice-records.mjs",
+    "test:approve-vendor-invoice-import": "cd functions && npm run build && cd .. && node scripts/test-approve-vendor-invoice-import.mjs",
     "verify:inbound-email-ingest": "cd functions && npm run build && cd .. && npx tsx scripts/verify-inbound-email-ingest.mjs",
     "away:validate": "node scripts/away-validate.mjs",
     "estimate:audit": "node scripts/estimate-audit.mjs",

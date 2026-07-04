@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.matchInvoiceToRecordsCallable = exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.listInboundEmailProcessing = exports.renewGmailWatch = exports.gmailInboxPushIngest = exports.registerGmailWatchCallable = exports.syncInboundGmail = exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
+exports.approveVendorInvoiceImport = exports.matchInvoiceToRecordsCallable = exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.listInboundEmailProcessing = exports.renewGmailWatch = exports.gmailInboxPushIngest = exports.registerGmailWatchCallable = exports.syncInboundGmail = exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
@@ -50,6 +50,8 @@ Object.defineProperty(exports, "getInboundEmailProcessing", { enumerable: true, 
 Object.defineProperty(exports, "listVendorInvoiceImports", { enumerable: true, get: function () { return inboundEmailProcessingApi_1.listVendorInvoiceImports; } });
 const matchInvoiceToRecordsCallable_1 = require("./matchInvoiceToRecordsCallable");
 Object.defineProperty(exports, "matchInvoiceToRecordsCallable", { enumerable: true, get: function () { return matchInvoiceToRecordsCallable_1.matchInvoiceToRecordsCallable; } });
+const approveVendorInvoiceImport_1 = require("./approveVendorInvoiceImport");
+Object.defineProperty(exports, "approveVendorInvoiceImport", { enumerable: true, get: function () { return approveVendorInvoiceImport_1.approveVendorInvoiceImport; } });
 admin.initializeApp();
 const db = admin.firestore();
 const DEFAULT_AUTO_SUBMIT_MINUTES = 30;

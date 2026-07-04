@@ -91,6 +91,11 @@ export interface VendorInvoiceImportDoc {
   orderNotes: string[];
   outcome: "needs_review" | "failed";
   error?: string;
+  linkedDeliveryOrderId?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
   createdAt: string;
   updatedAt: string;
 }

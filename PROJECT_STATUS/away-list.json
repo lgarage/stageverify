@@ -10,7 +10,12 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Follow AWAY_BUILD_PROTOCOL.md. Invoice ingest LIVE — extend only. One item at a time. Composer 2.5 orchestrator owns verify/ship/deploy. haltOnFailure: mark blocked, log away-status.json, STOP batch.",
-    "sequence": ["away-092", "away-093", "away-094", "away-095", "away-096", "away-097"]
+    "sequence": [
+      "away-094",
+      "away-095",
+      "away-096",
+      "away-097"
+    ]
   },
   "queue": [
     {
@@ -22,35 +27,6 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-092",
-      "title": "Persist parsed.lines[] on vendorInvoiceImports",
-      "status": "queued",
-      "dependsOn": "",
-      "tier": "T1",
-      "scope": "Extend VendorInvoiceImportDoc + writeReviewRecords (functions/src/inboundEmail/processInboundGmailMessage.ts) to persist sanitized parsed.lines[] per spec Table B; sync types in functions/src/inboundEmail/types.ts and src/dispatcher/models.ts if needed. Do NOT add matching, approve CF, delivery writes, or UI.",
-      "acceptance": "vendorInvoiceImports docs include parsed.lines[] with qty/product fields; parsedLineCount matches lines.length; npm run build + cd functions && npm run build clean; npm run verify:inbound-email-ingest exit 0; still no delivery/item writes.",
-      "verifyBeforeNext": [
-        "npm run build",
-        "cd functions && npm run build",
-        "npm run verify:inbound-email-ingest"
-      ]
-    },
-    {
-      "id": "away-093",
-      "title": "matchInvoiceToRecords callable",
-      "status": "queued",
-      "dependsOn": "away-092",
-      "tier": "T1",
-      "budget": "~35m",
-      "scope": "WILL add matchInvoiceToRecords callable (PO / sales order / job hint → candidate deliveries); will NOT auto-link or write deliveries",
-      "acceptance": "Emulator test PASS; add scripts/test-match-invoice-records.mjs + package.json entry if missing",
-      "verifyBeforeNext": [
-        "cd functions && npm run build",
-        "npm run build",
-        "node scripts/test-match-invoice-records.mjs"
-      ]
     },
     {
       "id": "away-094",
