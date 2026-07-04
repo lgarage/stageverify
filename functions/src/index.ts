@@ -20,6 +20,13 @@ import {
   disconnectGmailOAuth,
 } from "./gmailOAuth";
 import { sendVendorEmail } from "./sendVendorEmail";
+import { syncInboundGmail } from "./syncInboundGmail";
+import { registerGmailWatchCallable } from "./registerGmailWatch";
+import {
+  listInboundEmailProcessing,
+  getInboundEmailProcessing,
+  listVendorInvoiceImports,
+} from "./inboundEmailProcessingApi";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -151,4 +158,9 @@ export {
   completeGmailOAuth,
   disconnectGmailOAuth,
   sendVendorEmail,
+  syncInboundGmail,
+  registerGmailWatchCallable,
+  listInboundEmailProcessing,
+  getInboundEmailProcessing,
+  listVendorInvoiceImports,
 };

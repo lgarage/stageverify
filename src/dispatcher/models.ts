@@ -765,6 +765,52 @@ export interface VendorEmailEvent {
   updatedAt: string;
 }
 
+/** Inbound Gmail invoice PDF ingestion — CF Admin SDK writes; dispatcher auth read. */
+export type InboundEmailProcessingStatus =
+  | "pending"
+  | "processing"
+  | "extracted"
+  | "parsed"
+  | "no_pdf"
+  | "error";
+
+export interface InboundEmailProcessing {
+  id: string;
+  gmailMessageId: string;
+  threadId?: string;
+  senderEmail: string;
+  subject: string;
+  receivedAt: string;
+  attachmentFilenames: string[];
+  processingStatus: InboundEmailProcessingStatus;
+  reviewStatus: "pending_review";
+  parseResult?: {
+    importBatchId: string;
+    processed: number;
+    needsReview: number;
+    failed: number;
+    total: number;
+    reviewRecordIds: string[];
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Johnstone invoice import review queue — no auto-apply to deliveries. */
+export interface VendorInvoiceImportReview {
+  id: string;
+  inboundEmailProcessingId: string;
+  gmailMessageId: string;
+  importBatchId: string;
+  pageId: string;
+  reviewStatus: "pending_review" | "approved" | "rejected";
+  importStatus: string;
+  confidenceScore: number;
+  humanReviewRequired: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Forward-compatible stub — AI correction store Phase 8. */
 export interface AICorrection {
   id: string;

@@ -183,14 +183,16 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready.
-2. **Gmail reply sync / watch** — away-069 blocked (push/watch, inbound thread drawer).
+1. **Deploy inbound Gmail ingestion** — `firebase deploy --only functions,firestore:rules` after Dan approval; set `GMAIL_PUBSUB_TOPIC` optional for push watch.
+2. **Post-deploy:** reconnect Gmail if needed; call `registerGmailWatchCallable` or rely on `syncInboundGmail` (every 5 min poll).
 3. **ESL integration** — Phase 7; blocked on Minew credentials.
 4. **Shop map / Jake Korb shelving** — blocks real combination location IDs in production.
 
 ---
 
 ## Recently shipped (away)
+
+**Inbound Gmail invoice ingest foundation (2026-07-04)** — M1+M2 code: `syncInboundGmail` scheduled poll, PDF text extract (`pdf-parse`), `inboundEmailProcessing` + `vendorInvoiceImports` review queue, Johnstone parser wired review-only (no delivery writes). Callable inspect: `listInboundEmailProcessing`, `getInboundEmailProcessing`, `listVendorInvoiceImports`. Verify: `npm run verify:inbound-email-ingest`. **Not deployed** — CF + rules await Dan approval.
 
 **away-084 (2026-07-03)** — Mini-librarian phase 3: `PROJECT_STATUS/gotcha-map.json` maps task triggers to composer-orchestrator steps 6–8 (MODEL_DOSSIER index, § agent-lessons, USER_SCOPE_REJECTIONS). New `npm run context:gotcha -- --task "<…>"` CLI (JSON/markdown); validated in `away:validate`. Corrects prior mislabel — drawer UI work was never librarian scope. Verify: `away:validate`, `build`.
 

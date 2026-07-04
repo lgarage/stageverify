@@ -5,8 +5,8 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **deploy-pages-poll-gate** — `npm run deploy` waits for GitHub Pages build `built` + live bundle check; gh-pages push alone no longer passes
+- Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
+- Last shipped: **inbound-email-ingest foundation** — Gmail poll sync, PDF extract, Johnstone parse → review queue (CF + rules code; deploy pending Dan approval)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
@@ -14,6 +14,7 @@
 1. **Minew ESL creds** — live ESL demo only (Phase 7).
 2. **Shelving decision (Jake Korb)** — shop map / location IDs.
 3. **Physical shop map** — not created.
+4. **Inbound Gmail CF + rules deploy** — code ready; Dan must approve `firebase deploy --only functions,firestore:rules`.
 
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.

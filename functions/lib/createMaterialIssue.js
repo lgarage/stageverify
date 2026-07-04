@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createMaterialIssue = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 const pickupMaterialIssueReadback_1 = require("./pickupMaterialIssueReadback");
 function getDb() {
     return admin.firestore();
@@ -237,6 +238,16 @@ exports.createMaterialIssue = (0, https_1.onCall)({
             updatedAt: now,
         });
     });
+    if (blocking) {
+        try {
+            await (0, applyDeliveryReadiness_1.applyDeliveryReadinessTransaction)(getDb(), deliveryOrderId, {
+                historyReason: "Blocking material issue reported — readiness recalculation",
+            });
+        }
+        catch {
+            // Issue persisted; readiness recalc is best-effort (matches resolveMaterialIssue).
+        }
+    }
     return {
         issueId,
         status,

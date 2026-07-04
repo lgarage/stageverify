@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = void 0;
 /**
- * Gmail OAuth connection state (Phase 6 slice 1 — no send, no watch).
+ * Gmail OAuth connection state (Phase 6 — send + inbound sync/watch).
  *
  * Secrets (Firebase Functions secrets — never commit real values):
  *   GMAIL_OAUTH_CLIENT_ID

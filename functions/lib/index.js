@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
+exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.listInboundEmailProcessing = exports.registerGmailWatchCallable = exports.syncInboundGmail = exports.sendVendorEmail = exports.disconnectGmailOAuth = exports.completeGmailOAuth = exports.initiateGmailOAuth = exports.processInboundVendorEmail = exports.markVendorDelivered = exports.recalculateDeliveryReadiness = exports.resolveMaterialIssue = exports.updatePickupChecklist = exports.recordPickupEvent = exports.validatePickupToken = exports.getPickupTokenStatus = exports.revokePickupToken = exports.generatePickupToken = exports.validateVendorSession = exports.verifyVendorPin = exports.createMaterialIssue = exports.autoSubmitDeliveries = void 0;
 const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
@@ -36,6 +36,14 @@ Object.defineProperty(exports, "completeGmailOAuth", { enumerable: true, get: fu
 Object.defineProperty(exports, "disconnectGmailOAuth", { enumerable: true, get: function () { return gmailOAuth_1.disconnectGmailOAuth; } });
 const sendVendorEmail_1 = require("./sendVendorEmail");
 Object.defineProperty(exports, "sendVendorEmail", { enumerable: true, get: function () { return sendVendorEmail_1.sendVendorEmail; } });
+const syncInboundGmail_1 = require("./syncInboundGmail");
+Object.defineProperty(exports, "syncInboundGmail", { enumerable: true, get: function () { return syncInboundGmail_1.syncInboundGmail; } });
+const registerGmailWatch_1 = require("./registerGmailWatch");
+Object.defineProperty(exports, "registerGmailWatchCallable", { enumerable: true, get: function () { return registerGmailWatch_1.registerGmailWatchCallable; } });
+const inboundEmailProcessingApi_1 = require("./inboundEmailProcessingApi");
+Object.defineProperty(exports, "listInboundEmailProcessing", { enumerable: true, get: function () { return inboundEmailProcessingApi_1.listInboundEmailProcessing; } });
+Object.defineProperty(exports, "getInboundEmailProcessing", { enumerable: true, get: function () { return inboundEmailProcessingApi_1.getInboundEmailProcessing; } });
+Object.defineProperty(exports, "listVendorInvoiceImports", { enumerable: true, get: function () { return inboundEmailProcessingApi_1.listVendorInvoiceImports; } });
 admin.initializeApp();
 const db = admin.firestore();
 const DEFAULT_AUTO_SUBMIT_MINUTES = 30;

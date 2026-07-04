@@ -241,6 +241,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Inbound Gmail invoice ingestion — auth read; CF Admin SDK writes only.
+    match /inboundEmailProcessing/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // Johnstone invoice import review queue — auth read; no auto-apply to deliveries.
+    match /vendorInvoiceImports/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
     match /pickupOperations/{operationId} {
       allow read, write: if false;
     }

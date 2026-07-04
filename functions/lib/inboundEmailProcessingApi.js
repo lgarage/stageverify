@@ -1,0 +1,83 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.listInboundEmailProcessing = void 0;
+/**
+ * Dispatcher inspect API for inbound email processing records.
+ */
+const admin = require("firebase-admin");
+const https_1 = require("firebase-functions/v2/https");
+const COLLECTION = "inboundEmailProcessing";
+const MAX_LIST = 50;
+const MAX_TEXT_PREVIEW = 4000;
+function getDb() {
+    return admin.firestore();
+}
+function requireAuth(request) {
+    if (!request.auth?.uid) {
+        throw new https_1.HttpsError("unauthenticated", "Sign in to view inbound email processing.");
+    }
+    return request.auth.uid;
+}
+function sanitizeDocForClient(doc) {
+    const out = { ...doc };
+    if (typeof out.combinedExtractedText === "string" &&
+        out.combinedExtractedText.length > MAX_TEXT_PREVIEW) {
+        out.combinedExtractedTextPreview = out.combinedExtractedText.slice(0, MAX_TEXT_PREVIEW);
+        out.combinedExtractedTextTruncated = true;
+        delete out.combinedExtractedText;
+    }
+    if (Array.isArray(out.pdfAttachments)) {
+        out.pdfAttachments = out.pdfAttachments.map((att) => {
+            const copy = { ...att };
+            if (copy.extractedText && copy.extractedText.length > MAX_TEXT_PREVIEW) {
+                copy.extractedText = `${copy.extractedText.slice(0, MAX_TEXT_PREVIEW)}…[truncated]`;
+            }
+            return copy;
+        });
+    }
+    return out;
+}
+exports.listInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    requireAuth(request);
+    const data = (request.data ?? {});
+    const limit = typeof data.limit === "number" && data.limit > 0 && data.limit <= MAX_LIST
+        ? Math.floor(data.limit)
+        : 25;
+    const snap = await getDb()
+        .collection(COLLECTION)
+        .orderBy("receivedAt", "desc")
+        .limit(limit)
+        .get();
+    const items = snap.docs.map((d) => sanitizeDocForClient(d.data()));
+    return { items, count: items.length };
+});
+exports.getInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    requireAuth(request);
+    const data = (request.data ?? {});
+    const id = typeof data.id === "string" ? data.id.trim() : "";
+    if (!id || id.length > 256) {
+        throw new https_1.HttpsError("invalid-argument", "id is required.");
+    }
+    const snap = await getDb().collection(COLLECTION).doc(id).get();
+    if (!snap.exists) {
+        throw new https_1.HttpsError("not-found", "Inbound email processing record not found.");
+    }
+    return sanitizeDocForClient(snap.data());
+});
+exports.listVendorInvoiceImports = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    requireAuth(request);
+    const data = (request.data ?? {});
+    const inboundId = typeof data.inboundEmailProcessingId === "string"
+        ? data.inboundEmailProcessingId.trim()
+        : "";
+    const limit = typeof data.limit === "number" && data.limit > 0 && data.limit <= MAX_LIST
+        ? Math.floor(data.limit)
+        : 25;
+    let query = getDb().collection("vendorInvoiceImports").orderBy("createdAt", "desc");
+    if (inboundId) {
+        query = query.where("inboundEmailProcessingId", "==", inboundId);
+    }
+    const snap = await query.limit(limit).get();
+    return { items: snap.docs.map((d) => d.data()), count: snap.size };
+});
+//# sourceMappingURL=inboundEmailProcessingApi.js.map
