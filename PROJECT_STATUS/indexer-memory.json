@@ -136,7 +136,7 @@
     {
       "id": "idx-005",
       "category": "model-routing note",
-      "summary": "firestoreSafeValue strips undefined before inbound review writes; Refresh Now reprocesses cached-text reparse; Sonnet security gate before CF push",
+      "summary": "firestoreSafeValue strips undefined before inbound review writes; Refresh Now reprocesses cached-text reparse; reprocess skips approved/rejected vendorInvoiceImports; Sonnet security gate before CF push",
       "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
       "sourceTask": null,
       "sourceCommit": null,
@@ -148,7 +148,9 @@
         "firestoreSafeValue undefined",
         "Refresh Now reparse",
         "cached-text reparse",
-        "inbound review write strip"
+        "inbound review write strip",
+        "reprocess approved rejected",
+        "overwrite approved import"
       ],
       "type": "backend-write-critical",
       "subtype": "cf-ingest",
@@ -164,6 +166,42 @@
       "promotionCandidate": false,
       "notes": null,
       "createdAt": "2026-07-04T16:10:09.507Z"
+    },
+    {
+      "id": "idx-006",
+      "category": "estimate/timing signal",
+      "summary": "Worker task-start/task-finish ISO timestamps; actualElapsedMin = round((finishedAt − startedAt)/60s); missing either → unknown in estimate-log",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "timing",
+        "estimate-log"
+      ],
+      "triggerTerms": [
+        "startedAt",
+        "task-finish",
+        "task-start",
+        "actualElapsedMin",
+        "worker timing",
+        "estimate-log timing"
+      ],
+      "type": "docs-update",
+      "subtype": "process",
+      "slice": {
+        "file": "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md",
+        "startLine": 97,
+        "endLine": 105,
+        "anchor": "**Worker `task-start` (hard rule):**"
+      },
+      "relatedFiles": [
+        "PROJECT_STATUS/estimate-log.md"
+      ],
+      "confidence": 0.9,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "notes": "Timing SSOT is estimate-log.md — slice is protocol excerpt only.",
+      "createdAt": "2026-07-04T18:15:00.000Z"
     }
   ]
 }

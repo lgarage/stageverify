@@ -42,6 +42,7 @@ export const INDEXER_CATEGORIES = [
  *   confidence?: number,
  *   injectBeforeWork?: boolean,
  *   promotionCandidate?: boolean,
+ *   gateCandidate?: boolean,
  *   createdAt?: string,
  *   notes?: string | null
  * }} IndexerMemoryEntry
@@ -524,6 +525,20 @@ export function validateIndexerMemory(store) {
       if (entry.injectBeforeWork && !entry.type) {
         errors.push(`indexer-memory: ${label} injectBeforeWork but missing type`);
       }
+      if (entry.injectBeforeWork && entry.type && !entry.subtype) {
+        warnings.push(`indexer-memory: ${label} injectBeforeWork with type but missing subtype`);
+      }
+      if (entry.injectBeforeWork && !entry.slice?.file && !entry.notes?.trim()) {
+        warnings.push(
+          `indexer-memory: ${label} injectBeforeWork without slice — add slice ref or notes for packet injection`,
+        );
+      }
+    }
+
+    if (entry.gateCandidate === true && !entry.promotionCandidate) {
+      warnings.push(
+        `indexer-memory: ${label} gateCandidate set — promote to gotcha-map via --apply-gotcha when ready`,
+      );
     }
 
     for (const term of entry.triggerTerms ?? []) {

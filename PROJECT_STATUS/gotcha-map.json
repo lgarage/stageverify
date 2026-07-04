@@ -136,13 +136,34 @@
     },
     {
       "id": "prod-verify-redeploy",
-      "match": ["prod verify fail", "gh-pages stale", "redeploy", "bundle stale", "STAGEVERIFY_BASE_URL", "prod deploy"],
+      "match": [
+        "prod verify fail",
+        "prod verify",
+        "gh-pages stale",
+        "gh-pages deploy",
+        "gh-pages",
+        "redeploy",
+        "bundle stale",
+        "stale bundle",
+        "STAGEVERIFY_BASE_URL",
+        "prod deploy",
+        "local pass but prod fail",
+        "local pass prod fail",
+        "ship loop",
+        "verify:prod",
+        ":prod",
+        "invoice review ui",
+        "frontend ui change"
+      ],
       "orchestratorSteps": [],
       "dossierTags": [],
       "lessonsSection": "ship-verify",
       "files": [],
-      "rules": ["ship-loop.mdc"],
-      "commands": ["npm run deploy"]
+      "rules": ["ship-loop.mdc", "composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": ["npm run deploy"],
+      "gateCandidate": true,
+      "injectBefore": ["prod Playwright", "final ship loop", "diagnosing prod-only UI failure"],
+      "warning": "Local build/verify can PASS while gh-pages serves a stale pre-fix bundle. Before treating prod-only UI failure as a code bug: confirm deployed bundle/hash is current, redeploy gh-pages if needed, wait for Pages build status built, then rerun :prod verify."
     },
     {
       "id": "dispatcher-clipboard",

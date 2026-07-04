@@ -7,6 +7,7 @@
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
 - Last shipped: **Invoice Review approve without delivery ID** — review-only approve sets import `reviewStatus: approved` with no delivery/items linkage; optional delivery match remains informational
+- Also shipped: **Indexer learning loop — stale gh-pages prod-verify** — gotcha-map gateCandidate warning + injectBefore; idx-006 timing; demo packet positive/negative asserts
 - Also shipped: **Invoice Review manual approve** — Approve without auto-match; delivery picker in inspect modal (candidates + manual ID + recent deliveries); row match section removed
 - Also shipped: **Invoice Review approve unblock + COD terms** — match CF optional vendor/ship-to addresses; Approve/Reject inline row buttons; COD chip from `parsedHeader.paymentTermsRaw` / `codOnly`
 - Also shipped: **Indexer-memory packet injection drift verifier** — away:validate fails on indexer-memory.json slice/anchor drift; fixed idx-001/004/005 slices + lesson bullets 19–20

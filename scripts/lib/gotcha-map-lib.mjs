@@ -27,7 +27,10 @@ export function loadGotchaMap() {
  *   lessonsSection?: string,
  *   files?: string[],
  *   rules?: string[],
- *   commands?: string[]
+ *   commands?: string[],
+ *   gateCandidate?: boolean,
+ *   injectBefore?: string[],
+ *   warning?: string
  * }} GotchaTrigger
  */
 
@@ -75,6 +78,10 @@ export function buildGotchaResult(matched, orchestratorSteps) {
   const commands = new Set();
   /** @type {Set<string>} */
   const lessonsSectionIds = new Set();
+  /** @type {Set<string>} */
+  const gateWarnings = new Set();
+  /** @type {Set<string>} */
+  const injectBeforeHints = new Set();
   /** @type {{ id: string, score: number }[]} */
   const triggerIds = matched.map((t) => t.id);
 
@@ -94,6 +101,12 @@ export function buildGotchaResult(matched, orchestratorSteps) {
     }
     for (const r of trigger.rules ?? []) rules.add(r);
     for (const c of trigger.commands ?? []) commands.add(c);
+    if (trigger.gateCandidate && typeof trigger.warning === "string" && trigger.warning.trim()) {
+      gateWarnings.add(trigger.warning.trim());
+    }
+    for (const hint of trigger.injectBefore ?? []) {
+      if (typeof hint === "string" && hint.trim()) injectBeforeHints.add(hint.trim());
+    }
   }
 
   if (stepNums.has(7) && lessonsSectionIds.size === 0) {
@@ -149,6 +162,8 @@ export function buildGotchaResult(matched, orchestratorSteps) {
     files: [...files],
     rules: [...rules],
     suggestedCommands: [...commands],
+    gateWarnings: [...gateWarnings],
+    injectBeforeHints: [...injectBeforeHints],
   };
 }
 
@@ -216,6 +231,16 @@ export function validateGotchaMap(map) {
         }
       }
     }
+
+    if (trigger.gateCandidate === true) {
+      if (!trigger.warning?.trim()) {
+        warnings.push(`gotcha-map: ${trigger.id} gateCandidate but missing warning text`);
+      }
+      const rules = trigger.rules ?? [];
+      if (!rules.some((r) => r.includes("ship-loop"))) {
+        warnings.push(`gotcha-map: ${trigger.id} gateCandidate should reference ship-loop.mdc`);
+      }
+    }
   }
 
   return warnings;
@@ -251,6 +276,22 @@ export function renderGotchaMarkdown(result) {
 
   lines.push(`Matched triggers: ${result.matchedTriggers.join(", ")}`);
   lines.push("");
+
+  const gateWarnings = /** @type {string[]} */ (result.gateWarnings ?? []);
+  if (gateWarnings.length > 0) {
+    lines.push("## Gate candidate warnings (inject before prod verify / ship)");
+    for (const w of gateWarnings) {
+      lines.push(`- ⚠ ${w}`);
+    }
+    lines.push("");
+  }
+
+  const injectBeforeHints = /** @type {string[]} */ (result.injectBeforeHints ?? []);
+  if (injectBeforeHints.length > 0) {
+    lines.push("## Inject before");
+    for (const hint of injectBeforeHints) lines.push(`- ${hint}`);
+    lines.push("");
+  }
 
   if (result.orchestratorSteps.length > 0) {
     lines.push("## Orchestrator on-demand reads");

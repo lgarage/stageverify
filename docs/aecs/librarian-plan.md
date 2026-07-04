@@ -21,6 +21,8 @@ Token-efficiency planning: `PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md`. Full 
 
 **Indexer promotion rules:** `npm run indexer:ingest` classifies overflow into categories; `indexer-memory.json` entries use unique `triggerTerms` (no duplicate gotcha-map triggers). Promote to `gotcha-map.json` only when a trigger is high-signal and task-specific (`promotionCandidate: true` + `--apply-gotcha` after review). Promote to `LIBRARIAN_LESSONS.md` via `--category lesson` (not a full-file copy). Packet retrieval caps at top 2 indexer matches and skips injection when gotcha + lessons § already cover the same domain. Run `npm run away:validate` after ingest — slice line ranges must match SSOT anchors.
 
+**Learning loop (worker → future packet):** Worker hits failure → record via `npm run indexer:ingest` (overflow), `npm run lessons:append` (rolling bullet), or gotcha promotion (`--apply-gotcha`); run `npm run away:validate` (slice/anchor + injectable metadata). Future similar work: `npm run away:next -- --packet` auto-injects gotcha warnings + lessons § + top-2 indexer-memory matches (deterministic triggerTerms + type/subtype). High-signal ship gates: `gateCandidate: true` on gotcha trigger — reminder only; does not change mandatory ship-loop gates without rule edit.
+
 ---
 
 Knowledge System Hierarchy
