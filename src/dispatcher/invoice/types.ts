@@ -44,10 +44,6 @@ export interface ParsedInvoiceHeader {
   shipToAddress: string;
   fulfillmentMethod: InvoiceFulfillmentMethod;
   shipCompletePolicy: ShipCompletePolicy;
-  /** Raw payment/freight terms from invoice header (e.g. COD ONLY). */
-  paymentTermsRaw?: string;
-  /** True when invoice terms indicate cash-on-delivery only. */
-  codOnly?: boolean;
 }
 
 export interface ParsedInvoiceLine {

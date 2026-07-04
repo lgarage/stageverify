@@ -168,8 +168,6 @@ assert("P411190 shipViaRaw", p411190Header?.shipViaRaw === "Fond du Lac");
 assert("P411190 importStatus pending", p411190First?.processing?.importStatus === "pending");
 assert("P411190 no missing invoice warning", !(p411190First?.processing?.parsed.parseWarnings ?? []).some((w) => w.includes("missing vendorInvoiceNumber")));
 assert("P411190 lines preserved", (p411190First?.processing?.parsed.lines ?? []).length === 5);
-assert("P411190 codOnly", p411190Header?.codOnly === true);
-assert("P411190 paymentTermsRaw", p411190Header?.paymentTermsRaw === "COD ONLY");
 
 console.log("\n4. parsedLines persistence shape (Table B)");
 const rawLines = first?.processing?.parsed.lines ?? [];

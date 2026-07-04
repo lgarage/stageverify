@@ -21,8 +21,6 @@ export const INVOICE_HEADER_FIELD_LABELS: Record<string, string> = {
   shipToAddress: "Ship to address",
   fulfillmentMethod: "Fulfillment",
   shipCompletePolicy: "Ship-complete policy",
-  paymentTermsRaw: "Payment terms",
-  codOnly: "COD only",
 };
 
 const HEADER_ALIASES: Record<string, readonly string[]> = {
@@ -177,23 +175,4 @@ export function queueRowIssueSummary(importRow: VendorInvoiceImportReview): stri
 export function queueRowLineCount(importRow: VendorInvoiceImportReview): number {
   if (typeof importRow.parsedLineCount === "number") return importRow.parsedLineCount;
   return importRow.parsedLines?.length ?? 0;
-}
-
-/** COD / payment-terms context for review row + inspect modal (informational only). */
-export function codPaymentContext(
-  importRow: VendorInvoiceImportReview,
-): { chipLabel: string; paymentTermsRaw: string; codOnly: boolean } | null {
-  const normalized = normalizeParsedHeader(importRow.parsedHeader);
-  const paymentTermsRaw = readInvoiceHeaderField(normalized, "paymentTermsRaw");
-  const codOnly =
-    normalized.codOnly === true ||
-    /\bCOD\s+ONLY\b/i.test(paymentTermsRaw) ||
-    (importRow.orderNotes ?? []).some((n) => /\bCOD\s+ONLY\b/i.test(n));
-  if (!codOnly && !paymentTermsRaw) return null;
-  const chipLabel = codOnly ? "COD only" : paymentTermsRaw;
-  return {
-    chipLabel,
-    paymentTermsRaw,
-    codOnly,
-  };
 }

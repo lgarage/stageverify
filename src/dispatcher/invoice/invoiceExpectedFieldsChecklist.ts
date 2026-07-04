@@ -74,7 +74,6 @@ function buildHeaderRows(importRow: VendorInvoiceImportReview): ExpectedFieldRow
     { field: "Order date", key: "orderDate", expectedForInvoice: "Yes", expectedInThisDoc: true },
     { field: "Invoice date", key: "invoiceDate", expectedForInvoice: "Invoices", expectedInThisDoc: !isSoConfirmation },
     { field: "Ship via / fulfillment", key: "shipViaRaw", expectedForInvoice: "Often", expectedInThisDoc: true },
-    { field: "Payment terms", key: "paymentTermsRaw", expectedForInvoice: "When present", expectedInThisDoc: false },
     { field: "Ship-complete flag", key: "shipCompletePolicy", expectedForInvoice: "When present", expectedInThisDoc: false },
   ];
 

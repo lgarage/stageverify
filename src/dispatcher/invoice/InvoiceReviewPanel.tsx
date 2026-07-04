@@ -19,7 +19,6 @@ import {
   queueRowLineCount,
   queueRowTitle,
   readInvoiceHeaderField,
-  codPaymentContext,
 } from "./invoiceReviewHeaderHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
 
@@ -85,25 +84,6 @@ function StatusChip({
         {reviewStatusLabel(reviewStatus)}
       </span>
     </div>
-  );
-}
-
-function CodPaymentChip({ label }: { label: string }) {
-  return (
-    <span
-      data-testid="invoice-review-cod-chip"
-      style={{
-        backgroundColor: "#fef3c7",
-        color: "#92400e",
-        fontWeight: 700,
-        fontSize: 11,
-        padding: "3px 8px",
-        borderRadius: 999,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
-    </span>
   );
 }
 
@@ -487,7 +467,6 @@ export function InvoiceReviewPanel({
           const rowActionLoading = actionLoadingId === row.id;
           const isFirstPending = row.id === firstPendingRowId;
           const shipDateWarning = shipDateMissingWarning(row);
-          const codContext = codPaymentContext(row);
 
           return (
             <div
@@ -545,7 +524,6 @@ export function InvoiceReviewPanel({
                       importStatus={row.importStatus}
                       reviewStatus={row.reviewStatus}
                     />
-                    {codContext && <CodPaymentChip label={codContext.chipLabel} />}
                   </div>
 
                   <div
@@ -620,20 +598,13 @@ export function InvoiceReviewPanel({
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "flex-end",
-                    gap: 4,
+                    gap: 6,
                     flexShrink: 0,
+                    minWidth: 140,
                   }}
                 >
                   {row.reviewStatus === "pending_review" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
+                    <>
                       <button
                         type="button"
                         data-testid={
@@ -644,10 +615,7 @@ export function InvoiceReviewPanel({
                         disabled={
                           rowActionLoading || approveBlocked || !selectedDeliveryId
                         }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleApprove(row);
-                        }}
+                        onClick={() => void handleApprove(row)}
                         title={
                           approveBlocked
                             ? "Approve blocked for issue imports"
@@ -671,11 +639,18 @@ export function InvoiceReviewPanel({
                             rowActionLoading || approveBlocked || !selectedDeliveryId
                               ? 0.55
                               : 1,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Approve
                       </button>
+                      {approveBlocked && (
+                        <span
+                          data-testid="invoice-review-approve-blocked-copy"
+                          style={{ fontSize: 10, color: "#9a3412", lineHeight: 1.3 }}
+                        >
+                          Approve blocked — issue import
+                        </span>
+                      )}
                       <button
                         type="button"
                         data-testid={
@@ -684,10 +659,7 @@ export function InvoiceReviewPanel({
                             : `invoice-review-reject-${row.id}`
                         }
                         disabled={rowActionLoading}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleReject(row);
-                        }}
+                        onClick={() => void handleReject(row)}
                         style={{
                           backgroundColor: "#fff",
                           color: RED,
@@ -698,20 +670,11 @@ export function InvoiceReviewPanel({
                           fontWeight: 700,
                           cursor: rowActionLoading ? "not-allowed" : "pointer",
                           opacity: rowActionLoading ? 0.6 : 1,
-                          whiteSpace: "nowrap",
                         }}
                       >
                         Reject
                       </button>
-                    </div>
-                  )}
-                  {approveBlocked && row.reviewStatus === "pending_review" && (
-                    <span
-                      data-testid="invoice-review-approve-blocked-copy"
-                      style={{ fontSize: 10, color: "#9a3412", lineHeight: 1.3 }}
-                    >
-                      Approve blocked — issue import
-                    </span>
+                    </>
                   )}
                 </div>
               </div>

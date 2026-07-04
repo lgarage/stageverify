@@ -441,41 +441,6 @@ function parseLineTableRows(lineSection: string, orderNotes: string[]): ParsedIn
   return lines;
 }
 
-/** Extract payment/freight terms — informational for dispatcher review only. */
-function extractPaymentTerms(text: string): {
-  paymentTermsRaw?: string;
-  codOnly?: boolean;
-} {
-  const starredCod = capture(/\*+\s*(COD\s+ONLY[^*\n]*)\s*\*+/i, text);
-  if (starredCod) {
-    const paymentTermsRaw = starredCod.replace(/\*+/g, "").trim();
-    return { paymentTermsRaw, codOnly: true };
-  }
-
-  const labeledTerms = capture(/Terms\s*:\s*(.+)/i, text);
-  if (labeledTerms) {
-    const paymentTermsRaw = labeledTerms.trim();
-    return {
-      paymentTermsRaw,
-      codOnly: /\bCOD\b/i.test(paymentTermsRaw) || undefined,
-    };
-  }
-
-  const invoiceRowTail = capture(
-    /^[A-Z]?\d[\w-]*\s+\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s+[\w/&.-]+)*\s+(\S.*COD\S*)/im,
-    text,
-  );
-  if (invoiceRowTail && /\bCOD\b/i.test(invoiceRowTail)) {
-    const paymentTermsRaw = invoiceRowTail.replace(/\*+/g, "").trim();
-    return {
-      paymentTermsRaw,
-      codOnly: /\bCOD\s+ONLY\b/i.test(paymentTermsRaw) || undefined,
-    };
-  }
-
-  return {};
-}
-
 export function pageTextFingerprint(page: JohnstoneInvoicePageText): string {
   const normalized = page.extractedText.replace(/\s+/g, " ").trim().toLowerCase();
   let hash = 0;
@@ -572,10 +537,6 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
 
   const fulfillmentMethod = inferFulfillmentMethod(customerPoOrReference, shipViaRaw, text);
   const shipCompletePolicy = inferShipCompletePolicy(text);
-  const paymentTerms = extractPaymentTerms(text);
-  if (paymentTerms.paymentTermsRaw) {
-    orderNotes.push(`Payment terms: ${paymentTerms.paymentTermsRaw}`);
-  }
 
   const header: ParsedInvoiceHeader = {
     customerAccountNumber,
@@ -597,8 +558,6 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     shipToAddress: shipToAddress.trim(),
     fulfillmentMethod,
     shipCompletePolicy,
-    paymentTermsRaw: paymentTerms.paymentTermsRaw,
-    codOnly: paymentTerms.codOnly,
   };
 
   const lineSection = text.split(/LN\s+QNTY ORD/i)[1] ?? text;

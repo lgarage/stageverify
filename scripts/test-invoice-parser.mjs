@@ -76,20 +76,6 @@ function evaluateFixture(pageId, result, expected) {
       detail: result.parsed.header.invoiceDate,
     });
   }
-  if (expected.codOnly !== undefined) {
-    checks.push({
-      label: "codOnly",
-      pass: result.parsed.header.codOnly === expected.codOnly,
-      detail: `${result.parsed.header.codOnly ?? "null"}`,
-    });
-  }
-  if (expected.paymentTermsRaw) {
-    checks.push({
-      label: "paymentTermsRaw",
-      pass: result.parsed.header.paymentTermsRaw === expected.paymentTermsRaw,
-      detail: `${result.parsed.header.paymentTermsRaw ?? "null"}`,
-    });
-  }
   if (expected.fulfillmentMethod) {
     checks.push({
       label: "fulfillmentMethod",
@@ -314,8 +300,6 @@ const FIXTURE_EXPECTATIONS = {
     buyerName: "DAN DAY",
     shipViaRaw: "Fond du Lac",
     invoiceDate: "2026-01-08",
-    codOnly: true,
-    paymentTermsRaw: "COD ONLY",
     importStatus: "pending",
     displayLabel: "Pending Delivery",
     expectedLineCount: 5,
