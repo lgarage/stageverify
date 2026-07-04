@@ -164,11 +164,28 @@ export function SettingsPage() {
     });
   }, []);
 
+  const syncConnectedMailboxToSettings = async (
+    connectedEmail: string,
+  ): Promise<void> => {
+    setMonitoringInboxEmail(connectedEmail);
+    const settings = await getAppSettings();
+    if (settings.monitoringInboxEmail !== connectedEmail) {
+      await updateAppSettings({ monitoringInboxEmail: connectedEmail });
+    }
+  };
+
   const refreshGmailConnection = async () => {
     setLoadingGmailConnection(true);
     try {
       const connection = await getEmailProviderConnection();
       setGmailConnection(connection);
+      if (
+        connection?.connectedAccountEmail &&
+        (connection.status === "connected" ||
+          connection.status === "token_expired")
+      ) {
+        await syncConnectedMailboxToSettings(connection.connectedAccountEmail);
+      }
     } catch {
       setGmailConnection(null);
     } finally {
@@ -233,6 +250,10 @@ export function SettingsPage() {
   };
 
   const gmailStatus = gmailConnection?.status ?? "disconnected";
+  const linkedMailboxEmail = gmailConnection?.connectedAccountEmail ?? "";
+  const hasLinkedMailbox =
+    linkedMailboxEmail.length > 0 &&
+    (gmailStatus === "connected" || gmailStatus === "token_expired");
   const gmailStatusLabel =
     gmailStatus === "connected"
       ? "Connected"
@@ -256,10 +277,16 @@ export function SettingsPage() {
     if (savingEmail) return;
     setSavingEmail(true);
     try {
+      const inboxEmail = hasLinkedMailbox
+        ? linkedMailboxEmail
+        : monitoringInboxEmail.trim();
       await updateAppSettings({
-        monitoringInboxEmail: monitoringInboxEmail.trim(),
+        monitoringInboxEmail: inboxEmail,
         emailMonitoringEnabled,
       });
+      if (hasLinkedMailbox) {
+        setMonitoringInboxEmail(linkedMailboxEmail);
+      }
       setEmailSaved(true);
       setTimeout(() => setEmailSaved(false), 2000);
     } finally {
@@ -772,7 +799,7 @@ export function SettingsPage() {
             </div>
           </div>
 
-          {/* Email monitoring (Phase 5 prototype — settings only) */}
+          {/* Email monitoring */}
           <div style={{ ...cardStyle, overflow: "hidden" }}>
             <div
               style={{
@@ -785,223 +812,444 @@ export function SettingsPage() {
               </span>
             </div>
             <div style={{ padding: "20px" }}>
-              <p
-                style={{
-                  margin: "0 0 16px",
-                  fontSize: 12,
-                  color: "#6b7280",
-                  lineHeight: 1.45,
-                  maxWidth: 560,
-                }}
-              >
-                Configure the CC inbox address and Gmail OAuth separately. Monitoring
-                toggles do not connect Gmail — use Connect Gmail below for vendor
-                email provider status.
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: 12,
-                  marginBottom: 16,
-                  padding: "12px 14px",
-                  borderRadius: 8,
-                  border: "1px solid #e5e7eb",
-                  backgroundColor: "#fafafa",
-                  maxWidth: 560,
-                }}
-              >
-                <div style={{ flex: "1 1 180px" }}>
+              {hasLinkedMailbox ? (
+                <>
                   <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: NAVY,
-                      marginBottom: 6,
-                      letterSpacing: "0.02em",
+                      padding: "14px 16px",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
+                      backgroundColor: "#fafafa",
+                      maxWidth: 560,
+                      marginBottom: 16,
                     }}
                   >
-                    Gmail provider
-                  </div>
-                  <span
-                    data-testid="gmail-oauth-status-badge"
-                    data-status={gmailStatus}
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: gmailStatusColor,
-                      backgroundColor: gmailStatusBg,
-                    }}
-                  >
-                    {loadingGmailConnection ? "Loading…" : gmailStatusLabel}
-                  </span>
-                  {gmailConnection?.connectedAccountEmail && (
                     <div
-                      data-testid="gmail-connected-account"
                       style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: "#374151",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: NAVY,
+                        marginBottom: 12,
+                        letterSpacing: "0.02em",
                       }}
                     >
-                      {gmailConnection.connectedAccountEmail}
+                      Gmail Mailbox
                     </div>
-                  )}
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {(gmailStatus === "disconnected" ||
-                    gmailStatus === "token_expired") && (
-                    <button
-                      type="button"
-                      data-testid="gmail-oauth-connect"
-                      onClick={() => void handleConnectGmail()}
-                      disabled={connectingGmail || loadingGmailConnection}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={labelStyle}>Connected mailbox</div>
+                      <div
+                        data-testid="gmail-connected-account"
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#374151",
+                        }}
+                      >
+                        {linkedMailboxEmail}
+                      </div>
+                    </div>
+                    <div
                       style={{
-                        padding: "8px 16px",
-                        borderRadius: 4,
-                        border: "none",
-                        backgroundColor:
-                          connectingGmail || loadingGmailConnection ? "#e5e7eb" : NAVY,
-                        color:
-                          connectingGmail || loadingGmailConnection ? "#9ca3af" : "#fff",
-                        fontWeight: 700,
-                        fontSize: 13,
-                        cursor:
-                          connectingGmail || loadingGmailConnection
-                            ? "not-allowed"
-                            : "pointer",
-                        fontFamily: FONT,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 16,
+                        alignItems: "center",
+                        marginBottom: 12,
                       }}
                     >
-                      {connectingGmail ? "Redirecting…" : "Connect Gmail"}
-                    </button>
-                  )}
-                  {gmailStatus === "connected" && (
-                    <button
-                      type="button"
-                      data-testid="gmail-oauth-disconnect"
-                      onClick={() => void handleDisconnectGmail()}
-                      disabled={disconnectingGmail}
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#6b7280",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Status
+                        </div>
+                        <span
+                          data-testid="gmail-oauth-status-badge"
+                          data-status={gmailStatus}
+                          style={{
+                            display: "inline-block",
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: gmailStatusColor,
+                            backgroundColor: gmailStatusBg,
+                          }}
+                        >
+                          {loadingGmailConnection ? "Loading…" : gmailStatusLabel}
+                        </span>
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#6b7280",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Monitoring
+                        </div>
+                        <span
+                          data-testid="email-monitoring-status-label"
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: emailMonitoringEnabled ? "#166534" : "#6b7280",
+                          }}
+                        >
+                          {emailMonitoringEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                    </div>
+                    <p
                       style={{
-                        padding: "8px 16px",
-                        borderRadius: 4,
-                        border: "1px solid #d1d5db",
-                        backgroundColor: disconnectingGmail ? "#f3f4f6" : "#fff",
-                        color: disconnectingGmail ? "#9ca3af" : "#374151",
-                        fontWeight: 700,
-                        fontSize: 13,
-                        cursor: disconnectingGmail ? "not-allowed" : "pointer",
-                        fontFamily: FONT,
+                        margin: "0 0 14px",
+                        fontSize: 12,
+                        color: "#6b7280",
+                        lineHeight: 1.45,
                       }}
                     >
-                      {disconnectingGmail ? "Disconnecting…" : "Disconnect"}
-                    </button>
+                      StageVerify monitors the connected Gmail mailbox for vendor
+                      emails.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {gmailStatus === "token_expired" && (
+                        <button
+                          type="button"
+                          data-testid="gmail-oauth-connect"
+                          onClick={() => void handleConnectGmail()}
+                          disabled={connectingGmail || loadingGmailConnection}
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 4,
+                            border: "none",
+                            backgroundColor:
+                              connectingGmail || loadingGmailConnection
+                                ? "#e5e7eb"
+                                : NAVY,
+                            color:
+                              connectingGmail || loadingGmailConnection
+                                ? "#9ca3af"
+                                : "#fff",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            cursor:
+                              connectingGmail || loadingGmailConnection
+                                ? "not-allowed"
+                                : "pointer",
+                            fontFamily: FONT,
+                          }}
+                        >
+                          {connectingGmail ? "Redirecting…" : "Reconnect Gmail"}
+                        </button>
+                      )}
+                      {gmailStatus === "connected" && (
+                        <button
+                          type="button"
+                          data-testid="gmail-oauth-disconnect"
+                          onClick={() => void handleDisconnectGmail()}
+                          disabled={disconnectingGmail}
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 4,
+                            border: "1px solid #d1d5db",
+                            backgroundColor: disconnectingGmail ? "#f3f4f6" : "#fff",
+                            color: disconnectingGmail ? "#9ca3af" : "#374151",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            cursor: disconnectingGmail ? "not-allowed" : "pointer",
+                            fontFamily: FONT,
+                          }}
+                        >
+                          {disconnectingGmail ? "Disconnecting…" : "Disconnect"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {gmailOAuthMessage && (
+                    <p
+                      data-testid="gmail-oauth-message"
+                      style={{
+                        margin: "0 0 14px",
+                        fontSize: 12,
+                        color: gmailOAuthMessage.includes("failed")
+                          ? "#b91c1c"
+                          : "#166534",
+                        maxWidth: 560,
+                      }}
+                    >
+                      {gmailOAuthMessage}
+                    </p>
                   )}
-                </div>
-              </div>
-              {gmailOAuthMessage && (
-                <p
-                  data-testid="gmail-oauth-message"
-                  style={{
-                    margin: "0 0 14px",
-                    fontSize: 12,
-                    color: gmailOAuthMessage.includes("failed") ? "#b91c1c" : "#166534",
-                    maxWidth: 560,
-                  }}
-                >
-                  {gmailOAuthMessage}
-                </p>
-              )}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(200px, 1fr) auto",
-                  gap: 12,
-                  alignItems: "end",
-                  maxWidth: 560,
-                }}
-              >
-                <div>
-                  <label style={labelStyle} htmlFor="monitoring-inbox-email">
-                    Monitoring inbox address
-                  </label>
-                  <input
-                    id="monitoring-inbox-email"
-                    data-testid="monitoring-inbox-email"
-                    type="email"
-                    value={monitoringInboxEmail}
-                    onChange={(e) => setMonitoringInboxEmail(e.target.value)}
-                    placeholder="orders@yourshop.com"
-                    style={inputStyle}
-                  />
-                </div>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#374151",
-                    cursor: "pointer",
-                    paddingBottom: 10,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    data-testid="email-monitoring-enabled"
-                    checked={emailMonitoringEnabled}
-                    onChange={(e) => setEmailMonitoringEnabled(e.target.checked)}
-                  />
-                  Enable monitoring (Phase 6)
-                </label>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 14,
-                }}
-              >
-                <button
-                  type="button"
-                  data-testid="save-email-settings"
-                  onClick={() => void saveEmailSettings()}
-                  disabled={savingEmail}
-                  style={{
-                    padding: "8px 18px",
-                    borderRadius: 4,
-                    border: "none",
-                    backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
-                    color: savingEmail ? "#9ca3af" : "#fff",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: savingEmail ? "not-allowed" : "pointer",
-                    fontFamily: FONT,
-                    outline: "none",
-                  }}
-                >
-                  Save
-                </button>
-                {emailSaved && (
-                  <span
-                    data-testid="email-settings-saved"
+                  <label
                     style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
                       fontSize: 13,
                       fontWeight: 600,
-                      color: "#2e7d32",
+                      color: "#374151",
+                      cursor: "pointer",
+                      maxWidth: 560,
                     }}
                   >
-                    Saved ✓
-                  </span>
-                )}
-              </div>
+                    <input
+                      type="checkbox"
+                      data-testid="email-monitoring-enabled"
+                      checked={emailMonitoringEnabled}
+                      onChange={(e) => setEmailMonitoringEnabled(e.target.checked)}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      Process vendor emails from this mailbox
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: "#9ca3af",
+                          marginTop: 4,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Controls whether StageVerify ingests and processes emails —
+                        not the mailbox address.
+                      </span>
+                    </span>
+                  </label>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      marginTop: 14,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-testid="save-email-settings"
+                      onClick={() => void saveEmailSettings()}
+                      disabled={savingEmail}
+                      style={{
+                        padding: "8px 18px",
+                        borderRadius: 4,
+                        border: "none",
+                        backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
+                        color: savingEmail ? "#9ca3af" : "#fff",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: savingEmail ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                        outline: "none",
+                      }}
+                    >
+                      Save
+                    </button>
+                    {emailSaved && (
+                      <span
+                        data-testid="email-settings-saved"
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#2e7d32",
+                        }}
+                      >
+                        Saved ✓
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p
+                    style={{
+                      margin: "0 0 16px",
+                      fontSize: 12,
+                      color: "#6b7280",
+                      lineHeight: 1.45,
+                      maxWidth: 560,
+                    }}
+                  >
+                    Connect Gmail for vendor email send/receive. Set a monitoring inbox
+                    address below, or connect first — the connected account becomes the
+                    monitored mailbox.
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 12,
+                      marginBottom: 16,
+                      padding: "12px 14px",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
+                      backgroundColor: "#fafafa",
+                      maxWidth: 560,
+                    }}
+                  >
+                    <div style={{ flex: "1 1 180px" }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: NAVY,
+                          marginBottom: 6,
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        Gmail provider
+                      </div>
+                      <span
+                        data-testid="gmail-oauth-status-badge"
+                        data-status={gmailStatus}
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: gmailStatusColor,
+                          backgroundColor: gmailStatusBg,
+                        }}
+                      >
+                        {loadingGmailConnection ? "Loading…" : gmailStatusLabel}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        data-testid="gmail-oauth-connect"
+                        onClick={() => void handleConnectGmail()}
+                        disabled={connectingGmail || loadingGmailConnection}
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: 4,
+                          border: "none",
+                          backgroundColor:
+                            connectingGmail || loadingGmailConnection ? "#e5e7eb" : NAVY,
+                          color:
+                            connectingGmail || loadingGmailConnection ? "#9ca3af" : "#fff",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor:
+                            connectingGmail || loadingGmailConnection
+                              ? "not-allowed"
+                              : "pointer",
+                          fontFamily: FONT,
+                        }}
+                      >
+                        {connectingGmail ? "Redirecting…" : "Connect Gmail"}
+                      </button>
+                    </div>
+                  </div>
+                  {gmailOAuthMessage && (
+                    <p
+                      data-testid="gmail-oauth-message"
+                      style={{
+                        margin: "0 0 14px",
+                        fontSize: 12,
+                        color: gmailOAuthMessage.includes("failed") ? "#b91c1c" : "#166534",
+                        maxWidth: 560,
+                      }}
+                    >
+                      {gmailOAuthMessage}
+                    </p>
+                  )}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(200px, 1fr) auto",
+                      gap: 12,
+                      alignItems: "end",
+                      maxWidth: 560,
+                    }}
+                  >
+                    <div>
+                      <label style={labelStyle} htmlFor="monitoring-inbox-email">
+                        Monitoring inbox address
+                      </label>
+                      <input
+                        id="monitoring-inbox-email"
+                        data-testid="monitoring-inbox-email"
+                        type="email"
+                        value={monitoringInboxEmail}
+                        onChange={(e) => setMonitoringInboxEmail(e.target.value)}
+                        placeholder="orders@yourshop.com"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#374151",
+                        cursor: "pointer",
+                        paddingBottom: 10,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        data-testid="email-monitoring-enabled"
+                        checked={emailMonitoringEnabled}
+                        onChange={(e) => setEmailMonitoringEnabled(e.target.checked)}
+                      />
+                      Enable monitoring
+                    </label>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      marginTop: 14,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-testid="save-email-settings"
+                      onClick={() => void saveEmailSettings()}
+                      disabled={savingEmail}
+                      style={{
+                        padding: "8px 18px",
+                        borderRadius: 4,
+                        border: "none",
+                        backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
+                        color: savingEmail ? "#9ca3af" : "#fff",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: savingEmail ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                        outline: "none",
+                      }}
+                    >
+                      Save
+                    </button>
+                    {emailSaved && (
+                      <span
+                        data-testid="email-settings-saved"
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#2e7d32",
+                        }}
+                      >
+                        Saved ✓
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

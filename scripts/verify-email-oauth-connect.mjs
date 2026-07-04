@@ -200,6 +200,31 @@ async function assertEmailVendorEnabledWhenConnected(page) {
     await page.getByTestId("gmail-connected-account").waitFor({ timeout: 10_000 });
     await page.getByTestId("gmail-oauth-disconnect").waitFor({ timeout: 10_000 });
 
+    const connectedMailbox = await page
+      .getByTestId("gmail-connected-account")
+      .innerText();
+    if (!connectedMailbox.includes("@")) {
+      throw new Error(`Expected connected mailbox email, got: ${connectedMailbox}`);
+    }
+    await page.getByText("Gmail Mailbox", { exact: true }).waitFor({ timeout: 10_000 });
+
+    const inboxField = page.getByTestId("monitoring-inbox-email");
+    if (await inboxField.isVisible().catch(() => false)) {
+      throw new Error(
+        "monitoring-inbox-email must not be editable when Gmail is connected",
+      );
+    }
+
+    await page.getByTestId("email-monitoring-enabled").check();
+    await page.getByTestId("save-email-settings").click();
+    await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
+    const monitoringLabel = await page
+      .getByTestId("email-monitoring-status-label")
+      .innerText();
+    if (!/enabled/i.test(monitoringLabel)) {
+      throw new Error(`Expected Monitoring Enabled after save, got: ${monitoringLabel}`);
+    }
+
     await page.goto(`${appBase}/#/dispatcher`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,

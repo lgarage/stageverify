@@ -9,6 +9,7 @@
  */
 
 import { chromium } from "playwright";
+import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
@@ -35,6 +36,21 @@ const outDir = resolve(process.cwd(), "screenshots");
 mkdirSync(outDir, { recursive: true });
 
 const appBase = resolveAppBase(baseUrl);
+
+function trySeed(status) {
+  try {
+    execSync(`node scripts/seed-email-oauth-fixture.mjs --status=${status}`, {
+      stdio: "pipe",
+      encoding: "utf8",
+    });
+    return true;
+  } catch {
+    console.warn(
+      `SKIP seed --status=${status} (ADC unavailable — assuming ${status} UI state)`,
+    );
+    return false;
+  }
+}
 
 async function ensureAuthenticated(page) {
   await page.goto(`${appBase}/#/settings`, {
@@ -65,6 +81,8 @@ async function ensureAuthenticated(page) {
 }
 
 (async () => {
+  trySeed("disconnected");
+
   const browser = await chromium.launch({ headless: true });
   const contextOptions = {
     viewport: { width: 1280, height: 900 },
@@ -89,11 +107,48 @@ async function ensureAuthenticated(page) {
   await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
 
   console.log("Email Monitoring settings (save + reload)…");
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByText("Email Monitoring", { exact: true }).first().waitFor({
     timeout: 10_000,
   });
 
   const inboxInput = page.getByTestId("monitoring-inbox-email");
+  const badge = page.getByTestId("gmail-oauth-status-badge");
+  await badge.waitFor({ timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector('[data-testid="gmail-oauth-status-badge"]');
+      return el && !/loading/i.test(el.textContent ?? "");
+    },
+    { timeout: 15_000 },
+  );
+  await page.waitForTimeout(400);
+  const gmailStatus = await badge.getAttribute("data-status");
+  const inboxVisible = await inboxInput.isVisible().catch(() => false);
+
+  if (gmailStatus !== "disconnected" || !inboxVisible) {
+      console.log(
+        "SKIP inbox edit — Gmail linked; toggling monitoring enabled only…",
+      );
+      const enableCheckbox = page.getByTestId("email-monitoring-enabled");
+      const originalEnabled = await enableCheckbox.isChecked();
+      await enableCheckbox.setChecked(!originalEnabled);
+      await page.getByTestId("save-email-settings").click();
+      await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByTestId("email-monitoring-enabled").waitFor({ timeout: 15_000 });
+      const reloadedEnabled = await page
+        .getByTestId("email-monitoring-enabled")
+        .isChecked();
+      if (reloadedEnabled === originalEnabled) {
+        throw new Error("emailMonitoringEnabled did not persist when Gmail connected");
+      }
+      await page.getByTestId("email-monitoring-enabled").setChecked(originalEnabled);
+      await page.getByTestId("save-email-settings").click();
+      await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 }).catch(() => {});
+      console.log("PASS: Email Monitoring toggle save verified (Gmail connected).");
+  } else {
+    await inboxInput.waitFor({ state: "visible", timeout: 10_000 });
   const enableCheckbox = page.getByTestId("email-monitoring-enabled");
   const originalEmail = await inboxInput.inputValue();
   const originalEnabled = await enableCheckbox.isChecked();
@@ -140,6 +195,7 @@ async function ensureAuthenticated(page) {
   await page.waitForTimeout(1000);
 
   console.log("PASS: Email Monitoring settings save + reload verified.");
+  }
 
   await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);

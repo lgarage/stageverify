@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **drawer email review CTA** — Review Vendor Email button in What Needs Attention (ORD-006); scrolls/expands Readiness Evidence email proposals
+- Last shipped: **Settings Gmail mailbox UI** — connected Gmail shows unified mailbox section; monitoring inbox locked to connected account; toggle saves processing flag only
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
