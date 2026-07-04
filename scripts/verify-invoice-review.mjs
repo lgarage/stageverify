@@ -252,7 +252,37 @@ async function main() {
     console.log(`Screenshot: screenshots/invoice-review-verify/invoice-review-page.png`);
 
     const approvedLink = page.getByTestId("invoice-review-approved-link");
+    const rejectedLink = page.getByTestId("invoice-review-rejected-link");
     await approvedLink.waitFor({ timeout: 10_000 });
+    await rejectedLink.waitFor({ timeout: 10_000 });
+
+    const approvedLabel = (await approvedLink.innerText()).trim();
+    const rejectedLabel = (await rejectedLink.innerText()).trim();
+    if (!approvedLabel.startsWith("Approved invoices")) {
+      throw new Error(`Unexpected approved button label: ${approvedLabel}`);
+    }
+    if (!rejectedLabel.startsWith("Rejected invoices")) {
+      throw new Error(`Unexpected rejected button label: ${rejectedLabel}`);
+    }
+
+    const sideBySide = await page.evaluate(() => {
+      const approved = document.querySelector('[data-testid="invoice-review-approved-link"]');
+      const rejected = document.querySelector('[data-testid="invoice-review-rejected-link"]');
+      if (!approved || !rejected) return { ok: false, reason: "missing buttons" };
+      const parent = approved.parentElement;
+      if (parent !== rejected.parentElement) return { ok: false, reason: "different parents" };
+      const style = window.getComputedStyle(parent);
+      if (style.flexDirection === "column") return { ok: false, reason: "stacked column" };
+      const aRect = approved.getBoundingClientRect();
+      const rRect = rejected.getBoundingClientRect();
+      if (Math.abs(aRect.top - rRect.top) > 8) return { ok: false, reason: "not same row" };
+      return { ok: true };
+    });
+    if (!sideBySide.ok) {
+      throw new Error(`Archive nav buttons not side-by-side: ${sideBySide.reason}`);
+    }
+    console.log("PASS: Approved and Rejected invoices buttons side-by-side with correct labels");
+
     await approvedLink.click();
     console.log("PASS: Approved invoices navigation clicked");
 
@@ -316,6 +346,63 @@ async function main() {
     await page.getByTestId("invoice-review-back-to-queue").click();
     await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
     console.log("PASS: back to review queue navigation");
+
+    await rejectedLink.waitFor({ timeout: 10_000 });
+    await rejectedLink.click();
+    console.log("PASS: Rejected invoices navigation clicked");
+
+    await page.getByTestId("invoice-review-rejected-list").waitFor({ timeout: 15_000 });
+    console.log("PASS: rejected invoices list visible");
+
+    const rejectedHeading = page.getByText("Rejected invoices", { exact: true });
+    const rejectedHeadingCount = await rejectedHeading.count();
+    if (rejectedHeadingCount < 1) {
+      throw new Error("Expected Rejected invoices section heading");
+    }
+    console.log("PASS: Rejected invoices heading visible");
+
+    await page.waitForFunction(
+      () => {
+        const list = document.querySelector('[data-testid="invoice-review-rejected-list"]');
+        if (!list) return false;
+        const loading = list.textContent?.includes("Loading…");
+        const rows = list.querySelectorAll('[data-testid^="invoice-review-queue-row-"]').length;
+        const empty = list.querySelector('[data-testid="invoice-review-rejected-empty"]');
+        return !loading && (rows > 0 || !!empty);
+      },
+      { timeout: 30_000 },
+    );
+
+    const rejectedRows = page.locator('[data-testid^="invoice-review-queue-row-"]');
+    const rejectedRowCount = await rejectedRows.count();
+    const rejectedEmpty = page.getByTestId("invoice-review-rejected-empty");
+    const hasRejectedEmpty = await rejectedEmpty.isVisible().catch(() => false);
+
+    if (rejectedRowCount === 0 && !hasRejectedEmpty) {
+      throw new Error("Expected rejected rows or rejected empty-state message");
+    }
+
+    if (rejectedRowCount > 0) {
+      console.log(`PASS: ${rejectedRowCount} rejected row(s) visible`);
+      await page.locator('[data-testid^="invoice-review-row-content-"]').first().click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+      const modalReject = page.getByTestId("invoice-parsed-inspect-reject");
+      if (await modalReject.count()) {
+        throw new Error("Rejected archive inspect modal should not show Reject");
+      }
+      console.log("PASS: rejected row opens inspect modal without Reject action");
+      await page.getByTestId("invoice-parsed-inspect-close").click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
+        state: "hidden",
+        timeout: 5000,
+      });
+    } else {
+      console.log("PASS: rejected empty state renders");
+    }
+
+    await page.getByTestId("invoice-review-back-to-queue").click();
+    await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
+    console.log("PASS: back to review queue from rejected list");
 
     console.log("\nverify-invoice-review: PASS");
   } finally {

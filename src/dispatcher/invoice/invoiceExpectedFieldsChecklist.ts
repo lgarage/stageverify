@@ -179,7 +179,10 @@ export function buildExpectedJohnstoneFieldChecklist(
       importRow.importStatus as VendorInvoiceImportStatus,
     ),
     reviewStatus: reviewStatusLabel(importRow.reviewStatus),
-    approvalEligible: importRow.reviewStatus === "pending_review" && !approveBlocked,
+    approvalEligible:
+      (importRow.reviewStatus === "pending_review" ||
+        importRow.reviewStatus === "rejected") &&
+      !approveBlocked,
     blockReason,
     zeroLinesNote,
     rows: buildHeaderRows(importRow),

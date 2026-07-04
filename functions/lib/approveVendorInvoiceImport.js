@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.approveVendorInvoiceImport = void 0;
 /**
- * approveVendorInvoiceImport — explicit approve/reject.
+ * approveVendorInvoiceImport — explicit approve/reject/reopen.
  * Approve without deliveryOrderId: review-only (import reviewStatus approved; no delivery/items).
  * Approve with deliveryOrderId: writes expected items only; does NOT set qtyReceived, staging, or readiness.
  */
@@ -14,6 +14,9 @@ function getDb() {
     return admin.firestore();
 }
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
+function canApproveReviewStatus(status) {
+    return status === "pending_review" || status === "rejected";
+}
 exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
@@ -25,8 +28,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
-    if (action !== "approve" && action !== "reject") {
-        throw new https_1.HttpsError("invalid-argument", "action must be approve or reject.");
+    if (action !== "approve" && action !== "reject" && action !== "reopen") {
+        throw new https_1.HttpsError("invalid-argument", "action must be approve, reject, or reopen.");
     }
     if (deliveryOrderId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is too long.");
@@ -37,13 +40,38 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
     }
     const importDoc = importSnap.data();
-    if (importDoc.reviewStatus !== "pending_review") {
+    const now = new Date().toISOString();
+    if (action === "reopen") {
+        if (importDoc.reviewStatus !== "rejected") {
+            throw new https_1.HttpsError("failed-precondition", `Import is ${importDoc.reviewStatus}; only rejected imports can be reopened.`);
+        }
+        await getDb().runTransaction(async (tx) => {
+            const freshImport = await tx.get(importRef);
+            if (!freshImport.exists) {
+                throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
+            }
+            const fresh = freshImport.data();
+            if (fresh.reviewStatus !== "rejected") {
+                throw new https_1.HttpsError("failed-precondition", `Import is ${fresh.reviewStatus}; only rejected imports can be reopened.`);
+            }
+            tx.update(importRef, {
+                reviewStatus: "pending_review",
+                rejectedAt: admin.firestore.FieldValue.delete(),
+                rejectedBy: admin.firestore.FieldValue.delete(),
+                updatedAt: now,
+            });
+        });
+        return { vendorInvoiceImportId: importId, reviewStatus: "pending_review" };
+    }
+    if (action === "reject" && importDoc.reviewStatus !== "pending_review") {
+        throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);
+    }
+    if (action === "approve" && !canApproveReviewStatus(importDoc.reviewStatus)) {
         throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);
     }
     if (action === "approve" && importDoc.importStatus === "issue") {
         throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
     }
-    const now = new Date().toISOString();
     if (action === "reject") {
         await getDb().runTransaction(async (tx) => {
             const freshImport = await tx.get(importRef);
@@ -70,7 +98,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
             }
             const fresh = freshImport.data();
-            if (fresh.reviewStatus !== "pending_review") {
+            if (!canApproveReviewStatus(fresh.reviewStatus)) {
                 throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
             }
             if (fresh.importStatus === "issue") {
@@ -80,6 +108,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 reviewStatus: "approved",
                 approvedAt: now,
                 approvedBy: uid,
+                rejectedAt: admin.firestore.FieldValue.delete(),
+                rejectedBy: admin.firestore.FieldValue.delete(),
                 updatedAt: now,
             });
         });
@@ -124,7 +154,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
         }
         const fresh = freshImport.data();
-        if (fresh.reviewStatus !== "pending_review") {
+        if (!canApproveReviewStatus(fresh.reviewStatus)) {
             throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
         }
         if (fresh.importStatus === "issue") {
@@ -135,6 +165,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             linkedDeliveryOrderId: deliveryOrderId,
             approvedAt: now,
             approvedBy: uid,
+            rejectedAt: admin.firestore.FieldValue.delete(),
+            rejectedBy: admin.firestore.FieldValue.delete(),
             updatedAt: now,
         });
         tx.update(deliveryRef, {

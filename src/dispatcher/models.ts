@@ -844,6 +844,7 @@ export interface VendorInvoiceImportReview {
   error?: string;
   linkedDeliveryOrderId?: string;
   approvedAt?: string;
+  rejectedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -874,7 +875,7 @@ export interface InvoiceMatchResult {
 
 export interface ApproveVendorInvoiceImportResult {
   vendorInvoiceImportId: string;
-  reviewStatus: "approved" | "rejected";
+  reviewStatus: "approved" | "rejected" | "pending_review";
   deliveryOrderId?: string;
   itemsApplied?: number;
 }

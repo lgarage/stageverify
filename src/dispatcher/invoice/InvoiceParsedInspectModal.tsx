@@ -53,6 +53,7 @@ export function InvoiceParsedInspectModal({
   actionLoading = false,
   onApprove,
   onReject,
+  onReopen,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -65,6 +66,7 @@ export function InvoiceParsedInspectModal({
   actionLoading?: boolean;
   onApprove?: () => void;
   onReject?: () => void;
+  onReopen?: () => void;
 }) {
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
@@ -75,10 +77,13 @@ export function InvoiceParsedInspectModal({
   const parsedLines = importRow.parsedLines ?? [];
   const lineCount = importRow.parsedLineCount ?? parsedLines.length;
   const isPending = importRow.reviewStatus === "pending_review";
+  const isRejected = importRow.reviewStatus === "rejected";
   const approveBlocked = importRow.importStatus === "issue";
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
-  const showActions = isPending && (onApprove || onReject);
+  const showActions =
+    (isPending && (onApprove || onReject)) ||
+    (isRejected && (onApprove || onReopen));
   const approveDisabled = actionLoading || approveBlocked;
 
   return (
@@ -439,7 +444,7 @@ export function InvoiceParsedInspectModal({
               flexWrap: "wrap",
             }}
           >
-            {onReject && (
+            {onReject && isPending && (
               <button
                 type="button"
                 data-testid="invoice-parsed-inspect-reject"
@@ -460,7 +465,28 @@ export function InvoiceParsedInspectModal({
                 Reject
               </button>
             )}
-            {onApprove && (
+            {onReopen && isRejected && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-reopen"
+                disabled={actionLoading}
+                onClick={onReopen}
+                style={{
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  border: `1px solid ${NAVY}`,
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  opacity: actionLoading ? 0.6 : 1,
+                }}
+              >
+                Re-open for review
+              </button>
+            )}
+            {onApprove && (isPending || isRejected) && (
               <button
                 type="button"
                 data-testid="invoice-parsed-inspect-approve"

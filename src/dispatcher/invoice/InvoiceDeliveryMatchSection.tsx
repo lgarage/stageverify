@@ -24,7 +24,9 @@ export function InvoiceDeliveryMatchSection({
   recentDeliveries?: DeliveryListRow[];
   recentDeliveriesLoading?: boolean;
 }) {
-  if (importRow.reviewStatus !== "pending_review") return null;
+  if (importRow.reviewStatus !== "pending_review" && importRow.reviewStatus !== "rejected") {
+    return null;
+  }
 
   return (
     <div

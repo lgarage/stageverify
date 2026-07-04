@@ -107,9 +107,9 @@ function CodPaymentChip({ label }: { label: string }) {
   );
 }
 
-type QueueFilter = "pending" | "all" | "approved";
+type QueueFilter = "pending" | "all" | "approved" | "rejected";
 
-function formatApprovedDate(iso: string | undefined, fallbackIso: string): string {
+function formatReviewDate(iso: string | undefined, fallbackIso: string): string {
   const raw = iso ?? fallbackIso;
   if (!raw) return "—";
   const d = new Date(raw);
@@ -120,6 +120,33 @@ function formatApprovedDate(iso: string | undefined, fallbackIso: string): strin
     day: "numeric",
   });
 }
+
+function listTestId(filter: QueueFilter): string {
+  if (filter === "approved") return "invoice-review-approved-list";
+  if (filter === "rejected") return "invoice-review-rejected-list";
+  return "invoice-review-queue";
+}
+
+function listHeading(filter: QueueFilter): string {
+  if (filter === "approved") return "Approved invoices";
+  if (filter === "rejected") return "Rejected invoices";
+  return "Review queue";
+}
+
+function isArchiveFilter(filter: QueueFilter): boolean {
+  return filter === "approved" || filter === "rejected";
+}
+
+const ARCHIVE_NAV_BUTTON_STYLE = {
+  backgroundColor: NAVY,
+  color: "#fff",
+  border: "none",
+  borderRadius: 4,
+  padding: "8px 16px",
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: "pointer",
+} as const;
 
 function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?: string }) {
   const linked = Boolean(linkedDeliveryOrderId?.trim());
@@ -228,11 +255,19 @@ export function InvoiceReviewPanel({
     if (filter === "approved") {
       return imports.filter((i) => i.reviewStatus === "approved");
     }
+    if (filter === "rejected") {
+      return imports.filter((i) => i.reviewStatus === "rejected");
+    }
     return imports.filter((i) => i.reviewStatus === "pending_review");
   }, [imports, filter]);
 
   const approvedCount = useMemo(
     () => imports.filter((i) => i.reviewStatus === "approved").length,
+    [imports],
+  );
+
+  const rejectedCount = useMemo(
+    () => imports.filter((i) => i.reviewStatus === "rejected").length,
     [imports],
   );
 
@@ -290,7 +325,13 @@ export function InvoiceReviewPanel({
   }, []);
 
   useEffect(() => {
-    if (!inspectImport || inspectImport.reviewStatus !== "pending_review") return;
+    if (
+      !inspectImport ||
+      (inspectImport.reviewStatus !== "pending_review" &&
+        inspectImport.reviewStatus !== "rejected")
+    ) {
+      return;
+    }
 
     void loadRecentDeliveries();
 
@@ -365,6 +406,24 @@ export function InvoiceReviewPanel({
     }
   };
 
+  const handleReopen = async (row: VendorInvoiceImportReview) => {
+    setActionLoadingId(row.id);
+    setError(null);
+    try {
+      await approveVendorInvoiceImport({
+        vendorInvoiceImportId: row.id,
+        action: "reopen",
+      });
+      setInspectImport(null);
+      setFilter("pending");
+      await loadQueue();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Re-open failed.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const firstPendingRowId = filteredImports.find(
     (r) => r.reviewStatus === "pending_review",
   )?.id;
@@ -381,9 +440,7 @@ export function InvoiceReviewPanel({
       }}
     >
       <div
-        data-testid={
-          filter === "approved" ? "invoice-review-approved-list" : "invoice-review-queue"
-        }
+        data-testid={listTestId(filter)}
         style={{
           backgroundColor: "#fff",
           border: "1px solid #e0e3e8",
@@ -402,9 +459,9 @@ export function InvoiceReviewPanel({
           }}
         >
           <span style={{ fontWeight: 700, color: NAVY, fontSize: 14 }}>
-            {filter === "approved" ? "Approved invoices" : "Review queue"}
+            {listHeading(filter)}
           </span>
-          {filter !== "approved" && (
+          {!isArchiveFilter(filter) && (
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as QueueFilter)}
@@ -426,15 +483,19 @@ export function InvoiceReviewPanel({
             data-testid={
               filter === "approved"
                 ? "invoice-review-approved-empty"
-                : "invoice-review-empty"
+                : filter === "rejected"
+                  ? "invoice-review-rejected-empty"
+                  : "invoice-review-empty"
             }
             style={{ padding: 16, color: "#6b7280", fontSize: 13, margin: 0 }}
           >
             {filter === "approved"
               ? "No approved invoices yet. Approve imports from the review queue to see them here."
+              : filter === "rejected"
+                ? "No rejected invoices yet. Rejected invoices appear here after you reject from the review queue."
               : filter === "pending" &&
                   imports.some((i) => i.reviewStatus !== "pending_review")
-                ? "No pending imports — open Approved invoices below or switch to All imports."
+                ? "No pending imports — open Approved or Rejected invoices below, or switch to All imports."
                 : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
           </p>
         )}
@@ -548,7 +609,19 @@ export function InvoiceReviewPanel({
                       <>
                         <FieldCell
                           label="Approved"
-                          value={formatApprovedDate(row.approvedAt, row.updatedAt)}
+                          value={formatReviewDate(row.approvedAt, row.updatedAt)}
+                        />
+                        <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
+                          <LinkedDeliveryBadge
+                            linkedDeliveryOrderId={row.linkedDeliveryOrderId}
+                          />
+                        </div>
+                      </>
+                    ) : filter === "rejected" ? (
+                      <>
+                        <FieldCell
+                          label="Rejected"
+                          value={formatReviewDate(row.rejectedAt, row.updatedAt)}
                         />
                         <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
                           <LinkedDeliveryBadge
@@ -588,7 +661,7 @@ export function InvoiceReviewPanel({
                       {issueSummary}
                     </div>
                   ) : (
-                    filter !== "approved" &&
+                    !isArchiveFilter(filter) &&
                     row.reviewStatus !== "pending_review" &&
                     row.linkedDeliveryOrderId && (
                       <div style={{ marginTop: 10, fontSize: 12, color: "#166534" }}>
@@ -681,6 +754,72 @@ export function InvoiceReviewPanel({
                       </button>
                     </div>
                   )}
+                  {row.reviewStatus === "rejected" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        data-testid={`invoice-review-reopen-${row.id}`}
+                        disabled={rowActionLoading}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleReopen(row);
+                        }}
+                        style={{
+                          backgroundColor: "#fff",
+                          color: NAVY,
+                          border: `1px solid ${NAVY}`,
+                          borderRadius: 4,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: rowActionLoading ? "not-allowed" : "pointer",
+                          opacity: rowActionLoading ? 0.6 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Re-open
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`invoice-review-approve-rejected-${row.id}`}
+                        disabled={rowActionLoading || approveBlocked}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleApprove(row);
+                        }}
+                        title={
+                          approveBlocked ? "Approve blocked for issue imports" : undefined
+                        }
+                        style={{
+                          backgroundColor: NAVY,
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 4,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor:
+                            rowActionLoading || approveBlocked
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            rowActionLoading || approveBlocked
+                              ? 0.55
+                              : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  )}
                   {approveBlocked && row.reviewStatus === "pending_review" && (
                     <span
                       data-testid="invoice-review-approve-blocked-copy"
@@ -701,9 +840,12 @@ export function InvoiceReviewPanel({
           marginTop: 16,
           display: "flex",
           justifyContent: "center",
+          gap: 12,
+          flexWrap: "wrap",
         }}
+        data-testid="invoice-review-archive-nav"
       >
-        {filter === "approved" ? (
+        {isArchiveFilter(filter) ? (
           <button
             type="button"
             data-testid="invoice-review-back-to-queue"
@@ -722,24 +864,26 @@ export function InvoiceReviewPanel({
             Back to review queue
           </button>
         ) : (
-          <button
-            type="button"
-            data-testid="invoice-review-approved-link"
-            onClick={() => setFilter("approved")}
-            style={{
-              backgroundColor: NAVY,
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Approved invoices
-            {approvedCount > 0 ? ` (${approvedCount})` : ""}
-          </button>
+          <>
+            <button
+              type="button"
+              data-testid="invoice-review-approved-link"
+              onClick={() => setFilter("approved")}
+              style={ARCHIVE_NAV_BUTTON_STYLE}
+            >
+              Approved invoices
+              {approvedCount > 0 ? ` (${approvedCount})` : ""}
+            </button>
+            <button
+              type="button"
+              data-testid="invoice-review-rejected-link"
+              onClick={() => setFilter("rejected")}
+              style={ARCHIVE_NAV_BUTTON_STYLE}
+            >
+              Rejected invoices
+              {rejectedCount > 0 ? ` (${rejectedCount})` : ""}
+            </button>
+          </>
         )}
       </div>
 
@@ -773,7 +917,8 @@ export function InvoiceReviewPanel({
           recentDeliveriesLoading={recentDeliveriesLoading}
           actionLoading={actionLoadingId === inspectImport.id}
           onApprove={
-            inspectImport.reviewStatus === "pending_review"
+            inspectImport.reviewStatus === "pending_review" ||
+            inspectImport.reviewStatus === "rejected"
               ? () => {
                   void submitApprove(inspectImport, inspectSelectedDeliveryId);
                 }
@@ -783,6 +928,13 @@ export function InvoiceReviewPanel({
             inspectImport.reviewStatus === "pending_review"
               ? () => {
                   void handleReject(inspectImport);
+                }
+              : undefined
+          }
+          onReopen={
+            inspectImport.reviewStatus === "rejected"
+              ? () => {
+                  void handleReopen(inspectImport);
                 }
               : undefined
           }
