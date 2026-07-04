@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.approveVendorInvoiceImport = void 0;
 /**
- * approveVendorInvoiceImport — explicit approve/reject; writes expected items only.
- * Does NOT set qtyReceived, staging, or readiness.
+ * approveVendorInvoiceImport — explicit approve/reject.
+ * Approve without deliveryOrderId: review-only (import reviewStatus approved; no delivery/items).
+ * Approve with deliveryOrderId: writes expected items only; does NOT set qtyReceived, staging, or readiness.
  */
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
@@ -27,8 +28,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if (action !== "approve" && action !== "reject") {
         throw new https_1.HttpsError("invalid-argument", "action must be approve or reject.");
     }
-    if (action === "approve" && (!deliveryOrderId || deliveryOrderId.length > 256)) {
-        throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is required to approve.");
+    if (deliveryOrderId.length > 256) {
+        throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is too long.");
     }
     const importRef = getDb().collection(REVIEW_COLLECTION).doc(importId);
     const importSnap = await importRef.get();
@@ -61,6 +62,31 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             });
         });
         return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
+    }
+    if (!deliveryOrderId) {
+        await getDb().runTransaction(async (tx) => {
+            const freshImport = await tx.get(importRef);
+            if (!freshImport.exists) {
+                throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
+            }
+            const fresh = freshImport.data();
+            if (fresh.reviewStatus !== "pending_review") {
+                throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
+            }
+            if (fresh.importStatus === "issue") {
+                throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
+            }
+            tx.update(importRef, {
+                reviewStatus: "approved",
+                approvedAt: now,
+                approvedBy: uid,
+                updatedAt: now,
+            });
+        });
+        return {
+            vendorInvoiceImportId: importId,
+            reviewStatus: "approved",
+        };
     }
     const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);
     const deliverySnap = await deliveryRef.get();

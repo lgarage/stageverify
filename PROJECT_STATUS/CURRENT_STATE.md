@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Automatic indexer learning on away:ship** — `--learned`/`--failure`+`--fix` inline capture; demo-packet regression in away:validate; gateWarnings auto-inject in packet
+- Last shipped: **Invoice Review approve CF deploy fix** — rebuilt `functions/lib/approveVendorInvoiceImport.js` (TS fix from 8ff639b was never compiled/deployed); review-only approve now live in production
+- Also shipped: **Automatic indexer learning on away:ship** — `--learned`/`--failure`+`--fix` inline capture; demo-packet regression in away:validate; gateWarnings auto-inject in packet
 - Also shipped: **Indexer learning loop — stale gh-pages prod-verify** — gotcha-map gateCandidate warning + injectBefore; idx-006 timing; demo packet positive/negative asserts
 - Also shipped: **Invoice Review manual approve** — Approve without auto-match; delivery picker in inspect modal (candidates + manual ID + recent deliveries); row match section removed
 - Also shipped: **Invoice Review approve unblock + COD terms** — match CF optional vendor/ship-to addresses; Approve/Reject inline row buttons; COD chip from `parsedHeader.paymentTermsRaw` / `codOnly`
