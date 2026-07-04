@@ -166,6 +166,9 @@ export function normalizeIngestInput(input) {
       ? input.promotionCandidate
       : category === "gotcha" || category === "repeated failure";
 
+  const gateCandidate =
+    typeof input.gateCandidate === "boolean" ? input.gateCandidate : false;
+
   return {
     category,
     summary,
@@ -188,6 +191,7 @@ export function normalizeIngestInput(input) {
         : 0.85,
     injectBeforeWork,
     promotionCandidate,
+    gateCandidate,
     notes: typeof input.notes === "string" ? input.notes.trim() : null,
   };
 }
@@ -475,6 +479,178 @@ export function validateIndexerMemorySlices(store) {
     issues.push(...validateIndexerMemorySlice(entry));
   }
   return issues;
+}
+
+/** Patterns in away:ship --note that auto-trigger learning capture (bonus to explicit --learned). */
+export const SHIP_NOTE_LEARNING_SIGNALS = [
+  { pattern: /root cause\s*:/i, category: "repeated failure" },
+  { pattern: /fix\s*:/i, category: "lesson" },
+  { pattern: /prod verify fail/i, category: "gotcha", gateCandidate: true },
+  { pattern: /stale gh-pages|gh-pages stale|bundle stale|stale bundle/i, category: "gotcha", gateCandidate: true },
+  { pattern: /local pass.*prod fail|prod-only/i, category: "gotcha", gateCandidate: true },
+  { pattern: /failed twice|2nd fail|second fail|regression/i, category: "repeated failure" },
+  { pattern: /security finding|HIGH risk|security gate/i, category: "lesson" },
+];
+
+/**
+ * @param {string | undefined} note
+ * @param {{ learned?: string, failure?: string, fix?: string, skipLearning?: string }} args
+ */
+export function shouldCaptureShipLearning(note, args = {}) {
+  if (args.skipLearning === "true") return false;
+  if (args.learned?.trim() || args.failure?.trim() || args.fix?.trim()) return true;
+  if (!note?.trim()) return false;
+  return SHIP_NOTE_LEARNING_SIGNALS.some(({ pattern }) => pattern.test(note));
+}
+
+/**
+ * @param {string | undefined} note
+ */
+export function detectShipNoteLearningCategory(note) {
+  if (!note?.trim()) return null;
+  for (const signal of SHIP_NOTE_LEARNING_SIGNALS) {
+    if (signal.pattern.test(note)) return signal.category;
+  }
+  return null;
+}
+
+/**
+ * @param {string} summary
+ * @param {Record<string, unknown> | null | undefined} item
+ * @param {string | undefined} explicitTrigger
+ */
+export function deriveShipLearningTriggerTerms(summary, item, explicitTrigger) {
+  if (explicitTrigger?.trim()) {
+    return explicitTrigger
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+  /** @type {Set<string>} */
+  const terms = new Set();
+  const type = typeof item?.type === "string" ? item.type.trim() : "";
+  const subtype = typeof item?.subtype === "string" ? item.subtype.trim() : "";
+  if (type) terms.add(type);
+  if (subtype) terms.add(subtype);
+  const title = typeof item?.title === "string" ? item.title.trim() : "";
+  for (const word of `${title} ${summary}`.split(/\s+/)) {
+    const w = word.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    if (w.length >= 4 && !/^(this|that|with|from|when|then|have|been|only|after|before|ship|task)$/.test(w)) {
+      terms.add(w);
+    }
+  }
+  if (terms.size === 0) terms.add("away-ship-learning");
+  return [...terms].slice(0, 8);
+}
+
+/**
+ * Build ingest input from away:ship flags + queue item metadata.
+ * @param {Record<string, string>} args away:ship CLI args
+ * @param {Record<string, unknown> | null | undefined} item queue item
+ */
+export function buildShipLearningInput(args, item) {
+  /** @type {Record<string, unknown>} */
+  const input = {};
+
+  if (args.learned?.trim()) {
+    input.summary = args.learned.trim();
+  } else if (args.failure?.trim() || args.fix?.trim()) {
+    const failure = args.failure?.trim() ?? "";
+    const fix = args.fix?.trim() ?? "";
+    input.summary = failure && fix ? `${failure} Fix: ${fix}` : failure || fix;
+  } else if (args.note?.trim()) {
+    input.summary = args.note.trim().slice(0, 280);
+  } else {
+    throw new Error("ship learning: no summary from --learned, --failure/--fix, or --note");
+  }
+
+  if (args.category?.trim()) input.category = args.category.trim();
+  else if (args.note?.trim()) {
+    const inferred = detectShipNoteLearningCategory(args.note);
+    if (inferred) input.category = inferred;
+  }
+
+  input.sourceTask = args.id ?? null;
+  input.sourceCommit = args.commit ?? null;
+
+  if (args.type?.trim()) input.type = args.type.trim();
+  else if (typeof item?.type === "string" && item.type.trim()) input.type = item.type.trim();
+
+  if (args.subtype?.trim()) input.subtype = args.subtype.trim();
+  else if (typeof item?.subtype === "string" && item.subtype.trim()) input.subtype = item.subtype.trim();
+
+  input.triggerTerms = deriveShipLearningTriggerTerms(String(input.summary), item, args.trigger);
+
+  if (args.tags?.trim()) {
+    input.tags = args.tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+
+  if (args.gate === "true" || args.gateCandidate === "true") {
+    input.gateCandidate = true;
+  } else if (args.note?.trim()) {
+    const gateSignal = SHIP_NOTE_LEARNING_SIGNALS.find(
+      (s) => s.gateCandidate && s.pattern.test(args.note),
+    );
+    if (gateSignal) input.gateCandidate = true;
+  }
+
+  if (input.gateCandidate === true && !input.notes) {
+    input.notes = String(input.summary);
+  }
+
+  return input;
+}
+
+/**
+ * Auto-capture learning on away:ship — SSOT for worker hard-earned fixes.
+ * @param {Record<string, string>} args away:ship CLI args
+ * @param {Record<string, unknown> | null | undefined} item queue item
+ * @param {{ dryRun?: boolean }} [opts]
+ */
+export function captureLearningFromShip(args, item, opts = {}) {
+  if (!shouldCaptureShipLearning(args.note, args)) return null;
+  const input = buildShipLearningInput(args, item);
+  const normalized = normalizeIngestInput(input);
+  const typeKey =
+    normalized.type && normalized.subtype
+      ? `${normalized.type}/${normalized.subtype}`
+      : normalized.type ?? undefined;
+  return ingestIndexerEntry(normalized, { dryRun: opts.dryRun ?? false, typeKey });
+}
+
+/**
+ * Collect gateCandidate warnings from matched indexer-memory entries.
+ * @param {string} taskQuery
+ * @param {string | null} typeKey
+ * @param {IndexerMemoryEntry[]} [entries]
+ */
+export function collectIndexerGateWarnings(taskQuery, typeKey, entries) {
+  const matched = matchIndexerMemory(taskQuery, typeKey, entries);
+  return matched
+    .filter((entry) => entry.gateCandidate === true)
+    .map((entry) => entry.notes?.trim() || entry.summary)
+    .filter(Boolean);
+}
+
+/**
+ * Merge gotcha + indexer gate warnings without near-duplicates.
+ * @param {string[]} gotchaWarnings
+ * @param {string[]} indexerWarnings
+ */
+export function mergeGateWarnings(gotchaWarnings, indexerWarnings) {
+  /** @type {string[]} */
+  const merged = [...gotchaWarnings];
+  for (const warning of indexerWarnings) {
+    const lower = warning.toLowerCase();
+    if (merged.some((existing) => existing.toLowerCase().includes(lower) || lower.includes(existing.toLowerCase()))) {
+      continue;
+    }
+    merged.push(warning);
+  }
+  return merged;
 }
 
 /** @param {IndexerMemoryStore} store */

@@ -28,6 +28,8 @@ import {
 } from "./gotcha-map-lib.mjs";
 import {
   buildIndexerMemoryResult,
+  collectIndexerGateWarnings,
+  mergeGateWarnings,
   renderIndexerMemoryMarkdown,
 } from "./indexer-ingest-lib.mjs";
 import { renderLessonsSliceMarkdown } from "./librarian-lessons-lib.mjs";
@@ -98,6 +100,7 @@ function resolveTypeKeyFromItem(item) {
 /** @param {Record<string, unknown>} item */
 function buildGotchaForItem(item) {
   const task = buildTaskQueryFromItem(item);
+  const typeKey = resolveTypeKeyFromItem(item);
   const map = loadGotchaMap();
   const matched = matchTriggers(task, map.triggers ?? []);
   /** @type {Record<string, unknown>} */
@@ -105,6 +108,11 @@ function buildGotchaForItem(item) {
     task,
     ...buildGotchaResult(matched, map.orchestratorSteps ?? {}),
   };
+  const indexerGateWarnings = collectIndexerGateWarnings(task, typeKey);
+  gotcha.gateWarnings = mergeGateWarnings(
+    /** @type {string[]} */ (gotcha.gateWarnings ?? []),
+    indexerGateWarnings,
+  );
   if (matched.length === 0) {
     gotcha.fallback = {
       message: "No gotcha trigger match — use hot tier only (CURRENT_STATE.md + MEMORY.md)",
@@ -207,6 +215,8 @@ export function buildAwayNextPacket(opts = {}) {
   const gotcha = buildGotchaForItem(next);
   const lessonsSlice = buildLessonsSliceForItem(next);
   const indexerMemory = buildIndexerMemoryForItem(next, gotcha, lessonsSlice);
+  const gateWarnings = /** @type {string[]} */ (gotcha.gateWarnings ?? []);
+  const injectBeforeHints = /** @type {string[]} */ (gotcha.injectBeforeHints ?? []);
 
   /** @type {Record<string, unknown>} */
   const executionPacket = {
@@ -214,6 +224,8 @@ export function buildAwayNextPacket(opts = {}) {
     dossierSlices: packet.dossierSlices,
     gotcha,
   };
+  if (gateWarnings.length > 0) executionPacket.gateWarnings = gateWarnings;
+  if (injectBeforeHints.length > 0) executionPacket.injectBeforeHints = injectBeforeHints;
   if (lessonsSlice) executionPacket.lessonsSlice = lessonsSlice;
   if (indexerMemory.entries.length > 0) executionPacket.indexerMemory = indexerMemory;
 
@@ -273,6 +285,13 @@ export function renderPacketMarkdown(packet) {
   const gotcha = /** @type {Record<string, unknown> | undefined} */ (packet.gotcha);
   if (gotcha) {
     lines.push(renderGotchaMarkdown(gotcha).trim());
+    lines.push("");
+  }
+
+  const topGateWarnings = /** @type {string[] | undefined} */ (packet.gateWarnings);
+  if (topGateWarnings && topGateWarnings.length > 0 && !gotcha?.gateWarnings) {
+    lines.push("## Gate candidate warnings (inject before prod verify / ship)");
+    for (const w of topGateWarnings) lines.push(`- ⚠ ${w}`);
     lines.push("");
   }
 

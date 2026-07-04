@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Structured indexer overflow — references SSOTs; retrieve via exact trigger term + type/subtype match (npm run away:next -- --packet). Ingest via npm run indexer:ingest.",
+  "description": "Structured indexer overflow — references SSOTs; retrieve via trigger term + type/subtype match (npm run away:next -- --packet). Ingest via npm run away:ship --learned (automatic) or npm run indexer:ingest (manual overflow).",
   "entries": [
     {
       "id": "idx-001",

@@ -3,6 +3,7 @@
  * Cross-file memory consistency checks (Verifier).
  * Run: npm run away:validate
  */
+import { execSync } from "node:child_process";
 import path from "node:path";
 import {
   PATHS,
@@ -283,6 +284,9 @@ function validatePackageScripts() {
   if (!scripts["indexer:ingest"]) {
     fail("package.json: missing indexer:ingest script");
   }
+  if (!scripts["indexer:demo-packet"]) {
+    fail("package.json: missing indexer:demo-packet script");
+  }
   if (!scripts["estimate:audit"]) {
     fail("package.json: missing estimate:audit script");
   }
@@ -396,6 +400,41 @@ function validateLessonsIndexRanges() {
   }
 }
 
+function validateIndexerDemoPacket() {
+  try {
+    execSync("node scripts/indexer-demo-packet.mjs --assert", {
+      cwd: REPO_ROOT,
+      stdio: "pipe",
+      encoding: "utf8",
+    });
+  } catch (err) {
+    const detail =
+      err instanceof Error && "stdout" in err
+        ? String(/** @type {{ stdout?: string, stderr?: string }} */ (err).stderr ?? "")
+        : "";
+    fail(`indexer:demo-packet regression failed${detail ? `: ${detail.trim().slice(0, 200)}` : ""}`);
+  }
+}
+
+function validateRecentShipLearnings() {
+  try {
+    const status = readJson(PATHS.awayStatus);
+    const store = loadIndexerMemory();
+    const knownIds = new Set((store.entries ?? []).map((entry) => entry.id));
+    for (const row of status.results ?? []) {
+      const learning = /** @type {{ id?: string, action?: string } | undefined} */ (row.learning);
+      if (!learning?.id) continue;
+      if (learning.action === "indexer-memory" && !knownIds.has(learning.id)) {
+        fail(
+          `away-status ${row.id} learning ref ${learning.id} missing from indexer-memory.json — re-run away:ship --learned or fix drift`,
+        );
+      }
+    }
+  } catch (err) {
+    fail(`recent ship learnings: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function main() {
   const list = validateAwayList();
   const archive = readJson(PATHS.awayArchive);
@@ -417,6 +456,8 @@ function main() {
   validateIndexerMemorySliceRanges();
   validateIndexerMemoryStore();
   validateLessonsIndexRanges();
+  validateIndexerDemoPacket();
+  validateRecentShipLearnings();
   validateEstimateLogRows();
   validateEstimateAuditDue();
 

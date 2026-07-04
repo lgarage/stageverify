@@ -70,6 +70,8 @@ After `npm run deploy`, run prod checks for routes touched by the change:
 
 Run only scripts relevant to the shipped change. Retry once after **15s** if failure looks like gh-pages propagation lag.
 
+When `npm run away:next -- --packet` includes **`gateWarnings`** (from `PROJECT_STATUS/gotcha-map.json` gateCandidate triggers — SSOT), read them before prod `:prod` verify; they do not replace mandatory ship-loop steps.
+
 ## Backend deploy (default after gate)
 
 Deploy Firebase targets in the **same session** when the substantive change requires it — **after** Sonnet security gate passes (when triggered). Do **not** wait for a separate "approve deploy" message unless Dan said hold.
