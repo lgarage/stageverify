@@ -91,6 +91,7 @@
     "test:match-invoice-records": "cd functions && npm run build && cd .. && node scripts/test-match-invoice-records.mjs",
     "test:approve-vendor-invoice-import": "cd functions && npm run build && cd .. && node scripts/test-approve-vendor-invoice-import.mjs",
     "test:recover-stranded-processing": "cd functions && npm run build && cd .. && node scripts/test-recover-stranded-processing.mjs",
+    "test:retry-on-error-inbound": "cd functions && npm run build && cd .. && node scripts/test-retry-on-error-inbound.mjs",
     "verify:inbound-email-ingest": "cd functions && npm run build && cd .. && npx tsx scripts/verify-inbound-email-ingest.mjs",
     "away:validate": "node scripts/away-validate.mjs",
     "estimate:audit": "node scripts/estimate-audit.mjs",

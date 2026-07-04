@@ -80,10 +80,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
     const existing = await ref.get();
     if (existing.exists) {
         const data = existing.data();
-        if (options?.retryOnError && data.processingStatus === "error") {
-            await ref.delete();
-        }
-        else {
+        if (!(options?.retryOnError && data.processingStatus === "error")) {
             return {
                 docId,
                 gmailMessageId,
@@ -93,6 +90,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
                 skippedProcessingStatus: data.processingStatus,
             };
         }
+        // retryOnError: fall through — processing placeholder below overwrites atomically (no delete)
     }
     const now = new Date().toISOString();
     await ref.set({

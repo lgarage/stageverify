@@ -124,9 +124,7 @@ export async function processInboundGmailMessage(
 
   if (existing.exists) {
     const data = existing.data() as InboundEmailProcessingDoc;
-    if (options?.retryOnError && data.processingStatus === "error") {
-      await ref.delete();
-    } else {
+    if (!(options?.retryOnError && data.processingStatus === "error")) {
       return {
         docId,
         gmailMessageId,
@@ -136,6 +134,7 @@ export async function processInboundGmailMessage(
         skippedProcessingStatus: data.processingStatus,
       };
     }
+    // retryOnError: fall through — processing placeholder below overwrites atomically (no delete)
   }
 
   const now = new Date().toISOString();
