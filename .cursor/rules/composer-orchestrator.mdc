@@ -200,7 +200,9 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 ### Completion report (mandatory)
 After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
 
-**Then** an **estimate table** from `PROJECT_STATUS/estimate-log.md` (approval→commit when logged; otherwise elapsed from this session). Away ships: cite row **Type/Subtype** when helpful for calibration context:
+**Timing:** when posting this reply, the parent/coordinator records **`completedAt`** (ISO, coordinator clock) and **`actualElapsedMin`** (nearest whole minute from Dan's approval `startedAt` — see `estimate-log.md`). Append the estimate-log row at declare-done; do not use feature commit time as `completedAt`.
+
+**Then** an **estimate table** from `PROJECT_STATUS/estimate-log.md` (approval→done when logged; otherwise elapsed from this session). Away ships: cite row **Type/Subtype** when helpful for calibration context:
 
 When a pre-ship **budget** exists for the task:
 

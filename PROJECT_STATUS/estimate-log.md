@@ -1,6 +1,6 @@
 # Away ship estimate log — single source of truth for away timing audit
 
-Rolling log for the **last 15 shipped away tasks**. At `away:ship`, append one row here (shift oldest off when full). **This file is the only place** approval→commit elapsed vs budget is stored — do not duplicate timing in `away-status.json` notes or elsewhere.
+Rolling log for the **last 15 shipped away tasks**. At ship (or docs-only completion), append one row here (shift oldest off when full). **This file is the only place** Dan approval→done-report elapsed vs budget is stored — do not duplicate timing in `away-status.json` notes or elsewhere.
 
 Planning budgets (`time-awareness.mdc` calibration, queue item scope) stay separate; they are not actual elapsed storage.
 
@@ -36,14 +36,16 @@ Finer **Subtype** on each row enables median recalibration per slice (see **Reca
 | Term | Meaning |
 | ---- | ------- |
 | **startedAt** | ISO-8601 when **Dan approves/starts** the item (`go`, `continue`, `away-NNN makes sense now`, etc.). Use `<timestamp>` from the user message when present. **`unknown`** if no approval was recorded — do not infer from agent session, first commit, or prior ship. |
-| **completedAt** | ISO-8601 of the **last commit/push** for that away item (`git show -s --format=%cI <hash>` on the ship commit). |
-| **actualElapsedMin** | Wall-clock minutes: `completedAt − startedAt`. Only when both timestamps exist. |
-| **approx** | Prefix `~N approx` when `startedAt` is missing but elapsed was inferred from commit chain during backfill — not for live ships. |
-| **unknown** | No reliable approval timestamp — do **not** invent minutes; do not use Dan's observed runtime or guessed agent duration. |
+| **completedAt** | ISO-8601 when the **coordinator posts the completion report** to Dan (parent session time when the task is declared done — right after **What we did**). Not the feature commit timestamp alone. |
+| **actualElapsedMin** | Whole-task wall-clock minutes: `completedAt − startedAt`, **rounded to nearest minute** (no seconds precision required). Only when both timestamps exist. |
+| **approx** | Prefix `~N approx` when `startedAt` is missing but elapsed was inferred during backfill — not for live ships. |
+| **unknown** | No reliable approval timestamp — do **not** invent minutes; do not use Dan's subjective "felt like N minutes" or agent tool-only runtime. |
 
-**Canonical interval:** Dan approval → last ship commit. Agent tool time and Dan's subjective "felt like N minutes" are irrelevant.
+**Canonical interval:** Dan approval → completion report to Dan. Includes implementation, build, Playwright, deploy, prod verify, queue wait, and explanation write-up — the full Dan-visible task.
 
-Priority when researching backfills: Dan approval message timestamp → ship commit (`git log`) → prior estimate-log rows.
+**NOT:** feature commit timestamp alone; agent tool-only runtime; Dan's subjective elapsed feel.
+
+Priority when researching backfills: Dan approval message timestamp → completion report time (or best thread/subagent finish estimate) → ship commit (`git log`) for cross-ref only.
 
 ## Columns
 
@@ -51,9 +53,9 @@ Priority when researching backfills: Dan approval message timestamp → ship com
 | ------ | ------- |
 | **Away** | Item id (e.g. away-086) |
 | **startedAt** | Dan approval ISO-8601, or `unknown` |
-| **completedAt** | Last ship-commit ISO-8601 |
+| **completedAt** | Completion-report ISO-8601 (Dan declared done) |
 | **budgetMin** | Pre-ship budget minutes (`time-awareness.mdc` calibration) |
-| **actualElapsedMin** | Approval→commit minutes, `unknown`, or `~N approx` (backfill only) |
+| **actualElapsedMin** | Approval→done minutes (nearest whole minute), `unknown`, or `~N approx` (backfill only) |
 | **Type** | Broad task tag: verify-only, scripts-only, ui-component, multi-file, docs-update, service-logic, backend, etc. |
 | **Subtype** | Narrow slice from taxonomy above (e.g. `parser-slice`, `table-action-row`) — required at ship |
 | **Deploy** | `y` if gh-pages or backend deploy ran; `n` if commit/push only |
@@ -64,10 +66,10 @@ Priority when researching backfills: Dan approval message timestamp → ship com
 At each `npm run away:ship` (see `AWAY_BUILD_PROTOCOL.md` step 6):
 
 1. **Append one row to this file** with `startedAt`, `completedAt`, `budgetMin`, `actualElapsedMin`, **Type**, **Subtype**, deploy flag, and notes.
-2. Parent/coordinator sets `startedAt` from Dan's approval message (or `unknown`).
-3. Executor sets `completedAt` from the ship commit hash (`git show -s --format=%cI`).
+2. Parent/coordinator sets `startedAt` from Dan's approval message `<timestamp>` (or `unknown`).
+3. Parent/coordinator sets `completedAt` when posting the **completion report** to Dan; compute `actualElapsedMin` as nearest whole minute from that interval.
 4. If approval time was not tracked: `startedAt: unknown` and `actualElapsedMin: unknown` — honest beats guessed.
-5. **`away:ship --note`** — short ship summary only (what shipped, verify results). Optional cross-ref: `timing: estimate-log row N`. Do **not** repeat est/actual/started/completed in the note.
+5. **`away:ship --note`** — short ship summary only (what shipped, verify results). Optional cross-ref: `timing: estimate-log row N`; optional `commit=<hash>`. Do **not** repeat est/actual/started/completed in the note.
 
 Completion report (chat): **table format** after **What we did** — see `composer-orchestrator.mdc` § Completion report.
 
@@ -96,9 +98,9 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 11 | dispatcher-staging-action-rows-tighten | 2026-07-03T19:52:00-05:00 | 2026-07-03T19:58:00-05:00 | 35 | 6 | ui-component | table-rule-tighten | y | missing staging alone triggers action row; offline+live verify; completedAt=136df76 |
 | 12 | estimate-subtype-taxonomy | 2026-07-03T19:57:00-05:00 | 2026-07-03T19:58:13-05:00 | 10 | 1 | docs-update | status-sync | n | Subtype column + taxonomy; backfill rows 1-11; protocol/rules cross-ref; completedAt=1bcecd3 |
 | 13 | away-090 | 2026-07-03T20:29:00-05:00 | 2026-07-03T20:34:17-05:00 | 35 | 5 | ui-component | drawer-copy | y | Copy pickup unreceived; verify:delivery-consistency PASS; completedAt=3f74e25 |
-| 14 | reset-pickup-link-copy | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:42:26-05:00 | 35 | 2 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; completedAt=9ed8944 |
-| 15 | | | | | | | | | |
+| 14 | reset-pickup-link-copy | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:46:00-05:00 | 35 | 6 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; commit=9ed8944; retrofix Dan-done (was commit-only 2m) |
+| 15 | estimate-timing-rule | 2026-07-03T20:49:00-05:00 | 2026-07-03T20:53:00-05:00 | 10 | 4 | docs-update | rules-only | n | Dan approval→done interval; retrofix row 14; protocol/rules/away-ship cross-ref |
 
 ## Recalibration (after 15 rows)
 
-When this log holds **15 rows** with honest approval→commit timing, recalibrate **`budgetMin`** in `away-list.json` / handoff briefs using **median actual vs prior budget per Subtype** (fallback to **Type** when a subtype has fewer than 3 rows). Until then, keep using `time-awareness.mdc` calibration anchors.
+When this log holds **15 rows** with honest approval→done timing, recalibrate **`budgetMin`** in `away-list.json` / handoff briefs using **median actual vs prior budget per Subtype** (fallback to **Type** when a subtype has fewer than 3 rows). Until then, keep using `time-awareness.mdc` calibration anchors.

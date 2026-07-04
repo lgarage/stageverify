@@ -115,8 +115,8 @@ For each id in `executionProtocol.sequence`:
 5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
 6. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Timing audit — `PROJECT_STATUS/estimate-log.md` only** (single source of truth; do not store est/actual in `away-status.json`):
    - Append one row to `estimate-log.md` (rolling 15 rows): `startedAt`, `completedAt`, `budgetMin`, `actualElapsedMin`, **Type**, **Subtype** (taxonomy in that file), deploy flag, notes — see that file for methodology.
-   - Parent/coordinator records Dan's approval ISO at kickoff (`go`, `continue`, `away-NNN makes sense now`, or `<timestamp>` from Dan's message). Executor sets `completedAt` from `git show -s --format=%cI <hash>`. If approval was not logged: `startedAt: unknown`, `actualElapsedMin: unknown`.
-   - **`--note`**: short ship summary only (what shipped, verify results). Optional: `timing: estimate-log row N`. Example: `--note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"`.
+   - **Dan approval → done report:** `startedAt` = ISO from Dan's approval message `<timestamp>` (or `unknown`). `completedAt` = ISO when the **parent/coordinator posts the completion report** to Dan (not the feature commit alone). `actualElapsedMin` = nearest whole minute between those — includes build, Playwright, deploy, prod verify, queue wait, and explanation. Parent logs the estimate row when declaring done.
+   - **`--note`**: short ship summary only (what shipped, verify results). Optional: `timing: estimate-log row N`; optional `commit=<hash>`. Example: `--note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"`.
    - Completion report: estimate **table** from estimate-log — `| | Budget | Actual | Commit |` when budget exists; `| Actual | Commit |` only when no budget (see `estimate-log.md` + `composer-orchestrator.mdc`).
 7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
