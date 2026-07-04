@@ -12,7 +12,7 @@
       "label": "§ agent-lessons + LIBRARIAN_LESSONS",
       "when": "Public routes, pickup portal, vendor receive, or UI fixes on unauthenticated flows",
       "source": ".cursor/rules/composer-orchestrator.mdc step 7",
-      "action": "Read PROJECT_STATUS/LIBRARIAN_LESSONS.md (SSOT); npm run dossier:slice -- --tag agent-lessons for domain depth before Receive/Pickup/public routes"
+      "action": "Read LIBRARIAN_LESSONS § slice via npm run context:lessons -- --type <type>/<subtype> (after archetype gate); npm run dossier:slice -- --tag agent-lessons for domain depth before Receive/Pickup/public routes"
     },
     "8": {
       "label": "USER_SCOPE_REJECTIONS",
@@ -27,6 +27,7 @@
       "match": ["qr", "scan", "deep link", "camera", "hash race", "esl tag", "applyHashFromScannedQr"],
       "orchestratorSteps": [6, 7],
       "dossierTags": ["qr-routing", "composer-trace", "diagnose-before-tweak"],
+      "lessonsSection": "ship-verify",
       "files": ["src/scanRouting.ts", "src/receiveQrUrls.ts"],
       "rules": ["vendor-phone-qr.mdc"],
       "commands": ["npm run dossier:slice -- --tag qr-routing", "npm run context:packet -- --tags qr-routing,composer-trace"]
@@ -36,6 +37,7 @@
       "match": ["vendor receive", "receiving", "pin gate", "checkin", "/receive", "ReceivingPage"],
       "orchestratorSteps": [6, 7],
       "dossierTags": ["qr-routing", "receive-deep-link", "agent-lessons"],
+      "lessonsSection": "ship-verify",
       "files": ["src/pages/ReceivingPage.tsx", "src/scanRouting.ts"],
       "rules": ["vendor-phone-qr.mdc"],
       "commands": ["npm run context:lookup -- --concern \"vendor receive\""]
@@ -45,6 +47,7 @@
       "match": ["pickup portal", "pickup", "technician", "PickupPortal", "All Items Picked Up"],
       "orchestratorSteps": [6, 7],
       "dossierTags": ["agent-lessons", "qr-routing"],
+      "lessonsSection": "ship-verify",
       "files": ["src/pages/PickupPortalPage.tsx", "src/pages/PickupDemoScanPage.tsx"],
       "rules": [],
       "commands": ["npm run dossier:slice -- --tag agent-lessons", "npm run verify:pickup"]
@@ -90,6 +93,7 @@
       "match": ["ui fix", "layout", "playwright", "public route", "css restyle", "mobile safari"],
       "orchestratorSteps": [7],
       "dossierTags": ["agent-lessons"],
+      "lessonsSection": "ship-verify",
       "files": [],
       "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
       "commands": ["npm run dossier:slice -- --tag agent-lessons"]
@@ -135,6 +139,7 @@
       "match": ["prod verify fail", "gh-pages stale", "redeploy", "bundle stale", "STAGEVERIFY_BASE_URL", "prod deploy"],
       "orchestratorSteps": [],
       "dossierTags": [],
+      "lessonsSection": "ship-verify",
       "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md"],
       "rules": ["ship-loop.mdc"],
       "commands": ["npm run deploy"]
@@ -144,6 +149,7 @@
       "match": ["copy pickup", "clipboard", "drawer copy", "pickup information", "short clipboard"],
       "orchestratorSteps": [7],
       "dossierTags": ["agent-lessons"],
+      "lessonsSection": "dispatcher-ui",
       "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "src/DispatcherDashboardPage.tsx"],
       "rules": [],
       "commands": ["npm run verify:delivery-consistency"]
@@ -153,6 +159,7 @@
       "match": ["away:validate", "CURRENT_STATE sync", "last shipped drift", "memory consistency", "LIBRARIAN_LESSONS"],
       "orchestratorSteps": [],
       "dossierTags": [],
+      "lessonsSection": "process-agents",
       "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
       "rules": [],
       "commands": ["npm run away:validate"]

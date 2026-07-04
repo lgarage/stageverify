@@ -21,6 +21,7 @@ import {
 } from "./lib/away-memory-lib.mjs";
 import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
 import { loadGotchaMap, validateGotchaMap } from "./lib/gotcha-map-lib.mjs";
+import { loadLessonsIndex, validateLessonsIndex } from "./lib/librarian-lessons-lib.mjs";
 
 const errors = [];
 const warnings = [];
@@ -246,6 +247,12 @@ function validatePackageScripts() {
   if (!scripts["context:gotcha"]) {
     fail("package.json: missing context:gotcha script");
   }
+  if (!scripts["context:lessons"]) {
+    fail("package.json: missing context:lessons script");
+  }
+  if (!scripts["lessons:append"]) {
+    fail("package.json: missing lessons:append script");
+  }
 }
 
 function validateDossierIndexRanges() {
@@ -278,6 +285,21 @@ function validateGotchaMapRanges() {
   }
 }
 
+function validateLessonsIndexRanges() {
+  try {
+    const index = loadLessonsIndex();
+    const drift = validateLessonsIndex(index);
+    if (drift.length > 0) {
+      for (const msg of drift) fail(msg);
+      fail(
+        "librarian-lessons-index.json line ranges drift from LIBRARIAN_LESSONS.md — update startLine/endLine in the index (or run lessons:append which recomputes ranges)",
+      );
+    }
+  } catch (err) {
+    fail(`librarian-lessons-index.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function main() {
   const list = validateAwayList();
   const archive = readJson(PATHS.awayArchive);
@@ -295,6 +317,7 @@ function main() {
   validateDossierIndexRanges();
   validateContextIndexRanges();
   validateGotchaMapRanges();
+  validateLessonsIndexRanges();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);
   if (errors.length) {

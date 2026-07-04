@@ -29,8 +29,8 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel*
    - **First message / plan phase:** run **`npm run away:plan`** — suggest `queuedItems` + draft `suggestedAdditions`; **do not write `away-list.json`**; **do not run `away:batch`** until Dan approves (`go build it`, `queue it`, similar).
    - **After explicit approval + queue updated:** run **`npm run away:batch`** and execute every item; verify → `away:ship` → `away:validate` per item per `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`. Long batch is Dan's default; if `batchSize` < 3 at plan time, use `suggestedAdditions` as drafts only.
 5. Check Active Blockers. If the task touches a blocker, flag it before acting.
-6. Read `PROJECT_STATUS/MODEL_DOSSIER.md` **index** (match task to tag; open § only if needed) for model routing, QR/zones, or backend-critical work.
-7. For **public routes**, **pickup portal**, or **UI fixes**, open `MODEL_DOSSIER.md` **§ agent-lessons** — do not repeat 2026-06-02 pickup mistakes.
+6. Read `PROJECT_STATUS/MODEL_DOSSIER.md` **index** (match task to tag; open § only if needed) for model routing, QR/zones, or backend-critical work — `npm run dossier:slice -- --tag <tag>`.
+7. For **public routes**, **pickup portal**, or **UI fixes**: load **`LIBRARIAN_LESSONS` § slice** via `npm run context:lessons -- --type <type>/<subtype>` (after archetype/subtype gate — not the full file); then `npm run dossier:slice -- --tag agent-lessons` for domain depth — do not repeat 2026-06-02 pickup mistakes.
 8. For **dispatcher portal nav / Settings / sidebar**, read `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` — do not re-introduce rejected nav or merged pages.
 
 ## Suggestion Verify (before present)
@@ -243,7 +243,7 @@ After every substantive **code or config** change, run the **model audit** proto
 When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § **Time-bound suggestions** + **Remaining time options**. Filter before present: only in-budget items under **Fits now** / **To continue**; out-of-budget → **Save for later** with no CTA. Queue via `away:next` / `away-list.json`; verify per `suggestion-verify-gate.mdc` (time-bound filter step).
 
 ### Pre-edit gate
-**Announce-and-go.** State archetype + tier + model, then immediately start editing. Do not wait for a "go ahead" reply.
+**Announce-and-go.** State archetype + tier + model, then run `npm run context:lessons -- --type <type>/<subtype>` when Type/Subtype are known (slice only — not full `LIBRARIAN_LESSONS.md`), then immediately start editing. Do not wait for a "go ahead" reply.
 
 ### Git commits + push (mandatory — user standing preference)
 **Always commit and push** after any code or project-status changes in this repo. Do not wait to be asked. This overrides generic "commit only when requested" guidance for stageverify.

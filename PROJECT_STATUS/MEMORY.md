@@ -47,10 +47,11 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred (summary notes — no timing audit) |
 | **Timing audit (SSOT)** | `PROJECT_STATUS/estimate-log.md` | Away ship approval→commit vs budget — only place for actual elapsed |
 | **Lessons learned (SSOT)** | `PROJECT_STATUS/LIBRARIAN_LESSONS.md` | Rolling agent lessons; gotcha-map supplements on task match |
+| **Lessons § indexer** | `librarian-lessons-index.json` + `npm run context:lessons -- --type <type>/<subtype>` | After archetype/subtype gate — slice one §, not full file |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
 | Next item packet | `npm run away:next` / root `NEXT.md` | Before coding queued work |
 | Context packet (tags) | `npm run context:packet -- --tags <tags>` | Hot tier + dossier § slices; `--queue` for queue head |
-| Task gotcha map | `npm run context:gotcha -- --task "<…>"` | Steps 6–8 reads; supplements `LIBRARIAN_LESSONS.md` |
+| Task gotcha map | `npm run context:gotcha -- --task "<…>"` | Steps 6–8 reads; prepends lessons § when trigger hits |
 | Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify; `--note` = summary; timing → `estimate-log.md` |

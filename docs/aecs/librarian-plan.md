@@ -9,12 +9,13 @@
 | 3. Slice one § | `npm run dossier:slice -- --tag agent-lessons` or `--id qr-routing` |
 | 4. List tags | `npm run dossier:slice -- --list` |
 | 5. Concern lookup | `npm run context:lookup -- --concern "vendor receive"` |
-| 6. Task gotcha map | `npm run context:gotcha -- --task "pickup portal qr"` (orchestrator steps 6–8) |
-| 7. Drift check | `npm run away:validate` (warns on index ↔ file line drift) |
+| 6. Task gotcha map | `npm run context:gotcha -- --task "pickup portal qr"` (orchestrator steps 6–8; prepends lessons §) |
+| 7. Lessons § slice | `npm run context:lessons -- --type ui-component/drawer-copy` (estimate-log type/subtype) |
+| 8. Drift check | `npm run away:validate` (fails on librarian-lessons-index ↔ file drift) |
 
 Token-efficiency planning: `PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md`. Full ACES roles below remain deferred.
 
-**Lessons learned SSOT:** `PROJECT_STATUS/LIBRARIAN_LESSONS.md` is the single canonical rolling log for agent lessons (≤40 active lines; archive rotates to `archives/librarian-lessons-archive.md`). `gotcha-map.json` and `npm run context:gotcha` supplement it on task triggers; `MODEL_DOSSIER.md` § agent-lessons keeps domain-deep pickup/QR detail; `estimate-log.md` owns timing audit only — summarize and link, never duplicate full gotcha or estimate content into the lessons file.
+**Lessons learned SSOT:** `PROJECT_STATUS/LIBRARIAN_LESSONS.md` is the single canonical rolling log for agent lessons (≤40 active lines; archive rotates to `archives/librarian-lessons-archive.md`). **`librarian-lessons-index.json`** maps estimate-log **type/subtype** → § line ranges; agents load slices via `npm run context:lessons -- --type <type>/<subtype>` after the archetype gate — never ingest the full file. `gotcha-map.json` and `npm run context:gotcha` prepend matched § on task triggers; ship/completion adds one bullet via `npm run lessons:append -- --type … --bullet "…"` (index ranges refresh automatically). `MODEL_DOSSIER.md` § agent-lessons keeps domain-deep pickup/QR detail; `estimate-log.md` owns timing audit only.
 
 ---
 

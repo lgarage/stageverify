@@ -4,6 +4,12 @@
 import path from "node:path";
 import { REPO_ROOT, readJson } from "./away-memory-lib.mjs";
 import { findByTag, loadDossierIndex } from "./dossier-index-lib.mjs";
+import {
+  buildLessonsSliceResult,
+  findSectionById,
+  loadLessonsIndex,
+  sliceSectionRaw,
+} from "./librarian-lessons-lib.mjs";
 
 export const GOTCHA_MAP_PATH = path.join(REPO_ROOT, "PROJECT_STATUS/gotcha-map.json");
 
@@ -18,6 +24,7 @@ export function loadGotchaMap() {
  *   match: string[],
  *   orchestratorSteps?: number[],
  *   dossierTags?: string[],
+ *   lessonsSection?: string,
  *   files?: string[],
  *   rules?: string[],
  *   commands?: string[]
@@ -66,15 +73,22 @@ export function buildGotchaResult(matched, orchestratorSteps) {
   const rules = new Set();
   /** @type {Set<string>} */
   const commands = new Set();
+  /** @type {Set<string>} */
+  const lessonsSectionIds = new Set();
   /** @type {{ id: string, score: number }[]} */
   const triggerIds = matched.map((t) => t.id);
 
   for (const trigger of matched) {
     for (const s of trigger.orchestratorSteps ?? []) stepNums.add(s);
     for (const tag of trigger.dossierTags ?? []) dossierTags.add(tag);
+    if (trigger.lessonsSection) lessonsSectionIds.add(trigger.lessonsSection);
     for (const f of trigger.files ?? []) files.add(f);
     for (const r of trigger.rules ?? []) rules.add(r);
     for (const c of trigger.commands ?? []) commands.add(c);
+  }
+
+  if (stepNums.has(7) && lessonsSectionIds.size === 0) {
+    lessonsSectionIds.add("ship-verify");
   }
 
   const dossierIndex = loadDossierIndex();
@@ -100,8 +114,26 @@ export function buildGotchaResult(matched, orchestratorSteps) {
       return meta ? { step: n, ...meta } : { step: n, label: `orchestrator step ${n}` };
     });
 
+  const lessonsIndex = loadLessonsIndex();
+  const lessonsSlices = [...lessonsSectionIds].map((sectionId) => {
+    const section = findSectionById(lessonsIndex, sectionId);
+    if (!section) return { sectionId, found: false };
+    const file = lessonsIndex.file ?? "PROJECT_STATUS/LIBRARIAN_LESSONS.md";
+    return {
+      sectionId,
+      found: true,
+      title: section.title,
+      file,
+      startLine: section.startLine,
+      endLine: section.endLine,
+      sliceCommand: `npm run context:lessons -- --section ${sectionId}`,
+      excerpt: sliceSectionRaw(section, file),
+    };
+  });
+
   return {
     matchedTriggers: triggerIds,
+    lessonsSlices,
     orchestratorSteps: steps,
     dossierTags: [...dossierTags],
     dossierPointers,
@@ -109,6 +141,14 @@ export function buildGotchaResult(matched, orchestratorSteps) {
     rules: [...rules],
     suggestedCommands: [...commands],
   };
+}
+
+/**
+ * @param {string} typeKey e.g. ui-component/drawer-copy
+ */
+export function buildLessonsSliceForTypeKey(typeKey) {
+  const index = loadLessonsIndex();
+  return buildLessonsSliceResult(index, typeKey);
 }
 
 /** @param {ReturnType<typeof loadGotchaMap>} map */
@@ -162,6 +202,23 @@ export function validateGotchaMap(map) {
 /** @param {ReturnType<typeof buildGotchaResult>} result */
 export function renderGotchaMarkdown(result) {
   const lines = ["# Gotcha map lookup", ""];
+
+  const lessonsSlices = /** @type {NonNullable<ReturnType<typeof buildGotchaResult>["lessonsSlices"]>} */ (
+    result.lessonsSlices ?? []
+  );
+  if (lessonsSlices.length > 0) {
+    lines.push("## Lessons slice (LIBRARIAN_LESSONS.md)");
+    for (const slice of lessonsSlices) {
+      if (slice.found) {
+        lines.push(`### ${slice.title} (${slice.file}:${slice.startLine}-${slice.endLine})`);
+        lines.push("");
+        lines.push(slice.excerpt ?? "");
+        lines.push("");
+      } else {
+        lines.push(`- WARN: section ${slice.sectionId} not in librarian-lessons-index`);
+      }
+    }
+  }
 
   if (result.matchedTriggers.length === 0) {
     lines.push("No trigger match. Hot tier only — CURRENT_STATE.md + MEMORY.md.");

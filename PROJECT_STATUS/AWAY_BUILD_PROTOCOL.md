@@ -118,6 +118,7 @@ For each id in `executionProtocol.sequence`:
    - **Dan approval → done report:** `startedAt` = ISO from Dan's approval message `<timestamp>` (or `unknown`). `completedAt` = ISO when the **parent/coordinator posts the completion report** to Dan (not the feature commit alone). `actualElapsedMin` = nearest whole minute between those — includes build, Playwright, deploy, prod verify, queue wait, and explanation. Parent logs the estimate row when declaring done.
    - **`--note`**: short ship summary only (what shipped, verify results). Optional: `timing: estimate-log row N`; optional `commit=<hash>`. Example: `--note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"`.
    - Completion report: estimate **table** from estimate-log — `| | Budget | Actual | Commit |` when budget exists; `| Actual | Commit |` only when no budget (see `estimate-log.md` + `composer-orchestrator.mdc`).
+   - **Lessons learned:** append **one bullet** to the matching `LIBRARIAN_LESSONS.md` § for the task **Type/Subtype** — `npm run lessons:append -- --type <type>/<subtype> --bullet "what went wrong or repeat next time"` (updates `librarian-lessons-index.json` line ranges in the same commit). Agent may edit manually if the CLI is awkward; run `npm run away:validate` — index drift fails validate.
 7. Run **`npm run away:validate`** — must pass before commit.
 8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
 9. Session cleanup — then next item.

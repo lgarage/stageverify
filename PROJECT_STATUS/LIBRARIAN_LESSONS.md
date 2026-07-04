@@ -22,6 +22,7 @@
 7. **2-fail Sonnet rule:** 1st fail → Composer self-trace; 2nd fail on same task → Sonnet diagnose-only (no edits); Composer implements after findings.
 8. **`away:validate` before memory commits** — `CURRENT_STATE.md` requires `Last shipped: **away-NNN**`; narrative after the id is OK.
 9. **Gotcha supplements this file** — `npm run context:gotcha -- --task "…"` on task match; read here for rolling lessons, dossier § for domain depth.
+- **Lessons index + slice CLI:** type/subtype maps to LIBRARIAN_LESSONS section; away:validate fails on index drift; gotcha prepends matched section.
 
 ## Timing (pointer only)
 
