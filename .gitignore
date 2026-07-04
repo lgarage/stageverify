@@ -35,3 +35,6 @@ screenshots/
 # Minew NDA-confidential material — never commit (see .cursor/rules/minew-nda-compliance.mdc)
 minew-confidential/
 **/minew-api-docs/**
+
+# Gmail Pub/Sub setup temp (never commit)
+.tmp-gmail-pubsub-secret.txt
