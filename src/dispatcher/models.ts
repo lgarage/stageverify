@@ -843,6 +843,7 @@ export interface VendorInvoiceImportReview {
   /** Human-readable block reason when importStatus is issue. */
   error?: string;
   linkedDeliveryOrderId?: string;
+  approvedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

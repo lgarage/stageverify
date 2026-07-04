@@ -107,6 +107,41 @@ function CodPaymentChip({ label }: { label: string }) {
   );
 }
 
+type QueueFilter = "pending" | "all" | "approved";
+
+function formatApprovedDate(iso: string | undefined, fallbackIso: string): string {
+  const raw = iso ?? fallbackIso;
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw.slice(0, 10);
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?: string }) {
+  const linked = Boolean(linkedDeliveryOrderId?.trim());
+  return (
+    <span
+      data-testid="invoice-review-linked-badge"
+      title={linked ? linkedDeliveryOrderId : undefined}
+      style={{
+        backgroundColor: linked ? "#ecfdf5" : "#f3f4f6",
+        color: linked ? "#166534" : "#6b7280",
+        fontWeight: 600,
+        fontSize: 11,
+        padding: "3px 8px",
+        borderRadius: 999,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {linked ? "Linked" : "Not linked to delivery"}
+    </span>
+  );
+}
+
 function FieldCell({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ minWidth: 0 }}>
@@ -147,7 +182,7 @@ export function InvoiceReviewPanel({
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [filter, setFilter] = useState<QueueFilter>("pending");
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
   const [recentDeliveries, setRecentDeliveries] = useState<DeliveryListRow[]>([]);
@@ -190,8 +225,16 @@ export function InvoiceReviewPanel({
 
   const filteredImports = useMemo(() => {
     if (filter === "all") return imports;
+    if (filter === "approved") {
+      return imports.filter((i) => i.reviewStatus === "approved");
+    }
     return imports.filter((i) => i.reviewStatus === "pending_review");
   }, [imports, filter]);
+
+  const approvedCount = useMemo(
+    () => imports.filter((i) => i.reviewStatus === "approved").length,
+    [imports],
+  );
 
   const loadMatchForRow = useCallback(async (rowId: string) => {
     const row = imports.find((i) => i.id === rowId);
@@ -338,7 +381,9 @@ export function InvoiceReviewPanel({
       }}
     >
       <div
-        data-testid="invoice-review-queue"
+        data-testid={
+          filter === "approved" ? "invoice-review-approved-list" : "invoice-review-queue"
+        }
         style={{
           backgroundColor: "#fff",
           border: "1px solid #e0e3e8",
@@ -357,31 +402,40 @@ export function InvoiceReviewPanel({
           }}
         >
           <span style={{ fontWeight: 700, color: NAVY, fontSize: 14 }}>
-            Review queue
+            {filter === "approved" ? "Approved invoices" : "Review queue"}
           </span>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as "pending" | "all")}
-            style={{
-              fontSize: 12,
-              padding: "4px 8px",
-              borderRadius: 4,
-              border: "1px solid #d1d5db",
-            }}
-          >
-            <option value="pending">Pending only</option>
-            <option value="all">All imports</option>
-          </select>
+          {filter !== "approved" && (
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as QueueFilter)}
+              style={{
+                fontSize: 12,
+                padding: "4px 8px",
+                borderRadius: 4,
+                border: "1px solid #d1d5db",
+              }}
+            >
+              <option value="pending">Pending only</option>
+              <option value="all">All imports</option>
+            </select>
+          )}
         </div>
 
         {!loading && filteredImports.length === 0 && (
           <p
-            data-testid="invoice-review-empty"
+            data-testid={
+              filter === "approved"
+                ? "invoice-review-approved-empty"
+                : "invoice-review-empty"
+            }
             style={{ padding: 16, color: "#6b7280", fontSize: 13, margin: 0 }}
           >
-            {filter === "pending" && imports.some((i) => i.reviewStatus !== "pending_review")
-              ? "No pending imports — switch to All imports or use Refresh Now to sync Gmail."
-              : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
+            {filter === "approved"
+              ? "No approved invoices yet. Approve imports from the review queue to see them here."
+              : filter === "pending" &&
+                  imports.some((i) => i.reviewStatus !== "pending_review")
+                ? "No pending imports — open Approved invoices below or switch to All imports."
+                : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
           </p>
         )}
 
@@ -467,9 +521,9 @@ export function InvoiceReviewPanel({
                     }}
                   >
                     <FieldCell
-                      label="P/O #"
+                      label="Invoice #"
                       value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "customerPoOrReference"),
+                        readInvoiceHeaderField(header, "vendorInvoiceNumber"),
                       )}
                     />
                     <FieldCell
@@ -479,9 +533,9 @@ export function InvoiceReviewPanel({
                       )}
                     />
                     <FieldCell
-                      label="Invoice #"
+                      label="P/O #"
                       value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "vendorInvoiceNumber"),
+                        readInvoiceHeaderField(header, "customerPoOrReference"),
                       )}
                     />
                     <FieldCell
@@ -490,19 +544,35 @@ export function InvoiceReviewPanel({
                         readInvoiceHeaderField(header, "buyerName"),
                       )}
                     />
-                    <FieldCell
-                      label="Branch"
-                      value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "vendorBranchName"),
-                      )}
-                    />
-                    <FieldCell
-                      label="Order date"
-                      value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "orderDate"),
-                      )}
-                    />
-                    <FieldCell label="Lines" value={String(lineCount)} />
+                    {filter === "approved" ? (
+                      <>
+                        <FieldCell
+                          label="Approved"
+                          value={formatApprovedDate(row.approvedAt, row.updatedAt)}
+                        />
+                        <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
+                          <LinkedDeliveryBadge
+                            linkedDeliveryOrderId={row.linkedDeliveryOrderId}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <FieldCell
+                          label="Branch"
+                          value={formatInvoiceHeaderField(
+                            readInvoiceHeaderField(header, "vendorBranchName"),
+                          )}
+                        />
+                        <FieldCell
+                          label="Order date"
+                          value={formatInvoiceHeaderField(
+                            readInvoiceHeaderField(header, "orderDate"),
+                          )}
+                        />
+                        <FieldCell label="Lines" value={String(lineCount)} />
+                      </>
+                    )}
                   </div>
 
                   {issueSummary ? (
@@ -518,6 +588,7 @@ export function InvoiceReviewPanel({
                       {issueSummary}
                     </div>
                   ) : (
+                    filter !== "approved" &&
                     row.reviewStatus !== "pending_review" &&
                     row.linkedDeliveryOrderId && (
                       <div style={{ marginTop: 10, fontSize: 12, color: "#166534" }}>
@@ -623,6 +694,53 @@ export function InvoiceReviewPanel({
             </div>
           );
         })}
+      </div>
+
+      <div
+        style={{
+          marginTop: 16,
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        {filter === "approved" ? (
+          <button
+            type="button"
+            data-testid="invoice-review-back-to-queue"
+            onClick={() => setFilter("pending")}
+            style={{
+              backgroundColor: "#fff",
+              color: NAVY,
+              border: `1px solid ${NAVY}`,
+              borderRadius: 4,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Back to review queue
+          </button>
+        ) : (
+          <button
+            type="button"
+            data-testid="invoice-review-approved-link"
+            onClick={() => setFilter("approved")}
+            style={{
+              backgroundColor: NAVY,
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Approved invoices
+            {approvedCount > 0 ? ` (${approvedCount})` : ""}
+          </button>
+        )}
       </div>
 
       {error && (

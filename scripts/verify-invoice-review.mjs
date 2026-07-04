@@ -251,6 +251,72 @@ async function main() {
     });
     console.log(`Screenshot: screenshots/invoice-review-verify/invoice-review-page.png`);
 
+    const approvedLink = page.getByTestId("invoice-review-approved-link");
+    await approvedLink.waitFor({ timeout: 10_000 });
+    await approvedLink.click();
+    console.log("PASS: Approved invoices navigation clicked");
+
+    await page.getByTestId("invoice-review-approved-list").waitFor({ timeout: 15_000 });
+    console.log("PASS: approved invoices list visible");
+
+    const approvedHeading = page.getByText("Approved invoices", { exact: true });
+    const approvedHeadingCount = await approvedHeading.count();
+    if (approvedHeadingCount < 1) {
+      throw new Error("Expected Approved invoices section heading");
+    }
+    console.log("PASS: Approved invoices heading visible");
+
+    await page.waitForFunction(
+      () => {
+        const list = document.querySelector('[data-testid="invoice-review-approved-list"]');
+        if (!list) return false;
+        const loading = list.textContent?.includes("Loading…");
+        const rows = list.querySelectorAll('[data-testid^="invoice-review-queue-row-"]').length;
+        const empty = list.querySelector('[data-testid="invoice-review-approved-empty"]');
+        return !loading && (rows > 0 || !!empty);
+      },
+      { timeout: 30_000 },
+    );
+
+    const approvedRows = page.locator('[data-testid^="invoice-review-queue-row-"]');
+    const approvedRowCount = await approvedRows.count();
+    const approvedEmpty = page.getByTestId("invoice-review-approved-empty");
+    const hasApprovedEmpty = await approvedEmpty.isVisible().catch(() => false);
+
+    if (approvedRowCount === 0 && !hasApprovedEmpty) {
+      throw new Error("Expected approved rows or approved empty-state message");
+    }
+
+    if (approvedRowCount > 0) {
+      console.log(`PASS: ${approvedRowCount} approved row(s) visible`);
+      const linkedBadge = approvedRows.first().getByTestId("invoice-review-linked-badge");
+      await linkedBadge.waitFor({ timeout: 5000 });
+      const badgeText = (await linkedBadge.innerText()).trim();
+      if (!/^(Linked|Not linked to delivery)$/.test(badgeText)) {
+        throw new Error(`Unexpected linked delivery badge: ${badgeText}`);
+      }
+      console.log(`PASS: linked delivery badge shown (${badgeText})`);
+
+      await page.locator('[data-testid^="invoice-review-row-content-"]').first().click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+      const modalApprove = page.getByTestId("invoice-parsed-inspect-approve");
+      if (await modalApprove.count()) {
+        throw new Error("Approved archive inspect modal should not show Approve");
+      }
+      console.log("PASS: approved row opens read-only inspect modal");
+      await page.getByTestId("invoice-parsed-inspect-close").click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
+        state: "hidden",
+        timeout: 5000,
+      });
+    } else {
+      console.log("PASS: approved empty state renders");
+    }
+
+    await page.getByTestId("invoice-review-back-to-queue").click();
+    await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
+    console.log("PASS: back to review queue navigation");
+
     console.log("\nverify-invoice-review: PASS");
   } finally {
     await browser.close();
