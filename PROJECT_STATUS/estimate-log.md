@@ -99,7 +99,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 12 | away-091 | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:46:00-05:00 | 35 | 6 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; commit=9ed8944 |
 | 13 | estimate-timing-rule | 2026-07-03T20:49:00-05:00 | 2026-07-03T20:53:00-05:00 | 10 | 4 | docs-update | rules-only | n | Dan approval→done interval; retrofix row 14; protocol/rules/away-ship cross-ref |
 | 14 | away-validate-status-sync | 2026-07-03T20:53:00-05:00 | 2026-07-03T20:59:00-05:00 | 10 | 6 | docs-update | status-sync | n | away-091 backfill; CURRENT_STATE + away-status; away:validate PASS; commit+push only |
-| 15 | short-pickup-clipboard | 2026-07-03T21:03:00-05:00 | 2026-07-03T21:18:00-05:00 | 35 | 15 | ui-component | drawer-copy | y | short Copy Pickup clipboard; demo ORD-001..006 verify 393 PASS |
+| 15 | short-pickup-clipboard | 2026-07-03T21:03:00-05:00 | 2026-07-03T21:25:00-05:00 | 35 | 22 | ui-component | drawer-copy | y | short Copy Pickup clipboard; local 393 PASS; prod CDN lag on index (gh-pages branch has new bundle) |
 
 ## Recalibration (after 15 rows)
 
