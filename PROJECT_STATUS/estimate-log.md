@@ -30,6 +30,8 @@ Finer **Subtype** on each row enables median recalibration per slice (see **Reca
 | ui-component | drawer-section | delivery drawer section |
 | ui-component | modal-copy | modal text / labels |
 | ui-component | layout-style | spacing, colors, layout polish |
+| ui-component | settings-email | Settings Gmail/mailbox connect UI |
+| docs-update | process | estimate audit, protocol automation |
 
 ## What counts as "actual"
 
@@ -99,7 +101,56 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 13 | prod-redeploy-short-clipboard | 2026-07-03T21:37:00-05:00 | 2026-07-03T21:46:00-05:00 | 15 | 9 | verify-only | prod-deploy | y | gh-pages stale (12044c2); redeploy bundle; delivery-consistency 395/395 + phase5-email PASS |
 | 14 | librarian-lessons-ssot | 2026-07-03T21:49:00-05:00 | 2026-07-03T21:58:00-05:00 | 10 | 9 | docs-update | status-sync | n | LIBRARIAN_LESSONS SSOT + gotcha triggers + MEMORY router; CURRENT_STATE away-NNN fix; away:validate PASS |
 | 15 | settings-gmail-mailbox-ui | 2026-07-03T23:21:00-05:00 | 2026-07-03T23:38:00-05:00 | 35 | 17 | ui-component | settings-email | y | unified Gmail Mailbox when connected; verify:email-oauth-connect + settings-staging PASS |
+| 16 | estimate-15-audit | 2026-07-03T23:24:00-05:00 | 2026-07-03T23:45:00-05:00 | 35 | 21 | docs-update | process | n | estimate:audit CLI + 15-row workflow; away:validate warn; first audit --apply |
 
-## Recalibration (after 15 rows)
+## Audit every 15 rows (mandatory)
 
-When this log holds **15 rows** with honest approval→done timing, recalibrate **`budgetMin`** in `away-list.json` / handoff briefs using **median actual vs prior budget per Subtype** (fallback to **Type** when a subtype has fewer than 3 rows). Until then, keep using `time-awareness.mdc` calibration anchors.
+Every **15 completed log rows** (excluding header/template), agents run **`npm run estimate:audit`**. At **30, 45, 60…** repeat. `away:validate` warns when a milestone passed without an updated `estimate-audit.json`.
+
+### Trigger
+
+| Condition | Action |
+| --------- | ------ |
+| Row count reaches **15, 30, 45…** and `estimate-audit.json` → `lastAuditedRowCount` < milestone | Run `npm run estimate:audit` after ship (same commit as the row that hit the milestone, or immediately after) |
+| `--force` | Re-run audit at current count (debug / backfill) |
+| Row count < 15 | Skip — keep `time-awareness.mdc` category anchors |
+
+**Workflow:** append estimate-log row → `npm run estimate:audit` (add `--apply` when findings recommend budget changes) → `npm run away:validate` → commit.
+
+### What the audit computes
+
+1. Parse all log rows; skip `actualElapsedMin: unknown` (honest gaps — do not infer).
+2. Group by **Type/Subtype**; require **≥3 rows** per subtype for subtype-level stats (else fall back to **Type** only).
+3. Per group: **median actual**, **median budget used**, **delta**, **recommendation**:
+   - **OK** — median within ~50–85% of budget (conservative upper bound still valid).
+   - **DECREASE** — median < 50% of budget → suggest lower `budgetMin` via subtype table or anchor.
+   - **INCREASE** — median > 85% of budget → suggest higher `budgetMin`.
+4. **Suggested budget** = `ceil(max(median×2, median+5) / 5) × 5` (same conservative rule as time-bound filter).
+
+### Where to apply adjustments
+
+| Data shape | Update target |
+| ---------- | ------------- |
+| Subtype with ≥3 rows and DECREASE/INCREASE | **Subtype budgets** table below (`estimate:audit --apply`) |
+| Type fallback (no subtype quorum) maps to one `time-awareness.mdc` category row | **Category anchors** table in `time-awareness.mdc` (Budget + Typical columns) |
+| Planning / away queue handoffs | Use subtype budget when present; else category anchor; else row's historical `budgetMin` |
+
+Do **not** duplicate timing in `away-list.json`, `away-status.json`, or chat — `estimate-log.md` + `estimate-audit.json` are SSOT.
+
+### Snapshot file
+
+`PROJECT_STATUS/estimate-audit.json` stores `lastAuditedRowCount`, `auditedAt`, and the last report `findings[]`. Prevents re-auditing the same 15-row window every ship.
+
+## Subtype budgets (recalibrated)
+
+Populated by `npm run estimate:audit -- --apply` when subtype medians support a change. Agents and `away:next` briefs prefer these over generic anchors when Type/Subtype matches.
+
+| Type | Subtype | budgetMin | typicalMin | samples | lastAuditAt | notes |
+| ---- | ------- | --------- | ---------- | ------- | ----------- | ----- |
+| ui-component | drawer-copy | 15 | 6 | 3 | 2026-07-04 | median 6 vs prior 35 → DECREASE |
+| docs-update | rules-only | 10 | 5 | 3 | 2026-07-04 | median 5 vs prior 10 → OK (within band) |
+| docs-update | status-sync | 10 | 6 | 3 | 2026-07-04 | median 6 vs prior 10 → OK |
+
+## Recalibration (legacy pointer)
+
+See **Audit every 15 rows** above. Subtype median vs budget; fallback to Type when subtype < 3 rows. Until first 15-row audit, use `time-awareness.mdc` category anchors only.

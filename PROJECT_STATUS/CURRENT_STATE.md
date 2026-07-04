@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **Settings Gmail mailbox UI** — connected Gmail shows unified mailbox section; monitoring inbox locked to connected account; toggle saves processing flag only
+- Last shipped: **away-091** — Reset Pickup Link label; post-queue: Settings Gmail mailbox UI + estimate-15-audit (`npm run estimate:audit`)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

@@ -46,6 +46,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Active queue | `PROJECT_STATUS/away-list.json` | Queued/blocked items only |
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred (summary notes — no timing audit) |
 | **Timing audit (SSOT)** | `PROJECT_STATUS/estimate-log.md` | Away ship approval→commit vs budget — only place for actual elapsed |
+| **Estimate calibration audit** | `npm run estimate:audit` + `estimate-audit.json` | Every 15 log rows; `--apply` writes subtype budgets |
 | **Lessons learned (SSOT)** | `PROJECT_STATUS/LIBRARIAN_LESSONS.md` | Rolling agent lessons; gotcha-map supplements on task match |
 | **Lessons § indexer** | `librarian-lessons-index.json` + `npm run context:lessons -- --type <type>/<subtype>` | After archetype/subtype gate — slice one §, not full file |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |

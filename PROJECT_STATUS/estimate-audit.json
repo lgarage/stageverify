@@ -1,0 +1,68 @@
+{
+  "lastAuditedRowCount": 15,
+  "auditedAt": "2026-07-04T04:25:44.469Z",
+  "rowCount": 15,
+  "rowsWithActual": 15,
+  "findings": [
+    {
+      "key": "ui-component/drawer-copy",
+      "level": "subtype",
+      "type": "ui-component",
+      "subtype": "drawer-copy",
+      "n": 3,
+      "medianActual": 6,
+      "medianBudget": 35,
+      "delta": -29,
+      "recommendation": "DECREASE",
+      "suggestedBudgetMin": 15
+    },
+    {
+      "key": "ui-component",
+      "level": "type",
+      "type": "ui-component",
+      "n": 6,
+      "medianActual": 6,
+      "medianBudget": 35,
+      "delta": -29,
+      "recommendation": "DECREASE",
+      "suggestedBudgetMin": 15,
+      "fallbackForSubtypes": true
+    },
+    {
+      "key": "docs-update/status-sync",
+      "level": "subtype",
+      "type": "docs-update",
+      "subtype": "status-sync",
+      "n": 3,
+      "medianActual": 6,
+      "medianBudget": 10,
+      "delta": -4,
+      "recommendation": "OK",
+      "suggestedBudgetMin": 10
+    },
+    {
+      "key": "docs-update/rules-only",
+      "level": "subtype",
+      "type": "docs-update",
+      "subtype": "rules-only",
+      "n": 3,
+      "medianActual": 5,
+      "medianBudget": 10,
+      "delta": -5,
+      "recommendation": "OK",
+      "suggestedBudgetMin": 10
+    },
+    {
+      "key": "docs-update",
+      "level": "type",
+      "type": "docs-update",
+      "n": 7,
+      "medianActual": 6,
+      "medianBudget": 10,
+      "delta": -4,
+      "recommendation": "OK",
+      "suggestedBudgetMin": 10,
+      "fallbackForSubtypes": true
+    }
+  ]
+}

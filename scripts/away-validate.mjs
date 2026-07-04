@@ -22,6 +22,11 @@ import {
 import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
 import { loadGotchaMap, validateGotchaMap } from "./lib/gotcha-map-lib.mjs";
 import { loadLessonsIndex, validateLessonsIndex } from "./lib/librarian-lessons-lib.mjs";
+import {
+  auditDueWarning,
+  loadAuditSnapshot,
+  parseEstimateLogRows,
+} from "./lib/estimate-audit-lib.mjs";
 
 const errors = [];
 const warnings = [];
@@ -253,6 +258,9 @@ function validatePackageScripts() {
   if (!scripts["lessons:append"]) {
     fail("package.json: missing lessons:append script");
   }
+  if (!scripts["estimate:audit"]) {
+    fail("package.json: missing estimate:audit script");
+  }
 }
 
 function validateDossierIndexRanges() {
@@ -282,6 +290,18 @@ function validateGotchaMapRanges() {
     for (const msg of drift) warn(`gotcha-map: ${msg}`);
   } catch (err) {
     fail(`gotcha-map.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function validateEstimateAuditDue() {
+  try {
+    const md = readText(path.join(REPO_ROOT, "PROJECT_STATUS/estimate-log.md"));
+    const rows = parseEstimateLogRows(md);
+    const snapshot = loadAuditSnapshot();
+    const msg = auditDueWarning(rows.length, snapshot.lastAuditedRowCount ?? 0);
+    if (msg) warn(msg);
+  } catch (err) {
+    warn(`estimate-audit: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -318,6 +338,7 @@ function main() {
   validateContextIndexRanges();
   validateGotchaMapRanges();
   validateLessonsIndexRanges();
+  validateEstimateAuditDue();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);
   if (errors.length) {

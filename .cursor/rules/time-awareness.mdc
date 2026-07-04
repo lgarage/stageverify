@@ -93,6 +93,7 @@ When presenting work that might fit a stated window, use **two numbers**:
 | Verify-only scripts (bundle) | 10–15 min | 1–3 min (often <2 min) |
 | `verify:pickup:prod` alone | 15 min | ~1 min |
 | T1 single-domain ship (e.g. Settings UI) | 35 min | 20–25 min |
+| T1 ui polish (drawer copy, table row, modal) | 15 min | ~6 min |
 | T1 verify harness script | 35 min | 15–25 min |
 | T3 CF + Sonnet + deploy | 50 min | 35–45 min |
 
@@ -100,7 +101,7 @@ When presenting work that might fit a stated window, use **two numbers**:
 
 - **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
 - **After ship/verify:** when Dan gave a time window, note **actual elapsed** in the chat completion report (feeds calibration) — cite `estimate-log.md` for away ships; do not store actuals in `away-status.json`.
-- **Away ships:** append Dan approval→done timing **only** to `PROJECT_STATUS/estimate-log.md` at ship (or docs-only completion) — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; `completedAt` = completion report to Dan (rounded nearest minute), not commit timestamp alone; log **Type** + **Subtype** per taxonomy; recalibrate budgets by subtype median at 15 rows; `startedAt: unknown` when approval was not recorded.
+- **Away ships:** append Dan approval→done timing **only** to `PROJECT_STATUS/estimate-log.md` at ship (or docs-only completion) — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; `completedAt` = completion report to Dan (rounded nearest minute), not commit timestamp alone; log **Type** + **Subtype** per taxonomy; **`npm run estimate:audit`** at every 15 log rows (`estimate-audit.json` tracks last audit); use subtype budgets from estimate-log when present; `startedAt: unknown` when approval was not recorded.
 - **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
 
 ### Wrong vs right (budget vs typical)
