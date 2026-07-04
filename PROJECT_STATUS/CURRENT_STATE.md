@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5â€“6 â€” Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-099** — intelligent indexer ingest + deterministic packet retrieval (`indexer:ingest`, `indexer-memory.json`, `away:next --packet`)
+- Last shipped: **Invoice Review row-card + inspect expected fields** — one row per import (label, chips, P/O, S/O, Invoice #, buyer, branch, order date, lines, issue summary); Inspect/Approve/Reject on row; split detail pane removed; inspect modal adds doc-type summary, approval eligibility, block reason, expected-vs-actual Johnstone fields (Found/Missing/Questionable/N/A) via `inferDocumentType` + checklist helper; zero-lines Refresh Now note
+- Also shipped: **away-099** — intelligent indexer ingest + deterministic packet retrieval (`indexer:ingest`, `indexer-memory.json`, `away:next --packet`)
 - Also shipped (standalone): **Option A issue-import queue** (b43ec6e) â€” S/O / missing Invoice # parses now create `vendorInvoiceImports` review rows; Approve blocked server+UI; Refresh Now backfills legacy 0-queue parsed emails
 - Also shipped (standalone): **inbound backfill + Firestore write fix** â€” Refresh Now scans Firestore for 0-queue parsed/error docs; cached-text reparse; `firestoreSafeValue` strips undefined before review writes; sync banner shows error detail
 - Also shipped (standalone): **shared dispatcher Refresh Now sync** (c125d86) â€” `DispatcherPortalProvider` caches invoice queue, vendors, zones; Refresh Now on any portal tab updates all tabs

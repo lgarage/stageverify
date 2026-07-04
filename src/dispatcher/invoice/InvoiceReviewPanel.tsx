@@ -13,8 +13,8 @@ import { vendorInvoiceImportDisplayLabel } from "./invoiceDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import {
   formatInvoiceHeaderField,
-  INVOICE_HEADER_FIELD_LABELS,
-  INVOICE_REVIEW_DETAIL_FIELDS,
+  queueRowIssueSummary,
+  queueRowLineCount,
   queueRowTitle,
   readInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
@@ -23,20 +23,6 @@ import type { VendorInvoiceImportStatus } from "./types";
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-
-function formatDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso.slice(0, 16);
-  }
-}
 
 function reviewStatusLabel(status: VendorInvoiceImportReview["reviewStatus"]): string {
   if (status === "pending_review") return "Pending review";
@@ -55,17 +41,19 @@ function StatusChip({
     importStatus as VendorInvoiceImportStatus,
   );
   const isWillCall = importStatus === "pickup_at_vendor";
+  const isIssue = importStatus === "issue";
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       <span
         data-testid="invoice-review-status-chip"
         style={{
-          backgroundColor: isWillCall ? "#fef3c7" : "#e8f0fe",
-          color: isWillCall ? "#92400e" : NAVY,
+          backgroundColor: isIssue ? "#fff7ed" : isWillCall ? "#fef3c7" : "#e8f0fe",
+          color: isIssue ? "#9a3412" : isWillCall ? "#92400e" : NAVY,
           fontWeight: 700,
-          fontSize: 12,
-          padding: "4px 10px",
+          fontSize: 11,
+          padding: "3px 8px",
           borderRadius: 999,
+          whiteSpace: "nowrap",
         }}
       >
         {importLabel}
@@ -85,13 +73,121 @@ function StatusChip({
                 ? "#166534"
                 : "#991b1b",
           fontWeight: 600,
-          fontSize: 12,
-          padding: "4px 10px",
+          fontSize: 11,
+          padding: "3px 8px",
           borderRadius: 999,
+          whiteSpace: "nowrap",
         }}
       >
         {reviewStatusLabel(reviewStatus)}
       </span>
+    </div>
+  );
+}
+
+function FieldCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ color: "#9ca3af", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div
+        style={{
+          color: NAVY,
+          fontSize: 12,
+          fontWeight: value === "—" ? 400 : 500,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={value === "—" ? undefined : value}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MatchSection({
+  row,
+  matchResult,
+  matchLoading,
+  selectedDeliveryId,
+  onSelectDelivery,
+}: {
+  row: VendorInvoiceImportReview;
+  matchResult: InvoiceMatchResult | null;
+  matchLoading: boolean;
+  selectedDeliveryId: string;
+  onSelectDelivery: (deliveryId: string) => void;
+}) {
+  if (row.reviewStatus !== "pending_review") return null;
+
+  return (
+    <div
+      data-testid={`invoice-review-row-match-${row.id}`}
+      style={{
+        marginTop: 12,
+        paddingTop: 12,
+        borderTop: "1px solid #e5e7eb",
+      }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>
+        Match to delivery
+      </div>
+      {matchLoading && (
+        <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>Finding candidates…</p>
+      )}
+      {!matchLoading && matchResult && (
+        <>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
+            {matchResult.confidenceReason} (score {matchResult.confidenceScore})
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {matchResult.candidates.length === 0 && (
+              <p style={{ fontSize: 12, color: "#b45309", margin: 0 }}>
+                No delivery candidates — reject or wait for a matching order.
+              </p>
+            )}
+            {matchResult.candidates.map((c: InvoiceDeliveryMatchCandidate) => (
+              <label
+                key={c.deliveryId}
+                data-testid="invoice-review-match-candidate"
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  padding: "8px 10px",
+                  border:
+                    selectedDeliveryId === c.deliveryId
+                      ? `2px solid ${RED}`
+                      : "1px solid #e0e3e8",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedDeliveryId === c.deliveryId ? "#fff5f7" : "#fff",
+                }}
+              >
+                <input
+                  type="radio"
+                  name={`invoice-match-${row.id}`}
+                  checked={selectedDeliveryId === c.deliveryId}
+                  onChange={() => onSelectDelivery(c.deliveryId)}
+                  style={{ marginTop: 2 }}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, color: NAVY, fontSize: 12 }}>
+                    {c.orderNumber}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>
+                    {c.matchReasons.join(" · ")} · score {c.confidenceScore}
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -104,12 +200,12 @@ export function InvoiceReviewPanel({
   refreshGeneration?: number;
 }) {
   const [imports, setImports] = useState<VendorInvoiceImportReview[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [matchResult, setMatchResult] = useState<InvoiceMatchResult | null>(null);
-  const [selectedDeliveryId, setSelectedDeliveryId] = useState<string>("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [matchById, setMatchById] = useState<Record<string, InvoiceMatchResult>>({});
+  const [deliveryById, setDeliveryById] = useState<Record<string, string>>({});
+  const [matchLoadingId, setMatchLoadingId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [matchLoading, setMatchLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pending" | "all">("pending");
   const [inspectImport, setInspectImport] =
@@ -118,10 +214,9 @@ export function InvoiceReviewPanel({
 
   const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
     setImports(items);
-    setSelectedId((prev) => {
+    setExpandedId((prev) => {
       if (prev && items.some((i) => i.id === prev)) return prev;
-      const firstPending = items.find((i) => i.reviewStatus === "pending_review");
-      return firstPending?.id ?? items[0]?.id ?? null;
+      return items.find((i) => i.reviewStatus === "pending_review")?.id ?? null;
     });
   }, []);
 
@@ -150,108 +245,99 @@ export function InvoiceReviewPanel({
       setError(null);
       return;
     }
-    if (refreshGeneration === 0 && syncedImports == null) {
+    if (syncedImports == null) {
       void loadQueue();
     }
   }, [syncedImports, refreshGeneration, applyImports, loadQueue]);
-
-  const selected = useMemo(
-    () => imports.find((i) => i.id === selectedId) ?? null,
-    [imports, selectedId],
-  );
 
   const filteredImports = useMemo(() => {
     if (filter === "all") return imports;
     return imports.filter((i) => i.reviewStatus === "pending_review");
   }, [imports, filter]);
 
-  useEffect(() => {
-    if (!selected || selected.reviewStatus !== "pending_review") {
-      setMatchResult(null);
-      setSelectedDeliveryId("");
-      return;
-    }
-
-    let cancelled = false;
-    setMatchLoading(true);
+  const loadMatchForRow = useCallback(async (rowId: string) => {
+    setMatchLoadingId(rowId);
     setError(null);
-    void matchInvoiceToRecords(selected.id)
-      .then((result) => {
-        if (cancelled) return;
-        setMatchResult(result);
-        const top =
-          result.deliveryOrderId ??
-          result.candidates[0]?.deliveryId ??
-          "";
-        setSelectedDeliveryId(top);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setMatchResult(null);
-        setError(err instanceof Error ? err.message : "Match lookup failed.");
-      })
-      .finally(() => {
-        if (!cancelled) setMatchLoading(false);
+    try {
+      const result = await matchInvoiceToRecords(rowId);
+      setMatchById((prev) => ({ ...prev, [rowId]: result }));
+      const top =
+        result.deliveryOrderId ?? result.candidates[0]?.deliveryId ?? "";
+      if (top) {
+        setDeliveryById((prev) => ({ ...prev, [rowId]: top }));
+      }
+    } catch (err) {
+      setMatchById((prev) => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
       });
+      setError(err instanceof Error ? err.message : "Match lookup failed.");
+    } finally {
+      setMatchLoadingId((current) => (current === rowId ? null : current));
+    }
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [selected]);
+  useEffect(() => {
+    if (!expandedId) return;
+    const row = imports.find((i) => i.id === expandedId);
+    if (!row || row.reviewStatus !== "pending_review") return;
+    if (matchById[expandedId] || matchLoadingId === expandedId) return;
+    void loadMatchForRow(expandedId);
+  }, [expandedId, imports, matchById, matchLoadingId, loadMatchForRow]);
 
-  const handleApprove = async () => {
-    if (!selected || !selectedDeliveryId) return;
-    setActionLoading(true);
+  const handleApprove = async (row: VendorInvoiceImportReview) => {
+    const deliveryId = deliveryById[row.id];
+    if (!deliveryId || row.importStatus === "issue") return;
+    if (!expandedId || expandedId !== row.id) {
+      setExpandedId(row.id);
+      if (!matchById[row.id]) {
+        await loadMatchForRow(row.id);
+      }
+      if (!deliveryById[row.id]) return;
+    }
+    setActionLoadingId(row.id);
     setError(null);
     try {
       await approveVendorInvoiceImport({
-        vendorInvoiceImportId: selected.id,
+        vendorInvoiceImportId: row.id,
         action: "approve",
-        deliveryOrderId: selectedDeliveryId,
+        deliveryOrderId: deliveryById[row.id],
       });
       await loadQueue();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approve failed.");
     } finally {
-      setActionLoading(false);
+      setActionLoadingId(null);
     }
   };
 
-  const handleReject = async () => {
-    if (!selected) return;
-    setActionLoading(true);
+  const handleReject = async (row: VendorInvoiceImportReview) => {
+    setActionLoadingId(row.id);
     setError(null);
     try {
       await approveVendorInvoiceImport({
-        vendorInvoiceImportId: selected.id,
+        vendorInvoiceImportId: row.id,
         action: "reject",
       });
       await loadQueue();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reject failed.");
     } finally {
-      setActionLoading(false);
+      setActionLoadingId(null);
     }
   };
 
-  const header = selected?.parsedHeader;
-  const approveBlocked = selected?.importStatus === "issue";
-  const issueReason =
-    selected?.error?.trim() ||
-    (selected?.parseWarnings ?? []).filter(Boolean).join("; ") ||
-    (approveBlocked
-      ? "Parse issue — resolve before approving expected items."
-      : "");
+  const firstPendingRowId = filteredImports.find(
+    (r) => r.reviewStatus === "pending_review",
+  )?.id;
 
   return (
     <div
       data-testid="invoice-review-panel"
       style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(280px, 340px) 1fr",
-        gap: 16,
-        minHeight: 480,
         fontFamily: FONT,
+        minHeight: 480,
       }}
     >
       <div
@@ -261,8 +347,6 @@ export function InvoiceReviewPanel({
           border: "1px solid #e0e3e8",
           borderRadius: 8,
           overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
         }}
       >
         <div
@@ -280,9 +364,7 @@ export function InvoiceReviewPanel({
           </span>
           <select
             value={filter}
-            onChange={(e) =>
-              setFilter(e.target.value as "pending" | "all")
-            }
+            onChange={(e) => setFilter(e.target.value as "pending" | "all")}
             style={{
               fontSize: 12,
               padding: "4px 8px",
@@ -294,442 +376,287 @@ export function InvoiceReviewPanel({
             <option value="all">All imports</option>
           </select>
         </div>
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          {loading && (
-            <p style={{ padding: 16, color: "#6b7280", fontSize: 13 }}>
-              Loading…
-            </p>
-          )}
-          {!loading && filteredImports.length === 0 && (
-            <p style={{ padding: 16, color: "#6b7280", fontSize: 13 }}>
-              {filter === "pending" && imports.some((i) => i.reviewStatus !== "pending_review")
-                ? "No pending imports — switch to All imports or use Refresh Now to sync Gmail."
-                : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
-            </p>
-          )}
-          {filteredImports.map((row) => {
-            const active = row.id === selectedId;
-            return (
+
+        {!loading && filteredImports.length === 0 && (
+          <p
+            data-testid="invoice-review-empty"
+            style={{ padding: 16, color: "#6b7280", fontSize: 13, margin: 0 }}
+          >
+            {filter === "pending" && imports.some((i) => i.reviewStatus !== "pending_review")
+              ? "No pending imports — switch to All imports or use Refresh Now to sync Gmail."
+              : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
+          </p>
+        )}
+
+        {loading && (
+          <p style={{ padding: 16, color: "#6b7280", fontSize: 13, margin: 0 }}>
+            Loading…
+          </p>
+        )}
+
+        {filteredImports.map((row) => {
+          const header = row.parsedHeader;
+          const approveBlocked = row.importStatus === "issue";
+          const issueSummary = queueRowIssueSummary(row);
+          const lineCount = queueRowLineCount(row);
+          const expanded = expandedId === row.id;
+          const matchResult = matchById[row.id] ?? null;
+          const selectedDeliveryId = deliveryById[row.id] ?? "";
+          const rowActionLoading = actionLoadingId === row.id;
+          const isFirstPending = row.id === firstPendingRowId;
+
+          return (
+            <div
+              key={row.id}
+              data-testid={`invoice-review-queue-row-${row.id}`}
+              style={{
+                borderBottom: "1px solid #e0e3e8",
+                backgroundColor: expanded ? "#f8fafc" : "#fff",
+                padding: "14px 16px",
+              }}
+            >
               <div
-                key={row.id}
-                data-testid={`invoice-review-queue-row-${row.id}`}
                 style={{
-                  borderBottom: "1px solid #f0f2f5",
-                  backgroundColor: active ? "#f0f4ff" : "#fff",
+                  display: "flex",
+                  gap: 16,
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
                 }}
               >
                 <button
                   type="button"
-                  onClick={() => setSelectedId(row.id)}
+                  onClick={() => setExpandedId(expanded ? null : row.id)}
                   style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "12px 16px 8px",
+                    flex: "1 1 480px",
+                    minWidth: 0,
                     border: "none",
-                    backgroundColor: "transparent",
+                    background: "transparent",
+                    padding: 0,
                     cursor: "pointer",
+                    textAlign: "left",
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: NAVY, fontSize: 13 }}>
-                    {queueRowTitle(row)}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                    {formatInvoiceHeaderField(
-                      readInvoiceHeaderField(row.parsedHeader, "customerPoOrReference"),
-                    )}
-                  </div>
-                  <div style={{ marginTop: 8 }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: NAVY,
+                        fontSize: 14,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {queueRowTitle(row)}
+                      <span style={{ fontWeight: 400, color: "#9ca3af", fontSize: 12 }}>
+                        {" "}
+                        · {row.pageId}
+                      </span>
+                    </div>
                     <StatusChip
                       importStatus={row.importStatus}
                       reviewStatus={row.reviewStatus}
                     />
                   </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
+                      gap: "10px 14px",
+                    }}
+                  >
+                    <FieldCell
+                      label="P/O #"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "customerPoOrReference"),
+                      )}
+                    />
+                    <FieldCell
+                      label="S/O #"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "vendorOrderNumber"),
+                      )}
+                    />
+                    <FieldCell
+                      label="Invoice #"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "vendorInvoiceNumber"),
+                      )}
+                    />
+                    <FieldCell
+                      label="Buyer"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "buyerName"),
+                      )}
+                    />
+                    <FieldCell
+                      label="Branch"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "vendorBranchName"),
+                      )}
+                    />
+                    <FieldCell
+                      label="Order date"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "orderDate"),
+                      )}
+                    />
+                    <FieldCell label="Lines" value={String(lineCount)} />
+                  </div>
+
+                  {issueSummary ? (
+                    <div
+                      data-testid="invoice-review-row-issue"
+                      style={{
+                        marginTop: 10,
+                        fontSize: 12,
+                        color: "#9a3412",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {issueSummary}
+                    </div>
+                  ) : (
+                    row.reviewStatus !== "pending_review" &&
+                    row.linkedDeliveryOrderId && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: "#166534" }}>
+                        Linked delivery: {row.linkedDeliveryOrderId}
+                      </div>
+                    )
+                  )}
                 </button>
-                <div style={{ padding: "0 16px 12px" }}>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    flexShrink: 0,
+                    minWidth: 140,
+                  }}
+                >
                   <button
                     type="button"
                     data-testid={`invoice-review-inspect-row-${row.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInspectImport(row);
-                    }}
+                    onClick={() => setInspectImport(row)}
                     style={{
                       backgroundColor: "#fff",
                       color: NAVY,
                       border: `1px solid ${NAVY}`,
                       borderRadius: 4,
-                      padding: "4px 10px",
+                      padding: "6px 10px",
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: "pointer",
                     }}
                   >
-                    View parsed
+                    Inspect parsed data
                   </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div
-        data-testid="invoice-review-detail"
-        style={{
-          backgroundColor: "#fff",
-          border: "1px solid #e0e3e8",
-          borderRadius: 8,
-          padding: 20,
-          overflowY: "auto",
-        }}
-      >
-        {!selected && (
-          <p style={{ color: "#6b7280", fontSize: 14 }}>
-            Select an import from the queue to review lines and match a delivery.
-          </p>
-        )}
-
-        {selected && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-                marginBottom: 16,
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: NAVY,
-                  }}
-                >
-                  {readInvoiceHeaderField(header, "vendorInvoiceNumber")
-                    ? `Invoice ${readInvoiceHeaderField(header, "vendorInvoiceNumber")}`
-                    : readInvoiceHeaderField(header, "vendorOrderNumber")
-                      ? `Sales order ${readInvoiceHeaderField(header, "vendorOrderNumber")}`
-                      : "Import review"}
-                </h2>
-                <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>
-                  {!readInvoiceHeaderField(header, "vendorInvoiceNumber") &&
-                  readInvoiceHeaderField(header, "vendorOrderNumber")
-                    ? `S/O confirmation · Received ${formatDate(selected.createdAt)}`
-                    : readInvoiceHeaderField(header, "vendorOrderNumber")
-                      ? `Sales order ${readInvoiceHeaderField(header, "vendorOrderNumber")} · Received ${formatDate(selected.createdAt)}`
-                      : `${selected.pageId} · Received ${formatDate(selected.createdAt)}`}
-                </p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-                <StatusChip
-                  importStatus={selected.importStatus}
-                  reviewStatus={selected.reviewStatus}
-                />
-                <button
-                  type="button"
-                  data-testid="invoice-review-inspect-detail"
-                  onClick={() => setInspectImport(selected)}
-                  style={{
-                    backgroundColor: "#fff",
-                    color: NAVY,
-                    border: `1px solid ${NAVY}`,
-                    borderRadius: 6,
-                    padding: "6px 12px",
-                    fontWeight: 600,
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
-                  Inspect parsed data
-                </button>
-              </div>
-            </div>
-
-            {approveBlocked && issueReason && (
-              <div
-                data-testid="invoice-review-issue-banner"
-                style={{
-                  marginBottom: 16,
-                  padding: "12px 14px",
-                  backgroundColor: "#fff7ed",
-                  border: "1px solid #fed7aa",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  color: "#9a3412",
-                }}
-              >
-                <strong>Approve blocked — parse issue.</strong> {issueReason} Reject if
-                this is not a billable invoice, or wait for a valid invoice PDF.
-              </div>
-            )}
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: 12,
-                marginBottom: 20,
-                fontSize: 13,
-              }}
-            >
-              {INVOICE_REVIEW_DETAIL_FIELDS.map((fieldKey) => {
-                const value = readInvoiceHeaderField(header, fieldKey);
-                if (fieldKey === "vendorBranchName") {
-                  const branchPhone = readInvoiceHeaderField(header, "vendorBranchPhone");
-                  return (
-                    <div key={fieldKey}>
-                      <div style={{ color: "#6b7280", fontWeight: 600 }}>
-                        {INVOICE_HEADER_FIELD_LABELS[fieldKey]}
-                      </div>
-                      <div style={{ color: NAVY }}>
-                        {formatInvoiceHeaderField(value)}
-                        {branchPhone && (
-                          <>
-                            {" "}
-                            ·{" "}
-                            <a
-                              href={`tel:${branchPhone.replace(/\D/g, "")}`}
-                              style={{ color: RED }}
-                            >
-                              {branchPhone}
-                            </a>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div key={fieldKey}>
-                    <div style={{ color: "#6b7280", fontWeight: 600 }}>
-                      {INVOICE_HEADER_FIELD_LABELS[fieldKey]}
-                    </div>
-                    <div
-                      style={{
-                        color: NAVY,
-                        fontWeight:
-                          fieldKey === "customerPoOrReference" ||
-                          fieldKey === "buyerName"
-                            ? 600
-                            : 400,
-                      }}
-                    >
-                      {formatInvoiceHeaderField(value)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <h3
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: NAVY,
-                margin: "0 0 10px",
-              }}
-            >
-              Line items
-            </h3>
-            <div style={{ overflowX: "auto", marginBottom: 20 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ backgroundColor: "#f8fafc", textAlign: "left" }}>
-                    <th style={{ padding: "8px 10px" }}>LN</th>
-                    <th style={{ padding: "8px 10px" }}>Product</th>
-                    <th style={{ padding: "8px 10px" }}>Description</th>
-                    <th style={{ padding: "8px 10px" }}>Ord</th>
-                    <th style={{ padding: "8px 10px" }}>Ship</th>
-                    <th style={{ padding: "8px 10px" }}>B/O</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selected.parsedLines ?? []).map((line) => (
-                    <tr
-                      key={line.lineNumber}
-                      data-testid="invoice-review-line-row"
-                      style={{
-                        borderTop: "1px solid #e5e7eb",
-                        opacity: line.excludeFromExpectedItems ? 0.55 : 1,
-                      }}
-                    >
-                      <td style={{ padding: "8px 10px" }}>{line.lineNumber}</td>
-                      <td style={{ padding: "8px 10px", fontWeight: 600 }}>
-                        {line.vendorProductNumber}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>{line.description}</td>
-                      <td style={{ padding: "8px 10px" }}>{line.quantityOrdered}</td>
-                      <td style={{ padding: "8px 10px" }}>{line.quantityShipped}</td>
-                      <td style={{ padding: "8px 10px" }}>{line.quantityBackordered}</td>
-                    </tr>
-                  ))}
-                  {(selected.parsedLines ?? []).length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ padding: 16, color: "#6b7280" }}>
-                        No parsed lines on this import.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {selected.reviewStatus === "pending_review" && (
-              <>
-                <h3
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: NAVY,
-                    margin: "0 0 10px",
-                  }}
-                >
-                  Match to delivery
-                </h3>
-                {matchLoading && (
-                  <p style={{ fontSize: 13, color: "#6b7280" }}>Finding candidates…</p>
-                )}
-                {!matchLoading && matchResult && (
-                  <>
-                    <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
-                      {matchResult.confidenceReason} (score {matchResult.confidenceScore})
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {matchResult.candidates.length === 0 && (
-                        <p style={{ fontSize: 13, color: "#b45309" }}>
-                          No delivery candidates — reject or wait for a matching order.
-                        </p>
-                      )}
-                      {matchResult.candidates.map((c: InvoiceDeliveryMatchCandidate) => (
-                        <label
-                          key={c.deliveryId}
-                          data-testid="invoice-review-match-candidate"
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 10,
-                            padding: "10px 12px",
-                            border:
-                              selectedDeliveryId === c.deliveryId
-                                ? `2px solid ${RED}`
-                                : "1px solid #e0e3e8",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            backgroundColor:
-                              selectedDeliveryId === c.deliveryId ? "#fff5f7" : "#fff",
-                          }}
+                  {row.reviewStatus === "pending_review" && (
+                    <>
+                      <button
+                        type="button"
+                        data-testid={
+                          isFirstPending
+                            ? "invoice-review-approve"
+                            : `invoice-review-approve-${row.id}`
+                        }
+                        disabled={
+                          rowActionLoading || approveBlocked || !selectedDeliveryId
+                        }
+                        onClick={() => void handleApprove(row)}
+                        title={
+                          approveBlocked
+                            ? "Approve blocked for issue imports"
+                            : !selectedDeliveryId
+                              ? "Expand row and select a delivery match"
+                              : undefined
+                        }
+                        style={{
+                          backgroundColor: NAVY,
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 4,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor:
+                            rowActionLoading || approveBlocked || !selectedDeliveryId
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            rowActionLoading || approveBlocked || !selectedDeliveryId
+                              ? 0.55
+                              : 1,
+                        }}
+                      >
+                        Approve
+                      </button>
+                      {approveBlocked && (
+                        <span
+                          data-testid="invoice-review-approve-blocked-copy"
+                          style={{ fontSize: 10, color: "#9a3412", lineHeight: 1.3 }}
                         >
-                          <input
-                            type="radio"
-                            name="invoice-match"
-                            checked={selectedDeliveryId === c.deliveryId}
-                            onChange={() => setSelectedDeliveryId(c.deliveryId)}
-                            style={{ marginTop: 3 }}
-                          />
-                          <div>
-                            <div style={{ fontWeight: 700, color: NAVY }}>
-                              {c.orderNumber}
-                            </div>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>
-                              {c.matchReasons.join(" · ")} · score {c.confidenceScore}
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    marginTop: 20,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button
-                    type="button"
-                    data-testid="invoice-review-approve"
-                    disabled={actionLoading || !selectedDeliveryId || approveBlocked}
-                    onClick={() => void handleApprove()}
-                    style={{
-                      backgroundColor: NAVY,
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      padding: "10px 18px",
-                      fontWeight: 700,
-                      fontSize: 14,
-                      cursor:
-                        actionLoading || !selectedDeliveryId || approveBlocked
-                          ? "not-allowed"
-                          : "pointer",
-                      opacity:
-                        actionLoading || !selectedDeliveryId || approveBlocked ? 0.6 : 1,
-                    }}
-                  >
-                    Approve & apply expected items
-                  </button>
-                  {approveBlocked && (
-                    <p
-                      data-testid="invoice-review-approve-blocked-copy"
-                      style={{ flexBasis: "100%", margin: 0, fontSize: 12, color: "#9a3412" }}
-                    >
-                      Approve is disabled until this import is valid for expected-order apply
-                      (e.g. missing Invoice # on an S/O confirmation).
-                    </p>
+                          Approve blocked — issue import
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        data-testid={
+                          isFirstPending
+                            ? "invoice-review-reject"
+                            : `invoice-review-reject-${row.id}`
+                        }
+                        disabled={rowActionLoading}
+                        onClick={() => void handleReject(row)}
+                        style={{
+                          backgroundColor: "#fff",
+                          color: RED,
+                          border: `1px solid ${RED}`,
+                          borderRadius: 4,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: rowActionLoading ? "not-allowed" : "pointer",
+                          opacity: rowActionLoading ? 0.6 : 1,
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </>
                   )}
-                  <button
-                    type="button"
-                    data-testid="invoice-review-reject"
-                    disabled={actionLoading}
-                    onClick={() => void handleReject()}
-                    style={{
-                      backgroundColor: "#fff",
-                      color: RED,
-                      border: `1px solid ${RED}`,
-                      borderRadius: 6,
-                      padding: "10px 18px",
-                      fontWeight: 700,
-                      fontSize: 14,
-                      cursor: actionLoading ? "not-allowed" : "pointer",
-                      opacity: actionLoading ? 0.6 : 1,
-                    }}
-                  >
-                    Reject
-                  </button>
                 </div>
-              </>
-            )}
+              </div>
 
-            {selected.reviewStatus !== "pending_review" && selected.linkedDeliveryOrderId && (
-              <p style={{ fontSize: 13, color: "#166534", fontWeight: 600 }}>
-                Linked delivery: {selected.linkedDeliveryOrderId}
-              </p>
-            )}
-          </>
-        )}
-
-        {error && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: "10px 12px",
-              backgroundColor: "#fef2f2",
-              color: "#991b1b",
-              borderRadius: 6,
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </div>
-        )}
+              {expanded && (
+                <MatchSection
+                  row={row}
+                  matchResult={matchResult}
+                  matchLoading={matchLoadingId === row.id}
+                  selectedDeliveryId={selectedDeliveryId}
+                  onSelectDelivery={(deliveryId) =>
+                    setDeliveryById((prev) => ({ ...prev, [row.id]: deliveryId }))
+                  }
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            backgroundColor: "#fef2f2",
+            color: "#991b1b",
+            borderRadius: 6,
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {inspectImport && (
         <InvoiceParsedInspectModal

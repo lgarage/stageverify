@@ -1,5 +1,11 @@
 import type { VendorInvoiceImportReview } from "../models";
 import {
+  buildExpectedJohnstoneFieldChecklist,
+  statusColor,
+  statusLabel,
+  type ExpectedFieldRow,
+} from "./invoiceExpectedFieldsChecklist";
+import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
   normalizeParsedHeader,
@@ -17,6 +23,54 @@ function formatJson(value: unknown): string {
   }
 }
 
+function ExpectedFieldsTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: ExpectedFieldRow[];
+}) {
+  return (
+    <>
+      <h4 style={{ fontSize: 13, fontWeight: 700, color: NAVY, margin: "16px 0 8px" }}>
+        {title}
+      </h4>
+      <div style={{ overflowX: "auto", marginBottom: 8 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ backgroundColor: "#f8fafc", textAlign: "left" }}>
+              <th style={{ padding: "8px 10px" }}>Field</th>
+              <th style={{ padding: "8px 10px" }}>Expected for invoice?</th>
+              <th style={{ padding: "8px 10px" }}>Actual value</th>
+              <th style={{ padding: "8px 10px" }}>Status</th>
+              <th style={{ padding: "8px 10px" }}>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.field} style={{ borderTop: "1px solid #e5e7eb" }}>
+                <td style={{ padding: "8px 10px", fontWeight: 600 }}>{row.field}</td>
+                <td style={{ padding: "8px 10px" }}>{row.expectedForInvoice}</td>
+                <td style={{ padding: "8px 10px" }}>{row.actualValue}</td>
+                <td
+                  style={{
+                    padding: "8px 10px",
+                    fontWeight: 600,
+                    color: statusColor(row.status),
+                  }}
+                >
+                  {statusLabel(row.status)}
+                </td>
+                <td style={{ padding: "8px 10px", color: "#6b7280" }}>{row.notes || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 export function InvoiceParsedInspectModal({
   importRow,
   onClose,
@@ -24,11 +78,13 @@ export function InvoiceParsedInspectModal({
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
 }) {
+  const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
   const normalizedHeader = normalizeParsedHeader(importRow.parsedHeader);
   const parseWarnings = (importRow.parseWarnings ?? []).filter(Boolean);
   const orderNotes = (importRow.orderNotes ?? []).filter(Boolean);
   const parsedLines = importRow.parsedLines ?? [];
+  const lineCount = importRow.parsedLineCount ?? parsedLines.length;
 
   return (
     <div
@@ -104,47 +160,91 @@ export function InvoiceParsedInspectModal({
         </div>
 
         <div
+          data-testid="invoice-parsed-inspect-summary"
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 12,
             marginBottom: 20,
+            padding: "14px 16px",
+            backgroundColor: "#f8fafc",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
             fontSize: 13,
           }}
         >
-          <div>
-            <div style={{ color: "#6b7280", fontWeight: 600 }}>Import status</div>
-            <div>{importRow.importStatus}</div>
-          </div>
-          <div>
-            <div style={{ color: "#6b7280", fontWeight: 600 }}>Review status</div>
-            <div>{importRow.reviewStatus}</div>
-          </div>
-          <div>
-            <div style={{ color: "#6b7280", fontWeight: 600 }}>Line count</div>
-            <div>{importRow.parsedLineCount ?? parsedLines.length}</div>
-          </div>
-          <div>
-            <div style={{ color: "#6b7280", fontWeight: 600 }}>Gmail message</div>
-            <div style={{ wordBreak: "break-all" }}>{importRow.gmailMessageId}</div>
-          </div>
-        </div>
-
-        {importRow.error && (
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 12px" }}>
+            Review summary
+          </h3>
           <div
             style={{
-              marginBottom: 16,
-              padding: "10px 12px",
-              backgroundColor: "#fff7ed",
-              border: "1px solid #fed7aa",
-              borderRadius: 6,
-              fontSize: 13,
-              color: "#9a3412",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 12,
             }}
           >
-            <strong>Issue:</strong> {importRow.error}
+            <div>
+              <div style={{ color: "#6b7280", fontWeight: 600 }}>Document type</div>
+              <div data-testid="invoice-parsed-inspect-doc-type">{checklist.documentType}</div>
+            </div>
+            <div>
+              <div style={{ color: "#6b7280", fontWeight: 600 }}>Import status</div>
+              <div>{checklist.importStatus}</div>
+            </div>
+            <div>
+              <div style={{ color: "#6b7280", fontWeight: 600 }}>Review status</div>
+              <div>{checklist.reviewStatus}</div>
+            </div>
+            <div>
+              <div style={{ color: "#6b7280", fontWeight: 600 }}>Approval eligible</div>
+              <div
+                data-testid="invoice-parsed-inspect-approval"
+                style={{
+                  color: checklist.approvalEligible ? "#166534" : "#9a3412",
+                  fontWeight: 600,
+                }}
+              >
+                {checklist.approvalEligible ? "Yes" : "No"}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: "#6b7280", fontWeight: 600 }}>Line count</div>
+              <div>{lineCount}</div>
+            </div>
+            <div>
+              <div style={{ color: "#6b7280", fontWeight: 600 }}>Gmail message</div>
+              <div style={{ wordBreak: "break-all" }}>{importRow.gmailMessageId}</div>
+            </div>
           </div>
-        )}
+          {checklist.blockReason && (
+            <div
+              data-testid="invoice-parsed-inspect-block-reason"
+              style={{
+                marginTop: 12,
+                padding: "8px 10px",
+                backgroundColor: "#fff7ed",
+                border: "1px solid #fed7aa",
+                borderRadius: 6,
+                color: "#9a3412",
+              }}
+            >
+              <strong>Block reason:</strong> {checklist.blockReason}
+            </div>
+          )}
+          {checklist.zeroLinesNote && (
+            <div
+              data-testid="invoice-parsed-inspect-zero-lines"
+              style={{ marginTop: 10, color: "#b45309", fontSize: 12 }}
+            >
+              {checklist.zeroLinesNote}
+            </div>
+          )}
+        </div>
+
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
+          Expected vs actual fields
+        </h3>
+        <div data-testid="invoice-parsed-inspect-expected-fields">
+          <ExpectedFieldsTable title="Header fields" rows={checklist.rows} />
+          <ExpectedFieldsTable title="Line items" rows={checklist.lineRows} />
+        </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
           Parsed header

@@ -105,17 +105,48 @@ async function main() {
     await heading.waitFor({ timeout: 10_000 });
     console.log("PASS: page heading visible");
 
-    const detail = page.getByTestId("invoice-review-detail");
-    await detail.waitFor({ timeout: 10_000 });
-    const detailText = await detail.innerText();
-    const hasQueueOrDetail =
-      /Select an import from the queue/i.test(detailText) ||
-      /Invoice \d/i.test(detailText) ||
-      /No parsed lines/i.test(detailText);
-    if (!hasQueueOrDetail) {
-      throw new Error(`Unexpected detail panel content: ${detailText.slice(0, 200)}`);
+    const detailPane = page.getByTestId("invoice-review-detail");
+    if (await detailPane.count()) {
+      throw new Error("Split detail pane should be removed — invoice-review-detail still present");
     }
-    console.log("PASS: detail panel renders queue or import content");
+    console.log("PASS: split detail pane removed (row-card layout)");
+
+    const queueRows = page.locator('[data-testid^="invoice-review-queue-row-"]');
+    const emptyState = page.getByTestId("invoice-review-empty");
+    await page.waitForFunction(
+      () => {
+        const panel = document.querySelector('[data-testid="invoice-review-panel"]');
+        if (!panel) return false;
+        const panelText = panel.textContent ?? "";
+        const loading = panelText.includes("Loading…");
+        const rows = panel.querySelectorAll('[data-testid^="invoice-review-queue-row-"]').length;
+        const empty = panel.querySelector('[data-testid="invoice-review-empty"]');
+        return !loading && (rows > 0 || !!empty);
+      },
+      { timeout: 30_000 },
+    );
+    const rowCount = await queueRows.count();
+    const hasEmpty = await emptyState.isVisible().catch(() => false);
+
+    if (rowCount === 0 && !hasEmpty) {
+      throw new Error("Expected queue rows or empty-state message");
+    }
+    if (rowCount > 0) {
+      console.log(`PASS: ${rowCount} import row(s) visible`);
+      const firstRow = queueRows.first();
+      await firstRow.getByRole("button", { name: "Inspect parsed data" }).waitFor({
+        timeout: 10_000,
+      });
+      console.log("PASS: row actions include Inspect parsed data");
+    } else {
+      console.log("PASS: empty queue state renders");
+    }
+
+    const panelText = await page.getByTestId("invoice-review-panel").innerText();
+    if (/Confidence/i.test(panelText)) {
+      throw new Error("Confidence column should not appear in invoice review");
+    }
+    console.log("PASS: Confidence column not shown");
 
     await page.getByTestId("dispatcher-refresh-now").waitFor({ timeout: 10_000 });
     console.log("PASS: shared dispatcher Refresh Now visible on Invoice Review");
@@ -123,31 +154,39 @@ async function main() {
     await page.getByRole("button", { name: "+ New Delivery" }).waitFor({ timeout: 10_000 });
     console.log("PASS: shared dispatcher + New Delivery visible on Invoice Review");
 
-    const detailPanel = page.getByTestId("invoice-review-detail");
-    const detailPanelText = await detailPanel.innerText();
-    if (/Confidence/i.test(detailPanelText)) {
-      throw new Error("Confidence column should not appear in invoice review detail");
-    }
-    console.log("PASS: Confidence column not shown in detail panel");
-
-    const inspectDetail = page.getByTestId("invoice-review-inspect-detail");
     const inspectRow = page.locator('[data-testid^="invoice-review-inspect-row-"]').first();
-    if (await inspectDetail.isVisible().catch(() => false)) {
-      await inspectDetail.click();
+    if (await inspectRow.isVisible().catch(() => false)) {
+      await inspectRow.click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
-      console.log("PASS: Inspect parsed data modal opens from detail");
+      await page.getByTestId("invoice-parsed-inspect-expected-fields").waitFor({
+        timeout: 10_000,
+      });
+      await page.getByTestId("invoice-parsed-inspect-summary").waitFor({ timeout: 10_000 });
+      console.log("PASS: Inspect modal shows expected-vs-actual fields section");
+
+      await page.getByTestId("invoice-parsed-inspect-doc-type").waitFor({ timeout: 5000 });
+      const docType = await page.getByTestId("invoice-parsed-inspect-doc-type").innerText();
+      if (!docType.trim()) {
+        throw new Error("Document type should be populated in inspect summary");
+      }
+      console.log(`PASS: document type shown (${docType.trim()})`);
+
+      await page.getByTestId("invoice-parsed-inspect-approval").waitFor({ timeout: 5000 });
+      console.log("PASS: approval eligibility shown in inspect summary");
+
+      const expectedTable = await page.getByTestId("invoice-parsed-inspect-expected-fields").innerText();
+      if (!/Found|Missing|Questionable|N\/A/.test(expectedTable)) {
+        throw new Error("Expected-vs-actual field verdicts not shown in inspect modal");
+      }
+      console.log("PASS: field verdicts (Found/Missing/Questionable/N/A) present");
+
       await page.getByTestId("invoice-parsed-inspect-close").click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
         state: "hidden",
         timeout: 5000,
       });
-    } else if (await inspectRow.isVisible().catch(() => false)) {
-      await inspectRow.click();
-      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
-      console.log("PASS: Inspect parsed data modal opens from queue row");
-      await page.getByTestId("invoice-parsed-inspect-close").click();
     } else {
-      console.log("SKIP: no queue items — inspect controls not exercised");
+      console.log("SKIP: no queue items — inspect modal not exercised");
     }
 
     await page.screenshot({

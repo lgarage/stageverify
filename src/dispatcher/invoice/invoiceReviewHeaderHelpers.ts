@@ -138,3 +138,20 @@ export function queueRowSubtitle(importRow: VendorInvoiceImportReview): string {
   if (orderNum) return `Sales order ${orderNum}`;
   return importRow.importBatchId;
 }
+
+/** One-line issue/warning summary for queue rows. */
+export function queueRowIssueSummary(importRow: VendorInvoiceImportReview): string {
+  const error = importRow.error?.trim();
+  if (error) return error;
+  const warnings = (importRow.parseWarnings ?? []).filter(Boolean);
+  if (warnings.length > 0) return warnings.join("; ");
+  if (importRow.importStatus === "issue") {
+    return "Parse issue — missing required fields (e.g. Invoice # on S/O confirmation).";
+  }
+  return "";
+}
+
+export function queueRowLineCount(importRow: VendorInvoiceImportReview): number {
+  if (typeof importRow.parsedLineCount === "number") return importRow.parsedLineCount;
+  return importRow.parsedLines?.length ?? 0;
+}
