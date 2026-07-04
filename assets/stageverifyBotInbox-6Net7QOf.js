@@ -1,0 +1,1 @@
+var e=`svbotmail@gmail.com`,t=`gavin@twinpillar.example`;export{e as n,t};
