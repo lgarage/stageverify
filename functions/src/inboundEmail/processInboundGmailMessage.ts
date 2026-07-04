@@ -11,6 +11,10 @@ import {
   parseGmailHeaders,
 } from "../gmailInbound";
 import { extractTextFromPdfBuffer } from "./extractPdfText";
+import {
+  hasCustomFontPdfEncoding,
+  postProcessExtractedPdfText,
+} from "./normalizePdfText";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import { firestoreSafeValue } from "./firestoreSafeValue";
 import { sanitizeParsedLines } from "./sanitizeParsedLines";
@@ -85,6 +89,8 @@ export function shouldReprocessExistingDoc(
 ): boolean {
   if (!options?.retryOnError) return false;
   if (data.processingStatus === "error") return true;
+  const cached = data.combinedExtractedText?.trim();
+  if (cached && hasCustomFontPdfEncoding(cached)) return true;
   if (data.processingStatus !== "parsed") return false;
   const reviewIds = data.parseResult?.reviewRecordIds ?? [];
   const total = data.parseResult?.total ?? 0;
@@ -99,15 +105,16 @@ async function finalizeParsedInboundDoc(
   gmailMessageId: string,
 ): Promise<ProcessInboundGmailMessageResult> {
   const db = getDb();
+  const normalizedText = trimStoredText(postProcessExtractedPdfText(combinedExtractedText));
   const importBatchId = `batch-email-${gmailMessageId.slice(0, 12)}-${randomBytes(3).toString("hex")}`;
-  const batchResult = parseInboundInvoiceText(combinedExtractedText, {
+  const batchResult = parseInboundInvoiceText(normalizedText, {
     importBatchId,
     gmailMessageId,
   });
 
   const partialDoc: InboundEmailProcessingDoc = {
     ...inboundDoc,
-    combinedExtractedText,
+    combinedExtractedText: normalizedText,
     processingStatus: "extracted",
     updatedAt: new Date().toISOString(),
   };
@@ -153,9 +160,21 @@ async function writeReviewRecords(
     const reviewId = `vii-${inboundDoc.gmailMessageId}-${row.pageId}`;
     reviewIds.push(reviewId);
 
+    const existingSnap = await db.collection(REVIEW_COLLECTION).doc(reviewId).get();
+    const existingStatus = existingSnap.exists
+      ? (existingSnap.data() as VendorInvoiceImportDoc).reviewStatus
+      : undefined;
+    if (existingStatus === "approved" || existingStatus === "rejected") {
+      continue;
+    }
+
     const proc = row.processing;
     const parsedLines = sanitizeParsedLines(proc.parsed.lines);
     const reviewError = issueReviewError(proc, row.error);
+    const createdAt =
+      existingSnap.exists && (existingSnap.data() as VendorInvoiceImportDoc).createdAt
+        ? (existingSnap.data() as VendorInvoiceImportDoc).createdAt
+        : now;
     const reviewDoc: VendorInvoiceImportDoc = {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
@@ -175,7 +194,7 @@ async function writeReviewRecords(
       parseWarnings: proc.parsed.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: "needs_review",
-      createdAt: now,
+      createdAt,
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
       ...(reviewError ? { error: reviewError } : {}),
@@ -211,7 +230,7 @@ export async function processInboundGmailMessage(
       };
     }
     const cachedText = data.combinedExtractedText?.trim();
-    if (cachedText) {
+    if (cachedText && !hasCustomFontPdfEncoding(cachedText)) {
       const now = new Date().toISOString();
       await ref.set(
         {
@@ -315,6 +334,9 @@ export async function processInboundGmailMessage(
         );
         const extracted = await extractTextFromPdfBuffer(bytes);
         record.extractedText = trimStoredText(extracted.text);
+        if (extracted.rawText) {
+          record.extractedTextRaw = trimStoredText(extracted.rawText);
+        }
         record.pageCount = extracted.pageCount;
         textParts.push(extracted.text);
       } catch (err) {

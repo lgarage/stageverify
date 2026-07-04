@@ -3,10 +3,7 @@
  * Usage: node scripts/extract-pdf-text.mjs <path-to.pdf>
  */
 import { readFileSync } from "fs";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-const pdfParse = require("../functions/node_modules/pdf-parse");
+import { extractTextFromPdfBuffer } from "../functions/lib/inboundEmail/extractPdfText.js";
 
 const pdfPath = process.argv[2];
 if (!pdfPath) {
@@ -15,8 +12,8 @@ if (!pdfPath) {
 }
 
 const buffer = readFileSync(pdfPath);
-const result = await pdfParse(buffer);
-console.log(`pages: ${result.numpages}, text length: ${result.text.length}\n`);
+const result = await extractTextFromPdfBuffer(buffer);
+console.log(`extractor: ${result.extractor}, pages: ${result.pageCount}, text length: ${result.text.length}\n`);
 console.log(result.text.slice(0, 2500));
 console.log("\n--- field probes ---");
 const text = result.text;
@@ -28,6 +25,6 @@ const probes = [
   ["54632502", /54632502/.test(text)],
   ["P411190", /P411190/.test(text)],
   ["LN QNTY ORD", /LN QNTY ORD/i.test(text)],
-  ["Readable ASCII ratio", (text.replace(/[^\x20-\x7E\n\r\t]/g, "").length / Math.max(text.length, 1)) > 0.7],
+  ["Readable ASCII ratio", (text.replace(/[^\x20-\x7E\n\r\t]/g, "").length / Math.max(text.length, 1)) > 0.85],
 ];
 for (const [label, ok] of probes) console.log(`  ${label}: ${ok ? "yes" : "no"}`);

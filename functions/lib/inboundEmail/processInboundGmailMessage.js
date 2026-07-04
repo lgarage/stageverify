@@ -10,6 +10,7 @@ const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const gmailInbound_1 = require("../gmailInbound");
 const extractPdfText_1 = require("./extractPdfText");
+const normalizePdfText_1 = require("./normalizePdfText");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
 const firestoreSafeValue_1 = require("./firestoreSafeValue");
 const sanitizeParsedLines_1 = require("./sanitizeParsedLines");
@@ -52,6 +53,9 @@ function shouldReprocessExistingDoc(data, options) {
         return false;
     if (data.processingStatus === "error")
         return true;
+    const cached = data.combinedExtractedText?.trim();
+    if (cached && (0, normalizePdfText_1.hasCustomFontPdfEncoding)(cached))
+        return true;
     if (data.processingStatus !== "parsed")
         return false;
     const reviewIds = data.parseResult?.reviewRecordIds ?? [];
@@ -61,14 +65,15 @@ function shouldReprocessExistingDoc(data, options) {
 }
 async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, gmailMessageId) {
     const db = getDb();
+    const normalizedText = trimStoredText((0, normalizePdfText_1.postProcessExtractedPdfText)(combinedExtractedText));
     const importBatchId = `batch-email-${gmailMessageId.slice(0, 12)}-${(0, crypto_1.randomBytes)(3).toString("hex")}`;
-    const batchResult = (0, processInvoiceForInbound_1.parseInboundInvoiceText)(combinedExtractedText, {
+    const batchResult = (0, processInvoiceForInbound_1.parseInboundInvoiceText)(normalizedText, {
         importBatchId,
         gmailMessageId,
     });
     const partialDoc = {
         ...inboundDoc,
-        combinedExtractedText,
+        combinedExtractedText: normalizedText,
         processingStatus: "extracted",
         updatedAt: new Date().toISOString(),
     };
@@ -104,9 +109,19 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             continue;
         const reviewId = `vii-${inboundDoc.gmailMessageId}-${row.pageId}`;
         reviewIds.push(reviewId);
+        const existingSnap = await db.collection(REVIEW_COLLECTION).doc(reviewId).get();
+        const existingStatus = existingSnap.exists
+            ? existingSnap.data().reviewStatus
+            : undefined;
+        if (existingStatus === "approved" || existingStatus === "rejected") {
+            continue;
+        }
         const proc = row.processing;
         const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
         const reviewError = issueReviewError(proc, row.error);
+        const createdAt = existingSnap.exists && existingSnap.data().createdAt
+            ? existingSnap.data().createdAt
+            : now;
         const reviewDoc = {
             id: reviewId,
             inboundEmailProcessingId: inboundDoc.id,
@@ -126,7 +141,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             parseWarnings: proc.parsed.parseWarnings,
             orderNotes: proc.parsed.orderNotes,
             outcome: "needs_review",
-            createdAt: now,
+            createdAt,
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
             ...(reviewError ? { error: reviewError } : {}),
@@ -154,7 +169,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
             };
         }
         const cachedText = data.combinedExtractedText?.trim();
-        if (cachedText) {
+        if (cachedText && !(0, normalizePdfText_1.hasCustomFontPdfEncoding)(cachedText)) {
             const now = new Date().toISOString();
             await ref.set({
                 processingStatus: "processing",
@@ -234,6 +249,9 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
                 const bytes = await (0, gmailInbound_1.downloadGmailAttachment)(accessToken, gmailMessageId, pdf.attachmentId);
                 const extracted = await (0, extractPdfText_1.extractTextFromPdfBuffer)(bytes);
                 record.extractedText = trimStoredText(extracted.text);
+                if (extracted.rawText) {
+                    record.extractedTextRaw = trimStoredText(extracted.rawText);
+                }
                 record.pageCount = extracted.pageCount;
                 textParts.push(extracted.text);
             }

@@ -16,6 +16,8 @@ export interface InboundPdfAttachmentRecord {
   sizeBytes: number;
   gmailAttachmentId: string;
   extractedText?: string;
+  /** pdf-parse / pre-normalize blob when post-processing changed extractedText. */
+  extractedTextRaw?: string;
   extractError?: string;
   pageCount?: number;
 }
