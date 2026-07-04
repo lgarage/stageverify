@@ -213,21 +213,23 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 ### Completion report (mandatory)
 After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
 
-**Timing:** when posting this reply, the parent/coordinator records **`completedAt`** (ISO, coordinator clock) and **`actualElapsedMin`** (nearest whole minute from Dan's approval `startedAt` — see `estimate-log.md`). Append the estimate-log row at declare-done; do not use feature commit time as `completedAt`. At **15, 30, 45…** log rows, run **`npm run estimate:audit`** (see `estimate-log.md` § Audit every 15 rows).
+**Timing (worker-owned):** Worker posts **`task-start`** before implementation and **`task-finish`** before this report. Librarian records timestamps into `estimate-log.md` — never invents elapsed time. `actualElapsedMin` = timestamp math only (`round((finishedAt − startedAt) / 60s)`). Missing either timestamp → `unknown`. Append estimate-log row at declare-done. At **15, 30, 45…** log rows, run **`npm run estimate:audit`**.
 
-**Then** an **estimate table** from `PROJECT_STATUS/estimate-log.md` (approval→done when logged; otherwise elapsed from this session). Away ships: cite row **Type/Subtype** when helpful for calibration context:
+**Then** a **timing table** from worker timestamps (and `estimate-log.md` when shipped):
 
-When a pre-ship **budget** exists for the task:
+When a pre-ship **budget** exists:
 
-| | Budget | Actual | Commit |
-| --- | --- | --- | --- |
-| *(task label)* | *N min* | *N min* or `unknown` | *short hash* |
+| ID/Task | Budget | Started | Finished | Actual | Timing source | Commit |
+| --- | --- | --- | --- | --- | --- | --- |
+| *(task label)* | *N min* | *ISO or unknown* | *ISO or unknown* | *N min* or `unknown` | *worker_reported_timestamps* | *short hash* |
 
-When **no budget** was set — do **not** invent a Budget column:
+When **no budget** was set — omit Budget column:
 
-| Actual | Commit |
-| --- | --- |
-| *N min* or `unknown` | *short hash* |
+| ID/Task | Started | Finished | Actual | Timing source | Commit |
+| --- | --- | --- | --- | --- | --- |
+| *(task label)* | *ISO or unknown* | *ISO or unknown* | *N min* or `unknown` | *worker_reported_timestamps* | *short hash* |
+
+Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only — never as Actual in the table.
 
 **Then** the existing compact report unchanged: model audit (or low-risk line per `model-audit-gate.mdc`), cleanup checklist (`session-cleanup-gate.mdc`), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
 

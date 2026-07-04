@@ -5,9 +5,10 @@
  *   node scripts/away-ship.mjs --id away-042 --commit abc1234 --note "..." [--status built|blocked|deferred]
  *
  * --note: short ship summary only (stored verbatim in away-status.json). Do not duplicate
- * est/actual/started/completed here — append timing row to PROJECT_STATUS/estimate-log.md
- * separately (single source of truth). completedAt = completion report to Dan (see
- * estimate-log.md), not git commit time. Optional cross-ref: "timing: estimate-log row N".
+ * Append timing row to PROJECT_STATUS/estimate-log.md separately (single source of truth).
+ * Worker posts task-start before implementation and task-finish before completion report;
+ * librarian records timestamps — finishedAt = worker task-finish (see estimate-log.md).
+ * Optional cross-ref: "timing: estimate-log row N".
  *
  * Example:
  *   --note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"
@@ -30,8 +31,8 @@ function usage() {
   console.error(`Usage: node scripts/away-ship.mjs --id away-NNN --commit HASH --note "..." [--status built|blocked|deferred] [--dry-run]
 
 --note: short ship summary only (no est/actual duplication). Append timing to
-PROJECT_STATUS/estimate-log.md separately — completedAt = Dan completion report
-(see AWAY_BUILD_PROTOCOL.md step 6 + estimate-log.md), not commit timestamp.`);
+PROJECT_STATUS/estimate-log.md separately — worker task-start/finish timestamps
+(see AWAY_BUILD_PROTOCOL.md step 7–8 + estimate-log.md).`);
   process.exit(1);
 }
 

@@ -109,20 +109,24 @@ node scripts/playwright-auth-setup.mjs   # if playwright/.auth/state.json missin
 For each id in `executionProtocol.sequence`:
 
 1. Confirm `dependsOn` predecessor is `status: done`.
-2. State scope in one line (what you will / will not add) — **cite matching `svscope_simple.md` §**; do not implement outside scope.
-3. Parallel scouts if applicable → synthesis → implement (orchestrator only).
-4. Run **all** `verifyBeforeNext` commands.
-5. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
-6. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Timing audit — `PROJECT_STATUS/estimate-log.md` only** (single source of truth; do not store est/actual in `away-status.json`):
-   - Append one row to `estimate-log.md` (rolling 15 rows): `startedAt`, `completedAt`, `budgetMin`, `actualElapsedMin`, **Type**, **Subtype** (taxonomy in that file), deploy flag, notes — see that file for methodology.
-   - **Dan approval → done report:** `startedAt` = ISO from Dan's approval message `<timestamp>` (or `unknown`). `completedAt` = ISO when the **parent/coordinator posts the completion report** to Dan (not the feature commit alone). `actualElapsedMin` = nearest whole minute between those — includes build, Playwright, deploy, prod verify, queue wait, and explanation. Parent logs the estimate row when declaring done.
-   - **`--note`**: short ship summary only (what shipped, verify results). Optional: `timing: estimate-log row N`; optional `commit=<hash>`. Example: `--note "gotcha map + context:gotcha CLI; verify PASS; timing: estimate-log row 5"`.
-   - Completion report: estimate **table** from estimate-log — `| | Budget | Actual | Commit |` when budget exists; `| Actual | Commit |` only when no budget (see `estimate-log.md` + `composer-orchestrator.mdc`).
-   - **Estimate audit:** when log row count hits **15, 30, 45…**, run **`npm run estimate:audit`** (add `--apply` if subtype medians recommend budget changes) before commit — see `estimate-log.md` § Audit every 15 rows.
-   - **Lessons learned:** append **one bullet** to the matching `LIBRARIAN_LESSONS.md` § for the task **Type/Subtype** — `npm run lessons:append -- --type <type>/<subtype> --bullet "what went wrong or repeat next time"` (updates `librarian-lessons-index.json` line ranges in the same commit). Agent may edit manually if the CLI is awkward; run `npm run away:validate` — index drift fails validate.
-7. Run **`npm run away:validate`** — must pass before commit.
-8. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
-9. Session cleanup — then next item.
+2. **Worker `task-start` (hard rule):** Before any file edit or implementation tool call, post `task-start` with `id`, `startedAt` (ISO + timezone), `timingSource: worker_reported`. No implementation until this exists.
+3. State scope in one line (what you will / will not add) — **cite matching `svscope_simple.md` §**; do not implement outside scope.
+4. Parallel scouts if applicable → synthesis → implement (orchestrator only).
+5. Run **all** `verifyBeforeNext` commands.
+6. If `escalateWhen` or `escalateBeforeShip`: **Sonnet 4.6 security review** before push; fix HIGH before continuing.
+7. **Worker `task-finish` (hard rule):** Immediately before completion report, post `task-finish` with `finishedAt`, `actualElapsedMin` from timestamp math, `timingSource: worker_reported_timestamps`. Optional `pausedAt`/`resumedAt` when blocking.
+8. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Timing audit — `PROJECT_STATUS/estimate-log.md` only** (single source of truth; do not store est/actual in `away-status.json`):
+   - **Librarian records** worker `task-start`/`task-finish` into `estimate-log.md` (rolling 15 rows): `startedAt`, `finishedAt`, `budgetMin`, `actualElapsedMin`, `timingSource`, **Type**, **Subtype**, deploy flag, notes — see that file for methodology.
+   - **Librarian verifies** `actualElapsedMin` = `round((finishedAt − startedAt) / 60s)`; if worker-stated Actual disagrees, timestamp math wins + timing anomaly in Notes.
+   - Missing either timestamp → `actualElapsedMin: unknown`, `timingSource: unknown` — never guess.
+   - **`implementationElapsedMin`** (optional in Notes as `impl=N`) is the calibration input when wait/block time is excluded; else use `actualElapsedMin`.
+   - **`--note`**: short ship summary only. Optional: `timing: estimate-log row N`; optional `commit=<hash>`.
+   - Completion report: **timing table** — `| ID/Task | Budget | Started | Finished | Actual | Timing source | Commit |` (see `estimate-log.md` + `composer-orchestrator.mdc`).
+   - **Estimate audit:** when log row count hits **15, 30, 45…**, run **`npm run estimate:audit`** before commit.
+   - **Lessons learned:** append one bullet via `npm run lessons:append` or manual edit; `npm run away:validate` catches index drift.
+9. Run **`npm run away:validate`** — must pass before commit.
+10. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
+11. Session cleanup — then next item.
 
 ## Escalation
 

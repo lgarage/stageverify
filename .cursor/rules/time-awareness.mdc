@@ -101,7 +101,7 @@ When presenting work that might fit a stated window, use **two numbers**:
 
 - **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
 - **After ship/verify:** when Dan gave a time window, note **actual elapsed** in the chat completion report (feeds calibration) — cite `estimate-log.md` for away ships; do not store actuals in `away-status.json`.
-- **Away ships:** append Dan approval→done timing **only** to `PROJECT_STATUS/estimate-log.md` at ship (or docs-only completion) — see `AWAY_BUILD_PROTOCOL.md` step 6 and `estimate-log.md` methodology; `completedAt` = completion report to Dan (rounded nearest minute), not commit timestamp alone; log **Type** + **Subtype** per taxonomy; **`npm run estimate:audit`** at every 15 log rows (`estimate-audit.json` tracks last audit); use subtype budgets from estimate-log when present; `startedAt: unknown` when approval was not recorded.
+- **Away ships:** worker-owned `task-start`/`task-finish` timestamps recorded by librarian into `PROJECT_STATUS/estimate-log.md` only — see `AWAY_BUILD_PROTOCOL.md` step 7–8 and `estimate-log.md` methodology; `actualElapsedMin` from timestamp math; `timingSource: worker_reported_timestamps` for calibration; `startedAt`/`finishedAt: unknown` when not recorded — never guess; **`npm run estimate:audit`** at every 15 log rows.
 - **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
 
 ### Wrong vs right (budget vs typical)

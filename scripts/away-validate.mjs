@@ -26,6 +26,7 @@ import {
   auditDueWarning,
   loadAuditSnapshot,
   parseEstimateLogRows,
+  validateEstimateLogTiming,
 } from "./lib/estimate-audit-lib.mjs";
 
 const errors = [];
@@ -293,6 +294,18 @@ function validateGotchaMapRanges() {
   }
 }
 
+function validateEstimateLogRows() {
+  try {
+    const md = readText(path.join(REPO_ROOT, "PROJECT_STATUS/estimate-log.md"));
+    const rows = parseEstimateLogRows(md);
+    const { errors: timingErrors, warnings: timingWarnings } = validateEstimateLogTiming(rows);
+    for (const msg of timingWarnings) warn(`estimate-log timing: ${msg}`);
+    for (const msg of timingErrors) fail(`estimate-log timing: ${msg}`);
+  } catch (err) {
+    fail(`estimate-log timing: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function validateEstimateAuditDue() {
   try {
     const md = readText(path.join(REPO_ROOT, "PROJECT_STATUS/estimate-log.md"));
@@ -338,6 +351,7 @@ function main() {
   validateContextIndexRanges();
   validateGotchaMapRanges();
   validateLessonsIndexRanges();
+  validateEstimateLogRows();
   validateEstimateAuditDue();
 
   for (const w of warnings) console.warn(`WARN: ${w}`);

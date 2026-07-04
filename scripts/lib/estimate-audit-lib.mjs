@@ -16,7 +16,58 @@ export const ESTIMATE_PATHS = {
   timeAwareness: path.join(REPO_ROOT, ".cursor/rules/time-awareness.mdc"),
 };
 
-/** @typedef {{ rowNum: number, away: string, budgetMin: number, actualMin: number | null, type: string, subtype: string, approx: boolean }} EstimateRow */
+/** @typedef {{ rowNum: number, away: string, startedAt: string, finishedAt: string, budgetMin: number, actualMin: number | null, timingSource: string, type: string, subtype: string, approx: boolean, calibrationSafe: boolean }} EstimateRow */
+
+const KNOWN_TYPES = new Set([
+  "verify-only",
+  "scripts-only",
+  "docs-update",
+  "service-logic",
+  "multi-file",
+  "ui-component",
+  "backend",
+]);
+
+const CALIBRATION_TIMING_SOURCES = new Set(["worker_reported_timestamps"]);
+
+/**
+ * @param {string} raw
+ * @returns {boolean}
+ */
+function isUnknownTimestamp(raw) {
+  const s = String(raw ?? "").trim().toLowerCase();
+  return !s || s === "unknown";
+}
+
+/**
+ * @param {string} startIso
+ * @param {string} endIso
+ * @returns {number | null}
+ */
+export function elapsedMinutesFromTimestamps(startIso, endIso) {
+  if (isUnknownTimestamp(startIso) || isUnknownTimestamp(endIso)) return null;
+  const start = Date.parse(startIso);
+  const end = Date.parse(endIso);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.round((end - start) / 60000);
+}
+
+/**
+ * @param {string[]} cells
+ * @returns {{ timingSource: string, type: string, subtype: string, typeIdx: number }}
+ */
+function resolveTypeColumns(cells) {
+  const maybeTiming = cells[6] ?? "";
+  if (KNOWN_TYPES.has(maybeTiming)) {
+    return { timingSource: "", type: maybeTiming, subtype: cells[7] ?? "", typeIdx: 6 };
+  }
+  return {
+    timingSource: maybeTiming,
+    type: cells[7] ?? "",
+    subtype: cells[8] ?? "",
+    typeIdx: 7,
+  };
+}
 
 /**
  * @param {string} raw
@@ -54,19 +105,28 @@ export function parseEstimateLogRows(md) {
     const rowNum = Number.parseInt(cells[0], 10);
     if (!Number.isFinite(rowNum)) continue;
 
+    const { timingSource, type, subtype } = resolveTypeColumns(cells);
+    const startedAt = cells[2] ?? "unknown";
+    const finishedAt = cells[3] ?? "unknown";
     const budgetMin = Number.parseInt(cells[4], 10);
     const rawActual = cells[5];
     const approx = String(rawActual).trim().startsWith("~");
     const actualMin = parseActual(rawActual);
+    const calibrationSafe =
+      CALIBRATION_TIMING_SOURCES.has(timingSource) && actualMin != null && !approx;
 
     rows.push({
       rowNum,
       away: cells[1],
+      startedAt,
+      finishedAt,
       budgetMin: Number.isFinite(budgetMin) ? budgetMin : 0,
       actualMin,
-      type: cells[6],
-      subtype: cells[7],
+      timingSource,
+      type,
+      subtype,
       approx,
+      calibrationSafe,
     });
   }
 
@@ -117,6 +177,7 @@ function groupFindings(rows, minSamples = 3) {
   const byType = new Map();
 
   for (const row of rows) {
+    if (!row.calibrationSafe) continue;
     if (row.actualMin == null) continue;
     const subKey = `${row.type}/${row.subtype}`;
     if (!bySubtype.has(subKey)) {
@@ -194,7 +255,7 @@ function groupFindings(rows, minSamples = 3) {
  * @param {EstimateRow[]} rows
  */
 export function runAudit(rows) {
-  const withActual = rows.filter((r) => r.actualMin != null);
+  const withActual = rows.filter((r) => r.calibrationSafe);
   const findings = groupFindings(withActual);
   return {
     rowCount: rows.length,
@@ -360,6 +421,62 @@ export function formatAuditReport(report) {
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Validate estimate-log timing integrity (librarian verifier).
+ * @param {EstimateRow[]} rows
+ * @returns {{ errors: string[], warnings: string[] }}
+ */
+export function validateEstimateLogTiming(rows) {
+  /** @type {string[]} */
+  const errors = [];
+  /** @type {string[]} */
+  const warnings = [];
+
+  for (const row of rows) {
+    const label = `estimate-log row ${row.rowNum} (${row.away})`;
+    const hasStart = !isUnknownTimestamp(row.startedAt);
+    const hasFinish = !isUnknownTimestamp(row.finishedAt);
+    const hasNumericActual = row.actualMin != null && !row.approx;
+
+    if (hasNumericActual && (!hasStart || !hasFinish)) {
+      errors.push(
+        `${label}: actualElapsedMin=${row.actualMin} requires both startedAt and finishedAt (got start=${row.startedAt}, finish=${row.finishedAt})`,
+      );
+      continue;
+    }
+
+    if ((isUnknownTimestamp(row.startedAt) || isUnknownTimestamp(row.finishedAt)) && hasNumericActual) {
+      errors.push(`${label}: numeric actual without valid timestamps`);
+      continue;
+    }
+
+    if (hasStart && hasFinish && hasNumericActual) {
+      const computed = elapsedMinutesFromTimestamps(row.startedAt, row.finishedAt);
+      if (computed == null) {
+        errors.push(`${label}: invalid ISO timestamps (start=${row.startedAt}, finish=${row.finishedAt})`);
+      } else if (computed !== row.actualMin) {
+        errors.push(
+          `${label}: actualElapsedMin=${row.actualMin} ≠ timestamp math ${computed} — fix row or note timing anomaly`,
+        );
+      }
+    }
+
+    if (hasNumericActual && row.timingSource === "unknown") {
+      warnings.push(`${label}: numeric actual with timingSource=unknown — not calibration-safe`);
+    }
+
+    if (row.approx) {
+      warnings.push(`${label}: ~approx actual — excluded from calibration`);
+    }
+
+    if (!row.timingSource && hasNumericActual) {
+      warnings.push(`${label}: missing timingSource column — legacy row; excluded from calibration until tagged`);
+    }
+  }
+
+  return { errors, warnings };
 }
 
 /**
