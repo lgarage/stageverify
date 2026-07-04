@@ -98,9 +98,10 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 11 | away-091 | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:46:00-05:00 | 35 | 6 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; commit=9ed8944 |
 | 12 | estimate-timing-rule | 2026-07-03T20:49:00-05:00 | 2026-07-03T20:53:00-05:00 | 10 | 4 | docs-update | rules-only | n | Dan approval→done interval; retrofix row 14; protocol/rules/away-ship cross-ref |
 | 13 | away-validate-status-sync | 2026-07-03T20:53:00-05:00 | 2026-07-03T20:59:00-05:00 | 10 | 6 | docs-update | status-sync | n | away-091 backfill; CURRENT_STATE + away-status; away:validate PASS; commit+push only |
-| 14 | short-pickup-clipboard | 2026-07-03T21:03:00-05:00 | 2026-07-03T21:25:00-05:00 | 35 | 22 | ui-component | drawer-copy | y | short Copy Pickup clipboard; local 393 PASS; prod CDN lag on index (gh-pages branch has new bundle) |
+| 14 | short-pickup-clipboard | 2026-07-03T21:03:00-05:00 | 2026-07-03T21:25:00-05:00 | 35 | 22 | ui-component | drawer-copy | y | short Copy Pickup clipboard; local 393 PASS; prod deploy skipped until row 17 redeploy |
 | 15 | sonnet-3fail-escalation | 2026-07-03T21:30:00-05:00 | 2026-07-03T21:35:00-05:00 | 10 | 5 | docs-update | rules-only | n | 3-fail Sonnet diagnose-only rule; composer-orchestrator + cross-refs; away:validate PASS |
 | 16 | sonnet-2fail-escalation | 2026-07-03T21:37:00-05:00 | 2026-07-03T21:43:00-05:00 | 10 | 6 | docs-update | rules-only | n | 2-fail Sonnet diagnose-only; self-trace on 1st fail; composer-orchestrator + cross-refs; build PASS |
+| 17 | prod-redeploy-short-clipboard | 2026-07-03T21:37:00-05:00 | 2026-07-03T21:46:00-05:00 | 15 | 9 | verify-only | prod-deploy | y | Sonnet root cause: gh-pages stale (12044c2); redeploy bundle; delivery-consistency 395/395 + phase5-email PASS; gh-pages=b2e60af |
 
 ## Recalibration (after 15 rows)
 
