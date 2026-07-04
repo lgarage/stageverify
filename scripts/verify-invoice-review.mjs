@@ -184,6 +184,25 @@ async function main() {
       await page.getByTestId("invoice-delivery-match-section").waitFor({ timeout: 10_000 });
       console.log("PASS: delivery match section at top of inspect modal");
 
+      const approvePrompt = page.getByTestId("invoice-parsed-inspect-approve-prompt");
+      if (await approvePrompt.count()) {
+        throw new Error("Delivery ID approve prompt should be removed — approve works without linkage");
+      }
+      console.log("PASS: no delivery ID gate on approve");
+
+      const modalApproveBtn = page.getByTestId("invoice-parsed-inspect-approve");
+      if (await modalApproveBtn.isVisible().catch(() => false)) {
+        const modalApproveDisabled = await modalApproveBtn.isDisabled();
+        const panelTextForIssue = await page.getByTestId("invoice-review-panel").innerText();
+        if (modalApproveDisabled && /issue import/i.test(panelTextForIssue)) {
+          console.log("PASS: modal Approve disabled only for issue imports");
+        } else if (!modalApproveDisabled) {
+          console.log("PASS: modal Approve enabled without delivery ID selection");
+        } else {
+          throw new Error("Modal Approve should be enabled for non-issue pending imports without delivery ID");
+        }
+      }
+
       const rowMatchToggle = page.locator('[data-testid^="invoice-review-match-toggle-"]');
       if (await rowMatchToggle.count()) {
         throw new Error("Row-level Match to delivery toggle should be removed");
@@ -201,7 +220,7 @@ async function main() {
             throw new Error("Approve should be enabled for non-issue pending imports without auto-match");
           }
         } else {
-          console.log("PASS: Approve enabled without auto-match delivery selection");
+          console.log("PASS: Approve enabled without delivery ID or auto-match");
         }
       }
 

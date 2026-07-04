@@ -41,8 +41,8 @@ export function InvoiceDeliveryMatchSection({
         Delivery match
       </h3>
       <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.45 }}>
-        Link this import to a delivery before approving. Auto-match is optional — pick a
-        candidate, choose a recent delivery, or enter a delivery ID manually.
+        Optional — link this import to a delivery when you have a match. Approve works from
+        parsed data alone; linking applies expected line items to that delivery.
       </p>
 
       {shipDateWarning && (
@@ -82,7 +82,7 @@ export function InvoiceDeliveryMatchSection({
               data-testid="invoice-delivery-match-no-candidates"
               style={{ fontSize: 12, color: "#b45309", margin: "0 0 10px" }}
             >
-              No delivery candidates — select or enter a delivery ID below to approve.
+              No delivery candidates — you can still approve from parsed data, or link manually below.
             </p>
           )}
           {matchResult.candidates.length > 0 && (

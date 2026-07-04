@@ -1,6 +1,7 @@
 /**
- * approveVendorInvoiceImport — explicit approve/reject; writes expected items only.
- * Does NOT set qtyReceived, staging, or readiness.
+ * approveVendorInvoiceImport — explicit approve/reject.
+ * Approve without deliveryOrderId: review-only (import reviewStatus approved; no delivery/items).
+ * Approve with deliveryOrderId: writes expected items only; does NOT set qtyReceived, staging, or readiness.
  */
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -39,8 +40,8 @@ export const approveVendorInvoiceImport = onCall(
     if (action !== "approve" && action !== "reject") {
       throw new HttpsError("invalid-argument", "action must be approve or reject.");
     }
-    if (action === "approve" && (!deliveryOrderId || deliveryOrderId.length > 256)) {
-      throw new HttpsError("invalid-argument", "deliveryOrderId is required to approve.");
+    if (deliveryOrderId.length > 256) {
+      throw new HttpsError("invalid-argument", "deliveryOrderId is too long.");
     }
 
     const importRef = getDb().collection(REVIEW_COLLECTION).doc(importId);
@@ -87,6 +88,38 @@ export const approveVendorInvoiceImport = onCall(
         });
       });
       return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
+    }
+
+    if (!deliveryOrderId) {
+      await getDb().runTransaction(async (tx) => {
+        const freshImport = await tx.get(importRef);
+        if (!freshImport.exists) {
+          throw new HttpsError("not-found", "Vendor invoice import not found.");
+        }
+        const fresh = freshImport.data() as VendorInvoiceImportDoc;
+        if (fresh.reviewStatus !== "pending_review") {
+          throw new HttpsError(
+            "failed-precondition",
+            `Import already ${fresh.reviewStatus}.`,
+          );
+        }
+        if (fresh.importStatus === "issue") {
+          throw new HttpsError(
+            "failed-precondition",
+            "Cannot approve — import has parse issues. Reject or wait for a valid invoice.",
+          );
+        }
+        tx.update(importRef, {
+          reviewStatus: "approved",
+          approvedAt: now,
+          approvedBy: uid,
+          updatedAt: now,
+        });
+      });
+      return {
+        vendorInvoiceImportId: importId,
+        reviewStatus: "approved",
+      };
     }
 
     const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);

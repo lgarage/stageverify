@@ -53,7 +53,6 @@ export function InvoiceParsedInspectModal({
   actionLoading = false,
   onApprove,
   onReject,
-  highlightApprove = false,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -66,7 +65,6 @@ export function InvoiceParsedInspectModal({
   actionLoading?: boolean;
   onApprove?: () => void;
   onReject?: () => void;
-  highlightApprove?: boolean;
 }) {
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
@@ -81,7 +79,7 @@ export function InvoiceParsedInspectModal({
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
   const showActions = isPending && (onApprove || onReject);
-  const approveDisabled = actionLoading || approveBlocked || !selectedDeliveryId.trim();
+  const approveDisabled = actionLoading || approveBlocked;
 
   return (
     <div
@@ -169,23 +167,6 @@ export function InvoiceParsedInspectModal({
             recentDeliveries={recentDeliveries}
             recentDeliveriesLoading={recentDeliveriesLoading}
           />
-        )}
-
-        {highlightApprove && isPending && !selectedDeliveryId.trim() && (
-          <p
-            data-testid="invoice-parsed-inspect-approve-prompt"
-            style={{
-              margin: "0 0 16px",
-              padding: "10px 12px",
-              backgroundColor: "#fff7ed",
-              border: "1px solid #fed7aa",
-              borderRadius: 6,
-              fontSize: 13,
-              color: "#9a3412",
-            }}
-          >
-            Select or enter a delivery ID above, then approve.
-          </p>
         )}
 
         <div
@@ -484,13 +465,7 @@ export function InvoiceParsedInspectModal({
                 type="button"
                 data-testid="invoice-parsed-inspect-approve"
                 disabled={approveDisabled}
-                title={
-                  approveBlocked
-                    ? "Approve blocked for issue imports"
-                    : !selectedDeliveryId.trim()
-                      ? "Select or enter a delivery ID first"
-                      : undefined
-                }
+                title={approveBlocked ? "Approve blocked for issue imports" : undefined}
                 onClick={onApprove}
                 style={{
                   backgroundColor: NAVY,

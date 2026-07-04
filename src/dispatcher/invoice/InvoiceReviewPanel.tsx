@@ -150,7 +150,6 @@ export function InvoiceReviewPanel({
   const [filter, setFilter] = useState<"pending" | "all">("pending");
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
-  const [approvePromptForId, setApprovePromptForId] = useState<string | null>(null);
   const [recentDeliveries, setRecentDeliveries] = useState<DeliveryListRow[]>([]);
   const [recentDeliveriesLoading, setRecentDeliveriesLoading] = useState(false);
   const lastAppliedGeneration = useRef(0);
@@ -278,18 +277,21 @@ export function InvoiceReviewPanel({
     loadRecentDeliveries,
   ]);
 
-  const submitApprove = async (row: VendorInvoiceImportReview, deliveryId: string) => {
-    if (!deliveryId.trim() || row.importStatus === "issue") return;
+  const submitApprove = async (
+    row: VendorInvoiceImportReview,
+    deliveryId?: string,
+  ) => {
+    if (row.importStatus === "issue") return;
     setActionLoadingId(row.id);
     setError(null);
     try {
+      const trimmedDeliveryId = deliveryId?.trim() ?? "";
       await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "approve",
-        deliveryOrderId: deliveryId.trim(),
+        ...(trimmedDeliveryId ? { deliveryOrderId: trimmedDeliveryId } : {}),
       });
       setInspectImport(null);
-      setApprovePromptForId(null);
       await loadQueue();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approve failed.");
@@ -299,16 +301,8 @@ export function InvoiceReviewPanel({
   };
 
   const handleApprove = async (row: VendorInvoiceImportReview) => {
-    const deliveryId = deliveryById[row.id]?.trim() ?? "";
     if (row.importStatus === "issue") return;
-
-    if (!deliveryId) {
-      setApprovePromptForId(row.id);
-      setInspectImport(row);
-      return;
-    }
-
-    await submitApprove(row, deliveryId);
+    await submitApprove(row, deliveryById[row.id]);
   };
 
   const handleReject = async (row: VendorInvoiceImportReview) => {
@@ -320,7 +314,6 @@ export function InvoiceReviewPanel({
         action: "reject",
       });
       setInspectImport(null);
-      setApprovePromptForId(null);
       await loadQueue();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reject failed.");
@@ -403,7 +396,6 @@ export function InvoiceReviewPanel({
           const approveBlocked = row.importStatus === "issue";
           const issueSummary = queueRowIssueSummary(row);
           const lineCount = queueRowLineCount(row);
-          const selectedDeliveryId = deliveryById[row.id] ?? "";
           const rowActionLoading = actionLoadingId === row.id;
           const isFirstPending = row.id === firstPendingRowId;
           const codContext = codPaymentContext(row);
@@ -430,14 +422,10 @@ export function InvoiceReviewPanel({
                   role="button"
                   tabIndex={0}
                   data-testid={`invoice-review-row-content-${row.id}`}
-                  onClick={() => {
-                    setApprovePromptForId(null);
-                    setInspectImport(row);
-                  }}
+                  onClick={() => setInspectImport(row)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setApprovePromptForId(null);
                       setInspectImport(row);
                     }
                   }}
@@ -570,11 +558,7 @@ export function InvoiceReviewPanel({
                           void handleApprove(row);
                         }}
                         title={
-                          approveBlocked
-                            ? "Approve blocked for issue imports"
-                            : !selectedDeliveryId
-                              ? "Opens inspect modal to pick or enter delivery ID"
-                              : undefined
+                          approveBlocked ? "Approve blocked for issue imports" : undefined
                         }
                         style={{
                           backgroundColor: NAVY,
@@ -659,10 +643,7 @@ export function InvoiceReviewPanel({
       {inspectImport && (
         <InvoiceParsedInspectModal
           importRow={inspectImport}
-          onClose={() => {
-            setInspectImport(null);
-            setApprovePromptForId(null);
-          }}
+          onClose={() => setInspectImport(null)}
           matchResult={inspectRowId ? (matchById[inspectRowId] ?? null) : null}
           matchLoading={inspectRowId ? matchLoadingId === inspectRowId : false}
           selectedDeliveryId={inspectSelectedDeliveryId}
@@ -673,7 +654,6 @@ export function InvoiceReviewPanel({
           recentDeliveries={recentDeliveries}
           recentDeliveriesLoading={recentDeliveriesLoading}
           actionLoading={actionLoadingId === inspectImport.id}
-          highlightApprove={approvePromptForId === inspectImport.id}
           onApprove={
             inspectImport.reviewStatus === "pending_review"
               ? () => {

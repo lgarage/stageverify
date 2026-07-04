@@ -230,6 +230,59 @@ try {
   await createUserWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
 }
 
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-review-only-test"), {
+    id: "vii-review-only-test",
+    inboundEmailProcessingId: "inbound-test-2",
+    gmailMessageId: "msg-test-2",
+    importBatchId: "batch-test",
+    pageId: "inv-test-2",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: header,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let reviewOnlyResult;
+try {
+  reviewOnlyResult = await approveImport({
+    vendorInvoiceImportId: "vii-review-only-test",
+    action: "approve",
+  });
+} catch (err) {
+  fail("review-only approve call failed", err?.message);
+}
+
+const reviewOnlyData = reviewOnlyResult?.data ?? {};
+if (reviewOnlyData.reviewStatus === "approved" && !reviewOnlyData.deliveryOrderId) {
+  pass("review-only approve returned approved without delivery");
+} else {
+  fail("review-only approve response", reviewOnlyData);
+}
+
+const reviewOnlySnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-review-only-test"));
+if (
+  reviewOnlySnap.data()?.reviewStatus === "approved" &&
+  !reviewOnlySnap.data()?.linkedDeliveryOrderId
+) {
+  pass("import marked approved with no linked delivery");
+} else {
+  fail("review-only import state", reviewOnlySnap.data());
+}
+
 let approveResult;
 try {
   approveResult = await approveImport({
