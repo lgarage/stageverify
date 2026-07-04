@@ -85,21 +85,21 @@ Example (no budget): `| 8 min | a1b2c3d |`
 
 | # | Away | startedAt | completedAt | budgetMin | actualElapsedMin | Type | Subtype | Deploy | Notes |
 | - | ---- | --------- | ----------- | --------- | ---------------- | ---- | ------- | ------ | ----- |
-| 1 | away-087 | unknown | 2026-07-03T14:25:51-05:00 | 10 | unknown | verify-only | gate | n | readFirst svscope gate; completedAt=eeba32e; no Dan approval logged |
-| 2 | away-083 | unknown | 2026-07-03T14:30:50-05:00 | 35 | unknown | scripts-only | pipeline-hook | n | project_state sync on ship/validate; completedAt=01079aa; no approval logged |
-| 3 | away-085 | unknown | 2026-07-03T14:37:28-05:00 | 45 | unknown | scripts-only | cli-new | n | context:packet + away:next --packet; completedAt=4626672; no approval logged |
-| 4 | away-086 | unknown | 2026-07-03T14:49:18-05:00 | 35 | unknown | docs-update | archive-trim | n | Dossier cold-table rotation; completedAt=83c59eb; no approval logged |
-| 5 | away-084 | 2026-07-03T14:59:00-05:00 | 2026-07-03T15:02:04-05:00 | 35 | 3 | scripts-only | cli-new | n | Dan: "away-084 makes sense now" after ~2:59 PM scout; completedAt=2ca348a (feat 4b2ca83) |
-| 6 | away-088 | 2026-07-03T15:16:00-05:00 | 2026-07-03T15:19:12-05:00 | 35 | 3 | service-logic | parser-slice | n | Johnstone invoice import Slice 1; offline parser + fixtures |
-| 7 | invoice-backorder-fix | 2026-07-03T18:03:00-05:00 | 2026-07-03T18:05:00-05:00 | 35 | 2 | service-logic | parser-rule-fix | n | backorder-safe fulfillment/status; 10/10 fixtures 100%; completedAt=7b3b90e |
-| 8 | estimate-table+parser-audit | 2026-07-03T18:09:00-05:00 | 2026-07-03T18:10:44-05:00 | 35 | 2 | multi-file | parser+docs+rules | n | completion report table + Johnstone parser audit; 13/13 fixtures 100%; completedAt=60ea8b3 |
-| 9 | away-089 | 2026-07-03T18:14:00-05:00 | 2026-07-03T18:16:58-05:00 | 35 | 3 | service-logic | parser-batch | n | Johnstone invoice Slice 2; test:invoice-batch 27/27; completedAt=92635a0 |
-| 10 | dispatcher-staging-action-rows | 2026-07-03T18:34:00-05:00 | 2026-07-03T18:38:30-05:00 | 35 | 4 | ui-component | table-action-row | y | dark-orange action rows + Assign staging location; verify:delivery-consistency ORD-001/002; completedAt=6857f05 |
-| 11 | dispatcher-staging-action-rows-tighten | 2026-07-03T19:52:00-05:00 | 2026-07-03T19:58:00-05:00 | 35 | 6 | ui-component | table-rule-tighten | y | missing staging alone triggers action row; offline+live verify; completedAt=136df76 |
-| 12 | estimate-subtype-taxonomy | 2026-07-03T19:57:00-05:00 | 2026-07-03T19:58:13-05:00 | 10 | 1 | docs-update | status-sync | n | Subtype column + taxonomy; backfill rows 1-11; protocol/rules cross-ref; completedAt=1bcecd3 |
-| 13 | away-090 | 2026-07-03T20:29:00-05:00 | 2026-07-03T20:34:17-05:00 | 35 | 5 | ui-component | drawer-copy | y | Copy pickup unreceived; verify:delivery-consistency PASS; completedAt=3f74e25 |
-| 14 | reset-pickup-link-copy | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:46:00-05:00 | 35 | 6 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; commit=9ed8944; retrofix Dan-done (was commit-only 2m) |
-| 15 | estimate-timing-rule | 2026-07-03T20:49:00-05:00 | 2026-07-03T20:53:00-05:00 | 10 | 4 | docs-update | rules-only | n | Dan approval→done interval; retrofix row 14; protocol/rules/away-ship cross-ref |
+| 1 | away-083 | unknown | 2026-07-03T14:30:50-05:00 | 35 | unknown | scripts-only | pipeline-hook | n | project_state sync on ship/validate; completedAt=01079aa; no approval logged |
+| 2 | away-085 | unknown | 2026-07-03T14:37:28-05:00 | 45 | unknown | scripts-only | cli-new | n | context:packet + away:next --packet; completedAt=4626672; no approval logged |
+| 3 | away-086 | unknown | 2026-07-03T14:49:18-05:00 | 35 | unknown | docs-update | archive-trim | n | Dossier cold-table rotation; completedAt=83c59eb; no approval logged |
+| 4 | away-084 | 2026-07-03T14:59:00-05:00 | 2026-07-03T15:02:04-05:00 | 35 | 3 | scripts-only | cli-new | n | Dan: "away-084 makes sense now" after ~2:59 PM scout; completedAt=2ca348a (feat 4b2ca83) |
+| 5 | away-088 | 2026-07-03T15:16:00-05:00 | 2026-07-03T15:19:12-05:00 | 35 | 3 | service-logic | parser-slice | n | Johnstone invoice import Slice 1; offline parser + fixtures |
+| 6 | invoice-backorder-fix | 2026-07-03T18:03:00-05:00 | 2026-07-03T18:05:00-05:00 | 35 | 2 | service-logic | parser-rule-fix | n | backorder-safe fulfillment/status; 10/10 fixtures 100%; completedAt=7b3b90e |
+| 7 | estimate-table+parser-audit | 2026-07-03T18:09:00-05:00 | 2026-07-03T18:10:44-05:00 | 35 | 2 | multi-file | parser+docs+rules | n | completion report table + Johnstone parser audit; 13/13 fixtures 100%; completedAt=60ea8b3 |
+| 8 | away-089 | 2026-07-03T18:14:00-05:00 | 2026-07-03T18:16:58-05:00 | 35 | 3 | service-logic | parser-batch | n | Johnstone invoice Slice 2; test:invoice-batch 27/27; completedAt=92635a0 |
+| 9 | dispatcher-staging-action-rows | 2026-07-03T18:34:00-05:00 | 2026-07-03T18:38:30-05:00 | 35 | 4 | ui-component | table-action-row | y | dark-orange action rows + Assign staging location; verify:delivery-consistency ORD-001/002; completedAt=6857f05 |
+| 10 | dispatcher-staging-action-rows-tighten | 2026-07-03T19:52:00-05:00 | 2026-07-03T19:58:00-05:00 | 35 | 6 | ui-component | table-rule-tighten | y | missing staging alone triggers action row; offline+live verify; completedAt=136df76 |
+| 11 | estimate-subtype-taxonomy | 2026-07-03T19:57:00-05:00 | 2026-07-03T19:58:13-05:00 | 10 | 1 | docs-update | status-sync | n | Subtype column + taxonomy; backfill rows 1-11; protocol/rules cross-ref; completedAt=1bcecd3 |
+| 12 | away-090 | 2026-07-03T20:29:00-05:00 | 2026-07-03T20:34:17-05:00 | 35 | 5 | ui-component | drawer-copy | y | Copy pickup unreceived; verify:delivery-consistency PASS; completedAt=3f74e25 |
+| 13 | away-091 | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:46:00-05:00 | 35 | 6 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; commit=9ed8944 |
+| 14 | estimate-timing-rule | 2026-07-03T20:49:00-05:00 | 2026-07-03T20:53:00-05:00 | 10 | 4 | docs-update | rules-only | n | Dan approval→done interval; retrofix row 14; protocol/rules/away-ship cross-ref |
+| 15 | away-validate-status-sync | 2026-07-03T20:53:00-05:00 | 2026-07-03T20:59:00-05:00 | 10 | 6 | docs-update | status-sync | n | away-091 backfill; CURRENT_STATE + away-status; away:validate PASS; commit+push only |
 
 ## Recalibration (after 15 rows)
 

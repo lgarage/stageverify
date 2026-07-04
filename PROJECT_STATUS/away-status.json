@@ -596,7 +596,14 @@
       "status": "built",
       "commit": "3f74e25",
       "note": "Copy enabled when job/vendor/PO present; richer clipboard; verify:delivery-consistency PASS; timing: estimate-log row 13"
+    },
+    {
+      "id": "away-091",
+      "title": "Reset Pickup Link drawer label (was Revoke Pickup Link)",
+      "status": "built",
+      "commit": "9ed8944",
+      "note": "Drawer action label Reset Pickup Link; behavior unchanged; verify:delivery-consistency PASS"
     }
   ],
-  "summary": "away-090 drawer copy pickup unreceived; away-089 invoice Slice 2; queue blocked away-069"
+  "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"
 }

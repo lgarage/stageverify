@@ -130,7 +130,7 @@ Run `npm run away:validate` to reproduce.
 | MEMORY.md 73 lines | WARN | Target ≤70; trim 3 lines when convenient (indexer row + token efficiency row added this session) |
 | context-index anchor drift | WARN | `project-state-known-issues` and `project-state-immediate-next` — anchors expect `## …` but file has `---` horizontal rules at those lines; update context-index.json line ranges or project_state.md structure |
 | away-084 mislabeled in away-status | FIXED | Status now `deferred` with note explaining UI vs librarian scope confusion (Opus review) |
-| CURRENT_STATE Last shipped format | FAIL | Validator expects `Last shipped: **away-NNN**` — current line is Fast UI pass narrative; fix when next away item ships or in morning tidy |
+| CURRENT_STATE Last shipped format | FIXED | away-091 backfill for Reset Pickup Link label ship; CURRENT_STATE + away-status synced |
 
 ---
 
