@@ -62,7 +62,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 
 | Concern | File / command | When |
 | ------- | -------------- | ---- |
-| **Security gate (CF/auth/rules)** | `model-audit-gate.mdc` § Security gate invocation | Before push on T2+/backend-write-critical; Task `security-review` + `model: claude-4.6-sonnet-medium-thinking`; subagent id required in report |
+| **Security gate (CF/auth/rules)** | `model-audit-gate.mdc` § Security gate invocation + timing | Before push T2+/backend-write-critical; Task `security-review` + `model: claude-4.6-sonnet-medium-thinking`; subagent id in report. **Merged-on-main re-review:** empty branch diff fails — Sonnet Task with `git diff COMMIT^..COMMIT -- functions/` (`security-review` or readonly `generalPurpose` + Custom Instructions); report subagent id or `commit-range workaround`. Ref 6476b2a MEDIUM (uid-only auth latent; retryOnError delete non-atomic). |
 | Parallel builds (disjoint) | `parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain; parallel Composer 2.5 when paths disjoint |
 | ESL / Minew | `ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only |
 | Nav rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
