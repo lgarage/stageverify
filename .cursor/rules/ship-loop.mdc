@@ -7,40 +7,55 @@ alwaysApply: true
 
 After **any** substantive code or config change in this repo, complete the ship loop before declaring done.
 
+## Dan's standing preference — always ship
+
+**Do not wait to be asked.** After substantive code or config work: **commit → push → deploy** in the same session. Dan's safety net is **`git revert <hash>`** — not holding back ship.
+
+| Default | Skip only when |
+|---------|----------------|
+| Commit + push + deploy without prompting | Dan says "do not deploy", "hold", "commit only", "local only", "commit and push only" |
+| gh-pages when the frontend bundle changed and validation passed | Work is WIP on a branch (not `main`) |
+| Firebase (CF, Firestore rules) when the change requires it | Build or Playwright / `verify:*` failed |
+| Same session as the code change | Sonnet security gate returns **HIGH** and fix is not yet applied |
+
+**Rollback:** prefer `git revert <hash>` (then redeploy if needed) over avoiding deploy. Do not treat "might need revert" as a reason to skip ship.
+
+**Workspace wins:** this rule overrides the generic Cursor user rule "only commit when requested." Multitask prompts that say "no deploy unless required" apply **only to that task's stated scope**.
+
+**Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, Firebase deploy, production verification, security gate timing, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
+
 ## Default deploy policy
 
-**Default deploy policy:** For frontend-only StageVerify changes that pass validation, agents should commit, push, deploy gh-pages, and run production verification unless Dan explicitly says not to deploy (e.g. "do not deploy", "hold deploy", "local only", "commit and push only", or work is WIP on a branch). Backend deploys, Firestore rules, Cloud Functions, Gmail sync/watch behavior, and security-sensitive changes still require **explicit Dan approval** before any production deploy — agents must ask first.
+**Frontend:** passing validation → commit, push, `npm run deploy` (gh-pages), prod verification — unless Dan explicitly skips (see **When to skip**).
 
-**Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, production verification, backend guardrails, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
+**Backend (CF, Firestore rules, auth/security):** deploy by default in the **same session** after Sonnet security gate passes (`model-audit-gate.mdc`). Run the gate **before push** for `backend-write-critical` and T2 auth/Firestore-read changes. Fix **HIGH** findings before push — do not skip the gate. Only hold backend deploy when Dan explicitly says hold **or** HIGH risk remains unfixed.
 
-### Frontend/UI agents (deploy default)
+**Rules-only / docs-only** (no frontend bundle change): commit + push; skip gh-pages unless Dan asks. Skip Firebase deploy when the change did not touch CF/rules.
 
-- **Default:** frontend-only changes that pass validation → commit, push, deploy gh-pages, prod verification — unless Dan explicitly says not to deploy.
-- **Ask first:** Firestore rules, Cloud Functions, Gmail sync/watch, backend/security/data, or other risky production behavior — require Dan's explicit approval before any deploy.
-
-Do not hesitate on normal frontend/UI ship; do not auto-deploy backend or security-sensitive paths.
-
-## Sequence (frontend / UI default)
+## Sequence (full ship)
 
 1. **Validate** — `npm run build` clean; local Playwright / `verify:*` for affected routes (per `composer-orchestrator.mdc`). If any test fails, **do not deploy** — fix and re-run.
-2. `git status` — stage **only** task-related files.
-3. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
-4. `git push origin main` — must succeed.
-5. **`npm run deploy`** — GitHub Pages (`https://lgarage.github.io/stageverify`); must succeed or report failure clearly. Deploy script must confirm Pages build status **`built`** (not just gh-pages branch push).
-6. **Production verification** — after deploy, run matching prod checks (see below). If gh-pages is not yet serving the new bundle, wait **15 seconds** and retry once.
-7. **Report** — live URL `https://lgarage.github.io/stageverify` and deployed commit hash (`git rev-parse HEAD` after push).
-
-Rules-only or docs-only tasks that do not change the frontend bundle: commit + push only; skip steps 5–7 unless Dan asks to deploy.
+2. **Security gate** (when triggered) — Sonnet 4.6 review **before push** for `backend-write-critical` / T2 auth paths. Fix HIGH before continuing.
+3. `git status` — stage **only** task-related files.
+4. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
+5. `git push origin main` — must succeed.
+6. **Deploy** — as required by the change:
+   - Frontend bundle: **`npm run deploy`** (GitHub Pages). Confirm Pages build status **`built`** (not just gh-pages branch push).
+   - Firestore rules: `firebase deploy --only firestore:rules --project stageverify-db`
+   - Cloud Functions: `firebase deploy --only functions --project stageverify-db` (or scoped function names)
+   - Gmail watch / sync / inbound auto-ingest: deploy when the item enables production email behavior
+7. **Production verification** — after gh-pages deploy, run matching prod checks (see below). Retry once after **15s** if gh-pages propagation lag.
+8. **Report** — live URL `https://lgarage.github.io/stageverify`, deployed commit hash (`git rev-parse HEAD`), and any Firebase targets deployed separately from gh-pages.
 
 ## When to deploy (gh-pages)
 
-Deploy by default when the change is **frontend-only** (UI, client routing, static assets, verify scripts that exercise the deployed bundle) **and** validation in step 1 passed.
+Deploy by default when the change affects the **frontend bundle** (UI, client routing, static assets) **and** validation in step 1 passed.
 
 Do **not** auto-deploy gh-pages when:
 
 - Dan explicitly skips deploy (see **When to skip**).
 - Build or Playwright / `verify:*` failed.
-- The change is backend-only, security-sensitive, or touches Firestore rules / Cloud Functions / Gmail production behavior — **ask Dan before any deploy** (frontend or backend).
+- Change is rules-only / docs-only with no bundle impact (unless Dan asks).
 
 ## Production verification
 
@@ -55,18 +70,18 @@ After `npm run deploy`, run prod checks for routes touched by the change:
 
 Run only scripts relevant to the shipped change. Retry once after **15s** if failure looks like gh-pages propagation lag.
 
-## Backend and security guardrails (explicit approval required)
+## Backend deploy (default after gate)
 
-Agents must **not** auto-run these without Dan's explicit approval in the session:
+Deploy Firebase targets in the **same session** when the substantive change requires it — **after** Sonnet security gate passes (when triggered). Do **not** wait for a separate "approve deploy" message unless Dan said hold.
 
 | Action | Command / behavior |
 |--------|-------------------|
 | Firestore rules | `firebase deploy --only firestore:rules --project stageverify-db` |
-| Cloud Functions | `firebase deploy --only functions --project stageverify-db` (or scoped function names) |
-| Gmail watch / sync / inbound auto-ingest | Any CF or config that enables production email sync |
-| Other backend / security deploys | Auth changes, secrets, public unauthenticated writes, schema migrations |
+| Cloud Functions | `firebase deploy --only functions --project stageverify-db` (or scoped names) |
+| Gmail watch / sync / inbound auto-ingest | Deploy when change enables production email sync |
+| Other backend / security deploys | Auth changes, secrets, public unauthenticated writes, schema migrations — deploy after gate; fix HIGH before push |
 
-When an approved backend deploy is required, run it in the **same session** as the related change, after any Sonnet security gate (`model-audit-gate.mdc`). Report what was deployed separately from gh-pages.
+**Hard stop (do not push/deploy):** Sonnet security gate returns **HIGH** and the finding is not fixed. This is not "ask Dan first" — fix or escalate, then ship.
 
 ## When to skip
 
@@ -75,24 +90,17 @@ Skip commit, push, and/or deploy when:
 - Dan explicitly says hold off, do not deploy, hold deploy, local only, commit and push only, or similar.
 - Work is WIP on a branch (not `main`).
 - Validation failed (build, Playwright, or relevant `verify:*`).
-- Change is risky backend/security/data and Dan has not approved deploy.
+- Sonnet security gate **HIGH** risk remains unfixed.
 
-Partial skip: Dan may allow commit + push without gh-pages — honor that; do not deploy.
-
-## Overrides
-
-This workspace rule **overrides** the generic Cursor user rule “only commit when requested.” In stageverify, ship (including default gh-pages deploy for passing frontend work) unless Dan says otherwise.
-
-Multitask / tight-scope prompts that say "no deploy unless required" apply **only to that task's stated scope** — they do not override this default for normal frontend/UI work.
+Partial skip: Dan may allow commit + push without deploy — honor that; do not deploy.
 
 ## Done gate
 
 Do **not** declare done until:
 
 - Push succeeded, and
-- For frontend/UI work: deploy succeeded (or deploy failure is clearly reported with next steps), prod verification ran when applicable, and live URL + commit hash are reported.
-
-Backend-only or rules-only work: done after push (and approved backend deploy if applicable) — no gh-pages deploy required unless the bundle changed.
+- Required deploys succeeded (or failure is clearly reported with next steps): gh-pages when bundle changed; Firebase when CF/rules changed; prod verification ran when applicable.
+- Live URL + commit hash reported when gh-pages shipped.
 
 ## UI changes
 

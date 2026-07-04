@@ -176,7 +176,7 @@ Before adding a new React component or page, read 1–2 similar existing files f
 - Use conventional commit prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`.
 - Do not commit `.cursor/rules/` files unless the task is explicitly about them.
 - Always commit `PROJECT_STATUS/CURRENT_STATE.md` and `roadmap.md` in the same commit as shipped feature code (see Session Defaults). These are the exception to the "don't commit PROJECT_STATUS/" pattern.
-- After substantive commits, **always push to `origin/main` and run `npm run deploy`** so Dan can test on GitHub Pages (see Session Defaults).
+- After substantive commits, **always push to `origin/main` and complete deploy** (gh-pages and/or Firebase per `ship-loop.mdc`) — do not wait to be asked.
 
 ## Escalation Triggers
 
@@ -255,7 +255,7 @@ When Dan stated a time window, append **Remaining time options** after cleanup/m
 Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
 
 ### Deploy
-Default commit/push/gh-pages deploy, prod verification, backend guardrails, and skip triggers: **`ship-loop.mdc`** (authoritative). **Frontend-only UI:** deploy after validation unless Dan says not to — see `ship-loop.mdc` § Default deploy policy. Do not auto-deploy Firestore rules, Cloud Functions, or Gmail production behavior without explicit Dan approval.
+**Always ship without waiting to be asked** — commit, push, deploy per **`ship-loop.mdc`** (authoritative). Default includes gh-pages (frontend) and Firebase (CF, rules) when the change requires it, after Sonnet security gate passes. Skip only on explicit Dan hold, validation failure, WIP branch, or unfixed HIGH from the gate. Rollback: `git revert <hash>` — not holding back ship.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.

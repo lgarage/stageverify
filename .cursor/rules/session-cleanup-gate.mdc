@@ -71,10 +71,10 @@ When cleanup ran, include one line:
 
 ```
 Cleanup: dev servers stopped ✓ | background shells killed ✓ | verify PNGs removed ✓ | git status clean ✓ | ports clear ✓
-Ship: committed ✓ | pushed ✓ | gh-pages deployed ✓
+Ship: committed ✓ | pushed ✓ | gh-pages deployed ✓ | firebase deployed ✓ (when applicable)
 ```
 
-Add `| firestore rules deployed ✓` when rules or public unauthenticated writes shipped.
+Omit firebase line when the change did not touch CF/rules. Dan's rollback preference: `git revert <hash>` — not skipping ship.
 
 If cleanup could not run (e.g. no shell access), say what was left and why.
 
