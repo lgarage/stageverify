@@ -335,6 +335,7 @@ export function matchIndexerMemory(taskQuery, typeKey, entries) {
     })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
     .map(({ entry }) => entry);
 }
 

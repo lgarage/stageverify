@@ -43,8 +43,8 @@
       "tags": ["known-issues", "blockers"],
       "title": "Known Issues",
       "file": "docs/project_state.md",
-      "startLine": 122,
-      "endLine": 132,
+      "startLine": 128,
+      "endLine": 136,
       "anchor": "## Known Issues"
     },
     {
@@ -52,8 +52,8 @@
       "tags": ["immediate-next", "next-steps"],
       "title": "Immediate Next Steps",
       "file": "docs/project_state.md",
-      "startLine": 178,
-      "endLine": 185,
+      "startLine": 184,
+      "endLine": 190,
       "anchor": "## Immediate Next Steps"
     }
   ],

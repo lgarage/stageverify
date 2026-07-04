@@ -652,6 +652,20 @@
       "status": "built",
       "commit": "abd4b57",
       "note": "Gotcha triggers + lessons index; dedupe LIBRARIAN_LESSONS files[]"
+    },
+    {
+      "id": "away-099",
+      "title": "Intelligent indexer ingest + deterministic packet retrieval",
+      "status": "built",
+      "commit": "pending",
+      "note": "indexer:ingest CLI, indexer-memory.json, away:next --packet"
+    },
+    {
+      "id": "away-100",
+      "title": "Mini-librarian indexer hygiene batch",
+      "status": "built",
+      "commit": "pending",
+      "note": "context-index drift fix, MEMORY trim, packet dedup cap, idx-004/005 product entries"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"

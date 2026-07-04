@@ -121,8 +121,30 @@ function buildLessonsSliceForItem(item) {
   return buildLessonsSliceForTypeKey(typeKey);
 }
 
+/**
+ * Skip indexer when gotcha + type/subtype lessons slice already cover the same lessons §.
+ * @param {Record<string, unknown>} gotcha
+ * @param {Record<string, unknown> | null} lessonsSlice
+ */
+function indexerDomainCoveredByGotchaAndLessons(gotcha, lessonsSlice) {
+  const gotchaMatched = Array.isArray(gotcha.matchedTriggers) && gotcha.matchedTriggers.length > 0;
+  if (!gotchaMatched || !lessonsSlice || lessonsSlice.found !== true) return false;
+
+  const lessonSectionId =
+    typeof lessonsSlice.sectionId === "string" ? lessonsSlice.sectionId : null;
+  if (!lessonSectionId) return false;
+
+  const gotchaSections = /** @type {{ sectionId?: string, found?: boolean }[]} */ (
+    gotcha.lessonsSlices ?? []
+  );
+  return gotchaSections.some((slice) => slice.found && slice.sectionId === lessonSectionId);
+}
+
 /** @param {Record<string, unknown>} item */
-function buildIndexerMemoryForItem(item) {
+function buildIndexerMemoryForItem(item, gotcha, lessonsSlice) {
+  if (indexerDomainCoveredByGotchaAndLessons(gotcha, lessonsSlice)) {
+    return { task: buildTaskQueryFromItem(item), typeKey: resolveTypeKeyFromItem(item), matchedIds: [], entries: [], skipped: "gotcha+lessons cover domain" };
+  }
   const task = buildTaskQueryFromItem(item);
   const typeKey = resolveTypeKeyFromItem(item);
   return buildIndexerMemoryResult(task, typeKey);
@@ -184,7 +206,7 @@ export function buildAwayNextPacket(opts = {}) {
   const packet = buildContextPacket({ tags, includeQueue: false });
   const gotcha = buildGotchaForItem(next);
   const lessonsSlice = buildLessonsSliceForItem(next);
-  const indexerMemory = buildIndexerMemoryForItem(next);
+  const indexerMemory = buildIndexerMemoryForItem(next, gotcha, lessonsSlice);
 
   /** @type {Record<string, unknown>} */
   const executionPacket = {

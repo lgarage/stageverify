@@ -58,8 +58,8 @@
       "subtype": "cf-ingest",
       "slice": {
         "file": "PROJECT_STATUS/MEMORY.md",
-        "startLine": 58,
-        "endLine": 62
+        "startLine": 65,
+        "endLine": 65
       },
       "relatedFiles": [
         "functions/src/",
@@ -97,6 +97,69 @@
       "promotionCandidate": false,
       "createdAt": "2026-07-04T15:00:00.000Z",
       "notes": "Not injected before work — lookup only when explicitly querying future-task entries."
+    },
+    {
+      "id": "idx-004",
+      "category": "decision",
+      "summary": "Johnstone S/O 4046362 U+XX00 tabular header parsing; issue-import queue when Invoice # missing; Approve blocked server+UI",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "invoice",
+        "parser"
+      ],
+      "triggerTerms": [
+        "4046362",
+        "U+XX00",
+        "tabular header",
+        "S/O missing Invoice",
+        "issue-import approve block"
+      ],
+      "type": "service-logic",
+      "subtype": "parser-rule-fix",
+      "slice": {
+        "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
+        "startLine": 18,
+        "endLine": 22
+      },
+      "relatedFiles": [],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "notes": null,
+      "createdAt": "2026-07-04T16:10:09.066Z"
+    },
+    {
+      "id": "idx-005",
+      "category": "model-routing note",
+      "summary": "firestoreSafeValue strips undefined before inbound review writes; Refresh Now reprocesses cached-text reparse; Sonnet security gate before CF push",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "cf-ingest",
+        "inbound"
+      ],
+      "triggerTerms": [
+        "firestoreSafeValue undefined",
+        "Refresh Now reparse",
+        "cached-text reparse",
+        "inbound review write strip"
+      ],
+      "type": "backend-write-critical",
+      "subtype": "cf-ingest",
+      "slice": {
+        "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
+        "startLine": 24,
+        "endLine": 31
+      },
+      "relatedFiles": [],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "notes": null,
+      "createdAt": "2026-07-04T16:10:09.507Z"
     }
   ]
 }

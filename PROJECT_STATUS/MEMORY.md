@@ -66,5 +66,4 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Parallel builds (disjoint) | `parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain; parallel Composer 2.5 when paths disjoint |
 | ESL / Minew | `ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only |
 | Nav rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
-| Delivery display | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` | List/drawer readiness |
-| Dossier § indexer | `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` | By tag — never full dossier |
+| Delivery display / dossier § | `deliveryDisplayHelpers.ts`, `dossier-index.json`, `npm run dossier:slice -- --tag <tag>` | List/drawer readiness; dossier by tag only |

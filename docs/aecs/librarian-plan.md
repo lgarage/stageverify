@@ -19,6 +19,8 @@ Token-efficiency planning: `PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md`. Full 
 
 **Lessons learned SSOT:** `PROJECT_STATUS/LIBRARIAN_LESSONS.md` is the single canonical rolling log for agent lessons (≤40 active lines; archive rotates to `archives/librarian-lessons-archive.md`). **`librarian-lessons-index.json`** maps estimate-log **type/subtype** → § line ranges; agents load slices via `npm run context:lessons -- --type <type>/<subtype>` after the archetype gate — never ingest the full file. `gotcha-map.json` and `npm run context:gotcha` prepend matched § on task triggers; ship/completion adds one bullet via `npm run lessons:append -- --type … --bullet "…"` (index ranges refresh automatically). **`indexer-memory.json`** holds structured overflow (decisions, timing signals, future ideas) with deterministic retrieval by trigger term + type/subtype — references SSOTs, never copies them. `MODEL_DOSSIER.md` § agent-lessons keeps domain-deep pickup/QR detail; `estimate-log.md` owns timing audit only.
 
+**Indexer promotion rules:** `npm run indexer:ingest` classifies overflow into categories; `indexer-memory.json` entries use unique `triggerTerms` (no duplicate gotcha-map triggers). Promote to `gotcha-map.json` only when a trigger is high-signal and task-specific (`promotionCandidate: true` + `--apply-gotcha` after review). Promote to `LIBRARIAN_LESSONS.md` via `--category lesson` (not a full-file copy). Packet retrieval caps at top 2 indexer matches and skips injection when gotcha + lessons § already cover the same domain. Run `npm run away:validate` after ingest — slice line ranges must match SSOT anchors.
+
 ---
 
 Knowledge System Hierarchy

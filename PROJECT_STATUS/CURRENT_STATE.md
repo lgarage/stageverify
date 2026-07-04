@@ -6,8 +6,9 @@
 
 ## Snapshot
 - Active Phase: **Phase 5â€“6 â€” Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Johnstone PDF U+XX00 extraction fix** — pdf.js primary extract + U+XX00 normalizer + layout adapter; Refresh Now re-fetches bad-encoded imports; `test:pdf-text-normalize` + `test:pdf-extract-4046362`
-- Also shipped: **away-098** — mini-librarian indexer + gotcha hygiene; lessons index dedupe
+- Last shipped: **away-100** — mini-librarian indexer hygiene; context-index drift fix, MEMORY trim, packet dedup (top-2 cap), product-domain indexer entries idx-004/005
+- Also shipped: **away-099** — intelligent indexer ingest + deterministic packet retrieval (`indexer:ingest`, `indexer-memory.json`, `away:next --packet`)
+- Also shipped: **Johnstone PDF U+XX00 extraction fix** — pdf.js primary extract + U+XX00 normalizer + layout adapter; Refresh Now re-fetches bad-encoded imports; `test:pdf-text-normalize` + `test:pdf-extract-4046362`
 - Also shipped (standalone): **Invoice Review row-card + inspect expected fields** (bd4d08f) — one row per import; Inspect/Approve/Reject on row; expected-vs-actual Johnstone fields in inspect modal
 - Also shipped: **away-099** — intelligent indexer ingest + deterministic packet retrieval (`indexer:ingest`, `indexer-memory.json`, `away:next --packet`)
 - Also shipped (standalone): **Option A issue-import queue** (b43ec6e) â€” S/O / missing Invoice # parses now create `vendorInvoiceImports` review rows; Approve blocked server+UI; Refresh Now backfills legacy 0-queue parsed emails
