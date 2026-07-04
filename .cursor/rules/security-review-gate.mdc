@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Security Review Model Gate (Dan standing preference — authoritative)
 
+> **Cursor UI label (RC-1):** The parent timeline may show **"Security Review — Composer 2.5 Fast"** while the gate runs. That is a **cosmetic parent label** — it reflects the orchestrator session, **not** the child subagent model. **Do not** treat the UI label alone as NOT RUN or as proof the wrong model ran. Validity = **`security-gate-id`** returned from the `Task` call + **`model:` line in the completion report** + verdict.
+
 **Security reviews use exactly one model:** `claude-4.6-sonnet-medium-thinking`.
 
 ## Mandatory invocation
@@ -32,32 +34,39 @@ Task({
 | `security-review` Task **without** `model: "claude-4.6-sonnet-medium-thinking"` | Wrong or default model |
 | `generalPurpose` / `explore` / any other subagent for the gate | Wrong subagent type |
 | Composer reading the diff and reporting PASS/MEDIUM/HIGH | Self-review bypass |
-| Trusting Cursor UI label **"Security Review — Composer 2.5 Fast"** | Parent label is not the child model |
+| Treating Cursor UI label **"Security Review — Composer 2.5 Fast"** as proof of wrong model or NOT RUN | Parent label is cosmetic; gate validity is **`security-gate-id`** + report lines |
 
 ## Valid completion (all required)
 
-1. **Subagent id** returned from the `Task` call (not invented).
+1. **`security-gate-id`** — UUID returned from the `Task` call (not invented). Report as `security-gate-id: <uuid>` (see format below).
 2. **Model line** in report: `model: claude-4.6-sonnet-medium-thinking`.
 3. **Verdict**: PASS | MEDIUM | HIGH | NOT RUN.
 
-Missing subagent id → **NOT RUN**, not PASS. Model mismatch in report → **NOT RUN**. UI shows Composer 2.5 on the security step but report has no Sonnet subagent id → **NOT RUN**.
+**UUID format:** lowercase hex, 8-4-4-4-12 with hyphens (e.g. `a1b2c3d4-e5f6-7890-abcd-ef1234567890`). Reject invented ids, placeholder text, or non-UUID strings.
+
+Missing **`security-gate-id`** → **NOT RUN**, not PASS. Model mismatch in report → **NOT RUN**. UI shows Composer 2.5 on the security step is **OK** when report includes valid **`security-gate-id`** + model line + verdict.
+
+### Model param caveat (RC-3 — unverified)
+
+If the `security-review` subagent type **ignores** the `model` parameter in practice, the documented fallback is `generalPurpose` + `claude-4.6-sonnet-medium-thinking`. **Do not switch invocation** to that fallback unless Dan confirms — keep invoking `security-review` with explicit `model` per this file until then. When model execution is unverifiable from the Task return, note **`model execution: unverified`** in the completion report; missing **`security-gate-id`** still blocks ship.
 
 ## Worker / multitask prompts
 
-Any background worker that touches CF, Firestore write paths, parser ingest, or auth **must** paste the Task block above verbatim. Workers must **await** the gate and include subagent id + model in the ship report. Workers must **not** substitute Composer security review.
+Any background worker that touches CF, Firestore write paths, parser ingest, or auth **must** paste the Task block above verbatim. Workers must **await** the gate and include **`security-gate-id`**, model line, and verdict in the ship report. Workers must **not** substitute Composer security review.
 
-**Hard stop — CF ship without Sonnet:** multitask workers, background executors, and away-batch workers **must not** push or deploy Cloud Functions / Firestore rules unless the completion report includes a valid `security-review` subagent id and `model: claude-4.6-sonnet-medium-thinking`. Missing id → verdict **NOT RUN** → do not push CF.
+**Hard stop — CF ship without Sonnet:** multitask workers, background executors, and away-batch workers **must not** push or deploy Cloud Functions / Firestore rules unless the completion report includes a valid **`security-gate-id`** (UUID from Task return) and `model: claude-4.6-sonnet-medium-thinking`. Missing id → verdict **NOT RUN** → do not push CF.
 
 **Invalid reports (treat as NOT RUN, block ship):**
 
-| Report text | Verdict |
-|-------------|---------|
-| "Security Review — Composer 2.5 Fast" (UI label only, no Sonnet subagent id) | **NOT RUN** |
-| Composer inline PASS/MEDIUM/HIGH without Task subagent id | **NOT RUN** |
-| `security-review` Task without `model: "claude-4.6-sonnet-medium-thinking"` | **NOT RUN** |
-| Invented or copied subagent id with no Task return | **NOT RUN** |
+| Report condition | Verdict |
+|------------------|---------|
+| Composer inline PASS/MEDIUM/HIGH without **`security-gate-id`** from Task return | **NOT RUN** |
+| `security-review` Task without `model: "claude-4.6-sonnet-medium-thinking"` in invocation | **NOT RUN** |
+| Invented, copied, or non-UUID **`security-gate-id`** with no Task return | **NOT RUN** |
 
-Parent orchestrator must reject worker ship reports that claim security gate PASS without Sonnet subagent id — same as NOT RUN.
+**Not invalid by itself:** Cursor UI showing **"Security Review — Composer 2.5 Fast"** — cosmetic parent label only. Check **`security-gate-id`** + report model line instead.
+
+Parent orchestrator must reject worker ship reports that claim security gate PASS without valid **`security-gate-id`** — same as NOT RUN.
 
 ## Relation to other rules
 

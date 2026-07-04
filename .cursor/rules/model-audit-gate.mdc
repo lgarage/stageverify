@@ -45,11 +45,13 @@ Default `Diff` before first push: `uncommitted changes`. After merge on main wit
 
 - **NEVER** push CF / auth / Firestore-rules changes until the security-review subagent returns a verdict.
 - **NEVER** launch duplicate security Tasks in the same turn (exactly one gate Task).
-- **NEVER** substitute Composer self-review if the subagent fails — retry once per SKILL; if it fails twice, **STOP ship** and report blocker (subagent id + error); verdict = **NOT RUN**.
-- **NEVER** write PASS/MEDIUM/HIGH without the subagent's returned id in the completion report.
+- **NEVER** substitute Composer self-review if the subagent fails — retry once per SKILL; if it fails twice, **STOP ship** and report blocker (`security-gate-id` + error); verdict = **NOT RUN**.
+- **NEVER** write PASS/MEDIUM/HIGH without **`security-gate-id`** (UUID from Task return) in the completion report.
 - **NEVER** use Composer 2.5 (or any model other than `claude-4.6-sonnet-medium-thinking`) for `security-review` — see `security-review-gate.mdc`.
 
 **Subagent failure:** one retry with corrected invocation per SKILL; second failure → stop ship, report blocker, verdict **NOT RUN** — do not push.
+
+**Model execution caveat (RC-3 — unverified):** If `security-review` subagent type ignores the `model` param, documented fallback is `generalPurpose` + Sonnet — **do not switch invocation** until Dan confirms. When model execution cannot be verified from the Task return, add **`model execution: unverified`** to the report; missing **`security-gate-id`** still blocks ship.
 
 ## When to audit with a higher model (Sonnet 4.6 via Task subagent)
 
@@ -92,15 +94,18 @@ End substantive **code/config** work with a compact block:
 **Escalation review row** (when security gate triggered) — replace vague "Sonnet → PASS" with:
 
 ```
-security-review subagent id: <id from Task return>
+security-gate-id: <uuid from Task return>
 model: claude-4.6-sonnet-medium-thinking
 verdict: PASS | MEDIUM | HIGH | NOT RUN
 finding: <one-line summary from subagent, or "none" / failure reason>
 ```
 
+**`security-gate-id` format:** lowercase hex UUID with hyphens (8-4-4-4-12). Must match the id returned by the `Task` tool — not invented, not the Cursor UI parent label.
+
 - **Verdict OK** — tier and worker matched the work; no review needed (Escalation review? = No).
 - **Verdict note** — security-review subagent found an issue; fix or document before done.
-- **No subagent id** → verdict must be **NOT RUN**, not PASS — do not push CF/auth/rules.
+- **No `security-gate-id`** → verdict must be **NOT RUN**, not PASS — do not push CF/auth/rules.
+- **UI label "Security Review — Composer 2.5 Fast"** — cosmetic parent label; **not** grounds for NOT RUN when valid **`security-gate-id`** is present.
 - If escalation review was required but not run, **do not declare done** — run it first.
 
 ## Session log (optional)
