@@ -29,6 +29,41 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+/** Short handoff clipboard — link is source of truth for checklist detail. */
+function isShortPickupClipboard(text) {
+  if (!/^StageVerify Pickup/m.test(text)) return false;
+  if (!/#\/pickup\?t=[a-f0-9]{64}/.test(text)) return false;
+  if (!/Staging location:/i.test(text)) return false;
+  if (!/Open pickup checklist:/i.test(text)) return false;
+  if (/^Status:/m.test(text)) return false;
+  if (/^Items:/m.test(text)) return false;
+  if (/^Received:\s+\d+\s+of\s+\d+/m.test(text)) return false;
+  if (/ordered:\s*\d+/i.test(text)) return false;
+  return true;
+}
+
+function recordShortPickupClipboard(recordFn, label, text) {
+  recordFn(
+    `${label} — short pickup clipboard (no status/items/qty)`,
+    isShortPickupClipboard(text),
+    text.slice(0, 120),
+  );
+}
+
+async function clickCopyPickupAndRead(page, copyBtn) {
+  let clipboard = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!(await copyBtn.isEnabled())) break;
+    await copyBtn.click();
+    await page.waitForTimeout(2500);
+    clipboard = await page
+      .evaluate(async () => navigator.clipboard.readText())
+      .catch(() => "");
+    if (/#\/pickup\?t=[a-f0-9]{64}/.test(clipboard)) break;
+  }
+  return clipboard;
+}
+
 function assertOfflineStagingActionRules() {
   const pendingNoStaging = {
     id: "offline-pending",
@@ -1307,16 +1342,7 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
       (await page.getByTestId("generate-pickup-link").count()) === 0,
     );
 
-    let ord005Clipboard = "";
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (!(await copyBtn.isEnabled())) break;
-      await copyBtn.click();
-      await page.waitForTimeout(2500);
-      ord005Clipboard = await page
-        .evaluate(async () => navigator.clipboard.readText())
-        .catch(() => "");
-      if (/#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard)) break;
-    }
+    let ord005Clipboard = await clickCopyPickupAndRead(page, copyBtn);
     record(
       "ORD-005 copy runs when unreceived (enabled + clipboard)",
       /#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard) &&
@@ -1325,6 +1351,7 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
         /Order #:/i.test(ord005Clipboard),
       ord005Clipboard.slice(0, 80),
     );
+    recordShortPickupClipboard(record, "ORD-005", ord005Clipboard);
 
     const manualHeading = page.getByTestId("manual-controls-heading");
     await page.getByTestId("staging-location-assignment").scrollIntoViewIfNeeded();
@@ -1493,22 +1520,13 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
       await page.waitForTimeout(2000);
     }
 
-    await page.getByTestId("copy-pickup-information").click();
-    await page.waitForTimeout(2000);
-    let ord002Clipboard = "";
-    for (let attempt = 0; attempt < 2; attempt++) {
-      ord002Clipboard = await page
-        .evaluate(async () => navigator.clipboard.readText())
-        .catch(() => "");
-      if (/#\/pickup\?t=[a-f0-9]{64}/.test(ord002Clipboard)) break;
-      await page.getByTestId("copy-pickup-information").click();
-      await page.waitForTimeout(2000);
-    }
+    const ord002Clipboard = await clickCopyPickupAndRead(page, ord002CopyBtn);
     record(
       "ORD-002 Copy Pickup uses secure token URL",
       /#\/pickup\?t=[a-f0-9]{64}/.test(ord002Clipboard),
       ord002Clipboard.slice(0, 80),
     );
+    recordShortPickupClipboard(record, "ORD-002", ord002Clipboard);
 
     await page.waitForTimeout(1500);
     const revokeAfterCopy = page.getByTestId("revoke-pickup-link");
@@ -1741,6 +1759,18 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
     }
     record(`${orderNumber} row opened for uniform drawer check`, true);
     await assertUniformDemoDrawerPresentation(page, record, orderNumber);
+
+    const demoCopyBtn = page.getByTestId("copy-pickup-information");
+    record(
+      `${orderNumber} — Copy Pickup Information enabled`,
+      (await demoCopyBtn.count()) > 0 &&
+        (await demoCopyBtn.innerText()).trim() === "Copy Pickup Information" &&
+        (await demoCopyBtn.isEnabled()),
+    );
+    if ((await demoCopyBtn.count()) > 0 && (await demoCopyBtn.isEnabled())) {
+      const demoClipboard = await clickCopyPickupAndRead(page, demoCopyBtn);
+      recordShortPickupClipboard(record, orderNumber, demoClipboard);
+    }
   }
 
   await page.screenshot({

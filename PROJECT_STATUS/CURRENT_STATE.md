@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-091** — drawer action label **Reset Pickup Link** (was Revoke Pickup Link); behavior unchanged
+- Last shipped: **short pickup clipboard** — Copy Pickup Information omits status/items/qty; demo ORD-001..006 short-format + staging rules verified
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

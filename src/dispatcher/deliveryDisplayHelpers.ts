@@ -954,18 +954,12 @@ export function deliveryHasCopyPickupIdentifyingInfo(
   return hasJobIdentifier && hasVendor && hasOrderIdentifier;
 }
 
+/** Short handoff text — checklist link is source of truth for item/status detail. */
 export function buildPickupInformationClipboardText(
   details: DeliveryDetails,
   pickupLink: string,
-  materialIssues?: MaterialIssue[],
 ): string {
-  const { delivery, job, vendor, purchaseOrder, stagingLocation, items } =
-    details;
-  const panel = buildIssueSummaryPanelData(
-    delivery,
-    items,
-    materialIssues ?? details.materialIssues,
-  );
+  const { delivery, job, vendor, purchaseOrder, stagingLocation } = details;
 
   const lines: string[] = ["StageVerify Pickup"];
 
@@ -995,23 +989,6 @@ export function buildPickupInformationClipboardText(
     );
   } else {
     lines.push("Staging location: Not assigned");
-  }
-
-  lines.push(`Status: ${panel.deliveryStatusLabel}`);
-
-  if (items.length > 0) {
-    lines.push("Items:");
-    for (const item of items) {
-      lines.push(
-        `- ${item.description} (ordered: ${item.qtyOrdered}, received: ${item.qtyReceived})`,
-      );
-    }
-  }
-
-  if (panel.itemsTotalCount > 0) {
-    lines.push(
-      `Received: ${panel.itemsReceivedCount} of ${panel.itemsTotalCount} items`,
-    );
   }
 
   lines.push("");
