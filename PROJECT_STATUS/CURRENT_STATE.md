@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **inbound-email-ingest foundation** — Gmail poll sync, PDF extract, Johnstone parse → review queue (CF + rules code; deploy pending Dan approval)
+- Last shipped: **away-091** — Reset Pickup Link drawer label (was Revoke Pickup Link)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 
