@@ -12,6 +12,7 @@ import { matchTriggers, buildGotchaResult, loadGotchaMap } from "./lib/gotcha-ma
 import {
   captureVerifyFailure,
   classifyVerifyFailure,
+  clearPendingForScript,
   pendingToIngestInput,
   validatePendingLearnings,
 } from "./lib/verify-learning-hook.mjs";
@@ -125,14 +126,47 @@ const classified = classifyVerifyFailure({
   stderrTail: "firestore rules emulator connection refused",
   stdoutTail: "",
   isProd: true,
-  domain: "integration",
+  domain: "verify",
 });
 assert(
   !classified.summary.toLowerCase().includes("pickup"),
   "unrelated integration failure should not mention pickup",
 );
+assert(
+  !classified.summary.toLowerCase().includes("stale") &&
+    !classified.summary.toLowerCase().includes("redeploy"),
+  `backend integration prod failure should not suggest stale gh-pages redeploy; got: ${classified.summary}`,
+);
+assert(
+  classified.gateCandidate === false,
+  "backend integration prod failure should not be gateCandidate",
+);
 
-// --- Case 5: validatePendingLearnings on empty store ---
+// --- Case 5: clearPendingForScript dry-run ---
+const clearResult = clearPendingForScript("verify:pickup:prod", { dryRun: true });
+assert(
+  typeof clearResult.removed === "number",
+  "clearPendingForScript should return removed count",
+);
+
+// --- Case 6: pending entry has source + root-cause notes on ingest ---
+if (captureResult.entry) {
+  assert(
+    captureResult.entry.source === "verify-auto-capture",
+    "pending entry should have source verify-auto-capture",
+  );
+  const ingestInput = pendingToIngestInput(captureResult.entry);
+  assert(
+    ingestInput.tags?.includes("verify-auto-capture"),
+    "ingest input should tag verify-auto-capture",
+  );
+  assert(
+    ingestInput.notes?.toLowerCase().includes("mitigation"),
+    "gateCandidate ingest should include mitigation notes",
+  );
+}
+
+// --- Case 7: validatePendingLearnings on empty store ---
 const { errors: pendingErrors } = validatePendingLearnings();
 assert(pendingErrors.length === 0, `validatePendingLearnings errors: ${pendingErrors.join("; ")}`);
 

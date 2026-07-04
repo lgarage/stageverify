@@ -31,6 +31,7 @@ const SESSION_DEDUP = new Set();
  *   subtype: string | null,
  *   gateCandidate: boolean,
  *   domain: string | null,
+ *   source?: string | null,
  *   taskHint: string | null,
  *   stderrTail: string | null,
  *   stdoutTail: string | null,
@@ -95,7 +96,30 @@ export function computeErrorFingerprint(scriptName, exitCode, stderrTail, stdout
   return crypto.createHash("sha256").update(key).digest("hex").slice(0, 16);
 }
 
-const PROD_GH_PAGES = "https://lgarage.github.io/stageverify";
+/** Scripts that hit gh-pages bundle — not CF/integration/API-only prod checks. */
+const BACKEND_VERIFY_PATTERN =
+  /phase[34]-integration|inbound-email|material-issue|cf-ingest|email-ingest/i;
+
+/**
+ * True when failure is plausibly a stale gh-pages SPA bundle (not backend/API prod checks).
+ * @param {string} scriptName
+ * @param {string} domain
+ */
+export function isGhPagesBundleVerify(scriptName, domain) {
+  if (BACKEND_VERIFY_PATTERN.test(scriptName)) return false;
+  const frontendDomains = new Set([
+    "pickup",
+    "vendor-receive",
+    "invoice-review",
+    "dispatcher",
+    "settings",
+    "email",
+  ]);
+  if (frontendDomains.has(domain)) return true;
+  return /pickup|receive|vendor-delivered|vendor-pin|invoice|settings|dispatcher|portal|oauth|delivery-consistency|public-network/i.test(
+    scriptName,
+  );
+}
 
 /**
  * @param {string} scriptName
@@ -131,8 +155,11 @@ function inferTypeSubtype(scriptName, domain) {
   if (domain === "dispatcher" || domain === "settings") {
     return { type: "ui-component", subtype: "layout-style" };
   }
+  if (scriptName.includes("email-oauth")) {
+    return { type: "ui-component", subtype: "playwright" };
+  }
   if (scriptName.includes("integration") || scriptName.includes("inbound")) {
-    return { type: "service-logic", subtype: "integration" };
+    return { type: "backend-write-critical", subtype: "integration" };
   }
   return { type: "service-logic", subtype: "verify" };
 }
@@ -161,14 +188,16 @@ export function classifyVerifyFailure(ctx) {
     for (const t of terms) if (t && !triggerTerms.includes(t)) triggerTerms.push(t);
   };
 
-  if (ctx.isProd) {
+  const ghPagesProd = ctx.isProd && isGhPagesBundleVerify(ctx.scriptName, ctx.domain);
+
+  if (ghPagesProd) {
     addTerms("prod verify", "gh-pages", "STAGEVERIFY_BASE_URL", ctx.domain);
-    gateCandidate = true;
   }
 
   if (
-    /stale|old bundle|not updated|cache|404|propagation|deploy.*first|redeploy/i.test(combined) ||
-    (ctx.isProd && /assert|expected|timeout|not found/i.test(combined))
+    ghPagesProd &&
+    (/stale|old bundle|not updated|cache|404|propagation|deploy.*first|redeploy/i.test(combined) ||
+      /assert|expected|timeout|not found/i.test(combined))
   ) {
     category = "gotcha";
     gateCandidate = true;
@@ -178,7 +207,7 @@ export function classifyVerifyFailure(ctx) {
     category = "gotcha";
     summary = `${ctx.scriptName} Playwright timeout — check dev server, auth state, or prod propagation lag`;
     addTerms("playwright", "timeout", ctx.domain);
-    if (ctx.isProd) gateCandidate = true;
+    if (ghPagesProd) gateCandidate = true;
   } else if (/auth|storage.state|login|firebase.*token|expired|STAGEVERIFY_TEST/i.test(combined)) {
     category = "lesson";
     summary = `${ctx.scriptName} auth failure — re-run playwright-auth-setup.mjs (state.json expired ~1h)`;
@@ -187,11 +216,15 @@ export function classifyVerifyFailure(ctx) {
     category = "lesson";
     summary = `${ctx.scriptName} failed — dev server not running (npm run dev on 5173)`;
     addTerms("dev server", "5173", ctx.domain);
-  } else if (ctx.isProd) {
+  } else if (ghPagesProd) {
     category = "gotcha";
     summary = `${ctx.scriptName} prod verify failed — confirm gh-pages deploy completed before :prod verify`;
     addTerms("prod verify fail", "gh-pages", "ship loop");
     gateCandidate = true;
+  } else if (ctx.isProd && !ghPagesProd) {
+    category = "repeated failure";
+    summary = `${ctx.scriptName} prod verify failed — check CF deploy, env, or integration fixture`;
+    addTerms(ctx.scriptName.replace(/^verify:/, ""), "integration prod verify", ctx.domain);
   } else {
     addTerms(ctx.scriptName.replace(/^verify:/, ""), ctx.domain, "verify failure");
   }
@@ -224,6 +257,18 @@ function nextPendingId(store) {
  * @param {{ sourceTask?: string | null }} [opts]
  */
 export function pendingToIngestInput(pending, opts = {}) {
+  const mitigation =
+    pending.category === "gotcha" && pending.gateCandidate
+      ? "Redeploy gh-pages (npm run deploy), wait for Pages built, rerun :prod verify"
+      : pending.category === "lesson"
+        ? "See summary — re-run setup or fix environment before retry"
+        : null;
+  const notes = mitigation
+    ? `Root cause: ${pending.summary}${mitigation ? ` Mitigation: ${mitigation}` : ""}`
+    : pending.gateCandidate
+      ? pending.summary
+      : null;
+
   return {
     summary: pending.summary,
     category: pending.category,
@@ -232,9 +277,9 @@ export function pendingToIngestInput(pending, opts = {}) {
     subtype: pending.subtype,
     gateCandidate: pending.gateCandidate,
     sourceTask: opts.sourceTask ?? pending.sourceTask ?? null,
-    notes: pending.gateCandidate ? pending.summary : null,
+    notes,
     relatedFiles: pending.scriptName ? [`package.json#${pending.scriptName}`] : [],
-    tags: [pending.domain ?? "verify", "verify-failure"].filter(Boolean),
+    tags: [pending.domain ?? "verify", "verify-failure", "verify-auto-capture"].filter(Boolean),
   };
 }
 
@@ -306,6 +351,7 @@ export function captureVerifyFailure(opts) {
     subtype: classified.subtype,
     gateCandidate: classified.gateCandidate,
     domain,
+    source: "verify-auto-capture",
     taskHint: opts.taskHint ?? null,
     stderrTail: stderrTail.slice(-2000) || null,
     stdoutTail: stdoutTail.slice(-2000) || null,
@@ -428,6 +474,15 @@ export function validatePendingLearnings(store) {
     if (!entry.category?.trim()) errors.push(`learning-pending.json: ${label} missing category`);
     if (!Array.isArray(entry.triggerTerms) || entry.triggerTerms.length === 0) {
       errors.push(`learning-pending.json: ${label} missing triggerTerms`);
+    }
+
+    if (!entry.mergedAt) {
+      if (!entry.type?.trim()) errors.push(`learning-pending.json: ${label} missing type`);
+      if (!entry.subtype?.trim()) errors.push(`learning-pending.json: ${label} missing subtype`);
+      if (!entry.domain?.trim()) errors.push(`learning-pending.json: ${label} missing domain`);
+      if (!entry.source?.trim()) {
+        warnings.push(`learning-pending.json: ${label} missing source (expected verify-auto-capture)`);
+      }
     }
 
     if (!entry.mergedAt && entry.createdAt) {

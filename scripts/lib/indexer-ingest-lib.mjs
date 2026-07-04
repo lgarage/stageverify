@@ -717,6 +717,23 @@ export function validateIndexerMemory(store) {
       );
     }
 
+    const isVerifyFailure =
+      (entry.tags ?? []).includes("verify-failure") ||
+      (entry.tags ?? []).includes("verify-auto-capture");
+    if (isVerifyFailure) {
+      if (!entry.type?.trim()) {
+        errors.push(`indexer-memory: ${label} verify-failure entry missing type`);
+      }
+      if (!entry.subtype?.trim()) {
+        errors.push(`indexer-memory: ${label} verify-failure entry missing subtype`);
+      }
+      if (entry.gateCandidate === true && entry.type === "backend-write-critical") {
+        errors.push(
+          `indexer-memory: ${label} verify-failure gateCandidate on backend-write-critical — stale gh-pages leak risk`,
+        );
+      }
+    }
+
     for (const term of entry.triggerTerms ?? []) {
       const owner = gotchaTermOwners.get(term.toLowerCase());
       if (owner && entry.category === "gotcha") {
