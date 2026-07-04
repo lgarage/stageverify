@@ -14,6 +14,7 @@ import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import {
   formatInvoiceHeaderField,
   matchUnavailableReason,
+  shipDateMissingWarning,
   queueRowIssueSummary,
   queueRowLineCount,
   queueRowTitle,
@@ -114,6 +115,7 @@ function MatchSection({
   matchResult,
   matchLoading,
   matchUnavailable,
+  shipDateWarning,
   selectedDeliveryId,
   onSelectDelivery,
 }: {
@@ -121,6 +123,7 @@ function MatchSection({
   matchResult: InvoiceMatchResult | null;
   matchLoading: boolean;
   matchUnavailable: string | null;
+  shipDateWarning: string | null;
   selectedDeliveryId: string;
   onSelectDelivery: (deliveryId: string) => void;
 }) {
@@ -138,6 +141,14 @@ function MatchSection({
       <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>
         Match to delivery
       </div>
+      {shipDateWarning && (
+        <p
+          data-testid="invoice-review-ship-date-warning"
+          style={{ fontSize: 12, color: "#b45309", margin: "0 0 8px", lineHeight: 1.4 }}
+        >
+          {shipDateWarning}
+        </p>
+      )}
       {matchUnavailable && (
         <p
           data-testid="invoice-review-match-unavailable"
@@ -455,6 +466,7 @@ export function InvoiceReviewPanel({
           const selectedDeliveryId = deliveryById[row.id] ?? "";
           const rowActionLoading = actionLoadingId === row.id;
           const isFirstPending = row.id === firstPendingRowId;
+          const shipDateWarning = shipDateMissingWarning(row);
 
           return (
             <div
@@ -474,14 +486,20 @@ export function InvoiceReviewPanel({
                   flexWrap: "wrap",
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(expanded ? null : row.id)}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  data-testid={`invoice-review-row-content-${row.id}`}
+                  onClick={() => setInspectImport(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setInspectImport(row);
+                    }
+                  }}
                   style={{
                     flex: "1 1 480px",
                     minWidth: 0,
-                    border: "none",
-                    background: "transparent",
                     padding: 0,
                     cursor: "pointer",
                     textAlign: "left",
@@ -574,7 +592,7 @@ export function InvoiceReviewPanel({
                       </div>
                     )
                   )}
-                </button>
+                </div>
 
                 <div
                   style={{
@@ -585,23 +603,6 @@ export function InvoiceReviewPanel({
                     minWidth: 140,
                   }}
                 >
-                  <button
-                    type="button"
-                    data-testid={`invoice-review-inspect-row-${row.id}`}
-                    onClick={() => setInspectImport(row)}
-                    style={{
-                      backgroundColor: "#fff",
-                      color: NAVY,
-                      border: `1px solid ${NAVY}`,
-                      borderRadius: 4,
-                      padding: "6px 10px",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Inspect parsed data
-                  </button>
                   {row.reviewStatus === "pending_review" && (
                     <>
                       <button
@@ -619,7 +620,7 @@ export function InvoiceReviewPanel({
                           approveBlocked
                             ? "Approve blocked for issue imports"
                             : !selectedDeliveryId
-                              ? "Expand row and select a delivery match"
+                              ? "Open Match to delivery and select a candidate"
                               : undefined
                         }
                         style={{
@@ -678,12 +679,34 @@ export function InvoiceReviewPanel({
                 </div>
               </div>
 
+              {row.reviewStatus === "pending_review" && (
+                <button
+                  type="button"
+                  data-testid={`invoice-review-match-toggle-${row.id}`}
+                  onClick={() => setExpandedId(expanded ? null : row.id)}
+                  style={{
+                    marginTop: 10,
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: NAVY,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {expanded ? "Hide delivery match" : "Match to delivery"}
+                </button>
+              )}
+
               {expanded && (
                 <MatchSection
                   row={row}
                   matchResult={matchResult}
                   matchLoading={matchLoadingId === row.id}
                   matchUnavailable={matchUnavailable}
+                  shipDateWarning={shipDateWarning}
                   selectedDeliveryId={selectedDeliveryId}
                   onSelectDelivery={(deliveryId) =>
                     setDeliveryById((prev) => ({ ...prev, [row.id]: deliveryId }))

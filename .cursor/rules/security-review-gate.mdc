@@ -46,6 +46,19 @@ Missing subagent id → **NOT RUN**, not PASS. Model mismatch in report → **NO
 
 Any background worker that touches CF, Firestore write paths, parser ingest, or auth **must** paste the Task block above verbatim. Workers must **await** the gate and include subagent id + model in the ship report. Workers must **not** substitute Composer security review.
 
+**Hard stop — CF ship without Sonnet:** multitask workers, background executors, and away-batch workers **must not** push or deploy Cloud Functions / Firestore rules unless the completion report includes a valid `security-review` subagent id and `model: claude-4.6-sonnet-medium-thinking`. Missing id → verdict **NOT RUN** → do not push CF.
+
+**Invalid reports (treat as NOT RUN, block ship):**
+
+| Report text | Verdict |
+|-------------|---------|
+| "Security Review — Composer 2.5 Fast" (UI label only, no Sonnet subagent id) | **NOT RUN** |
+| Composer inline PASS/MEDIUM/HIGH without Task subagent id | **NOT RUN** |
+| `security-review` Task without `model: "claude-4.6-sonnet-medium-thinking"` | **NOT RUN** |
+| Invented or copied subagent id with no Task return | **NOT RUN** |
+
+Parent orchestrator must reject worker ship reports that claim security gate PASS without Sonnet subagent id — same as NOT RUN.
+
 ## Relation to other rules
 
 `model-audit-gate.mdc` and `composer-orchestrator.mdc` § Security gate cross-reference this file. On conflict about **which model runs security-review**, this file wins.

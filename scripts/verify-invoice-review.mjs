@@ -134,10 +134,11 @@ async function main() {
     if (rowCount > 0) {
       console.log(`PASS: ${rowCount} import row(s) visible`);
       const firstRow = queueRows.first();
-      await firstRow.getByRole("button", { name: "Inspect parsed data" }).waitFor({
-        timeout: 10_000,
-      });
-      console.log("PASS: row actions include Inspect parsed data");
+      const inspectBtn = firstRow.getByRole("button", { name: "Inspect parsed data" });
+      if (await inspectBtn.count()) {
+        throw new Error("Inspect parsed data button should be removed — use row click");
+      }
+      console.log("PASS: Inspect parsed data button removed");
     } else {
       console.log("PASS: empty queue state renders");
     }
@@ -154,12 +155,12 @@ async function main() {
     await page.getByRole("button", { name: "+ New Delivery" }).waitFor({ timeout: 10_000 });
     console.log("PASS: shared dispatcher + New Delivery visible on Invoice Review");
 
-    const inspectRow = page.locator('[data-testid^="invoice-review-inspect-row-"]').first();
-    if (await inspectRow.isVisible().catch(() => false)) {
-      await inspectRow.click();
+    const rowContent = page.locator('[data-testid^="invoice-review-row-content-"]').first();
+    if (await rowContent.isVisible().catch(() => false)) {
+      await rowContent.click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
       await page.getByTestId("invoice-parsed-inspect-summary").waitFor({ timeout: 10_000 });
-      console.log("PASS: Inspect modal shows review summary");
+      console.log("PASS: row click opens inspect modal");
 
       await page.getByTestId("invoice-parsed-inspect-doc-type").waitFor({ timeout: 5000 });
       const docType = await page.getByTestId("invoice-parsed-inspect-doc-type").innerText();
@@ -185,6 +186,18 @@ async function main() {
         state: "hidden",
         timeout: 5000,
       });
+
+      const matchToggle = page.locator('[data-testid^="invoice-review-match-toggle-"]').first();
+      if (await matchToggle.isVisible().catch(() => false)) {
+        const toggleLabel = (await matchToggle.innerText()).trim();
+        if (toggleLabel.includes("Match to delivery")) {
+          await matchToggle.click();
+        }
+        await page.locator('[data-testid^="invoice-review-row-match-"]').first().waitFor({
+          timeout: 10_000,
+        });
+        console.log("PASS: Match to delivery section visible");
+      }
     } else {
       console.log("SKIP: no queue items — inspect modal not exercised");
     }

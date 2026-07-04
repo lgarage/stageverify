@@ -140,6 +140,14 @@ export function queueRowSubtitle(importRow: VendorInvoiceImportReview): string {
 }
 
 /** One-line issue/warning summary for queue rows. */
+/** Warning when ship date absent — does not block approve or match. */
+export function shipDateMissingWarning(importRow: VendorInvoiceImportReview): string | null {
+  if (importRow.reviewStatus !== "pending_review") return null;
+  const shipDate = readInvoiceHeaderField(importRow.parsedHeader, "shipDate");
+  if (shipDate) return null;
+  return "Invoice header missing ship date — match and approve still allowed.";
+}
+
 /** When set, skip matchInvoiceToRecords CF — show stable inline copy instead. */
 export function matchUnavailableReason(importRow: VendorInvoiceImportReview): string | null {
   if (importRow.reviewStatus !== "pending_review") return null;

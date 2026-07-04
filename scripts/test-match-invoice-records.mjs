@@ -170,6 +170,19 @@ if (offlineMatch.humanReviewRequired === false || offlineMatch.candidates.length
   fail("unexpected multi-candidate offline", offlineMatch);
 }
 
+const headerNoShipDate = { ...headerPlanetFitness, shipDate: "" };
+const offlineNoShipDate = matchInvoiceToRecords(
+  "vii-test-no-ship-date",
+  headerNoShipDate,
+  mockCtx,
+  notesMap,
+);
+if (offlineNoShipDate.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")) {
+  pass("offline match works when shipDate missing");
+} else {
+  fail("offline match failed without shipDate", offlineNoShipDate.candidates);
+}
+
 console.log("\n=== CF: matchInvoiceToRecordsCallable (emulators) ===\n");
 
 const testEnv = await initializeTestEnvironment({
@@ -291,6 +304,49 @@ if (cfData.humanReviewRequired !== undefined) {
   pass("CF returns humanReviewRequired flag");
 } else {
   fail("CF missing humanReviewRequired");
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-emulator-no-ship-date"), {
+    id: "vii-emulator-no-ship-date",
+    inboundEmailProcessingId: "inbound-test",
+    gmailMessageId: "msg-test-2",
+    importBatchId: "batch-test",
+    pageId: "inv-no-ship",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: { ...headerPlanetFitness, shipDate: "" },
+    parsedLines: [],
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let cfNoShipDate;
+try {
+  cfNoShipDate = await matchInvoice({ vendorInvoiceImportId: "vii-emulator-no-ship-date" });
+} catch (err) {
+  fail("matchInvoiceToRecords should not require shipDate", err?.message);
+}
+
+const noShipData = cfNoShipDate?.data ?? {};
+if (
+  Array.isArray(noShipData.candidates) &&
+  noShipData.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")
+) {
+  pass("CF match succeeds when shipDate missing");
+} else {
+  fail("CF match failed without shipDate", noShipData);
 }
 
 await testEnv.cleanup();

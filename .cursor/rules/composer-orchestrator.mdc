@@ -286,6 +286,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Use `any` in TypeScript — always resolve types correctly.
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
 ❌ Self-report "Sonnet PASS" or claim security gate PASS without a security-review subagent id.
+❌ Ship CF/auth/rules when worker report shows "Security Review — Composer 2.5" or any verdict without Sonnet subagent id (verdict = NOT RUN).
 ❌ Launch duplicate security-review Tasks in one turn or omit `model: claude-4.6-sonnet-medium-thinking`.
 ❌ Push CF/auth/rules after security-review subagent failed twice — report NOT RUN blocker instead.
 ❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
