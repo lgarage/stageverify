@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-105** — Security scan (Sonnet readonly ONLY)
+- Last shipped: **away-108** — Inbound reparse stale issue-import backfill
 - Also shipped: **Invoice Review approved archive** — read-only list with invoice/S-O/PO/buyer/approved date + linked badge; inspect modal without re-approve
 - Also shipped: **Invoice Review approve CF deploy fix** — rebuilt `functions/lib/approveVendorInvoiceImport.js` (TS fix from 8ff639b was never compiled/deployed); review-only approve now live in production
 - Also shipped: **Verify-failure auto-learning** — `run-verify-with-learning.mjs` wrapper queues failures to `learning-pending.json`; `away:ship` merges pending; demo-verify-failure regression in away:validate
@@ -32,7 +32,7 @@
 4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **away-103** — Link-after-approve (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - Handoff: `MINI_LIBRARIAN_HANDOFF.md` | Indexer: `dossier-index.json`, `indexer-memory.json`, `npm run away:next --packet`

@@ -680,6 +680,34 @@
       "status": "built",
       "commit": "d504b7f",
       "note": "\\"
+    },
+    {
+      "id": "away-103",
+      "title": "Link-after-approve",
+      "status": "built",
+      "commit": "8055ceb",
+      "note": "link-action-CF-and-approved-inspect-modal"
+    },
+    {
+      "id": "away-106",
+      "title": "Security implement: dispatcher role gate",
+      "status": "built",
+      "commit": "8055ceb",
+      "note": "dispatcherRoles-gate"
+    },
+    {
+      "id": "away-107",
+      "title": "Security implement: unauth staging write restriction",
+      "status": "built",
+      "commit": "8055ceb",
+      "note": "unauth-staging-CF-restriction"
+    },
+    {
+      "id": "away-108",
+      "title": "Inbound reparse stale issue-import backfill",
+      "status": "built",
+      "commit": "8055ceb",
+      "note": "scheduled-stale-issue-reparse"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"
