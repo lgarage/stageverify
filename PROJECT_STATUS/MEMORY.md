@@ -46,28 +46,22 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Active queue | `PROJECT_STATUS/away-list.json` | Queued/blocked items only |
 | Execution log | `PROJECT_STATUS/away-status.json` | Append-only built/blocked/deferred (summary notes — no timing audit) |
 | **Timing audit (SSOT)** | `PROJECT_STATUS/estimate-log.md` | Away ship approval→commit vs budget — only place for actual elapsed |
+| **Lessons learned (SSOT)** | `PROJECT_STATUS/LIBRARIAN_LESSONS.md` | Rolling agent lessons; gotcha-map supplements on task match |
 | Build protocol | `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` | Running away batches |
 | Next item packet | `npm run away:next` / root `NEXT.md` | Before coding queued work |
 | Context packet (tags) | `npm run context:packet -- --tags <tags>` | Hot tier + dossier § slices; `--queue` for queue head |
-| Task gotcha map | `npm run context:gotcha -- --task "<…>"` | Orchestrator steps 6–8 on-demand reads by task trigger |
+| Task gotcha map | `npm run context:gotcha -- --task "<…>"` | Steps 6–8 reads; supplements `LIBRARIAN_LESSONS.md` |
 | Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify; `--note` = summary; timing → `estimate-log.md` |
 | Consistency check | `npm run away:validate` | Before commit; after memory edits |
-| Archive batch 1–3 | `PROJECT_STATUS/archives/away-batch-3.json` | Historical away-001…041 specs |
-
-## Orchestration
-
-| Concern | File / section | When |
-| ------- | -------------- | ---- |
-| Parallel builds (disjoint domains) | `.cursor/rules/parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain task; prefer parallel Composer 2.5 executors when file ownership is clearly disjoint |
 
 ## Blockers & on-demand routes
 
 | Concern | File / command | When |
 | ------- | -------------- | ---- |
-| ESL / Minew | `PROJECT_STATUS/ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only in repo |
-| Nav / scope rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
-| Delivery display | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` | List/drawer readiness consistency |
-| **Indexer (dossier §)** | `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` | MODEL_DOSSIER by tag — never ingest full dossier |
-| Gotcha map (steps 6–8) | `gotcha-map.json` + `npm run context:gotcha -- --task "<…>"` | Task trigger → dossier § / files / rules |
+| Parallel builds (disjoint) | `parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain; parallel Composer 2.5 when paths disjoint |
+| ESL / Minew | `ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only |
+| Nav rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
+| Delivery display | `deliveryDisplayHelpers.ts` + `verify:delivery-consistency` | List/drawer readiness |
+| Dossier § indexer | `dossier-index.json` + `npm run dossier:slice -- --tag <tag>` | By tag — never full dossier |

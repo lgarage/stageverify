@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Task-trigger → orchestrator on-demand reads (composer-orchestrator steps 6–8). Use npm run context:gotcha -- --task \"…\"",
+  "description": "Task-trigger → orchestrator on-demand reads (composer-orchestrator steps 6–8). Use npm run context:gotcha -- --task \"…\". Supplements PROJECT_STATUS/LIBRARIAN_LESSONS.md (lessons SSOT) — gotcha routes triggers; lessons file holds rolling log.",
   "orchestratorSteps": {
     "6": {
       "label": "MODEL_DOSSIER index",
@@ -9,10 +9,10 @@
       "action": "Read MODEL_DOSSIER index (lines 7–23); open exactly one § by tag via dossier:slice — never load full dossier"
     },
     "7": {
-      "label": "§ agent-lessons",
+      "label": "§ agent-lessons + LIBRARIAN_LESSONS",
       "when": "Public routes, pickup portal, vendor receive, or UI fixes on unauthenticated flows",
       "source": ".cursor/rules/composer-orchestrator.mdc step 7",
-      "action": "npm run dossier:slice -- --tag agent-lessons before editing Receive/Pickup/public routes"
+      "action": "Read PROJECT_STATUS/LIBRARIAN_LESSONS.md (SSOT); npm run dossier:slice -- --tag agent-lessons for domain depth before Receive/Pickup/public routes"
     },
     "8": {
       "label": "USER_SCOPE_REJECTIONS",
@@ -129,6 +129,33 @@
       "files": ["PROJECT_STATUS/svscope_simple.md"],
       "rules": ["composer-orchestrator.mdc § Scope Discipline"],
       "commands": ["npm run away:next"]
+    },
+    {
+      "id": "prod-verify-redeploy",
+      "match": ["prod verify fail", "gh-pages stale", "redeploy", "bundle stale", "STAGEVERIFY_BASE_URL", "prod deploy"],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md"],
+      "rules": ["ship-loop.mdc"],
+      "commands": ["npm run deploy"]
+    },
+    {
+      "id": "dispatcher-clipboard",
+      "match": ["copy pickup", "clipboard", "drawer copy", "pickup information", "short clipboard"],
+      "orchestratorSteps": [7],
+      "dossierTags": ["agent-lessons"],
+      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "src/DispatcherDashboardPage.tsx"],
+      "rules": [],
+      "commands": ["npm run verify:delivery-consistency"]
+    },
+    {
+      "id": "memory-validate",
+      "match": ["away:validate", "CURRENT_STATE sync", "last shipped drift", "memory consistency", "LIBRARIAN_LESSONS"],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "files": ["PROJECT_STATUS/LIBRARIAN_LESSONS.md", "PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
+      "rules": [],
+      "commands": ["npm run away:validate"]
     }
   ]
 }

@@ -14,6 +14,8 @@
 
 Token-efficiency planning: `PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md`. Full ACES roles below remain deferred.
 
+**Lessons learned SSOT:** `PROJECT_STATUS/LIBRARIAN_LESSONS.md` is the single canonical rolling log for agent lessons (≤40 active lines; archive rotates to `archives/librarian-lessons-archive.md`). `gotcha-map.json` and `npm run context:gotcha` supplement it on task triggers; `MODEL_DOSSIER.md` § agent-lessons keeps domain-deep pickup/QR detail; `estimate-log.md` owns timing audit only — summarize and link, never duplicate full gotcha or estimate content into the lessons file.
+
 ---
 
 Knowledge System Hierarchy

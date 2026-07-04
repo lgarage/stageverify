@@ -45,6 +45,8 @@
 
 ## § agent-lessons (2026-06-02 — pickup portal arc)
 
+**Rolling SSOT:** `PROJECT_STATUS/LIBRARIAN_LESSONS.md` — read first for session lessons; this § keeps domain-deep pickup/QR/Firestore detail.
+
 Hard-won mistakes — **read before declaring UI/Firestore work done.**
 
 1. **Do not say "fixed" without Playwright.** Build alone is insufficient. Interactive flows need `scripts/verify-*.mjs` (clicks + assert end state). Pickup: `npm run verify:pickup` then `:prod` after deploy.
