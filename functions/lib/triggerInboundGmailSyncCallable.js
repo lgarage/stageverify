@@ -19,12 +19,15 @@ exports.triggerInboundGmailSyncCallable = (0, https_1.onCall)({
     if (!(0, gmailInbound_1.gmailOAuthSecretsConfigured)()) {
         throw new https_1.HttpsError("failed-precondition", "Gmail OAuth is not configured on the server.");
     }
-    const result = await (0, syncInboundGmail_1.runInboundGmailSync)();
+    const result = await (0, syncInboundGmail_1.runInboundGmailSync)({ retryOnError: true });
     return {
         ok: true,
         processed: result.processed,
         skipped: result.skipped,
         errors: result.errors,
+        invoicesQueued: result.invoicesQueued,
+        skippedByStatus: result.skippedByStatus,
+        skippedReviewCounts: result.skippedReviewCounts,
     };
 });
 //# sourceMappingURL=triggerInboundGmailSyncCallable.js.map

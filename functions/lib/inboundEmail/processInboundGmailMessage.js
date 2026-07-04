@@ -80,13 +80,19 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
     const existing = await ref.get();
     if (existing.exists) {
         const data = existing.data();
-        return {
-            docId,
-            gmailMessageId,
-            skipped: true,
-            processingStatus: data.processingStatus,
-            reviewRecordIds: data.parseResult?.reviewRecordIds ?? [],
-        };
+        if (options?.retryOnError && data.processingStatus === "error") {
+            await ref.delete();
+        }
+        else {
+            return {
+                docId,
+                gmailMessageId,
+                skipped: true,
+                processingStatus: data.processingStatus,
+                reviewRecordIds: data.parseResult?.reviewRecordIds ?? [],
+                skippedProcessingStatus: data.processingStatus,
+            };
+        }
     }
     const now = new Date().toISOString();
     await ref.set({

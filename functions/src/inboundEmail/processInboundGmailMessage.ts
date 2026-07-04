@@ -54,6 +54,14 @@ export interface ProcessInboundGmailMessageResult {
   skipped: boolean;
   processingStatus: InboundEmailProcessingDoc["processingStatus"];
   reviewRecordIds: string[];
+  /** Set when skipped=true — existing doc status before skip. */
+  skippedProcessingStatus?: InboundEmailProcessingDoc["processingStatus"];
+}
+
+export interface ProcessInboundGmailMessageOptions {
+  prefetchedMessage?: GmailMessage;
+  /** Manual sync: re-run messages previously marked error. */
+  retryOnError?: boolean;
 }
 
 async function writeReviewRecords(
@@ -107,7 +115,7 @@ async function writeReviewRecords(
 export async function processInboundGmailMessage(
   accessToken: string,
   gmailMessageId: string,
-  options?: { prefetchedMessage?: GmailMessage },
+  options?: ProcessInboundGmailMessageOptions,
 ): Promise<ProcessInboundGmailMessageResult> {
   const db = getDb();
   const docId = docIdForMessage(gmailMessageId);
@@ -116,13 +124,18 @@ export async function processInboundGmailMessage(
 
   if (existing.exists) {
     const data = existing.data() as InboundEmailProcessingDoc;
-    return {
-      docId,
-      gmailMessageId,
-      skipped: true,
-      processingStatus: data.processingStatus,
-      reviewRecordIds: data.parseResult?.reviewRecordIds ?? [],
-    };
+    if (options?.retryOnError && data.processingStatus === "error") {
+      await ref.delete();
+    } else {
+      return {
+        docId,
+        gmailMessageId,
+        skipped: true,
+        processingStatus: data.processingStatus,
+        reviewRecordIds: data.parseResult?.reviewRecordIds ?? [],
+        skippedProcessingStatus: data.processingStatus,
+      };
+    }
   }
 
   const now = new Date().toISOString();

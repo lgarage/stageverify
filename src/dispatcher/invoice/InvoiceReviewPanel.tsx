@@ -96,7 +96,11 @@ function StatusChip({
   );
 }
 
-export function InvoiceReviewPanel() {
+export function InvoiceReviewPanel({
+  onRegisterLoadQueue,
+}: {
+  onRegisterLoadQueue?: (loadQueue: () => Promise<void>) => void;
+}) {
   const [imports, setImports] = useState<VendorInvoiceImportReview[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [matchResult, setMatchResult] = useState<InvoiceMatchResult | null>(null);
@@ -129,6 +133,10 @@ export function InvoiceReviewPanel() {
   useEffect(() => {
     void loadQueue();
   }, [loadQueue]);
+
+  useEffect(() => {
+    onRegisterLoadQueue?.(loadQueue);
+  }, [loadQueue, onRegisterLoadQueue]);
 
   const selected = useMemo(
     () => imports.find((i) => i.id === selectedId) ?? null,
@@ -270,7 +278,9 @@ export function InvoiceReviewPanel() {
           )}
           {!loading && filteredImports.length === 0 && (
             <p style={{ padding: 16, color: "#6b7280", fontSize: 13 }}>
-              No invoice imports in queue.
+              {filter === "pending" && imports.some((i) => i.reviewStatus !== "pending_review")
+                ? "No pending imports — switch to All imports or use Refresh Now to sync Gmail."
+                : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
             </p>
           )}
           {filteredImports.map((row) => {

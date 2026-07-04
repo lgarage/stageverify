@@ -306,6 +306,8 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
   await page.getByRole("heading", { name: "Settings" }).waitFor({
     timeout: 15_000,
   });
+  await page.getByTestId("dispatcher-refresh-now").waitFor({ timeout: 10_000 });
+  console.log("PASS: shared dispatcher header on Settings (Refresh Now).");
   if (
     (await page.getByRole("button", { name: "Add Vendor" }).count()) > 0
   ) {

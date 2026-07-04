@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { buildEslTagQrUrl } from "./receiveQrUrls";
 import {
   buildPickupTokenUrl,
@@ -9,22 +9,19 @@ import {
 } from "./pickupTokenSession";
 import { validatePickupTokenClient } from "./validatePickupTokenClient";
 import { EslQrCode } from "./EslQrCode";
-import { auth } from "./firebase";
-import { signOutWithConfirm } from "./signOutWithConfirm";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
-import { DispatcherPortalLinks } from "./PortalNavBar";
+import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import {
   firestoreDataService,
-  getEmailProviderConnection,
   markDeliveryShipped,
   mapOccupancyByLocationId,
   resolveMaterialIssue,
   sendVendorEmail,
   listShopStockMappings,
-  triggerInboundGmailSync,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
+import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import { isShopStockLocationReservedError } from "./dispatcher/shopStockMapping";
 import {
@@ -55,7 +52,6 @@ import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, MATERIAL_ISSUE_T
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
-  PORTAL_TOPBAR_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
@@ -141,7 +137,6 @@ function drawerActionBtnRevoke(font: string, disabled: boolean) {
     opacity: disabled ? 0.7 : 1,
   };
 }
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const STATUS_ORDER: DeliveryStatus[] = [
@@ -299,6 +294,7 @@ const INITIAL_PAGED: PagedResult<DeliveryListRow> = {
 
 export function DispatcherDashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [query, setQuery] = useState<ListQueryState>({
     search: "",
@@ -313,7 +309,6 @@ export function DispatcherDashboardPage() {
   const [allRows, setAllRows] = useState<DeliveryListRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
     null,
@@ -332,9 +327,20 @@ export function DispatcherDashboardPage() {
   >([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [emailProviderConnected, setEmailProviderConnected] = useState(false);
-  const [gmailSyncMessage, setGmailSyncMessage] = useState<string | null>(null);
-  const [refreshBusy, setRefreshBusy] = useState(false);
+
+  const fetchAllDataRef = useRef<() => Promise<void>>(async () => {});
+  const {
+    emailProviderConnected,
+    refreshBusy,
+    gmailSyncMessage,
+    lastUpdated: refreshLastUpdated,
+    setLastUpdated,
+    handleRefreshNow,
+  } = useDispatcherGmailRefresh({
+    onAfterRefresh: async () => {
+      await fetchAllDataRef.current();
+    },
+  });
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
@@ -375,47 +381,17 @@ export function DispatcherDashboardPage() {
     }
   }, [query]);
 
-  const handleRefreshNow = useCallback(async () => {
-    if (refreshBusy) return;
-    setRefreshBusy(true);
-    setGmailSyncMessage("Syncing mailbox…");
-    try {
-      if (emailProviderConnected) {
-        const syncResult = await triggerInboundGmailSync();
-        const parts: string[] = [];
-        if (syncResult.processed > 0) {
-          parts.push(
-            `${syncResult.processed} new email${syncResult.processed === 1 ? "" : "s"}`,
-          );
-        }
-        if (syncResult.skipped > 0) {
-          parts.push(`${syncResult.skipped} already processed`);
-        }
-        if (syncResult.errors > 0) {
-          parts.push(`${syncResult.errors} error${syncResult.errors === 1 ? "" : "s"}`);
-        }
-        setGmailSyncMessage(
-          parts.length > 0
-            ? `Mailbox sync complete — ${parts.join(", ")}.`
-            : "Mailbox sync complete — no new emails.",
-        );
-      } else {
-        setGmailSyncMessage(null);
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Mailbox sync failed.";
-      setGmailSyncMessage(message);
+  useEffect(() => {
+    fetchAllDataRef.current = fetchAllData;
+  }, [fetchAllData]);
+
+  useEffect(() => {
+    const state = location.state as { openNewDelivery?: boolean } | null;
+    if (state?.openNewDelivery) {
+      setShowCreateModal(true);
+      navigate(location.pathname, { replace: true, state: {} });
     }
-    try {
-      await fetchAllData();
-    } finally {
-      setRefreshBusy(false);
-      if (emailProviderConnected) {
-        window.setTimeout(() => setGmailSyncMessage(null), 6000);
-      }
-    }
-  }, [refreshBusy, emailProviderConnected, fetchAllData]);
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     let mounted = true;
@@ -458,14 +434,6 @@ export function DispatcherDashboardPage() {
     void firestoreDataService
       .listStagingLocations()
       .then(setAvailableStagingLocations);
-  }, []);
-
-  useEffect(() => {
-    void getEmailProviderConnection()
-      .then((connection) => {
-        setEmailProviderConnected(connection.status === "connected");
-      })
-      .catch(() => setEmailProviderConnected(false));
   }, []);
 
   /* ── Staging location assignment ── */
@@ -814,121 +782,16 @@ export function DispatcherDashboardPage() {
         className={PORTAL_MAIN_CLASS}
         style={{ backgroundColor: "#f0f2f5" }}
       >
-        {/* Top bar */}
-        <div
-          className={PORTAL_TOPBAR_CLASS}
-          style={{
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #e0e3e8",
-            height: 52,
-            padding: "0 20px",
-            boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>
-              Dispatcher Dashboard
-            </span>
-            <span style={{ color: "#9ca3af", fontSize: 13 }}>
-              / Delivery Overview
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
-            <DispatcherPortalLinks />
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(true)}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 4,
-                border: "none",
-                backgroundColor: RED,
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: FONT,
-                outline: "none",
-              }}
-            >
-              + New Delivery
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleRefreshNow()}
-              disabled={refreshBusy || listLoading}
-              data-testid="dispatcher-refresh-now"
-              style={{
-                padding: "5px 12px",
-                borderRadius: 4,
-                border: `1.5px solid ${NAVY}`,
-                backgroundColor: refreshBusy || listLoading ? "#f3f4f6" : "#fff",
-                color: refreshBusy || listLoading ? "#9ca3af" : NAVY,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: refreshBusy || listLoading ? "not-allowed" : "pointer",
-                fontFamily: FONT,
-                outline: "none",
-              }}
-            >
-              {refreshBusy ? "Syncing…" : "Refresh Now"}
-            </button>
-            {gmailSyncMessage && (
-              <span
-                data-testid="gmail-sync-message"
-                style={{
-                  fontSize: 12,
-                  color: gmailSyncMessage.includes("failed") ? "#b91c1c" : "#166534",
-                  fontWeight: 600,
-                  maxWidth: 280,
-                }}
-              >
-                {gmailSyncMessage}
-              </span>
-            )}
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
-              Last updated:{" "}
-              <span style={{ fontWeight: 600, color: "#374151" }}>
-                {lastUpdated ?? "Loading…"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => signOutWithConfirm(auth, navigate)}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 4,
-                border: `1.5px solid ${NAVY}`,
-                backgroundColor: "#fff",
-                color: NAVY,
-                fontWeight: 600,
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: FONT,
-                outline: "none",
-              }}
-            >
-              Sign Out
-            </button>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: "50%",
-                backgroundColor: NAVY,
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: 13,
-                flexShrink: 0,
-              }}
-            >
-              D
-            </div>
-          </div>
-        </div>
+        <DispatcherPortalTopBar
+          title="Dispatcher Dashboard"
+          subtitle="Delivery Overview"
+          lastUpdated={refreshLastUpdated}
+          refreshBusy={refreshBusy}
+          refreshDisabled={listLoading}
+          gmailSyncMessage={gmailSyncMessage}
+          onRefreshNow={handleRefreshNow}
+          onNewDelivery={() => setShowCreateModal(true)}
+        />
 
         {/* Page content — scrolls independently of sidebar and top bar */}
         <div

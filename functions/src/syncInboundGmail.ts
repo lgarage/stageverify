@@ -65,21 +65,33 @@ async function collectMessageIdsFromHistory(
   return { messageIds: [...ids], latestHistoryId: historyId };
 }
 
-export async function runInboundGmailSync(): Promise<{
+export interface InboundGmailSyncRunResult {
   processed: number;
   skipped: number;
   errors: number;
-}> {
+  invoicesQueued: number;
+  skippedByStatus: Record<string, number>;
+  skippedReviewCounts: Record<string, number>;
+}
+
+export interface RunInboundGmailSyncOptions {
+  /** Manual Refresh Now — retry messages previously marked error. */
+  retryOnError?: boolean;
+}
+
+export async function runInboundGmailSync(
+  options?: RunInboundGmailSyncOptions,
+): Promise<InboundGmailSyncRunResult> {
   const db = getDb();
   if (!gmailOAuthSecretsConfigured()) {
     console.log("syncInboundGmail: OAuth secrets not configured — skipping");
-    return { processed: 0, skipped: 0, errors: 0 };
+    return { processed: 0, skipped: 0, errors: 0, invoicesQueued: 0, skippedByStatus: {}, skippedReviewCounts: {} };
   }
 
   const refreshToken = await loadRefreshToken(db);
   if (!refreshToken) {
     console.log("syncInboundGmail: Gmail not connected — skipping");
-    return { processed: 0, skipped: 0, errors: 0 };
+    return { processed: 0, skipped: 0, errors: 0, invoicesQueued: 0, skippedByStatus: {}, skippedReviewCounts: {} };
   }
 
   const accessToken = await getGmailAccessTokenForProvider(refreshToken);
@@ -114,12 +126,26 @@ export async function runInboundGmailSync(): Promise<{
   let processed = 0;
   let skipped = 0;
   let errors = 0;
+  let invoicesQueued = 0;
+  const skippedByStatus: Record<string, number> = {};
+  const skippedReviewCounts: Record<string, number> = {};
 
   for (const messageId of messageIds) {
     try {
-      const result = await processInboundGmailMessage(accessToken, messageId);
-      if (result.skipped) skipped += 1;
-      else processed += 1;
+      const result = await processInboundGmailMessage(accessToken, messageId, {
+        retryOnError: options?.retryOnError,
+      });
+      if (result.skipped) {
+        skipped += 1;
+        const status = result.skippedProcessingStatus ?? result.processingStatus;
+        skippedByStatus[status] = (skippedByStatus[status] ?? 0) + 1;
+        const reviewCount = result.reviewRecordIds.length;
+        skippedReviewCounts[status] =
+          (skippedReviewCounts[status] ?? 0) + reviewCount;
+      } else {
+        processed += 1;
+        invoicesQueued += result.reviewRecordIds.length;
+      }
     } catch (err) {
       errors += 1;
       const message = err instanceof Error ? err.message : String(err);
@@ -143,7 +169,7 @@ export async function runInboundGmailSync(): Promise<{
   console.log(
     `syncInboundGmail: processed=${processed} skipped=${skipped} errors=${errors}`,
   );
-  return { processed, skipped, errors };
+  return { processed, skipped, errors, invoicesQueued, skippedByStatus, skippedReviewCounts };
 }
 
 export const syncInboundGmail = onSchedule(

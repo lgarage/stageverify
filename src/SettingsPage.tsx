@@ -26,11 +26,12 @@ import { STAGEVERIFY_BOT_INBOX } from "./dispatcher/email/stageverifyBotInbox";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
-  PORTAL_TOPBAR_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { portalNavFocus } from "./dispatcherPortalNav";
 import { PortalSidebar } from "./PortalSidebar";
+import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
+import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -99,6 +100,12 @@ function sortStagingSpots(a: StagingLocation, b: StagingLocation): number {
 
 export function SettingsPage() {
   const location = useLocation();
+  const {
+    refreshBusy,
+    gmailSyncMessage,
+    lastUpdated,
+    handleRefreshNow,
+  } = useDispatcherGmailRefresh();
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
@@ -488,42 +495,14 @@ export function SettingsPage() {
         className={PORTAL_MAIN_CLASS}
         style={{ backgroundColor: "#f0f2f5" }}
       >
-        <div
-          className={PORTAL_TOPBAR_CLASS}
-          style={{
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #e0e3e8",
-            height: 52,
-            padding: "0 20px",
-            boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>
-              Settings
-            </span>
-            <span style={{ color: "#9ca3af", fontSize: 13 }}>
-              / Configuration
-            </span>
-          </div>
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              backgroundColor: NAVY,
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 13,
-              flexShrink: 0,
-            }}
-          >
-            D
-          </div>
-        </div>
+        <DispatcherPortalTopBar
+          title="Settings"
+          subtitle="Configuration"
+          lastUpdated={lastUpdated}
+          refreshBusy={refreshBusy}
+          gmailSyncMessage={gmailSyncMessage}
+          onRefreshNow={handleRefreshNow}
+        />
 
         <div
           className={PORTAL_SCROLL_CLASS}

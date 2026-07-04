@@ -117,6 +117,12 @@ async function main() {
     }
     console.log("PASS: detail panel renders queue or import content");
 
+    await page.getByTestId("dispatcher-refresh-now").waitFor({ timeout: 10_000 });
+    console.log("PASS: shared dispatcher Refresh Now visible on Invoice Review");
+
+    await page.getByRole("button", { name: "+ New Delivery" }).waitFor({ timeout: 10_000 });
+    console.log("PASS: shared dispatcher + New Delivery visible on Invoice Review");
+
     await page.screenshot({
       path: resolve(screenshotDir, "invoice-review-page.png"),
       fullPage: true,

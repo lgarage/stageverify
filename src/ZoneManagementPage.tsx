@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
   type CSSProperties,
   type FormEvent,
 } from "react";
@@ -30,11 +31,12 @@ import { EslQrCode } from "./EslQrCode";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
-  PORTAL_TOPBAR_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
 import { ShopStockDirectoryPanel } from "./ShopStockDirectoryPanel";
+import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
+import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -223,6 +225,17 @@ function typeBadgeStyle(type: ZoneType): CSSProperties {
 }
 
 export function ZoneManagementPage() {
+  const loadZonesRef = useRef<() => Promise<void>>(async () => {});
+  const {
+    refreshBusy,
+    gmailSyncMessage,
+    lastUpdated,
+    handleRefreshNow,
+  } = useDispatcherGmailRefresh({
+    onAfterRefresh: async () => {
+      await loadZonesRef.current();
+    },
+  });
   const [zones, setZones] = useState<StagingLocation[]>([]);
   const [occupancyByZoneCode, setOccupancyByZoneCode] = useState<
     Record<string, ZoneOccupancySummary>
@@ -262,6 +275,10 @@ export function ZoneManagementPage() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    loadZonesRef.current = loadZones;
+  }, [loadZones]);
 
   useEffect(() => {
     void loadZones();
@@ -385,42 +402,14 @@ export function ZoneManagementPage() {
         className={`${PORTAL_MAIN_CLASS} print:hidden`}
         style={{ backgroundColor: "#f0f2f5" }}
       >
-        <div
-          className={PORTAL_TOPBAR_CLASS}
-          style={{
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #e0e3e8",
-            height: 52,
-            padding: "0 20px",
-            boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>
-              Zone Management
-            </span>
-            <span style={{ color: "#9ca3af", fontSize: 13 }}>
-              / Staging Map
-            </span>
-          </div>
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              backgroundColor: NAVY,
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 13,
-              flexShrink: 0,
-            }}
-          >
-            D
-          </div>
-        </div>
+        <DispatcherPortalTopBar
+          title="Zone Management"
+          subtitle="Staging Map"
+          lastUpdated={lastUpdated}
+          refreshBusy={refreshBusy}
+          gmailSyncMessage={gmailSyncMessage}
+          onRefreshNow={handleRefreshNow}
+        />
 
         <div
           className={PORTAL_SCROLL_CLASS}

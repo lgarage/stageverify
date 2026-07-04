@@ -191,6 +191,9 @@ export interface InboundGmailSyncResult {
   processed: number;
   skipped: number;
   errors: number;
+  invoicesQueued?: number;
+  skippedByStatus?: Record<string, number>;
+  skippedReviewCounts?: Record<string, number>;
 }
 
 /** Connect/disconnect audit — no message bodies. */

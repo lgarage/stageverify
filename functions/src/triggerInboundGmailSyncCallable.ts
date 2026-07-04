@@ -24,12 +24,15 @@ export const triggerInboundGmailSyncCallable = onCall(
       );
     }
 
-    const result = await runInboundGmailSync();
+    const result = await runInboundGmailSync({ retryOnError: true });
     return {
       ok: true,
       processed: result.processed,
       skipped: result.skipped,
       errors: result.errors,
+      invoicesQueued: result.invoicesQueued,
+      skippedByStatus: result.skippedByStatus,
+      skippedReviewCounts: result.skippedReviewCounts,
     };
   },
 );

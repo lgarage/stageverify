@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Refresh Now Gmail sync** — dispatcher Refresh Now triggers `triggerInboundGmailSyncCallable` (same path as scheduled `syncInboundGmail`) then refreshes delivery list
+- Last shipped: **Gmail sync clarity + shared dispatcher header** — sync banner distinguishes scanned vs queued invoices; manual Refresh Now retries error-status messages; `DispatcherPortalTopBar` on Dashboard, Staging Map, Vendors, Invoice Review, Settings
+- Also shipped: **Refresh Now Gmail sync** — dispatcher Refresh Now triggers `triggerInboundGmailSyncCallable` (same path as scheduled `syncInboundGmail`) then refreshes delivery list
 - Also shipped (standalone): **demo order cleanup** — prod ORD-001..006 removed; `npm run cleanup:demo-data` (`scripts/cleanup-demo-firestore.mjs`)
 - Also shipped (standalone): stranded-processing TOCTOU — transaction guard + emulator tests (`test:recover-stranded-processing`, b0a2448)
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify

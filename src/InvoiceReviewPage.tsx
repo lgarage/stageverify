@@ -1,9 +1,11 @@
+import { useCallback, useRef } from "react";
 import { PortalSidebar } from "./PortalSidebar";
 import { InvoiceReviewPanel } from "./dispatcher/invoice/InvoiceReviewPanel";
+import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
+import { useDispatcherGmailRefresh } from "./dispatcher/useDispatcherGmailRefresh";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
-  PORTAL_TOPBAR_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 
@@ -11,6 +13,23 @@ const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function InvoiceReviewPage() {
+  const loadQueueRef = useRef<() => Promise<void>>(async () => {});
+
+  const handleRegisterLoadQueue = useCallback((loadQueue: () => Promise<void>) => {
+    loadQueueRef.current = loadQueue;
+  }, []);
+
+  const {
+    refreshBusy,
+    gmailSyncMessage,
+    lastUpdated,
+    handleRefreshNow,
+  } = useDispatcherGmailRefresh({
+    onAfterRefresh: async () => {
+      await loadQueueRef.current();
+    },
+  });
+
   return (
     <div
       data-testid="invoice-review-page"
@@ -23,25 +42,14 @@ export function InvoiceReviewPage() {
         className={PORTAL_MAIN_CLASS}
         style={{ backgroundColor: "#f0f2f5" }}
       >
-        <div
-          className={PORTAL_TOPBAR_CLASS}
-          style={{
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #e0e3e8",
-            height: 52,
-            padding: "0 20px",
-            boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>
-              Invoice Review
-            </span>
-            <span style={{ color: "#9ca3af", fontSize: 13 }}>
-              / Johnstone import queue
-            </span>
-          </div>
-        </div>
+        <DispatcherPortalTopBar
+          title="Invoice Review"
+          subtitle="Johnstone import queue"
+          lastUpdated={lastUpdated}
+          refreshBusy={refreshBusy}
+          gmailSyncMessage={gmailSyncMessage}
+          onRefreshNow={handleRefreshNow}
+        />
 
         <div
           className={PORTAL_SCROLL_CLASS}
@@ -73,7 +81,7 @@ export function InvoiceReviewPage() {
               </p>
             </div>
 
-            <InvoiceReviewPanel />
+            <InvoiceReviewPanel onRegisterLoadQueue={handleRegisterLoadQueue} />
           </div>
         </div>
       </div>
