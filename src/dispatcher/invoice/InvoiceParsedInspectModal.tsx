@@ -5,6 +5,7 @@ import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
   normalizeParsedHeader,
+  codPaymentContext,
 } from "./invoiceReviewHeaderHelpers";
 
 const NAVY = "#0a3161";
@@ -43,6 +44,7 @@ export function InvoiceParsedInspectModal({
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
   const normalizedHeader = normalizeParsedHeader(importRow.parsedHeader);
+  const codContext = codPaymentContext(importRow);
   const parseWarnings = (importRow.parseWarnings ?? []).filter(Boolean);
   const orderNotes = (importRow.orderNotes ?? []).filter(Boolean);
   const parsedLines = importRow.parsedLines ?? [];
@@ -175,6 +177,20 @@ export function InvoiceParsedInspectModal({
               <div style={{ color: MUTED, fontWeight: 600 }}>Gmail message</div>
               <div style={{ wordBreak: "break-all" }}>{importRow.gmailMessageId}</div>
             </div>
+            {codContext && (
+              <div>
+                <div style={{ color: MUTED, fontWeight: 600 }}>Payment terms</div>
+                <div
+                  data-testid="invoice-parsed-inspect-cod"
+                  style={{ color: "#92400e", fontWeight: 700 }}
+                >
+                  {codContext.chipLabel}
+                  {codContext.paymentTermsRaw && codContext.codOnly
+                    ? ` (${codContext.paymentTermsRaw})`
+                    : ""}
+                </div>
+              </div>
+            )}
           </div>
           {checklist.blockReason && (
             <div

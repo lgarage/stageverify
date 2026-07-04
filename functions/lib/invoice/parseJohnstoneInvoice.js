@@ -356,6 +356,31 @@ function parseLineTableRows(lineSection, orderNotes) {
     }
     return lines;
 }
+/** Extract payment/freight terms — informational for dispatcher review only. */
+function extractPaymentTerms(text) {
+    const starredCod = capture(/\*+\s*(COD\s+ONLY[^*\n]*)\s*\*+/i, text);
+    if (starredCod) {
+        const paymentTermsRaw = starredCod.replace(/\*+/g, "").trim();
+        return { paymentTermsRaw, codOnly: true };
+    }
+    const labeledTerms = capture(/Terms\s*:\s*(.+)/i, text);
+    if (labeledTerms) {
+        const paymentTermsRaw = labeledTerms.trim();
+        return {
+            paymentTermsRaw,
+            codOnly: /\bCOD\b/i.test(paymentTermsRaw) || undefined,
+        };
+    }
+    const invoiceRowTail = capture(/^[A-Z]?\d[\w-]*\s+\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s+[\w/&.-]+)*\s+(\S.*COD\S*)/im, text);
+    if (invoiceRowTail && /\bCOD\b/i.test(invoiceRowTail)) {
+        const paymentTermsRaw = invoiceRowTail.replace(/\*+/g, "").trim();
+        return {
+            paymentTermsRaw,
+            codOnly: /\bCOD\s+ONLY\b/i.test(paymentTermsRaw) || undefined,
+        };
+    }
+    return {};
+}
 function pageTextFingerprint(page) {
     const normalized = page.extractedText.replace(/\s+/g, " ").trim().toLowerCase();
     let hash = 0;
@@ -406,6 +431,10 @@ function parseJohnstoneInvoicePage(page) {
         parseWarnings.push("missing customerPoOrReference");
     const fulfillmentMethod = (0, inferImportStatus_1.inferFulfillmentMethod)(customerPoOrReference, shipViaRaw, text);
     const shipCompletePolicy = (0, inferImportStatus_1.inferShipCompletePolicy)(text);
+    const paymentTerms = extractPaymentTerms(text);
+    if (paymentTerms.paymentTermsRaw) {
+        orderNotes.push(`Payment terms: ${paymentTerms.paymentTermsRaw}`);
+    }
     const header = {
         customerAccountNumber,
         vendorOrderNumber,
@@ -426,6 +455,8 @@ function parseJohnstoneInvoicePage(page) {
         shipToAddress: shipToAddress.trim(),
         fulfillmentMethod,
         shipCompletePolicy,
+        paymentTermsRaw: paymentTerms.paymentTermsRaw,
+        codOnly: paymentTerms.codOnly,
     };
     const lineSection = text.split(/LN\s+QNTY ORD/i)[1] ?? text;
     const lines = parseLineTableRows(lineSection, orderNotes);
