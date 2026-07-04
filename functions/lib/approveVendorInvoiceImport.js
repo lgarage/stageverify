@@ -39,6 +39,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if (importDoc.reviewStatus !== "pending_review") {
         throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);
     }
+    if (action === "approve" && importDoc.importStatus === "issue") {
+        throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
+    }
     const now = new Date().toISOString();
     if (action === "reject") {
         await getDb().runTransaction(async (tx) => {
@@ -97,6 +100,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         const fresh = freshImport.data();
         if (fresh.reviewStatus !== "pending_review") {
             throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
+        }
+        if (fresh.importStatus === "issue") {
+            throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
         }
         tx.update(importRef, {
             reviewStatus: "approved",

@@ -148,11 +148,52 @@ async function testRetryOnErrorOverwritesAtomically() {
   else fail("processingError cleared on successful retry", { error: after.processingError });
 }
 
+async function testZeroQueueParsedReprocessesOnRetry() {
+  console.log("\n3. Parsed doc with 0 queued invoices reprocesses on Refresh Now retry");
+  const gmailMessageId = "msg-zero-queue-backfill";
+  const docId = `inbound-${gmailMessageId}`;
+  const ts = new Date().toISOString();
+
+  await db.collection(COLLECTION).doc(docId).set({
+    id: docId,
+    gmailMessageId,
+    senderEmail: "billing@johnstonesupply.com",
+    subject: "Fwd: S/O Confirmation 4046362",
+    receivedAt: ts,
+    attachmentFilenames: ["so-4046362.pdf"],
+    pdfAttachments: [],
+    processingStatus: "parsed",
+    parseResult: {
+      importBatchId: "batch-old",
+      processed: 0,
+      needsReview: 0,
+      failed: 1,
+      total: 1,
+      reviewRecordIds: [],
+    },
+    reviewStatus: "pending_review",
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  const result = await processInboundGmailMessage("fake-token", gmailMessageId, {
+    retryOnError: true,
+    prefetchedMessage: NO_PDF_MESSAGE,
+  });
+
+  if (result.skipped === false) pass("zero-queue parsed doc not skipped on retryOnError");
+  else fail("zero-queue parsed doc not skipped on retryOnError", { skipped: result.skipped });
+
+  if (result.processingStatus === "no_pdf") pass("reprocess ran (no_pdf without attachment in fixture)");
+  else fail("reprocess ran", { status: result.processingStatus });
+}
+
 async function main() {
   console.log("test-retry-on-error-inbound (Firestore emulator)\n");
 
   await testErrorDocSkippedWithoutRetry();
   await testRetryOnErrorOverwritesAtomically();
+  await testZeroQueueParsedReprocessesOnRetry();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

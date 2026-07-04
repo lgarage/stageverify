@@ -233,6 +233,13 @@ export function InvoiceReviewPanel({
   };
 
   const header = selected?.parsedHeader;
+  const approveBlocked = selected?.importStatus === "issue";
+  const issueReason =
+    selected?.error?.trim() ||
+    (selected?.parseWarnings ?? []).filter(Boolean).join("; ") ||
+    (approveBlocked
+      ? "Parse issue — resolve before approving expected items."
+      : "");
 
   return (
     <div
@@ -301,7 +308,14 @@ export function InvoiceReviewPanel({
           {filteredImports.map((row) => {
             const active = row.id === selectedId;
             const invoiceNum = headerString(row.parsedHeader, "vendorInvoiceNumber");
+            const orderNum = headerString(row.parsedHeader, "vendorOrderNumber");
             const po = headerString(row.parsedHeader, "customerPoOrReference");
+            const titleLabel =
+              invoiceNum !== "—"
+                ? `Invoice ${invoiceNum}`
+                : orderNum !== "—"
+                  ? `S/O ${orderNum}`
+                  : row.pageId;
             return (
               <button
                 key={row.id}
@@ -319,7 +333,7 @@ export function InvoiceReviewPanel({
                 }}
               >
                 <div style={{ fontWeight: 700, color: NAVY, fontSize: 13 }}>
-                  Invoice {invoiceNum !== "—" ? invoiceNum : row.pageId}
+                  {titleLabel}
                 </div>
                 <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
                   {po}
@@ -372,11 +386,17 @@ export function InvoiceReviewPanel({
                     color: NAVY,
                   }}
                 >
-                  Invoice {headerString(header, "vendorInvoiceNumber")}
+                  {headerString(header, "vendorInvoiceNumber") !== "—"
+                    ? `Invoice ${headerString(header, "vendorInvoiceNumber")}`
+                    : headerString(header, "vendorOrderNumber") !== "—"
+                      ? `Sales order ${headerString(header, "vendorOrderNumber")}`
+                      : "Import review"}
                 </h2>
                 <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>
-                  Sales order {headerString(header, "vendorOrderNumber")} · Received{" "}
-                  {formatDate(selected.createdAt)}
+                  {headerString(header, "vendorInvoiceNumber") === "—" &&
+                  headerString(header, "vendorOrderNumber") !== "—"
+                    ? `S/O confirmation · Received ${formatDate(selected.createdAt)}`
+                    : `Sales order ${headerString(header, "vendorOrderNumber")} · Received ${formatDate(selected.createdAt)}`}
                 </p>
               </div>
               <StatusChip
@@ -384,6 +404,24 @@ export function InvoiceReviewPanel({
                 reviewStatus={selected.reviewStatus}
               />
             </div>
+
+            {approveBlocked && issueReason && (
+              <div
+                data-testid="invoice-review-issue-banner"
+                style={{
+                  marginBottom: 16,
+                  padding: "12px 14px",
+                  backgroundColor: "#fff7ed",
+                  border: "1px solid #fed7aa",
+                  borderRadius: 6,
+                  fontSize: 13,
+                  color: "#9a3412",
+                }}
+              >
+                <strong>Approve blocked — parse issue.</strong> {issueReason} Reject if
+                this is not a billable invoice, or wait for a valid invoice PDF.
+              </div>
+            )}
 
             <div
               style={{
@@ -558,7 +596,7 @@ export function InvoiceReviewPanel({
                   <button
                     type="button"
                     data-testid="invoice-review-approve"
-                    disabled={actionLoading || !selectedDeliveryId}
+                    disabled={actionLoading || !selectedDeliveryId || approveBlocked}
                     onClick={() => void handleApprove()}
                     style={{
                       backgroundColor: NAVY,
@@ -569,12 +607,24 @@ export function InvoiceReviewPanel({
                       fontWeight: 700,
                       fontSize: 14,
                       cursor:
-                        actionLoading || !selectedDeliveryId ? "not-allowed" : "pointer",
-                      opacity: actionLoading || !selectedDeliveryId ? 0.6 : 1,
+                        actionLoading || !selectedDeliveryId || approveBlocked
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity:
+                        actionLoading || !selectedDeliveryId || approveBlocked ? 0.6 : 1,
                     }}
                   >
                     Approve & apply expected items
                   </button>
+                  {approveBlocked && (
+                    <p
+                      data-testid="invoice-review-approve-blocked-copy"
+                      style={{ flexBasis: "100%", margin: 0, fontSize: 12, color: "#9a3412" }}
+                    >
+                      Approve is disabled until this import is valid for expected-order apply
+                      (e.g. missing Invoice # on an S/O confirmation).
+                    </p>
+                  )}
                   <button
                     type="button"
                     data-testid="invoice-review-reject"

@@ -15,7 +15,7 @@ function createImportBatchId(suffix) {
 /** Map Slice 1 processing result to batch outcome buckets. */
 function classifyBatchPageOutcome(result) {
     if (result.importStatus === "issue")
-        return "failed";
+        return "needs_review";
     if (result.duplicate)
         return "failed";
     if (result.reviewStatus === "rejected")

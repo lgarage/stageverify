@@ -212,6 +212,8 @@ No manual push subscription to Cloud Functions — Firebase Eventarc subscribes 
 
 **Inbound Gmail invoice ingest foundation (2026-07-04)** — M1+M2 code: PDF text extract (`pdf-parse`), `inboundEmailProcessing` + `vendorInvoiceImports` review queue, Johnstone parser wired review-only (no delivery writes). Callable inspect: `listInboundEmailProcessing`, `getInboundEmailProcessing`, `listVendorInvoiceImports`.
 
+**Option A — issue-import queue (2026-07-04)** — Parses with `importStatus: issue` (e.g. S/O confirmation missing Invoice #) now write `vendorInvoiceImports` review rows with parsed lines + issue reason; Approve blocked server-side + UI; Reject allowed. Refresh Now (`retryOnError`) backfills legacy parsed emails with 0 queued invoices. Verify: `verify:inbound-email-ingest`, `test:retry-on-error-inbound`, `verify:invoice-review`.
+
 **away-084 (2026-07-03)** — Mini-librarian phase 3: `PROJECT_STATUS/gotcha-map.json` maps task triggers to composer-orchestrator steps 6–8 (MODEL_DOSSIER index, § agent-lessons, USER_SCOPE_REJECTIONS). New `npm run context:gotcha -- --task "<…>"` CLI (JSON/markdown); validated in `away:validate`. Corrects prior mislabel — drawer UI work was never librarian scope. Verify: `away:validate`, `build`.
 
 **away-086 (2026-07-03)** — Mini-librarian phase 3: rotated QR confidence, session confidence, and outcome log tables from `MODEL_DOSSIER.md` to `archives/dossier-notes.md`; trimmed warm dossier to 134 lines; updated `dossier-index.json` line ranges. Verify: `dossier:slice --tag agent-lessons`, `away:validate`, `build`.

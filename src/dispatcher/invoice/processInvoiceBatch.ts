@@ -24,7 +24,7 @@ export function createImportBatchId(suffix?: string): string {
 export function classifyBatchPageOutcome(
   result: InvoiceProcessingResult,
 ): InvoiceBatchPageOutcome {
-  if (result.importStatus === "issue") return "failed";
+  if (result.importStatus === "issue") return "needs_review";
   if (result.duplicate) return "failed";
   if (result.reviewStatus === "rejected") return "failed";
   if (result.reviewStatus === "auto_processed") return "processed";

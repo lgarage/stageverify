@@ -57,6 +57,13 @@ export const approveVendorInvoiceImport = onCall(
       );
     }
 
+    if (action === "approve" && importDoc.importStatus === "issue") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cannot approve — import has parse issues. Reject or wait for a valid invoice.",
+      );
+    }
+
     const now = new Date().toISOString();
 
     if (action === "reject") {
@@ -143,6 +150,12 @@ export const approveVendorInvoiceImport = onCall(
         throw new HttpsError(
           "failed-precondition",
           `Import already ${fresh.reviewStatus}.`,
+        );
+      }
+      if (fresh.importStatus === "issue") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Cannot approve — import has parse issues. Reject or wait for a valid invoice.",
         );
       }
 

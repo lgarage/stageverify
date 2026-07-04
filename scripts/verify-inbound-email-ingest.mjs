@@ -80,6 +80,33 @@ assert("outcome needs_review", first?.outcome === "needs_review");
 assert("no auto-processed in summary", batch.summary.processed === 0);
 assert("needsReview > 0", batch.summary.needsReview >= 1);
 
+console.log("\n3b. S/O confirmation without Invoice # queues for review (issue status)");
+const SO_CONFIRMATION_TEXT = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4046362
+Customer P/O #: PLANET FITNESS
+Order Date: 06/23/2026
+Buyer: TEST BUYER
+Ship Via: TRUCK DELIVE
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 2 0 L46-668 THERMOSTAT PROGRAMMABLE
+`.trim();
+const soBatch = parseInboundInvoiceText(SO_CONFIRMATION_TEXT, {
+  importBatchId: "batch-verify-so-4046362",
+  gmailMessageId: "msg-fixture-so-4046362",
+});
+const soFirst = soBatch.results[0];
+assert("S/O batch has results", soBatch.results.length >= 1);
+assert("S/O importStatus issue", soFirst?.processing?.importStatus === "issue");
+assert("S/O outcome needs_review", soFirst?.outcome === "needs_review");
+assert("S/O missing invoice warning", (soFirst?.processing?.parsed.parseWarnings ?? []).some((w) => w.includes("missing vendorInvoiceNumber")));
+assert("S/O needsReview counted", soBatch.summary.needsReview >= 1);
+assert("S/O not in failed bucket", soBatch.summary.failed === 0 || soBatch.summary.needsReview >= 1);
+const soLines = sanitizeParsedLines(soFirst?.processing?.parsed.lines ?? []);
+assert("S/O parsed lines preserved", soLines.length > 0);
+
 console.log("\n4. parsedLines persistence shape (Table B)");
 const rawLines = first?.processing?.parsed.lines ?? [];
 const parsedLines = sanitizeParsedLines(rawLines);

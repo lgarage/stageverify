@@ -212,6 +212,37 @@ if (pickupComplete) {
   );
 }
 
+const SO_ISSUE_TEXT = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4046362
+Customer P/O #: TEST PO
+Order Date: 06/23/2026
+Buyer: TEST
+Ship Via: TRUCK DELIVE
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 THERMOSTAT
+`.trim();
+const soIssueResult = processInvoicePage(
+  {
+    pageId: "inv-so-4046362",
+    importBatchId: "batch-classify-so",
+    pageIndexInBatch: 1,
+    extractedText: SO_ISSUE_TEXT,
+  },
+  { byPageId: new Map(), byFingerprint: new Map() },
+);
+record(
+  "classify: missing invoice # needs review",
+  classifyBatchPageOutcome(soIssueResult) === "needs_review",
+  classifyBatchPageOutcome(soIssueResult),
+);
+record(
+  "classify: missing invoice # importStatus issue",
+  soIssueResult.importStatus === "issue",
+  soIssueResult.importStatus,
+);
+
 // --- Concatenated path matches direct batch ---
 
 const fromConcat = processInvoiceBatch(

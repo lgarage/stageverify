@@ -64,6 +64,33 @@ export interface ProcessInboundGmailMessageOptions {
   retryOnError?: boolean;
 }
 
+function issueReviewError(
+  proc: NonNullable<
+    ReturnType<typeof parseInboundInvoiceText>["results"][number]["processing"]
+  >,
+  rowError?: string,
+): string | undefined {
+  if (rowError?.trim()) return rowError.trim();
+  if (proc.importStatus !== "issue") return undefined;
+  const warnings = proc.parsed.parseWarnings.filter(Boolean);
+  if (warnings.length > 0) return warnings.join("; ");
+  return "Parse issue — missing required invoice fields for expected-order import.";
+}
+
+function shouldReprocessExistingDoc(
+  data: InboundEmailProcessingDoc,
+  options?: ProcessInboundGmailMessageOptions,
+): boolean {
+  if (!options?.retryOnError) return false;
+  if (data.processingStatus === "error") return true;
+  if (data.processingStatus !== "parsed") return false;
+  const reviewIds = data.parseResult?.reviewRecordIds ?? [];
+  const total = data.parseResult?.total ?? 0;
+  const failed = data.parseResult?.failed ?? 0;
+  // Backfill legacy parses that skipped issue rows (0 queued despite failed pages).
+  return total > 0 && reviewIds.length === 0 && failed > 0;
+}
+
 async function writeReviewRecords(
   db: admin.firestore.Firestore,
   inboundDoc: InboundEmailProcessingDoc,
@@ -100,7 +127,7 @@ async function writeReviewRecords(
       parseWarnings: proc.parsed.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: "needs_review",
-      error: row.error,
+      error: issueReviewError(proc, row.error),
       createdAt: now,
       updatedAt: now,
     };
@@ -124,7 +151,7 @@ export async function processInboundGmailMessage(
 
   if (existing.exists) {
     const data = existing.data() as InboundEmailProcessingDoc;
-    if (!(options?.retryOnError && data.processingStatus === "error")) {
+    if (!shouldReprocessExistingDoc(data, options)) {
       return {
         docId,
         gmailMessageId,
@@ -134,7 +161,7 @@ export async function processInboundGmailMessage(
         skippedProcessingStatus: data.processingStatus,
       };
     }
-    // retryOnError: fall through — processing placeholder below overwrites atomically (no delete)
+    // retryOnError / zero-queue backfill: fall through — overwrite atomically (no delete)
   }
 
   const now = new Date().toISOString();

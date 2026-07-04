@@ -34,6 +34,29 @@ function sanitizeSubject(subject) {
 function sanitizeSender(sender) {
     return sender.slice(0, MAX_SENDER_LEN).toLowerCase();
 }
+function issueReviewError(proc, rowError) {
+    if (rowError?.trim())
+        return rowError.trim();
+    if (proc.importStatus !== "issue")
+        return undefined;
+    const warnings = proc.parsed.parseWarnings.filter(Boolean);
+    if (warnings.length > 0)
+        return warnings.join("; ");
+    return "Parse issue — missing required invoice fields for expected-order import.";
+}
+function shouldReprocessExistingDoc(data, options) {
+    if (!options?.retryOnError)
+        return false;
+    if (data.processingStatus === "error")
+        return true;
+    if (data.processingStatus !== "parsed")
+        return false;
+    const reviewIds = data.parseResult?.reviewRecordIds ?? [];
+    const total = data.parseResult?.total ?? 0;
+    const failed = data.parseResult?.failed ?? 0;
+    // Backfill legacy parses that skipped issue rows (0 queued despite failed pages).
+    return total > 0 && reviewIds.length === 0 && failed > 0;
+}
 async function writeReviewRecords(db, inboundDoc, batchResult) {
     const reviewIds = [];
     const now = new Date().toISOString();
@@ -64,7 +87,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             parseWarnings: proc.parsed.parseWarnings,
             orderNotes: proc.parsed.orderNotes,
             outcome: "needs_review",
-            error: row.error,
+            error: issueReviewError(proc, row.error),
             createdAt: now,
             updatedAt: now,
         };
@@ -80,7 +103,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
     const existing = await ref.get();
     if (existing.exists) {
         const data = existing.data();
-        if (!(options?.retryOnError && data.processingStatus === "error")) {
+        if (!shouldReprocessExistingDoc(data, options)) {
             return {
                 docId,
                 gmailMessageId,
@@ -90,7 +113,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
                 skippedProcessingStatus: data.processingStatus,
             };
         }
-        // retryOnError: fall through — processing placeholder below overwrites atomically (no delete)
+        // retryOnError / zero-queue backfill: fall through — overwrite atomically (no delete)
     }
     const now = new Date().toISOString();
     await ref.set({
