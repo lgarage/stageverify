@@ -194,11 +194,11 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 Use Sonnet Task subagent **only** when:
 - `backend-write-critical` security **verifier** (step 2) before push
 - Architecture unclear after synthesis + one Composer pass
-- **Second failed fix** after `MODEL_DOSSIER.md` § Composer without Sonnet block
+- **Third failed fix on the same task** — after Composer self-trace on 2nd fail (`MODEL_DOSSIER.md` § Composer without Sonnet); Sonnet **diagnoses only** — no commits, no file edits, no ship loop; Composer implements after findings (`composer-orchestrator.mdc` § **3-fail diagnose-only rule**)
 - DB/schema design with competing approaches
-- **confStart < 70** or Dan says "still broken" without new hypothesis
+- **confStart < 70** or Dan says "still broken" without new hypothesis (after 2nd-fail self-trace)
 
-**Do not** dispatch Sonnet for routine T0/T1/T2 implementation, QR camera tweaks before self-trace, or parallel scouts.
+**Do not** dispatch Sonnet for routine T0/T1/T2 implementation, QR camera tweaks before 2nd-fail self-trace, or parallel scouts. **Do not** let Sonnet implement on diagnosis escalations — Composer owns code + verify + ship.
 
 ## Task tool conventions
 

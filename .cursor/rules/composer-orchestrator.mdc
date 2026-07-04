@@ -180,15 +180,26 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 ## Escalation Triggers
 
+### 3-fail diagnose-only rule (Dan 2026-07-03 — authoritative)
+
+When **Composer fails 3 times on the same task**, escalate to **Sonnet 4.6** via Task subagent so Sonnet can help figure out **why** the task keeps failing (diagnosis, root cause, hypothesis).
+
+- **Only Composer** updates code, runs verify, and completes the ship loop
+- Sonnet = **diagnostic reviewer only** — no commits, no file edits, no ship loop
+- After Sonnet returns findings, **Composer** implements the fix + verify + ship
+
+**Counting failures:** three implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate and remain mandatory before push — not counted toward this threshold.
+
 ### Escalate to Sonnet 4.6 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
-- The task involves non-obvious cross-file dependencies requiring deep architectural reasoning **after** you posted `MODEL_DOSSIER.md` § **Composer without Sonnet** symptom trace
+- **Third failed fix on the same task** — per **3-fail diagnose-only rule** above (after Composer self-trace on 2nd fail)
+- The task involves non-obvious cross-file dependencies requiring deep architectural reasoning **after** Composer self-trace and still stuck
 - You are genuinely unsure whether a change has security or data integrity implications
 
-**Do not escalate Sonnet for QR/scan/slow-load bugs** until Composer posts the symptom block (appear vs tap; grep `applyHashFromScannedQr`) in the **same session** — Dan should not need Sonnet for diagnosis Composer can grep.
+**Do not escalate Sonnet for QR/scan/slow-load bugs** until Composer posts the symptom block (appear vs tap; grep `applyHashFromScannedQr`) on the **2nd failed fix** — Dan should not need Sonnet for diagnosis Composer can grep before attempt 3.
 
-### Composer self-trace (mandatory on 2nd failed fix — before Sonnet)
-Read `MODEL_DOSSIER.md` tag `composer-trace`. Post symptom column (a|b|c), appear vs tap hooks, one hypothesis, one next change. Then implement once + Playwright. Downgrade confidence if Dan says still broken.
+### Composer self-trace (mandatory on 2nd failed fix — before 3rd attempt or Sonnet)
+Read `MODEL_DOSSIER.md` tag `composer-trace`. Post symptom column (a|b|c), appear vs tap hooks, one hypothesis, one next change. Then implement once + Playwright. Downgrade confidence if Dan says still broken. On **3rd failure** on the same task, dispatch Sonnet for diagnosis only — Composer implements after Sonnet returns; Sonnet must not edit files.
 
 ### Escalation triggers — Opus 4.6 (locked fallback only)
 Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review returns a HIGH risk finding that Composer cannot resolve. Do not dispatch Opus for the implementation of T3 work — Composer handles that inline during the trial.
