@@ -15,6 +15,14 @@
         { "fieldPath": "deliveryOrderId", "order": "ASCENDING" },
         { "fieldPath": "clientRequestId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "vendorInvoiceImports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reviewStatus", "order": "ASCENDING" },
+        { "fieldPath": "importStatus", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
