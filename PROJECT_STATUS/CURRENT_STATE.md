@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Johnstone alphanumeric Invoice # parser (P411190 / S/O 4046362)** — tabular pdf.js header extracts `P411190`; wide-row Ship Via → Fond du Lac; issue→pending when Invoice # present; Refresh Now reprocesses cached text
+- Last shipped: **Refresh Now reparse for stale issue imports** — manual sync re-parses cached text when `vendorInvoiceImports` has `pending_review`+`issue`; fixes S/O 4046362 P411190 after parser 5d1d224
+- Also shipped: **Johnstone alphanumeric Invoice # parser (P411190 / S/O 4046362)** — tabular pdf.js header extracts `P411190`; wide-row Ship Via → Fond du Lac
 - Also shipped: **orchestrator/indexer hygiene** (standalone chore) — away:validate green; dossier anchors; queue archive 092–094
 - Also shipped: **Invoice Review inspect modal + Johnstone line parser** — inspect modal simplified; orderNotes; 5 product lines from S/O 4046362
 - Also shipped: **away-100** — mini-librarian indexer hygiene; context-index drift, MEMORY trim, packet dedup

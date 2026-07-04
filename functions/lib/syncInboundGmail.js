@@ -14,6 +14,7 @@ const scheduler_1 = require("firebase-functions/v2/scheduler");
 const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
 const processInboundGmailMessage_1 = require("./inboundEmail/processInboundGmailMessage");
+const REVIEW_COLLECTION = "vendorInvoiceImports";
 const INBOUND_COLLECTION = "inboundEmailProcessing";
 const PROVIDER_ID = "gmail";
 function getDb() {
@@ -27,7 +28,8 @@ function secretsRef(db) {
 }
 async function collectRetryOnErrorMessageIds(db) {
     const ids = new Set();
-    const [errorSnap, parsedSnap] = await Promise.all([
+    const reparseStaleReviewIds = new Set();
+    const [errorSnap, parsedSnap, issueReviewSnap] = await Promise.all([
         db
             .collection(INBOUND_COLLECTION)
             .where("processingStatus", "==", "error")
@@ -37,6 +39,12 @@ async function collectRetryOnErrorMessageIds(db) {
             .collection(INBOUND_COLLECTION)
             .where("processingStatus", "==", "parsed")
             .limit(100)
+            .get(),
+        db
+            .collection(REVIEW_COLLECTION)
+            .where("reviewStatus", "==", "pending_review")
+            .where("importStatus", "==", "issue")
+            .limit(50)
             .get(),
     ]);
     for (const doc of errorSnap.docs) {
@@ -50,7 +58,14 @@ async function collectRetryOnErrorMessageIds(db) {
             ids.add(data.gmailMessageId);
         }
     }
-    return [...ids];
+    for (const doc of issueReviewSnap.docs) {
+        const gmailMessageId = doc.data().gmailMessageId;
+        if (gmailMessageId) {
+            ids.add(gmailMessageId);
+            reparseStaleReviewIds.add(gmailMessageId);
+        }
+    }
+    return { messageIds: [...ids], reparseStaleReviewIds };
 }
 async function loadRefreshToken(db) {
     const conn = await connectionRef(db).get();
@@ -129,9 +144,11 @@ async function runInboundGmailSync(options) {
         if (profile.historyId)
             latestHistoryId = profile.historyId;
     }
+    let reparseStaleReviewIds = new Set();
     if (options?.retryOnError) {
-        const backfillIds = await collectRetryOnErrorMessageIds(db);
-        messageIds = [...new Set([...messageIds, ...backfillIds])];
+        const backfill = await collectRetryOnErrorMessageIds(db);
+        reparseStaleReviewIds = backfill.reparseStaleReviewIds;
+        messageIds = [...new Set([...messageIds, ...backfill.messageIds])];
     }
     let processed = 0;
     let skipped = 0;
@@ -144,6 +161,7 @@ async function runInboundGmailSync(options) {
         try {
             const result = await (0, processInboundGmailMessage_1.processInboundGmailMessage)(accessToken, messageId, {
                 retryOnError: options?.retryOnError,
+                reparseStaleReviews: reparseStaleReviewIds.has(messageId),
             });
             if (result.skipped) {
                 skipped += 1;

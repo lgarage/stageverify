@@ -16,7 +16,9 @@ import {
   listRecentInboxMessageIds,
 } from "./gmailInbound";
 import { processInboundGmailMessage, shouldReprocessExistingDoc } from "./inboundEmail/processInboundGmailMessage";
-import type { InboundEmailProcessingDoc } from "./inboundEmail/types";
+import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboundEmail/types";
+
+const REVIEW_COLLECTION = "vendorInvoiceImports";
 
 const INBOUND_COLLECTION = "inboundEmailProcessing";
 
@@ -33,12 +35,19 @@ function secretsRef(db: admin.firestore.Firestore) {
   return db.collection("emailProviderSecrets").doc(PROVIDER_ID);
 }
 
+export interface RetryOnErrorBackfillPlan {
+  messageIds: string[];
+  /** Gmail message ids with pending_review issue imports — eligible for cached-text reparse. */
+  reparseStaleReviewIds: Set<string>;
+}
+
 async function collectRetryOnErrorMessageIds(
   db: admin.firestore.Firestore,
-): Promise<string[]> {
+): Promise<RetryOnErrorBackfillPlan> {
   const ids = new Set<string>();
+  const reparseStaleReviewIds = new Set<string>();
 
-  const [errorSnap, parsedSnap] = await Promise.all([
+  const [errorSnap, parsedSnap, issueReviewSnap] = await Promise.all([
     db
       .collection(INBOUND_COLLECTION)
       .where("processingStatus", "==", "error")
@@ -48,6 +57,12 @@ async function collectRetryOnErrorMessageIds(
       .collection(INBOUND_COLLECTION)
       .where("processingStatus", "==", "parsed")
       .limit(100)
+      .get(),
+    db
+      .collection(REVIEW_COLLECTION)
+      .where("reviewStatus", "==", "pending_review")
+      .where("importStatus", "==", "issue")
+      .limit(50)
       .get(),
   ]);
 
@@ -63,7 +78,15 @@ async function collectRetryOnErrorMessageIds(
     }
   }
 
-  return [...ids];
+  for (const doc of issueReviewSnap.docs) {
+    const gmailMessageId = (doc.data() as VendorInvoiceImportDoc).gmailMessageId;
+    if (gmailMessageId) {
+      ids.add(gmailMessageId);
+      reparseStaleReviewIds.add(gmailMessageId);
+    }
+  }
+
+  return { messageIds: [...ids], reparseStaleReviewIds };
 }
 
 interface InboundSyncState {
@@ -181,9 +204,11 @@ export async function runInboundGmailSync(
     if (profile.historyId) latestHistoryId = profile.historyId;
   }
 
+  let reparseStaleReviewIds = new Set<string>();
   if (options?.retryOnError) {
-    const backfillIds = await collectRetryOnErrorMessageIds(db);
-    messageIds = [...new Set([...messageIds, ...backfillIds])];
+    const backfill = await collectRetryOnErrorMessageIds(db);
+    reparseStaleReviewIds = backfill.reparseStaleReviewIds;
+    messageIds = [...new Set([...messageIds, ...backfill.messageIds])];
   }
 
   let processed = 0;
@@ -198,6 +223,7 @@ export async function runInboundGmailSync(
     try {
       const result = await processInboundGmailMessage(accessToken, messageId, {
         retryOnError: options?.retryOnError,
+        reparseStaleReviews: reparseStaleReviewIds.has(messageId),
       });
       if (result.skipped) {
         skipped += 1;

@@ -61,7 +61,16 @@ function shouldReprocessExistingDoc(data, options) {
     const reviewIds = data.parseResult?.reviewRecordIds ?? [];
     const total = data.parseResult?.total ?? 0;
     // Backfill any parsed email with pages but zero queued review rows.
-    return total > 0 && reviewIds.length === 0;
+    if (total > 0 && reviewIds.length === 0)
+        return true;
+    // Re-parse cached clean text when review rows are stale issue imports (Refresh Now backfill).
+    if (options?.reparseStaleReviews &&
+        cached &&
+        !(0, normalizePdfText_1.hasCustomFontPdfEncoding)(cached) &&
+        reviewIds.length > 0) {
+        return true;
+    }
+    return false;
 }
 async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, gmailMessageId) {
     const db = getDb();

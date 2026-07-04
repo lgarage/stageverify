@@ -67,6 +67,8 @@ export interface ProcessInboundGmailMessageOptions {
   prefetchedMessage?: GmailMessage;
   /** Manual sync: re-run messages previously marked error. */
   retryOnError?: boolean;
+  /** Refresh Now: re-parse cached text for pending_review issue imports (parser/extractor improved). */
+  reparseStaleReviews?: boolean;
 }
 
 function issueReviewError(
@@ -95,7 +97,17 @@ export function shouldReprocessExistingDoc(
   const reviewIds = data.parseResult?.reviewRecordIds ?? [];
   const total = data.parseResult?.total ?? 0;
   // Backfill any parsed email with pages but zero queued review rows.
-  return total > 0 && reviewIds.length === 0;
+  if (total > 0 && reviewIds.length === 0) return true;
+  // Re-parse cached clean text when review rows are stale issue imports (Refresh Now backfill).
+  if (
+    options?.reparseStaleReviews &&
+    cached &&
+    !hasCustomFontPdfEncoding(cached) &&
+    reviewIds.length > 0
+  ) {
+    return true;
+  }
+  return false;
 }
 
 async function finalizeParsedInboundDoc(

@@ -252,6 +252,142 @@ async function testCachedTextBackfillQueuesIssueImport() {
   else fail("issue importStatus on review row", { status: reviewData?.importStatus });
 }
 
+const P411190_CACHED_TEXT = `
+SUSPENDED
+Page 1/2
+Customer # Order Date Sales Order # Buyer Customer P/O # Ship Via Salesman
+0008745 01/07/2026 4046362 DAN DAY blackduck hartfo Fond du Lac 101
+Customer #
+0008745
+Sales Order #
+4046362
+Customer P/O #
+blackduck hartfo
+Order Date
+01/07/2026
+Buyer
+DAN DAY
+Invoice # Invoice Date Ship Date Freight Terms Job Number Terms
+P411190 01/08/2026 PREPAID& ADD *****COD ONLY*****
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT UOM LIST NET EXTENSION
+ORD SHI B/O NUMBER DESCRIPTION PRICE PRICE
+1 4 4 0 L97-525 80055.021625 16X25X2 FILTER EA 18.99 8.74 $34.96
+2 32 32 0 L97-532 80055.022025 20X25X2 FILTER EA 22.49 8.05 $257.60
+3 2 2 0 L63-264 ZLP20352 20X35X2 MERV EA 89.00 26.94 $53.88
+4 1 1 0 P33-332 2351336 BELT COGGED AX32 EA 36.49 16.10 $16.10
+5 4 4 0 P34-544 2351419 BELT COGGED BX44 EA 65.00 29.90 $119.60
+`.trim();
+
+async function testStaleIssueImportReparseWithInvoiceNumber() {
+  console.log("\n5. Stale issue import re-parses to P411190 on Refresh Now");
+  const gmailMessageId = "19f2d62d6949a928";
+  const docId = `inbound-${gmailMessageId}`;
+  const reviewId = `vii-${gmailMessageId}-page-0`;
+  const ts = new Date().toISOString();
+
+  await db.collection(COLLECTION).doc(docId).set({
+    id: docId,
+    gmailMessageId,
+    senderEmail: "billing@johnstonesupply.com",
+    subject: "Fwd: S/O Confirmation 4046362 Cust P/O blackduck hartford",
+    receivedAt: ts,
+    attachmentFilenames: ["JS_Invoice_P411190_54632502.PDF"],
+    pdfAttachments: [],
+    combinedExtractedText: P411190_CACHED_TEXT,
+    processingStatus: "parsed",
+    parseResult: {
+      importBatchId: "batch-old",
+      processed: 0,
+      needsReview: 1,
+      failed: 0,
+      total: 1,
+      reviewRecordIds: [reviewId],
+    },
+    reviewStatus: "pending_review",
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  await db.collection("vendorInvoiceImports").doc(reviewId).set({
+    id: reviewId,
+    inboundEmailProcessingId: docId,
+    gmailMessageId,
+    importBatchId: "batch-old",
+    pageId: "page-0",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "issue",
+    confidenceTier: "low",
+    confidenceScore: 40,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: {
+      vendorOrderNumber: "4046362",
+      vendorInvoiceNumber: "",
+      shipViaRaw: "DAN DAY",
+    },
+    parsedLines: [],
+    parsedLineCount: 0,
+    parseWarnings: ["missing vendorInvoiceNumber"],
+    orderNotes: [],
+    outcome: "needs_review",
+    error: "missing vendorInvoiceNumber",
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  const { shouldReprocessExistingDoc } = require("../functions/lib/inboundEmail/processInboundGmailMessage.js");
+  const inboundData = await readDoc(docId);
+  if (
+    shouldReprocessExistingDoc(inboundData, {
+      retryOnError: true,
+      reparseStaleReviews: true,
+    })
+  ) {
+    pass("shouldReprocessExistingDoc true with reparseStaleReviews");
+  } else {
+    fail("shouldReprocessExistingDoc true with reparseStaleReviews");
+  }
+
+  if (
+    !shouldReprocessExistingDoc(inboundData, {
+      retryOnError: true,
+      reparseStaleReviews: false,
+    })
+  ) {
+    pass("shouldReprocessExistingDoc false without reparseStaleReviews");
+  } else {
+    fail("shouldReprocessExistingDoc false without reparseStaleReviews");
+  }
+
+  const result = await processInboundGmailMessage("fake-token", gmailMessageId, {
+    retryOnError: true,
+    reparseStaleReviews: true,
+  });
+
+  if (result.skipped === false) pass("stale issue import not skipped on reparseStaleReviews");
+  else fail("stale issue import not skipped on reparseStaleReviews", { skipped: result.skipped });
+
+  const reviewSnap = await db.collection("vendorInvoiceImports").doc(reviewId).get();
+  const reviewData = reviewSnap.data();
+  const header = reviewData?.parsedHeader ?? {};
+
+  if (header.vendorInvoiceNumber === "P411190") pass("vendorInvoiceNumber updated to P411190");
+  else fail("vendorInvoiceNumber updated to P411190", { inv: header.vendorInvoiceNumber });
+
+  if (header.shipViaRaw === "Fond du Lac") pass("shipViaRaw updated to Fond du Lac");
+  else fail("shipViaRaw updated to Fond du Lac", { shipVia: header.shipViaRaw });
+
+  if (reviewData?.importStatus === "pending") pass("importStatus upgraded to pending");
+  else fail("importStatus upgraded to pending", { status: reviewData?.importStatus });
+
+  if (!(reviewData?.parseWarnings ?? []).some((w) => w.includes("missing vendorInvoiceNumber"))) {
+    pass("missing vendorInvoiceNumber warning cleared");
+  } else {
+    fail("missing vendorInvoiceNumber warning cleared", { warnings: reviewData?.parseWarnings });
+  }
+}
+
 async function main() {
   console.log("test-retry-on-error-inbound (Firestore emulator)\n");
 
@@ -259,6 +395,7 @@ async function main() {
   await testRetryOnErrorOverwritesAtomically();
   await testZeroQueueParsedReprocessesOnRetry();
   await testCachedTextBackfillQueuesIssueImport();
+  await testStaleIssueImportReparseWithInvoiceNumber();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
