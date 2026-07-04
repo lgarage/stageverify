@@ -26,7 +26,7 @@ Do not hesitate on normal frontend/UI ship; do not auto-deploy backend or securi
 2. `git status` — stage **only** task-related files.
 3. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
 4. `git push origin main` — must succeed.
-5. **`npm run deploy`** — GitHub Pages (`https://lgarage.github.io/stageverify`); must succeed or report failure clearly.
+5. **`npm run deploy`** — GitHub Pages (`https://lgarage.github.io/stageverify`); must succeed or report failure clearly. Deploy script must confirm Pages build status **`built`** (not just gh-pages branch push).
 6. **Production verification** — after deploy, run matching prod checks (see below). If gh-pages is not yet serving the new bundle, wait **15 seconds** and retry once.
 7. **Report** — live URL `https://lgarage.github.io/stageverify` and deployed commit hash (`git rev-parse HEAD` after push).
 

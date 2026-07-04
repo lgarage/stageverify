@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
+    "deploy": "node scripts/deploy-gh-pages.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "verify:pickup": "node scripts/reset-pickup-verify-fixture.mjs && npx tsx scripts/seed-pickup-verify-readiness.mjs && node scripts/verify-pickup-portal.mjs",

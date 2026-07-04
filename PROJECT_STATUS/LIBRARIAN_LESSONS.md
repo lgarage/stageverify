@@ -7,6 +7,7 @@
 1. **Deploy + prod verify are one gate.** gh-pages can serve a stale bundle while local verify PASS — always `npm run deploy` then prod scripts after UI ship.
 2. **Windows prod verify:** use `cmd /c "set STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify&& npm run verify:…"` — Unix `VAR=… cmd` prefix fails in PowerShell.
 3. **Do not say "fixed" without Playwright.** Build alone is insufficient; interactive flows need verify scripts. Detail: dossier § agent-lessons.
+- gh-pages branch push ≠ live: npm run deploy must wait for GitHub Pages build status built (legacy build can error after push succeeds).
 
 ## Dispatcher UI
 

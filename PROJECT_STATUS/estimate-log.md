@@ -102,6 +102,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 14 | librarian-lessons-ssot | 2026-07-03T21:49:00-05:00 | 2026-07-03T21:58:00-05:00 | 10 | 9 | docs-update | status-sync | n | LIBRARIAN_LESSONS SSOT + gotcha triggers + MEMORY router; CURRENT_STATE away-NNN fix; away:validate PASS |
 | 15 | settings-gmail-mailbox-ui | 2026-07-03T23:21:00-05:00 | 2026-07-03T23:38:00-05:00 | 35 | 17 | ui-component | settings-email | y | unified Gmail Mailbox when connected; verify:email-oauth-connect + settings-staging PASS |
 | 16 | estimate-15-audit | 2026-07-03T23:24:00-05:00 | 2026-07-03T23:45:00-05:00 | 35 | 21 | docs-update | process | n | estimate:audit CLI + 15-row workflow; away:validate warn; first audit --apply |
+| 17 | deploy-pages-poll-gate | unknown | 2026-07-04T00:35:00-05:00 | 35 | unknown | scripts-only | pipeline-hook | y | deploy-gh-pages.mjs polls Pages build + live bundle; ship-loop + lesson; verify:email-oauth-connect:prod PASS |
 
 ## Audit every 15 rows (mandatory)
 

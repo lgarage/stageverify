@@ -8,59 +8,143 @@
       "title": "Ship / verify",
       "anchor": "## Ship / verify",
       "startLine": 5,
-      "endLine": 9
+      "endLine": 10
     },
     {
       "id": "dispatcher-ui",
       "title": "Dispatcher UI",
       "anchor": "## Dispatcher UI",
-      "startLine": 11,
-      "endLine": 14
+      "startLine": 12,
+      "endLine": 15
     },
     {
       "id": "invoice-parser",
       "title": "Invoice / parser",
       "anchor": "## Invoice / parser",
-      "startLine": 16,
-      "endLine": 18
+      "startLine": 17,
+      "endLine": 19
     },
     {
       "id": "process-agents",
       "title": "Process / agents",
       "anchor": "## Process / agents",
-      "startLine": 20,
-      "endLine": 25
+      "startLine": 21,
+      "endLine": 26
     },
     {
       "id": "timing-pointer",
       "title": "Timing (pointer only)",
       "anchor": "## Timing (pointer only)",
-      "startLine": 27,
-      "endLine": 29
+      "startLine": 28,
+      "endLine": 30
     }
   ],
   "entries": [
-    { "type": "verify-only", "subtype": "gate", "sectionId": "ship-verify" },
-    { "type": "verify-only", "subtype": "playwright-route", "sectionId": "ship-verify" },
-    { "type": "verify-only", "subtype": "prod-deploy", "sectionId": "ship-verify" },
-    { "type": "scripts-only", "subtype": "cli-new", "sectionId": "process-agents" },
-    { "type": "scripts-only", "subtype": "pipeline-hook", "sectionId": "process-agents" },
-    { "type": "scripts-only", "subtype": "test-harness", "sectionId": "ship-verify" },
-    { "type": "docs-update", "subtype": "archive-trim", "sectionId": "process-agents" },
-    { "type": "docs-update", "subtype": "status-sync", "sectionId": "process-agents" },
-    { "type": "docs-update", "subtype": "rules-only", "sectionId": "process-agents" },
-    { "type": "service-logic", "subtype": "parser-slice", "sectionId": "invoice-parser" },
-    { "type": "service-logic", "subtype": "parser-rule-fix", "sectionId": "invoice-parser" },
-    { "type": "service-logic", "subtype": "parser-batch", "sectionId": "invoice-parser" },
-    { "type": "service-logic", "subtype": "firestore-read", "sectionId": "dispatcher-ui" },
-    { "type": "multi-file", "subtype": "parser+docs+rules", "sectionId": "invoice-parser" },
-    { "type": "multi-file", "subtype": "cross-domain", "sectionId": "process-agents" },
-    { "type": "ui-component", "subtype": "table-action-row", "sectionId": "dispatcher-ui" },
-    { "type": "ui-component", "subtype": "table-rule-tighten", "sectionId": "dispatcher-ui" },
-    { "type": "ui-component", "subtype": "drawer-section", "sectionId": "dispatcher-ui" },
-    { "type": "ui-component", "subtype": "drawer-copy", "sectionId": "dispatcher-ui" },
-    { "type": "ui-component", "subtype": "modal-copy", "sectionId": "dispatcher-ui" },
-    { "type": "ui-component", "subtype": "layout-style", "sectionId": "dispatcher-ui" }
+    {
+      "type": "verify-only",
+      "subtype": "gate",
+      "sectionId": "ship-verify"
+    },
+    {
+      "type": "verify-only",
+      "subtype": "playwright-route",
+      "sectionId": "ship-verify"
+    },
+    {
+      "type": "verify-only",
+      "subtype": "prod-deploy",
+      "sectionId": "ship-verify"
+    },
+    {
+      "type": "scripts-only",
+      "subtype": "cli-new",
+      "sectionId": "process-agents"
+    },
+    {
+      "type": "scripts-only",
+      "subtype": "pipeline-hook",
+      "sectionId": "process-agents"
+    },
+    {
+      "type": "scripts-only",
+      "subtype": "test-harness",
+      "sectionId": "ship-verify"
+    },
+    {
+      "type": "docs-update",
+      "subtype": "archive-trim",
+      "sectionId": "process-agents"
+    },
+    {
+      "type": "docs-update",
+      "subtype": "status-sync",
+      "sectionId": "process-agents"
+    },
+    {
+      "type": "docs-update",
+      "subtype": "rules-only",
+      "sectionId": "process-agents"
+    },
+    {
+      "type": "service-logic",
+      "subtype": "parser-slice",
+      "sectionId": "invoice-parser"
+    },
+    {
+      "type": "service-logic",
+      "subtype": "parser-rule-fix",
+      "sectionId": "invoice-parser"
+    },
+    {
+      "type": "service-logic",
+      "subtype": "parser-batch",
+      "sectionId": "invoice-parser"
+    },
+    {
+      "type": "service-logic",
+      "subtype": "firestore-read",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "multi-file",
+      "subtype": "parser+docs+rules",
+      "sectionId": "invoice-parser"
+    },
+    {
+      "type": "multi-file",
+      "subtype": "cross-domain",
+      "sectionId": "process-agents"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "table-action-row",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "table-rule-tighten",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "drawer-section",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "drawer-copy",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "modal-copy",
+      "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "ui-component",
+      "subtype": "layout-style",
+      "sectionId": "dispatcher-ui"
+    }
   ],
   "typeDefaults": {
     "verify-only": "ship-verify",
