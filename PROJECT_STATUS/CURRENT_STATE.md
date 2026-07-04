@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-090** — Copy Pickup Information enabled for unreceived orders with job/vendor/PO info; richer clipboard summary
+- Last shipped: **reset-pickup-link-copy** — drawer action label **Reset Pickup Link** (was Revoke Pickup Link); behavior unchanged
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

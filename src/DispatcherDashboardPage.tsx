@@ -2828,7 +2828,7 @@ function DetailContent({
                     mutationLoading || tokenBusy,
                   )}
                 >
-                  Revoke Pickup Link
+                  Reset Pickup Link
                 </button>
               ) : null}
             </div>

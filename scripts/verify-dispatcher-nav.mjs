@@ -229,7 +229,7 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
 
   const revokeBtn = page.getByTestId("revoke-pickup-link");
   if (!(await revokeBtn.isVisible().catch(() => false))) {
-    throw new Error("Expected Revoke Pickup Link after copy generated active token");
+    throw new Error("Expected Reset Pickup Link after copy generated active token");
   }
   await revokeBtn.click();
   await page.getByTestId("revoke-pickup-link").waitFor({ state: "hidden", timeout: 15_000 });
