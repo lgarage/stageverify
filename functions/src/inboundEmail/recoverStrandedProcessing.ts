@@ -1,10 +1,15 @@
 /**
  * Recover inboundEmailProcessing docs stuck in processingStatus=processing.
+ *
+ * TOCTOU guard: list/get may read a stale "processing" snapshot while parse completes
+ * concurrently. The Firestore transaction re-reads the doc and only writes error when
+ * processingStatus is still "processing" and updatedAt is still stranded.
  */
 import * as admin from "firebase-admin";
 import type { InboundEmailProcessingDoc } from "./types";
 
-const STRANDED_PROCESSING_MS = 10 * 60 * 1000;
+/** Minimum age before a processing record is considered stranded. */
+export const STRANDED_PROCESSING_MS = 10 * 60 * 1000;
 
 function getDb() {
   return admin.firestore();

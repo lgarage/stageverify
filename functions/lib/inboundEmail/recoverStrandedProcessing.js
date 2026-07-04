@@ -1,12 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.STRANDED_PROCESSING_MS = void 0;
 exports.recoverStrandedInboundProcessing = recoverStrandedInboundProcessing;
 exports.recoverStrandedInboundProcessingList = recoverStrandedInboundProcessingList;
 /**
  * Recover inboundEmailProcessing docs stuck in processingStatus=processing.
+ *
+ * TOCTOU guard: list/get may read a stale "processing" snapshot while parse completes
+ * concurrently. The Firestore transaction re-reads the doc and only writes error when
+ * processingStatus is still "processing" and updatedAt is still stranded.
  */
 const admin = require("firebase-admin");
-const STRANDED_PROCESSING_MS = 10 * 60 * 1000;
+/** Minimum age before a processing record is considered stranded. */
+exports.STRANDED_PROCESSING_MS = 10 * 60 * 1000;
 function getDb() {
     return admin.firestore();
 }
@@ -16,7 +22,7 @@ async function recoverStrandedInboundProcessing(doc) {
     const updatedMs = Date.parse(doc.updatedAt || doc.createdAt);
     if (Number.isNaN(updatedMs))
         return doc;
-    if (Date.now() - updatedMs < STRANDED_PROCESSING_MS)
+    if (Date.now() - updatedMs < exports.STRANDED_PROCESSING_MS)
         return doc;
     const ref = getDb().collection("inboundEmailProcessing").doc(doc.id);
     const now = new Date().toISOString();
@@ -33,7 +39,7 @@ async function recoverStrandedInboundProcessing(doc) {
         if (data.processingStatus !== "processing")
             return;
         const freshUpdatedMs = Date.parse(data.updatedAt || data.createdAt);
-        if (Number.isNaN(freshUpdatedMs) || Date.now() - freshUpdatedMs < STRANDED_PROCESSING_MS) {
+        if (Number.isNaN(freshUpdatedMs) || Date.now() - freshUpdatedMs < exports.STRANDED_PROCESSING_MS) {
             return;
         }
         tx.update(ref, patch);
