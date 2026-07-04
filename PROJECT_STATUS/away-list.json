@@ -14,7 +14,6 @@
       "away-092",
       "away-093",
       "away-094",
-      "away-096",
       "away-097",
       "away-098"
     ]
@@ -75,23 +74,9 @@
       ]
     },
     {
-      "id": "away-096",
-      "title": "harden inspect callables",
-      "status": "built",
-      "dependsOn": "away-094",
-      "tier": "T1",
-      "budget": "~35m",
-      "scope": "WILL harden inspect callables: sanitize listVendorInvoiceImports; Math.floor limit clamp; dispatcher role gate; fix stranded processingStatus=processing; will NOT rebuild Gmail ingest",
-      "acceptance": "verify:inbound-email-ingest PASS; Sonnet if auth/rules changed",
-      "verifyBeforeNext": [
-        "cd functions && npm run build",
-        "npm run verify:inbound-email-ingest"
-      ]
-    },
-    {
       "id": "away-097",
       "title": "verify-invoice-review Playwright script",
-      "status": "queued",
+      "status": "built",
       "dependsOn": "away-095",
       "tier": "T1",
       "budget": "~35m",

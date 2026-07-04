@@ -107,6 +107,8 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 19 | away-093 | 2026-07-04T01:25:00-05:00 | 2026-07-04T01:35:00-05:00 | 35 | 10 | service-logic | firestore-read | y | matchInvoiceToRecords callable + emulator test; commit=58f392d |
 | 20 | away-094 | 2026-07-04T01:35:00-05:00 | 2026-07-04T01:50:00-05:00 | 50 | 15 | service-logic | firestore-read | y | approveVendorInvoiceImport CF; Sonnet MEDIUM reject txn fix; test PASS; commit=518a0a1 |
 | 21 | away-095 | 2026-07-04T01:50:00-05:00 | 2026-07-04T02:05:00-05:00 | 35 | 25 | ui-component | table-action-row | y | /invoice-review queue + match picker + approve/reject; verify:dispatcher-nav PASS; commit=c00d4a9 |
+| 22 | away-096 | 2026-07-04T02:05:00-05:00 | 2026-07-04T02:22:00-05:00 | 35 | 17 | service-logic | firestore-read | y | dispatcher auth + sanitize list + stranded recovery txn; verify:inbound-email-ingest PASS; commit=80163b1 |
+| 23 | away-097 | 2026-07-04T02:22:00-05:00 | 2026-07-04T02:30:00-05:00 | 35 | 8 | verify-only | playwright-route | y | verify-invoice-review + :prod PASS; commit=TBD |
 
 ## Audit every 15 rows (mandatory)
 
