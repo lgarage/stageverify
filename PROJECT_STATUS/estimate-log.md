@@ -96,7 +96,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 11 | dispatcher-staging-action-rows-tighten | 2026-07-03T19:52:00-05:00 | 2026-07-03T19:58:00-05:00 | 35 | 6 | ui-component | table-rule-tighten | y | missing staging alone triggers action row; offline+live verify; completedAt=136df76 |
 | 12 | estimate-subtype-taxonomy | 2026-07-03T19:57:00-05:00 | 2026-07-03T19:58:13-05:00 | 10 | 1 | docs-update | status-sync | n | Subtype column + taxonomy; backfill rows 1-11; protocol/rules cross-ref; completedAt=1bcecd3 |
 | 13 | away-090 | 2026-07-03T20:29:00-05:00 | 2026-07-03T20:34:17-05:00 | 35 | 5 | ui-component | drawer-copy | y | Copy pickup unreceived; verify:delivery-consistency PASS; completedAt=3f74e25 |
-| 14 | | | | | | | | | |
+| 14 | reset-pickup-link-copy | 2026-07-03T20:40:00-05:00 | 2026-07-03T20:42:26-05:00 | 35 | 2 | ui-component | drawer-copy | y | Reset Pickup Link label (was Revoke); verify:delivery-consistency PASS; completedAt=9ed8944 |
 | 15 | | | | | | | | | |
 
 ## Recalibration (after 15 rows)
