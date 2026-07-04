@@ -181,23 +181,35 @@ async function main() {
       }
       console.log("PASS: redundant expected-vs-actual checklist removed");
 
+      await page.getByTestId("invoice-delivery-match-section").waitFor({ timeout: 10_000 });
+      console.log("PASS: delivery match section at top of inspect modal");
+
+      const rowMatchToggle = page.locator('[data-testid^="invoice-review-match-toggle-"]');
+      if (await rowMatchToggle.count()) {
+        throw new Error("Row-level Match to delivery toggle should be removed");
+      }
+      console.log("PASS: row-level match toggle removed");
+
+      const approveBtn = page.getByTestId("invoice-review-approve");
+      if (await approveBtn.isVisible().catch(() => false)) {
+        const disabled = await approveBtn.isDisabled();
+        if (disabled) {
+          const panelText = await page.getByTestId("invoice-review-panel").innerText();
+          if (/issue import/i.test(panelText)) {
+            console.log("PASS: Approve disabled only for issue imports");
+          } else {
+            throw new Error("Approve should be enabled for non-issue pending imports without auto-match");
+          }
+        } else {
+          console.log("PASS: Approve enabled without auto-match delivery selection");
+        }
+      }
+
       await page.getByTestId("invoice-parsed-inspect-close").click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
         state: "hidden",
         timeout: 5000,
       });
-
-      const matchToggle = page.locator('[data-testid^="invoice-review-match-toggle-"]').first();
-      if (await matchToggle.isVisible().catch(() => false)) {
-        const toggleLabel = (await matchToggle.innerText()).trim();
-        if (toggleLabel.includes("Match to delivery")) {
-          await matchToggle.click();
-        }
-        await page.locator('[data-testid^="invoice-review-row-match-"]').first().waitFor({
-          timeout: 10_000,
-        });
-        console.log("PASS: Match to delivery section visible");
-      }
     } else {
       console.log("SKIP: no queue items — inspect modal not exercised");
     }

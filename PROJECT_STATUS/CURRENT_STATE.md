@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Invoice Review approve unblock + COD terms** — match CF optional vendor/ship-to addresses; Approve/Reject inline row buttons; COD chip from `parsedHeader.paymentTermsRaw` / `codOnly`
+- Last shipped: **Invoice Review manual approve** — Approve without auto-match; delivery picker in inspect modal (candidates + manual ID + recent deliveries); row match section removed
+- Also shipped: **Invoice Review approve unblock + COD terms** — match CF optional vendor/ship-to addresses; Approve/Reject inline row buttons; COD chip from `parsedHeader.paymentTermsRaw` / `codOnly`
 - Also shipped: **Indexer-memory packet injection drift verifier** — away:validate fails on indexer-memory.json slice/anchor drift; fixed idx-001/004/005 slices + lesson bullets 19–20
 - Also shipped: **Refresh Now reparse for stale issue imports** — manual sync re-parses cached text when `vendorInvoiceImports` has `pending_review`+`issue`; fixes S/O 4046362 P411190 after parser 5d1d224
 - Also shipped: **Johnstone alphanumeric Invoice # parser (P411190 / S/O 4046362)** — tabular pdf.js header extracts `P411190`; wide-row Ship Via → Fond du Lac

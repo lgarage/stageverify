@@ -1,11 +1,18 @@
 import type { CSSProperties } from "react";
-import type { VendorInvoiceImportReview } from "../models";
+import type {
+  DeliveryListRow,
+  InvoiceMatchResult,
+  VendorInvoiceImportReview,
+} from "../models";
 import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChecklist";
+import { InvoiceDeliveryMatchSection } from "./InvoiceDeliveryMatchSection";
 import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
   normalizeParsedHeader,
   codPaymentContext,
+  matchUnavailableReason,
+  shipDateMissingWarning,
 } from "./invoiceReviewHeaderHelpers";
 
 const NAVY = "#0a3161";
@@ -37,9 +44,29 @@ function dash(value: string | number | undefined | null): string {
 export function InvoiceParsedInspectModal({
   importRow,
   onClose,
+  matchResult = null,
+  matchLoading = false,
+  selectedDeliveryId = "",
+  onSelectDelivery,
+  recentDeliveries,
+  recentDeliveriesLoading = false,
+  actionLoading = false,
+  onApprove,
+  onReject,
+  highlightApprove = false,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
+  matchResult?: InvoiceMatchResult | null;
+  matchLoading?: boolean;
+  selectedDeliveryId?: string;
+  onSelectDelivery?: (deliveryId: string) => void;
+  recentDeliveries?: DeliveryListRow[];
+  recentDeliveriesLoading?: boolean;
+  actionLoading?: boolean;
+  onApprove?: () => void;
+  onReject?: () => void;
+  highlightApprove?: boolean;
 }) {
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
@@ -49,6 +76,12 @@ export function InvoiceParsedInspectModal({
   const orderNotes = (importRow.orderNotes ?? []).filter(Boolean);
   const parsedLines = importRow.parsedLines ?? [];
   const lineCount = importRow.parsedLineCount ?? parsedLines.length;
+  const isPending = importRow.reviewStatus === "pending_review";
+  const approveBlocked = importRow.importStatus === "issue";
+  const matchUnavailable = matchUnavailableReason(importRow);
+  const shipDateWarning = shipDateMissingWarning(importRow);
+  const showActions = isPending && (onApprove || onReject);
+  const approveDisabled = actionLoading || approveBlocked || !selectedDeliveryId.trim();
 
   return (
     <div
@@ -123,6 +156,37 @@ export function InvoiceParsedInspectModal({
             Close
           </button>
         </div>
+
+        {isPending && onSelectDelivery && (
+          <InvoiceDeliveryMatchSection
+            importRow={importRow}
+            matchResult={matchResult}
+            matchLoading={matchLoading}
+            matchUnavailable={matchUnavailable}
+            shipDateWarning={shipDateWarning}
+            selectedDeliveryId={selectedDeliveryId}
+            onSelectDelivery={onSelectDelivery}
+            recentDeliveries={recentDeliveries}
+            recentDeliveriesLoading={recentDeliveriesLoading}
+          />
+        )}
+
+        {highlightApprove && isPending && !selectedDeliveryId.trim() && (
+          <p
+            data-testid="invoice-parsed-inspect-approve-prompt"
+            style={{
+              margin: "0 0 16px",
+              padding: "10px 12px",
+              backgroundColor: "#fff7ed",
+              border: "1px solid #fed7aa",
+              borderRadius: 6,
+              fontSize: 13,
+              color: "#9a3412",
+            }}
+          >
+            Select or enter a delivery ID above, then approve.
+          </p>
+        )}
 
         <div
           data-testid="invoice-parsed-inspect-summary"
@@ -380,6 +444,71 @@ export function InvoiceParsedInspectModal({
             })}
           </pre>
         </details>
+
+        {showActions && (
+          <div
+            data-testid="invoice-parsed-inspect-actions"
+            style={{
+              marginTop: 20,
+              paddingTop: 16,
+              borderTop: "1px solid #e5e7eb",
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {onReject && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-reject"
+                disabled={actionLoading}
+                onClick={onReject}
+                style={{
+                  backgroundColor: "#fff",
+                  color: RED,
+                  border: `1px solid ${RED}`,
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  opacity: actionLoading ? 0.6 : 1,
+                }}
+              >
+                Reject
+              </button>
+            )}
+            {onApprove && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-approve"
+                disabled={approveDisabled}
+                title={
+                  approveBlocked
+                    ? "Approve blocked for issue imports"
+                    : !selectedDeliveryId.trim()
+                      ? "Select or enter a delivery ID first"
+                      : undefined
+                }
+                onClick={onApprove}
+                style={{
+                  backgroundColor: NAVY,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: approveDisabled ? "not-allowed" : "pointer",
+                  opacity: approveDisabled ? 0.55 : 1,
+                }}
+              >
+                Approve
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
