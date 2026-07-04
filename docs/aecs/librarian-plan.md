@@ -11,7 +11,7 @@
 | 5. Concern lookup | `npm run context:lookup -- --concern "vendor receive"` |
 | 6. Task gotcha map | `npm run context:gotcha -- --task "pickup portal qr"` (orchestrator steps 6–8; prepends lessons §) |
 | 7. Lessons § slice | `npm run context:lessons -- --type ui-component/drawer-copy` (estimate-log type/subtype) |
-| 8. Drift check | `npm run away:validate` (fails on librarian-lessons-index ↔ file drift; dossier-index drift; indexer-memory rules) |
+| 8. Drift check | `npm run away:validate` (fails on librarian-lessons-index ↔ file drift; dossier-index drift; **indexer-memory.json slice/anchor drift** for packet injection) |
 | 9. Indexer ingest | `npm run indexer:ingest -- --summary "…" [--category …] [--trigger "a,b"]` — intelligent classify; overflow → `indexer-memory.json` |
 | 10. Indexer retrieval | Auto-injected in `npm run away:next -- --packet` when queue item matches `triggerTerms` + type/subtype |
 

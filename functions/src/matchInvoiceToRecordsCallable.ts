@@ -37,11 +37,11 @@ function asParsedHeader(raw: Record<string, unknown>): ParsedInvoiceHeader {
     shipViaRaw: str("shipViaRaw") || undefined,
     jobNumberRaw: str("jobNumberRaw") || undefined,
     vendorBranchName: str("vendorBranchName", true),
-    vendorBranchAddress: str("vendorBranchAddress", true),
-    vendorBranchPhone: str("vendorBranchPhone", true),
-    soldToName: str("soldToName", true),
-    shipToName: str("shipToName", true),
-    shipToAddress: str("shipToAddress", true),
+    vendorBranchAddress: str("vendorBranchAddress"),
+    vendorBranchPhone: str("vendorBranchPhone"),
+    soldToName: str("soldToName"),
+    shipToName: str("shipToName"),
+    shipToAddress: str("shipToAddress"),
     fulfillmentMethod:
       raw.fulfillmentMethod === "delivery" ||
       raw.fulfillmentMethod === "will_call_pickup" ||

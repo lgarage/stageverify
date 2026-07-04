@@ -24,8 +24,9 @@
       "subtype": "indexer",
       "slice": {
         "file": "docs/aecs/librarian-plan.md",
-        "startLine": 69,
-        "endLine": 82
+        "startLine": 14,
+        "endLine": 22,
+        "anchor": "| 8. Drift check |"
       },
       "relatedFiles": [
         "scripts/lib/indexer-ingest-lib.mjs",
@@ -59,7 +60,8 @@
       "slice": {
         "file": "PROJECT_STATUS/MEMORY.md",
         "startLine": 65,
-        "endLine": 65
+        "endLine": 65,
+        "anchor": "| **Security gate (CF/auth/rules)** |"
       },
       "relatedFiles": [
         "functions/src/",
@@ -120,8 +122,9 @@
       "subtype": "parser-rule-fix",
       "slice": {
         "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
-        "startLine": 18,
-        "endLine": 22
+        "startLine": 23,
+        "endLine": 23,
+        "anchor": "19. **Johnstone S/O 4046362"
       },
       "relatedFiles": [],
       "confidence": 0.85,
@@ -151,8 +154,9 @@
       "subtype": "cf-ingest",
       "slice": {
         "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
-        "startLine": 24,
-        "endLine": 31
+        "startLine": 37,
+        "endLine": 37,
+        "anchor": "20. **Inbound CF writes:**"
       },
       "relatedFiles": [],
       "confidence": 0.85,

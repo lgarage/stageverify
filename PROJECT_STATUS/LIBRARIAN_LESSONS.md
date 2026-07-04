@@ -20,6 +20,7 @@
 6. **Johnstone parser:** backorder-safe fulfillment/status; gate with `test:invoice-parser` and batch fixtures before ship.
 15. **Invoice review UX:** Delivery Overview "Needs Review" = offline email fixtures (`emailFixtures.ts` / `getProposedEmailUpdates`), NOT `vendorInvoiceImports`. Johnstone PDF invoices → `/#/invoice-review` only; approve/reject there only. Needs Review has no Approve button by design.
 16. **Gmail sync banner:** Sync processed/skipped counts = `inboundEmailProcessing` docs, NOT `vendorInvoiceImports` rows. Banner distinguishes scanned vs queued (`invoicesQueued`, `skippedByStatus`). Empty Invoice Review after sync → check `no_pdf`, parse fail, pending filter, GCP Pub/Sub blocker #4.
+19. **Johnstone S/O 4046362 / U+XX00:** tabular header parsing; pdf-parse custom-font encoding; issue-import when Invoice # missing; Approve blocked server+UI.
 
 ## Process / agents
 
@@ -33,6 +34,7 @@
 13. **Temp secret files** — `.tmp-*secret*` etc.: add to `.gitignore` at creation; delete before session end.
 14. **Best reply / handoff prompt** — gather → draft → challenge → revise → present once; **handoffs min 2 internal passes**, best copy-paste block on **first** present (never v1 + "want improvements?"); read away-list + away-status head, verify npm scripts in package.json, self-contained scope + real away-NNN ids + `startedAt` placeholder; execute prompts need "go build it"; backend scope → Sonnet gate before push (`best-reply-gate.mdc`).
 18. **Browser extension console:** "Message channel closed" / "listener indicated asynchronous response" — not StageVerify; Chrome extension noise. Verify incognito without extensions.
+20. **Inbound CF writes:** firestoreSafeValue strips undefined before review writes; Refresh Now reprocesses cached-text reparse; Sonnet security-review Task before CF push.
 
 ## Timing (pointer only)
 

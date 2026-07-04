@@ -183,6 +183,26 @@ if (offlineNoShipDate.candidates.some((c) => c.deliveryId === "delivery-demo-ven
   fail("offline match failed without shipDate", offlineNoShipDate.candidates);
 }
 
+const headerNoAddresses = {
+  ...headerPlanetFitness,
+  vendorBranchAddress: "",
+  vendorBranchPhone: "",
+  soldToName: "",
+  shipToName: "",
+  shipToAddress: "",
+};
+const offlineNoAddresses = matchInvoiceToRecords(
+  "vii-test-no-addresses",
+  headerNoAddresses,
+  mockCtx,
+  notesMap,
+);
+if (offlineNoAddresses.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")) {
+  pass("offline match works when vendor/ship-to addresses missing");
+} else {
+  fail("offline match failed without addresses", offlineNoAddresses.candidates);
+}
+
 console.log("\n=== CF: matchInvoiceToRecordsCallable (emulators) ===\n");
 
 const testEnv = await initializeTestEnvironment({
@@ -347,6 +367,56 @@ if (
   pass("CF match succeeds when shipDate missing");
 } else {
   fail("CF match failed without shipDate", noShipData);
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-emulator-no-addresses"), {
+    id: "vii-emulator-no-addresses",
+    inboundEmailProcessingId: "inbound-test",
+    gmailMessageId: "msg-test-3",
+    importBatchId: "batch-test",
+    pageId: "inv-no-addresses",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: {
+      ...headerPlanetFitness,
+      vendorBranchAddress: "",
+      vendorBranchPhone: "",
+      soldToName: "",
+      shipToName: "",
+      shipToAddress: "",
+    },
+    parsedLines: [],
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let cfNoAddresses;
+try {
+  cfNoAddresses = await matchInvoice({ vendorInvoiceImportId: "vii-emulator-no-addresses" });
+} catch (err) {
+  fail("matchInvoiceToRecords should not require vendor/ship-to addresses", err?.message);
+}
+
+const noAddrData = cfNoAddresses?.data ?? {};
+if (
+  Array.isArray(noAddrData.candidates) &&
+  noAddrData.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")
+) {
+  pass("CF match succeeds when vendor/ship-to addresses missing");
+} else {
+  fail("CF match failed without addresses", noAddrData);
 }
 
 await testEnv.cleanup();

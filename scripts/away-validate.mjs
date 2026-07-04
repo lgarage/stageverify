@@ -22,7 +22,11 @@ import {
 import { loadDossierIndex, loadContextIndex, validateContextIndex, validateDossierIndex } from "./lib/dossier-index-lib.mjs";
 import { loadGotchaMap, validateGotchaMap } from "./lib/gotcha-map-lib.mjs";
 import { loadLessonsIndex, validateLessonsIndex } from "./lib/librarian-lessons-lib.mjs";
-import { loadIndexerMemory, validateIndexerMemory } from "./lib/indexer-ingest-lib.mjs";
+import {
+  loadIndexerMemory,
+  validateIndexerMemory,
+  validateIndexerMemorySlices,
+} from "./lib/indexer-ingest-lib.mjs";
 import {
   auditDueWarning,
   loadAuditSnapshot,
@@ -351,6 +355,21 @@ function validateEstimateAuditDue() {
   }
 }
 
+function validateIndexerMemorySliceRanges() {
+  try {
+    const store = loadIndexerMemory();
+    const drift = validateIndexerMemorySlices(store);
+    if (drift.length > 0) {
+      for (const msg of drift) fail(msg);
+      fail(
+        "indexer-memory.json packet-injection slices drift from SSOT files — update startLine/endLine/anchor in indexer-memory.json",
+      );
+    }
+  } catch (err) {
+    fail(`indexer-memory.json slices: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function validateIndexerMemoryStore() {
   try {
     const store = loadIndexerMemory();
@@ -395,6 +414,7 @@ function main() {
   validateDossierIndexRanges();
   validateContextIndexRanges();
   validateGotchaMapRanges();
+  validateIndexerMemorySliceRanges();
   validateIndexerMemoryStore();
   validateLessonsIndexRanges();
   validateEstimateLogRows();

@@ -56,7 +56,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify; `--note` = summary; timing → `estimate-log.md` |
-| Consistency check | `npm run away:validate` | Before commit; after memory edits |
+| Consistency check | `npm run away:validate` | Before commit; after memory edits — fails on dossier-index, librarian-lessons-index, and **indexer-memory.json slice/anchor drift** (packet injection) |
 
 ## Blockers & on-demand routes
 

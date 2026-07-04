@@ -37,7 +37,7 @@ export const INDEXER_CATEGORIES = [
  *   triggerTerms?: string[],
  *   type?: string | null,
  *   subtype?: string | null,
- *   slice?: { file: string, startLine: number, endLine: number } | null,
+ *   slice?: { file: string, startLine: number, endLine: number, anchor?: string } | null,
  *   relatedFiles?: string[],
  *   confidence?: number,
  *   injectBeforeWork?: boolean,
@@ -139,12 +139,19 @@ export function normalizeIngestInput(input) {
     triggerTerms = input.triggers.split(",").map((t) => t.trim()).filter(Boolean);
   }
 
-  /** @type {{ file: string, startLine: number, endLine: number } | null} */
+  /** @type {{ file: string, startLine: number, endLine: number, anchor?: string } | null} */
   let slice = null;
   if (input.slice && typeof input.slice === "object") {
-    const s = /** @type {{ file?: string, startLine?: number, endLine?: number }} */ (input.slice);
+    const s = /** @type {{ file?: string, startLine?: number, endLine?: number, anchor?: string }} */ (
+      input.slice
+    );
     if (s.file && s.startLine && s.endLine) {
-      slice = { file: s.file, startLine: s.startLine, endLine: s.endLine };
+      slice = {
+        file: s.file,
+        startLine: s.startLine,
+        endLine: s.endLine,
+        ...(typeof s.anchor === "string" && s.anchor.trim() ? { anchor: s.anchor.trim() } : {}),
+      };
     }
   }
 
@@ -427,6 +434,48 @@ export function renderIndexerMemoryMarkdown(result) {
   return `${lines.join("\n")}\n`;
 }
 
+/** @param {IndexerMemoryEntry} entry */
+export function validateIndexerMemorySlice(entry) {
+  if (!entry.slice?.file) return [];
+  const { file, startLine, endLine, anchor } = entry.slice;
+  const label = entry.id ?? "?";
+  const filePath = path.join(REPO_ROOT, file);
+  /** @type {string[]} */
+  const issues = [];
+  if (!fs.existsSync(filePath)) {
+    issues.push(`indexer-memory: ${label} slice file missing ${file}`);
+    return issues;
+  }
+  const lineCount = readText(filePath).split("\n").length;
+  if (startLine === 1 && endLine >= lineCount - 1) {
+    issues.push(
+      `indexer-memory: ${label} full-file slice reference (${file}:1-${endLine})`,
+    );
+  }
+  for (const msg of validateEntryRange({
+    id: entry.id,
+    tags: entry.tags ?? [],
+    title: entry.summary,
+    file,
+    startLine,
+    endLine,
+    anchor,
+  })) {
+    issues.push(`indexer-memory: ${label} ${msg}`);
+  }
+  return issues;
+}
+
+/** @param {IndexerMemoryStore} store */
+export function validateIndexerMemorySlices(store) {
+  /** @type {string[]} */
+  const issues = [];
+  for (const entry of store.entries ?? []) {
+    issues.push(...validateIndexerMemorySlice(entry));
+  }
+  return issues;
+}
+
 /** @param {IndexerMemoryStore} store */
 export function validateIndexerMemory(store) {
   /** @type {string[]} */
@@ -487,31 +536,6 @@ export function validateIndexerMemory(store) {
         warnings.push(
           `indexer-memory: ${label} promotion term "${term}" overlaps gotcha-map:${owner}`,
         );
-      }
-    }
-
-    if (entry.slice?.file) {
-      const filePath = path.join(REPO_ROOT, entry.slice.file);
-      if (!fs.existsSync(filePath)) {
-        errors.push(`indexer-memory: ${label} slice file missing ${entry.slice.file}`);
-      } else {
-        const lineCount = readText(filePath).split("\n").length;
-        if (entry.slice.startLine === 1 && entry.slice.endLine >= lineCount - 1) {
-          errors.push(
-            `indexer-memory: ${label} full-file slice reference (${entry.slice.file}:1-${entry.slice.endLine})`,
-          );
-        }
-        const drift = validateEntryRange({
-          id: entry.id,
-          tags: entry.tags ?? [],
-          title: entry.summary,
-          file: entry.slice.file,
-          startLine: entry.slice.startLine,
-          endLine: entry.slice.endLine,
-        });
-        for (const msg of drift) {
-          errors.push(`indexer-memory: ${label} ${msg}`);
-        }
       }
     }
 
