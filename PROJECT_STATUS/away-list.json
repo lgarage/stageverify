@@ -13,8 +13,7 @@
     "sequence": [
       "away-092",
       "away-093",
-      "away-094",
-      "away-098"
+      "away-094"
     ]
   },
   "queue": [
@@ -70,24 +69,6 @@
       "verifyBeforeNext": [
         "cd functions && npm run build",
         "node scripts/test-approve-vendor-invoice-import.mjs"
-      ]
-    },
-    {
-      "id": "away-098",
-      "title": "Mini-librarian indexer + gotcha hygiene",
-      "status": "built",
-      "dependsOn": "away-097",
-      "tier": "T0",
-      "budget": "~20m",
-      "scope": "librarian-lessons-index + gotcha-map triggers + dedupe LIBRARIAN_LESSONS from files[] when lessonsSection set; planning-whats-next drop bare overnight; MINI_LIBRARIAN_HANDOFF trigger count",
-      "acceptance": "away:validate PASS; context:lessons + context:gotcha verify commands PASS; precondition 092–097 built",
-      "verifyBeforeNext": [
-        "npm run away:validate",
-        "npm run context:lessons -- --list",
-        "npm run context:lessons -- --type ui-component/settings-email",
-        "npm run context:lessons -- --type docs-update/process",
-        "npm run context:gotcha -- --list",
-        "npm run context:gotcha -- --task \"approve vendor invoice import\" --format json"
       ]
     }
   ]

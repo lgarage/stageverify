@@ -13,12 +13,7 @@ const MAX_NOTES_SCAN = 200;
 function getDb() {
     return admin.firestore();
 }
-function requireAuth(request) {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in to match invoice imports.");
-    }
-    return request.auth.uid;
-}
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 function asParsedHeader(raw) {
     const str = (key, required = false) => {
         const v = raw[key];
@@ -73,7 +68,7 @@ async function loadDeliveryNotes(deliveryIds) {
     return map;
 }
 exports.matchInvoiceToRecordsCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    requireAuth(request);
+    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const importId = typeof data.vendorInvoiceImportId === "string"
         ? data.vendorInvoiceImportId.trim()

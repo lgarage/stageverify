@@ -6,17 +6,14 @@ exports.listVendorInvoiceImports = exports.getInboundEmailProcessing = exports.l
  */
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
+const recoverStrandedProcessing_1 = require("./inboundEmail/recoverStrandedProcessing");
+const sanitizeVendorInvoiceImport_1 = require("./inboundEmail/sanitizeVendorInvoiceImport");
 const COLLECTION = "inboundEmailProcessing";
 const MAX_LIST = 50;
 const MAX_TEXT_PREVIEW = 4000;
 function getDb() {
     return admin.firestore();
-}
-function requireAuth(request) {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in to view inbound email processing.");
-    }
-    return request.auth.uid;
 }
 function sanitizeDocForClient(doc) {
     const out = { ...doc };
@@ -38,21 +35,21 @@ function sanitizeDocForClient(doc) {
     return out;
 }
 exports.listInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    requireAuth(request);
+    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
-    const limit = typeof data.limit === "number" && data.limit > 0 && data.limit <= MAX_LIST
-        ? Math.floor(data.limit)
-        : 25;
+    const limit = (0, dispatcherAuth_1.clampListLimit)(data.limit, 25, MAX_LIST);
     const snap = await getDb()
         .collection(COLLECTION)
         .orderBy("receivedAt", "desc")
         .limit(limit)
         .get();
-    const items = snap.docs.map((d) => sanitizeDocForClient(d.data()));
+    const raw = snap.docs.map((d) => d.data());
+    const recovered = await (0, recoverStrandedProcessing_1.recoverStrandedInboundProcessingList)(raw);
+    const items = recovered.map((d) => sanitizeDocForClient(d));
     return { items, count: items.length };
 });
 exports.getInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    requireAuth(request);
+    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const id = typeof data.id === "string" ? data.id.trim() : "";
     if (!id || id.length > 256) {
@@ -62,22 +59,24 @@ exports.getInboundEmailProcessing = (0, https_1.onCall)({ region: "us-central1" 
     if (!snap.exists) {
         throw new https_1.HttpsError("not-found", "Inbound email processing record not found.");
     }
-    return sanitizeDocForClient(snap.data());
+    const [recovered] = await (0, recoverStrandedProcessing_1.recoverStrandedInboundProcessingList)([
+        snap.data(),
+    ]);
+    return sanitizeDocForClient(recovered);
 });
 exports.listVendorInvoiceImports = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    requireAuth(request);
+    (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const inboundId = typeof data.inboundEmailProcessingId === "string"
         ? data.inboundEmailProcessingId.trim()
         : "";
-    const limit = typeof data.limit === "number" && data.limit > 0 && data.limit <= MAX_LIST
-        ? Math.floor(data.limit)
-        : 25;
+    const limit = (0, dispatcherAuth_1.clampListLimit)(data.limit, 25, MAX_LIST);
     let query = getDb().collection("vendorInvoiceImports").orderBy("createdAt", "desc");
     if (inboundId) {
         query = query.where("inboundEmailProcessingId", "==", inboundId);
     }
     const snap = await query.limit(limit).get();
-    return { items: snap.docs.map((d) => d.data()), count: snap.size };
+    const items = snap.docs.map((d) => (0, sanitizeVendorInvoiceImport_1.sanitizeVendorInvoiceImportForClient)(d.data()));
+    return { items, count: items.length };
 });
 //# sourceMappingURL=inboundEmailProcessingApi.js.map

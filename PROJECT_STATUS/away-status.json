@@ -624,6 +624,34 @@
       "status": "built",
       "commit": "518a0a1",
       "note": "approveVendorInvoiceImport"
+    },
+    {
+      "id": "away-095",
+      "title": "dispatcher review UI",
+      "status": "built",
+      "commit": "c00d4a9",
+      "note": "Invoice review UI at /invoice-review; verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-096",
+      "title": "harden inspect callables",
+      "status": "built",
+      "commit": "80163b1",
+      "note": "Dispatcher auth + sanitize inspect callables; stranded recovery txn"
+    },
+    {
+      "id": "away-097",
+      "title": "verify-invoice-review Playwright script",
+      "status": "built",
+      "commit": "3875f4d",
+      "note": "verify-invoice-review + :prod Playwright PASS"
+    },
+    {
+      "id": "away-098",
+      "title": "Mini-librarian indexer + gotcha hygiene",
+      "status": "built",
+      "commit": "abd4b57",
+      "note": "Gotcha triggers + lessons index; dedupe LIBRARIAN_LESSONS files[]"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"
