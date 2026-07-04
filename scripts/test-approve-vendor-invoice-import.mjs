@@ -29,6 +29,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { buildExpectedItemsFromImport } from "../functions/lib/invoice/buildExpectedItemsFromImport.js";
+import { shellDeliveryIdForImport } from "../functions/lib/invoice/createDeliveryShellFromImport.js";
 
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
@@ -156,6 +157,7 @@ const header = {
   vendorOrderNumber: "6164159",
   vendorInvoiceNumber: "6164159",
   customerPoOrReference: "PLANET FITNESS PICKUP",
+  jobNumberRaw: "PF-100",
   orderDate: "2026-06-23",
   invoiceDate: "2026-06-23",
   shipDate: "2026-06-23",
@@ -172,6 +174,21 @@ const header = {
 async function seed() {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adminDb = ctx.firestore();
+    await setDoc(doc(adminDb, "jobs", "job-1"), {
+      id: "job-1",
+      jobNumber: "PF-100",
+      jobName: "Planet Fitness",
+      status: "active",
+      createdAt: "2026-06-02T00:00:00Z",
+      updatedAt: "2026-06-02T00:00:00Z",
+    });
+    await setDoc(doc(adminDb, "vendors", "vendor-1"), {
+      id: "vendor-1",
+      name: "Johnstone Supply",
+      active: true,
+      createdAt: "2026-06-02T00:00:00Z",
+      updatedAt: "2026-06-02T00:00:00Z",
+    });
     await setDoc(doc(adminDb, "deliveries", "delivery-approve-test"), {
       id: "delivery-approve-test",
       orderNumber: "ORD-005",
@@ -274,8 +291,13 @@ try {
 }
 
 const reviewOnlyData = reviewOnlyResult?.data ?? {};
-if (reviewOnlyData.reviewStatus === "approved" && !reviewOnlyData.deliveryOrderId) {
-  pass("review-only approve returned approved without delivery");
+const shellDeliveryId = shellDeliveryIdForImport("vii-review-only-test");
+if (
+  reviewOnlyData.reviewStatus === "approved" &&
+  reviewOnlyData.deliveryOrderId === shellDeliveryId &&
+  reviewOnlyData.itemsApplied === 2
+) {
+  pass("review-only approve returned approved with shell delivery");
 } else {
   fail("review-only approve response", reviewOnlyData);
 }
@@ -283,11 +305,101 @@ if (reviewOnlyData.reviewStatus === "approved" && !reviewOnlyData.deliveryOrderI
 const reviewOnlySnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-review-only-test"));
 if (
   reviewOnlySnap.data()?.reviewStatus === "approved" &&
-  !reviewOnlySnap.data()?.linkedDeliveryOrderId
+  reviewOnlySnap.data()?.linkedDeliveryOrderId === shellDeliveryId
 ) {
-  pass("import marked approved with no linked delivery");
+  pass("import marked approved with linked shell delivery");
 } else {
   fail("review-only import state", reviewOnlySnap.data());
+}
+
+const shellDeliverySnap = await getDoc(doc(db, "deliveries", shellDeliveryId));
+const shellDelivery = shellDeliverySnap.data() ?? {};
+if (
+  shellDelivery.vendorInvoiceImportId === "vii-review-only-test" &&
+  shellDelivery.invoiceImportStatus === "pickup_at_vendor" &&
+  shellDelivery.status === "complete" &&
+  shellDelivery.stagingLocationId === undefined &&
+  shellDelivery.readinessStatus === undefined
+) {
+  pass("shell delivery created with will-call status, no staging/readiness");
+} else {
+  fail("shell delivery fields", shellDelivery);
+}
+
+const shellItemsSnap = await getDocs(
+  query(collection(db, "items"), where("deliveryOrderId", "==", shellDeliveryId)),
+);
+const shellItems = shellItemsSnap.docs.map((d) => d.data());
+if (shellItems.length === 2 && shellItems.every((i) => i.qtyReceived === 0)) {
+  pass("shell items created with qtyReceived=0");
+} else {
+  fail("shell items after review-only approve", shellItems);
+}
+
+let duplicateShellResult;
+try {
+  duplicateShellResult = await approveImport({
+    vendorInvoiceImportId: "vii-review-only-test",
+    action: "create_shell",
+  });
+  const dupData = duplicateShellResult?.data ?? {};
+  if (dupData.deliveryOrderId === shellDeliveryId && dupData.itemsApplied === 0) {
+    pass("create_shell idempotent when already linked");
+  } else {
+    fail("create_shell idempotent response", dupData);
+  }
+} catch (err) {
+  fail("create_shell idempotent call failed", err?.message);
+}
+
+const shellItemsAfterDup = await getDocs(
+  query(collection(db, "items"), where("deliveryOrderId", "==", shellDeliveryId)),
+);
+if (shellItemsAfterDup.docs.length === 2) {
+  pass("no duplicate shell items on create_shell retry");
+} else {
+  fail("duplicate shell items count", shellItemsAfterDup.docs.length);
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-issue-test"), {
+    id: "vii-issue-test",
+    inboundEmailProcessingId: "inbound-issue",
+    gmailMessageId: "msg-issue",
+    importBatchId: "batch-test",
+    pageId: "inv-issue",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "issue",
+    confidenceTier: "low",
+    confidenceScore: 30,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: { ...header, vendorInvoiceNumber: "" },
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: ["missing vendorInvoiceNumber"],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-issue-test",
+    action: "approve",
+  });
+  fail("issue import approve should be denied");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (msg.includes("parse issues") || msg.includes("failed-precondition")) {
+    pass("issue import approve blocked");
+  } else {
+    fail("expected issue import block", err?.message);
+  }
 }
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -295,9 +407,33 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(adminDb, "deliveries", "delivery-link-test"), {
     id: "delivery-link-test",
     jobId: "job-1",
-    vendorId: "vendor-test",
+    vendorId: "vendor-1",
     orderNumber: "ORD-LINK",
     status: "pending",
+    deliveryDate: "2026-06-24",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-link-test"), {
+    id: "vii-link-test",
+    inboundEmailProcessingId: "inbound-link",
+    gmailMessageId: "msg-link",
+    importBatchId: "batch-test",
+    pageId: "inv-link",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: header,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-06-24T10:00:00Z",
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
@@ -306,7 +442,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let linkResult;
 try {
   linkResult = await approveImport({
-    vendorInvoiceImportId: "vii-review-only-test",
+    vendorInvoiceImportId: "vii-link-test",
     action: "link",
     deliveryOrderId: "delivery-link-test",
   });
@@ -321,7 +457,7 @@ if (linkData.reviewStatus === "approved" && linkData.deliveryOrderId === "delive
   fail("link response", linkData);
 }
 
-const linkedImportSnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-review-only-test"));
+const linkedImportSnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-link-test"));
 if (linkedImportSnap.data()?.linkedDeliveryOrderId === "delivery-link-test") {
   pass("import linked to delivery");
 } else {

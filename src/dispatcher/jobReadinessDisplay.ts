@@ -1,4 +1,5 @@
 import type { DeliveryOrder, Item, Job, MaterialIssue } from "./models";
+import { vendorInvoiceImportDisplayLabel } from "./invoice/invoiceDisplayHelpers";
 import type {
   DeliveryReadinessResult,
   JobReadinessResult,
@@ -27,6 +28,12 @@ export function deliveryReadinessDisplayLabel(
 ): string {
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return "Picked Up";
+  }
+  if (delivery.invoiceImportStatus === "pickup_at_vendor") {
+    return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
+  }
+  if (delivery.invoiceImportStatus === "closed_picked_up") {
+    return vendorInvoiceImportDisplayLabel("closed_picked_up").replace(/\.$/, "");
   }
   if (countOpenIssuesForLabel(delivery, materialIssues) > 0) {
     return "Issue / Review Required";

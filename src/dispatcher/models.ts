@@ -468,6 +468,13 @@ export interface DeliveryOrder {
   shopStockPickListItems?: string[];
   shopStockLocationNote?: string;
   notes?: string;
+  /** Linked inbound Johnstone invoice import (CF-maintained). */
+  vendorInvoiceImportId?: string;
+  /** Import-domain status label source — e.g. pickup_at_vendor → Will-Call / Pickup. */
+  invoiceImportStatus?: string;
+  vendorInvoiceNumber?: string;
+  vendorOrderNumber?: string;
+  customerPoOrReference?: string;
   submittedAt?: string;
   lastCheckmarkAt?: string;
   /** Denormalized — maintained by createMaterialIssue Cloud Function only. */

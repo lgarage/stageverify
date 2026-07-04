@@ -2,14 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.approveVendorInvoiceImport = void 0;
 /**
- * approveVendorInvoiceImport — explicit approve/reject/reopen.
- * Approve without deliveryOrderId: review-only (import reviewStatus approved; no delivery/items).
+ * approveVendorInvoiceImport — explicit approve/reject/reopen/link/create_shell.
+ * Approve without deliveryOrderId: creates dashboard shell delivery + expected items.
  * Approve with deliveryOrderId: writes expected items only; does NOT set qtyReceived, staging, or readiness.
  */
 const admin = require("firebase-admin");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
+const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 function getDb() {
     return admin.firestore();
@@ -52,8 +53,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
-    if (action !== "approve" && action !== "reject" && action !== "reopen" && action !== "link") {
-        throw new https_1.HttpsError("invalid-argument", "action must be approve, reject, reopen, or link.");
+    if (action !== "approve" && action !== "reject" && action !== "reopen" && action !== "link" && action !== "create_shell") {
+        throw new https_1.HttpsError("invalid-argument", "action must be approve, reject, reopen, link, or create_shell.");
     }
     if ((action === "approve" || action === "link") && deliveryOrderId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is too long.");
@@ -188,7 +189,60 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             itemsApplied: linkContext.expectedItems.length,
         };
     }
+    if (action === "create_shell") {
+        if (importDoc.reviewStatus !== "approved") {
+            throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
+        }
+        if (importDoc.linkedDeliveryOrderId?.trim()) {
+            return {
+                vendorInvoiceImportId: importId,
+                reviewStatus: "approved",
+                deliveryOrderId: importDoc.linkedDeliveryOrderId.trim(),
+                itemsApplied: 0,
+            };
+        }
+        if (importDoc.importStatus === "issue") {
+            throw new https_1.HttpsError("failed-precondition", "Cannot create dashboard record — import has parse issues.");
+        }
+        const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+        const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+        await getDb().runTransaction(async (tx) => {
+            const freshImport = await tx.get(importRef);
+            if (!freshImport.exists) {
+                throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
+            }
+            const fresh = freshImport.data();
+            if (fresh.reviewStatus !== "approved") {
+                throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
+            }
+            if (fresh.linkedDeliveryOrderId?.trim()) {
+                return;
+            }
+            if (fresh.importStatus === "issue") {
+                throw new https_1.HttpsError("failed-precondition", "Cannot create dashboard record — import has parse issues.");
+            }
+            const existingDelivery = await tx.get(deliveryRef);
+            if (!existingDelivery.exists) {
+                tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+                for (const item of shell.expectedItems) {
+                    tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+                }
+            }
+            tx.update(importRef, {
+                linkedDeliveryOrderId: shell.deliveryOrderId,
+                updatedAt: now,
+            });
+        });
+        return {
+            vendorInvoiceImportId: importId,
+            reviewStatus: "approved",
+            deliveryOrderId: shell.deliveryOrderId,
+            itemsApplied: shell.expectedItems.length,
+        };
+    }
     if (!deliveryOrderId) {
+        const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+        const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
         await getDb().runTransaction(async (tx) => {
             const freshImport = await tx.get(importRef);
             if (!freshImport.exists) {
@@ -201,8 +255,28 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             if (fresh.importStatus === "issue") {
                 throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
             }
+            const linkedId = fresh.linkedDeliveryOrderId?.trim();
+            if (linkedId) {
+                tx.update(importRef, {
+                    reviewStatus: "approved",
+                    approvedAt: now,
+                    approvedBy: uid,
+                    rejectedAt: firestore_1.FieldValue.delete(),
+                    rejectedBy: firestore_1.FieldValue.delete(),
+                    updatedAt: now,
+                });
+                return;
+            }
+            const existingDelivery = await tx.get(deliveryRef);
+            if (!existingDelivery.exists) {
+                tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+                for (const item of shell.expectedItems) {
+                    tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+                }
+            }
             tx.update(importRef, {
                 reviewStatus: "approved",
+                linkedDeliveryOrderId: shell.deliveryOrderId,
                 approvedAt: now,
                 approvedBy: uid,
                 rejectedAt: firestore_1.FieldValue.delete(),
@@ -210,9 +284,12 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 updatedAt: now,
             });
         });
+        const linkedDeliveryOrderId = importDoc.linkedDeliveryOrderId?.trim() || shell.deliveryOrderId;
         return {
             vendorInvoiceImportId: importId,
             reviewStatus: "approved",
+            deliveryOrderId: linkedDeliveryOrderId,
+            itemsApplied: shell.expectedItems.length,
         };
     }
     const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);

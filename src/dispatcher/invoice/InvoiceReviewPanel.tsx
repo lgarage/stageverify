@@ -451,6 +451,24 @@ export function InvoiceReviewPanel({
     }
   };
 
+  const handleCreateShell = async (row: VendorInvoiceImportReview) => {
+    if (row.importStatus === "issue" || row.linkedDeliveryOrderId?.trim()) return;
+    setActionLoadingId(row.id);
+    setError(null);
+    try {
+      await approveVendorInvoiceImport({
+        vendorInvoiceImportId: row.id,
+        action: "create_shell",
+      });
+      setInspectImport(null);
+      await loadQueue();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Create dashboard record failed.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const firstPendingRowId = filteredImports.find(
     (r) => r.reviewStatus === "pending_review",
   )?.id;
@@ -970,6 +988,14 @@ export function InvoiceReviewPanel({
             !inspectImport.linkedDeliveryOrderId?.trim()
               ? () => {
                   void handleLink(inspectImport, inspectSelectedDeliveryId);
+                }
+              : undefined
+          }
+          onCreateShell={
+            inspectImport.reviewStatus === "approved" &&
+            !inspectImport.linkedDeliveryOrderId?.trim()
+              ? () => {
+                  void handleCreateShell(inspectImport);
                 }
               : undefined
           }

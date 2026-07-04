@@ -6,8 +6,9 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **away-108** — Inbound reparse stale issue-import backfill
-- Also shipped: **Invoice Review approved archive** — read-only list with invoice/S-O/PO/buyer/approved date + linked badge; inspect modal without re-approve
+- Last shipped: **Approved unlinked invoices → dispatcher dashboard** — approve without deliveryId auto-creates shell delivery + expected items; Will-Call / Pickup display label; `create_shell` backfill for already-approved rows (e.g. P411190)
+- Also shipped: **away-108** — Inbound reparse stale issue-import backfill
+- Also shipped: **Invoice Review approved archive** — read-only list with invoice/S-O/PO/buyer/approved date + linked badge
 - Also shipped: **Invoice Review approve CF deploy fix** — rebuilt `functions/lib/approveVendorInvoiceImport.js` (TS fix from 8ff639b was never compiled/deployed); review-only approve now live in production
 - Also shipped: **Verify-failure auto-learning (audit)** — gh-pages classification scoped to frontend :prod; backend integration excluded; 3 more :prod wrappers; pending validation tightened
 - Also shipped: **Automatic indexer learning on away:ship** — `--learned`/`--failure`+`--fix` inline capture; demo-packet regression in away:validate; gateWarnings auto-inject in packet

@@ -55,6 +55,7 @@ export function InvoiceParsedInspectModal({
   onReject,
   onReopen,
   onLink,
+  onCreateShell,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -69,6 +70,7 @@ export function InvoiceParsedInspectModal({
   onReject?: () => void;
   onReopen?: () => void;
   onLink?: () => void;
+  onCreateShell?: () => void;
 }) {
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
@@ -90,7 +92,7 @@ export function InvoiceParsedInspectModal({
   const showActions =
     (isPending && (onApprove || onReject)) ||
     (isRejected && (onApprove || onReopen)) ||
-    (isApprovedUnlinked && onLink);
+    (isApprovedUnlinked && (onLink || onCreateShell));
   const approveDisabled = actionLoading || approveBlocked;
   const linkDisabled = actionLoading || approveBlocked || !selectedDeliveryId?.trim();
 
@@ -514,6 +516,30 @@ export function InvoiceParsedInspectModal({
                 }}
               >
                 Approve
+              </button>
+            )}
+            {onCreateShell && isApprovedUnlinked && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-create-shell"
+                disabled={actionLoading || approveBlocked}
+                title={
+                  approveBlocked ? "Blocked for issue imports" : "Create dispatcher dashboard record from invoice"
+                }
+                onClick={onCreateShell}
+                style={{
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  border: `1px solid ${NAVY}`,
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: actionLoading || approveBlocked ? "not-allowed" : "pointer",
+                  opacity: actionLoading || approveBlocked ? 0.55 : 1,
+                }}
+              >
+                Create dashboard record
               </button>
             )}
             {onLink && isApprovedUnlinked && (

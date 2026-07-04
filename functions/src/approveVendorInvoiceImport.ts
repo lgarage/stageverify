@@ -1,12 +1,16 @@
 /**
- * approveVendorInvoiceImport — explicit approve/reject/reopen.
- * Approve without deliveryOrderId: review-only (import reviewStatus approved; no delivery/items).
+ * approveVendorInvoiceImport — explicit approve/reject/reopen/link/create_shell.
+ * Approve without deliveryOrderId: creates dashboard shell delivery + expected items.
  * Approve with deliveryOrderId: writes expected items only; does NOT set qtyReceived, staging, or readiness.
  */
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { buildExpectedItemsFromImport } from "./invoice/buildExpectedItemsFromImport";
+import {
+  buildDeliveryShellDocument,
+  buildInvoiceDeliveryShellContext,
+} from "./invoice/createDeliveryShellFromImport";
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
@@ -87,10 +91,10 @@ export const approveVendorInvoiceImport = onCall(
     if (!importId || importId.length > 256) {
       throw new HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
-    if (action !== "approve" && action !== "reject" && action !== "reopen" && action !== "link") {
+    if (action !== "approve" && action !== "reject" && action !== "reopen" && action !== "link" && action !== "create_shell") {
       throw new HttpsError(
         "invalid-argument",
-        "action must be approve, reject, reopen, or link.",
+        "action must be approve, reject, reopen, link, or create_shell.",
       );
     }
     if ((action === "approve" || action === "link") && deliveryOrderId.length > 256) {
@@ -284,7 +288,82 @@ export const approveVendorInvoiceImport = onCall(
       };
     }
 
+    if (action === "create_shell") {
+      if (importDoc.reviewStatus !== "approved") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Only approved imports can create a dashboard record.",
+        );
+      }
+      if (importDoc.linkedDeliveryOrderId?.trim()) {
+        return {
+          vendorInvoiceImportId: importId,
+          reviewStatus: "approved",
+          deliveryOrderId: importDoc.linkedDeliveryOrderId.trim(),
+          itemsApplied: 0,
+        };
+      }
+      if (importDoc.importStatus === "issue") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Cannot create dashboard record — import has parse issues.",
+        );
+      }
+
+      const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
+      const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+
+      await getDb().runTransaction(async (tx) => {
+        const freshImport = await tx.get(importRef);
+        if (!freshImport.exists) {
+          throw new HttpsError("not-found", "Vendor invoice import not found.");
+        }
+        const fresh = freshImport.data() as VendorInvoiceImportDoc;
+        if (fresh.reviewStatus !== "approved") {
+          throw new HttpsError(
+            "failed-precondition",
+            "Only approved imports can create a dashboard record.",
+          );
+        }
+        if (fresh.linkedDeliveryOrderId?.trim()) {
+          return;
+        }
+        if (fresh.importStatus === "issue") {
+          throw new HttpsError(
+            "failed-precondition",
+            "Cannot create dashboard record — import has parse issues.",
+          );
+        }
+
+        const existingDelivery = await tx.get(deliveryRef);
+        if (!existingDelivery.exists) {
+          tx.set(
+            deliveryRef,
+            buildDeliveryShellDocument(shell, importId, fresh, now),
+          );
+          for (const item of shell.expectedItems) {
+            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+          }
+        }
+
+        tx.update(importRef, {
+          linkedDeliveryOrderId: shell.deliveryOrderId,
+          updatedAt: now,
+        });
+      });
+
+      return {
+        vendorInvoiceImportId: importId,
+        reviewStatus: "approved",
+        deliveryOrderId: shell.deliveryOrderId,
+        itemsApplied: shell.expectedItems.length,
+      };
+    }
+
     if (!deliveryOrderId) {
+      const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
+      const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+
       await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -303,8 +382,34 @@ export const approveVendorInvoiceImport = onCall(
             "Cannot approve — import has parse issues. Reject or wait for a valid invoice.",
           );
         }
+
+        const linkedId = fresh.linkedDeliveryOrderId?.trim();
+        if (linkedId) {
+          tx.update(importRef, {
+            reviewStatus: "approved",
+            approvedAt: now,
+            approvedBy: uid,
+            rejectedAt: FieldValue.delete(),
+            rejectedBy: FieldValue.delete(),
+            updatedAt: now,
+          });
+          return;
+        }
+
+        const existingDelivery = await tx.get(deliveryRef);
+        if (!existingDelivery.exists) {
+          tx.set(
+            deliveryRef,
+            buildDeliveryShellDocument(shell, importId, fresh, now),
+          );
+          for (const item of shell.expectedItems) {
+            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+          }
+        }
+
         tx.update(importRef, {
           reviewStatus: "approved",
+          linkedDeliveryOrderId: shell.deliveryOrderId,
           approvedAt: now,
           approvedBy: uid,
           rejectedAt: FieldValue.delete(),
@@ -312,9 +417,15 @@ export const approveVendorInvoiceImport = onCall(
           updatedAt: now,
         });
       });
+
+      const linkedDeliveryOrderId =
+        importDoc.linkedDeliveryOrderId?.trim() || shell.deliveryOrderId;
+
       return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
+        deliveryOrderId: linkedDeliveryOrderId,
+        itemsApplied: shell.expectedItems.length,
       };
     }
 

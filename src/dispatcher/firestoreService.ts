@@ -2070,7 +2070,7 @@ const matchInvoiceToRecordsCallable = httpsCallable<
 const approveVendorInvoiceImportCallable = httpsCallable<
   {
     vendorInvoiceImportId: string;
-    action: "approve" | "reject" | "reopen" | "link";
+    action: "approve" | "reject" | "reopen" | "link" | "create_shell";
     deliveryOrderId?: string;
   },
   ApproveVendorInvoiceImportResult
@@ -2096,7 +2096,7 @@ export async function matchInvoiceToRecords(
 
 export async function approveVendorInvoiceImport(input: {
   vendorInvoiceImportId: string;
-  action: "approve" | "reject" | "reopen" | "link";
+  action: "approve" | "reject" | "reopen" | "link" | "create_shell";
   deliveryOrderId?: string;
 }): Promise<ApproveVendorInvoiceImportResult> {
   const response = await approveVendorInvoiceImportCallable(input);
