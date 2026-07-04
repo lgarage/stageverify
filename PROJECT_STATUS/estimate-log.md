@@ -94,7 +94,7 @@ Example (no budget): `| 8 min | a1b2c3d |`
 | 9 | away-089 | 2026-07-03T18:14:00-05:00 | 2026-07-03T18:16:58-05:00 | 35 | 3 | service-logic | parser-batch | n | Johnstone invoice Slice 2; test:invoice-batch 27/27; completedAt=92635a0 |
 | 10 | dispatcher-staging-action-rows | 2026-07-03T18:34:00-05:00 | 2026-07-03T18:38:30-05:00 | 35 | 4 | ui-component | table-action-row | y | dark-orange action rows + Assign staging location; verify:delivery-consistency ORD-001/002; completedAt=6857f05 |
 | 11 | dispatcher-staging-action-rows-tighten | 2026-07-03T19:52:00-05:00 | 2026-07-03T19:58:00-05:00 | 35 | 6 | ui-component | table-rule-tighten | y | missing staging alone triggers action row; offline+live verify; completedAt=136df76 |
-| 12 | | | | | | | | | |
+| 12 | estimate-subtype-taxonomy | 2026-07-03T19:57:00-05:00 | 2026-07-03T19:58:13-05:00 | 10 | 1 | docs-update | status-sync | n | Subtype column + taxonomy; backfill rows 1-11; protocol/rules cross-ref; completedAt=1bcecd3 |
 | 13 | | | | | | | | | |
 | 14 | | | | | | | | | |
 | 15 | | | | | | | | | |
