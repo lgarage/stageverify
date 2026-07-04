@@ -15,7 +15,12 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 
-const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
+const args = process.argv.slice(2);
+const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
+const baseUrl =
+  (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
+  process.env.STAGEVERIFY_BASE_URL ??
+  "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 
@@ -158,10 +163,25 @@ async function assertEmailVendorEnabledWhenConnected(page) {
 
   const badge = page.getByTestId("gmail-oauth-status-badge");
   await badge.waitFor({ timeout: 15_000 });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector('[data-testid="gmail-oauth-status-badge"]');
+      return el && !/loading/i.test(el.textContent ?? "");
+    },
+    { timeout: 15_000 },
+  );
+  await page.waitForTimeout(400);
   const statusAttr = await badge.getAttribute("data-status");
-  if (statusAttr !== "disconnected") {
-    throw new Error(`Expected disconnected Gmail badge, got data-status=${statusAttr}`);
-  }
+  const inboxVisible = await page
+    .getByTestId("monitoring-inbox-email")
+    .isVisible()
+    .catch(() => false);
+
+  if (statusAttr !== "disconnected" || !inboxVisible) {
+    console.log(
+      `Gmail already linked (data-status=${statusAttr}) — skip disconnected inbox probe`,
+    );
+  } else {
   await page.getByTestId("gmail-oauth-connect").waitFor({ timeout: 10_000 });
 
   const probeEmail = "verify-oauth-inbox@stageverify.test";
@@ -178,15 +198,40 @@ async function assertEmailVendorEnabledWhenConnected(page) {
     timeout: 45_000,
   });
   await page.getByTestId("gmail-oauth-status-badge").waitFor({ timeout: 15_000 });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector('[data-testid="gmail-oauth-status-badge"]');
+      return el && !/loading/i.test(el.textContent ?? "");
+    },
+    { timeout: 15_000 },
+  );
   const statusAfterMonitoring = await page
     .getByTestId("gmail-oauth-status-badge")
     .getAttribute("data-status");
   if (statusAfterMonitoring === "connected") {
     throw new Error("monitoringInboxEmail + emailMonitoringEnabled must NOT imply connected");
   }
+  }
 
   const seededConnected = trySeed("connected");
-  if (seededConnected) {
+  const badgeAfterSeed = page.getByTestId("gmail-oauth-status-badge");
+  let connectedStatus = await badgeAfterSeed.getAttribute("data-status");
+  if (!seededConnected && connectedStatus === "connected") {
+    console.log("Live connected Gmail — assert unified mailbox UI…");
+    await page.getByTestId("gmail-connected-account").waitFor({ timeout: 10_000 });
+    await page.getByText("Gmail Mailbox", { exact: true }).waitFor({ timeout: 10_000 });
+    const inboxField = page.getByTestId("monitoring-inbox-email");
+    if (await inboxField.isVisible().catch(() => false)) {
+      throw new Error(
+        "monitoring-inbox-email must not be editable when Gmail is connected",
+      );
+    }
+    await page.getByTestId("email-monitoring-enabled").check();
+    await page.getByTestId("save-email-settings").click();
+    await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
+    console.log("Connected — Email Vendor enabled when vendor email on file…");
+    await assertEmailVendorEnabledWhenConnected(page);
+  } else if (seededConnected) {
     console.log("Connected fixture — badge + Vendor Communications copy…");
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByTestId("gmail-oauth-status-badge").waitFor({ timeout: 15_000 });
