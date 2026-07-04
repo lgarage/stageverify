@@ -10,19 +10,19 @@ import {
   matchInvoiceToRecords,
 } from "../firestoreService";
 import { vendorInvoiceImportDisplayLabel } from "./invoiceDisplayHelpers";
+import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
+import {
+  formatInvoiceHeaderField,
+  INVOICE_HEADER_FIELD_LABELS,
+  INVOICE_REVIEW_DETAIL_FIELDS,
+  queueRowTitle,
+  readInvoiceHeaderField,
+} from "./invoiceReviewHeaderHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-
-function headerString(
-  header: Record<string, unknown> | undefined,
-  key: string,
-): string {
-  const v = header?.[key];
-  return typeof v === "string" && v.trim() ? v.trim() : "—";
-}
 
 function formatDate(iso: string | undefined): string {
   if (!iso) return "—";
@@ -112,6 +112,8 @@ export function InvoiceReviewPanel({
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [inspectImport, setInspectImport] =
+    useState<VendorInvoiceImportReview | null>(null);
   const lastAppliedGeneration = useRef(0);
 
   const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
@@ -307,44 +309,65 @@ export function InvoiceReviewPanel({
           )}
           {filteredImports.map((row) => {
             const active = row.id === selectedId;
-            const invoiceNum = headerString(row.parsedHeader, "vendorInvoiceNumber");
-            const orderNum = headerString(row.parsedHeader, "vendorOrderNumber");
-            const po = headerString(row.parsedHeader, "customerPoOrReference");
-            const titleLabel =
-              invoiceNum !== "—"
-                ? `Invoice ${invoiceNum}`
-                : orderNum !== "—"
-                  ? `S/O ${orderNum}`
-                  : row.pageId;
             return (
-              <button
+              <div
                 key={row.id}
-                type="button"
                 data-testid={`invoice-review-queue-row-${row.id}`}
-                onClick={() => setSelectedId(row.id)}
                 style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "12px 16px",
-                  border: "none",
                   borderBottom: "1px solid #f0f2f5",
                   backgroundColor: active ? "#f0f4ff" : "#fff",
-                  cursor: "pointer",
                 }}
               >
-                <div style={{ fontWeight: 700, color: NAVY, fontSize: 13 }}>
-                  {titleLabel}
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(row.id)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "12px 16px 8px",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: NAVY, fontSize: 13 }}>
+                    {queueRowTitle(row)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                    {formatInvoiceHeaderField(
+                      readInvoiceHeaderField(row.parsedHeader, "customerPoOrReference"),
+                    )}
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <StatusChip
+                      importStatus={row.importStatus}
+                      reviewStatus={row.reviewStatus}
+                    />
+                  </div>
+                </button>
+                <div style={{ padding: "0 16px 12px" }}>
+                  <button
+                    type="button"
+                    data-testid={`invoice-review-inspect-row-${row.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInspectImport(row);
+                    }}
+                    style={{
+                      backgroundColor: "#fff",
+                      color: NAVY,
+                      border: `1px solid ${NAVY}`,
+                      borderRadius: 4,
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    View parsed
+                  </button>
                 </div>
-                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                  {po}
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <StatusChip
-                    importStatus={row.importStatus}
-                    reviewStatus={row.reviewStatus}
-                  />
-                </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -386,23 +409,44 @@ export function InvoiceReviewPanel({
                     color: NAVY,
                   }}
                 >
-                  {headerString(header, "vendorInvoiceNumber") !== "—"
-                    ? `Invoice ${headerString(header, "vendorInvoiceNumber")}`
-                    : headerString(header, "vendorOrderNumber") !== "—"
-                      ? `Sales order ${headerString(header, "vendorOrderNumber")}`
+                  {readInvoiceHeaderField(header, "vendorInvoiceNumber")
+                    ? `Invoice ${readInvoiceHeaderField(header, "vendorInvoiceNumber")}`
+                    : readInvoiceHeaderField(header, "vendorOrderNumber")
+                      ? `Sales order ${readInvoiceHeaderField(header, "vendorOrderNumber")}`
                       : "Import review"}
                 </h2>
                 <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>
-                  {headerString(header, "vendorInvoiceNumber") === "—" &&
-                  headerString(header, "vendorOrderNumber") !== "—"
+                  {!readInvoiceHeaderField(header, "vendorInvoiceNumber") &&
+                  readInvoiceHeaderField(header, "vendorOrderNumber")
                     ? `S/O confirmation · Received ${formatDate(selected.createdAt)}`
-                    : `Sales order ${headerString(header, "vendorOrderNumber")} · Received ${formatDate(selected.createdAt)}`}
+                    : readInvoiceHeaderField(header, "vendorOrderNumber")
+                      ? `Sales order ${readInvoiceHeaderField(header, "vendorOrderNumber")} · Received ${formatDate(selected.createdAt)}`
+                      : `${selected.pageId} · Received ${formatDate(selected.createdAt)}`}
                 </p>
               </div>
-              <StatusChip
-                importStatus={selected.importStatus}
-                reviewStatus={selected.reviewStatus}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+                <StatusChip
+                  importStatus={selected.importStatus}
+                  reviewStatus={selected.reviewStatus}
+                />
+                <button
+                  type="button"
+                  data-testid="invoice-review-inspect-detail"
+                  onClick={() => setInspectImport(selected)}
+                  style={{
+                    backgroundColor: "#fff",
+                    color: NAVY,
+                    border: `1px solid ${NAVY}`,
+                    borderRadius: 6,
+                    padding: "6px 12px",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  Inspect parsed data
+                </button>
+              </div>
             </div>
 
             {approveBlocked && issueReason && (
@@ -432,38 +476,53 @@ export function InvoiceReviewPanel({
                 fontSize: 13,
               }}
             >
-              <div>
-                <div style={{ color: "#6b7280", fontWeight: 600 }}>Customer P/O #</div>
-                <div style={{ color: NAVY, fontWeight: 600 }}>
-                  {headerString(header, "customerPoOrReference")}
-                </div>
-              </div>
-              <div>
-                <div style={{ color: "#6b7280", fontWeight: 600 }}>Branch</div>
-                <div style={{ color: NAVY }}>
-                  {headerString(header, "vendorBranchName")}
-                  {headerString(header, "vendorBranchPhone") !== "—" && (
-                    <>
-                      {" "}
-                      ·{" "}
-                      <a
-                        href={`tel:${headerString(header, "vendorBranchPhone").replace(/\D/g, "")}`}
-                        style={{ color: RED }}
-                      >
-                        {headerString(header, "vendorBranchPhone")}
-                      </a>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div style={{ color: "#6b7280", fontWeight: 600 }}>Buyer</div>
-                <div>{headerString(header, "buyerName")}</div>
-              </div>
-              <div>
-                <div style={{ color: "#6b7280", fontWeight: 600 }}>Confidence</div>
-                <div>{selected.confidenceScore}%</div>
-              </div>
+              {INVOICE_REVIEW_DETAIL_FIELDS.map((fieldKey) => {
+                const value = readInvoiceHeaderField(header, fieldKey);
+                if (fieldKey === "vendorBranchName") {
+                  const branchPhone = readInvoiceHeaderField(header, "vendorBranchPhone");
+                  return (
+                    <div key={fieldKey}>
+                      <div style={{ color: "#6b7280", fontWeight: 600 }}>
+                        {INVOICE_HEADER_FIELD_LABELS[fieldKey]}
+                      </div>
+                      <div style={{ color: NAVY }}>
+                        {formatInvoiceHeaderField(value)}
+                        {branchPhone && (
+                          <>
+                            {" "}
+                            ·{" "}
+                            <a
+                              href={`tel:${branchPhone.replace(/\D/g, "")}`}
+                              style={{ color: RED }}
+                            >
+                              {branchPhone}
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={fieldKey}>
+                    <div style={{ color: "#6b7280", fontWeight: 600 }}>
+                      {INVOICE_HEADER_FIELD_LABELS[fieldKey]}
+                    </div>
+                    <div
+                      style={{
+                        color: NAVY,
+                        fontWeight:
+                          fieldKey === "customerPoOrReference" ||
+                          fieldKey === "buyerName"
+                            ? 600
+                            : 400,
+                      }}
+                    >
+                      {formatInvoiceHeaderField(value)}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <h3
@@ -671,6 +730,13 @@ export function InvoiceReviewPanel({
           </div>
         )}
       </div>
+
+      {inspectImport && (
+        <InvoiceParsedInspectModal
+          importRow={inspectImport}
+          onClose={() => setInspectImport(null)}
+        />
+      )}
     </div>
   );
 }

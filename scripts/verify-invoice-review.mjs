@@ -123,6 +123,33 @@ async function main() {
     await page.getByRole("button", { name: "+ New Delivery" }).waitFor({ timeout: 10_000 });
     console.log("PASS: shared dispatcher + New Delivery visible on Invoice Review");
 
+    const detailPanel = page.getByTestId("invoice-review-detail");
+    const detailPanelText = await detailPanel.innerText();
+    if (/Confidence/i.test(detailPanelText)) {
+      throw new Error("Confidence column should not appear in invoice review detail");
+    }
+    console.log("PASS: Confidence column not shown in detail panel");
+
+    const inspectDetail = page.getByTestId("invoice-review-inspect-detail");
+    const inspectRow = page.locator('[data-testid^="invoice-review-inspect-row-"]').first();
+    if (await inspectDetail.isVisible().catch(() => false)) {
+      await inspectDetail.click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+      console.log("PASS: Inspect parsed data modal opens from detail");
+      await page.getByTestId("invoice-parsed-inspect-close").click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
+        state: "hidden",
+        timeout: 5000,
+      });
+    } else if (await inspectRow.isVisible().catch(() => false)) {
+      await inspectRow.click();
+      await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+      console.log("PASS: Inspect parsed data modal opens from queue row");
+      await page.getByTestId("invoice-parsed-inspect-close").click();
+    } else {
+      console.log("SKIP: no queue items — inspect controls not exercised");
+    }
+
     await page.screenshot({
       path: resolve(screenshotDir, "invoice-review-page.png"),
       fullPage: true,

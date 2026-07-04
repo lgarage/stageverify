@@ -837,6 +837,7 @@ export interface VendorInvoiceImportReview {
   parsedLines?: VendorInvoiceImportParsedLine[];
   parsedLineCount?: number;
   parseWarnings?: string[];
+  orderNotes?: string[];
   /** Human-readable block reason when importStatus is issue. */
   error?: string;
   linkedDeliveryOrderId?: string;
