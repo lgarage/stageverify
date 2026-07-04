@@ -13,17 +13,12 @@ function getDb() {
   return admin.firestore();
 }
 
-function requireAuth(request: { auth?: { uid?: string } }): string {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Sign in to approve invoice imports.");
-  }
-  return request.auth.uid;
-}
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 
 export const approveVendorInvoiceImport = onCall(
   { region: "us-central1" },
   async (request) => {
-    const uid = requireAuth(request);
+    const uid = requireDispatcherAuth(request);
     const data = (request.data ?? {}) as {
       vendorInvoiceImportId?: string;
       action?: string;

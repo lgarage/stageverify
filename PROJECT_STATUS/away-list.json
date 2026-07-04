@@ -14,7 +14,6 @@
       "away-092",
       "away-093",
       "away-094",
-      "away-095",
       "away-096",
       "away-097",
       "away-098"
@@ -76,23 +75,9 @@
       ]
     },
     {
-      "id": "away-095",
-      "title": "dispatcher review UI",
-      "status": "queued",
-      "dependsOn": "away-094",
-      "tier": "T1",
-      "budget": "~35m",
-      "scope": "WILL add dispatcher review UI (queue list, line table, match picker, Approve/Reject); labels per spec Table C; will NOT manual PDF upload",
-      "acceptance": "npm run build; Playwright auth setup if needed; verify:dispatcher-nav PASS; gh-pages deploy if UI bundle changed",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:dispatcher-nav"
-      ]
-    },
-    {
       "id": "away-096",
       "title": "harden inspect callables",
-      "status": "queued",
+      "status": "built",
       "dependsOn": "away-094",
       "tier": "T1",
       "budget": "~35m",

@@ -15,12 +15,7 @@ function getDb() {
   return admin.firestore();
 }
 
-function requireAuth(request: { auth?: { uid?: string } }): string {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Sign in to match invoice imports.");
-  }
-  return request.auth.uid;
-}
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 
 function asParsedHeader(raw: Record<string, unknown>): ParsedInvoiceHeader {
   const str = (key: string, required = false): string => {
@@ -82,7 +77,7 @@ async function loadDeliveryNotes(
 export const matchInvoiceToRecordsCallable = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireAuth(request);
+    requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { vendorInvoiceImportId?: string };
     const importId =
       typeof data.vendorInvoiceImportId === "string"

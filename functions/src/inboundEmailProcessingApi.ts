@@ -3,7 +3,10 @@
  */
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import type { InboundEmailProcessingDoc } from "./inboundEmail/types";
+import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboundEmail/types";
+import { clampListLimit, requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
+import { recoverStrandedInboundProcessingList } from "./inboundEmail/recoverStrandedProcessing";
+import { sanitizeVendorInvoiceImportForClient } from "./inboundEmail/sanitizeVendorInvoiceImport";
 
 const COLLECTION = "inboundEmailProcessing";
 const MAX_LIST = 50;
@@ -11,13 +14,6 @@ const MAX_TEXT_PREVIEW = 4000;
 
 function getDb() {
   return admin.firestore();
-}
-
-function requireAuth(request: { auth?: { uid?: string } }): string {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Sign in to view inbound email processing.");
-  }
-  return request.auth.uid;
 }
 
 function sanitizeDocForClient(doc: InboundEmailProcessingDoc): Record<string, unknown> {
@@ -50,12 +46,9 @@ function sanitizeDocForClient(doc: InboundEmailProcessingDoc): Record<string, un
 export const listInboundEmailProcessing = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireAuth(request);
+    requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { limit?: number };
-    const limit =
-      typeof data.limit === "number" && data.limit > 0 && data.limit <= MAX_LIST
-        ? Math.floor(data.limit)
-        : 25;
+    const limit = clampListLimit(data.limit, 25, MAX_LIST);
 
     const snap = await getDb()
       .collection(COLLECTION)
@@ -63,9 +56,9 @@ export const listInboundEmailProcessing = onCall(
       .limit(limit)
       .get();
 
-    const items = snap.docs.map((d) =>
-      sanitizeDocForClient(d.data() as InboundEmailProcessingDoc),
-    );
+    const raw = snap.docs.map((d) => d.data() as InboundEmailProcessingDoc);
+    const recovered = await recoverStrandedInboundProcessingList(raw);
+    const items = recovered.map((d) => sanitizeDocForClient(d));
 
     return { items, count: items.length };
   },
@@ -74,7 +67,7 @@ export const listInboundEmailProcessing = onCall(
 export const getInboundEmailProcessing = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireAuth(request);
+    requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { id?: string };
     const id = typeof data.id === "string" ? data.id.trim() : "";
     if (!id || id.length > 256) {
@@ -86,29 +79,33 @@ export const getInboundEmailProcessing = onCall(
       throw new HttpsError("not-found", "Inbound email processing record not found.");
     }
 
-    return sanitizeDocForClient(snap.data() as InboundEmailProcessingDoc);
+    const [recovered] = await recoverStrandedInboundProcessingList([
+      snap.data() as InboundEmailProcessingDoc,
+    ]);
+
+    return sanitizeDocForClient(recovered);
   },
 );
 
 export const listVendorInvoiceImports = onCall(
   { region: "us-central1" },
   async (request) => {
-    requireAuth(request);
+    requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { inboundEmailProcessingId?: string; limit?: number };
     const inboundId =
       typeof data.inboundEmailProcessingId === "string"
         ? data.inboundEmailProcessingId.trim()
         : "";
-    const limit =
-      typeof data.limit === "number" && data.limit > 0 && data.limit <= MAX_LIST
-        ? Math.floor(data.limit)
-        : 25;
+    const limit = clampListLimit(data.limit, 25, MAX_LIST);
 
     let query = getDb().collection("vendorInvoiceImports").orderBy("createdAt", "desc");
     if (inboundId) {
       query = query.where("inboundEmailProcessingId", "==", inboundId);
     }
     const snap = await query.limit(limit).get();
-    return { items: snap.docs.map((d) => d.data()), count: snap.size };
+    const items = snap.docs.map((d) =>
+      sanitizeVendorInvoiceImportForClient(d.data() as VendorInvoiceImportDoc),
+    );
+    return { items, count: items.length };
   },
 );
