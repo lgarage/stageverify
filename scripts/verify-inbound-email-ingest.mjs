@@ -154,6 +154,21 @@ assert("invoice-date S/O no vendorInvoiceNumber", !invoiceDateHeader?.vendorInvo
 assert("invoice-date S/O importStatus issue", invoiceDateFirst?.processing?.importStatus === "issue");
 assert("invoice-date S/O missing invoice warning", (invoiceDateFirst?.processing?.parsed.parseWarnings ?? []).some((w) => w.includes("missing vendorInvoiceNumber")));
 
+console.log("\n3e. Invoice tabular header (P411190 / 4046362) extracts alphanumeric Invoice #");
+const INVOICE_P411190_TEXT = INVOICE_FIXTURES.find((f) => f.pageId === "inv-p411190-4046362")?.extractedText ?? "";
+const p411190Batch = parseInboundInvoiceText(INVOICE_P411190_TEXT, {
+  importBatchId: "batch-verify-p411190-4046362",
+  gmailMessageId: "msg-fixture-p411190-4046362",
+});
+const p411190First = p411190Batch.results[0];
+const p411190Header = p411190First?.processing?.parsed.header;
+assert("P411190 vendorInvoiceNumber", p411190Header?.vendorInvoiceNumber === "P411190");
+assert("P411190 vendorOrderNumber", p411190Header?.vendorOrderNumber === "4046362");
+assert("P411190 shipViaRaw", p411190Header?.shipViaRaw === "Fond du Lac");
+assert("P411190 importStatus pending", p411190First?.processing?.importStatus === "pending");
+assert("P411190 no missing invoice warning", !(p411190First?.processing?.parsed.parseWarnings ?? []).some((w) => w.includes("missing vendorInvoiceNumber")));
+assert("P411190 lines preserved", (p411190First?.processing?.parsed.lines ?? []).length === 5);
+
 console.log("\n4. parsedLines persistence shape (Table B)");
 const rawLines = first?.processing?.parsed.lines ?? [];
 const parsedLines = sanitizeParsedLines(rawLines);

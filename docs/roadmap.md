@@ -258,6 +258,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
+- **Johnstone alphanumeric Invoice # parser (2026-07-04):** ✅ Shipped — tabular pdf.js header row extracts `P411190` and wide-row Ship Via; S/O 4046362 PDF no longer false `issue` when Invoice # present; `test:pdf-extract-4046362` + `verify:inbound-email-ingest` §3e
 - **Shared Refresh Now sync (2026-07-04):** ✅ Shipped — `DispatcherPortalProvider` at portal layout; Refresh Now on any dispatcher tab refreshes invoice queue, vendors, zones + Gmail sync; all tabs consume same snapshot on navigate; dashboard re-fetches deliveries on refresh generation
 - **Outbound send (away-068):** ✅ Shipped — `sendVendorEmail` CF (Gmail API); Email Vendor enabled in Resolve Issue when `emailProviderConnected`; outbound `vendorEmailEvents` audit
 - **Drawer/readiness UX (away-072, away-073, clarity correction):** ✅ Shipped — Issue Summary item table only (no Open Issues accordion); calm **Waiting on Delivery** banner for normal pending; **What Needs Attention** only for true exceptions; exception-only issue counts; `verify:delivery-consistency` + `test:demo-matrix`

@@ -48,11 +48,32 @@ function evaluateFixture(pageId, result, expected) {
       detail: result.parsed.header.vendorInvoiceNumber,
     });
   }
+  if (expected.customerAccountNumber) {
+    checks.push({
+      label: "customerAccountNumber",
+      pass: result.parsed.header.customerAccountNumber === expected.customerAccountNumber,
+      detail: result.parsed.header.customerAccountNumber,
+    });
+  }
   if (expected.customerPoOrReference) {
     checks.push({
       label: "customerPoOrReference",
       pass: result.parsed.header.customerPoOrReference === expected.customerPoOrReference,
       detail: result.parsed.header.customerPoOrReference,
+    });
+  }
+  if (expected.shipViaRaw) {
+    checks.push({
+      label: "shipViaRaw",
+      pass: result.parsed.header.shipViaRaw === expected.shipViaRaw,
+      detail: result.parsed.header.shipViaRaw ?? "null",
+    });
+  }
+  if (expected.invoiceDate) {
+    checks.push({
+      label: "invoiceDate",
+      pass: result.parsed.header.invoiceDate === expected.invoiceDate,
+      detail: result.parsed.header.invoiceDate,
     });
   }
   if (expected.fulfillmentMethod) {
@@ -269,6 +290,19 @@ const FIXTURE_EXPECTATIONS = {
     importStatus: "issue",
     displayLabel: "Issue / Action Needed",
     expectedLineCount: 1,
+    notAutoProcessed: true,
+  },
+  "inv-p411190-4046362": {
+    vendorOrderNumber: "4046362",
+    vendorInvoiceNumber: "P411190",
+    customerAccountNumber: "0008745",
+    customerPoOrReference: "blackduck hartfo",
+    buyerName: "DAN DAY",
+    shipViaRaw: "Fond du Lac",
+    invoiceDate: "2026-01-08",
+    importStatus: "pending",
+    displayLabel: "Pending Delivery",
+    expectedLineCount: 5,
     notAutoProcessed: true,
   },
 };

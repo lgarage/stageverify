@@ -64,7 +64,14 @@ assert(
   "first line full description",
   /PLEATED EXTENDED SURFACE/i.test(result.parsed.lines[0]?.description ?? ""),
 );
-assert("issue import (no invoice #)", result.importStatus === "issue");
+assert("parses vendorInvoiceNumber P411190", result.parsed.header.vendorInvoiceNumber === "P411190");
+assert("parses invoice date", result.parsed.header.invoiceDate === "2026-01-08");
+assert("parses ship via Fond du Lac", result.parsed.header.shipViaRaw === "Fond du Lac");
+assert("pending import (invoice present)", result.importStatus === "pending");
+assert(
+  "no missing invoice warning",
+  !result.parsed.parseWarnings.some((w) => w.includes("missing vendorInvoiceNumber")),
+);
 
 const badDoc = {
   id: "inbound-test",

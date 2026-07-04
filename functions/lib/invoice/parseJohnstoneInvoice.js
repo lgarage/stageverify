@@ -34,6 +34,23 @@ function sanitizeInvoiceNumber(raw) {
     const trimmed = raw?.trim() ?? "";
     return isPlausibleInvoiceNumber(trimmed) ? trimmed : "";
 }
+/** Try labeled / tabular captures; skip values rejected by sanitize (e.g. "Invoice" from "Invoice Date"). */
+function extractVendorInvoiceNumber(text, tabular, stacked) {
+    const candidates = [
+        capture(/Invoice\s*#\s*:\s*(\d+)/i, text),
+        capture(/Invoice\s*#\s*:\s*([A-Z0-9-]+)/i, text),
+        tabular.vendorInvoiceNumber,
+        stacked.vendorInvoiceNumber,
+        capture(/Invoice\s*#\s+(?!Invoice(?:\s+Date|\s*#))([A-Z0-9]*\d[A-Z0-9-]*)/i, text),
+        capture(/^([A-Z]?\d{5,})\s+\d{1,2}\/\d{1,2}\/\d{2,4}/m, text),
+    ];
+    for (const raw of candidates) {
+        const sanitized = sanitizeInvoiceNumber(raw);
+        if (sanitized)
+            return sanitized;
+    }
+    return "";
+}
 function normalizeDate(raw) {
     const trimmed = raw.trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed))
@@ -90,6 +107,25 @@ function parseShipViaToken(raw) {
         return truck[1].trim();
     return trimmed;
 }
+/** Ship-via column from pdf.js wide header value row (before trailing salesman #). */
+function parseWideRowShipVia(middle) {
+    const truck = middle.match(/\s+(TRUCK\s+DELIVE\w*)\s*$/i);
+    if (truck)
+        return parseShipViaToken(truck[1]);
+    const willCall = middle.match(/\s+(WILL\s*[- ]?\s*CALL\b.*)\s*$/i);
+    if (willCall)
+        return parseShipViaToken(willCall[1]);
+    const tokens = middle.trim().split(/\s+/);
+    for (const wordCount of [3, 2]) {
+        if (tokens.length < wordCount)
+            continue;
+        const tail = tokens.slice(-wordCount).join(" ");
+        if (/^[A-Z]/.test(tail) && !/^\d+$/.test(tail)) {
+            return parseShipViaToken(tail);
+        }
+    }
+    return undefined;
+}
 /** Johnstone S/O confirmations often use label row + value row without colons. */
 function parseTabularHeaderBlock(text) {
     const partial = {};
@@ -128,6 +164,35 @@ function parseTabularHeaderBlock(text) {
             if (orderBuyer) {
                 partial.orderDate = orderBuyer[1];
                 partial.buyerName = orderBuyer[2].trim();
+            }
+        }
+        if (/^Invoice\s*#\s+Invoice\s+Date/i.test(labelLine)) {
+            const invRow = valueLine.match(/^([A-Z]?\d{5,})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+            if (invRow) {
+                partial.vendorInvoiceNumber = invRow[1];
+                partial.invoiceDate = invRow[2];
+            }
+        }
+        if (/^Customer\s*#\s+Order\s+Date\s+Sales\s+Order\s*#\s+Buyer\s+Customer\s+P\/O\s*#\s+Ship\s+Via/i.test(labelLine)) {
+            const wide = valueLine.match(/^(\d{3,10})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{3,10})\s+(.+)\s+(\d+)\s*$/);
+            if (wide) {
+                partial.customerAccountNumber = wide[1];
+                partial.orderDate = wide[2];
+                partial.vendorOrderNumber = wide[3];
+                const middle = wide[4].trim();
+                const shipVia = parseWideRowShipVia(middle);
+                if (shipVia) {
+                    partial.shipViaRaw = shipVia;
+                    const shipViaTail = middle.match(new RegExp(`\\s+${shipVia.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`));
+                    const beforeShipVia = shipViaTail
+                        ? middle.slice(0, shipViaTail.index).trim()
+                        : middle;
+                    const buyerPo = beforeShipVia.match(/^(\S+\s+\S+)\s+(.+)$/);
+                    if (buyerPo) {
+                        partial.buyerName = buyerPo[1].trim();
+                        partial.customerPoOrReference = buyerPo[2].trim();
+                    }
+                }
             }
         }
     }
@@ -307,12 +372,12 @@ function parseJohnstoneInvoicePage(page) {
     const stacked = parseStackedLabelValuePairs(text);
     const customerAccountNumber = firstNonEmpty(capture(/Customer\s*#\s*:\s*(\d+)/i, text), tabular.customerAccountNumber, stacked.customerAccountNumber, captureLabeledField("Customer", "\\d{3,10}", text), capture(/Customer\s+(\d{3,10})/i, text));
     const vendorOrderNumber = firstNonEmpty(capture(/Sales Order\s*#\s*:\s*(\d+)/i, text), tabular.vendorOrderNumber, stacked.vendorOrderNumber, captureLabeledField("Sales Order", "\\d{3,10}", text), capture(/Sales Order\s+(\d{3,10})/i, text), capture(/S\/O\s*(?:#|Number)?\s*:?\s*(\d{3,10})/i, text));
-    const vendorInvoiceNumber = sanitizeInvoiceNumber(firstNonEmpty(capture(/Invoice\s*#\s*:\s*(\d+)/i, text), capture(/Invoice\s*#\s*:\s*([A-Z0-9-]+)/i, text), capture(/Invoice\s*#\s+([A-Z0-9-]+)/i, text), stacked.vendorInvoiceNumber));
+    const vendorInvoiceNumber = extractVendorInvoiceNumber(text, tabular, stacked);
     const customerPoOrReference = pickPoValue(capture(/Customer P\/O\s*#\s*:\s*(.+)/i, text), tabular.customerPoOrReference, stacked.customerPoOrReference, capture(/(?:Customer|Cust)\s+P\/O\s*#?\s*:\s*(.+)/i, text), captureLabeledField("Customer P/O", ".+", text), captureLabeledField("Cust P/O", ".+", text));
     const quoteNumber = capture(/Quote\s*(?:Number|#)\s*:\s*(\S+)/i, text)
         ?? capture(/Invoice Message[\s\S]*?(Q\d+)/i, text);
     const orderDateRaw = firstNonEmpty(capture(/Order Date\s*:\s*([\d/-]+)/i, text), tabular.orderDate, stacked.orderDate, captureLabeledField("Order Date", "[\\d/-]+", text));
-    const invoiceDateRaw = firstNonEmpty(capture(/Invoice Date\s*:\s*([\d/-]+)/i, text), captureLabeledField("Invoice Date", "[\\d/-]+", text));
+    const invoiceDateRaw = firstNonEmpty(capture(/Invoice Date\s*:\s*([\d/-]+)/i, text), tabular.invoiceDate, captureLabeledField("Invoice Date", "[\\d/-]+", text));
     const shipDateRaw = firstNonEmpty(capture(/Ship Date\s*:\s*([\d/-]+)/i, text), captureLabeledField("Ship Date", "[\\d/-]+", text));
     const buyerRaw = firstNonEmpty(capture(/Buyer\s*:\s*(.+)/i, text), tabular.buyerName, stacked.buyerName);
     const buyerName = buyerRaw ? trimBuyerValue(buyerRaw) : undefined;
