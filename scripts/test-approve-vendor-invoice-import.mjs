@@ -29,7 +29,10 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { buildExpectedItemsFromImport } from "../functions/lib/invoice/buildExpectedItemsFromImport.js";
-import { shellDeliveryIdForImport } from "../functions/lib/invoice/createDeliveryShellFromImport.js";
+import {
+  scoreJobMatchFromInvoiceHints,
+  shellDeliveryIdForImport,
+} from "../functions/lib/invoice/createDeliveryShellFromImport.js";
 
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
@@ -135,6 +138,33 @@ if (built.length === 2 && built.every((i) => i.qtyReceived === 0)) {
   fail("item builder shape", built);
 }
 
+console.log("\n=== Unit: scoreJobMatchFromInvoiceHints (P411190 / blackduck) ===\n");
+
+const p411190Header = {
+  customerAccountNumber: "0008745",
+  vendorOrderNumber: "4046362",
+  vendorInvoiceNumber: "P411190",
+  customerPoOrReference: "blackduck hartfo",
+  orderDate: "2026-01-07",
+  invoiceDate: "2026-01-08",
+  shipViaRaw: "Fond du Lac",
+  vendorBranchName: "Johnstone Supply",
+  soldToName: "SJS HEATING & COOLING, LLC",
+  shipToName: "SJS HEATING & COOLING, LLC",
+  fulfillmentMethod: "unknown",
+  shipCompletePolicy: "unknown",
+};
+
+const blackduckScore = scoreJobMatchFromInvoiceHints(p411190Header, {
+  jobNumber: "26-1042",
+  jobName: "Black Duck Hartford",
+});
+if (blackduckScore >= 12) {
+  pass("blackduck hartfo matches Black Duck Hartford job name");
+} else {
+  fail("blackduck hartfo job match score", { blackduckScore });
+}
+
 console.log("\n=== CF: approveVendorInvoiceImport (emulators) ===\n");
 
 const testEnv = await initializeTestEnvironment({
@@ -174,6 +204,14 @@ const header = {
 async function seed() {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adminDb = ctx.firestore();
+    await setDoc(doc(adminDb, "jobs", "job-blackduck"), {
+      id: "job-blackduck",
+      jobNumber: "26-1042",
+      jobName: "Black Duck Hartford",
+      status: "active",
+      createdAt: "2026-06-02T00:00:00Z",
+      updatedAt: "2026-06-02T00:00:00Z",
+    });
     await setDoc(doc(adminDb, "jobs", "job-1"), {
       id: "job-1",
       jobNumber: "PF-100",
@@ -310,6 +348,18 @@ if (
   pass("import marked approved with linked shell delivery");
 } else {
   fail("review-only import state", reviewOnlySnap.data());
+}
+
+const decisionLog = reviewOnlySnap.data()?.importDecisionLog ?? [];
+if (
+  decisionLog.length === 1 &&
+  decisionLog[0].action === "approve" &&
+  typeof decisionLog[0].by === "string" &&
+  decisionLog[0].importDecisionMode
+) {
+  pass("approve decision logged with eligibility snapshot");
+} else {
+  fail("import decision log after approve", decisionLog);
 }
 
 const shellDeliverySnap = await getDoc(doc(db, "deliveries", shellDeliveryId));
@@ -506,6 +556,80 @@ if (items.length === 2 && items.every((i) => i.qtyReceived === 0)) {
   pass("items created with qtyReceived=0");
 } else {
   fail("items after approve", items);
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const p411190Lines = [
+    {
+      lineNumber: 1,
+      quantityOrdered: 4,
+      quantityShipped: 4,
+      quantityBackordered: 0,
+      vendorProductNumber: "L97-525",
+      description: "FILTER",
+      filteredNotes: [],
+      lineType: "product",
+      excludeFromExpectedItems: false,
+    },
+  ];
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-p411190-backfill"), {
+    id: "vii-p411190-backfill",
+    inboundEmailProcessingId: "inbound-p411190",
+    gmailMessageId: "msg-p411190",
+    importBatchId: "batch-test",
+    pageId: "inv-p411190-4046362",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 75,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: p411190Header,
+    parsedLines: p411190Lines,
+    parsedLineCount: 1,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-06-24T10:00:00Z",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let backfillResult;
+try {
+  backfillResult = await approveImport({
+    vendorInvoiceImportId: "vii-p411190-backfill",
+    action: "create_shell",
+  });
+} catch (err) {
+  fail("P411190 create_shell backfill call failed", err?.message);
+}
+
+const backfillShellId = shellDeliveryIdForImport("vii-p411190-backfill");
+const backfillData = backfillResult?.data ?? {};
+if (
+  backfillData.reviewStatus === "approved" &&
+  backfillData.deliveryOrderId === backfillShellId &&
+  backfillData.itemsApplied === 1
+) {
+  pass("P411190 create_shell backfill returned shell delivery");
+} else {
+  fail("P411190 create_shell backfill response", backfillData);
+}
+
+const backfillShellSnap = await getDoc(doc(db, "deliveries", backfillShellId));
+const backfillShell = backfillShellSnap.data() ?? {};
+if (
+  backfillShell.jobId === "job-blackduck" &&
+  backfillShell.orderNumber === "4046362" &&
+  backfillShell.createdFromInvoiceImport === true
+) {
+  pass("P411190 shell delivery linked to Black Duck Hartford job");
+} else {
+  fail("P411190 shell delivery fields", backfillShell);
 }
 
 await testEnv.cleanup();

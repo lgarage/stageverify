@@ -11,13 +11,32 @@ const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
+const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
+const MAX_DECISION_LOG = 20;
 function getDb() {
     return admin.firestore();
 }
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 function canApproveReviewStatus(status) {
     return status === "pending_review" || status === "rejected";
+}
+function eligibilityFromDoc(doc) {
+    return (0, computeAutoImportEligibility_1.computeAutoImportEligibility)({
+        importStatus: doc.importStatus,
+        confidenceScore: doc.confidenceScore,
+        humanReviewRequired: doc.humanReviewRequired,
+        duplicate: doc.duplicate,
+        parseWarnings: doc.parseWarnings,
+        parsedHeader: doc.parsedHeader,
+        parsedLines: doc.parsedLines,
+        parsedLineCount: doc.parsedLineCount,
+        pageId: doc.pageId,
+    });
+}
+function appendDecisionLogUpdate(doc, entry) {
+    const prior = doc.importDecisionLog ?? [];
+    return [...prior, entry].slice(-MAX_DECISION_LOG);
 }
 function buildDeliveryLinkContext(importDoc, importId, deliveryOrderId, jobId) {
     const header = importDoc.parsedHeader;
@@ -84,6 +103,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 rejectedAt: firestore_1.FieldValue.delete(),
                 rejectedBy: firestore_1.FieldValue.delete(),
                 updatedAt: now,
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("reopen", uid, now, eligibilityFromDoc(fresh))),
             });
         });
         return { vendorInvoiceImportId: importId, reviewStatus: "pending_review" };
@@ -112,6 +132,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 rejectedAt: now,
                 rejectedBy: uid,
                 updatedAt: now,
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("reject", uid, now, eligibilityFromDoc(fresh))),
             });
         });
         return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
@@ -164,6 +185,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             tx.update(importRef, {
                 linkedDeliveryOrderId: deliveryOrderId,
                 updatedAt: now,
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("link", uid, now, eligibilityFromDoc(fresh), deliveryOrderId)),
             });
             tx.update(deliveryRef, {
                 vendorInvoiceImportId: importId,
@@ -231,6 +253,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             tx.update(importRef, {
                 linkedDeliveryOrderId: shell.deliveryOrderId,
                 updatedAt: now,
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("create_shell", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
             });
         });
         return {
@@ -264,6 +287,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                     rejectedAt: firestore_1.FieldValue.delete(),
                     rejectedBy: firestore_1.FieldValue.delete(),
                     updatedAt: now,
+                    importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), linkedId)),
                 });
                 return;
             }
@@ -282,6 +306,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 rejectedAt: firestore_1.FieldValue.delete(),
                 rejectedBy: firestore_1.FieldValue.delete(),
                 updatedAt: now,
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
             });
         });
         const linkedDeliveryOrderId = importDoc.linkedDeliveryOrderId?.trim() || shell.deliveryOrderId;
@@ -329,6 +354,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             rejectedAt: firestore_1.FieldValue.delete(),
             rejectedBy: firestore_1.FieldValue.delete(),
             updatedAt: now,
+            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), deliveryOrderId)),
         });
         tx.update(deliveryRef, {
             vendorInvoiceImportId: importId,

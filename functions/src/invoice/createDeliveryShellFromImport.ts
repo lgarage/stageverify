@@ -74,6 +74,64 @@ async function resolveJohnstoneVendor(
   return null;
 }
 
+function normalizeMatchText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function poHintTokens(customerPoOrReference: string): string[] {
+  return normalizeMatchText(customerPoOrReference)
+    .split(/\s+/)
+    .filter((token) => token.length >= 3);
+}
+
+/** Score how well invoice PO / ship-to hints match a job name or number. */
+export function scoreJobMatchFromInvoiceHints(
+  header: ParsedInvoiceHeader,
+  job: { jobNumber: string; jobName?: string },
+): number {
+  let score = 0;
+  const poCompact = normalizeMatchText(header.customerPoOrReference).replace(/\s+/g, "");
+  const nameTargets = [
+    job.jobName ?? "",
+    job.jobNumber,
+    header.shipToName ?? "",
+    header.soldToName ?? "",
+  ].filter(Boolean);
+
+  for (const target of nameTargets) {
+    const targetNorm = normalizeMatchText(target);
+    const targetCompact = targetNorm.replace(/\s+/g, "");
+    if (!targetNorm) continue;
+
+    if (poCompact.length >= 4 && targetCompact.includes(poCompact)) {
+      score += 24;
+      continue;
+    }
+
+    const targetParts = targetNorm.split(/\s+/).filter(Boolean);
+    for (const token of poHintTokens(header.customerPoOrReference)) {
+      if (targetParts.some((part) => part.startsWith(token) || token.startsWith(part))) {
+        score += 12;
+      } else if (targetCompact.includes(token)) {
+        score += 10;
+      }
+    }
+  }
+
+  const jobHint = header.jobNumberRaw?.trim().toUpperCase() ?? "";
+  if (jobHint && job.jobNumber.toUpperCase() === jobHint) {
+    score += 30;
+  }
+
+  const customerPo = header.customerPoOrReference.toUpperCase();
+  const num = job.jobNumber.toUpperCase();
+  if (num && customerPo.includes(num)) {
+    score += 20;
+  }
+
+  return score;
+}
+
 function resolveJobIdFromHints(
   header: ParsedInvoiceHeader,
   ctx: Awaited<ReturnType<typeof loadEmailMatchContext>>,
@@ -81,20 +139,26 @@ function resolveJobIdFromHints(
 ): string | undefined {
   if (matchJobId) return matchJobId;
 
-  const customerPo = header.customerPoOrReference.toUpperCase();
   const jobHint = header.jobNumberRaw?.trim().toUpperCase() ?? "";
-
   if (jobHint) {
     const exact = ctx.jobs.filter((j) => j.jobNumber.toUpperCase() === jobHint);
     if (exact.length === 1) return exact[0].id;
   }
 
+  const customerPo = header.customerPoOrReference.toUpperCase();
   for (const job of ctx.jobs) {
     const num = job.jobNumber.toUpperCase();
     if (num && customerPo.includes(num)) return job.id;
   }
 
-  return undefined;
+  let best: { id: string; score: number } | undefined;
+  for (const job of ctx.jobs) {
+    const score = scoreJobMatchFromInvoiceHints(header, job);
+    if (score >= 12 && (!best || score > best.score)) {
+      best = { id: job.id, score };
+    }
+  }
+  return best?.id;
 }
 
 export interface InvoiceShellContext {
@@ -214,6 +278,7 @@ export function buildDeliveryShellDocument(
     status: shell.deliveryStatus,
     vendorInvoiceImportId: importId,
     invoiceImportStatus: importDoc.importStatus,
+    createdFromInvoiceImport: true,
     vendorOrderComplete: true,
     vendorOrderCompleteAt: now,
     vendorOrderCompleteSource: "vendor_email",

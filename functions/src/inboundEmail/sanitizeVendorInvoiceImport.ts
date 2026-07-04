@@ -62,6 +62,15 @@ export function sanitizeVendorInvoiceImportForClient(
     linkedDeliveryOrderId: doc.linkedDeliveryOrderId,
     approvedAt: doc.approvedAt,
     rejectedAt: doc.rejectedAt,
+    autoImportEligible: doc.autoImportEligible,
+    autoImportConfidence: doc.autoImportConfidence,
+    autoImportReasons: (doc.autoImportReasons ?? []).slice(0, 12),
+    reviewRequiredReasons: (doc.reviewRequiredReasons ?? []).slice(0, 12),
+    importDecisionMode: doc.importDecisionMode,
+    suggestedAction: doc.suggestedAction
+      ? String(doc.suggestedAction).slice(0, 500)
+      : undefined,
+    importDecisionLog: (doc.importDecisionLog ?? []).slice(-10),
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

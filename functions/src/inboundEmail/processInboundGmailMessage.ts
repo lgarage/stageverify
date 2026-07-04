@@ -15,6 +15,7 @@ import {
   hasCustomFontPdfEncoding,
   postProcessExtractedPdfText,
 } from "./normalizePdfText";
+import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import { firestoreSafeValue } from "./firestoreSafeValue";
 import { sanitizeParsedLines } from "./sanitizeParsedLines";
@@ -186,6 +187,17 @@ async function writeReviewRecords(
     const proc = row.processing;
     const parsedLines = sanitizeParsedLines(proc.parsed.lines);
     const reviewError = issueReviewError(proc, row.error);
+    const eligibility = eligibilityFieldsFromInput({
+      importStatus: proc.importStatus,
+      confidenceScore: proc.confidenceScore,
+      humanReviewRequired: proc.humanReviewRequired,
+      duplicate: proc.duplicate,
+      parseWarnings: proc.parsed.parseWarnings,
+      parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
+      parsedLines,
+      parsedLineCount: parsedLines.length,
+      pageId: row.pageId,
+    });
     const createdAt =
       existingSnap.exists && (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         ? (existingSnap.data() as VendorInvoiceImportDoc).createdAt
@@ -209,6 +221,12 @@ async function writeReviewRecords(
       parseWarnings: proc.parsed.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: "needs_review",
+      autoImportEligible: eligibility.autoImportEligible,
+      autoImportConfidence: eligibility.autoImportConfidence,
+      autoImportReasons: eligibility.autoImportReasons,
+      reviewRequiredReasons: eligibility.reviewRequiredReasons,
+      importDecisionMode: eligibility.importDecisionMode,
+      suggestedAction: eligibility.suggestedAction,
       createdAt,
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),

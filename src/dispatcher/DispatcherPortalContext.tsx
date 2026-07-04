@@ -16,6 +16,7 @@ import {
   getEmailProviderConnection,
   triggerInboundGmailSync,
   listVendorInvoiceImports,
+  ensureApprovedUnlinkedInvoiceShells,
   listVendors,
   listAllZones,
   mapActiveZoneOccupancyByCode,
@@ -50,6 +51,12 @@ const DispatcherPortalContext =
 async function fetchInvoiceImports(): Promise<VendorInvoiceImportReview[]> {
   const items = await listVendorInvoiceImports({ limit: 50 });
   items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const { linkedCount } = await ensureApprovedUnlinkedInvoiceShells(items);
+  if (linkedCount > 0) {
+    const refreshed = await listVendorInvoiceImports({ limit: 50 });
+    refreshed.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return refreshed;
+  }
   return items;
 }
 

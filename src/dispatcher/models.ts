@@ -842,6 +842,8 @@ export interface VendorInvoiceImportReview {
   importStatus: string;
   confidenceScore: number;
   humanReviewRequired: boolean;
+  duplicate?: boolean;
+  duplicateOfPageId?: string;
   parsedHeader?: Record<string, unknown>;
   parsedLines?: VendorInvoiceImportParsedLine[];
   parsedLineCount?: number;
@@ -852,6 +854,23 @@ export interface VendorInvoiceImportReview {
   linkedDeliveryOrderId?: string;
   approvedAt?: string;
   rejectedAt?: string;
+  /** Stage 1 — suggested import eligibility (no automatic CF approve). */
+  autoImportEligible?: boolean;
+  autoImportConfidence?: number;
+  autoImportReasons?: string[];
+  reviewRequiredReasons?: string[];
+  importDecisionMode?: "suggested_import" | "review_required" | "blocked";
+  suggestedAction?: string;
+  importDecisionLog?: Array<{
+    action: "approve" | "reject" | "link" | "create_shell" | "reopen";
+    at: string;
+    by: string;
+    importDecisionMode: string;
+    autoImportEligible: boolean;
+    autoImportReasons: string[];
+    reviewRequiredReasons: string[];
+    deliveryOrderId?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }

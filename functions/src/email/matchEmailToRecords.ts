@@ -27,9 +27,15 @@ export interface MatchDelivery {
   purchaseOrderId?: string;
 }
 
+export interface MatchJobRecord {
+  id: string;
+  jobNumber: string;
+  jobName?: string;
+}
+
 export interface MatchContext {
   vendors: MatchVendor[];
-  jobs: Array<{ id: string; jobNumber: string }>;
+  jobs: MatchJobRecord[];
   purchaseOrders: MatchPurchaseOrder[];
   deliveries: MatchDelivery[];
   vendorEmailDomains?: Map<string, string>;

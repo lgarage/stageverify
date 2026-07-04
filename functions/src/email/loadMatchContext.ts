@@ -30,6 +30,7 @@ export async function loadEmailMatchContext(): Promise<MatchContext> {
       return {
         id: doc.id,
         jobNumber: typeof data.jobNumber === "string" ? data.jobNumber : doc.id,
+        jobName: typeof data.jobName === "string" ? data.jobName : undefined,
       };
     }),
     purchaseOrders: posSnap.docs.map((doc) => {

@@ -11,6 +11,7 @@ const crypto_1 = require("crypto");
 const gmailInbound_1 = require("../gmailInbound");
 const extractPdfText_1 = require("./extractPdfText");
 const normalizePdfText_1 = require("./normalizePdfText");
+const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
 const firestoreSafeValue_1 = require("./firestoreSafeValue");
 const sanitizeParsedLines_1 = require("./sanitizeParsedLines");
@@ -129,6 +130,17 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const proc = row.processing;
         const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
         const reviewError = issueReviewError(proc, row.error);
+        const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
+            importStatus: proc.importStatus,
+            confidenceScore: proc.confidenceScore,
+            humanReviewRequired: proc.humanReviewRequired,
+            duplicate: proc.duplicate,
+            parseWarnings: proc.parsed.parseWarnings,
+            parsedHeader: proc.parsed.header,
+            parsedLines,
+            parsedLineCount: parsedLines.length,
+            pageId: row.pageId,
+        });
         const createdAt = existingSnap.exists && existingSnap.data().createdAt
             ? existingSnap.data().createdAt
             : now;
@@ -151,6 +163,12 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             parseWarnings: proc.parsed.parseWarnings,
             orderNotes: proc.parsed.orderNotes,
             outcome: "needs_review",
+            autoImportEligible: eligibility.autoImportEligible,
+            autoImportConfidence: eligibility.autoImportConfidence,
+            autoImportReasons: eligibility.autoImportReasons,
+            reviewRequiredReasons: eligibility.reviewRequiredReasons,
+            importDecisionMode: eligibility.importDecisionMode,
+            suggestedAction: eligibility.suggestedAction,
             createdAt,
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),

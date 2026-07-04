@@ -2102,3 +2102,33 @@ export async function approveVendorInvoiceImport(input: {
   const response = await approveVendorInvoiceImportCallable(input);
   return response.data;
 }
+
+/** Idempotent backfill: approved imports without linkedDeliveryOrderId get dashboard shells. */
+export async function ensureApprovedUnlinkedInvoiceShells(
+  imports: VendorInvoiceImportReview[],
+): Promise<{ linkedCount: number; failedCount: number }> {
+  const needsShell = imports.filter(
+    (row) =>
+      row.reviewStatus === "approved" &&
+      !row.linkedDeliveryOrderId?.trim() &&
+      row.importStatus !== "issue",
+  );
+  if (needsShell.length === 0) {
+    return { linkedCount: 0, failedCount: 0 };
+  }
+
+  let linkedCount = 0;
+  let failedCount = 0;
+  for (const row of needsShell) {
+    try {
+      const result = await approveVendorInvoiceImport({
+        vendorInvoiceImportId: row.id,
+        action: "create_shell",
+      });
+      if (result.deliveryOrderId?.trim()) linkedCount += 1;
+    } catch {
+      failedCount += 1;
+    }
+  }
+  return { linkedCount, failedCount };
+}

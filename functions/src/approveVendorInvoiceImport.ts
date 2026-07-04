@@ -11,9 +11,15 @@ import {
   buildDeliveryShellDocument,
   buildInvoiceDeliveryShellContext,
 } from "./invoice/createDeliveryShellFromImport";
+import {
+  buildImportDecisionLogEntry,
+  computeAutoImportEligibility,
+  type ImportDecisionLogEntry,
+} from "./invoice/computeAutoImportEligibility";
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
+const MAX_DECISION_LOG = 20;
 
 function getDb() {
   return admin.firestore();
@@ -23,6 +29,28 @@ import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 
 function canApproveReviewStatus(status: VendorInvoiceImportDoc["reviewStatus"]): boolean {
   return status === "pending_review" || status === "rejected";
+}
+
+function eligibilityFromDoc(doc: VendorInvoiceImportDoc) {
+  return computeAutoImportEligibility({
+    importStatus: doc.importStatus,
+    confidenceScore: doc.confidenceScore,
+    humanReviewRequired: doc.humanReviewRequired,
+    duplicate: doc.duplicate,
+    parseWarnings: doc.parseWarnings,
+    parsedHeader: doc.parsedHeader,
+    parsedLines: doc.parsedLines,
+    parsedLineCount: doc.parsedLineCount,
+    pageId: doc.pageId,
+  });
+}
+
+function appendDecisionLogUpdate(
+  doc: VendorInvoiceImportDoc,
+  entry: ImportDecisionLogEntry,
+): VendorInvoiceImportDoc["importDecisionLog"] {
+  const prior = doc.importDecisionLog ?? [];
+  return [...prior, entry].slice(-MAX_DECISION_LOG);
 }
 
 function buildDeliveryLinkContext(
@@ -134,6 +162,10 @@ export const approveVendorInvoiceImport = onCall(
           rejectedAt: FieldValue.delete(),
           rejectedBy: FieldValue.delete(),
           updatedAt: now,
+          importDecisionLog: appendDecisionLogUpdate(
+            fresh,
+            buildImportDecisionLogEntry("reopen", uid, now, eligibilityFromDoc(fresh)),
+          ),
         });
       });
       return { vendorInvoiceImportId: importId, reviewStatus: "pending_review" };
@@ -178,6 +210,10 @@ export const approveVendorInvoiceImport = onCall(
           rejectedAt: now,
           rejectedBy: uid,
           updatedAt: now,
+          importDecisionLog: appendDecisionLogUpdate(
+            fresh,
+            buildImportDecisionLogEntry("reject", uid, now, eligibilityFromDoc(fresh)),
+          ),
         });
       });
       return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
@@ -259,6 +295,16 @@ export const approveVendorInvoiceImport = onCall(
         tx.update(importRef, {
           linkedDeliveryOrderId: deliveryOrderId,
           updatedAt: now,
+          importDecisionLog: appendDecisionLogUpdate(
+            fresh,
+            buildImportDecisionLogEntry(
+              "link",
+              uid,
+              now,
+              eligibilityFromDoc(fresh),
+              deliveryOrderId,
+            ),
+          ),
         });
 
         tx.update(deliveryRef, {
@@ -349,6 +395,16 @@ export const approveVendorInvoiceImport = onCall(
         tx.update(importRef, {
           linkedDeliveryOrderId: shell.deliveryOrderId,
           updatedAt: now,
+          importDecisionLog: appendDecisionLogUpdate(
+            fresh,
+            buildImportDecisionLogEntry(
+              "create_shell",
+              uid,
+              now,
+              eligibilityFromDoc(fresh),
+              shell.deliveryOrderId,
+            ),
+          ),
         });
       });
 
@@ -392,6 +448,16 @@ export const approveVendorInvoiceImport = onCall(
             rejectedAt: FieldValue.delete(),
             rejectedBy: FieldValue.delete(),
             updatedAt: now,
+            importDecisionLog: appendDecisionLogUpdate(
+              fresh,
+              buildImportDecisionLogEntry(
+                "approve",
+                uid,
+                now,
+                eligibilityFromDoc(fresh),
+                linkedId,
+              ),
+            ),
           });
           return;
         }
@@ -415,6 +481,16 @@ export const approveVendorInvoiceImport = onCall(
           rejectedAt: FieldValue.delete(),
           rejectedBy: FieldValue.delete(),
           updatedAt: now,
+          importDecisionLog: appendDecisionLogUpdate(
+            fresh,
+            buildImportDecisionLogEntry(
+              "approve",
+              uid,
+              now,
+              eligibilityFromDoc(fresh),
+              shell.deliveryOrderId,
+            ),
+          ),
         });
       });
 
@@ -484,6 +560,16 @@ export const approveVendorInvoiceImport = onCall(
         rejectedAt: FieldValue.delete(),
         rejectedBy: FieldValue.delete(),
         updatedAt: now,
+        importDecisionLog: appendDecisionLogUpdate(
+          fresh,
+          buildImportDecisionLogEntry(
+            "approve",
+            uid,
+            now,
+            eligibilityFromDoc(fresh),
+            deliveryOrderId,
+          ),
+        ),
       });
 
       tx.update(deliveryRef, {

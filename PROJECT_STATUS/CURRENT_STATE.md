@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Approved unlinked invoices → dispatcher dashboard** — approve without deliveryId auto-creates shell delivery + expected items; Will-Call / Pickup display label; `create_shell` backfill for already-approved rows (e.g. P411190)
+- Last shipped: **Invoice shell auto-backfill + job PO matching** — removed manual "Create dashboard record" button; approved-unlinked imports auto-create dashboard shells on approve, Invoice Review load, and Refresh Now; PO hints like `blackduck hartfo` match job names (P411190 / S/O 4046362)
+- Also shipped: **Approved unlinked invoices → dispatcher dashboard** — approve without deliveryId auto-creates shell delivery + expected items; Will-Call / Pickup display label; `create_shell` idempotent backfill
 - Also shipped: **away-108** — Inbound reparse stale issue-import backfill
 - Also shipped: **Invoice Review approved archive** — read-only list with invoice/S-O/PO/buyer/approved date + linked badge
 - Also shipped: **Invoice Review approve CF deploy fix** — rebuilt `functions/lib/approveVendorInvoiceImport.js` (TS fix from 8ff639b was never compiled/deployed); review-only approve now live in production

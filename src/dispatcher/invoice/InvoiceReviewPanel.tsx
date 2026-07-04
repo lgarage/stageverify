@@ -6,11 +6,13 @@ import type {
 } from "../models";
 import {
   approveVendorInvoiceImport,
+  ensureApprovedUnlinkedInvoiceShells,
   firestoreDataService,
   listVendorInvoiceImports,
   matchInvoiceToRecords,
 } from "../firestoreService";
 import { vendorInvoiceImportDisplayLabel } from "./invoiceDisplayHelpers";
+import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import {
   formatInvoiceHeaderField,
@@ -224,8 +226,13 @@ export function InvoiceReviewPanel({
     setLoading(true);
     setError(null);
     try {
-      const items = await listVendorInvoiceImports({ limit: 50 });
+      let items = await listVendorInvoiceImports({ limit: 50 });
       items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const { linkedCount } = await ensureApprovedUnlinkedInvoiceShells(items);
+      if (linkedCount > 0) {
+        items = await listVendorInvoiceImports({ limit: 50 });
+        items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      }
       applyImports(items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load invoice imports.");
@@ -451,24 +458,6 @@ export function InvoiceReviewPanel({
     }
   };
 
-  const handleCreateShell = async (row: VendorInvoiceImportReview) => {
-    if (row.importStatus === "issue" || row.linkedDeliveryOrderId?.trim()) return;
-    setActionLoadingId(row.id);
-    setError(null);
-    try {
-      await approveVendorInvoiceImport({
-        vendorInvoiceImportId: row.id,
-        action: "create_shell",
-      });
-      setInspectImport(null);
-      await loadQueue();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Create dashboard record failed.");
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
   const firstPendingRowId = filteredImports.find(
     (r) => r.reviewStatus === "pending_review",
   )?.id;
@@ -616,6 +605,7 @@ export function InvoiceReviewPanel({
                       importStatus={row.importStatus}
                       reviewStatus={row.reviewStatus}
                     />
+                    <AutoImportSuggestionBadge importRow={row} compact />
                     {codContext && <CodPaymentChip label={codContext.chipLabel} />}
                   </div>
 
@@ -988,14 +978,6 @@ export function InvoiceReviewPanel({
             !inspectImport.linkedDeliveryOrderId?.trim()
               ? () => {
                   void handleLink(inspectImport, inspectSelectedDeliveryId);
-                }
-              : undefined
-          }
-          onCreateShell={
-            inspectImport.reviewStatus === "approved" &&
-            !inspectImport.linkedDeliveryOrderId?.trim()
-              ? () => {
-                  void handleCreateShell(inspectImport);
                 }
               : undefined
           }

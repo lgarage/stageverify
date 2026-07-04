@@ -56,6 +56,8 @@ export type VendorInvoiceImportReviewStatus =
   | "approved"
   | "rejected";
 
+export type ImportDecisionMode = "suggested_import" | "review_required" | "blocked";
+
 /** Persisted line row — spec Table B (sanitized subset of ParsedInvoiceLine). */
 export interface VendorInvoiceImportParsedLine {
   lineNumber: number;
@@ -100,6 +102,24 @@ export interface VendorInvoiceImportDoc {
   approvedBy?: string;
   rejectedAt?: string;
   rejectedBy?: string;
+  /** Stage 1 — deterministic suggested-import eligibility (no CF auto-approve). */
+  autoImportEligible?: boolean;
+  autoImportConfidence?: number;
+  autoImportReasons?: string[];
+  reviewRequiredReasons?: string[];
+  importDecisionMode?: ImportDecisionMode;
+  suggestedAction?: string;
+  /** Auditable dispatcher decisions — append-only, capped in CF. */
+  importDecisionLog?: Array<{
+    action: "approve" | "reject" | "link" | "create_shell" | "reopen";
+    at: string;
+    by: string;
+    importDecisionMode: ImportDecisionMode;
+    autoImportEligible: boolean;
+    autoImportReasons: string[];
+    reviewRequiredReasons: string[];
+    deliveryOrderId?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
