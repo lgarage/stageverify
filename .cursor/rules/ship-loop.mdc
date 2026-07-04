@@ -28,14 +28,14 @@ After **any** substantive code or config change in this repo, complete the ship 
 
 **Frontend:** passing validation → commit, push, `npm run deploy` (gh-pages), prod verification — unless Dan explicitly skips (see **When to skip**).
 
-**Backend (CF, Firestore rules, auth/security):** deploy by default in the **same session** after Sonnet security gate passes (`model-audit-gate.mdc`). Run the gate **before push** for `backend-write-critical` and T2 auth/Firestore-read changes. Fix **HIGH** findings before push — do not skip the gate. Only hold backend deploy when Dan explicitly says hold **or** HIGH risk remains unfixed.
+**Backend (CF, Firestore rules, auth/security):** deploy by default in the **same session** after security-review subagent verdict PASS or acceptable MEDIUM (`model-audit-gate.mdc`). Run the gate Task **before push** for `backend-write-critical` and T2 auth/Firestore-read changes — mandatory `model: claude-4.6-sonnet-medium-thinking`. Fix **HIGH** before push. Verdict **NOT RUN** (no subagent id / subagent failed twice) = do not push. Only hold backend deploy when Dan explicitly says hold **or** HIGH unfixed.
 
 **Rules-only / docs-only** (no frontend bundle change): commit + push; skip gh-pages unless Dan asks. Skip Firebase deploy when the change did not touch CF/rules.
 
 ## Sequence (full ship)
 
 1. **Validate** — `npm run build` clean; local Playwright / `verify:*` for affected routes (per `composer-orchestrator.mdc`). If any test fails, **do not deploy** — fix and re-run.
-2. **Security gate** (when triggered) — Sonnet 4.6 review **before push** for `backend-write-critical` / T2 auth paths. Fix HIGH before continuing.
+2. **Security gate** (when triggered) — **before push**, launch exactly **one** `Task` with `subagent_type: "security-review"`, `model: "claude-4.6-sonnet-medium-thinking"`, `readonly: true`, `run_in_background: false`; await verdict (`model-audit-gate.mdc`). Fix HIGH before continuing. No push until subagent returns; no Composer self-review substitute; duplicate gate Tasks forbidden.
 3. `git status` — stage **only** task-related files.
 4. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
 5. `git push origin main` — must succeed.

@@ -263,14 +263,36 @@ Skip commit/push only when Dan explicitly says to hold off or work is WIP on a b
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
 
 ### Security gate
-Run the Sonnet 4.6 security gate **automatically** (Task subagent) after:
-- Every `backend-write-critical` commit (firestore.rules, Cloud Function write paths, auth logic)
+
+**Authority:** invocation details in `model-audit-gate.mdc` § Security gate invocation. Workspace rules override global `review-security` SKILL when they conflict (mandatory `model` param).
+
+Run **automatically** (exactly **one** `Task` per ship — await before push) when change touches:
+- Every `backend-write-critical` path (firestore.rules, Cloud Function write paths, auth logic)
 - Every T2 commit that touches auth UI, route guards, or Firestore reads
 
-Do not wait to be asked. If Sonnet returns a HIGH risk finding, fix it before pushing.
+**Copy-paste invocation template:**
+
+```
+Task({
+  subagent_type: "security-review",
+  model: "claude-4.6-sonnet-medium-thinking",
+  readonly: true,
+  run_in_background: false,
+  description: "Security Review",
+  prompt: "Full Repository Path: c:\\Projects\\stageverify\nDiff: uncommitted changes"
+})
+```
+
+Add `Custom Instructions: …` only when Dan gave specific review scope. Do not launch a second empty security Task in the same turn.
+
+**Completion report (mandatory when gate triggered):** include subagent id, `model: claude-4.6-sonnet-medium-thinking`, verdict (PASS/MEDIUM/HIGH/NOT RUN), one-line finding — per `model-audit-gate.mdc` Escalation review row. Missing subagent id → **NOT RUN**, not PASS.
+
+**Cursor UI note:** parent orchestrator tasks may still label **Composer 2.5 Fast**; the security-review child runs Sonnet 4.6 — trust the subagent id and model in the report, not the parent task label.
+
+Do not wait to be asked. If verdict is HIGH, fix before pushing. If subagent fails twice, stop ship and report blocker — no Composer self-review substitute.
 
 ### T3 / backend-write-critical during Composer trial
-Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` commit, automatically run the Sonnet 4.6 security gate as a Task subagent before declaring done. Do not dispatch Opus for the implementation unless Sonnet's security review finds a HIGH risk that Composer cannot resolve.
+Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` change, run the security gate Task above before `git push`. Do not dispatch Opus unless security-review returns HIGH that Composer cannot resolve.
 
 ### Workspace rules override global skill
 stageverify workspace rules (`.cursor/rules/`) override the global agent-ops skill where they conflict. When in doubt, follow the workspace rule.
@@ -282,6 +304,9 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Declare a UI/UX fix "done" without Playwright passing (screenshots and/or route verify script).
 ❌ Use `any` in TypeScript — always resolve types correctly.
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
+❌ Self-report "Sonnet PASS" or claim security gate PASS without a security-review subagent id.
+❌ Launch duplicate security-review Tasks in one turn or omit `model: claude-4.6-sonnet-medium-thinking`.
+❌ Push CF/auth/rules after security-review subagent failed twice — report NOT RUN blocker instead.
 ❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
 ❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.
 ❌ Wait for Dan to ask for parallel read-only scans when parallel-agent-strategy.mdc triggers apply.

@@ -13,7 +13,40 @@ After **every substantive code or config change** in this session, perform a **b
 
 ## Security gate timing
 
-Run the Sonnet 4.6 security gate **before pushing** — not after commit. If Sonnet returns HIGH risk, fix before `git push origin main`. **Merged on main:** use commit-range diff (`git diff <commit>^..<commit>`); Sonnet/security-review subagent required before claiming PASS (detail: LIBRARIAN_LESSONS § process-agents #10).
+Run the Sonnet 4.6 security gate **before pushing** — not after commit. If Sonnet returns HIGH risk, fix before `git push origin main`. **Merged on main:** use commit-range diff (`git diff <commit>^..<commit>`); security-review subagent required before claiming PASS (detail: LIBRARIAN_LESSONS § process-agents #10).
+
+## Security gate invocation (mandatory — authoritative)
+
+Invoke **only** via **one** `Task` call per ship cycle. **Never** self-report "Sonnet PASS" from Composer inline review.
+
+**Required Task parameters (all mandatory — never omit `model`):**
+
+| Parameter | Value |
+|-----------|-------|
+| `subagent_type` | `"security-review"` |
+| `model` | `"claude-4.6-sonnet-medium-thinking"` |
+| `readonly` | `true` |
+| `run_in_background` | `false` (await completion before push) |
+| `description` | `"Security Review"` |
+
+**Prompt shape** — per `review-security` SKILL.md (workspace override in `composer-orchestrator.mdc` § Security gate):
+
+```text
+Full Repository Path: <absolute repo path>
+Diff: <"branch changes" | "uncommitted changes">
+Custom Instructions: <only when user gave specific review instructions>
+```
+
+Default `Diff` before first push: `uncommitted changes`. After merge on main without prior gate: `branch changes` with commit-range context in Custom Instructions.
+
+**Hard stops:**
+
+- **NEVER** push CF / auth / Firestore-rules changes until the security-review subagent returns a verdict.
+- **NEVER** launch duplicate security Tasks in the same turn (exactly one gate Task).
+- **NEVER** substitute Composer self-review if the subagent fails — retry once per SKILL; if it fails twice, **STOP ship** and report blocker (subagent id + error); verdict = **NOT RUN**.
+- **NEVER** write PASS/MEDIUM/HIGH without the subagent's returned id in the completion report.
+
+**Subagent failure:** one retry with corrected invocation per SKILL; second failure → stop ship, report blocker, verdict **NOT RUN** — do not push.
 
 ## When to audit with a higher model (Sonnet 4.6 via Task subagent)
 
@@ -50,11 +83,21 @@ End substantive **code/config** work with a compact block:
 ### Model audit
 | Change | Archetype | Tier | Worker | Scouts parallel? | Escalation review? | Verdict |
 |--------|-----------|------|--------|-------------------|-------------------|---------|
-| … | … | … | Composer 2.5 | Yes / No / N/A | No / Sonnet → PASS | OK / note |
+| … | … | … | Composer 2.5 | Yes / No / N/A | No / security-review → see below | OK / note |
 ```
 
-- **Verdict OK** — tier and worker matched the work; no review needed.
-- **Verdict note** — Sonnet (or self) found an issue; fix or document before done.
+**Escalation review row** (when security gate triggered) — replace vague "Sonnet → PASS" with:
+
+```
+security-review subagent id: <id from Task return>
+model: claude-4.6-sonnet-medium-thinking
+verdict: PASS | MEDIUM | HIGH | NOT RUN
+finding: <one-line summary from subagent, or "none" / failure reason>
+```
+
+- **Verdict OK** — tier and worker matched the work; no review needed (Escalation review? = No).
+- **Verdict note** — security-review subagent found an issue; fix or document before done.
+- **No subagent id** → verdict must be **NOT RUN**, not PASS — do not push CF/auth/rules.
 - If escalation review was required but not run, **do not declare done** — run it first.
 
 ## Session log (optional)
