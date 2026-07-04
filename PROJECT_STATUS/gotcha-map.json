@@ -269,6 +269,80 @@
       "files": ["src/SettingsPage.tsx"],
       "rules": [],
       "commands": ["npm run verify:email-oauth-connect"]
+    },
+    {
+      "id": "invoice-review-ux",
+      "match": [
+        "invoice review empty",
+        "needs review strip",
+        "vendor email triage",
+        "PDF invoice queue",
+        "already processed invoice"
+      ],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["backend-critical", "agent-lessons"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "src/dispatcher/email/NeedsReviewEmailStrip.tsx",
+        "src/dispatcher/invoice/InvoiceReviewPanel.tsx",
+        "src/dispatcher/email/emailFixtures.ts",
+        "src/dispatcher/email/getProposedEmailUpdates.ts"
+      ],
+      "rules": [],
+      "commands": ["npm run verify:invoice-review"]
+    },
+    {
+      "id": "gmail-sync-banner",
+      "match": [
+        "mailbox sync",
+        "already processed",
+        "refresh now sync",
+        "invoicesQueued",
+        "sync banner"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "functions/src/syncInboundGmail.ts",
+        "src/dispatcher/formatGmailSyncMessage.ts",
+        "functions/src/inboundEmail/processInboundGmailMessage.ts"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": ["npm run verify:inbound-email-ingest"]
+    },
+    {
+      "id": "dispatcher-portal-refresh",
+      "match": [
+        "refresh now",
+        "shared portal refresh",
+        "dispatcher portal tabs",
+        "cross tab sync"
+      ],
+      "orchestratorSteps": [6, 7, 8],
+      "dossierTags": ["agent-lessons"],
+      "lessonsSection": "dispatcher-ui",
+      "files": [
+        "src/dispatcher/DispatcherPortalContext.tsx",
+        "src/DispatcherPortalTopBar.tsx",
+        "src/dispatcher/useDispatcherGmailRefresh.ts"
+      ],
+      "rules": [],
+      "commands": ["npm run verify:dispatcher-nav"]
+    },
+    {
+      "id": "browser-extension-console",
+      "match": [
+        "message channel closed",
+        "chrome extension console",
+        "listener indicated asynchronous"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": ["agent-lessons"],
+      "lessonsSection": "process-agents",
+      "files": [],
+      "rules": [],
+      "commands": []
     }
   ]
 }
