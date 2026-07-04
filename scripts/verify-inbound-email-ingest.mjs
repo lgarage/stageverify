@@ -4,6 +4,7 @@
  *
  * Usage: npm run verify:inbound-email-ingest
  */
+import { sanitizeParsedLines } from "../functions/src/inboundEmail/sanitizeParsedLines.ts";
 import { findPdfAttachments, parseGmailHeaders, parseGmailPushNotification } from "../functions/src/gmailInbound.ts";
 import { parseInboundInvoiceText } from "../functions/src/invoice/processInvoiceForInbound.ts";
 import { INVOICE_FIXTURES } from "../src/dispatcher/invoice/invoiceFixtures.ts";
@@ -79,7 +80,17 @@ assert("outcome needs_review", first?.outcome === "needs_review");
 assert("no auto-processed in summary", batch.summary.processed === 0);
 assert("needsReview > 0", batch.summary.needsReview >= 1);
 
-console.log("\n4. Multi-PDF message shape");
+console.log("\n4. parsedLines persistence shape (Table B)");
+const rawLines = first?.processing?.parsed.lines ?? [];
+const parsedLines = sanitizeParsedLines(rawLines);
+assert("parsedLines non-empty", parsedLines.length > 0);
+assert("parsedLineCount matches lines.length", parsedLines.length === rawLines.length);
+const productLine = parsedLines.find((l) => l.lineType === "product");
+assert("product line has qty fields", productLine != null && typeof productLine.quantityOrdered === "number");
+assert("product line has vendorProductNumber", Boolean(productLine?.vendorProductNumber));
+assert("sanitized line has Table B keys", productLine != null && "quantityShipped" in productLine && "description" in productLine);
+
+console.log("\n5. Multi-PDF message shape");
 const multiPdfMessage = {
   payload: {
     parts: [
@@ -91,7 +102,7 @@ const multiPdfMessage = {
 const multi = findPdfAttachments(multiPdfMessage.payload);
 assert("finds two PDFs", multi.length === 2);
 
-console.log("\n5. Gmail Pub/Sub push notification decode");
+console.log("\n6. Gmail Pub/Sub push notification decode");
 const pushPayload = Buffer.from(
   JSON.stringify({ emailAddress: "svbotmail@gmail.com", historyId: "1234567890" }),
   "utf8",

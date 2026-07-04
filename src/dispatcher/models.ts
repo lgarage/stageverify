@@ -796,6 +796,20 @@ export interface InboundEmailProcessing {
   updatedAt: string;
 }
 
+/** Persisted invoice line — spec Table B (review queue). */
+export interface VendorInvoiceImportParsedLine {
+  lineNumber: number;
+  quantityOrdered: number;
+  quantityShipped: number;
+  quantityBackordered: number;
+  vendorProductNumber: string;
+  manufacturerOrModelNumber?: string;
+  description: string;
+  filteredNotes: string[];
+  lineType: string;
+  excludeFromExpectedItems: boolean;
+}
+
 /** Johnstone invoice import review queue — no auto-apply to deliveries. */
 export interface VendorInvoiceImportReview {
   id: string;
@@ -807,6 +821,8 @@ export interface VendorInvoiceImportReview {
   importStatus: string;
   confidenceScore: number;
   humanReviewRequired: boolean;
+  parsedLines?: VendorInvoiceImportParsedLine[];
+  parsedLineCount?: number;
   createdAt: string;
   updatedAt: string;
 }

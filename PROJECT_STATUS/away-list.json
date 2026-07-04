@@ -9,8 +9,8 @@
       "acceptance criteria cannot be met without schema or rules change not listed in item scope — mark blocked, do not widen scope"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Follow PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md. After each item: npm run away:ship -- --id <id> --note \"...\" then npm run away:validate. No gh-pages deploy; no firebase deploy; docs/scripts/rules only unless item scope says otherwise.",
-    "sequence": []
+    "instructions": "Follow AWAY_BUILD_PROTOCOL.md. Invoice ingest LIVE — extend only. One item at a time. Composer 2.5 orchestrator owns verify/ship/deploy. haltOnFailure: mark blocked, log away-status.json, STOP batch.",
+    "sequence": ["away-092", "away-093", "away-094", "away-095", "away-096", "away-097"]
   },
   "queue": [
     {
@@ -22,6 +22,94 @@
       "acceptance": "Written spec only: watch setup, inbound reply matching, drawer thread display, security review checklist. No CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-092",
+      "title": "Persist parsed.lines[] on vendorInvoiceImports",
+      "status": "queued",
+      "dependsOn": "",
+      "tier": "T1",
+      "scope": "Extend VendorInvoiceImportDoc + writeReviewRecords (functions/src/inboundEmail/processInboundGmailMessage.ts) to persist sanitized parsed.lines[] per spec Table B; sync types in functions/src/inboundEmail/types.ts and src/dispatcher/models.ts if needed. Do NOT add matching, approve CF, delivery writes, or UI.",
+      "acceptance": "vendorInvoiceImports docs include parsed.lines[] with qty/product fields; parsedLineCount matches lines.length; npm run build + cd functions && npm run build clean; npm run verify:inbound-email-ingest exit 0; still no delivery/item writes.",
+      "verifyBeforeNext": [
+        "npm run build",
+        "cd functions && npm run build",
+        "npm run verify:inbound-email-ingest"
+      ]
+    },
+    {
+      "id": "away-093",
+      "title": "matchInvoiceToRecords callable",
+      "status": "queued",
+      "dependsOn": "away-092",
+      "tier": "T1",
+      "budget": "~35m",
+      "scope": "WILL add matchInvoiceToRecords callable (PO / sales order / job hint → candidate deliveries); will NOT auto-link or write deliveries",
+      "acceptance": "Emulator test PASS; add scripts/test-match-invoice-records.mjs + package.json entry if missing",
+      "verifyBeforeNext": [
+        "cd functions && npm run build",
+        "npm run build",
+        "node scripts/test-match-invoice-records.mjs"
+      ]
+    },
+    {
+      "id": "away-094",
+      "title": "approveVendorInvoiceImport CF + firestore.rules",
+      "status": "queued",
+      "dependsOn": "away-093",
+      "tier": "T3",
+      "budget": "~50m",
+      "escalateBeforeShip": true,
+      "scope": "WILL add approveVendorInvoiceImport CF + firestore.rules — create/update expected delivery+items ONLY on explicit approve; will NOT set qtyReceived/staging/readiness",
+      "acceptance": "Sonnet PASS before push; firebase deploy functions+rules stageverify-db; test:firestore-rules + approve emulator test PASS",
+      "verifyBeforeNext": [
+        "cd functions && npm run build",
+        "npm run test:firestore-rules",
+        "node scripts/test-approve-vendor-invoice-import.mjs"
+      ]
+    },
+    {
+      "id": "away-095",
+      "title": "dispatcher review UI",
+      "status": "queued",
+      "dependsOn": "away-094",
+      "tier": "T1",
+      "budget": "~35m",
+      "scope": "WILL add dispatcher review UI (queue list, line table, match picker, Approve/Reject); labels per spec Table C; will NOT manual PDF upload",
+      "acceptance": "npm run build; Playwright auth setup if needed; verify:dispatcher-nav PASS; gh-pages deploy if UI bundle changed",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:dispatcher-nav"
+      ]
+    },
+    {
+      "id": "away-096",
+      "title": "harden inspect callables",
+      "status": "queued",
+      "dependsOn": "away-094",
+      "tier": "T1",
+      "budget": "~35m",
+      "scope": "WILL harden inspect callables: sanitize listVendorInvoiceImports; Math.floor limit clamp; dispatcher role gate; fix stranded processingStatus=processing; will NOT rebuild Gmail ingest",
+      "acceptance": "verify:inbound-email-ingest PASS; Sonnet if auth/rules changed",
+      "verifyBeforeNext": [
+        "cd functions && npm run build",
+        "npm run verify:inbound-email-ingest"
+      ]
+    },
+    {
+      "id": "away-097",
+      "title": "verify-invoice-review Playwright script",
+      "status": "queued",
+      "dependsOn": "away-095",
+      "tier": "T1",
+      "budget": "~35m",
+      "scope": "WILL CREATE scripts/verify-invoice-review.mjs + npm run verify:invoice-review (+ :prod); will NOT exist until you add it",
+      "acceptance": "Local + prod Playwright PASS on review UI; skip if batch time exhausted after 095",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:invoice-review",
+        "npm run verify:invoice-review:prod"
+      ]
     }
   ]
 }

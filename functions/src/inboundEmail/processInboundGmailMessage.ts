@@ -12,6 +12,7 @@ import {
 } from "../gmailInbound";
 import { extractTextFromPdfBuffer } from "./extractPdfText";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
+import { sanitizeParsedLines } from "./sanitizeParsedLines";
 import type {
   GmailMessage,
   InboundEmailProcessingDoc,
@@ -70,6 +71,7 @@ async function writeReviewRecords(
     reviewIds.push(reviewId);
 
     const proc = row.processing;
+    const parsedLines = sanitizeParsedLines(proc.parsed.lines);
     const reviewDoc: VendorInvoiceImportDoc = {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
@@ -85,7 +87,8 @@ async function writeReviewRecords(
       duplicate: proc.duplicate,
       duplicateOfPageId: proc.duplicateOfPageId,
       parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
-      parsedLineCount: proc.parsed.lines.length,
+      parsedLines,
+      parsedLineCount: parsedLines.length,
       parseWarnings: proc.parsed.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: "needs_review",

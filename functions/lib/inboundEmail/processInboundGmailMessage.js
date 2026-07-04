@@ -10,6 +10,7 @@ const crypto_1 = require("crypto");
 const gmailInbound_1 = require("../gmailInbound");
 const extractPdfText_1 = require("./extractPdfText");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
+const sanitizeParsedLines_1 = require("./sanitizeParsedLines");
 const COLLECTION = "inboundEmailProcessing";
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_EXTRACTED_TEXT_STORE = 120_000;
@@ -42,6 +43,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const reviewId = `vii-${inboundDoc.gmailMessageId}-${row.pageId}`;
         reviewIds.push(reviewId);
         const proc = row.processing;
+        const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
         const reviewDoc = {
             id: reviewId,
             inboundEmailProcessingId: inboundDoc.id,
@@ -57,7 +59,8 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             duplicate: proc.duplicate,
             duplicateOfPageId: proc.duplicateOfPageId,
             parsedHeader: proc.parsed.header,
-            parsedLineCount: proc.parsed.lines.length,
+            parsedLines,
+            parsedLineCount: parsedLines.length,
             parseWarnings: proc.parsed.parseWarnings,
             orderNotes: proc.parsed.orderNotes,
             outcome: "needs_review",

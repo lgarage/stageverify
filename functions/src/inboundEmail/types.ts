@@ -54,6 +54,20 @@ export type VendorInvoiceImportReviewStatus =
   | "approved"
   | "rejected";
 
+/** Persisted line row — spec Table B (sanitized subset of ParsedInvoiceLine). */
+export interface VendorInvoiceImportParsedLine {
+  lineNumber: number;
+  quantityOrdered: number;
+  quantityShipped: number;
+  quantityBackordered: number;
+  vendorProductNumber: string;
+  manufacturerOrModelNumber?: string;
+  description: string;
+  filteredNotes: string[];
+  lineType: string;
+  excludeFromExpectedItems: boolean;
+}
+
 /** Review queue record — parse output only; never auto-applies to deliveries. */
 export interface VendorInvoiceImportDoc {
   id: string;
@@ -70,6 +84,8 @@ export interface VendorInvoiceImportDoc {
   duplicate: boolean;
   duplicateOfPageId?: string;
   parsedHeader: Record<string, unknown>;
+  /** Sanitized parsed.lines[] per spec Table B. */
+  parsedLines: VendorInvoiceImportParsedLine[];
   parsedLineCount: number;
   parseWarnings: string[];
   orderNotes: string[];
