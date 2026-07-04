@@ -1,0 +1,51 @@
+---
+description: Security reviews MUST use Sonnet 4.6 only — never Composer 2.5.
+alwaysApply: true
+---
+
+# Security Review Model Gate (Dan standing preference — authoritative)
+
+**Security reviews use exactly one model:** `claude-4.6-sonnet-medium-thinking`.
+
+## Mandatory invocation
+
+Exactly **one** `Task` per ship cycle — **before push** when the security gate triggers:
+
+```text
+Task({
+  subagent_type: "security-review",
+  model: "claude-4.6-sonnet-medium-thinking",
+  readonly: true,
+  run_in_background: false,
+  description: "Security Review",
+  prompt: "Full Repository Path: c:\\Projects\\stageverify\nDiff: uncommitted changes"
+})
+```
+
+`model` is **not optional**. Omitting it or substituting another slug = gate **NOT RUN** — do not push CF/auth/rules.
+
+## Forbidden (never counts as a security gate)
+
+| Forbidden | Why |
+|-----------|-----|
+| **Composer 2.5 Fast** (orchestrator inline review) | Too cheap; not a security verifier |
+| `security-review` Task **without** `model: "claude-4.6-sonnet-medium-thinking"` | Wrong or default model |
+| `generalPurpose` / `explore` / any other subagent for the gate | Wrong subagent type |
+| Composer reading the diff and reporting PASS/MEDIUM/HIGH | Self-review bypass |
+| Trusting Cursor UI label **"Security Review — Composer 2.5 Fast"** | Parent label is not the child model |
+
+## Valid completion (all required)
+
+1. **Subagent id** returned from the `Task` call (not invented).
+2. **Model line** in report: `model: claude-4.6-sonnet-medium-thinking`.
+3. **Verdict**: PASS | MEDIUM | HIGH | NOT RUN.
+
+Missing subagent id → **NOT RUN**, not PASS. Model mismatch in report → **NOT RUN**. UI shows Composer 2.5 on the security step but report has no Sonnet subagent id → **NOT RUN**.
+
+## Worker / multitask prompts
+
+Any background worker that touches CF, Firestore write paths, parser ingest, or auth **must** paste the Task block above verbatim. Workers must **await** the gate and include subagent id + model in the ship report. Workers must **not** substitute Composer security review.
+
+## Relation to other rules
+
+`model-audit-gate.mdc` and `composer-orchestrator.mdc` § Security gate cross-reference this file. On conflict about **which model runs security-review**, this file wins.

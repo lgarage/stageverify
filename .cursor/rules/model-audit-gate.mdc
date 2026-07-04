@@ -17,6 +17,8 @@ Run the Sonnet 4.6 security gate **before pushing** — not after commit. If Son
 
 ## Security gate invocation (mandatory — authoritative)
 
+**Model authority:** `.cursor/rules/security-review-gate.mdc` — **only** `claude-4.6-sonnet-medium-thinking`. Composer 2.5 must **never** perform or substitute for the security gate.
+
 Invoke **only** via **one** `Task` call per ship cycle. **Never** self-report "Sonnet PASS" from Composer inline review.
 
 **Required Task parameters (all mandatory — never omit `model`):**
@@ -45,6 +47,7 @@ Default `Diff` before first push: `uncommitted changes`. After merge on main wit
 - **NEVER** launch duplicate security Tasks in the same turn (exactly one gate Task).
 - **NEVER** substitute Composer self-review if the subagent fails — retry once per SKILL; if it fails twice, **STOP ship** and report blocker (subagent id + error); verdict = **NOT RUN**.
 - **NEVER** write PASS/MEDIUM/HIGH without the subagent's returned id in the completion report.
+- **NEVER** use Composer 2.5 (or any model other than `claude-4.6-sonnet-medium-thinking`) for `security-review` — see `security-review-gate.mdc`.
 
 **Subagent failure:** one retry with corrected invocation per SKILL; second failure → stop ship, report blocker, verdict **NOT RUN** — do not push.
 

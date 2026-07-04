@@ -264,7 +264,7 @@ When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` 
 
 ### Security gate
 
-**Authority:** invocation details in `model-audit-gate.mdc` § Security gate invocation. Workspace rules override global `review-security` SKILL when they conflict (mandatory `model` param).
+**Authority:** invocation details in `security-review-gate.mdc` (model lock) and `model-audit-gate.mdc` § Security gate invocation. Workspace rules override global `review-security` SKILL when they conflict (mandatory `model` param).
 
 Run **automatically** (exactly **one** `Task` per ship — await before push) when change touches:
 - Every `backend-write-critical` path (firestore.rules, Cloud Function write paths, auth logic)
@@ -287,7 +287,7 @@ Add `Custom Instructions: …` only when Dan gave specific review scope. Do not 
 
 **Completion report (mandatory when gate triggered):** include subagent id, `model: claude-4.6-sonnet-medium-thinking`, verdict (PASS/MEDIUM/HIGH/NOT RUN), one-line finding — per `model-audit-gate.mdc` Escalation review row. Missing subagent id → **NOT RUN**, not PASS.
 
-**Cursor UI note:** parent orchestrator tasks may still label **Composer 2.5 Fast**; the security-review child runs Sonnet 4.6 — trust the subagent id and model in the report, not the parent task label.
+**Cursor UI note:** parent orchestrator tasks may still label **Composer 2.5 Fast**; the security-review **child** must run `claude-4.6-sonnet-medium-thinking`. Trust **subagent id + model line in the report**, not the parent label. If the UI shows Composer 2.5 on Security Review and the report lacks a Sonnet subagent id → verdict **NOT RUN** (`security-review-gate.mdc`).
 
 Do not wait to be asked. If verdict is HIGH, fix before pushing. If subagent fails twice, stop ship and report blocker — no Composer self-review substitute.
 
