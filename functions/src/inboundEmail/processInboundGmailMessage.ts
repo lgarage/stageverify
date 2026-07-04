@@ -12,6 +12,7 @@ import {
 } from "../gmailInbound";
 import { extractTextFromPdfBuffer } from "./extractPdfText";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
+import { firestoreSafeValue } from "./firestoreSafeValue";
 import { sanitizeParsedLines } from "./sanitizeParsedLines";
 import type {
   GmailMessage,
@@ -77,7 +78,8 @@ function issueReviewError(
   return "Parse issue — missing required invoice fields for expected-order import.";
 }
 
-function shouldReprocessExistingDoc(
+/** Exported for sync backfill collection on Refresh Now. */
+export function shouldReprocessExistingDoc(
   data: InboundEmailProcessingDoc,
   options?: ProcessInboundGmailMessageOptions,
 ): boolean {
@@ -86,9 +88,55 @@ function shouldReprocessExistingDoc(
   if (data.processingStatus !== "parsed") return false;
   const reviewIds = data.parseResult?.reviewRecordIds ?? [];
   const total = data.parseResult?.total ?? 0;
-  const failed = data.parseResult?.failed ?? 0;
-  // Backfill legacy parses that skipped issue rows (0 queued despite failed pages).
-  return total > 0 && reviewIds.length === 0 && failed > 0;
+  // Backfill any parsed email with pages but zero queued review rows.
+  return total > 0 && reviewIds.length === 0;
+}
+
+async function finalizeParsedInboundDoc(
+  ref: admin.firestore.DocumentReference,
+  inboundDoc: InboundEmailProcessingDoc,
+  combinedExtractedText: string,
+  gmailMessageId: string,
+): Promise<ProcessInboundGmailMessageResult> {
+  const db = getDb();
+  const importBatchId = `batch-email-${gmailMessageId.slice(0, 12)}-${randomBytes(3).toString("hex")}`;
+  const batchResult = parseInboundInvoiceText(combinedExtractedText, {
+    importBatchId,
+    gmailMessageId,
+  });
+
+  const partialDoc: InboundEmailProcessingDoc = {
+    ...inboundDoc,
+    combinedExtractedText,
+    processingStatus: "extracted",
+    updatedAt: new Date().toISOString(),
+  };
+  await ref.set(partialDoc);
+
+  const reviewRecordIds = await writeReviewRecords(db, partialDoc, batchResult);
+
+  const parsedDoc: InboundEmailProcessingDoc = {
+    ...partialDoc,
+    processingStatus: "parsed",
+    parseResult: {
+      importBatchId: batchResult.importBatchId,
+      processed: 0,
+      needsReview: batchResult.summary.needsReview,
+      failed: batchResult.summary.failed,
+      total: batchResult.summary.total,
+      reviewRecordIds,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  await ref.set(parsedDoc);
+
+  return {
+    docId: inboundDoc.id,
+    gmailMessageId,
+    skipped: false,
+    processingStatus: "parsed",
+    reviewRecordIds,
+  };
 }
 
 async function writeReviewRecords(
@@ -107,6 +155,7 @@ async function writeReviewRecords(
 
     const proc = row.processing;
     const parsedLines = sanitizeParsedLines(proc.parsed.lines);
+    const reviewError = issueReviewError(proc, row.error);
     const reviewDoc: VendorInvoiceImportDoc = {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
@@ -120,19 +169,19 @@ async function writeReviewRecords(
       confidenceScore: proc.confidenceScore,
       humanReviewRequired: true,
       duplicate: proc.duplicate,
-      duplicateOfPageId: proc.duplicateOfPageId,
       parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
       parsedLines,
       parsedLineCount: parsedLines.length,
       parseWarnings: proc.parsed.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: "needs_review",
-      error: issueReviewError(proc, row.error),
       createdAt: now,
       updatedAt: now,
+      ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
+      ...(reviewError ? { error: reviewError } : {}),
     };
 
-    await db.collection(REVIEW_COLLECTION).doc(reviewId).set(reviewDoc);
+    await db.collection(REVIEW_COLLECTION).doc(reviewId).set(firestoreSafeValue(reviewDoc));
   }
 
   return reviewIds;
@@ -161,7 +210,37 @@ export async function processInboundGmailMessage(
         skippedProcessingStatus: data.processingStatus,
       };
     }
-    // retryOnError / zero-queue backfill: fall through — overwrite atomically (no delete)
+    const cachedText = data.combinedExtractedText?.trim();
+    if (cachedText) {
+      const now = new Date().toISOString();
+      await ref.set(
+        {
+          processingStatus: "processing",
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+      try {
+        return await finalizeParsedInboundDoc(
+          ref,
+          data,
+          trimStoredText(cachedText),
+          gmailMessageId,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await ref.set(
+          {
+            processingStatus: "error",
+            processingError: message.slice(0, 500),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+        throw err;
+      }
+    }
+    // retryOnError / zero-queue backfill: fall through — full Gmail re-fetch
   }
 
   const now = new Date().toISOString();
@@ -276,12 +355,6 @@ export async function processInboundGmailMessage(
       };
     }
 
-    const importBatchId = `batch-email-${gmailMessageId.slice(0, 12)}-${randomBytes(3).toString("hex")}`;
-    const batchResult = parseInboundInvoiceText(combinedExtractedText, {
-      importBatchId,
-      gmailMessageId,
-    });
-
     const partialDoc: InboundEmailProcessingDoc = {
       id: docId,
       gmailMessageId,
@@ -298,33 +371,12 @@ export async function processInboundGmailMessage(
       updatedAt: new Date().toISOString(),
     };
 
-    await ref.set(partialDoc);
-
-    const reviewRecordIds = await writeReviewRecords(db, partialDoc, batchResult);
-
-    const parsedDoc: InboundEmailProcessingDoc = {
-      ...partialDoc,
-      processingStatus: "parsed",
-      parseResult: {
-        importBatchId: batchResult.importBatchId,
-        processed: 0,
-        needsReview: batchResult.summary.needsReview,
-        failed: batchResult.summary.failed,
-        total: batchResult.summary.total,
-        reviewRecordIds,
-      },
-      updatedAt: new Date().toISOString(),
-    };
-
-    await ref.set(parsedDoc);
-
-    return {
-      docId,
+    return finalizeParsedInboundDoc(
+      ref,
+      partialDoc,
+      combinedExtractedText,
       gmailMessageId,
-      skipped: false,
-      processingStatus: "parsed",
-      reviewRecordIds,
-    };
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await ref.set(

@@ -56,7 +56,18 @@ export function formatGmailSyncMessage(result: InboundGmailSyncResult): string {
   }
 
   if (result.errors > 0) {
-    parts.push(`${result.errors} error${result.errors === 1 ? "" : "s"}`);
+    const errorDetails = result.errorDetails ?? [];
+    if (errorDetails.length > 0) {
+      const detailText = errorDetails
+        .slice(0, 2)
+        .map((e) => e.message)
+        .join("; ");
+      parts.push(
+        `${result.errors} error${result.errors === 1 ? "" : "s"} (${detailText})`,
+      );
+    } else {
+      parts.push(`${result.errors} error${result.errors === 1 ? "" : "s"}`);
+    }
   }
 
   if (parts.length === 0) {

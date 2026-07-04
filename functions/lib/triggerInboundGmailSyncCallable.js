@@ -28,6 +28,7 @@ exports.triggerInboundGmailSyncCallable = (0, https_1.onCall)({
         invoicesQueued: result.invoicesQueued,
         skippedByStatus: result.skippedByStatus,
         skippedReviewCounts: result.skippedReviewCounts,
+        errorDetails: result.errorDetails,
     };
 });
 //# sourceMappingURL=triggerInboundGmailSyncCallable.js.map

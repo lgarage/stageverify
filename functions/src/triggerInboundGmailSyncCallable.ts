@@ -33,6 +33,7 @@ export const triggerInboundGmailSyncCallable = onCall(
       invoicesQueued: result.invoicesQueued,
       skippedByStatus: result.skippedByStatus,
       skippedReviewCounts: result.skippedReviewCounts,
+      errorDetails: result.errorDetails,
     };
   },
 );

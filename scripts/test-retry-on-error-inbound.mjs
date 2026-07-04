@@ -188,12 +188,77 @@ async function testZeroQueueParsedReprocessesOnRetry() {
   else fail("reprocess ran", { status: result.processingStatus });
 }
 
+const SO_CACHED_TEXT = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4046362
+Customer P/O #: PLANET FITNESS
+Order Date: 06/23/2026
+Buyer: TEST BUYER
+Ship Via: TRUCK DELIVE
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 2 0 L46-668 THERMOSTAT PROGRAMMABLE
+`.trim();
+
+async function testCachedTextBackfillQueuesIssueImport() {
+  console.log("\n4. Cached extracted text backfill queues S/O issue import");
+  const gmailMessageId = "msg-so-cached-backfill";
+  const docId = `inbound-${gmailMessageId}`;
+  const ts = new Date().toISOString();
+
+  await db.collection(COLLECTION).doc(docId).set({
+    id: docId,
+    gmailMessageId,
+    senderEmail: "billing@johnstonesupply.com",
+    subject: "S/O Confirmation 4046362",
+    receivedAt: ts,
+    attachmentFilenames: ["so-4046362.pdf"],
+    pdfAttachments: [],
+    combinedExtractedText: SO_CACHED_TEXT,
+    processingStatus: "parsed",
+    parseResult: {
+      importBatchId: "batch-old",
+      processed: 0,
+      needsReview: 1,
+      failed: 0,
+      total: 1,
+      reviewRecordIds: [],
+    },
+    reviewStatus: "pending_review",
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  const result = await processInboundGmailMessage("fake-token", gmailMessageId, {
+    retryOnError: true,
+  });
+
+  if (result.skipped === false) pass("cached parsed doc reprocessed");
+  else fail("cached parsed doc reprocessed", { skipped: result.skipped });
+
+  if (result.reviewRecordIds.length === 1) pass("one review record queued");
+  else fail("one review record queued", { ids: result.reviewRecordIds });
+
+  const reviewSnap = await db
+    .collection("vendorInvoiceImports")
+    .doc(result.reviewRecordIds[0])
+    .get();
+  if (reviewSnap.exists) pass("vendorInvoiceImports doc written");
+  else fail("vendorInvoiceImports doc written");
+
+  const reviewData = reviewSnap.data();
+  if (reviewData?.importStatus === "issue") pass("issue importStatus on review row");
+  else fail("issue importStatus on review row", { status: reviewData?.importStatus });
+}
+
 async function main() {
   console.log("test-retry-on-error-inbound (Firestore emulator)\n");
 
   await testErrorDocSkippedWithoutRetry();
   await testRetryOnErrorOverwritesAtomically();
   await testZeroQueueParsedReprocessesOnRetry();
+  await testCachedTextBackfillQueuesIssueImport();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

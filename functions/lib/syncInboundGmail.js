@@ -14,6 +14,7 @@ const scheduler_1 = require("firebase-functions/v2/scheduler");
 const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
 const processInboundGmailMessage_1 = require("./inboundEmail/processInboundGmailMessage");
+const INBOUND_COLLECTION = "inboundEmailProcessing";
 const PROVIDER_ID = "gmail";
 function getDb() {
     return admin.firestore();
@@ -23,6 +24,33 @@ function connectionRef(db) {
 }
 function secretsRef(db) {
     return db.collection("emailProviderSecrets").doc(PROVIDER_ID);
+}
+async function collectRetryOnErrorMessageIds(db) {
+    const ids = new Set();
+    const [errorSnap, parsedSnap] = await Promise.all([
+        db
+            .collection(INBOUND_COLLECTION)
+            .where("processingStatus", "==", "error")
+            .limit(50)
+            .get(),
+        db
+            .collection(INBOUND_COLLECTION)
+            .where("processingStatus", "==", "parsed")
+            .limit(100)
+            .get(),
+    ]);
+    for (const doc of errorSnap.docs) {
+        const gmailMessageId = doc.data().gmailMessageId;
+        if (gmailMessageId)
+            ids.add(gmailMessageId);
+    }
+    for (const doc of parsedSnap.docs) {
+        const data = doc.data();
+        if ((0, processInboundGmailMessage_1.shouldReprocessExistingDoc)(data, { retryOnError: true })) {
+            ids.add(data.gmailMessageId);
+        }
+    }
+    return [...ids];
 }
 async function loadRefreshToken(db) {
     const conn = await connectionRef(db).get();
@@ -56,12 +84,28 @@ async function runInboundGmailSync(options) {
     const db = getDb();
     if (!(0, gmailInbound_1.gmailOAuthSecretsConfigured)()) {
         console.log("syncInboundGmail: OAuth secrets not configured — skipping");
-        return { processed: 0, skipped: 0, errors: 0, invoicesQueued: 0, skippedByStatus: {}, skippedReviewCounts: {} };
+        return {
+            processed: 0,
+            skipped: 0,
+            errors: 0,
+            invoicesQueued: 0,
+            skippedByStatus: {},
+            skippedReviewCounts: {},
+            errorDetails: [],
+        };
     }
     const refreshToken = await loadRefreshToken(db);
     if (!refreshToken) {
         console.log("syncInboundGmail: Gmail not connected — skipping");
-        return { processed: 0, skipped: 0, errors: 0, invoicesQueued: 0, skippedByStatus: {}, skippedReviewCounts: {} };
+        return {
+            processed: 0,
+            skipped: 0,
+            errors: 0,
+            invoicesQueued: 0,
+            skippedByStatus: {},
+            skippedReviewCounts: {},
+            errorDetails: [],
+        };
     }
     const accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
     const connSnap = await connectionRef(db).get();
@@ -85,12 +129,17 @@ async function runInboundGmailSync(options) {
         if (profile.historyId)
             latestHistoryId = profile.historyId;
     }
+    if (options?.retryOnError) {
+        const backfillIds = await collectRetryOnErrorMessageIds(db);
+        messageIds = [...new Set([...messageIds, ...backfillIds])];
+    }
     let processed = 0;
     let skipped = 0;
     let errors = 0;
     let invoicesQueued = 0;
     const skippedByStatus = {};
     const skippedReviewCounts = {};
+    const errorDetails = [];
     for (const messageId of messageIds) {
         try {
             const result = await (0, processInboundGmailMessage_1.processInboundGmailMessage)(accessToken, messageId, {
@@ -112,6 +161,7 @@ async function runInboundGmailSync(options) {
         catch (err) {
             errors += 1;
             const message = err instanceof Error ? err.message : String(err);
+            errorDetails.push({ gmailMessageId: messageId, message: message.slice(0, 200) });
             console.error(`syncInboundGmail: message ${messageId} failed — ${message}`);
         }
     }
@@ -125,7 +175,15 @@ async function runInboundGmailSync(options) {
         updatedAt: now,
     }, { merge: true });
     console.log(`syncInboundGmail: processed=${processed} skipped=${skipped} errors=${errors}`);
-    return { processed, skipped, errors, invoicesQueued, skippedByStatus, skippedReviewCounts };
+    return {
+        processed,
+        skipped,
+        errors,
+        invoicesQueued,
+        skippedByStatus,
+        skippedReviewCounts,
+        errorDetails,
+    };
 }
 exports.syncInboundGmail = (0, scheduler_1.onSchedule)({
     schedule: "every 30 minutes",
