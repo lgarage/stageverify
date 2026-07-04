@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Phase 5 — Vendor Email Parsing Prototype** (Phase 4 gate closed 2026-06-20)
-- Last shipped: **away-091** — short pickup clipboard + gh-pages redeploy (bundle was stale at 12044c2); prod verify 395/395 + phase5-email PASS
+- Last shipped: **drawer email review CTA** — Review Vendor Email button in What Needs Attention (ORD-006); scrolls/expands Readiness Evidence email proposals
 - Stack: React 19 + TS, Vite 8, Firebase 11.x, CF v2. Deploy: https://lgarage.github.io/stageverify
 - Data: Firestore `stageverify-db`.
 

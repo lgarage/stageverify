@@ -321,6 +321,7 @@ export interface DrawerActionBannerContent {
   nextStepBullets: string[];
   resolveDisabledReason: string;
   showReviewIssues: boolean;
+  showReviewVendorEmail: boolean;
   showCallVendor: boolean;
   showEmailVendor: boolean;
 }
@@ -556,7 +557,7 @@ export function buildDrawerActionBannerContent(
 
   if (options?.emailReviewRequired) {
     pushWhy("Vendor email proposal needs dispatcher review");
-    pushNext("Review vendor email proposals in Vendor Communications");
+    pushNext("Click Review Vendor Email to open matched email evidence below");
   }
 
   if (!calmWaiting) {
@@ -634,7 +635,7 @@ export function buildDrawerActionBannerContent(
       "No blocking material issue — review item exceptions below or contact vendor";
   } else if (options?.emailReviewRequired) {
     resolveDisabledReason =
-      "No material issue to resolve — review vendor email in Vendor Communications";
+      "No material issue to resolve — use Review Vendor Email above";
   } else if (calmWaiting) {
     resolveDisabledReason =
       "No dispatcher action required while waiting on vendor delivery";
@@ -681,6 +682,7 @@ export function buildDrawerActionBannerContent(
     showReviewIssues:
       openBlockingMaterialIssues(materialIssues).length > 0 ||
       (attentionRequired && panel.openIssuesCount > 0),
+    showReviewVendorEmail: options?.emailReviewRequired === true,
     showCallVendor:
       attentionRequired && needsVendorOutreach && vendorPhone.length > 0,
     showEmailVendor:
@@ -800,7 +802,7 @@ const RECOMMENDED_ACTION_BY_BLOCKER: Record<string, string> = {
   "Unresolved damage on items": "Review and resolve reported item damage",
   "Unresolved backorder on items":
     "Confirm backorder ETA or alternate sourcing with vendor",
-  "Vendor email needs review": "Review vendor email proposals in Vendor Communications",
+  "Vendor email needs review": "Click Review Vendor Email to open matched email evidence",
 };
 
 export function buildRecommendedActions(blockerLabels: string[]): string[] {

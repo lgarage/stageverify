@@ -153,11 +153,16 @@ async function ensureAuthenticated(page) {
     if (
       !/\d+ of \d+ items ordered/i.test(bannerSummary) &&
       !/Ready for Pickup/i.test(bannerSummary) &&
-      !/No material received yet/i.test(bannerSummary)
+      !/No material received yet/i.test(bannerSummary) &&
+      !/vendor email proposal needs dispatcher review/i.test(bannerSummary)
     ) {
       throw new Error(`Action banner summary unexpected: ${bannerSummary}`);
     }
     console.log("Drawer action banner PASS: receipt summary or all-clear visible.");
+
+    const emailReviewBanner = /vendor email proposal needs dispatcher review/i.test(
+      bannerSummary,
+    );
 
     const vendorCommsPanel = page.getByTestId("vendor-communications-panel");
     if ((await vendorCommsPanel.count()) > 0) {
@@ -269,6 +274,16 @@ async function ensureAuthenticated(page) {
       } else {
         throw new Error("Email Evidence expanded but no cards or empty state");
       }
+    }
+
+    if (emailReviewBanner) {
+      const reviewEmailBtn = page.getByTestId("drawer-action-review-vendor-email");
+      if (!(await reviewEmailBtn.isVisible().catch(() => false))) {
+        throw new Error("Review Vendor Email button must be visible when email review required");
+      }
+      await reviewEmailBtn.click();
+      await page.getByTestId("email-evidence-list").waitFor({ timeout: 10_000 });
+      console.log("PASS: Review Vendor Email opens matched email evidence.");
     }
 
     const statusEl = page.getByTestId("readiness-evidence-condition1-status");

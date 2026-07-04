@@ -21,12 +21,14 @@ export function DrawerActionBanner({
   font,
   onResolveBlockingIssue,
   onReviewIssues,
+  onReviewVendorEmail,
 }: {
   details: DeliveryDetails;
   navy: string;
   font: string;
   onResolveBlockingIssue?: () => void;
   onReviewIssues?: () => void;
+  onReviewVendorEmail?: () => void;
 }) {
   const [callVendorOpen, setCallVendorOpen] = useState(false);
 
@@ -274,6 +276,26 @@ export function DrawerActionBanner({
             data-testid="drawer-action-banner-buttons"
             style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}
           >
+            {bannerContent.showReviewVendorEmail && onReviewVendorEmail && (
+              <button
+                type="button"
+                data-testid="drawer-action-review-vendor-email"
+                onClick={() => onReviewVendorEmail()}
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${navy}`,
+                  backgroundColor: navy,
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Review Vendor Email
+              </button>
+            )}
             <button
               type="button"
               data-testid="drawer-action-resolve-issue"

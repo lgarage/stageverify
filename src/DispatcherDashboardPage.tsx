@@ -2355,6 +2355,7 @@ function DetailContent({
   const [emailFieldsTouched, setEmailFieldsTouched] = useState(false);
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
   const [vendorCommsExpandSignal, setVendorCommsExpandSignal] = useState(0);
+  const [emailEvidenceExpandSignal, setEmailEvidenceExpandSignal] = useState(0);
   const [pickupTokenRefreshKey, setPickupTokenRefreshKey] = useState(0);
   const [activityHistoryExpanded, setActivityHistoryExpanded] = useState(false);
   const [activityHistoryFullView, setActivityHistoryFullView] = useState(false);
@@ -2371,6 +2372,14 @@ function DetailContent({
     setVendorCommsExpandSignal((value) => value + 1);
     requestAnimationFrame(() => {
       const panel = document.querySelector('[data-testid="vendor-communications-panel"]');
+      panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const expandEmailEvidenceReview = () => {
+    setEmailEvidenceExpandSignal((value) => value + 1);
+    requestAnimationFrame(() => {
+      const panel = document.querySelector('[data-testid="readiness-evidence-panel"]');
       panel?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
@@ -2867,6 +2876,7 @@ function DetailContent({
               .querySelector('[data-testid="issue-summary-panel"]')
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
+          onReviewVendorEmail={expandEmailEvidenceReview}
         />
         <IssueSummaryPanel details={details} navy={navy} font={font} />
         {renderDrawerSection(
@@ -2877,6 +2887,7 @@ function DetailContent({
             navy={navy}
             font={font}
             onExpandVendorCommunications={expandVendorCommunications}
+            emailEvidenceExpandSignal={emailEvidenceExpandSignal}
           />,
         )}
         {nonBlockingOpenIssues.length > 0 &&

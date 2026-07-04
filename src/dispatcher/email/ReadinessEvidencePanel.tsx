@@ -240,12 +240,15 @@ export function ReadinessEvidencePanel({
   navy,
   font,
   onExpandVendorCommunications,
+  emailEvidenceExpandSignal = 0,
 }: {
   details: DeliveryDetails;
   stagingLocations: StagingLocation[];
   navy: string;
   font: string;
   onExpandVendorCommunications?: () => void;
+  /** Increment to expand details + related email evidence (e.g. from action banner). */
+  emailEvidenceExpandSignal?: number;
 }) {
   const { delivery, items, materialIssues, purchaseOrder } = details;
   const poNumber = purchaseOrder?.poNumber ?? null;
@@ -258,6 +261,13 @@ export function ReadinessEvidencePanel({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
   const [outboundVendorEmailCount, setOutboundVendorEmailCount] = useState(0);
+
+  useEffect(() => {
+    if (emailEvidenceExpandSignal > 0) {
+      setDetailsOpen(true);
+      setEmailEvidenceOpen(true);
+    }
+  }, [emailEvidenceExpandSignal]);
 
   useEffect(() => {
     let cancelled = false;

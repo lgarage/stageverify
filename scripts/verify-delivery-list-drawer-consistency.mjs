@@ -1007,6 +1007,48 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
   );
 }
 
+/** ORD-006 truck-stock demo — email proposal needs review with actionable button. */
+async function assertOrd006EmailReviewAction(page, record) {
+  const whyBlock = page.getByTestId("drawer-action-banner-why");
+  const whyText =
+    (await whyBlock.count()) > 0 ? (await whyBlock.innerText()).trim() : "";
+  record(
+    "ORD-006 shows vendor email review attention",
+    /vendor email proposal needs dispatcher review/i.test(whyText),
+    whyText.slice(0, 80),
+  );
+
+  const reviewBtn = page.getByTestId("drawer-action-review-vendor-email");
+  if ((await reviewBtn.count()) === 0) {
+    record("ORD-006 Review Vendor Email button visible", false, "missing");
+    return;
+  }
+
+  record("ORD-006 Review Vendor Email button visible", await reviewBtn.isVisible());
+  record("ORD-006 Review Vendor Email button enabled", await reviewBtn.isEnabled());
+
+  await reviewBtn.click();
+  await page.waitForTimeout(600);
+
+  const detailsSection = page.getByTestId("readiness-evidence-details");
+  record(
+    "ORD-006 Review Vendor Email expands readiness details",
+    (await detailsSection.count()) > 0 && (await detailsSection.isVisible()),
+  );
+
+  const emailList = page.getByTestId("email-evidence-list");
+  record(
+    "ORD-006 Review Vendor Email expands email evidence list",
+    (await emailList.count()) > 0 && (await emailList.isVisible()),
+  );
+
+  const evidenceCard = page.locator('[data-testid^="email-evidence-card-"]').first();
+  record(
+    "ORD-006 email evidence card present after review click",
+    (await evidenceCard.count()) > 0,
+  );
+}
+
 (async () => {
   mkdirSync(screenshotDir, { recursive: true });
 
@@ -1760,6 +1802,10 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
     }
     record(`${orderNumber} row opened for uniform drawer check`, true);
     await assertUniformDemoDrawerPresentation(page, record, orderNumber);
+
+    if (orderNumber === "ORD-006") {
+      await assertOrd006EmailReviewAction(page, record);
+    }
 
     const demoCopyBtn = page.getByTestId("copy-pickup-information");
     record(
