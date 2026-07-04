@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getProposedEmailUpdates } from "./getProposedEmailUpdates";
 import {
   filterNeedsReviewEmails,
@@ -15,6 +15,35 @@ export function NeedsReviewEmailStrip() {
   }, []);
   const [expanded, setExpanded] = useState(false);
   const [openOriginalId, setOpenOriginalId] = useState<string | null>(null);
+  const stripRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (stripRef.current?.contains(target)) return;
+      setExpanded(false);
+      setOpenOriginalId(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpanded(false);
+        setOpenOriginalId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [expanded]);
 
   if (needsReview.length === 0) {
     return (
@@ -41,6 +70,7 @@ export function NeedsReviewEmailStrip() {
 
   return (
     <section
+      ref={stripRef}
       data-testid="needs-review-email-strip"
       style={{
         marginBottom: 24,

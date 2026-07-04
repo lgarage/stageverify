@@ -631,6 +631,18 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
   }
   console.log("Phase 5 PASS: needs-review-email-strip visible; legacy panel absent.");
 
+  const needsReviewToggle = page.getByTestId("needs-review-email-toggle");
+  if (await needsReviewToggle.count()) {
+    await needsReviewToggle.click();
+    const needsReviewList = page.getByTestId("needs-review-email-list");
+    await needsReviewList.waitFor({ timeout: 10_000 });
+    await page.getByRole("heading", { name: "Delivery Overview" }).click();
+    await needsReviewList.waitFor({ state: "hidden", timeout: 10_000 });
+    console.log("Needs Review PASS: outside click collapses expanded strip.");
+  } else {
+    console.log("SKIP needs-review collapse: zero-item strip has no toggle.");
+  }
+
   console.log("Shop stock directory on Staging Map…");
   await page.goto(`${appBase}/#/zones`, {
     waitUntil: "domcontentloaded",
