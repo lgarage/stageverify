@@ -657,14 +657,14 @@
       "id": "away-099",
       "title": "Intelligent indexer ingest + deterministic packet retrieval",
       "status": "built",
-      "commit": "pending",
+      "commit": "cf59bf0",
       "note": "indexer:ingest CLI, indexer-memory.json, away:next --packet"
     },
     {
       "id": "away-100",
       "title": "Mini-librarian indexer hygiene batch",
       "status": "built",
-      "commit": "pending",
+      "commit": "3ef06e6",
       "note": "context-index drift fix, MEMORY trim, packet dedup cap, idx-004/005 product entries"
     }
   ],
