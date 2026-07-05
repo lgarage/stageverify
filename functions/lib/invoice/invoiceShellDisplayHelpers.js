@@ -6,9 +6,19 @@ exports.jobNameFromInvoiceContext = jobNameFromInvoiceContext;
 exports.resolveShellDeliveryStatus = resolveShellDeliveryStatus;
 /** Extract job-site destination from parsed order notes (e.g. DELIVER TO: Planet Fitness Hartford). */
 function extractDeliverToSiteLabel(orderNotes) {
-    for (const note of orderNotes) {
-        const match = note.match(/DELIVER\s+TO\s*:\s*(.+)/i);
-        const label = match?.[1]?.trim();
+    for (let index = 0; index < orderNotes.length; index += 1) {
+        const note = orderNotes[index] ?? "";
+        const match = note.match(/DELIVER\s+TO\s*:\s*(.*)/i);
+        if (!match)
+            continue;
+        let label = match[1]?.trim() ?? "";
+        const next = orderNotes[index + 1]?.trim() ?? "";
+        if (label &&
+            next &&
+            /^[A-Za-z]/.test(next) &&
+            !/^(DATE|ATTN|PHONE|SHIP|SPECIAL)\b/i.test(next)) {
+            label = `${label} ${next}`.trim();
+        }
         if (label)
             return label;
     }

@@ -7,6 +7,7 @@ import type {
   VendorDeliveryMode,
 } from "./models";
 import { getAllStagingLocationIds } from "./models";
+import { isInvoiceShellNoShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 
 /** Evidence sources distinguishable in audit history. */
 export type ReadinessEvidenceSource =
@@ -121,6 +122,7 @@ export function buildDeliveryReadinessEvidence(
   options?: ReadinessComputeOptions,
 ): DeliveryReadinessEvidence {
   const blockReasons: string[] = [];
+  const skipShopReceipt = isInvoiceShellNoShopStaging(delivery);
   const vendorOrderComplete = delivery.vendorOrderComplete === true;
   const physicalDropoffComplete = computePhysicalDropoffComplete(
     delivery,
@@ -135,8 +137,10 @@ export function buildDeliveryReadinessEvidence(
     (options?.openBlockingIssueCount ?? delivery.openBlockingIssueCount ?? 0) > 0;
 
   if (!vendorOrderComplete) blockReasons.push("vendor_order_incomplete");
-  if (!physicalDropoffComplete) blockReasons.push("physical_dropoff_incomplete");
-  if (!stagingAssignmentComplete) {
+  if (!physicalDropoffComplete && !skipShopReceipt) {
+    blockReasons.push("physical_dropoff_incomplete");
+  }
+  if (!stagingAssignmentComplete && !skipShopReceipt) {
     blockReasons.push("staging_assignment_incomplete");
   }
   if (blockingIssues) blockReasons.push("unresolved_blocking_issues");

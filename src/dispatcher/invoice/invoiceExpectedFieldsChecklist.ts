@@ -1,5 +1,5 @@
 import type { VendorInvoiceImportReview } from "../models";
-import { vendorInvoiceImportDisplayLabel } from "./invoiceDisplayHelpers";
+import { vendorInvoiceImportDisplayLabelForRow } from "./invoiceDisplayHelpers";
 import {
   documentTypeLabel,
   inferDocumentType,
@@ -175,8 +175,9 @@ export function buildExpectedJohnstoneFieldChecklist(
 
   return {
     documentType: documentTypeLabel(inferDocumentType(importRow)),
-    importStatus: vendorInvoiceImportDisplayLabel(
+    importStatus: vendorInvoiceImportDisplayLabelForRow(
       importRow.importStatus as VendorInvoiceImportStatus,
+      importRow.orderNotes,
     ),
     reviewStatus: reviewStatusLabel(importRow.reviewStatus),
     approvalEligible:

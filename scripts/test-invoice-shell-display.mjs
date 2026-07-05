@@ -8,6 +8,8 @@ import {
   jobNameFromInvoiceContext,
   resolveShellDeliveryStatus,
 } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
+import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
+import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
 
 let passed = 0;
 let failed = 0;
@@ -26,6 +28,16 @@ assert(
   "DELIVER TO extracted from order notes",
   extractDeliverToSiteLabel(["DELIVER TO: Planet Fitness Hartford"]) ===
     "Planet Fitness Hartford",
+);
+
+assert(
+  "DELIVER TO joins next line when split (P411190 prod shape)",
+  extractDeliverToSiteLabel([
+    "****DELIVERY INSTRUCTIONS****",
+    "DELIVER TO:Planet Fitness",
+    "Hartford",
+    "DATE:1/8 or 1/9",
+  ]) === "Planet Fitness Hartford",
 );
 
 assert(
@@ -84,6 +96,57 @@ assert(
 assert(
   "deliver-to-site pending import maps to complete delivery status",
   resolveShellDeliveryStatus("pending", "delivery", true) === "complete",
+);
+
+assert(
+  "pending + DELIVER TO notes show Deliver to Site label",
+  vendorInvoiceImportDisplayLabelForRow("pending", [
+    "DELIVER TO: Planet Fitness Hartford",
+  ]) === "Deliver to Site",
+);
+
+assert(
+  "pending without DELIVER TO keeps Pending Delivery label",
+  vendorInvoiceImportDisplayLabelForRow("pending", []) === "Pending Delivery",
+);
+
+const deliverToSiteReadiness = computeDeliveryReadiness(
+  {
+    id: "delivery-vii-test",
+    orderNumber: "4046362",
+    jobId: "job-1",
+    vendorId: "v-1",
+    vendorName: "Johnstone",
+    deliveryDate: "2026-01-08",
+    status: "complete",
+    vendorOrderComplete: true,
+    vendorOrderCompleteSource: "vendor_email",
+    invoiceDeliverToSite: true,
+    invoiceImportStatus: "pending",
+    createdFromInvoiceImport: true,
+  },
+  [
+    {
+      id: "item-1",
+      deliveryOrderId: "delivery-vii-test",
+      jobId: "job-1",
+      description: "Filter",
+      qtyOrdered: 4,
+      qtyReceived: 0,
+      qtyBackordered: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+    },
+  ],
+);
+assert(
+  "deliver-to-site shell skips shop physical/staging blockers",
+  !deliverToSiteReadiness.evidence.readinessBlockReasons.includes(
+    "physical_dropoff_incomplete",
+  ) &&
+    !deliverToSiteReadiness.evidence.readinessBlockReasons.includes(
+      "staging_assignment_incomplete",
+    ),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

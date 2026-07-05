@@ -16,7 +16,7 @@ import {
   openVendorInvoicePdfInNewTab,
   vendorInvoicePdfUnavailableMessage,
 } from "./invoicePdfClient";
-import { vendorInvoiceImportDisplayLabel } from "./invoiceDisplayHelpers";
+import { vendorInvoiceImportDisplayLabelForRow } from "./invoiceDisplayHelpers";
 import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import {
@@ -43,22 +43,40 @@ function reviewStatusLabel(status: VendorInvoiceImportReview["reviewStatus"]): s
 function StatusChip({
   importStatus,
   reviewStatus,
+  orderNotes,
 }: {
   importStatus: string;
   reviewStatus: VendorInvoiceImportReview["reviewStatus"];
+  orderNotes?: string[];
 }) {
-  const importLabel = vendorInvoiceImportDisplayLabel(
+  const importLabel = vendorInvoiceImportDisplayLabelForRow(
     importStatus as VendorInvoiceImportStatus,
+    orderNotes,
   );
   const isWillCall = importStatus === "pickup_at_vendor";
+  const isDeliverToSite =
+    importStatus === "pending" &&
+    importLabel === "Deliver to Site";
   const isIssue = importStatus === "issue";
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       <span
         data-testid="invoice-review-status-chip"
         style={{
-          backgroundColor: isIssue ? "#fff7ed" : isWillCall ? "#fef3c7" : "#e8f0fe",
-          color: isIssue ? "#9a3412" : isWillCall ? "#92400e" : NAVY,
+          backgroundColor: isIssue
+            ? "#fff7ed"
+            : isWillCall
+              ? "#fef3c7"
+              : isDeliverToSite
+                ? "#ecfdf5"
+                : "#e8f0fe",
+          color: isIssue
+            ? "#9a3412"
+            : isWillCall
+              ? "#92400e"
+              : isDeliverToSite
+                ? "#166534"
+                : NAVY,
           fontWeight: 700,
           fontSize: 11,
           padding: "3px 8px",
@@ -664,6 +682,7 @@ export function InvoiceReviewPanel({
                     <StatusChip
                       importStatus={row.importStatus}
                       reviewStatus={row.reviewStatus}
+                      orderNotes={row.orderNotes}
                     />
                     <AutoImportSuggestionBadge importRow={row} compact />
                     {codContext && <CodPaymentChip label={codContext.chipLabel} />}

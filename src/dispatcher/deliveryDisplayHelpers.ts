@@ -398,6 +398,13 @@ function shouldIncludeReadinessBlockReasonForBanner(
   delivery: DeliveryOrder,
 ): boolean {
   if (
+    isInvoiceShellNoShopStaging(delivery) &&
+    (reason === "physical_dropoff_incomplete" ||
+      reason === "staging_assignment_incomplete")
+  ) {
+    return false;
+  }
+  if (
     CALM_PENDING_BLOCK_REASONS.has(reason) &&
     itemsReceivedCount === 0 &&
     !vendorClaimsDelivered(delivery)

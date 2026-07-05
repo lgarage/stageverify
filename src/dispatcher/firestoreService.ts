@@ -73,6 +73,7 @@ import {
   type JobReadinessResult,
 } from "./readiness";
 import { computeDeliveryDisplayState } from "./deliveryDisplayHelpers";
+import { extractDeliverToSiteLabel } from "./invoice/invoiceShellDisplayHelpers";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -2134,16 +2135,31 @@ export async function approveVendorInvoiceImport(input: {
   return response.data;
 }
 
-/** Idempotent backfill: approved imports without linkedDeliveryOrderId get dashboard shells. */
+function invoiceShellBackfillCandidate(
+  row: VendorInvoiceImportReview,
+): boolean {
+  if (row.reviewStatus !== "approved" || row.importStatus === "issue") {
+    return false;
+  }
+  if (!row.linkedDeliveryOrderId?.trim()) {
+    return true;
+  }
+  const orderNotes = row.orderNotes ?? [];
+  if (extractDeliverToSiteLabel(orderNotes)) {
+    return true;
+  }
+  if (row.importStatus === "pickup_at_vendor") {
+    return true;
+  }
+  const fulfillment = row.parsedHeader?.fulfillmentMethod;
+  return fulfillment === "will_call_pickup";
+}
+
+/** Idempotent backfill: create shells for unlinked imports; re-patch linked invoice shells. */
 export async function ensureApprovedUnlinkedInvoiceShells(
   imports: VendorInvoiceImportReview[],
 ): Promise<{ linkedCount: number; failedCount: number; errors: string[] }> {
-  const needsShell = imports.filter(
-    (row) =>
-      row.reviewStatus === "approved" &&
-      !row.linkedDeliveryOrderId?.trim() &&
-      row.importStatus !== "issue",
-  );
+  const needsShell = imports.filter(invoiceShellBackfillCandidate);
   if (needsShell.length === 0) {
     return { linkedCount: 0, failedCount: 0, errors: [] };
   }
