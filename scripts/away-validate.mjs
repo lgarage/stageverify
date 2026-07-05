@@ -291,6 +291,9 @@ function validatePackageScripts() {
   if (!scripts["indexer:demo-verify-failure"]) {
     fail("package.json: missing indexer:demo-verify-failure script");
   }
+  if (!scripts["indexer:demo-deploy-failure"]) {
+    fail("package.json: missing indexer:demo-deploy-failure script");
+  }
   if (!scripts["run-verify-with-learning"]) {
     fail("package.json: missing run-verify-with-learning script (verify learning wrapper)");
   }
@@ -425,6 +428,24 @@ function validateIndexerDemoVerifyFailure() {
   }
 }
 
+function validateIndexerDemoDeployFailure() {
+  try {
+    execSync("node scripts/indexer-demo-deploy-failure.mjs --assert", {
+      cwd: REPO_ROOT,
+      stdio: "pipe",
+      encoding: "utf8",
+    });
+  } catch (err) {
+    const detail =
+      err instanceof Error && "stderr" in err
+        ? String(/** @type {{ stdout?: string, stderr?: string }} */ (err).stderr ?? "")
+        : "";
+    fail(
+      `indexer:demo-deploy-failure regression failed${detail ? `: ${detail.trim().slice(0, 200)}` : ""}`,
+    );
+  }
+}
+
 function validatePendingLearningsStore() {
   try {
     const { errors, warnings } = validatePendingLearnings();
@@ -493,6 +514,7 @@ function main() {
   validateLessonsIndexRanges();
   validateIndexerDemoPacket();
   validateIndexerDemoVerifyFailure();
+  validateIndexerDemoDeployFailure();
   validatePendingLearningsStore();
   validateRecentShipLearnings();
   validateEstimateLogRows();

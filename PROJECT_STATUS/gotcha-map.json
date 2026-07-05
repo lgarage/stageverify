@@ -166,6 +166,32 @@
       "warning": "Local build/verify can PASS while gh-pages serves a stale pre-fix bundle. Before treating prod-only UI failure as a code bug: confirm deployed bundle/hash is current, redeploy gh-pages if needed, wait for Pages build status built, then rerun :prod verify."
     },
     {
+      "id": "gh-pages-deploy-freshness",
+      "match": [
+        "deploy timeout",
+        "npm run deploy",
+        "Pages build status",
+        "live bundle mismatch",
+        "deploy fail",
+        "gh-pages deploy fail",
+        "pages build errored",
+        "live index asset",
+        "deploy propagation",
+        "push succeeded build pending",
+        "live bundle",
+        "deploy timed out"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [],
+      "rules": ["ship-loop.mdc", "composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": ["npm run deploy"],
+      "gateCandidate": true,
+      "injectBefore": ["prod Playwright", ":prod verify", "claiming deploy complete", "ship loop"],
+      "warning": "gh-pages push can succeed while Pages build is still queued, errored, or timing out — CDN may serve old index.html assets. Before :prod verify or claiming live: confirm deploy reported status=built and live index main JS asset matches dist/. Prod verify failure after deploy timeout is often propagation, not a code bug."
+    },
+    {
       "id": "dispatcher-clipboard",
       "match": ["copy pickup", "clipboard", "drawer copy", "pickup information", "short clipboard"],
       "orchestratorSteps": [7],

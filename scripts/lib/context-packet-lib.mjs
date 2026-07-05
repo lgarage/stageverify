@@ -32,6 +32,7 @@ import {
   mergeGateWarnings,
   renderIndexerMemoryMarkdown,
 } from "./indexer-ingest-lib.mjs";
+import { collectPendingLearningGateWarnings } from "./verify-learning-hook.mjs";
 import { renderLessonsSliceMarkdown } from "./librarian-lessons-lib.mjs";
 
 /**
@@ -109,9 +110,13 @@ function buildGotchaForItem(item) {
     ...buildGotchaResult(matched, map.orchestratorSteps ?? {}),
   };
   const indexerGateWarnings = collectIndexerGateWarnings(task, typeKey);
+  const pendingGateWarnings = collectPendingLearningGateWarnings(task, typeKey);
   gotcha.gateWarnings = mergeGateWarnings(
-    /** @type {string[]} */ (gotcha.gateWarnings ?? []),
-    indexerGateWarnings,
+    mergeGateWarnings(
+      /** @type {string[]} */ (gotcha.gateWarnings ?? []),
+      indexerGateWarnings,
+    ),
+    pendingGateWarnings,
   );
   if (matched.length === 0) {
     gotcha.fallback = {

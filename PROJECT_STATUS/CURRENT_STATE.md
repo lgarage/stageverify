@@ -13,6 +13,7 @@
 - Also shipped: **away-108** — Inbound reparse stale issue-import backfill
 - Also shipped: **Invoice Review approved archive** — read-only list with invoice/S-O/PO/buyer/approved date + linked badge
 - Also shipped: **Invoice Review approve CF deploy fix** — rebuilt `functions/lib/approveVendorInvoiceImport.js` (TS fix from 8ff639b was never compiled/deployed); review-only approve now live in production
+- Also shipped: **Deploy-failure auto-learning** — deploy-gh-pages.mjs captures timeout/stale-bundle/build-errored to learning-pending; gotcha-map gh-pages-deploy-freshness; packet injects pending deploy warnings for frontend tasks only
 - Also shipped: **Verify-failure auto-learning (audit)** — gh-pages classification scoped to frontend :prod; backend integration excluded; 3 more :prod wrappers; pending validation tightened
 - Also shipped: **Automatic indexer learning on away:ship** — `--learned`/`--failure`+`--fix` inline capture; demo-packet regression in away:validate; gateWarnings auto-inject in packet
 - Also shipped: **Indexer learning loop — stale gh-pages prod-verify** — gotcha-map gateCandidate warning + injectBefore; idx-006 timing; demo packet positive/negative asserts

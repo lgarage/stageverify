@@ -115,6 +115,7 @@
     "indexer:ingest": "node scripts/indexer-ingest.mjs",
     "indexer:demo-packet": "node scripts/indexer-demo-packet.mjs",
     "indexer:demo-verify-failure": "node scripts/indexer-demo-verify-failure.mjs",
+    "indexer:demo-deploy-failure": "node scripts/indexer-demo-deploy-failure.mjs",
     "run-verify-with-learning": "node scripts/run-verify-with-learning.mjs"
   },
   "dependencies": {

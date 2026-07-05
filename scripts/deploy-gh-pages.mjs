@@ -13,6 +13,10 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  captureDeployFailure,
+  clearPendingForScript,
+} from "./lib/verify-learning-hook.mjs";
 
 const REPO = "lgarage/stageverify";
 const PAGES_URL = "https://lgarage.github.io/stageverify";
@@ -23,12 +27,47 @@ const LIVE_FETCH_MS = 15_000;
 const skipPush = process.argv.includes("--skip-push");
 const skipLiveCheck = process.argv.includes("--skip-live-check");
 
-function log(msg) {
-  console.log(`deploy: ${msg}`);
+/** @type {string[]} */
+const deployLogLines = [];
+
+function inferFailureKind(msg) {
+  const m = msg.toLowerCase();
+  if (/timed out/.test(m)) return "timeout";
+  if (/live bundle mismatch/.test(m)) return "stale-bundle";
+  if (/build errored/.test(m)) return "build-errored";
+  if (/push failed/.test(m)) return "push-failed";
+  if (/live fetch/.test(m)) return "live-fetch-failed";
+  return "unknown";
 }
 
-function fail(msg) {
-  console.error(`deploy: FAIL — ${msg}`);
+function learningDryRun() {
+  return (
+    process.env.DEPLOY_LEARNING_DRY_RUN === "true" ||
+    process.env.VERIFY_LEARNING_DRY_RUN === "true"
+  );
+}
+
+function log(msg) {
+  const line = `deploy: ${msg}`;
+  console.log(line);
+  deployLogLines.push(line);
+}
+
+function fail(msg, opts = {}) {
+  const line = `deploy: FAIL — ${msg}`;
+  console.error(line);
+  deployLogLines.push(line);
+
+  const failureKind = opts.failureKind ?? inferFailureKind(msg);
+  captureDeployFailure({
+    exitCode: 1,
+    failureKind,
+    message: msg,
+    stderrTail: deployLogLines.join("\n"),
+    stdoutTail: "",
+    dryRun: learningDryRun(),
+  });
+
   process.exit(1);
 }
 
@@ -117,13 +156,16 @@ async function waitForBuilt({ allowRetry = true } = {}) {
       }
       fail(
         `Pages build errored after retry${errMsg ? `: ${errMsg}` : ""}. Live may still serve old bundle — run: gh api -X POST repos/${REPO}/pages/builds`,
+        { failureKind: "build-errored" },
       );
     }
 
     await sleep(POLL_MS);
   }
 
-  fail(`timed out after ${TIMEOUT_MS / 1000}s waiting for Pages build status=built (last: ${lastStatus || "unknown"})`);
+  fail(`timed out after ${TIMEOUT_MS / 1000}s waiting for Pages build status=built (last: ${lastStatus || "unknown"})`, {
+    failureKind: "timeout",
+  });
 }
 
 function extractMainAssetFromIndex(html) {
@@ -155,7 +197,7 @@ async function verifyLiveBundle(expectedAsset) {
       headers: { "Cache-Control": "no-cache" },
     });
   } catch (err) {
-    fail(`live fetch ${url} failed: ${err.message}`);
+    fail(`live fetch ${url} failed: ${err.message}`, { failureKind: "live-fetch-failed" });
   }
 
   if (!res.ok) {
@@ -172,6 +214,7 @@ async function verifyLiveBundle(expectedAsset) {
   if (liveAsset !== expectedAsset) {
     fail(
       `live bundle mismatch — expected ${expectedAsset}, live has ${liveAsset}. Pages may still be propagating or build failed silently.`,
+      { failureKind: "stale-bundle" },
     );
   }
 
@@ -196,6 +239,7 @@ async function main() {
   }
 
   log(`deploy complete — ${PAGES_URL}`);
+  clearPendingForScript("deploy");
 }
 
 main().catch((err) => fail(err.message ?? String(err)));
