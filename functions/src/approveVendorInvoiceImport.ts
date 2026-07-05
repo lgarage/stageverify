@@ -347,6 +347,7 @@ export const approveVendorInvoiceImport = onCall(
           reviewStatus: "approved",
           deliveryOrderId: importDoc.linkedDeliveryOrderId.trim(),
           itemsApplied: 0,
+          shellCreated: false,
         };
       }
       if (importDoc.importStatus === "issue") {
@@ -413,6 +414,8 @@ export const approveVendorInvoiceImport = onCall(
         reviewStatus: "approved",
         deliveryOrderId: shell.deliveryOrderId,
         itemsApplied: shell.expectedItems.length,
+        shellCreated: true,
+        jobCreated: shell.jobCreated,
       };
     }
 
@@ -463,7 +466,8 @@ export const approveVendorInvoiceImport = onCall(
         }
 
         const existingDelivery = await tx.get(deliveryRef);
-        if (!existingDelivery.exists) {
+        const shellWasNew = !existingDelivery.exists;
+        if (shellWasNew) {
           tx.set(
             deliveryRef,
             buildDeliveryShellDocument(shell, importId, fresh, now),
@@ -496,12 +500,15 @@ export const approveVendorInvoiceImport = onCall(
 
       const linkedDeliveryOrderId =
         importDoc.linkedDeliveryOrderId?.trim() || shell.deliveryOrderId;
+      const hadExistingLink = Boolean(importDoc.linkedDeliveryOrderId?.trim());
 
       return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
         deliveryOrderId: linkedDeliveryOrderId,
         itemsApplied: shell.expectedItems.length,
+        shellCreated: !hadExistingLink,
+        jobCreated: shell.jobCreated,
       };
     }
 

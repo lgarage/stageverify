@@ -36,6 +36,7 @@ type DispatcherPortalContextValue = {
   emailProviderConnected: boolean;
   refreshBusy: boolean;
   gmailSyncMessage: string | null;
+  invoiceShellBackfillErrors: string[] | null;
   lastUpdated: string | null;
   refreshGeneration: number;
   invoiceImports: VendorInvoiceImportReview[] | null;
@@ -43,21 +44,25 @@ type DispatcherPortalContextValue = {
   zonesSnapshot: DispatcherZonesSnapshot | null;
   setLastUpdated: (value: string | null) => void;
   handleRefreshNow: () => Promise<void>;
+  refreshPortalData: () => Promise<void>;
 };
 
 const DispatcherPortalContext =
   createContext<DispatcherPortalContextValue | null>(null);
 
-async function fetchInvoiceImports(): Promise<VendorInvoiceImportReview[]> {
+async function fetchInvoiceImports(): Promise<{
+  items: VendorInvoiceImportReview[];
+  backfillErrors: string[];
+}> {
   const items = await listVendorInvoiceImports({ limit: 50 });
   items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const { linkedCount } = await ensureApprovedUnlinkedInvoiceShells(items);
+  const { linkedCount, errors } = await ensureApprovedUnlinkedInvoiceShells(items);
   if (linkedCount > 0) {
     const refreshed = await listVendorInvoiceImports({ limit: 50 });
     refreshed.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return refreshed;
+    return { items: refreshed, backfillErrors: errors };
   }
-  return items;
+  return { items, backfillErrors: errors };
 }
 
 async function fetchZonesSnapshot(): Promise<DispatcherZonesSnapshot> {
@@ -77,6 +82,9 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
   const [emailProviderConnected, setEmailProviderConnected] = useState(false);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [gmailSyncMessage, setGmailSyncMessage] = useState<string | null>(null);
+  const [invoiceShellBackfillErrors, setInvoiceShellBackfillErrors] = useState<
+    string[] | null
+  >(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [refreshGeneration, setRefreshGeneration] = useState(0);
   const [invoiceImports, setInvoiceImports] =
@@ -94,16 +102,24 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const refreshSharedData = useCallback(async () => {
-    const [imports, vendorList, zones] = await Promise.all([
+    const [importResult, vendorList, zones] = await Promise.all([
       fetchInvoiceImports(),
       listVendors(),
       fetchZonesSnapshot(),
     ]);
-    setInvoiceImports(imports);
+    setInvoiceImports(importResult.items);
+    setInvoiceShellBackfillErrors(
+      importResult.backfillErrors.length > 0 ? importResult.backfillErrors : null,
+    );
     setVendors(vendorList);
     setZonesSnapshot(zones);
     setRefreshGeneration((g) => g + 1);
   }, []);
+
+  const refreshPortalData = useCallback(async () => {
+    await refreshSharedData();
+    setLastUpdated(new Date().toLocaleString());
+  }, [refreshSharedData]);
 
   const handleRefreshNow = useCallback(async () => {
     if (refreshBusy) return;
@@ -138,6 +154,7 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
         emailProviderConnected,
         refreshBusy,
         gmailSyncMessage,
+        invoiceShellBackfillErrors,
         lastUpdated,
         refreshGeneration,
         invoiceImports,
@@ -145,6 +162,7 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
         zonesSnapshot,
         setLastUpdated,
         handleRefreshNow,
+        refreshPortalData,
       }}
     >
       {children}

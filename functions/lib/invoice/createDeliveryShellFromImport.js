@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SHELL_DELIVERY_ID_PREFIX = void 0;
 exports.shellDeliveryIdForImport = shellDeliveryIdForImport;
 exports.scoreJobMatchFromInvoiceHints = scoreJobMatchFromInvoiceHints;
+exports.jobIdFromInvoicePoSlug = jobIdFromInvoicePoSlug;
+exports.jobNameFromInvoicePo = jobNameFromInvoicePo;
+exports.jobNumberFromInvoiceHeader = jobNumberFromInvoiceHeader;
 exports.buildInvoiceDeliveryShellContext = buildInvoiceDeliveryShellContext;
 exports.buildDeliveryShellDocument = buildDeliveryShellDocument;
 const https_1 = require("firebase-functions/v2/https");
@@ -143,15 +146,63 @@ function resolveJobIdFromHints(header, ctx, matchJobId) {
     }
     return best?.id;
 }
-/** Resolve job/vendor + line items for a dashboard shell — throws when job cannot be matched. */
+/** Deterministic job doc id for invoice auto-create — idempotent across approve/backfill. */
+function jobIdFromInvoicePoSlug(header) {
+    const po = normalizeMatchText(header.customerPoOrReference).replace(/\s+/g, "-");
+    const inv = normalizeMatchText(header.vendorInvoiceNumber || header.vendorOrderNumber || "import");
+    const slug = `${po}-${inv}`.replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
+    return `job-inv-${slug || "unknown"}`;
+}
+function jobNameFromInvoicePo(customerPoOrReference) {
+    return customerPoOrReference
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+}
+function jobNumberFromInvoiceHeader(header) {
+    const raw = header.jobNumberRaw?.trim();
+    if (raw)
+        return raw;
+    const inv = header.vendorInvoiceNumber?.trim() || header.vendorOrderNumber?.trim();
+    if (inv)
+        return `INV-${inv}`;
+    const year = new Date().getFullYear().toString().slice(-2);
+    const poCompact = normalizeMatchText(header.customerPoOrReference).replace(/\s+/g, "");
+    return `INV-${year}-${poCompact.slice(0, 12) || "import"}`;
+}
+async function ensureJobForInvoiceShell(db, header, ctx, matchJobId) {
+    const resolved = resolveJobIdFromHints(header, ctx, matchJobId);
+    if (resolved)
+        return { jobId: resolved, jobCreated: false };
+    const po = header.customerPoOrReference.trim();
+    if (!po) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot create dashboard record — no matching job and invoice has no customer P/O to create one.");
+    }
+    const jobId = jobIdFromInvoicePoSlug(header);
+    const existing = await db.collection("jobs").doc(jobId).get();
+    if (existing.exists) {
+        return { jobId, jobCreated: false };
+    }
+    const now = new Date().toISOString();
+    await db.collection("jobs").doc(jobId).set({
+        id: jobId,
+        jobNumber: jobNumberFromInvoiceHeader(header),
+        jobName: jobNameFromInvoicePo(po),
+        status: "active",
+        createdFromInvoiceImport: true,
+        createdAt: now,
+        updatedAt: now,
+    });
+    return { jobId, jobCreated: true };
+}
+/** Resolve job/vendor + line items for a dashboard shell — auto-creates job from P/O when unmatched. */
 async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
     const header = asParsedHeader(importDoc.parsedHeader);
     const ctx = await (0, loadMatchContext_1.loadEmailMatchContext)();
     const match = (0, matchInvoiceToRecords_1.matchInvoiceToRecords)(importId, header, ctx);
-    const jobId = resolveJobIdFromHints(header, ctx, match.jobId);
-    if (!jobId) {
-        throw new https_1.HttpsError("failed-precondition", "Cannot create dashboard record — no matching job found. Link to an existing delivery instead.");
-    }
+    const { jobId, jobCreated } = await ensureJobForInvoiceShell(db, header, ctx, match.jobId);
     let vendorId = match.vendorId;
     let vendorName = "Vendor";
     if (vendorId) {
@@ -187,6 +238,7 @@ async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
     return {
         deliveryOrderId,
         jobId,
+        jobCreated,
         vendorId,
         vendorName,
         purchaseOrderId: match.purchaseOrderId,

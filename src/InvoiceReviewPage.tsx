@@ -19,6 +19,8 @@ export function InvoiceReviewPage() {
     handleRefreshNow,
     invoiceImports,
     refreshGeneration,
+    invoiceShellBackfillErrors,
+    refreshPortalData,
   } = useDispatcherPortal();
 
   return (
@@ -75,6 +77,8 @@ export function InvoiceReviewPage() {
             <InvoiceReviewPanel
               syncedImports={invoiceImports}
               refreshGeneration={refreshGeneration}
+              backfillErrors={invoiceShellBackfillErrors}
+              onApproveSuccess={refreshPortalData}
             />
           </div>
         </div>

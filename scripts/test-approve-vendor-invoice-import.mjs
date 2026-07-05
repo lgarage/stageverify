@@ -32,6 +32,7 @@ import { buildExpectedItemsFromImport } from "../functions/lib/invoice/buildExpe
 import {
   scoreJobMatchFromInvoiceHints,
   shellDeliveryIdForImport,
+  jobIdFromInvoicePoSlug,
 } from "../functions/lib/invoice/createDeliveryShellFromImport.js";
 
 const PROJECT_ID = "stageverify-db";
@@ -333,7 +334,8 @@ const shellDeliveryId = shellDeliveryIdForImport("vii-review-only-test");
 if (
   reviewOnlyData.reviewStatus === "approved" &&
   reviewOnlyData.deliveryOrderId === shellDeliveryId &&
-  reviewOnlyData.itemsApplied === 2
+  reviewOnlyData.itemsApplied === 2 &&
+  reviewOnlyData.shellCreated === true
 ) {
   pass("review-only approve returned approved with shell delivery");
 } else {
@@ -393,7 +395,7 @@ try {
     action: "create_shell",
   });
   const dupData = duplicateShellResult?.data ?? {};
-  if (dupData.deliveryOrderId === shellDeliveryId && dupData.itemsApplied === 0) {
+  if (dupData.deliveryOrderId === shellDeliveryId && dupData.itemsApplied === 0 && dupData.shellCreated === false) {
     pass("create_shell idempotent when already linked");
   } else {
     fail("create_shell idempotent response", dupData);
@@ -630,6 +632,89 @@ if (
   pass("P411190 shell delivery linked to Black Duck Hartford job");
 } else {
   fail("P411190 shell delivery fields", backfillShell);
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const autoJobHeader = {
+    ...p411190Header,
+    vendorInvoiceNumber: "P999001",
+    vendorOrderNumber: "999001",
+    customerPoOrReference: "zephyr warehouse demo",
+  };
+  const autoJobLines = [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      quantityBackordered: 0,
+      vendorProductNumber: "L97-525",
+      description: "FILTER",
+      filteredNotes: [],
+      lineType: "product",
+      excludeFromExpectedItems: false,
+    },
+  ];
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-auto-job-test"), {
+    id: "vii-auto-job-test",
+    inboundEmailProcessingId: "inbound-auto-job",
+    gmailMessageId: "msg-auto-job",
+    importBatchId: "batch-test",
+    pageId: "inv-auto-job",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 75,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: autoJobHeader,
+    parsedLines: autoJobLines,
+    parsedLineCount: 1,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let autoJobApproveResult;
+try {
+  autoJobApproveResult = await approveImport({
+    vendorInvoiceImportId: "vii-auto-job-test",
+    action: "approve",
+  });
+} catch (err) {
+  fail("auto-job review-only approve call failed", err?.message);
+}
+
+const autoJobData = autoJobApproveResult?.data ?? {};
+const autoJobShellId = shellDeliveryIdForImport("vii-auto-job-test");
+const autoJobHeader = {
+  ...p411190Header,
+  vendorInvoiceNumber: "P999001",
+  vendorOrderNumber: "999001",
+  customerPoOrReference: "zephyr warehouse demo",
+};
+const expectedAutoJobId = jobIdFromInvoicePoSlug(autoJobHeader);
+if (
+  autoJobData.reviewStatus === "approved" &&
+  autoJobData.deliveryOrderId === autoJobShellId &&
+  autoJobData.shellCreated === true &&
+  autoJobData.jobCreated === true
+) {
+  pass("review-only approve auto-created job when no match exists");
+} else {
+  fail("auto-job approve response", autoJobData);
+}
+
+const autoJobSnap = await getDoc(doc(db, "jobs", expectedAutoJobId));
+const autoJob = autoJobSnap.data() ?? {};
+if (autoJob.createdFromInvoiceImport === true && autoJob.jobName === "Zephyr Warehouse Demo") {
+  pass("auto-created job from invoice P/O hints");
+} else {
+  fail("auto-created job fields", autoJob);
 }
 
 await testEnv.cleanup();

@@ -904,6 +904,12 @@ export interface ApproveVendorInvoiceImportResult {
   reviewStatus: "approved" | "rejected" | "pending_review";
   deliveryOrderId?: string;
   itemsApplied?: number;
+  /** True when a new dashboard shell delivery was created (review-only approve / create_shell). */
+  shellCreated?: boolean;
+  /** True when a job was auto-created from invoice P/O hints. */
+  jobCreated?: boolean;
+  /** Set when shell was expected but could not be created (legacy clients). */
+  shellError?: string;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

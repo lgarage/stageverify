@@ -2106,7 +2106,7 @@ export async function approveVendorInvoiceImport(input: {
 /** Idempotent backfill: approved imports without linkedDeliveryOrderId get dashboard shells. */
 export async function ensureApprovedUnlinkedInvoiceShells(
   imports: VendorInvoiceImportReview[],
-): Promise<{ linkedCount: number; failedCount: number }> {
+): Promise<{ linkedCount: number; failedCount: number; errors: string[] }> {
   const needsShell = imports.filter(
     (row) =>
       row.reviewStatus === "approved" &&
@@ -2114,21 +2114,35 @@ export async function ensureApprovedUnlinkedInvoiceShells(
       row.importStatus !== "issue",
   );
   if (needsShell.length === 0) {
-    return { linkedCount: 0, failedCount: 0 };
+    return { linkedCount: 0, failedCount: 0, errors: [] };
   }
 
   let linkedCount = 0;
   let failedCount = 0;
+  const errors: string[] = [];
   for (const row of needsShell) {
+    const label =
+      (typeof row.parsedHeader?.vendorInvoiceNumber === "string" &&
+        row.parsedHeader.vendorInvoiceNumber.trim()) ||
+      row.id;
     try {
       const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "create_shell",
       });
-      if (result.deliveryOrderId?.trim()) linkedCount += 1;
-    } catch {
+      if (result.deliveryOrderId?.trim()) {
+        linkedCount += 1;
+      } else {
+        failedCount += 1;
+        errors.push(
+          `Invoice ${label}: approved but no dashboard delivery was linked.`,
+        );
+      }
+    } catch (err) {
       failedCount += 1;
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`Invoice ${label}: ${message}`);
     }
   }
-  return { linkedCount, failedCount };
+  return { linkedCount, failedCount, errors };
 }

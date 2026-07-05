@@ -221,6 +221,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 reviewStatus: "approved",
                 deliveryOrderId: importDoc.linkedDeliveryOrderId.trim(),
                 itemsApplied: 0,
+                shellCreated: false,
             };
         }
         if (importDoc.importStatus === "issue") {
@@ -261,6 +262,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             reviewStatus: "approved",
             deliveryOrderId: shell.deliveryOrderId,
             itemsApplied: shell.expectedItems.length,
+            shellCreated: true,
+            jobCreated: shell.jobCreated,
         };
     }
     if (!deliveryOrderId) {
@@ -292,7 +295,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 return;
             }
             const existingDelivery = await tx.get(deliveryRef);
-            if (!existingDelivery.exists) {
+            const shellWasNew = !existingDelivery.exists;
+            if (shellWasNew) {
                 tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
                 for (const item of shell.expectedItems) {
                     tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
@@ -310,11 +314,14 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             });
         });
         const linkedDeliveryOrderId = importDoc.linkedDeliveryOrderId?.trim() || shell.deliveryOrderId;
+        const hadExistingLink = Boolean(importDoc.linkedDeliveryOrderId?.trim());
         return {
             vendorInvoiceImportId: importId,
             reviewStatus: "approved",
             deliveryOrderId: linkedDeliveryOrderId,
             itemsApplied: shell.expectedItems.length,
+            shellCreated: !hadExistingLink,
+            jobCreated: shell.jobCreated,
         };
     }
     const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);

@@ -161,9 +161,76 @@ function resolveJobIdFromHints(
   return best?.id;
 }
 
+/** Deterministic job doc id for invoice auto-create — idempotent across approve/backfill. */
+export function jobIdFromInvoicePoSlug(header: ParsedInvoiceHeader): string {
+  const po = normalizeMatchText(header.customerPoOrReference).replace(/\s+/g, "-");
+  const inv = normalizeMatchText(
+    header.vendorInvoiceNumber || header.vendorOrderNumber || "import",
+  );
+  const slug = `${po}-${inv}`.replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
+  return `job-inv-${slug || "unknown"}`;
+}
+
+export function jobNameFromInvoicePo(customerPoOrReference: string): string {
+  return customerPoOrReference
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+export function jobNumberFromInvoiceHeader(header: ParsedInvoiceHeader): string {
+  const raw = header.jobNumberRaw?.trim();
+  if (raw) return raw;
+  const inv = header.vendorInvoiceNumber?.trim() || header.vendorOrderNumber?.trim();
+  if (inv) return `INV-${inv}`;
+  const year = new Date().getFullYear().toString().slice(-2);
+  const poCompact = normalizeMatchText(header.customerPoOrReference).replace(/\s+/g, "");
+  return `INV-${year}-${poCompact.slice(0, 12) || "import"}`;
+}
+
+async function ensureJobForInvoiceShell(
+  db: Firestore,
+  header: ParsedInvoiceHeader,
+  ctx: Awaited<ReturnType<typeof loadEmailMatchContext>>,
+  matchJobId?: string,
+): Promise<{ jobId: string; jobCreated: boolean }> {
+  const resolved = resolveJobIdFromHints(header, ctx, matchJobId);
+  if (resolved) return { jobId: resolved, jobCreated: false };
+
+  const po = header.customerPoOrReference.trim();
+  if (!po) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cannot create dashboard record — no matching job and invoice has no customer P/O to create one.",
+    );
+  }
+
+  const jobId = jobIdFromInvoicePoSlug(header);
+  const existing = await db.collection("jobs").doc(jobId).get();
+  if (existing.exists) {
+    return { jobId, jobCreated: false };
+  }
+
+  const now = new Date().toISOString();
+  await db.collection("jobs").doc(jobId).set({
+    id: jobId,
+    jobNumber: jobNumberFromInvoiceHeader(header),
+    jobName: jobNameFromInvoicePo(po),
+    status: "active",
+    createdFromInvoiceImport: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return { jobId, jobCreated: true };
+}
+
 export interface InvoiceShellContext {
   deliveryOrderId: string;
   jobId: string;
+  jobCreated: boolean;
   vendorId: string;
   vendorName: string;
   purchaseOrderId?: string;
@@ -177,7 +244,7 @@ export interface InvoiceShellContext {
   deliveryStatus: ReturnType<typeof deliveryStatusFromImportStatus>;
 }
 
-/** Resolve job/vendor + line items for a dashboard shell — throws when job cannot be matched. */
+/** Resolve job/vendor + line items for a dashboard shell — auto-creates job from P/O when unmatched. */
 export async function buildInvoiceDeliveryShellContext(
   db: Firestore,
   importId: string,
@@ -187,13 +254,12 @@ export async function buildInvoiceDeliveryShellContext(
   const ctx = await loadEmailMatchContext();
   const match = matchInvoiceToRecords(importId, header, ctx);
 
-  const jobId = resolveJobIdFromHints(header, ctx, match.jobId);
-  if (!jobId) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Cannot create dashboard record — no matching job found. Link to an existing delivery instead.",
-    );
-  }
+  const { jobId, jobCreated } = await ensureJobForInvoiceShell(
+    db,
+    header,
+    ctx,
+    match.jobId,
+  );
 
   let vendorId = match.vendorId;
   let vendorName = "Vendor";
@@ -246,6 +312,7 @@ export async function buildInvoiceDeliveryShellContext(
   return {
     deliveryOrderId,
     jobId,
+    jobCreated,
     vendorId,
     vendorName,
     purchaseOrderId: match.purchaseOrderId,

@@ -197,9 +197,13 @@ function FieldCell({ label, value }: { label: string; value: string }) {
 export function InvoiceReviewPanel({
   syncedImports,
   refreshGeneration = 0,
+  backfillErrors = null,
+  onApproveSuccess,
 }: {
   syncedImports?: VendorInvoiceImportReview[] | null;
   refreshGeneration?: number;
+  backfillErrors?: string[] | null;
+  onApproveSuccess?: () => Promise<void>;
 }) {
   const [imports, setImports] = useState<VendorInvoiceImportReview[]>([]);
   const [matchById, setMatchById] = useState<Record<string, InvoiceMatchResult>>({});
@@ -211,6 +215,7 @@ export function InvoiceReviewPanel({
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<QueueFilter>("pending");
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
@@ -228,12 +233,15 @@ export function InvoiceReviewPanel({
     try {
       let items = await listVendorInvoiceImports({ limit: 50 });
       items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      const { linkedCount } = await ensureApprovedUnlinkedInvoiceShells(items);
+      const { linkedCount, errors } = await ensureApprovedUnlinkedInvoiceShells(items);
       if (linkedCount > 0) {
         items = await listVendorInvoiceImports({ limit: 50 });
         items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       }
       applyImports(items);
+      if (errors.length > 0) {
+        setError(errors.join(" "));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load invoice imports.");
     } finally {
@@ -249,13 +257,15 @@ export function InvoiceReviewPanel({
       lastAppliedGeneration.current = refreshGeneration;
       applyImports(syncedImports);
       setLoading(false);
-      setError(null);
+      setError(
+        backfillErrors && backfillErrors.length > 0 ? backfillErrors.join(" ") : null,
+      );
       return;
     }
     if (syncedImports == null) {
       void loadQueue();
     }
-  }, [syncedImports, refreshGeneration, applyImports, loadQueue]);
+  }, [syncedImports, refreshGeneration, backfillErrors, applyImports, loadQueue]);
 
   const filteredImports = useMemo(() => {
     if (filter === "all") return imports;
@@ -378,13 +388,33 @@ export function InvoiceReviewPanel({
     if (row.importStatus === "issue") return;
     setActionLoadingId(row.id);
     setError(null);
+    setSuccessMessage(null);
     try {
       const trimmedDeliveryId = deliveryId?.trim() ?? "";
-      await approveVendorInvoiceImport({
+      const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "approve",
         ...(trimmedDeliveryId ? { deliveryOrderId: trimmedDeliveryId } : {}),
       });
+      if (!trimmedDeliveryId) {
+        if (result.shellError?.trim()) {
+          setError(result.shellError);
+          return;
+        }
+        if (!result.deliveryOrderId?.trim()) {
+          setError(
+            "Approved but no dashboard delivery was created. Use Refresh Now or link a delivery manually.",
+          );
+          return;
+        }
+        const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
+        setSuccessMessage(
+          `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}`,
+        );
+        if (onApproveSuccess) {
+          await onApproveSuccess();
+        }
+      }
       setInspectImport(null);
       await loadQueue();
     } catch (err) {
@@ -924,6 +954,7 @@ export function InvoiceReviewPanel({
 
       {error && (
         <div
+          data-testid="invoice-review-error-banner"
           style={{
             marginTop: 12,
             padding: "10px 12px",
@@ -934,6 +965,22 @@ export function InvoiceReviewPanel({
           }}
         >
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          data-testid="invoice-review-success-banner"
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            backgroundColor: "#ecfdf5",
+            color: "#166534",
+            borderRadius: 6,
+            fontSize: 13,
+          }}
+        >
+          {successMessage}
         </div>
       )}
 
