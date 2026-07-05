@@ -15,7 +15,7 @@
  */
 
 import { chromium } from "playwright";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
@@ -31,6 +31,9 @@ import {
 const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
+const pkgVersion = JSON.parse(
+  readFileSync(resolve(process.cwd(), "package.json"), "utf-8"),
+).version;
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 loadEnvLocal();
 
@@ -222,6 +225,16 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await logDeliveryTableDiagnostics(page, { authOutcome });
 
   const nav = sidebar(page);
+
+  const sidebarVersion = nav.getByTestId("portal-sidebar-version");
+  await sidebarVersion.waitFor({ timeout: 10_000 });
+  const versionText = (await sidebarVersion.innerText()).trim();
+  if (versionText !== `v${pkgVersion}`) {
+    throw new Error(
+      `Sidebar version expected v${pkgVersion}, got ${versionText}`,
+    );
+  }
+  console.log(`PASS: sidebar version label (${versionText}).`);
 
   if (
     (await nav.getByRole("link", { name: "Deliveries", exact: true }).count()) >

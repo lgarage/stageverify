@@ -4,6 +4,7 @@ import {
   PORTAL_SIDEBAR_CLASS,
   PORTAL_SIDEBAR_STYLE,
 } from "./dispatcherPortalLayout";
+import { formatAppVersionLabel } from "./appVersion";
 import {
   PORTAL_NAV_ITEMS,
   PORTAL_SETTINGS_ITEM,
@@ -174,6 +175,18 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
           paddingTop: 8,
         }}
       >
+        <div
+          data-testid="portal-sidebar-version"
+          className="px-5 pb-2 text-center select-none"
+          style={{
+            color: "rgba(255,255,255,0.35)",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+          }}
+        >
+          {formatAppVersionLabel()}
+        </div>
         <Link
           to={PORTAL_SETTINGS_ITEM.to}
           style={navLinkStyle(isSettings)}
@@ -206,7 +219,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
           fontSize: 11,
         }}
       >
-        v1.0 &nbsp;·&nbsp; StageVerify
+        StageVerify
       </div>
     </aside>
   );
