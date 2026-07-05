@@ -166,7 +166,33 @@ if (captureResult.entry) {
   }
 }
 
-// --- Case 5: session dedup ---
+// --- Case 5: real 751761 transcript (300s timeout while building) ---
+const jul5DeployLog = `
+deploy: wrote dist/.nojekyll
+deploy: pushing dist/ to gh-pages branch…
+deploy: gh-pages branch push complete
+deploy: Pages build status: building
+deploy: FAIL — timed out after 300s waiting for Pages build status=built (last: building)
+deploy-learning: captured pending dfl-001 (gotcha) — npm run deploy timed out or Pages build stuck building
+`;
+const jul5Classified = classifyDeployFailure({
+  exitCode: 1,
+  failureKind: "timeout",
+  message: "timed out after 300s waiting for Pages build status=built (last: building)",
+  stderrTail: jul5DeployLog,
+  stdoutTail: "",
+});
+assert(
+  jul5Classified.summary.toLowerCase().includes("300s") ||
+    jul5Classified.summary.toLowerCase().includes("script timeout"),
+  "751761-style 300s timeout should mention script timeout or 300s",
+);
+assert(
+  (jul5Classified.triggerTerms ?? []).some((t) => /300s|deploy script timeout|long deploy/i.test(t)),
+  "751761 transcript should emit deploy-script-timeout trigger terms",
+);
+
+// --- Case 6: session dedup ---
 const dedup1 = captureDeployFailure({
   exitCode: 1,
   failureKind: "timeout",
@@ -186,7 +212,7 @@ assert(
   `expected dedup on retry; got ${dedup2.action}`,
 );
 
-// --- Case 6: validatePendingLearnings ---
+// --- Case 7: validatePendingLearnings ---
 const { errors: pendingErrors } = validatePendingLearnings();
 assert(pendingErrors.length === 0, `validatePendingLearnings errors: ${pendingErrors.join("; ")}`);
 

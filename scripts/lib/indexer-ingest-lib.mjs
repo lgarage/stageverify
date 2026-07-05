@@ -487,7 +487,11 @@ export const SHIP_NOTE_LEARNING_SIGNALS = [
   { pattern: /fix\s*:/i, category: "lesson" },
   { pattern: /prod verify fail/i, category: "gotcha", gateCandidate: true },
   { pattern: /stale gh-pages|gh-pages stale|bundle stale|stale bundle|live bundle stale|old bundle still live/i, category: "gotcha", gateCandidate: true },
-  { pattern: /pages build stuck|pages build errored|deploy timeout/i, category: "gotcha", gateCandidate: true },
+  {
+    pattern: /pages build stuck|pages build errored|deploy timeout|deploy script timeout|300s timeout|long deploy/i,
+    category: "gotcha",
+    gateCandidate: true,
+  },
   { pattern: /local pass.*prod fail|prod-only/i, category: "gotcha", gateCandidate: true },
   { pattern: /failed twice|2nd fail|second fail|regression/i, category: "repeated failure" },
   { pattern: /security finding|HIGH risk|security gate/i, category: "lesson" },

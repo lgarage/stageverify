@@ -295,8 +295,14 @@ export function classifyDeployFailure(ctx) {
   if (kind === "timeout" || kind === "build-stuck") {
     category = "gotcha";
     gateCandidate = true;
-    summary =
-      "npm run deploy timed out or Pages build stuck building — gh-pages branch may have new bundle while live still serves old index.html asset";
+    const scriptTimeout300 =
+      /timed out after 300s|300s waiting for pages build/i.test(combined);
+    if (scriptTimeout300) {
+      addTerms("deploy script timeout", "300s timeout", "long deploy", "silent poll");
+    }
+    summary = scriptTimeout300
+      ? "npm run deploy hit 300s script timeout while Pages still building — gh-pages branch may already have new bundle; GitHub build can take 10–30+ min (not a code bug)"
+      : "npm run deploy timed out or Pages build stuck building — gh-pages branch may have new bundle while live still serves old index.html asset";
     addTerms(
       "deploy timeout",
       "Pages build stuck",
