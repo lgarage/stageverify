@@ -208,12 +208,12 @@ assert(
 );
 
 assert(
-  "buildDeliverToSiteIssueSummary confirmed shows delivered line",
+  "buildDeliverToSiteIssueSummary confirmed returns empty (no note when delivered)",
   buildDeliverToSiteIssueSummary({
     invoiceDeliverToSite: true,
     invoiceDeliverToLabel: "Planet Fitness Hartford",
     invoiceDeliverToSiteConfirmed: true,
-  }) === "Delivered to Planet Fitness Hartford",
+  }) === null,
 );
 
 assert(
@@ -308,8 +308,8 @@ const confirmedDisplay = computeDeliveryDisplayState(
   { jobPickupScheduled: true },
 );
 assert(
-  "issue summary column prefers delivered-to-site over pickup scheduled",
-  confirmedDisplay.issueSummary === "Delivered to Planet Fitness Hartford",
+  "issue summary column empty when site delivery confirmed (status column shows Delivered)",
+  confirmedDisplay.issueSummary === "",
 );
 assert(
   "unconfirmed deliver-to-site still shows confirm line in issue summary",

@@ -253,6 +253,13 @@ function buildComputedIssueSummary(
     return deliverToSiteSummary;
   }
 
+  if (
+    delivery.invoiceDeliverToSite === true &&
+    delivery.invoiceDeliverToSiteConfirmed === true
+  ) {
+    return "";
+  }
+
   if (readiness.readyForPickup) {
     if (displayOptions?.jobPickupScheduled) {
       return "Pickup Scheduled";
@@ -742,14 +749,19 @@ export function buildDrawerActionBannerContent(
 
   let bannerMode: DrawerBannerMode;
   let attentionHeadline: string;
+  const deliverToSiteConfirmed =
+    delivery.invoiceDeliverToSite === true &&
+    delivery.invoiceDeliverToSiteConfirmed === true;
+
   if (
     display.readiness.readyForPickup &&
     !options?.emailReviewRequired &&
     !deliverToSitePending
   ) {
     bannerMode = "all_clear";
-    attentionHeadline =
-      "Ready for Pickup — vendor order complete, physical complete, no blocking issues.";
+    attentionHeadline = deliverToSiteConfirmed
+      ? "Delivered to site — vendor order complete, material confirmed on job site."
+      : "Ready for Pickup — vendor order complete, physical complete, no blocking issues.";
   } else if (calmWaiting) {
     bannerMode = "calm_waiting";
     attentionHeadline =

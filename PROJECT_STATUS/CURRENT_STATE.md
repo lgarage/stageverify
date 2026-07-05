@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5â€“6 â€” Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Deliver-to-site UI cascade (v0.0.4)** ? Mark delivered to site receipts all line items + updates Delivery Status "Delivered", Items Recv. 43/43, Issue Summary delivered line, drawer item rows; display helpers treat confirmed site delivery as full receipt
+- Last shipped: **Dispatcher delivered UX + demo review cleanup (v0.0.5)** ? confirmed deliver-to-site: empty Issue Summary (no warning note), subtle undo link in drawer, banner "Delivered to site" not Ready for Pickup; production Needs Review strip no longer shows offline email fixtures (`emailFixtures.ts`)
+- Also shipped: **Deliver-to-site UI cascade (v0.0.4)** ? Mark delivered to site receipts all line items + updates Delivery Status "Delivered", Items Recv. 43/43, drawer item rows; display helpers treat confirmed site delivery as full receipt
 - Also shipped: **Deliver-to-site confirmation (v0.0.3)** ? dispatcher drawer marks/clears site delivery; Issue Summary confirm/delivered lines; Complete counts wait on `invoiceDeliverToSiteConfirmed`
 - Also shipped: **Dispatcher dashboard fixes (v0.0.2)** — removed View Invoice PDF from drawer/modal; PO # via `resolveDeliveryPoNumber` (`customerPoOrReference` fallback); Complete column counts `complete` deliveries not staged
 - Also shipped: **Sidebar build version** — persistent `v{package.json}` label above Settings (from Vite define); `verify:dispatcher-nav` asserts `portal-sidebar-version`

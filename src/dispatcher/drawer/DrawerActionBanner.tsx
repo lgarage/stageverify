@@ -193,9 +193,7 @@ export function DrawerActionBanner({
                 color: summaryColor,
               }}
             >
-              {allClear
-                ? "Ready for Pickup — vendor order complete, physical complete, no blocking issues."
-                : bannerContent.attentionHeadline}
+              {bannerContent.attentionHeadline}
             </p>
           </div>
           {attentionRequired && (

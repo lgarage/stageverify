@@ -1,7 +1,5 @@
 import type { DeliveryDetails } from "../models";
 
-const RED = "#bf0a30";
-
 export function DeliverToSitePanel({
   details,
   navy,
@@ -94,19 +92,19 @@ export function DeliverToSitePanel({
             disabled={loading}
             onClick={() => void onSetConfirmed(false)}
             style={{
-              backgroundColor: "#fff",
-              color: RED,
-              border: `1.5px solid ${RED}`,
-              borderRadius: 4,
-              padding: "6px 12px",
-              fontSize: 12,
-              fontWeight: 700,
+              background: "none",
+              border: "none",
+              padding: 0,
+              fontSize: 11,
+              fontWeight: 500,
+              color: "#64748b",
               cursor: loading ? "not-allowed" : "pointer",
               fontFamily: font,
+              textDecoration: "underline",
               opacity: loading ? 0.6 : 1,
             }}
           >
-            Not yet delivered
+            Undo delivery confirmation
           </button>
         </>
       ) : (

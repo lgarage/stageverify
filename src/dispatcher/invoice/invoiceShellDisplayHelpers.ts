@@ -128,7 +128,7 @@ export function buildDeliverToSiteIssueSummary(
   if (delivery.invoiceDeliverToSite !== true) return null;
   const label = delivery.invoiceDeliverToLabel?.trim();
   if (delivery.invoiceDeliverToSiteConfirmed === true) {
-    return label ? `Delivered to ${label}` : "Delivered to site";
+    return null;
   }
   return label ? `Confirm delivery to ${label}` : "Confirm site delivery";
 }

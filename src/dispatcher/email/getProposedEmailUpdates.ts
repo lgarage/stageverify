@@ -45,6 +45,10 @@ const vendorNameById = new Map(
 
 /** Offline fixture-derived proposals for dispatcher review (read-only — no Firestore writes). */
 export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
+  if (import.meta.env.PROD) {
+    return [];
+  }
+
   const existing = {
     byMessageId: new Map<string, string>(),
     byFingerprint: new Map<string, string>(),
