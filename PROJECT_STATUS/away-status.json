@@ -715,6 +715,27 @@
       "status": "built",
       "commit": "99c3791",
       "note": "Vendor emailDomain field + Vendors UI; verify:settings-staging PASS"
+    },
+    {
+      "id": "away-110",
+      "title": "Verify regression bundle + learning-pending merge",
+      "status": "built",
+      "commit": "675d652",
+      "note": "invoice-review + dispatcher-nav PASS; delivery-consistency drawer open blocked locally"
+    },
+    {
+      "id": "away-111",
+      "title": "Invoice parser fixture expansion (non-Johnstone vendors)",
+      "status": "built",
+      "commit": "675d652",
+      "note": "Ferguson+First Supply non-Johnstone fixtures; test:invoice-parser+batch PASS"
+    },
+    {
+      "id": "away-112",
+      "title": "End-to-end integration verify harness (§14 smoke)",
+      "status": "built",
+      "commit": "675d652",
+      "note": "verify:e2e-smoke harness added; pickup leg blocked on delivery-3 Firestore state"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"
