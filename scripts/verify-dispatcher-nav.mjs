@@ -5,76 +5,34 @@
  *   npm run dev
  *   node scripts/playwright-auth-setup.mjs   (if token expired)
  *   npm run verify:dispatcher-nav
+ *
+ * Prod (no ORD demo fixtures):
+ *   STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:dispatcher-nav
+ *
+ * Optional env:
+ *   STAGEVERIFY_VERIFY_ORDER — single search term (default tries 4046362, P411190, INV-P411190)
+ *   STAGEVERIFY_VERIFY_PICKUP_TOKEN=1 — run ORD pickup-token validity flow (local/demo fixtures)
  */
 
 import { chromium } from "playwright";
-import { existsSync, mkdirSync, readFileSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import {
+  assertDeliveryDrawerOpen,
+  ensureAuthenticated,
+  loadEnvLocal,
+  openDeliveryDrawerForNavVerify,
+  openOrderDrawerBySearch,
+  logDeliveryTableDiagnostics,
+  shouldRunPickupTokenVerify,
+} from "./dispatcherVerifyHelpers.mjs";
 
 const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
-
-const envPath = resolve(process.cwd(), ".env.local");
-if (existsSync(envPath)) {
-  for (const line of readFileSync(envPath, "utf8").split("\n")) {
-    const [k, ...v] = line.split("=");
-    if (k && v.length) process.env[k.trim()] = v.join("=").trim();
-  }
-}
-
-const email = process.env.STAGEVERIFY_TEST_EMAIL;
-const password = process.env.STAGEVERIFY_TEST_PASSWORD;
-
-async function ensureAuthenticated(page) {
-  await page.goto(`${appBase}/#/dispatcher`, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
-
-  const searchInput = page.locator('input[placeholder*="Job #, name, PO"]');
-  const loginEmail = page.locator("#email");
-
-  let outcome = "loading";
-  try {
-    outcome = await Promise.race([
-      searchInput
-        .waitFor({ state: "visible", timeout: 45_000 })
-        .then(() => "dispatcher"),
-      loginEmail
-        .waitFor({ state: "visible", timeout: 45_000 })
-        .then(() => "login"),
-    ]);
-  } catch {
-    outcome = "timeout";
-  }
-
-  if (outcome === "dispatcher") return;
-
-  if (outcome === "timeout") {
-    const url = page.url();
-    const body = (await page.locator("body").innerText().catch(() => "")).slice(
-      0,
-      160,
-    );
-    throw new Error(
-      `Auth bootstrap timeout before dispatcher or login — URL ${url}; body: ${body}`,
-    );
-  }
-
-  if (!email || !password) {
-    throw new Error(
-      "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
-    );
-  }
-
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await searchInput.waitFor({ state: "visible", timeout: 30_000 });
-}
+loadEnvLocal();
 
 function assertUrl(page, pattern, label) {
   const url = page.url();
@@ -129,26 +87,8 @@ async function copyPickupToken(page) {
   return { token, text };
 }
 
-async function openOrd005Drawer(page) {
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(400);
-
-  const search = page.locator('input[placeholder*="Job #, name, PO"]');
-  await search.waitFor({ state: "visible", timeout: 15_000 });
-  await search.fill("");
-  await search.fill("ORD-005");
-  await page.waitForTimeout(1500);
-
-  const ordRow = page.locator("table tbody tr", { hasText: "ORD-005" }).first();
-  const viewBtn = ordRow.locator("button").filter({ hasText: /^View$/ });
-  if (await viewBtn.isVisible().catch(() => false)) {
-    await viewBtn.click({ force: true });
-  } else if (await ordRow.isVisible().catch(() => false)) {
-    await ordRow.click({ force: true });
-  } else {
-    await page.locator("button").filter({ hasText: /^View$/ }).first().click({ force: true });
-  }
-  await page.getByTestId("copy-pickup-information").waitFor({ timeout: 15_000 });
+async function openPickupFixtureDrawer(page, orderNumber) {
+  await openOrderDrawerBySearch(page, orderNumber);
 }
 
 async function assertPickupPortalWithToken(browser, appBase, token) {
@@ -208,8 +148,8 @@ async function assertPickupTokenInvalid(browser, appBase, token) {
   await ctx.close();
 }
 
-async function runPickupTokenValidityFlow(page, browser, appBase) {
-  console.log("Pickup token validity (ORD-005 / Riverside)…");
+async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
+  console.log(`Pickup token validity (${orderNumber} fixture)…`);
   await page.goto(`${appBase}/#/dispatcher`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -217,7 +157,7 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
   await page
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 15_000 });
-  await openOrd005Drawer(page);
+  await openPickupFixtureDrawer(page, orderNumber);
 
   await page.evaluate(
     ({ jobId, staleToken }) => {
@@ -274,10 +214,12 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
   const page = await context.newPage();
 
   console.log("Opening dispatcher…");
-  await ensureAuthenticated(page);
+  const authOutcome = await ensureAuthenticated(page, appBase);
+  console.log(`Diagnostics: authSuccess=${authOutcome}`);
   await page
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 30_000 });
+  await logDeliveryTableDiagnostics(page, { authOutcome });
 
   const nav = sidebar(page);
 
@@ -377,22 +319,32 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
   }
   await receivePage.close();
 
-  console.log("Drawer pickup actions (away-074)…");
+  console.log("Delivery drawer (dynamic row selection)…");
   await page
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 15_000 });
-  const firstViewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
-  if (await firstViewBtn.isVisible().catch(() => false)) {
-    await firstViewBtn.click();
-    await page.getByTestId("copy-pickup-information").waitFor({ timeout: 15_000 });
 
+  const drawerSelection = await openDeliveryDrawerForNavVerify(page);
+  console.log(
+    `Diagnostics: opened drawer via ${drawerSelection.method}, searchTerm=${drawerSelection.searchTerm}, rowCount=${drawerSelection.rowCount}`,
+  );
+  await assertDeliveryDrawerOpen(page);
+  console.log("PASS: delivery drawer opened.");
+
+  const hasCopyPickup = await page
+    .getByTestId("copy-pickup-information")
+    .isVisible()
+    .catch(() => false);
+
+  if (hasCopyPickup) {
     const qrBtn = page.getByTestId("show-vendor-checkin-qr");
-    await qrBtn.waitFor({ timeout: 10_000 });
-    const qrLabel = (await qrBtn.innerText()).trim();
-    if (qrLabel !== "Show Vendor Check-In QR") {
-      throw new Error(`Expected Show Vendor Check-In QR button, got: ${qrLabel}`);
+    if (await qrBtn.isVisible().catch(() => false)) {
+      const qrLabel = (await qrBtn.innerText()).trim();
+      if (qrLabel !== "Show Vendor Check-In QR") {
+        throw new Error(`Expected Show Vendor Check-In QR button, got: ${qrLabel}`);
+      }
+      console.log("PASS: Show Vendor Check-In QR label.");
     }
-    console.log("PASS: Show Vendor Check-In QR label.");
 
     if ((await page.getByTestId("job-readiness-panel").count()) > 0) {
       throw new Error("Job Status / job-readiness-panel must be removed from drawer");
@@ -404,25 +356,35 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
     }
     console.log("PASS: Generate Pickup Link removed from drawer actions.");
 
-    console.log("Slice 5: pickup copy auto secure link…");
-    let clipboardText = "";
-    for (let attempt = 0; attempt < 2; attempt++) {
-      await page.getByTestId("copy-pickup-information").click();
-      await page.waitForTimeout(2000);
-      clipboardText = await page.evaluate(async () => navigator.clipboard.readText()).catch(() => "");
-      if (/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) break;
-    }
-    if (!/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) {
-      throw new Error(
-        `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
+    if (shouldRunPickupTokenVerify()) {
+      console.log("Slice 5: pickup copy auto secure link…");
+      let clipboardText = "";
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await page.getByTestId("copy-pickup-information").click();
+        await page.waitForTimeout(2000);
+        clipboardText = await page
+          .evaluate(async () => navigator.clipboard.readText())
+          .catch(() => "");
+        if (/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) break;
+      }
+      if (!/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) {
+        throw new Error(
+          `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
+        );
+      }
+      if (!clipboardText.includes("Staging location:")) {
+        throw new Error("Copy Pickup Information expected Staging location: line");
+      }
+      console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
+
+      const pickupFixtureOrder =
+        process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-005";
+      await runPickupTokenValidityFlow(page, browser, appBase, pickupFixtureOrder);
+    } else {
+      console.log(
+        "SKIP pickup token validity: set STAGEVERIFY_VERIFY_PICKUP_TOKEN=1 with local ORD fixture.",
       );
     }
-    if (!clipboardText.includes("Staging location:")) {
-      throw new Error("Copy Pickup Information expected Staging location: line");
-    }
-    console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
-
-    await runPickupTokenValidityFlow(page, browser, appBase);
 
     console.log("Mark Pickup Scheduled wiring…");
     const markBtn = page.getByRole("button", { name: "Mark Pickup Scheduled" });
@@ -433,7 +395,13 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
     } else {
       console.log("Note: job already Pickup Scheduled — skipping toggle test.");
     }
+  } else {
+    console.log(
+      "SKIP copy-pickup / pickup-token drawer checks: copy-pickup-information not on this delivery.",
+    );
+  }
 
+  if (await page.getByTestId("drawer-action-banner").isVisible().catch(() => false)) {
     console.log("Drawer action banner (away-065)…");
     const actionBanner = page.getByTestId("drawer-action-banner");
     await actionBanner.waitFor({ timeout: 15_000 });
@@ -441,21 +409,26 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
     console.log(`Drawer action banner heading: ${bannerHeading.trim()}`);
 
     console.log("Vendor Communications placeholder (away-066)…");
-    await page.getByTestId("vendor-communications-panel").waitFor({ timeout: 10_000 });
-    if (await page.getByTestId("vendor-communications-empty").isVisible().catch(() => false)) {
-      throw new Error("Vendor Communications empty state must be collapsed by default");
+    if (
+      await page.getByTestId("vendor-communications-panel").isVisible().catch(() => false)
+    ) {
+      if (await page.getByTestId("vendor-communications-empty").isVisible().catch(() => false)) {
+        throw new Error("Vendor Communications empty state must be collapsed by default");
+      }
+      await page.getByTestId("vendor-communications-toggle").click();
+      await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
+      const emptyText = await page.getByTestId("vendor-communications-empty").innerText();
+      const okDisconnected =
+        /No messages yet/i.test(emptyText) && /connect Gmail in Settings/i.test(emptyText);
+      const okConnected =
+        /No outbound messages yet/i.test(emptyText) && /Resolve Issue/i.test(emptyText);
+      if (!okDisconnected && !okConnected) {
+        throw new Error(`Vendor Communications empty state unexpected: ${emptyText}`);
+      }
+      console.log("PASS: Vendor Communications read-only placeholder (away-068).");
+    } else {
+      console.log("SKIP Vendor Communications: panel not on this delivery.");
     }
-    await page.getByTestId("vendor-communications-toggle").click();
-    await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
-    const emptyText = await page.getByTestId("vendor-communications-empty").innerText();
-    const okDisconnected =
-      /No messages yet/i.test(emptyText) && /connect Gmail in Settings/i.test(emptyText);
-    const okConnected =
-      /No outbound messages yet/i.test(emptyText) && /Resolve Issue/i.test(emptyText);
-    if (!okDisconnected && !okConnected) {
-      throw new Error(`Vendor Communications empty state unexpected: ${emptyText}`);
-    }
-    console.log("PASS: Vendor Communications read-only placeholder (away-068).");
 
     if ((await page.getByTestId("drawer-action-need-more-info").count()) > 0) {
       throw new Error("Need More Info button must be removed from action banner");
@@ -608,38 +581,50 @@ async function runPickupTokenValidityFlow(page, browser, appBase) {
       fullPage: false,
     });
 
-    const orderNumber = process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-004";
-    const search = page.locator('input[placeholder*="Job #, name, PO"]');
-    try {
-      if (await search.isVisible().catch(() => false)) {
-        await search.fill(orderNumber);
-        await page.waitForTimeout(1200);
-        const rowView = page.locator("button").filter({ hasText: /^View$/ }).first();
-        if (await rowView.isVisible().catch(() => false)) {
-          await rowView.click({ force: true });
-          await page.waitForTimeout(1000);
-          const summary = page.getByTestId("pickup-summary-panel");
-          if (await summary.isVisible().catch(() => false)) {
-            const text = (await summary.innerText()) ?? "";
-            if (!text.trim()) {
-              throw new Error("pickup-summary-panel visible but empty.");
+    if (shouldRunPickupTokenVerify()) {
+      const pickupSummaryOrder =
+        process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-004";
+      const search = page.locator('input[placeholder*="Job #, name, PO"]');
+      try {
+        if (await search.isVisible().catch(() => false)) {
+          await search.fill(pickupSummaryOrder);
+          await page.waitForTimeout(1200);
+          const rowView = page.locator("button").filter({ hasText: /^View$/ }).first();
+          if (await rowView.isVisible().catch(() => false)) {
+            await rowView.click({ force: true });
+            await page.waitForTimeout(1000);
+            const summary = page.getByTestId("pickup-summary-panel");
+            if (await summary.isVisible().catch(() => false)) {
+              const text = (await summary.innerText()) ?? "";
+              if (!text.trim()) {
+                throw new Error("pickup-summary-panel visible but empty.");
+              }
+              console.log(
+                "Pickup summary PASS: pickup-summary-panel visible in delivery drawer.",
+              );
+            } else {
+              console.log(
+                "SKIP pickup summary: panel not visible (expand Pickup Summary section if collapsed).",
+              );
             }
-            console.log("Pickup summary PASS: pickup-summary-panel visible in delivery drawer.");
-          } else {
-            console.log(
-              "SKIP pickup summary: panel not visible (expand Pickup Summary section if collapsed).",
-            );
           }
         }
+      } catch (err) {
+        console.log(
+          `SKIP pickup summary check: ${err instanceof Error ? err.message : err}`,
+        );
       }
-    } catch (err) {
+    } else {
       console.log(
-        `SKIP pickup summary check: ${err instanceof Error ? err.message : err}`,
+        "SKIP pickup summary: requires STAGEVERIFY_VERIFY_PICKUP_TOKEN=1 with local fixture.",
       );
     }
   } else {
-    console.log("SKIP job readiness panel: no delivery rows to open.");
+    console.log("SKIP drawer action banner checks: banner not on this delivery.");
   }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
 
   console.log("Needs Review email strip (Phase 5)…");
   await page.getByTestId("needs-review-email-strip").waitFor({

@@ -33,7 +33,7 @@ export async function ensureAuthenticated(page, appBase) {
     outcome = "timeout";
   }
 
-  if (outcome === "dispatcher") return;
+  if (outcome === "dispatcher") return "dispatcher";
 
   if (outcome === "timeout") {
     const url = page.url();
@@ -57,6 +57,132 @@ export async function ensureAuthenticated(page, appBase) {
   await page.fill("#password", password);
   await page.click('button[type="submit"]');
   await searchInput.waitFor({ state: "visible", timeout: 30_000 });
+  return "login-success";
+}
+
+/** Default prod-friendly search terms when STAGEVERIFY_VERIFY_ORDER is unset. */
+export const DEFAULT_VERIFY_SEARCH_TERMS = [
+  "4046362",
+  "P411190",
+  "INV-P411190",
+];
+
+export function getVerifySearchTerms() {
+  const custom = process.env.STAGEVERIFY_VERIFY_ORDER?.trim();
+  if (custom) return [custom];
+  return DEFAULT_VERIFY_SEARCH_TERMS;
+}
+
+export function shouldRunPickupTokenVerify() {
+  return process.env.STAGEVERIFY_VERIFY_PICKUP_TOKEN === "1";
+}
+
+export async function logDeliveryTableDiagnostics(page, { authOutcome = "unknown" } = {}) {
+  const url = page.url();
+  const rowCount = await page.locator("table tbody tr").count();
+  const tbodyText = (
+    await page.locator("table tbody").innerText().catch(() => "")
+  ).replace(/\s+/g, " ").trim();
+  const emptyHint = tbodyText.slice(0, 120) || "(empty tbody)";
+  console.log(
+    `Diagnostics: URL=${url}, auth=${authOutcome}, tableRows=${rowCount}, emptyState="${emptyHint}"`,
+  );
+  return { url, rowCount, emptyHint };
+}
+
+/**
+ * Select a delivery row for nav verify: env term, default prod terms, or first View row.
+ * Fails fast when the deliveries table has no openable rows.
+ */
+export async function openDeliveryDrawerForNavVerify(page) {
+  const search = page.locator('input[placeholder*="Job #, name, PO"]');
+  await search.waitFor({ state: "visible", timeout: 15_000 });
+
+  const terms = getVerifySearchTerms();
+  for (const term of terms) {
+    await search.fill("");
+    await search.fill(term);
+    await page.waitForTimeout(1500);
+    const rowCount = await page.locator("table tbody tr").count();
+    console.log(`Diagnostics: searchTerm="${term}", rowCount=${rowCount}`);
+    const viewBtn = page
+      .locator("table tbody tr")
+      .first()
+      .locator("button")
+      .filter({ hasText: /^View$/ });
+    if (await viewBtn.isVisible().catch(() => false)) {
+      await viewBtn.click({ force: true });
+      await page.waitForTimeout(1000);
+      return { searchTerm: term, rowCount, method: "search+view" };
+    }
+  }
+
+  await search.fill("");
+  await page.waitForTimeout(1500);
+  const rowCount = await page.locator("table tbody tr").count();
+  console.log(`Diagnostics: searchTerm=(cleared), rowCount=${rowCount}`);
+
+  if (rowCount === 0) {
+    const bodyText = (
+      await page.locator("body").innerText().catch(() => "")
+    ).replace(/\s+/g, " ");
+    throw new Error(
+      `no prod delivery available for nav verify — deliveries table empty (rows=0). URL=${page.url()}; hint: ${bodyText.slice(0, 200)}`,
+    );
+  }
+
+  const viewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
+  if (!(await viewBtn.isVisible().catch(() => false))) {
+    throw new Error(
+      `no prod delivery available for nav verify — ${rowCount} row(s) but no View button. URL=${page.url()}`,
+    );
+  }
+  await viewBtn.click({ force: true });
+  await page.waitForTimeout(1000);
+  return { searchTerm: "(first visible row)", rowCount, method: "first-view" };
+}
+
+/** Assert the delivery detail drawer opened (generic — any prod delivery). */
+export async function assertDeliveryDrawerOpen(page) {
+  const checks = [
+    page.getByText("Order Workflow Status", { exact: false }).first(),
+    page.getByTestId("drawer-action-banner"),
+    page.getByTestId("copy-pickup-information"),
+    page.getByRole("button", { name: "Close" }),
+  ];
+  for (const loc of checks) {
+    if (await loc.isVisible().catch(() => false)) return;
+  }
+  throw new Error(
+    `Delivery drawer did not open — no drawer indicator visible. URL=${page.url()}`,
+  );
+}
+
+/** Open a specific order drawer for pickup-token fixture tests (local/demo only). */
+export async function openOrderDrawerBySearch(page, orderNumber) {
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+
+  const search = page.locator('input[placeholder*="Job #, name, PO"]');
+  await search.waitFor({ state: "visible", timeout: 15_000 });
+  await search.fill("");
+  await search.fill(orderNumber);
+  await page.waitForTimeout(1500);
+
+  const orderRow = page
+    .locator("table tbody tr", { hasText: orderNumber })
+    .first();
+  const viewBtn = orderRow.locator("button").filter({ hasText: /^View$/ });
+  if (await viewBtn.isVisible().catch(() => false)) {
+    await viewBtn.click({ force: true });
+  } else if (await orderRow.isVisible().catch(() => false)) {
+    await orderRow.click({ force: true });
+  } else {
+    throw new Error(
+      `Pickup token fixture "${orderNumber}" not found in deliveries table`,
+    );
+  }
+  await page.getByTestId("copy-pickup-information").waitFor({ timeout: 15_000 });
 }
 
 export async function openDeliveryDrawer(page, orderNumber, deliveryId) {
