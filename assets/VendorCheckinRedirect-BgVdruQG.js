@@ -1,1 +1,0 @@
-import{Gt as e,Qt as t,Yt as n}from"./index-C9uCMH7p.js";var r=e();function i(){let{orderId:e}=t(),i=e?.trim()??``;return(0,r.jsx)(n,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
