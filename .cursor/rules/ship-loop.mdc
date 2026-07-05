@@ -7,9 +7,15 @@ alwaysApply: true
 
 After **any** substantive code or config change in this repo, complete the ship loop before declaring done.
 
-## Dan's standing preference — always ship
+## Dan's standing preference — always ship (never wait for "ship it")
 
-**Do not wait to be asked.** After substantive code or config work: **commit → push → deploy** in the same session. Dan's safety net is **`git revert <hash>`** — not holding back ship.
+**Purpose:** Dan verifies every update on live **gh-pages** (`https://lgarage.github.io/stageverify`) — shipping is how he confirms things are right. Agents must treat deploy as part of "done," not a separate optional step.
+
+**Default:** After any substantive code or config update, **commit → push → deploy** in the **same session** without prompting. When the frontend bundle changed and validation passed, run **`npm run deploy`** (gh-pages) automatically. Bump `package.json` `version` in the **same commit**, before build — see `version-bump-ship-gate.mdc`.
+
+**"Ship it" is optional confirmation, not a required trigger.** Do **not** wait for Dan to say "ship it," "deploy," or "push it" before shipping. If validation passes and skip triggers below do not apply, ship without asking.
+
+**Do not wait to be asked.** Dan's safety net is **`git revert <hash>`** — not holding back ship.
 
 | Default | Skip only when |
 |---------|----------------|
@@ -20,7 +26,7 @@ After **any** substantive code or config change in this repo, complete the ship 
 
 **Rollback:** prefer `git revert <hash>` (then redeploy if needed) over avoiding deploy. Do not treat "might need revert" as a reason to skip ship.
 
-**Workspace wins:** this rule overrides the generic Cursor user rule "only commit when requested." Multitask prompts that say "no deploy unless required" apply **only to that task's stated scope**.
+**Workspace wins:** this rule overrides the generic Cursor user rule "only commit when requested" for **stageverify**. Multitask prompts that say "no deploy unless required" apply **only to that task's stated scope**.
 
 **Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, Firebase deploy, production verification, security gate timing, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
 

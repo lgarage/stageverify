@@ -208,7 +208,7 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 
 ## Session Defaults (user-confirmed preferences)
 
-**Ship loop:** see `ship-loop.mdc` (authoritative for commit/push/deploy). Ship-loop overrides generic Cursor `user_rules` “commit only when requested” for this workspace.
+**Ship loop:** see `ship-loop.mdc` (authoritative — always deploy gh-pages after bundle changes so Dan can test live; never wait for "ship it"; overrides generic Cursor “commit only when requested”).
 
 ### Completion report (mandatory)
 After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
