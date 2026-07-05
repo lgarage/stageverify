@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -116,6 +116,7 @@
     "indexer:demo-packet": "node scripts/indexer-demo-packet.mjs",
     "indexer:demo-verify-failure": "node scripts/indexer-demo-verify-failure.mjs",
     "indexer:demo-deploy-failure": "node scripts/indexer-demo-deploy-failure.mjs",
+    "demo:deploy-gh-pages-poll": "node scripts/demo-deploy-gh-pages-poll.mjs --assert",
     "run-verify-with-learning": "node scripts/run-verify-with-learning.mjs"
   },
   "dependencies": {

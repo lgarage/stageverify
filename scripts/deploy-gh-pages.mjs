@@ -3,7 +3,8 @@
  * Deploy dist/ to GitHub Pages (gh-pages branch) and wait until Pages build status = built.
  *
  * gh-pages "Published" only means the branch push succeeded — GitHub Pages legacy build
- * can still error silently. This script polls builds API and fails loud if not built.
+ * can still error or hang in "building". This script polls builds API, triggers ONE stuck
+ * rebuild POST at 120s, and fails loud if live bundle does not match dist.
  *
  * Usage:
  *   node scripts/deploy-gh-pages.mjs              # build (via predeploy) + push + wait
@@ -14,31 +15,44 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  compareLiveBundle,
+  DEFAULTS,
+  extractMainAssetFromIndex,
+  formatGhAuthFailureMessage,
+  createPagesPollState,
+  evaluatePagesPoll,
+  inferDeployFailureKind,
+  isGhAuthError,
+} from "./lib/deploy-gh-pages-lib.mjs";
+import {
   captureDeployFailure,
   clearPendingForScript,
 } from "./lib/verify-learning-hook.mjs";
 
 const REPO = "lgarage/stageverify";
 const PAGES_URL = "https://lgarage.github.io/stageverify";
-const POLL_MS = 12_000;
-const TIMEOUT_MS = 5 * 60_000;
-const LIVE_FETCH_MS = 15_000;
+const {
+  POLL_MS,
+  TIMEOUT_MS,
+  BUILDING_STUCK_MS,
+  LIVE_FETCH_MS,
+  LIVE_RECHECK_MS,
+} = DEFAULTS;
 
 const skipPush = process.argv.includes("--skip-push");
 const skipLiveCheck = process.argv.includes("--skip-live-check");
 
 /** @type {string[]} */
 const deployLogLines = [];
-
-function inferFailureKind(msg) {
-  const m = msg.toLowerCase();
-  if (/timed out/.test(m)) return "timeout";
-  if (/live bundle mismatch/.test(m)) return "stale-bundle";
-  if (/build errored/.test(m)) return "build-errored";
-  if (/push failed/.test(m)) return "push-failed";
-  if (/live fetch/.test(m)) return "live-fetch-failed";
-  return "unknown";
-}
+/** @type {{ pushOk: boolean, rebuildTriggered: boolean, rebuildReasons: string[], pagesStatus: string, expectedAsset: string | null, liveAsset: string | null }} */
+const deploySummary = {
+  pushOk: false,
+  rebuildTriggered: false,
+  rebuildReasons: [],
+  pagesStatus: "unknown",
+  expectedAsset: null,
+  liveAsset: null,
+};
 
 function learningDryRun() {
   return (
@@ -58,7 +72,7 @@ function fail(msg, opts = {}) {
   console.error(line);
   deployLogLines.push(line);
 
-  const failureKind = opts.failureKind ?? inferFailureKind(msg);
+  const failureKind = opts.failureKind ?? inferDeployFailureKind(msg);
   captureDeployFailure({
     exitCode: 1,
     failureKind,
@@ -68,6 +82,7 @@ function fail(msg, opts = {}) {
     dryRun: learningDryRun(),
   });
 
+  printFinalSummary({ failed: true });
   process.exit(1);
 }
 
@@ -80,6 +95,9 @@ function ghApi(endpoint, { method = "GET" } = {}) {
     return execSync(cmd, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] });
   } catch (err) {
     const stderr = err.stderr?.toString?.() ?? String(err);
+    if (isGhAuthError(stderr)) {
+      fail(formatGhAuthFailureMessage(stderr, REPO), { failureKind: "auth-failed" });
+    }
     fail(`gh api ${method} ${endpoint} failed: ${stderr.trim()}`);
   }
 }
@@ -105,8 +123,9 @@ function pushGhPages() {
   try {
     execSync("npx gh-pages -d dist", { stdio: "inherit" });
   } catch {
-    fail("gh-pages push failed");
+    fail("gh-pages push failed", { failureKind: "push-failed" });
   }
+  deploySummary.pushOk = true;
   log("gh-pages branch push complete");
 }
 
@@ -119,58 +138,14 @@ function latestBuild() {
   return builds[0];
 }
 
-function triggerRebuild() {
-  log("triggering Pages rebuild via POST pages/builds…");
+function triggerRebuild(reason) {
+  deploySummary.rebuildTriggered = true;
+  deploySummary.rebuildReasons.push(reason);
   ghApi(`repos/${REPO}/pages/builds`, { method: "POST" });
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForBuilt({ allowRetry = true } = {}) {
-  const deadline = Date.now() + TIMEOUT_MS;
-  let lastStatus = "";
-
-  while (Date.now() < deadline) {
-    const build = latestBuild();
-    const status = build.status ?? "unknown";
-    const errMsg = build.error?.message;
-
-    if (status !== lastStatus) {
-      log(`Pages build status: ${status}${errMsg ? ` (${errMsg})` : ""}`);
-      lastStatus = status;
-    }
-
-    if (status === "built") {
-      log(`Pages build succeeded (commit ${String(build.commit ?? "").slice(0, 7)})`);
-      return build;
-    }
-
-    if (status === "errored") {
-      if (allowRetry) {
-        log("Pages build errored — triggering one rebuild retry…");
-        triggerRebuild();
-        await sleep(POLL_MS);
-        return waitForBuilt({ allowRetry: false });
-      }
-      fail(
-        `Pages build errored after retry${errMsg ? `: ${errMsg}` : ""}. Live may still serve old bundle — run: gh api -X POST repos/${REPO}/pages/builds`,
-        { failureKind: "build-errored" },
-      );
-    }
-
-    await sleep(POLL_MS);
-  }
-
-  fail(`timed out after ${TIMEOUT_MS / 1000}s waiting for Pages build status=built (last: ${lastStatus || "unknown"})`, {
-    failureKind: "timeout",
-  });
-}
-
-function extractMainAssetFromIndex(html) {
-  const match = html.match(/\/stageverify\/assets\/[^"'\s>]+\.js/);
-  return match?.[0] ?? null;
 }
 
 function readDistMainAsset() {
@@ -186,10 +161,8 @@ function readDistMainAsset() {
   return asset;
 }
 
-async function verifyLiveBundle(expectedAsset) {
+async function fetchLiveAsset() {
   const url = `${PAGES_URL}/index.html`;
-  log(`checking live index.html references ${expectedAsset}…`);
-
   let res;
   try {
     res = await fetch(url, {
@@ -197,48 +170,143 @@ async function verifyLiveBundle(expectedAsset) {
       headers: { "Cache-Control": "no-cache" },
     });
   } catch (err) {
-    fail(`live fetch ${url} failed: ${err.message}`, { failureKind: "live-fetch-failed" });
+    return { error: `live fetch ${url} failed: ${err.message}` };
   }
-
   if (!res.ok) {
-    fail(`live fetch ${url} returned HTTP ${res.status}`);
+    return { error: `live fetch ${url} returned HTTP ${res.status}` };
   }
-
   const liveHtml = await res.text();
   const liveAsset = extractMainAssetFromIndex(liveHtml);
-
   if (!liveAsset) {
-    fail("live index.html has no recognizable main JS asset path");
+    return { error: "live index.html has no recognizable main JS asset path" };
+  }
+  return { liveAsset };
+}
+
+async function waitForBuilt(expectedAsset) {
+  const now = Date.now();
+  let state = createPagesPollState(now + TIMEOUT_MS, now);
+
+  while (true) {
+    const build = latestBuild();
+    deploySummary.pagesStatus = build.status ?? "unknown";
+
+    let liveAsset = null;
+    if (build.status === "built" && expectedAsset) {
+      const live = await fetchLiveAsset();
+      if (!live.error) {
+        liveAsset = live.liveAsset;
+        deploySummary.liveAsset = liveAsset;
+      }
+    }
+
+    const result = evaluatePagesPoll({
+      state,
+      build,
+      now: Date.now(),
+      expectedAsset,
+      liveAsset,
+      buildingStuckMs: BUILDING_STUCK_MS,
+      repo: REPO,
+    });
+    state = result.nextState;
+
+    for (const line of result.logLines) {
+      log(line);
+    }
+
+    if (result.action === "success") {
+      return build;
+    }
+    if (result.action === "fail") {
+      fail(result.failMessage ?? "Pages poll failed", {
+        failureKind: result.failKind ?? "unknown",
+      });
+    }
+    if (result.action === "trigger-rebuild") {
+      triggerRebuild(result.reason ?? "unknown");
+    }
+
+    await sleep(POLL_MS);
+  }
+}
+
+async function verifyLiveBundle(expectedAsset, { allowRecheck = true } = {}) {
+  log(`checking live index.html references ${expectedAsset}…`);
+  const live = await fetchLiveAsset();
+  if (live.error) {
+    fail(live.error, { failureKind: "live-fetch-failed" });
   }
 
-  if (liveAsset !== expectedAsset) {
-    fail(
-      `live bundle mismatch — expected ${expectedAsset}, live has ${liveAsset}. Pages may still be propagating or build failed silently.`,
-      { failureKind: "stale-bundle" },
+  deploySummary.liveAsset = live.liveAsset;
+  const cmp = compareLiveBundle(expectedAsset, live.liveAsset, REPO);
+  if (!cmp.ok) {
+    if (allowRecheck) {
+      log(`live bundle not yet matching — waiting ${LIVE_RECHECK_MS / 1000}s for propagation…`);
+      await sleep(LIVE_RECHECK_MS);
+      return verifyLiveBundle(expectedAsset, { allowRecheck: false });
+    }
+    fail(cmp.message, { failureKind: "stale-bundle" });
+  }
+
+  log(`live bundle verified (${live.liveAsset})`);
+}
+
+function printFinalSummary({ failed = false } = {}) {
+  const lines = [
+    "",
+    "deploy: ——— summary ———",
+    `deploy: push: ${deploySummary.pushOk ? "ok" : skipPush ? "skipped (--skip-push)" : "not run"}`,
+    `deploy: Pages status: ${deploySummary.pagesStatus}`,
+    `deploy: rebuild triggered: ${deploySummary.rebuildTriggered ? "yes" : "no"}${deploySummary.rebuildReasons.length ? ` (${deploySummary.rebuildReasons.join(", ")})` : ""}`,
+    `deploy: expected bundle: ${deploySummary.expectedAsset ?? "—"}`,
+    `deploy: live bundle: ${deploySummary.liveAsset ?? "—"}`,
+  ];
+  if (!failed) {
+    lines.push(
+      `deploy: prod verify: run relevant :prod scripts (e.g. verify:pickup:prod) after confirming live bundle`,
     );
+    lines.push(`deploy: deploy complete — ${PAGES_URL}`);
+  } else {
+    lines.push(`deploy: prod verify: do NOT run :prod until live bundle matches dist/`);
   }
-
-  log(`live bundle verified (${liveAsset})`);
+  for (const line of lines) {
+    console.log(line);
+    deployLogLines.push(line);
+  }
 }
 
 async function main() {
+  let expectedAsset = null;
+  if (!skipLiveCheck && existsSync(join("dist", "index.html"))) {
+    expectedAsset = readDistMainAsset();
+    deploySummary.expectedAsset = expectedAsset;
+  }
+
   if (!skipPush) {
     ensureNoJekyll();
     pushGhPages();
+    if (!expectedAsset) {
+      expectedAsset = readDistMainAsset();
+      deploySummary.expectedAsset = expectedAsset;
+    }
+    log(`expected bundle | ${expectedAsset}`);
   } else {
     log("--skip-push: skipping gh-pages push (poll/wait only)");
+    if (expectedAsset) {
+      log(`expected bundle | ${expectedAsset}`);
+    }
   }
 
-  await waitForBuilt();
+  await waitForBuilt(expectedAsset);
 
-  if (!skipLiveCheck) {
-    const expectedAsset = readDistMainAsset();
+  if (!skipLiveCheck && expectedAsset) {
     await verifyLiveBundle(expectedAsset);
   } else {
     log("--skip-live-check: skipping live bundle verification");
   }
 
-  log(`deploy complete — ${PAGES_URL}`);
+  printFinalSummary();
   clearPendingForScript("deploy");
 }
 

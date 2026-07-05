@@ -206,7 +206,7 @@
       "commands": ["npm run deploy"],
       "gateCandidate": true,
       "injectBefore": ["prod Playwright", ":prod verify", "claiming deploy complete", "ship loop", "diagnosing prod UI old behavior"],
-      "warning": "gh-pages branch can hold a new bundle while live still serves an old index.html asset (13d9110). Pages build may stay stuck building 10–30+ min after push — not a code bug. npm run deploy polls every 12s (logs only on status change) and fails at 300s while GitHub may still be building; sessions then feel like repeated ~2-min manual re-checks (~20 min total). Before :prod verify or claiming live: confirm status=built and live index main JS hash matches dist/; if script timed out but status still building, gh api pages/builds or wait — do not treat as code failure. If stuck/errored, retry npm run deploy or POST repos/lgarage/stageverify/pages/builds."
+      "warning": "gh-pages branch can hold a new bundle while live still serves an old index.html asset (13d9110). Pages build may stay stuck building 2+ min after push — not a code bug. npm run deploy polls every 12s (rich logs: elapsed, timeout_in, sha, expected/live bundle) and at 120s continuous building triggers ONE POST repos/lgarage/stageverify/pages/builds; fails at 300s if still not built. Do NOT re-run npm run deploy as recovery — use gh api POST pages/builds or wait. Before :prod verify or claiming live: confirm status=built and live index main JS matches dist/."
     },
     {
       "id": "dispatcher-clipboard",
