@@ -10,6 +10,7 @@
  */
 
 import { chromium } from "playwright";
+import { execSync } from "node:child_process";
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
@@ -28,6 +29,12 @@ const outDir = resolve(process.cwd(), "screenshots");
 mkdirSync(outDir, { recursive: true });
 
 (async () => {
+  try {
+    execSync("node scripts/seed-vendor-pin-data.mjs", { stdio: "pipe" });
+  } catch {
+    console.warn("SKIP vendor PIN seed (ADC unavailable)");
+  }
+
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -38,6 +45,14 @@ mkdirSync(outDir, { recursive: true });
   const url = `${appBase}/#/receive?id=${deliveryId}`;
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+  const pinHeading = page.getByText("Enter Vendor PIN").first();
+  if (await pinHeading.isVisible().catch(() => false)) {
+    for (const digit of "1234") {
+      await page.getByRole("button", { name: digit, exact: true }).click();
+    }
+    await page.waitForTimeout(2000);
+  }
 
   await page
     .getByText(/Receive Delivery|Check off items as delivered/)

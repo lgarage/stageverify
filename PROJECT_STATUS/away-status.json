@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-04",
+  "lastRun": "2026-07-05",
   "batch": "away-001..041 archived; away-042..076 built; queue empty except blocked away-069",
   "results": [
     {
@@ -708,6 +708,13 @@
       "status": "built",
       "commit": "8055ceb",
       "note": "scheduled-stale-issue-reparse"
+    },
+    {
+      "id": "away-109",
+      "title": "Vendor emailDomain field + Settings UI",
+      "status": "built",
+      "commit": "99c3791",
+      "note": "Vendor emailDomain field + Vendors UI; verify:settings-staging PASS"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"

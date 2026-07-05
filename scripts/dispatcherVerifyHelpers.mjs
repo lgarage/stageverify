@@ -145,10 +145,10 @@ export async function openDeliveryDrawerForNavVerify(page) {
 /** Assert the delivery detail drawer opened (generic — any prod delivery). */
 export async function assertDeliveryDrawerOpen(page) {
   const checks = [
-    page.getByText("Order Workflow Status", { exact: false }).first(),
+    page.getByRole("heading", { name: "Delivery Details" }),
     page.getByTestId("drawer-action-banner"),
     page.getByTestId("copy-pickup-information"),
-    page.getByRole("button", { name: "Close" }),
+    page.getByRole("button", { name: /Close/i }),
   ];
   for (const loc of checks) {
     if (await loc.isVisible().catch(() => false)) return;

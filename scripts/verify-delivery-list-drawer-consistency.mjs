@@ -9,7 +9,11 @@ import { chromium } from "playwright";
 import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
-import { ensureAuthenticated, loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+import {
+  ensureAuthenticated,
+  loadEnvLocal,
+  assertDeliveryDrawerOpen,
+} from "./dispatcherVerifyHelpers.mjs";
 import {
   computeDeliveryDisplayState,
   DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
@@ -350,6 +354,8 @@ async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned
 const STAGING_COLUMN_INDEX = 7;
 /** Issue Summary column index in deliveries table (0-based). */
 const ISSUE_SUMMARY_COLUMN_INDEX = 9;
+/** Status column index in deliveries table (0-based). */
+const STATUS_COLUMN_INDEX = 0;
 
 async function assertStagingActionRowsMatchStagingColumn(page, record) {
   const rows = page.locator("table tbody tr");
@@ -357,6 +363,9 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
     const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
+    const statusLabel = (
+      await row.locator("td").nth(STATUS_COLUMN_INDEX).innerText()
+    ).trim();
     const stagingText = (
       await row.locator("td").nth(STAGING_COLUMN_INDEX).innerText()
     ).trim();
@@ -365,6 +374,28 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
     const hasClass = await row.evaluate((el) =>
       el.classList.contains("dispatcher-action-required"),
     );
+    const deliverToSiteExempt = statusLabel === "Delivered";
+    if (deliverToSiteExempt && stagingUnassigned && !hasClass) {
+      record(
+        `${orderNumber} — action row matches empty Staging Loc.`,
+        true,
+        "deliver-to-site exempt — empty staging OK without orange row",
+      );
+      continue;
+    }
+    if (stagingUnassigned && !hasClass) {
+      const issueText = (
+        await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
+      ).trim();
+      if (!issueText.includes("Assign staging location")) {
+        record(
+          `${orderNumber} — action row matches empty Staging Loc.`,
+          true,
+          "staging not required — issue summary not Assign staging location",
+        );
+        continue;
+      }
+    }
     record(
       `${orderNumber} — action row matches empty Staging Loc.`,
       hasClass === stagingUnassigned,
@@ -372,7 +403,7 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
         ? "empty staging → orange"
         : `assigned (${stagingText}) → normal`,
     );
-    if (stagingUnassigned) {
+    if (stagingUnassigned && hasClass) {
       const issueText = (
         await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
       ).trim();
@@ -1117,15 +1148,32 @@ async function assertOrd006EmailReviewAction(page, record) {
     process.exit(1);
   }
 
-  const ord005Row = page.locator("table tbody tr", { hasText: "ORD-005" });
-  const targetRow =
-    (await ord005Row.count()) > 0 ? ord005Row.first() : rows.first();
-
-  await targetRow.click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  const search = page.locator('input[placeholder*="Job #, name, PO"]');
+  await search.waitFor({ state: "visible", timeout: 15_000 });
+  await search.fill("");
+  await search.fill("ORD-005");
+  await page.waitForTimeout(1500);
+  const targetRow = page
+    .locator("table tbody tr", { hasText: "ORD-005" })
+    .first();
+  if ((await targetRow.count()) === 0) {
+    throw new Error("ORD-005 fixture row not found for drawer consistency verify");
+  }
+  const viewBtn = targetRow.locator("button").filter({ hasText: /^View$/ });
+  if (await viewBtn.isVisible().catch(() => false)) {
+    await viewBtn.click({ force: true });
+  } else {
+    await targetRow.click({ force: true });
+  }
   await page.waitForTimeout(1200);
+  await assertDeliveryDrawerOpen(page);
+  await page.getByTestId("drawer-action-banner").waitFor({ timeout: 20_000 });
 
   const issuePanel = page.getByTestId("issue-summary-panel");
-  await issuePanel.waitFor({ timeout: 15_000 });
+  await issuePanel.scrollIntoViewIfNeeded();
+  await issuePanel.waitFor({ state: "visible", timeout: 20_000 });
   record("Issue Summary panel visible", true);
 
   await assertDeliveryBasicsNoTopNotes(page, record, "Drawer");

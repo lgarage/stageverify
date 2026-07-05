@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.12",
+  "version": "0.0.13",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -50,6 +50,7 @@
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:delivery-consistency": "npx tsx scripts/verify-delivery-list-drawer-consistency.mjs",
+    "verify:e2e-smoke": "node scripts/verify-e2e-smoke.mjs",
     "verify:phase5-email": "node scripts/verify-phase5-email.mjs",
     "verify:email-oauth-connect": "node scripts/verify-email-oauth-connect.mjs",
     "verify:email-oauth-connect:prod": "node scripts/run-verify-with-learning.mjs --script verify:email-oauth-connect:prod scripts/verify-email-oauth-connect.mjs --base-url=https://lgarage.github.io/stageverify",

@@ -8,6 +8,10 @@
 
 import { vendorInvoiceImportDisplayLabel } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
 import { INVOICE_FIXTURES } from "../src/dispatcher/invoice/invoiceFixtures.ts";
+import {
+  NON_JOHNSTONE_FIXTURE_EXPECTATIONS,
+  NON_JOHNSTONE_INVOICE_FIXTURES,
+} from "../src/dispatcher/invoice/nonJohnstoneInvoiceFixtures.ts";
 import { pageTextFingerprint } from "../src/dispatcher/invoice/parseJohnstoneInvoice.ts";
 import {
   expectedInvoiceLines,
@@ -364,6 +368,42 @@ for (const fixture of INVOICE_FIXTURES) {
       }
     }
   }
+}
+
+console.log("\n--- Non-Johnstone vendor fixtures (graceful issue/review) ---");
+for (const fixture of NON_JOHNSTONE_INVOICE_FIXTURES) {
+  const result = processInvoicePage(fixture, existing);
+  existing.byPageId.set(fixture.pageId, fixture.pageId);
+  existing.byFingerprint.set(pageTextFingerprint(fixture), fixture.pageId);
+  const expected = NON_JOHNSTONE_FIXTURE_EXPECTATIONS[fixture.pageId];
+  if (!expected) continue;
+
+  if (result.importStatus !== expected.importStatus) {
+    failures.push(
+      `${fixture.pageId}: importStatus expected ${expected.importStatus}, got ${result.importStatus}`,
+    );
+  }
+  if (result.humanReviewRequired !== expected.humanReviewRequired) {
+    failures.push(`${fixture.pageId}: humanReviewRequired mismatch`);
+  }
+  if (
+    expected.maxConfidenceScore !== undefined &&
+    result.confidenceScore > expected.maxConfidenceScore
+  ) {
+    failures.push(
+      `${fixture.pageId}: confidence ${result.confidenceScore} > max ${expected.maxConfidenceScore}`,
+    );
+  }
+  const productLines = expectedInvoiceLines(result).length;
+  if (
+    expected.maxProductLines !== undefined &&
+    productLines > expected.maxProductLines
+  ) {
+    failures.push(`${fixture.pageId}: unexpected product lines (${productLines})`);
+  }
+  console.log(
+    `  PASS ${fixture.pageId} — status=${result.importStatus}, confidence=${result.confidenceScore}, lines=${productLines}`,
+  );
 }
 
 const dupFingerprint = processInvoicePage(INVOICE_FIXTURES[6], {
