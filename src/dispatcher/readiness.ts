@@ -182,10 +182,12 @@ export function computeDeliveryReadiness(
   const readyForPickup = evidence.readinessBlockReasons.length === 0;
 
   if (readyForPickup) {
+    const deliverToSiteComplete =
+      delivery.invoiceDeliverToSite === true && delivery.status === "complete";
     return {
       readyForPickup: true,
       readinessStatus: "ready_for_pickup",
-      deliveryStatus: "ready_for_pickup",
+      deliveryStatus: deliverToSiteComplete ? "complete" : "ready_for_pickup",
       evidence,
     };
   }

@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Sidebar build version** — persistent `v{package.json}` label above Settings (from Vite define); `verify:dispatcher-nav` asserts `portal-sidebar-version`
+- Last shipped: **Dispatcher dashboard fixes (v0.0.2)** � removed View Invoice PDF from drawer/modal; PO # via `resolveDeliveryPoNumber` (`customerPoOrReference` fallback); Complete column counts `complete` deliveries not staged
+- Also shipped: **Sidebar build version** � persistent `v{package.json}` label above Settings (from Vite define); `verify:dispatcher-nav` asserts `portal-sidebar-version`
 - Also shipped: **Invoice shell drawer + staging guard** — deliver-to-site/will-call shells skip shop staging only when `createdFromInvoiceImport` or canonical `delivery-vii-*` id; invoice PDF callables; drawer View PDF + shell display helpers; `create_shell` patch gated to invoice shells only
 - Also shipped: **Invoice approve → dashboard visibility + no silent shell failure** — review-only Approve auto-creates job from P/O when unmatched; CF returns `shellCreated`/`jobCreated`; backfill errors surface in Invoice Review + Refresh Now; success banner + portal refresh on approve
 - Also shipped: **Invoice shell auto-backfill + job PO matching** — removed manual "Create dashboard record" button; approved-unlinked imports auto-create dashboard shells on approve, Invoice Review load, and Refresh Now; PO hints like `blackduck hartfo` match job names (P411190 / S/O 4046362)

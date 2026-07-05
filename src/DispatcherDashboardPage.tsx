@@ -14,7 +14,6 @@ import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import {
   firestoreDataService,
-  fetchVendorInvoicePdf,
   getVendorInvoiceImport,
   markDeliveryShipped,
   mapOccupancyByLocationId,
@@ -63,12 +62,8 @@ import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
 import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText } from "./dispatcher/deliveryDisplayHelpers";
-import { isInvoiceShellNoShopStaging } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
+import { isInvoiceShellNoShopStaging, resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
-import {
-  openVendorInvoicePdfInNewTab,
-  vendorInvoicePdfUnavailableMessage,
-} from "./dispatcher/invoice/invoicePdfClient";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -250,6 +245,7 @@ function listStatusBadge(
   row: DeliveryListRow,
 ): (typeof STATUS_BADGE)[DeliveryStatus] {
   const label = row.statusDisplayLabel;
+  if (label === "Complete") return STATUS_BADGE.complete;
   if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Picked Up") return STATUS_BADGE.picked_up;
@@ -2302,15 +2298,12 @@ function DetailContent({
   );
   const [inspectImportLoading, setInspectImportLoading] = useState(false);
   const [inspectImportError, setInspectImportError] = useState<string | null>(null);
-  const [invoicePdfLoading, setInvoicePdfLoading] = useState(false);
-  const [invoicePdfError, setInvoicePdfError] = useState<string | null>(null);
 
   useEffect(() => {
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
     setInspectImport(null);
     setInspectImportError(null);
-    setInvoicePdfError(null);
   }, [details?.delivery.id]);
 
   const expandVendorCommunications = () => {
@@ -2468,20 +2461,6 @@ function DetailContent({
     }
   };
 
-  const viewLinkedInvoicePdf = async (importId = linkedInvoiceImportId) => {
-    if (!importId) return;
-    setInvoicePdfLoading(true);
-    setInvoicePdfError(null);
-    try {
-      const payload = await fetchVendorInvoicePdf(importId);
-      openVendorInvoicePdfInNewTab(payload);
-    } catch (err) {
-      setInvoicePdfError(vendorInvoicePdfUnavailableMessage(err));
-    } finally {
-      setInvoicePdfLoading(false);
-    }
-  };
-
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
   );
@@ -2581,7 +2560,10 @@ function DetailContent({
                   label: "PO #",
                   value: (
                     <span style={{ fontFamily: "monospace" }}>
-                      {details.purchaseOrder?.poNumber ?? "—"}
+                      {resolveDeliveryPoNumber(
+                        details.delivery.customerPoOrReference,
+                        details.purchaseOrder?.poNumber,
+                      ) ?? "—"}
                     </span>
                   ),
                 },
@@ -2690,16 +2672,6 @@ function DetailContent({
                     {inspectImportLoading
                       ? "Loading parsed data…"
                       : "Review parsed invoice data"}
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="drawer-view-invoice-pdf"
-                    disabled={invoicePdfLoading || Boolean(invoicePdfError)}
-                    title={invoicePdfError ?? undefined}
-                    onClick={() => void viewLinkedInvoicePdf()}
-                    style={drawerActionBtnVendorQr(font)}
-                  >
-                    {invoicePdfLoading ? "Loading PDF…" : "View invoice PDF"}
                   </button>
                 </>
               ) : null}
@@ -3732,29 +3704,11 @@ function DetailContent({
           {inspectImportError}
         </div>
       ) : null}
-      {invoicePdfError ? (
-        <div
-          data-testid="drawer-invoice-pdf-unavailable"
-          style={{
-            marginTop: 8,
-            padding: "8px 10px",
-            backgroundColor: "#fff7ed",
-            color: "#9a3412",
-            borderRadius: 6,
-            fontSize: 12,
-          }}
-        >
-          {invoicePdfError}
-        </div>
-      ) : null}
       {inspectImport ? (
         <InvoiceParsedInspectModal
           importRow={inspectImport}
           readOnly
           onClose={() => setInspectImport(null)}
-          onViewPdf={() => void viewLinkedInvoicePdf(inspectImport.id)}
-          pdfLoading={invoicePdfLoading}
-          pdfUnavailableMessage={invoicePdfError}
         />
       ) : null}
     </>

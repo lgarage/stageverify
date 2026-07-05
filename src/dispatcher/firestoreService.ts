@@ -73,6 +73,7 @@ import {
   type JobReadinessResult,
 } from "./readiness";
 import { computeDeliveryDisplayState } from "./deliveryDisplayHelpers";
+import { resolveDeliveryPoNumber } from "./invoice/invoiceShellDisplayHelpers";
 import { extractDeliverToSiteLabel } from "./invoice/invoiceShellDisplayHelpers";
 import type {
   DeliveryQuery,
@@ -362,7 +363,10 @@ export class FirestoreDataService implements DispatcherDataService {
         statusDisplayLabel: display.statusDisplayLabel,
         jobNumber: job.jobNumber,
         jobName: job.jobName,
-        poNumber: po?.poNumber,
+        poNumber: resolveDeliveryPoNumber(
+          delivery.customerPoOrReference,
+          po?.poNumber,
+        ),
         orderNumber: delivery.orderNumber,
         vendorName: vendor.name,
         deliveryDate: delivery.deliveryDate,

@@ -6,6 +6,7 @@ import {
   extractDeliverToSiteLabel,
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
+  resolveDeliveryPoNumber,
   resolveShellDeliveryStatus,
 } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
@@ -147,6 +148,17 @@ assert(
     !deliverToSiteReadiness.evidence.readinessBlockReasons.includes(
       "staging_assignment_incomplete",
     ),
+);
+
+assert(
+  "deliver-to-site complete shells count as complete status (not staged)",
+  deliverToSiteReadiness.deliveryStatus === "complete",
+);
+
+assert(
+  "resolveDeliveryPoNumber prefers linked PO then invoice customer P/O",
+  resolveDeliveryPoNumber("blackduck hartfo", undefined) === "blackduck hartfo" &&
+    resolveDeliveryPoNumber("blackduck hartfo", "PO-123") === "PO-123",
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

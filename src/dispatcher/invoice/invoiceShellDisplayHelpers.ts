@@ -84,6 +84,18 @@ export function jobNameFromInvoiceContext(
   return jobNameFromInvoicePo(customerPoOrReference);
 }
 
+/** PO # for list/drawer — linked purchase order, else invoice Customer P/O on the delivery. */
+export function resolveDeliveryPoNumber(
+  customerPoOrReference?: string,
+  linkedPoNumber?: string,
+): string | undefined {
+  const fromPo = linkedPoNumber?.trim();
+  if (fromPo) return fromPo;
+  const fromInvoice = customerPoOrReference?.trim();
+  if (fromInvoice) return fromInvoice;
+  return undefined;
+}
+
 /** Invoice shells that never receive material at the shop — no staging zone assignment. */
 export function isInvoiceShellNoShopStaging(
   delivery: InvoiceShellStagingFields,
