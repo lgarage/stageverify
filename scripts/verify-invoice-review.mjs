@@ -66,6 +66,18 @@ async function ensureAuthenticated(page) {
   }
 }
 
+async function assertViewOriginalPdfButton(page) {
+  const viewOriginalPdfBtn = page.getByTestId("invoice-parsed-inspect-view-original-pdf");
+  await viewOriginalPdfBtn.waitFor({ timeout: 5000 });
+  const closeBtn = page.getByTestId("invoice-parsed-inspect-close");
+  const pdfBeforeClose = (await viewOriginalPdfBtn.boundingBox())?.x ?? 0;
+  const closeX = (await closeBtn.boundingBox())?.x ?? 0;
+  if (pdfBeforeClose >= closeX) {
+    throw new Error("View original PDF button should appear left of Close");
+  }
+  console.log("PASS: View original PDF button left of Close in modal header");
+}
+
 async function main() {
   if (!existsSync(authState)) {
     console.log("No auth state — run: node scripts/playwright-auth-setup.mjs");
@@ -174,6 +186,8 @@ async function main() {
 
       await page.getByTestId("invoice-parsed-inspect-lines").waitFor({ timeout: 5000 });
       console.log("PASS: parsed lines table visible in inspect modal");
+
+      await assertViewOriginalPdfButton(page);
 
       const expectedFields = page.getByTestId("invoice-parsed-inspect-expected-fields");
       if (await expectedFields.count()) {
@@ -334,6 +348,7 @@ async function main() {
         throw new Error("Approved archive inspect modal should not show Approve");
       }
       console.log("PASS: approved row opens read-only inspect modal");
+      await assertViewOriginalPdfButton(page);
       await page.getByTestId("invoice-parsed-inspect-close").click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
         state: "hidden",

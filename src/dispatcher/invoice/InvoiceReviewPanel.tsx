@@ -7,15 +7,10 @@ import type {
 import {
   approveVendorInvoiceImport,
   ensureApprovedUnlinkedInvoiceShells,
-  fetchVendorInvoicePdf,
   firestoreDataService,
   listVendorInvoiceImports,
   matchInvoiceToRecords,
 } from "../firestoreService";
-import {
-  openVendorInvoicePdfInNewTab,
-  vendorInvoicePdfUnavailableMessage,
-} from "./invoicePdfClient";
 import { vendorInvoiceImportDisplayLabelForRow } from "./invoiceDisplayHelpers";
 import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
@@ -244,10 +239,6 @@ export function InvoiceReviewPanel({
     useState<VendorInvoiceImportReview | null>(null);
   const [recentDeliveries, setRecentDeliveries] = useState<DeliveryListRow[]>([]);
   const [recentDeliveriesLoading, setRecentDeliveriesLoading] = useState(false);
-  const [invoicePdfLoadingId, setInvoicePdfLoadingId] = useState<string | null>(null);
-  const [invoicePdfErrorById, setInvoicePdfErrorById] = useState<Record<string, string>>(
-    {},
-  );
   const lastAppliedGeneration = useRef(0);
 
   const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
@@ -365,27 +356,6 @@ export function InvoiceReviewPanel({
       setRecentDeliveries([]);
     } finally {
       setRecentDeliveriesLoading(false);
-    }
-  }, []);
-
-  const viewInvoicePdf = useCallback(async (importId: string) => {
-    setInvoicePdfLoadingId(importId);
-    setInvoicePdfErrorById((prev) => {
-      if (!prev[importId]) return prev;
-      const next = { ...prev };
-      delete next[importId];
-      return next;
-    });
-    try {
-      const payload = await fetchVendorInvoicePdf(importId);
-      openVendorInvoicePdfInNewTab(payload);
-    } catch (err) {
-      setInvoicePdfErrorById((prev) => ({
-        ...prev,
-        [importId]: vendorInvoicePdfUnavailableMessage(err),
-      }));
-    } finally {
-      setInvoicePdfLoadingId((current) => (current === importId ? null : current));
     }
   }, []);
 
@@ -1037,9 +1007,6 @@ export function InvoiceReviewPanel({
         <InvoiceParsedInspectModal
           importRow={inspectImport}
           onClose={() => setInspectImport(null)}
-          onViewPdf={() => void viewInvoicePdf(inspectImport.id)}
-          pdfLoading={invoicePdfLoadingId === inspectImport.id}
-          pdfUnavailableMessage={invoicePdfErrorById[inspectImport.id] ?? null}
           matchResult={inspectRowId ? (matchById[inspectRowId] ?? null) : null}
           matchLoading={inspectRowId ? matchLoadingId === inspectRowId : false}
           selectedDeliveryId={inspectSelectedDeliveryId}

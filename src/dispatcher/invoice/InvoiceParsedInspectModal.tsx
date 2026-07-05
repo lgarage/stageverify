@@ -5,6 +5,7 @@ import type {
   VendorInvoiceImportReview,
 } from "../models";
 import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChecklist";
+import { useVendorInvoicePdfViewer } from "./useVendorInvoicePdfViewer";
 import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
 import { InvoiceDeliveryMatchSection } from "./InvoiceDeliveryMatchSection";
 import {
@@ -58,9 +59,6 @@ export function InvoiceParsedInspectModal({
   onLink,
   readOnly = false,
   deliverToSiteConfirmed = false,
-  onViewPdf,
-  pdfLoading = false,
-  pdfUnavailableMessage = null,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -79,10 +77,9 @@ export function InvoiceParsedInspectModal({
   readOnly?: boolean;
   /** Linked delivery confirmed delivered to job site — suppress review-required UI. */
   deliverToSiteConfirmed?: boolean;
-  onViewPdf?: () => void;
-  pdfLoading?: boolean;
-  pdfUnavailableMessage?: string | null;
 }) {
+  const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
+    useVendorInvoicePdfViewer();
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow, {
     deliverToSiteConfirmed,
   });
@@ -166,29 +163,30 @@ export function InvoiceParsedInspectModal({
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {onViewPdf ? (
-              <button
-                type="button"
-                data-testid="invoice-parsed-inspect-view-pdf"
-                disabled={pdfLoading || Boolean(pdfUnavailableMessage)}
-                title={pdfUnavailableMessage ?? undefined}
-                onClick={onViewPdf}
-                style={{
-                  backgroundColor: "#fff",
-                  color: NAVY,
-                  border: `1px solid ${NAVY}`,
-                  borderRadius: 6,
-                  padding: "8px 14px",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor:
-                    pdfLoading || pdfUnavailableMessage ? "not-allowed" : "pointer",
-                  opacity: pdfLoading || pdfUnavailableMessage ? 0.55 : 1,
-                }}
-              >
-                {pdfLoading ? "Loading PDF…" : "View invoice PDF"}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              data-testid="invoice-parsed-inspect-view-original-pdf"
+              disabled={pdfLoading(importRow.id) || Boolean(pdfUnavailableMessage(importRow.id))}
+              title={pdfUnavailableMessage(importRow.id) ?? undefined}
+              onClick={() => void viewPdf(importRow.id)}
+              style={{
+                backgroundColor: "#fff",
+                color: NAVY,
+                border: `1px solid ${NAVY}`,
+                borderRadius: 6,
+                padding: "8px 14px",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor:
+                  pdfLoading(importRow.id) || pdfUnavailableMessage(importRow.id)
+                    ? "not-allowed"
+                    : "pointer",
+                opacity:
+                  pdfLoading(importRow.id) || pdfUnavailableMessage(importRow.id) ? 0.55 : 1,
+              }}
+            >
+              {pdfLoading(importRow.id) ? "Loading PDF…" : "View original PDF"}
+            </button>
             <button
               type="button"
               data-testid="invoice-parsed-inspect-close"
@@ -208,7 +206,7 @@ export function InvoiceParsedInspectModal({
             </button>
           </div>
         </div>
-        {pdfUnavailableMessage ? (
+        {pdfUnavailableMessage(importRow.id) ? (
           <p
             data-testid="invoice-parsed-inspect-pdf-unavailable"
             style={{
@@ -217,7 +215,7 @@ export function InvoiceParsedInspectModal({
               color: "#9a3412",
             }}
           >
-            {pdfUnavailableMessage}
+            {pdfUnavailableMessage(importRow.id)}
           </p>
         ) : null}
 
