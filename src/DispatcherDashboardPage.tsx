@@ -35,7 +35,6 @@ import {
   shopStockLocationNoteFromLines,
 } from "./dispatcher/shopStockMapping";
 import {
-  DELIVERY_STATUS_LABEL,
   DISPATCHER_REVERT_TARGETS,
   VALID_TRANSITIONS,
   type DeliveryDetails,
@@ -61,7 +60,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived } from "./dispatcher/deliveryDisplayHelpers";
+import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, isDeliveredToSiteListRow, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
 import { isInvoiceShellNoShopStaging, resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
 import {
@@ -142,20 +141,11 @@ function drawerActionBtnRevoke(font: string, disabled: boolean) {
 }
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
-const STATUS_ORDER: DeliveryStatus[] = [
-  "pending",
-  "shipped",
-  "arrived",
-  "partial",
-  "ready_for_pickup",
-  "complete",
-  "issue",
-  "picked_up",
-  "installed",
-];
+const STATUS_ORDER: DeliveryOverviewFilterStatus[] =
+  DELIVERY_OVERVIEW_STATUS_ORDER;
 
 const STATUS_BADGE: Record<
-  DeliveryStatus,
+  DeliveryOverviewFilterStatus,
   { bg: string; text: string; border: string; dot: string }
 > = {
   pending: {
@@ -194,6 +184,12 @@ const STATUS_BADGE: Record<
     border: "#a5d6a7",
     dot: "#66bb6a",
   },
+  delivered: {
+    bg: "#e0f2f1",
+    text: "#00695c",
+    border: "#80cbc4",
+    dot: "#00897b",
+  },
   issue: { bg: "#ffebee", text: "#c62828", border: "#ef9a9a", dot: "#ef5350" },
   picked_up: {
     bg: "#f5f5f5",
@@ -210,7 +206,7 @@ const STATUS_BADGE: Record<
 };
 
 const STATUS_COUNT_COLORS: Record<
-  DeliveryStatus,
+  DeliveryOverviewFilterStatus,
   { bg: string; text: string; accent: string }
 > = {
   pending: { bg: "#fff8e1", text: "#f59104", accent: "#f59104" },
@@ -218,14 +214,15 @@ const STATUS_COUNT_COLORS: Record<
   partial: { bg: "#f3e5f5", text: "#7b1fa2", accent: "#9c27b0" },
   ready_for_pickup: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
   complete: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
+  delivered: { bg: "#e0f2f1", text: "#00695c", accent: "#00897b" },
   issue: { bg: "#ffebee", text: "#c62828", accent: "#d32f2f" },
   picked_up: { bg: "#f5f5f5", text: "#424242", accent: "#757575" },
   shipped: { bg: "#e3f2fd", text: "#0d47a1", accent: "#1976d2" },
   installed: { bg: "#eceff1", text: "#546e7a", accent: "#78909c" },
 };
 
-const STATUS_LABEL = (status: DeliveryStatus): string =>
-  DELIVERY_STATUS_LABEL[status];
+const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
+  DELIVERY_OVERVIEW_FILTER_LABEL[status];
 
 /** Drawer UI simplification (away-080) — sections hidden pending redesign; logic preserved. */
 const DRAWER_HIDE_VENDOR_COMMUNICATIONS = false;
@@ -243,9 +240,10 @@ function resolvedIssueShortSummary(issue: MaterialIssue): string {
 
 function listStatusBadge(
   row: DeliveryListRow,
-): (typeof STATUS_BADGE)[DeliveryStatus] {
+): (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus] {
   const label = row.statusDisplayLabel;
-  if (label === "Complete" || label === "Delivered") return STATUS_BADGE.complete;
+  if (label === "Delivered") return STATUS_BADGE.delivered;
+  if (label === "Complete") return STATUS_BADGE.complete;
   if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Picked Up") return STATUS_BADGE.picked_up;
@@ -279,7 +277,7 @@ const SORT_COLUMNS: Array<{
 
 type ListQueryState = {
   search: string;
-  statuses: DeliveryStatus[];
+  statuses: DeliveryOverviewFilterStatus[];
   sortBy: DeliverySortField;
   sortDirection: SortDirection;
   page: number;
@@ -347,12 +345,15 @@ export function DispatcherDashboardPage() {
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
   /* ── Status summary tile counts (from full unfiltered list) ── */
-  const statusCounts = useMemo<Record<DeliveryStatus, number>>(() => {
+  const statusCounts = useMemo<Record<DeliveryOverviewFilterStatus, number>>(() => {
     const counts = Object.fromEntries(
       STATUS_ORDER.map((s) => [s, 0]),
-    ) as Record<DeliveryStatus, number>;
+    ) as Record<DeliveryOverviewFilterStatus, number>;
     for (const row of allRows) {
       counts[row.status] = (counts[row.status] ?? 0) + 1;
+      if (isDeliveredToSiteListRow(row)) {
+        counts.delivered = (counts.delivered ?? 0) + 1;
+      }
     }
     return counts;
   }, [allRows]);
@@ -781,7 +782,7 @@ export function DispatcherDashboardPage() {
   };
 
   /* ── Filter / sort helpers ── */
-  const toggleStatus = (status: DeliveryStatus) => {
+  const toggleStatus = (status: DeliveryOverviewFilterStatus) => {
     setQuery((prev) => ({
       ...prev,
       page: 1,

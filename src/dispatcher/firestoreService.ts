@@ -72,7 +72,10 @@ import {
   computeJobReadiness,
   type JobReadinessResult,
 } from "./readiness";
-import { computeDeliveryDisplayState } from "./deliveryDisplayHelpers";
+import {
+  computeDeliveryDisplayState,
+  rowMatchesOverviewStatusFilter,
+} from "./deliveryDisplayHelpers";
 import { resolveDeliveryPoNumber } from "./invoice/invoiceShellDisplayHelpers";
 import { extractDeliverToSiteLabel } from "./invoice/invoiceShellDisplayHelpers";
 import type {
@@ -383,7 +386,12 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const filtered = rows.filter((row) => {
-      if (q.statuses?.length && !q.statuses.includes(row.status)) return false;
+      if (q.statuses?.length) {
+        const matches = q.statuses.some((status) =>
+          rowMatchesOverviewStatusFilter(row, status),
+        );
+        if (!matches) return false;
+      }
       if (q.search && !includesSearch(row, q.search)) return false;
       return true;
     });

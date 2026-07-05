@@ -18,6 +18,8 @@ import {
   buildIssueSummaryPanelData,
   computeDeliveryDisplayState,
   sumEffectiveItemQtyReceived,
+  isDeliveredToSiteListRow,
+  rowMatchesOverviewStatusFilter,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 let passed = 0;
@@ -322,6 +324,30 @@ assert(
     [],
     { jobPickupScheduled: true },
   ).issueSummary === "Confirm delivery to Planet Fitness Hartford",
+);
+
+const deliveredListRow = {
+  status: "complete",
+  statusDisplayLabel: "Delivered",
+};
+assert(
+  "delivered overview filter matches deliver-to-site label only",
+  isDeliveredToSiteListRow(deliveredListRow) &&
+    rowMatchesOverviewStatusFilter(deliveredListRow, "delivered") &&
+    rowMatchesOverviewStatusFilter(deliveredListRow, "complete") &&
+    !rowMatchesOverviewStatusFilter(deliveredListRow, "ready_for_pickup"),
+);
+
+assert(
+  "complete overview filter excludes non-delivered complete rows from delivered chip",
+  !rowMatchesOverviewStatusFilter(
+    { status: "complete", statusDisplayLabel: "Ready for Pickup" },
+    "delivered",
+  ) &&
+    rowMatchesOverviewStatusFilter(
+      { status: "complete", statusDisplayLabel: "Ready for Pickup" },
+      "complete",
+    ),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

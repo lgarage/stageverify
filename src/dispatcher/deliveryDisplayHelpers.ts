@@ -1108,3 +1108,43 @@ export function buildPickupInformationClipboardText(
 
   return lines.join("\n");
 }
+
+/** Delivery Overview filter chip — extends workflow status with deliver-to-site bucket. */
+export type DeliveryOverviewFilterStatus = DeliveryStatus | "delivered";
+
+export function isDeliveredToSiteListRow(
+  row: Pick<{ statusDisplayLabel: string }, "statusDisplayLabel">,
+): boolean {
+  return row.statusDisplayLabel === "Delivered";
+}
+
+/** Filter matching for dispatcher Delivery Overview tiles/chips. */
+export function rowMatchesOverviewStatusFilter(
+  row: Pick<{ status: DeliveryStatus; statusDisplayLabel: string }, "status" | "statusDisplayLabel">,
+  filter: DeliveryOverviewFilterStatus,
+): boolean {
+  if (filter === "delivered") return isDeliveredToSiteListRow(row);
+  if (filter === "complete") return row.status === "complete";
+  return row.status === filter;
+}
+
+export const DELIVERY_OVERVIEW_FILTER_LABEL: Record<
+  DeliveryOverviewFilterStatus,
+  string
+> = {
+  ...DELIVERY_STATUS_LABEL,
+  delivered: "Delivered",
+};
+
+export const DELIVERY_OVERVIEW_STATUS_ORDER: DeliveryOverviewFilterStatus[] = [
+  "pending",
+  "shipped",
+  "arrived",
+  "partial",
+  "ready_for_pickup",
+  "complete",
+  "delivered",
+  "issue",
+  "picked_up",
+  "installed",
+];

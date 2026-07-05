@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5–6 — Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **View original PDF in parsed inspect modal (v0.0.8)** ? modal header button opens Gmail attachment via `getVendorInvoicePdf` CF in new tab; works on Invoice Review and drawer "Review parsed invoice data" (no separate drawer PDF button)
+- Last shipped: **Delivered Delivery Overview filter (v0.0.9)** ? summary tile + filter chip for deliver-to-site confirmed rows; Complete count still includes delivered (delivered ? complete); teal Delivered badge distinct from Complete green
+- Also shipped: **View original PDF in parsed inspect modal (v0.0.8)** ? modal header button opens Gmail attachment via `getVendorInvoicePdf` CF in new tab; works on Invoice Review and drawer "Review parsed invoice data" (no separate drawer PDF button)
 - Also shipped: **Parsed inspect modal site-confirmed (v0.0.7)** ? drawer "Review parsed invoice data" hides Review required panel and shows Approval eligible N/A when `invoiceDeliverToSiteConfirmed`
 - Also shipped: **Dispatcher delivered UX + demo review cleanup (v0.0.5)** ? confirmed deliver-to-site: empty Issue Summary (no warning note), subtle undo link in drawer, banner "Delivered to site" not Ready for Pickup; production Needs Review strip no longer shows offline email fixtures (`emailFixtures.ts`)
 - Also shipped: **Deliver-to-site UI cascade (v0.0.4)** ? Mark delivered to site receipts all line items + updates Delivery Status "Delivered", Items Recv. 43/43, drawer item rows; display helpers treat confirmed site delivery as full receipt

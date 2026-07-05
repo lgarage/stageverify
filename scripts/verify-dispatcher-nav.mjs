@@ -25,6 +25,7 @@ import {
   openDeliveryDrawerForNavVerify,
   openOrderDrawerBySearch,
   logDeliveryTableDiagnostics,
+  assertDeliveredOverviewTiles,
   shouldRunPickupTokenVerify,
 } from "./dispatcherVerifyHelpers.mjs";
 
@@ -223,6 +224,9 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 30_000 });
   await logDeliveryTableDiagnostics(page, { authOutcome });
+
+  console.log("Delivery Overview: Delivered summary tile…");
+  await assertDeliveredOverviewTiles(page);
 
   const nav = sidebar(page);
 

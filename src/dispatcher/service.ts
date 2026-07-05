@@ -9,6 +9,7 @@ import type {
   ShopStockLine,
   Vendor,
 } from "./models";
+import type { DeliveryOverviewFilterStatus } from "./deliveryDisplayHelpers";
 import type { JobReadinessResult } from "./readiness";
 
 export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
@@ -56,7 +57,7 @@ export type SortDirection = "asc" | "desc";
 
 export interface DeliveryQuery {
   search?: string;
-  statuses?: DeliveryStatus[];
+  statuses?: DeliveryOverviewFilterStatus[];
   vendorIds?: string[];
   stagingLocationIds?: string[];
   jobId?: string;
