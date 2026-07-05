@@ -1109,13 +1109,32 @@ export function buildPickupInformationClipboardText(
   return lines.join("\n");
 }
 
-/** Delivery Overview filter chip — extends workflow status with deliver-to-site bucket. */
-export type DeliveryOverviewFilterStatus = DeliveryStatus | "delivered";
+/** Delivery Overview filter chip — workflow status (no installed) + deliver-to-site bucket. */
+export type DeliveryOverviewFilterStatus =
+  | Exclude<DeliveryStatus, "installed">
+  | "delivered";
 
 export function isDeliveredToSiteListRow(
   row: Pick<{ statusDisplayLabel: string }, "statusDisplayLabel">,
 ): boolean {
   return row.statusDisplayLabel === "Delivered";
+}
+
+/** Picked up (and legacy installed) — terminal readiness; not a separate SV install tracker. */
+export function isPickedUpOverviewRow(
+  row: Pick<{ status: DeliveryStatus }, "status">,
+): boolean {
+  return row.status === "picked_up" || row.status === "installed";
+}
+
+/** Complete tile/filter — includes delivered-to-site and picked-up terminal rows. */
+export function isCompleteOverviewRow(
+  row: Pick<
+    { status: DeliveryStatus; statusDisplayLabel: string },
+    "status" | "statusDisplayLabel"
+  >,
+): boolean {
+  return row.status === "complete" || isPickedUpOverviewRow(row);
 }
 
 /** Filter matching for dispatcher Delivery Overview tiles/chips. */
@@ -1124,15 +1143,21 @@ export function rowMatchesOverviewStatusFilter(
   filter: DeliveryOverviewFilterStatus,
 ): boolean {
   if (filter === "delivered") return isDeliveredToSiteListRow(row);
-  if (filter === "complete") return row.status === "complete";
+  if (filter === "complete") return isCompleteOverviewRow(row);
+  if (filter === "picked_up") return isPickedUpOverviewRow(row);
   return row.status === filter;
 }
+
+const {
+  installed: _installedOverviewLabel,
+  ...deliveryOverviewStatusLabels
+} = DELIVERY_STATUS_LABEL;
 
 export const DELIVERY_OVERVIEW_FILTER_LABEL: Record<
   DeliveryOverviewFilterStatus,
   string
 > = {
-  ...DELIVERY_STATUS_LABEL,
+  ...deliveryOverviewStatusLabels,
   delivered: "Delivered",
 };
 
@@ -1146,5 +1171,26 @@ export const DELIVERY_OVERVIEW_STATUS_ORDER: DeliveryOverviewFilterStatus[] = [
   "delivered",
   "issue",
   "picked_up",
-  "installed",
 ];
+
+/** Increment summary tile counts for one list row (picked_up ⊆ complete; no installed tile). */
+export function incrementOverviewStatusCounts(
+  counts: Record<DeliveryOverviewFilterStatus, number>,
+  row: Pick<
+    { status: DeliveryStatus; statusDisplayLabel: string },
+    "status" | "statusDisplayLabel"
+  >,
+): void {
+  const primary =
+    row.status === "installed" ? ("picked_up" as const) : row.status;
+  if (primary in counts) {
+    counts[primary as DeliveryOverviewFilterStatus] =
+      (counts[primary as DeliveryOverviewFilterStatus] ?? 0) + 1;
+  }
+  if (isDeliveredToSiteListRow(row)) {
+    counts.delivered = (counts.delivered ?? 0) + 1;
+  }
+  if (isPickedUpOverviewRow(row)) {
+    counts.complete = (counts.complete ?? 0) + 1;
+  }
+}

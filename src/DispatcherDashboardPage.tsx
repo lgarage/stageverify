@@ -48,7 +48,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping, type VendorInvoiceImportReview } from "./dispatcher/models";
+import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, MATERIAL_ISSUE_TYPE_LABEL, DELIVERY_STATUS_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping, type VendorInvoiceImportReview } from "./dispatcher/models";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -60,7 +60,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, isDeliveredToSiteListRow, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
+import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, incrementOverviewStatusCounts, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
 import { isInvoiceShellNoShopStaging, resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
 import {
@@ -197,12 +197,6 @@ const STATUS_BADGE: Record<
     border: "#e0e0e0",
     dot: "#9e9e9e",
   },
-  installed: {
-    bg: "#eceff1",
-    text: "#546e7a",
-    border: "#cfd8dc",
-    dot: "#78909c",
-  },
 };
 
 const STATUS_COUNT_COLORS: Record<
@@ -218,7 +212,6 @@ const STATUS_COUNT_COLORS: Record<
   issue: { bg: "#ffebee", text: "#c62828", accent: "#d32f2f" },
   picked_up: { bg: "#f5f5f5", text: "#424242", accent: "#757575" },
   shipped: { bg: "#e3f2fd", text: "#0d47a1", accent: "#1976d2" },
-  installed: { bg: "#eceff1", text: "#546e7a", accent: "#78909c" },
 };
 
 const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
@@ -254,7 +247,8 @@ function listStatusBadge(
       : STATUS_BADGE.pending;
   }
   if (label === "Incomplete") return STATUS_BADGE.partial;
-  return STATUS_BADGE[row.status];
+  if (row.status === "installed") return STATUS_BADGE.picked_up;
+  return STATUS_BADGE[row.status as DeliveryOverviewFilterStatus];
 }
 
 const SORT_COLUMNS: Array<{
@@ -350,10 +344,7 @@ export function DispatcherDashboardPage() {
       STATUS_ORDER.map((s) => [s, 0]),
     ) as Record<DeliveryOverviewFilterStatus, number>;
     for (const row of allRows) {
-      counts[row.status] = (counts[row.status] ?? 0) + 1;
-      if (isDeliveredToSiteListRow(row)) {
-        counts.delivered = (counts.delivered ?? 0) + 1;
-      }
+      incrementOverviewStatusCounts(counts, row);
     }
     return counts;
   }, [allRows]);
@@ -4238,7 +4229,7 @@ function StatusActionPanel({
                     transition: "all 0.13s",
                   }}
                 >
-                  {loading ? "Updating…" : `Mark ${STATUS_LABEL(status)}`}
+                  {loading ? "Updating…" : `Mark ${DELIVERY_STATUS_LABEL[status]}`}
                 </button>
               ))}
             </div>
@@ -4261,7 +4252,7 @@ function StatusActionPanel({
                   transition: "all 0.13s",
                 }}
               >
-                {loading ? "Updating…" : `Revert to ${STATUS_LABEL(revertTarget)}`}
+                {loading ? "Updating…" : `Revert to ${DELIVERY_STATUS_LABEL[revertTarget]}`}
               </button>
             </div>
           )}

@@ -20,6 +20,7 @@ import {
   sumEffectiveItemQtyReceived,
   isDeliveredToSiteListRow,
   rowMatchesOverviewStatusFilter,
+  DELIVERY_OVERVIEW_STATUS_ORDER,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 let passed = 0;
@@ -348,6 +349,34 @@ assert(
       { status: "complete", statusDisplayLabel: "Ready for Pickup" },
       "complete",
     ),
+);
+
+const pickedUpListRow = {
+  status: "picked_up",
+  statusDisplayLabel: "Picked Up",
+};
+assert(
+  "picked up overview filter matches picked_up status and counts as complete",
+  rowMatchesOverviewStatusFilter(pickedUpListRow, "picked_up") &&
+    rowMatchesOverviewStatusFilter(pickedUpListRow, "complete") &&
+    !rowMatchesOverviewStatusFilter(pickedUpListRow, "delivered"),
+);
+
+assert(
+  "legacy installed rows map to picked up and complete overview filters",
+  rowMatchesOverviewStatusFilter(
+    { status: "installed", statusDisplayLabel: "Picked Up" },
+    "picked_up",
+  ) &&
+    rowMatchesOverviewStatusFilter(
+      { status: "installed", statusDisplayLabel: "Picked Up" },
+      "complete",
+    ),
+);
+
+assert(
+  "installed is not a delivery overview filter chip",
+  !DELIVERY_OVERVIEW_STATUS_ORDER.includes("installed"),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

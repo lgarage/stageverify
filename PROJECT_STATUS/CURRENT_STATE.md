@@ -6,8 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Vendor emailDomain field + Vendors UI (v0.0.11)** ? optional `emailDomain` on Vendor model; editable in Vendors table/add form; demo seed + email fixtures; client email matcher prefers explicit domain
-- Also shipped: **Remove Installed overview filter; Picked Up ? Complete (v0.0.10)** ? no Installed summary tile or filter chip; picked_up (and legacy installed) rows count in Complete tile and match Complete filter; Delivered filter unchanged
+- Last shipped: **Remove Installed overview filter; Picked Up ? Complete (v0.0.12)** ? no Installed summary tile or filter chip; picked_up (and legacy installed) rows count in Complete tile and match Complete filter; Delivered filter unchanged
+- Also shipped: **away-109** ? Vendor emailDomain field + Settings UI
 - Also shipped: **Delivered Delivery Overview filter (v0.0.9)** ? summary tile + filter chip for deliver-to-site confirmed rows; Complete count still includes delivered (delivered ? complete); teal Delivered badge distinct from Complete green
 - Also shipped: **View original PDF in parsed inspect modal (v0.0.8)** ? modal header button opens Gmail attachment via `getVendorInvoicePdf` CF in new tab; works on Invoice Review and drawer "Review parsed invoice data" (no separate drawer PDF button)
 - Also shipped: **Parsed inspect modal site-confirmed (v0.0.7)** ? drawer "Review parsed invoice data" hides Review required panel and shows Approval eligible N/A when `invoiceDeliverToSiteConfirmed`
@@ -48,7 +48,7 @@
 4. **Inbound Gmail CF + rules deploy** ? `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **away-110** — Verify regression bundle + learning-pending merge (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 
 ## Canonical references
 - Handoff: `MINI_LIBRARIAN_HANDOFF.md` | Indexer: `dossier-index.json`, `indexer-memory.json`, `npm run away:next --packet`
