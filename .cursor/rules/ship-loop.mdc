@@ -34,6 +34,7 @@ After **any** substantive code or config change in this repo, complete the ship 
 
 ## Sequence (full ship)
 
+0. **Version bump** — increment `package.json` `version` (patch default) in the same commit as the change, **before** build — see `version-bump-ship-gate.mdc`.
 1. **Validate** — `npm run build` clean; local Playwright / `verify:*` for affected routes (per `composer-orchestrator.mdc`). If any test fails, **do not deploy** — fix and re-run.
 2. **Security gate** (when triggered) — **before push**; invoke exactly one Task per `model-audit-gate.mdc` § Security gate invocation. Fix HIGH before continuing. No push until subagent returns; no Composer self-review substitute.
 3. `git status` — stage **only** task-related files.

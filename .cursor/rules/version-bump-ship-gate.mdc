@@ -1,0 +1,55 @@
+---
+description: Bump package.json version on every substantive commit+deploy so the sidebar shows the current build.
+alwaysApply: true
+---
+
+# Version Bump Ship Gate (stageverify)
+
+Every substantive **commit + deploy** must bump the version shown in the SV desktop app sidebar (above Settings).
+
+## Version chain
+
+| Source | Role |
+|--------|------|
+| `package.json` `version` | Single source of truth |
+| Vite `define` `__APP_VERSION__` | Injected at build (`vite.config.ts`) |
+| `src/appVersion.ts` | Re-exports for UI |
+| `PortalSidebar.tsx` | Label `v{version}` — `data-testid="portal-sidebar-version"` |
+
+## When to bump
+
+**Required** before every substantive ship when:
+
+- `npm run deploy` (gh-pages) runs, or
+- A substantive commit ships (feature/fix/chore with deploy intent) — including CF-only / Firebase-only ships so the **next** UI deploy reflects the bumped version.
+
+**Default increment:** patch — `0.0.0` → `0.0.1` → `0.0.2`. Use minor/major only when Dan explicitly requests a semver milestone.
+
+## When to skip
+
+Mirror **`ship-loop.mdc`** skip table — skip version bump only when **all** hold:
+
+- Dan says hold, commit-only, commit and push only, local only, or do not deploy **and** the change has no bundle/deploy intent, or
+- Work is WIP on a branch (not `main`), or
+- Pure docs-only / rules-only with **no** deploy and **no** bundle impact (same as ship-loop gh-pages skip).
+
+Do **not** skip bump on substantive feature/fix ships that deploy or that will deploy on the next gh-pages cycle.
+
+## Agent checklist (same commit as the change)
+
+1. **Bump** `package.json` `version` (patch default) — **before** `npm run build`.
+2. **Build** — `npm run build` must pass with the new version baked into the bundle.
+3. **Verify** (when UI deploys) — local or prod: sidebar shows new `v*` (`verify:dispatcher-nav` asserts `portal-sidebar-version`).
+4. **Commit** — version bump in the **same commit** as the feature/fix (never a forgotten follow-up).
+5. **Report** — completion reply includes the new version string (e.g. `v0.0.1`).
+
+## Relation to ship-loop
+
+`ship-loop.mdc` owns commit → push → deploy sequence. This rule owns **version bump timing** — step 0 before validate/build. On conflict about skip triggers, ship-loop wins; version bump skips only when ship-loop skips deploy **and** there is no substantive ship requiring a tracked version.
+
+## What NOT to do
+
+❌ Ship/deploy without bumping `package.json` on substantive commits.
+❌ Bump version in a separate commit after the feature (same commit always).
+❌ Edit `PortalSidebar.tsx` or hardcode version strings — `package.json` only.
+❌ Forget across new conversations — this rule is `alwaysApply: true`.

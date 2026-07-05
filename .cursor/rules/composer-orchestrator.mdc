@@ -259,7 +259,7 @@ When Dan stated a time window, append **Remaining time options** after cleanup/m
 Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
 
 ### Deploy
-**Always ship without waiting to be asked** — commit, push, deploy per **`ship-loop.mdc`** (authoritative). Default includes gh-pages (frontend) and Firebase (CF, rules) when the change requires it, after Sonnet security gate passes. Skip only on explicit Dan hold, validation failure, WIP branch, or unfixed HIGH from the gate. Rollback: `git revert <hash>` — not holding back ship.
+**Always ship without waiting to be asked** — commit, push, deploy per **`ship-loop.mdc`** (authoritative). Bump `package.json` version before build on every substantive ship — see **`version-bump-ship-gate.mdc`**. Default includes gh-pages (frontend) and Firebase (CF, rules) when the change requires it, after Sonnet security gate passes. Skip only on explicit Dan hold, validation failure, WIP branch, or unfixed HIGH from the gate. Rollback: `git revert <hash>` — not holding back ship.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
