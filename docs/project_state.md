@@ -209,6 +209,8 @@ No manual push subscription to Cloud Functions â€” Firebase Eventarc subscribes 
 ## Recently shipped (away)
 
 
+**Deliver-to-site UI cascade (2026-07-05, v0.0.4)** ? Mark delivered to site now receipts all line items in Firestore (`qtyReceived = qtyOrdered`) and display helpers treat confirmed site delivery as full receipt: Delivery Status **Delivered**, Items Recv. **43/43**, Issue Summary **Delivered to {site}** (overrides Pickup Scheduled), drawer item rows received, status badge green Delivered. Clear confirmation resets item receipt. Verify: `test:invoice-shell-display`, `verify:dispatcher-nav` local+prod.
+
 **Deliver-to-site confirmation (2026-07-04, v0.0.3)** ? Dispatcher drawer Issue Summary: read-only deliver-to label, Mark delivered to site / Not yet delivered; persists `invoiceDeliverToSiteConfirmed` + timestamp/actor; list Issue Summary + Complete column wait on confirmation. Verify: `test:invoice-shell-display`, `verify:dispatcher-nav`.
 
 **Dispatcher dashboard fixes (2026-07-04)** — Removed View Invoice PDF from drawer/modal; PO # fallback via `resolveDeliveryPoNumber` (`customerPoOrReference`); Complete column counts complete deliveries (not staged). Verify: `npm run test:invoice-shell-display`, `verify:dispatcher-nav`.

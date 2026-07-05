@@ -13,6 +13,12 @@ import {
 } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
 import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
+import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
+import {
+  buildIssueSummaryPanelData,
+  computeDeliveryDisplayState,
+  sumEffectiveItemQtyReceived,
+} from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 let passed = 0;
 let failed = 0;
@@ -220,6 +226,102 @@ assert(
   "resolveDeliveryPoNumber prefers linked PO then invoice customer P/O",
   resolveDeliveryPoNumber("blackduck hartfo", undefined) === "blackduck hartfo" &&
     resolveDeliveryPoNumber("blackduck hartfo", "PO-123") === "PO-123",
+);
+
+const deliverToSiteItems = [
+  {
+    id: "item-1",
+    deliveryOrderId: "delivery-vii-test",
+    jobId: "job-1",
+    description: "Filter A",
+    qtyOrdered: 20,
+    qtyReceived: 0,
+    qtyBackordered: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+  },
+  {
+    id: "item-2",
+    deliveryOrderId: "delivery-vii-test",
+    jobId: "job-1",
+    description: "Filter B",
+    qtyOrdered: 23,
+    qtyReceived: 0,
+    qtyBackordered: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+  },
+];
+
+const deliverToSiteConfirmedDelivery = {
+  id: "delivery-vii-test",
+  orderNumber: "4046362",
+  jobId: "job-1",
+  vendorId: "v-1",
+  vendorName: "Johnstone",
+  deliveryDate: "2026-01-08",
+  status: "complete",
+  vendorOrderComplete: true,
+  vendorOrderCompleteSource: "vendor_email",
+  invoiceDeliverToSite: true,
+  invoiceDeliverToSiteConfirmed: true,
+  invoiceDeliverToLabel: "Planet Fitness Hartford",
+  invoiceImportStatus: "pending",
+  createdFromInvoiceImport: true,
+};
+
+assert(
+  "deliver-to-site confirmed display label is Delivered (not Complete)",
+  deliveryReadinessDisplayLabel(
+    deliverToSiteConfirmedDelivery,
+    deliverToSiteReadiness,
+    deliverToSiteItems,
+  ) === "Delivered",
+);
+
+assert(
+  "sumEffectiveItemQtyReceived treats confirmed site delivery as full receipt",
+  sumEffectiveItemQtyReceived(deliverToSiteConfirmedDelivery, deliverToSiteItems) ===
+    43,
+);
+
+const confirmedPanel = buildIssueSummaryPanelData(
+  deliverToSiteConfirmedDelivery,
+  deliverToSiteItems,
+);
+assert(
+  "issue summary panel shows 43 of 43 when site delivery confirmed",
+  confirmedPanel.itemsReceivedCount === 43 &&
+    confirmedPanel.itemsTotalCount === 43 &&
+    confirmedPanel.deliveryStatusLabel === "Delivered",
+);
+assert(
+  "issue summary panel hides not-delivered rows when site delivery confirmed",
+  confirmedPanel.issueRows.length === 0 &&
+    confirmedPanel.receivedItems.length === 2,
+);
+
+const confirmedDisplay = computeDeliveryDisplayState(
+  deliverToSiteConfirmedDelivery,
+  deliverToSiteItems,
+  [],
+  { jobPickupScheduled: true },
+);
+assert(
+  "issue summary column prefers delivered-to-site over pickup scheduled",
+  confirmedDisplay.issueSummary === "Delivered to Planet Fitness Hartford",
+);
+assert(
+  "unconfirmed deliver-to-site still shows confirm line in issue summary",
+  computeDeliveryDisplayState(
+    {
+      ...deliverToSiteConfirmedDelivery,
+      invoiceDeliverToSiteConfirmed: false,
+    },
+    deliverToSiteItems,
+    [],
+    { jobPickupScheduled: true },
+  ).issueSummary === "Confirm delivery to Planet Fitness Hartford",
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

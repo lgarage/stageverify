@@ -39,7 +39,7 @@ export function deliveryReadinessDisplayLabel(
     delivery.invoiceDeliverToSite === true &&
     delivery.invoiceDeliverToSiteConfirmed === true
   ) {
-    return "Complete";
+    return "Delivered";
   }
   if (countOpenIssuesForLabel(delivery, materialIssues) > 0) {
     return "Issue / Review Required";

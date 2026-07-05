@@ -13,6 +13,7 @@ import {
 } from "./models";
 import {
   buildDeliverToSiteIssueSummary,
+  isDeliverToSiteConfirmed,
   isInvoiceShellNoShopStaging,
 } from "./invoice/invoiceShellDisplayHelpers";
 import { deliveryReadinessDisplayLabel } from "./jobReadinessDisplay";
@@ -39,6 +40,45 @@ export function sumItemQtyOrdered(items: Item[]): number {
 
 export function sumItemQtyReceived(items: Item[]): number {
   return items.reduce((sum, item) => sum + item.qtyReceived, 0);
+}
+
+/** Deliver-to-site confirmed: treat full order qty as received for display/counts. */
+export function isDeliverToSiteFullyReceived(
+  delivery: Pick<
+    DeliveryOrder,
+    "invoiceDeliverToSite" | "invoiceDeliverToSiteConfirmed"
+  >,
+): boolean {
+  return (
+    delivery.invoiceDeliverToSite === true &&
+    isDeliverToSiteConfirmed(delivery)
+  );
+}
+
+export function effectiveItemQtyReceived(
+  delivery: Pick<
+    DeliveryOrder,
+    "invoiceDeliverToSite" | "invoiceDeliverToSiteConfirmed"
+  >,
+  item: Item,
+): number {
+  if (isDeliverToSiteFullyReceived(delivery)) {
+    return item.qtyOrdered;
+  }
+  return item.qtyReceived;
+}
+
+export function sumEffectiveItemQtyReceived(
+  delivery: Pick<
+    DeliveryOrder,
+    "invoiceDeliverToSite" | "invoiceDeliverToSiteConfirmed"
+  >,
+  items: Item[],
+): number {
+  if (isDeliverToSiteFullyReceived(delivery)) {
+    return sumItemQtyOrdered(items);
+  }
+  return sumItemQtyReceived(items);
 }
 
 export function countOpenMaterialIssues(
@@ -209,19 +249,13 @@ function buildComputedIssueSummary(
   }
 
   const deliverToSiteSummary = buildDeliverToSiteIssueSummary(delivery);
-  if (
-    deliverToSiteSummary &&
-    delivery.invoiceDeliverToSiteConfirmed !== true
-  ) {
+  if (deliverToSiteSummary) {
     return deliverToSiteSummary;
   }
 
   if (readiness.readyForPickup) {
     if (displayOptions?.jobPickupScheduled) {
       return "Pickup Scheduled";
-    }
-    if (deliverToSiteSummary) {
-      return deliverToSiteSummary;
     }
     return "";
   }
@@ -397,7 +431,7 @@ function countExceptionOpenIssues(
   materialIssues: MaterialIssue[] | undefined,
   issueRows: ItemIssueRow[],
 ): number {
-  const itemsReceivedCount = sumItemQtyReceived(items);
+  const itemsReceivedCount = sumEffectiveItemQtyReceived(delivery, items);
   const exceptionRows = filterExceptionItemIssueRows(
     issueRows,
     itemsReceivedCount,
@@ -446,7 +480,7 @@ function deliveryNeedsVendorOutreach(
   }
   if (
     vendorClaimsDelivered(delivery) &&
-    sumItemQtyReceived(items) < sumItemQtyOrdered(items)
+    sumEffectiveItemQtyReceived(delivery, items) < sumItemQtyOrdered(items)
   ) {
     return true;
   }
@@ -490,7 +524,7 @@ export function buildOpenIssueExplanations(
     explanations.push({ id, text });
   };
 
-  const itemsReceivedCount = sumItemQtyReceived(items);
+  const itemsReceivedCount = sumEffectiveItemQtyReceived(delivery, items);
   const exceptionRows = filterExceptionItemIssueRows(
     issueRows,
     itemsReceivedCount,
@@ -756,18 +790,25 @@ export const ITEM_ISSUE_STATUS_COLOR: Record<ItemIssueDisplayStatus, string> = {
 
 export function deriveItemIssueDisplayStatus(
   item: Item,
+  delivery?: Pick<
+    DeliveryOrder,
+    "invoiceDeliverToSite" | "invoiceDeliverToSiteConfirmed"
+  >,
 ): ItemIssueDisplayStatus | null {
-  const outstanding = item.qtyOrdered - item.qtyReceived;
+  const qtyReceived = delivery
+    ? effectiveItemQtyReceived(delivery, item)
+    : item.qtyReceived;
+  const outstanding = item.qtyOrdered - qtyReceived;
   if (item.qtyBackordered > 0) {
     return "Backordered";
   }
-  if (outstanding <= 0 && item.qtyReceived > 0) {
+  if (outstanding <= 0 && qtyReceived > 0) {
     return null;
   }
-  if (item.qtyReceived === 0) {
+  if (qtyReceived === 0) {
     return "Not Delivered";
   }
-  if (item.qtyReceived > 0 && item.qtyReceived < item.qtyOrdered) {
+  if (qtyReceived > 0 && qtyReceived < item.qtyOrdered) {
     return "Partial Delivery";
   }
   return null;
@@ -799,11 +840,11 @@ export function buildIssueSummaryPanelData(
     options,
   );
   const itemsTotalCount = sumItemQtyOrdered(items);
-  const itemsReceivedCount = sumItemQtyReceived(items);
+  const itemsReceivedCount = sumEffectiveItemQtyReceived(delivery, items);
 
   const issueRows: ItemIssueRow[] = [];
   for (const item of items) {
-    const status = deriveItemIssueDisplayStatus(item);
+    const status = deriveItemIssueDisplayStatus(item, delivery);
     if (!status) continue;
     issueRows.push({
       itemId: item.id,
@@ -814,11 +855,11 @@ export function buildIssueSummaryPanelData(
   }
 
   const receivedItems: ReceivedItemRow[] = items
-    .filter((item) => item.qtyReceived > 0)
+    .filter((item) => effectiveItemQtyReceived(delivery, item) > 0)
     .map((item) => ({
       itemId: item.id,
       description: item.description,
-      qty: item.qtyReceived,
+      qty: effectiveItemQtyReceived(delivery, item),
     }));
 
   const openIssuesCount = countExceptionOpenIssues(

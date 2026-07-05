@@ -347,7 +347,11 @@ export class FirestoreDataService implements DispatcherDataService {
         (i) => i.deliveryOrderId === delivery.id,
       );
       const ordered = lineItems.reduce((sum, i) => sum + i.qtyOrdered, 0);
-      const received = lineItems.reduce((sum, i) => sum + i.qtyReceived, 0);
+      const received =
+        delivery.invoiceDeliverToSite === true &&
+        delivery.invoiceDeliverToSiteConfirmed === true
+          ? ordered
+          : lineItems.reduce((sum, i) => sum + i.qtyReceived, 0);
       const materialIssues = materialIssuesByDelivery.get(delivery.id) ?? [];
       const display = computeDeliveryDisplayState(
         delivery,
@@ -952,6 +956,11 @@ export class FirestoreDataService implements DispatcherDataService {
     const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
     const siteLabel = delivery.invoiceDeliverToLabel?.trim();
+    const lineItems = await fetchWhere<Item>(
+      "items",
+      "deliveryOrderId",
+      deliveryId,
+    );
 
     if (confirmed) {
       batch.update(doc(db, "deliveries", deliveryId), {
@@ -960,6 +969,18 @@ export class FirestoreDataService implements DispatcherDataService {
         invoiceDeliverToSiteConfirmedBy: actorName,
         updatedAt: now,
       });
+      for (const item of lineItems) {
+        if (item.qtyReceived >= item.qtyOrdered) continue;
+        batch.update(doc(db, "items", item.id), {
+          qtyReceived: item.qtyOrdered,
+          status: computeItemStatus({
+            qtyReceived: item.qtyOrdered,
+            qtyMissing: item.qtyMissing,
+            qtyDamaged: item.qtyDamaged,
+            qtyOrdered: item.qtyOrdered,
+          }),
+        });
+      }
     } else {
       batch.update(doc(db, "deliveries", deliveryId), {
         invoiceDeliverToSiteConfirmed: false,
@@ -967,6 +988,18 @@ export class FirestoreDataService implements DispatcherDataService {
         invoiceDeliverToSiteConfirmedBy: null,
         updatedAt: now,
       });
+      for (const item of lineItems) {
+        if (item.qtyReceived === 0) continue;
+        batch.update(doc(db, "items", item.id), {
+          qtyReceived: 0,
+          status: computeItemStatus({
+            qtyReceived: 0,
+            qtyMissing: item.qtyMissing,
+            qtyDamaged: item.qtyDamaged,
+            qtyOrdered: item.qtyOrdered,
+          }),
+        });
+      }
     }
 
     batch.set(doc(db, "statusHistory", eventId), {

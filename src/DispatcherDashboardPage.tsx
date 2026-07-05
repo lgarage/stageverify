@@ -61,7 +61,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText } from "./dispatcher/deliveryDisplayHelpers";
+import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived } from "./dispatcher/deliveryDisplayHelpers";
 import { isInvoiceShellNoShopStaging, resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
 import {
@@ -245,7 +245,7 @@ function listStatusBadge(
   row: DeliveryListRow,
 ): (typeof STATUS_BADGE)[DeliveryStatus] {
   const label = row.statusDisplayLabel;
-  if (label === "Complete") return STATUS_BADGE.complete;
+  if (label === "Complete" || label === "Delivered") return STATUS_BADGE.complete;
   if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Picked Up") return STATUS_BADGE.picked_up;
@@ -3243,7 +3243,11 @@ function DetailContent({
             }}
           >
             {details.items.map((item) => {
-              const notReceivedYet = item.qtyReceived === 0;
+              const qtyReceived = effectiveItemQtyReceived(
+                details.delivery,
+                item,
+              );
+              const notReceivedYet = qtyReceived === 0;
               const sb = notReceivedYet
                 ? { bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db" }
                 : (STATUS_BADGE_LOCAL[item.status] ?? {
@@ -3329,7 +3333,7 @@ function DetailContent({
                       },
                       {
                         label: notReceivedYet ? "Not received yet" : "Received",
-                        value: notReceivedYet ? "0" : String(item.qtyReceived),
+                        value: notReceivedYet ? "0" : String(qtyReceived),
                         bg: notReceivedYet ? "#f3f4f6" : "#e8f5e9",
                         text: notReceivedYet ? "#6b7280" : "#2e7d32",
                         border: notReceivedYet ? "#d1d5db" : "#a5d6a7",

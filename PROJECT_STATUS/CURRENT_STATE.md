@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5â€“6 â€” Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **Deliver-to-site confirmation (v0.0.3)** ? dispatcher drawer marks/clears site delivery; Issue Summary confirm/delivered lines; Complete counts wait on `invoiceDeliverToSiteConfirmed`
+- Last shipped: **Deliver-to-site UI cascade (v0.0.4)** ? Mark delivered to site receipts all line items + updates Delivery Status "Delivered", Items Recv. 43/43, Issue Summary delivered line, drawer item rows; display helpers treat confirmed site delivery as full receipt
+- Also shipped: **Deliver-to-site confirmation (v0.0.3)** ? dispatcher drawer marks/clears site delivery; Issue Summary confirm/delivered lines; Complete counts wait on `invoiceDeliverToSiteConfirmed`
 - Also shipped: **Dispatcher dashboard fixes (v0.0.2)** — removed View Invoice PDF from drawer/modal; PO # via `resolveDeliveryPoNumber` (`customerPoOrReference` fallback); Complete column counts `complete` deliveries not staged
 - Also shipped: **Sidebar build version** — persistent `v{package.json}` label above Settings (from Vite define); `verify:dispatcher-nav` asserts `portal-sidebar-version`
 - Also shipped: **Invoice shell drawer + staging guard** â€” deliver-to-site/will-call shells skip shop staging only when `createdFromInvoiceImport` or canonical `delivery-vii-*` id; invoice PDF callables; drawer View PDF + shell display helpers; `create_shell` patch gated to invoice shells only
