@@ -33,9 +33,36 @@ async function ensureAuthenticated(page) {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
-  await page.waitForTimeout(1500);
 
-  if (!page.url().includes("/login")) return;
+  const searchInput = page.locator('input[placeholder*="Job #, name, PO"]');
+  const loginEmail = page.locator("#email");
+
+  let outcome = "loading";
+  try {
+    outcome = await Promise.race([
+      searchInput
+        .waitFor({ state: "visible", timeout: 45_000 })
+        .then(() => "dispatcher"),
+      loginEmail
+        .waitFor({ state: "visible", timeout: 45_000 })
+        .then(() => "login"),
+    ]);
+  } catch {
+    outcome = "timeout";
+  }
+
+  if (outcome === "dispatcher") return;
+
+  if (outcome === "timeout") {
+    const url = page.url();
+    const body = (await page.locator("body").innerText().catch(() => "")).slice(
+      0,
+      160,
+    );
+    throw new Error(
+      `Auth bootstrap timeout before dispatcher or login — URL ${url}; body: ${body}`,
+    );
+  }
 
   if (!email || !password) {
     throw new Error(
@@ -46,16 +73,7 @@ async function ensureAuthenticated(page) {
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/#\/(dispatcher|settings|hub|zones|vendors)/, {
-    timeout: 20_000,
-  });
-
-  if (!page.url().includes("/dispatcher")) {
-    await page.goto(`${appBase}/#/dispatcher`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
-  }
+  await searchInput.waitFor({ state: "visible", timeout: 30_000 });
 }
 
 function assertUrl(page, pattern, label) {
