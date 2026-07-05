@@ -472,6 +472,12 @@ export interface DeliveryOrder {
   vendorInvoiceImportId?: string;
   /** Import-domain status label source — e.g. pickup_at_vendor → Will-Call / Pickup. */
   invoiceImportStatus?: string;
+  /** Parsed fulfillment — will_call_pickup skips shop staging. */
+  invoiceFulfillmentMethod?: "delivery" | "will_call_pickup" | "unknown";
+  /** Job-site delivery from invoice order notes — no shop staging. */
+  invoiceDeliverToSite?: boolean;
+  invoiceDeliverToLabel?: string;
+  createdFromInvoiceImport?: boolean;
   vendorInvoiceNumber?: string;
   vendorOrderNumber?: string;
   customerPoOrReference?: string;

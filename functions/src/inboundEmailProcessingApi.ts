@@ -7,13 +7,36 @@ import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboun
 import { clampListLimit, requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { recoverStrandedInboundProcessingList } from "./inboundEmail/recoverStrandedProcessing";
 import { sanitizeVendorInvoiceImportForClient } from "./inboundEmail/sanitizeVendorInvoiceImport";
+import { downloadGmailAttachment, getGmailAccessTokenForProvider } from "./gmailInbound";
 
 const COLLECTION = "inboundEmailProcessing";
+const IMPORTS_COLLECTION = "vendorInvoiceImports";
 const MAX_LIST = 50;
 const MAX_TEXT_PREVIEW = 4000;
+const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 function getDb() {
   return admin.firestore();
+}
+
+async function loadGmailRefreshToken(): Promise<string> {
+  const conn = await getDb().collection("emailProviderConnections").doc("gmail").get();
+  if (!conn.exists) {
+    throw new HttpsError("failed-precondition", "Gmail is not connected.");
+  }
+  const status = (conn.data() as { status?: string }).status;
+  if (status !== "connected") {
+    throw new HttpsError("failed-precondition", "Gmail is not connected.");
+  }
+  const secretSnap = await getDb().collection("emailProviderSecrets").doc("gmail").get();
+  if (!secretSnap.exists) {
+    throw new HttpsError("failed-precondition", "Gmail credentials are missing.");
+  }
+  const refreshToken = (secretSnap.data() as { refreshToken?: string }).refreshToken?.trim();
+  if (!refreshToken) {
+    throw new HttpsError("failed-precondition", "Gmail refresh token is missing.");
+  }
+  return refreshToken;
 }
 
 function sanitizeDocForClient(doc: InboundEmailProcessingDoc): Record<string, unknown> {
@@ -107,5 +130,93 @@ export const listVendorInvoiceImports = onCall(
       sanitizeVendorInvoiceImportForClient(d.data() as VendorInvoiceImportDoc),
     );
     return { items, count: items.length };
+  },
+);
+
+export const getVendorInvoiceImport = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    await requireDispatcherAuth(request);
+    const data = (request.data ?? {}) as { id?: string };
+    const id = typeof data.id === "string" ? data.id.trim() : "";
+    if (!id || id.length > 256) {
+      throw new HttpsError("invalid-argument", "id is required.");
+    }
+
+    const snap = await getDb().collection(IMPORTS_COLLECTION).doc(id).get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Vendor invoice import not found.");
+    }
+
+    return sanitizeVendorInvoiceImportForClient(snap.data() as VendorInvoiceImportDoc);
+  },
+);
+
+export const getVendorInvoicePdf = onCall(
+  { region: "us-central1", timeoutSeconds: 60 },
+  async (request) => {
+    await requireDispatcherAuth(request);
+    const data = (request.data ?? {}) as { vendorInvoiceImportId?: string };
+    const importId =
+      typeof data.vendorInvoiceImportId === "string"
+        ? data.vendorInvoiceImportId.trim()
+        : "";
+    if (!importId || importId.length > 256) {
+      throw new HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
+    }
+
+    const importSnap = await getDb().collection(IMPORTS_COLLECTION).doc(importId).get();
+    if (!importSnap.exists) {
+      throw new HttpsError("not-found", "Vendor invoice import not found.");
+    }
+    const importDoc = importSnap.data() as VendorInvoiceImportDoc;
+    const inboundId = importDoc.inboundEmailProcessingId?.trim();
+    if (!inboundId) {
+      throw new HttpsError("failed-precondition", "Import has no inbound email record.");
+    }
+
+    const inboundSnap = await getDb().collection(COLLECTION).doc(inboundId).get();
+    if (!inboundSnap.exists) {
+      throw new HttpsError("not-found", "Inbound email processing record not found.");
+    }
+    const inbound = inboundSnap.data() as InboundEmailProcessingDoc;
+    const gmailMessageId = inbound.gmailMessageId?.trim();
+    if (!gmailMessageId) {
+      throw new HttpsError("failed-precondition", "Inbound email has no Gmail message id.");
+    }
+
+    const attachments = inbound.pdfAttachments ?? [];
+    const pageIndex = importDoc.pageIndexInBatch ?? 0;
+    const attachment =
+      attachments[pageIndex] ??
+      attachments.find((att) => !att.extractError) ??
+      attachments[0];
+    if (!attachment?.gmailAttachmentId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "No PDF attachment metadata on this inbound email.",
+      );
+    }
+
+    const refreshToken = await loadGmailRefreshToken();
+    const accessToken = await getGmailAccessTokenForProvider(refreshToken);
+    const bytes = await downloadGmailAttachment(
+      accessToken,
+      gmailMessageId,
+      attachment.gmailAttachmentId,
+    );
+    if (bytes.length > MAX_PDF_BYTES) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Invoice PDF exceeds maximum download size.",
+      );
+    }
+
+    return {
+      filename: attachment.filename || "invoice.pdf",
+      mimeType: attachment.mimeType || "application/pdf",
+      sizeBytes: bytes.length,
+      dataBase64: bytes.toString("base64"),
+    };
   },
 );

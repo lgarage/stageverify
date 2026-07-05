@@ -3,6 +3,12 @@ import { HttpsError } from "firebase-functions/v2/https";
 import { loadEmailMatchContext } from "../email/loadMatchContext";
 import { buildExpectedItemsFromImport } from "./buildExpectedItemsFromImport";
 import { deliveryStatusFromImportStatus } from "./deliveryStatusFromImportStatus";
+import {
+  extractDeliverToSiteLabel,
+  jobNameFromInvoiceContext,
+  jobNameFromInvoicePo,
+  resolveShellDeliveryStatus,
+} from "./invoiceShellDisplayHelpers";
 import { matchInvoiceToRecords } from "./matchInvoiceToRecords";
 import type { ParsedInvoiceHeader } from "./types";
 import type { VendorInvoiceImportDoc } from "../inboundEmail/types";
@@ -171,14 +177,7 @@ export function jobIdFromInvoicePoSlug(header: ParsedInvoiceHeader): string {
   return `job-inv-${slug || "unknown"}`;
 }
 
-export function jobNameFromInvoicePo(customerPoOrReference: string): string {
-  return customerPoOrReference
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
+export { jobNameFromInvoicePo, jobNameFromInvoiceContext } from "./invoiceShellDisplayHelpers";
 
 export function jobNumberFromInvoiceHeader(header: ParsedInvoiceHeader): string {
   const raw = header.jobNumberRaw?.trim();
@@ -195,6 +194,7 @@ async function ensureJobForInvoiceShell(
   header: ParsedInvoiceHeader,
   ctx: Awaited<ReturnType<typeof loadEmailMatchContext>>,
   matchJobId?: string,
+  orderNotes: readonly string[] = [],
 ): Promise<{ jobId: string; jobCreated: boolean }> {
   const resolved = resolveJobIdFromHints(header, ctx, matchJobId);
   if (resolved) return { jobId: resolved, jobCreated: false };
@@ -214,10 +214,15 @@ async function ensureJobForInvoiceShell(
   }
 
   const now = new Date().toISOString();
+  const resolvedJobName = jobNameFromInvoiceContext(
+    po,
+    orderNotes,
+    header.shipToName,
+  );
   await db.collection("jobs").doc(jobId).set({
     id: jobId,
     jobNumber: jobNumberFromInvoiceHeader(header),
-    jobName: jobNameFromInvoicePo(po),
+    jobName: resolvedJobName,
     status: "active",
     createdFromInvoiceImport: true,
     createdAt: now,
@@ -242,6 +247,9 @@ export interface InvoiceShellContext {
   vendorOrderNumber: string;
   customerPo: string;
   deliveryStatus: ReturnType<typeof deliveryStatusFromImportStatus>;
+  invoiceFulfillmentMethod: ParsedInvoiceHeader["fulfillmentMethod"];
+  invoiceDeliverToSite: boolean;
+  invoiceDeliverToLabel?: string;
 }
 
 /** Resolve job/vendor + line items for a dashboard shell — auto-creates job from P/O when unmatched. */
@@ -251,6 +259,9 @@ export async function buildInvoiceDeliveryShellContext(
   importDoc: VendorInvoiceImportDoc,
 ): Promise<InvoiceShellContext> {
   const header = asParsedHeader(importDoc.parsedHeader);
+  const orderNotes = importDoc.orderNotes ?? [];
+  const deliverToLabel = extractDeliverToSiteLabel(orderNotes);
+  const deliverToSite = Boolean(deliverToLabel);
   const ctx = await loadEmailMatchContext();
   const match = matchInvoiceToRecords(importId, header, ctx);
 
@@ -259,6 +270,7 @@ export async function buildInvoiceDeliveryShellContext(
     header,
     ctx,
     match.jobId,
+    orderNotes,
   );
 
   let vendorId = match.vendorId;
@@ -309,6 +321,12 @@ export async function buildInvoiceDeliveryShellContext(
 
   const orderNumber = vendorOrderNumber || vendorInvoiceNumber || deliveryOrderId;
 
+  const deliveryStatus = resolveShellDeliveryStatus(
+    importDoc.importStatus,
+    header.fulfillmentMethod,
+    deliverToSite,
+  ) as ReturnType<typeof deliveryStatusFromImportStatus>;
+
   return {
     deliveryOrderId,
     jobId,
@@ -323,8 +341,34 @@ export async function buildInvoiceDeliveryShellContext(
     vendorInvoiceNumber,
     vendorOrderNumber,
     customerPo,
-    deliveryStatus: deliveryStatusFromImportStatus(importDoc.importStatus),
+    deliveryStatus,
+    invoiceFulfillmentMethod: header.fulfillmentMethod,
+    invoiceDeliverToSite: deliverToSite,
+    ...(deliverToLabel ? { invoiceDeliverToLabel: deliverToLabel } : {}),
   };
+}
+
+/** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
+export function buildInvoiceShellPatchDocument(
+  shell: InvoiceShellContext,
+  importId: string,
+  importDoc: VendorInvoiceImportDoc,
+  now: string,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {
+    status: shell.deliveryStatus,
+    vendorInvoiceImportId: importId,
+    invoiceImportStatus: importDoc.importStatus,
+    invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+    updatedAt: now,
+  };
+  if (shell.invoiceDeliverToSite) {
+    patch.invoiceDeliverToSite = true;
+    if (shell.invoiceDeliverToLabel) {
+      patch.invoiceDeliverToLabel = shell.invoiceDeliverToLabel;
+    }
+  }
+  return patch;
 }
 
 /** Fields for a new delivery shell — no staging, readiness, or pickup side effects. */
@@ -345,6 +389,15 @@ export function buildDeliveryShellDocument(
     status: shell.deliveryStatus,
     vendorInvoiceImportId: importId,
     invoiceImportStatus: importDoc.importStatus,
+    invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+    ...(shell.invoiceDeliverToSite
+      ? {
+          invoiceDeliverToSite: true,
+          ...(shell.invoiceDeliverToLabel
+            ? { invoiceDeliverToLabel: shell.invoiceDeliverToLabel }
+            : {}),
+        }
+      : {}),
     createdFromInvoiceImport: true,
     vendorOrderComplete: true,
     vendorOrderCompleteAt: now,

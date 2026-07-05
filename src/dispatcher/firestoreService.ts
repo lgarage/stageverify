@@ -2076,6 +2076,23 @@ const approveVendorInvoiceImportCallable = httpsCallable<
   ApproveVendorInvoiceImportResult
 >(functions, "approveVendorInvoiceImport");
 
+const getVendorInvoiceImportCallable = httpsCallable<
+  { id: string },
+  VendorInvoiceImportReview
+>(functions, "getVendorInvoiceImport");
+
+export interface VendorInvoicePdfPayload {
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
+}
+
+const getVendorInvoicePdfCallable = httpsCallable<
+  { vendorInvoiceImportId: string },
+  VendorInvoicePdfPayload
+>(functions, "getVendorInvoicePdf");
+
 export async function listVendorInvoiceImports(options?: {
   limit?: number;
   inboundEmailProcessingId?: string;
@@ -2085,6 +2102,20 @@ export async function listVendorInvoiceImports(options?: {
     inboundEmailProcessingId: options?.inboundEmailProcessingId,
   });
   return response.data.items ?? [];
+}
+
+export async function getVendorInvoiceImport(
+  id: string,
+): Promise<VendorInvoiceImportReview> {
+  const response = await getVendorInvoiceImportCallable({ id });
+  return response.data;
+}
+
+export async function fetchVendorInvoicePdf(
+  vendorInvoiceImportId: string,
+): Promise<VendorInvoicePdfPayload> {
+  const response = await getVendorInvoicePdfCallable({ vendorInvoiceImportId });
+  return response.data;
 }
 
 export async function matchInvoiceToRecords(

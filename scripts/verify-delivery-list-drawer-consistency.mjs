@@ -15,6 +15,7 @@ import {
   DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
   isDispatcherTableStagingActionRequired,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
+import { isInvoiceShellNoShopStaging } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
@@ -125,6 +126,45 @@ function assertOfflineStagingActionRules() {
   record(
     "offline — installed closed record exempt from action row",
     !isDispatcherTableStagingActionRequired(installedNoStaging),
+  );
+
+  const willCallShell = {
+    ...pendingNoStaging,
+    id: "offline-willcall",
+    status: "complete",
+    invoiceImportStatus: "pickup_at_vendor",
+    createdFromInvoiceImport: true,
+  };
+  record(
+    "offline — Will-Call / pickup_at_vendor exempt from staging action",
+    !isDispatcherTableStagingActionRequired(willCallShell),
+  );
+  const willCallDisplay = computeDeliveryDisplayState(
+    willCallShell,
+    zeroReceivedItems,
+    [],
+  );
+  record(
+    "offline — Will-Call Issue Summary not Assign staging location",
+    willCallDisplay.issueSummary !== DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
+    willCallDisplay.issueSummary,
+  );
+
+  const deliverToSiteShell = {
+    ...pendingNoStaging,
+    id: "offline-deliver-site",
+    status: "complete",
+    invoiceImportStatus: "pending",
+    invoiceDeliverToSite: true,
+    createdFromInvoiceImport: true,
+  };
+  record(
+    "offline — deliver-to-site exempt from staging action",
+    !isDispatcherTableStagingActionRequired(deliverToSiteShell),
+  );
+  record(
+    "offline — deliver-to-site helper agrees",
+    isInvoiceShellNoShopStaging(deliverToSiteShell),
   );
 }
 

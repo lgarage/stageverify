@@ -11,6 +11,7 @@ import {
   MATERIAL_ISSUE_TYPE_LABEL,
   type DeliveryStatus,
 } from "./models";
+import { isInvoiceShellNoShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 import { deliveryReadinessDisplayLabel } from "./jobReadinessDisplay";
 import {
   computeDeliveryReadiness,
@@ -84,9 +85,18 @@ export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
  * Terminal installed deliveries are excluded (closed record).
  */
 export function isDispatcherTableStagingActionRequired(
-  delivery: Pick<DeliveryOrder, "stagingLocationId" | "status">,
+  delivery: Pick<
+    DeliveryOrder,
+    | "stagingLocationId"
+    | "status"
+    | "invoiceImportStatus"
+    | "invoiceFulfillmentMethod"
+    | "invoiceDeliverToSite"
+    | "createdFromInvoiceImport"
+  >,
 ): boolean {
   if (delivery.status === "installed") return false;
+  if (isInvoiceShellNoShopStaging(delivery)) return false;
   return !delivery.stagingLocationId?.trim();
 }
 
@@ -170,6 +180,7 @@ function buildBlockerLabels(
   if (
     !delivery.stagingLocationId?.trim() &&
     items.some((item) => item.qtyReceived > 0) &&
+    !isInvoiceShellNoShopStaging(delivery) &&
     !labels.includes("Staging location not assigned")
   ) {
     labels.push("Staging location not assigned");
@@ -611,7 +622,8 @@ export function buildDrawerActionBannerContent(
 
     if (
       !delivery.stagingLocationId?.trim() &&
-      items.some((item) => item.qtyReceived > 0)
+      items.some((item) => item.qtyReceived > 0) &&
+      !isInvoiceShellNoShopStaging(delivery)
     ) {
       pushWhy("Received items do not have a staging location assigned");
       pushNext("Assign a staging location for received items");

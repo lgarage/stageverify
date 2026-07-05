@@ -56,6 +56,10 @@ export function InvoiceParsedInspectModal({
   onReject,
   onReopen,
   onLink,
+  readOnly = false,
+  onViewPdf,
+  pdfLoading = false,
+  pdfUnavailableMessage = null,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -70,6 +74,11 @@ export function InvoiceParsedInspectModal({
   onReject?: () => void;
   onReopen?: () => void;
   onLink?: () => void;
+  /** Drawer inspect — hide review actions and delivery picker. */
+  readOnly?: boolean;
+  onViewPdf?: () => void;
+  pdfLoading?: boolean;
+  pdfUnavailableMessage?: string | null;
 }) {
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
@@ -87,11 +96,12 @@ export function InvoiceParsedInspectModal({
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
   const showDeliveryPicker =
-    isPending || isRejected || isApprovedUnlinked;
+    !readOnly && (isPending || isRejected || isApprovedUnlinked);
   const showActions =
-    (isPending && (onApprove || onReject)) ||
-    (isRejected && (onApprove || onReopen)) ||
-    (isApprovedUnlinked && Boolean(onLink));
+    !readOnly &&
+    ((isPending && (onApprove || onReject)) ||
+      (isRejected && (onApprove || onReopen)) ||
+      (isApprovedUnlinked && Boolean(onLink)));
   const approveDisabled = actionLoading || approveBlocked;
   const linkDisabled = actionLoading || approveBlocked || !selectedDeliveryId?.trim();
 
@@ -150,24 +160,61 @@ export function InvoiceParsedInspectModal({
               {importRow.pageId} · batch {importRow.importBatchId}
             </p>
           </div>
-          <button
-            type="button"
-            data-testid="invoice-parsed-inspect-close"
-            onClick={onClose}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {onViewPdf ? (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-view-pdf"
+                disabled={pdfLoading || Boolean(pdfUnavailableMessage)}
+                title={pdfUnavailableMessage ?? undefined}
+                onClick={onViewPdf}
+                style={{
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  border: `1px solid ${NAVY}`,
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor:
+                    pdfLoading || pdfUnavailableMessage ? "not-allowed" : "pointer",
+                  opacity: pdfLoading || pdfUnavailableMessage ? 0.55 : 1,
+                }}
+              >
+                {pdfLoading ? "Loading PDF…" : "View invoice PDF"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              data-testid="invoice-parsed-inspect-close"
+              onClick={onClose}
+              style={{
+                backgroundColor: "#fff",
+                color: NAVY,
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+                padding: "8px 14px",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+        {pdfUnavailableMessage ? (
+          <p
+            data-testid="invoice-parsed-inspect-pdf-unavailable"
             style={{
-              backgroundColor: "#fff",
-              color: NAVY,
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              padding: "8px 14px",
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: "pointer",
+              margin: "0 0 12px",
+              fontSize: 12,
+              color: "#9a3412",
             }}
           >
-            Close
-          </button>
-        </div>
+            {pdfUnavailableMessage}
+          </p>
+        ) : null}
 
         {showDeliveryPicker && onSelectDelivery && (
           <InvoiceDeliveryMatchSection

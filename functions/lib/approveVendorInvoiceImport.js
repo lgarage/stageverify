@@ -11,6 +11,7 @@ const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
+const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -216,10 +217,39 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
         }
         if (importDoc.linkedDeliveryOrderId?.trim()) {
+            const linkedId = importDoc.linkedDeliveryOrderId.trim();
+            const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+            const deliveryRef = getDb().collection("deliveries").doc(linkedId);
+            const deliverySnap = await deliveryRef.get();
+            if (deliverySnap.exists) {
+                const delivery = deliverySnap.data();
+                const isInvoiceShell = linkedId === shell.deliveryOrderId ||
+                    delivery.createdFromInvoiceImport === true;
+                if (isInvoiceShell) {
+                    await deliveryRef.update((0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, importDoc, now));
+                }
+                const jobSnap = await getDb().collection("jobs").doc(shell.jobId).get();
+                const jobData = jobSnap.data();
+                if (isInvoiceShell && jobData?.createdFromInvoiceImport === true) {
+                    const header = importDoc.parsedHeader;
+                    const orderNotes = importDoc.orderNotes ?? [];
+                    const po = typeof header.customerPoOrReference === "string"
+                        ? header.customerPoOrReference
+                        : "";
+                    const shipTo = typeof header.shipToName === "string" ? header.shipToName : undefined;
+                    const resolvedName = (0, invoiceShellDisplayHelpers_1.jobNameFromInvoiceContext)(po, orderNotes, shipTo);
+                    if (resolvedName && jobData.jobName !== resolvedName) {
+                        await getDb().collection("jobs").doc(shell.jobId).update({
+                            jobName: resolvedName,
+                            updatedAt: now,
+                        });
+                    }
+                }
+            }
             return {
                 vendorInvoiceImportId: importId,
                 reviewStatus: "approved",
-                deliveryOrderId: importDoc.linkedDeliveryOrderId.trim(),
+                deliveryOrderId: linkedId,
                 itemsApplied: 0,
                 shellCreated: false,
             };
@@ -249,6 +279,12 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
                 for (const item of shell.expectedItems) {
                     tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+                }
+            }
+            else {
+                const existingData = existingDelivery.data();
+                if (existingData.createdFromInvoiceImport === true) {
+                    tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
                 }
             }
             tx.update(importRef, {

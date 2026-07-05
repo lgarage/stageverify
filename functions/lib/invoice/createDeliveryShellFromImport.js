@@ -1,17 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SHELL_DELIVERY_ID_PREFIX = void 0;
+exports.jobNameFromInvoiceContext = exports.jobNameFromInvoicePo = exports.SHELL_DELIVERY_ID_PREFIX = void 0;
 exports.shellDeliveryIdForImport = shellDeliveryIdForImport;
 exports.scoreJobMatchFromInvoiceHints = scoreJobMatchFromInvoiceHints;
 exports.jobIdFromInvoicePoSlug = jobIdFromInvoicePoSlug;
-exports.jobNameFromInvoicePo = jobNameFromInvoicePo;
 exports.jobNumberFromInvoiceHeader = jobNumberFromInvoiceHeader;
 exports.buildInvoiceDeliveryShellContext = buildInvoiceDeliveryShellContext;
+exports.buildInvoiceShellPatchDocument = buildInvoiceShellPatchDocument;
 exports.buildDeliveryShellDocument = buildDeliveryShellDocument;
 const https_1 = require("firebase-functions/v2/https");
 const loadMatchContext_1 = require("../email/loadMatchContext");
 const buildExpectedItemsFromImport_1 = require("./buildExpectedItemsFromImport");
-const deliveryStatusFromImportStatus_1 = require("./deliveryStatusFromImportStatus");
+const invoiceShellDisplayHelpers_1 = require("./invoiceShellDisplayHelpers");
 const matchInvoiceToRecords_1 = require("./matchInvoiceToRecords");
 exports.SHELL_DELIVERY_ID_PREFIX = "delivery-vii-";
 function shellDeliveryIdForImport(importId) {
@@ -153,14 +153,9 @@ function jobIdFromInvoicePoSlug(header) {
     const slug = `${po}-${inv}`.replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
     return `job-inv-${slug || "unknown"}`;
 }
-function jobNameFromInvoicePo(customerPoOrReference) {
-    return customerPoOrReference
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ");
-}
+var invoiceShellDisplayHelpers_2 = require("./invoiceShellDisplayHelpers");
+Object.defineProperty(exports, "jobNameFromInvoicePo", { enumerable: true, get: function () { return invoiceShellDisplayHelpers_2.jobNameFromInvoicePo; } });
+Object.defineProperty(exports, "jobNameFromInvoiceContext", { enumerable: true, get: function () { return invoiceShellDisplayHelpers_2.jobNameFromInvoiceContext; } });
 function jobNumberFromInvoiceHeader(header) {
     const raw = header.jobNumberRaw?.trim();
     if (raw)
@@ -172,7 +167,7 @@ function jobNumberFromInvoiceHeader(header) {
     const poCompact = normalizeMatchText(header.customerPoOrReference).replace(/\s+/g, "");
     return `INV-${year}-${poCompact.slice(0, 12) || "import"}`;
 }
-async function ensureJobForInvoiceShell(db, header, ctx, matchJobId) {
+async function ensureJobForInvoiceShell(db, header, ctx, matchJobId, orderNotes = []) {
     const resolved = resolveJobIdFromHints(header, ctx, matchJobId);
     if (resolved)
         return { jobId: resolved, jobCreated: false };
@@ -186,10 +181,11 @@ async function ensureJobForInvoiceShell(db, header, ctx, matchJobId) {
         return { jobId, jobCreated: false };
     }
     const now = new Date().toISOString();
+    const resolvedJobName = (0, invoiceShellDisplayHelpers_1.jobNameFromInvoiceContext)(po, orderNotes, header.shipToName);
     await db.collection("jobs").doc(jobId).set({
         id: jobId,
         jobNumber: jobNumberFromInvoiceHeader(header),
-        jobName: jobNameFromInvoicePo(po),
+        jobName: resolvedJobName,
         status: "active",
         createdFromInvoiceImport: true,
         createdAt: now,
@@ -200,9 +196,12 @@ async function ensureJobForInvoiceShell(db, header, ctx, matchJobId) {
 /** Resolve job/vendor + line items for a dashboard shell — auto-creates job from P/O when unmatched. */
 async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
     const header = asParsedHeader(importDoc.parsedHeader);
+    const orderNotes = importDoc.orderNotes ?? [];
+    const deliverToLabel = (0, invoiceShellDisplayHelpers_1.extractDeliverToSiteLabel)(orderNotes);
+    const deliverToSite = Boolean(deliverToLabel);
     const ctx = await (0, loadMatchContext_1.loadEmailMatchContext)();
     const match = (0, matchInvoiceToRecords_1.matchInvoiceToRecords)(importId, header, ctx);
-    const { jobId, jobCreated } = await ensureJobForInvoiceShell(db, header, ctx, match.jobId);
+    const { jobId, jobCreated } = await ensureJobForInvoiceShell(db, header, ctx, match.jobId, orderNotes);
     let vendorId = match.vendorId;
     let vendorName = "Vendor";
     if (vendorId) {
@@ -235,6 +234,7 @@ async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
         header.orderDate?.trim() ||
         new Date().toISOString().slice(0, 10);
     const orderNumber = vendorOrderNumber || vendorInvoiceNumber || deliveryOrderId;
+    const deliveryStatus = (0, invoiceShellDisplayHelpers_1.resolveShellDeliveryStatus)(importDoc.importStatus, header.fulfillmentMethod, deliverToSite);
     return {
         deliveryOrderId,
         jobId,
@@ -249,8 +249,28 @@ async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
         vendorInvoiceNumber,
         vendorOrderNumber,
         customerPo,
-        deliveryStatus: (0, deliveryStatusFromImportStatus_1.deliveryStatusFromImportStatus)(importDoc.importStatus),
+        deliveryStatus,
+        invoiceFulfillmentMethod: header.fulfillmentMethod,
+        invoiceDeliverToSite: deliverToSite,
+        ...(deliverToLabel ? { invoiceDeliverToLabel: deliverToLabel } : {}),
     };
+}
+/** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
+function buildInvoiceShellPatchDocument(shell, importId, importDoc, now) {
+    const patch = {
+        status: shell.deliveryStatus,
+        vendorInvoiceImportId: importId,
+        invoiceImportStatus: importDoc.importStatus,
+        invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+        updatedAt: now,
+    };
+    if (shell.invoiceDeliverToSite) {
+        patch.invoiceDeliverToSite = true;
+        if (shell.invoiceDeliverToLabel) {
+            patch.invoiceDeliverToLabel = shell.invoiceDeliverToLabel;
+        }
+    }
+    return patch;
 }
 /** Fields for a new delivery shell — no staging, readiness, or pickup side effects. */
 function buildDeliveryShellDocument(shell, importId, importDoc, now) {
@@ -265,6 +285,15 @@ function buildDeliveryShellDocument(shell, importId, importDoc, now) {
         status: shell.deliveryStatus,
         vendorInvoiceImportId: importId,
         invoiceImportStatus: importDoc.importStatus,
+        invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+        ...(shell.invoiceDeliverToSite
+            ? {
+                invoiceDeliverToSite: true,
+                ...(shell.invoiceDeliverToLabel
+                    ? { invoiceDeliverToLabel: shell.invoiceDeliverToLabel }
+                    : {}),
+            }
+            : {}),
         createdFromInvoiceImport: true,
         vendorOrderComplete: true,
         vendorOrderCompleteAt: now,

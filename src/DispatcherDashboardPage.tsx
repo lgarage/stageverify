@@ -14,6 +14,8 @@ import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import {
   firestoreDataService,
+  fetchVendorInvoicePdf,
+  getVendorInvoiceImport,
   markDeliveryShipped,
   mapOccupancyByLocationId,
   resolveMaterialIssue,
@@ -48,7 +50,7 @@ import {
   type SortDirection,
   type StagingLocation,
 } from "./dispatcher";
-import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping } from "./dispatcher/models";
+import { getAllStagingLocationIds, ISSUE_RESOLUTION_TYPE_LABEL, MATERIAL_ISSUE_TYPE_LABEL, type IssueResolutionType, type MaterialIssue, type ShopStockLocationMapping, type VendorInvoiceImportReview } from "./dispatcher/models";
 import {
   PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
@@ -61,6 +63,12 @@ import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
 import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText } from "./dispatcher/deliveryDisplayHelpers";
+import { isInvoiceShellNoShopStaging } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
+import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
+import {
+  openVendorInvoicePdfInNewTab,
+  vendorInvoicePdfUnavailableMessage,
+} from "./dispatcher/invoice/invoicePdfClient";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -2289,10 +2297,20 @@ function DetailContent({
   const [expandedResolvedIssueIds, setExpandedResolvedIssueIds] = useState<
     Set<string>
   >(new Set());
+  const [inspectImport, setInspectImport] = useState<VendorInvoiceImportReview | null>(
+    null,
+  );
+  const [inspectImportLoading, setInspectImportLoading] = useState(false);
+  const [inspectImportError, setInspectImportError] = useState<string | null>(null);
+  const [invoicePdfLoading, setInvoicePdfLoading] = useState(false);
+  const [invoicePdfError, setInvoicePdfError] = useState<string | null>(null);
 
   useEffect(() => {
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
+    setInspectImport(null);
+    setInspectImportError(null);
+    setInvoicePdfError(null);
   }, [details?.delivery.id]);
 
   const expandVendorCommunications = () => {
@@ -2430,6 +2448,39 @@ function DetailContent({
 
   if (!details.job) return null;
   const job = details.job;
+  const delivery = details.delivery;
+  const linkedInvoiceImportId = delivery.vendorInvoiceImportId?.trim() ?? "";
+  const shopStagingRequired = !isInvoiceShellNoShopStaging(delivery);
+
+  const openLinkedInvoiceInspect = async () => {
+    if (!linkedInvoiceImportId) return;
+    setInspectImportLoading(true);
+    setInspectImportError(null);
+    try {
+      const row = await getVendorInvoiceImport(linkedInvoiceImportId);
+      setInspectImport(row);
+    } catch (err) {
+      setInspectImportError(
+        err instanceof Error ? err.message : "Could not load parsed invoice data.",
+      );
+    } finally {
+      setInspectImportLoading(false);
+    }
+  };
+
+  const viewLinkedInvoicePdf = async (importId = linkedInvoiceImportId) => {
+    if (!importId) return;
+    setInvoicePdfLoading(true);
+    setInvoicePdfError(null);
+    try {
+      const payload = await fetchVendorInvoicePdf(importId);
+      openVendorInvoicePdfInNewTab(payload);
+    } catch (err) {
+      setInvoicePdfError(vendorInvoicePdfUnavailableMessage(err));
+    } finally {
+      setInvoicePdfLoading(false);
+    }
+  };
 
   const openMaterialIssues = details.materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
@@ -2627,6 +2678,31 @@ function DetailContent({
               data-testid="drawer-action-buttons"
               className="drawer-action-buttons-grid"
             >
+              {linkedInvoiceImportId ? (
+                <>
+                  <button
+                    type="button"
+                    data-testid="drawer-review-parsed-invoice"
+                    disabled={inspectImportLoading}
+                    onClick={() => void openLinkedInvoiceInspect()}
+                    style={drawerActionBtnVendorQr(font)}
+                  >
+                    {inspectImportLoading
+                      ? "Loading parsed data…"
+                      : "Review parsed invoice data"}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="drawer-view-invoice-pdf"
+                    disabled={invoicePdfLoading || Boolean(invoicePdfError)}
+                    title={invoicePdfError ?? undefined}
+                    onClick={() => void viewLinkedInvoicePdf()}
+                    style={drawerActionBtnVendorQr(font)}
+                  >
+                    {invoicePdfLoading ? "Loading PDF…" : "View invoice PDF"}
+                  </button>
+                </>
+              ) : null}
               {showPickupStatus ? (
                 <div
                   data-testid="pickup-token-controls"
@@ -2772,7 +2848,7 @@ function DetailContent({
             );
           }}
         </PickupTokenControls>
-        {!details.stagingLocation ? (
+        {!details.stagingLocation && shopStagingRequired ? (
           <StagingLocationBanner
             font={font}
             onAssignLocation={() => {
@@ -3641,6 +3717,46 @@ function DetailContent({
           onClose={() => setShowPrintLabel(false)}
         />
       )}
+      {inspectImportError ? (
+        <div
+          data-testid="drawer-invoice-import-error"
+          style={{
+            marginTop: 8,
+            padding: "8px 10px",
+            backgroundColor: "#fef2f2",
+            color: "#991b1b",
+            borderRadius: 6,
+            fontSize: 12,
+          }}
+        >
+          {inspectImportError}
+        </div>
+      ) : null}
+      {invoicePdfError ? (
+        <div
+          data-testid="drawer-invoice-pdf-unavailable"
+          style={{
+            marginTop: 8,
+            padding: "8px 10px",
+            backgroundColor: "#fff7ed",
+            color: "#9a3412",
+            borderRadius: 6,
+            fontSize: 12,
+          }}
+        >
+          {invoicePdfError}
+        </div>
+      ) : null}
+      {inspectImport ? (
+        <InvoiceParsedInspectModal
+          importRow={inspectImport}
+          readOnly
+          onClose={() => setInspectImport(null)}
+          onViewPdf={() => void viewLinkedInvoicePdf(inspectImport.id)}
+          pdfLoading={invoicePdfLoading}
+          pdfUnavailableMessage={invoicePdfError}
+        />
+      ) : null}
     </>
   );
 }

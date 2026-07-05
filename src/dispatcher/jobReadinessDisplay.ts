@@ -35,6 +35,12 @@ export function deliveryReadinessDisplayLabel(
   if (delivery.invoiceImportStatus === "closed_picked_up") {
     return vendorInvoiceImportDisplayLabel("closed_picked_up").replace(/\.$/, "");
   }
+  if (
+    delivery.invoiceDeliverToSite === true &&
+    delivery.status === "complete"
+  ) {
+    return "Complete";
+  }
   if (countOpenIssuesForLabel(delivery, materialIssues) > 0) {
     return "Issue / Review Required";
   }

@@ -10,7 +10,9 @@ import { buildExpectedItemsFromImport } from "./invoice/buildExpectedItemsFromIm
 import {
   buildDeliveryShellDocument,
   buildInvoiceDeliveryShellContext,
+  buildInvoiceShellPatchDocument,
 } from "./invoice/createDeliveryShellFromImport";
+import { jobNameFromInvoiceContext } from "./invoice/invoiceShellDisplayHelpers";
 import {
   buildImportDecisionLogEntry,
   computeAutoImportEligibility,
@@ -342,10 +344,44 @@ export const approveVendorInvoiceImport = onCall(
         );
       }
       if (importDoc.linkedDeliveryOrderId?.trim()) {
+        const linkedId = importDoc.linkedDeliveryOrderId.trim();
+        const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
+        const deliveryRef = getDb().collection("deliveries").doc(linkedId);
+        const deliverySnap = await deliveryRef.get();
+        if (deliverySnap.exists) {
+          const delivery = deliverySnap.data() as { createdFromInvoiceImport?: boolean };
+          const isInvoiceShell =
+            linkedId === shell.deliveryOrderId ||
+            delivery.createdFromInvoiceImport === true;
+          if (isInvoiceShell) {
+            await deliveryRef.update(
+              buildInvoiceShellPatchDocument(shell, importId, importDoc, now),
+            );
+          }
+          const jobSnap = await getDb().collection("jobs").doc(shell.jobId).get();
+          const jobData = jobSnap.data();
+          if (isInvoiceShell && jobData?.createdFromInvoiceImport === true) {
+            const header = importDoc.parsedHeader as Record<string, unknown>;
+            const orderNotes = importDoc.orderNotes ?? [];
+            const po =
+              typeof header.customerPoOrReference === "string"
+                ? header.customerPoOrReference
+                : "";
+            const shipTo =
+              typeof header.shipToName === "string" ? header.shipToName : undefined;
+            const resolvedName = jobNameFromInvoiceContext(po, orderNotes, shipTo);
+            if (resolvedName && jobData.jobName !== resolvedName) {
+              await getDb().collection("jobs").doc(shell.jobId).update({
+                jobName: resolvedName,
+                updatedAt: now,
+              });
+            }
+          }
+        }
         return {
           vendorInvoiceImportId: importId,
           reviewStatus: "approved",
-          deliveryOrderId: importDoc.linkedDeliveryOrderId.trim(),
+          deliveryOrderId: linkedId,
           itemsApplied: 0,
           shellCreated: false,
         };
@@ -390,6 +426,16 @@ export const approveVendorInvoiceImport = onCall(
           );
           for (const item of shell.expectedItems) {
             tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+          }
+        } else {
+          const existingData = existingDelivery.data() as {
+            createdFromInvoiceImport?: boolean;
+          };
+          if (existingData.createdFromInvoiceImport === true) {
+            tx.update(
+              deliveryRef,
+              buildInvoiceShellPatchDocument(shell, importId, fresh, now),
+            );
           }
         }
 

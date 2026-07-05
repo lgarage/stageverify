@@ -29,6 +29,8 @@ import {
   listInboundEmailProcessing,
   getInboundEmailProcessing,
   listVendorInvoiceImports,
+  getVendorInvoiceImport,
+  getVendorInvoicePdf,
 } from "./inboundEmailProcessingApi";
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
@@ -173,6 +175,8 @@ export {
   listInboundEmailProcessing,
   getInboundEmailProcessing,
   listVendorInvoiceImports,
+  getVendorInvoiceImport,
+  getVendorInvoicePdf,
   matchInvoiceToRecordsCallable,
   approveVendorInvoiceImport,
 };
