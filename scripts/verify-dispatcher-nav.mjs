@@ -265,6 +265,11 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.getByRole("button", { name: "Add Vendor" }).waitFor({
     timeout: 15_000,
   });
+  await page.getByRole("columnheader", { name: "Email Domain", exact: true }).waitFor({
+    timeout: 10_000,
+  });
+  await page.getByTestId("add-vendor-email-domain").waitFor({ timeout: 10_000 });
+  console.log("PASS: Vendors page includes Email Domain field.");
 
   console.log("Sidebar: Dispatcher Dashboard…");
   await nav

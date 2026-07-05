@@ -9,8 +9,8 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Overnight batch 2026-07-04: away-104..108 invoice ingest + security. Composer 2.5 owns verify/ship. Halt on fail.",
-    "sequence": []
+    "instructions": "Away batch 2026-07-05: away-109..112 Phase 6 prep + verify bundle + invoice fixtures + e2e smoke. Composer 2.5 owns verify/ship. Halt on fail.",
+    "sequence": ["away-109", "away-110", "away-111", "away-112"]
   },
   "queue": [
     {
@@ -22,6 +22,46 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-109",
+      "title": "Vendor emailDomain field + Settings UI",
+      "status": "queued",
+      "scope": "Add optional emailDomain on Vendor model; VendorsManagementPanel table + add/edit forms; seed/demo data; matchEmailToRecords uses emailDomain; verify:settings-staging + dispatcher-nav vendors assertion",
+      "acceptance": "emailDomain editable in Vendors UI; persists via Firestore; demo vendors seeded; verify passes",
+      "tier": "T1",
+      "verifyBeforeNext": ["npm run build", "npm run verify:settings-staging"]
+    },
+    {
+      "id": "away-110",
+      "title": "Verify regression bundle + learning-pending merge",
+      "status": "queued",
+      "scope": "Run verify:delivery-consistency, verify:invoice-review, verify:dispatcher-nav local; prod after deploy",
+      "acceptance": "All verify scripts exit 0 local and :prod where applicable",
+      "tier": "T0",
+      "verifyBeforeNext": [
+        "npm run verify:delivery-consistency",
+        "npm run verify:invoice-review",
+        "npm run verify:dispatcher-nav"
+      ]
+    },
+    {
+      "id": "away-111",
+      "title": "Invoice parser fixture expansion (non-Johnstone vendors)",
+      "status": "queued",
+      "scope": "Ferguson + First Supply controlled text fixtures; test:invoice-parser gates graceful issue/review for non-Johnstone formats",
+      "acceptance": "test:invoice-parser and test:invoice-batch pass with expanded fixtures",
+      "tier": "T1",
+      "verifyBeforeNext": ["npm run test:invoice-parser", "npm run test:invoice-batch"]
+    },
+    {
+      "id": "away-112",
+      "title": "End-to-end integration verify harness (§14 smoke)",
+      "status": "queued",
+      "scope": "scripts/verify-e2e-smoke.mjs chaining receive → dispatcher → pickup demo fixtures; package.json entry",
+      "acceptance": "npm run verify:e2e-smoke exits 0",
+      "tier": "T1",
+      "verifyBeforeNext": ["npm run verify:e2e-smoke"]
     }
   ]
 }

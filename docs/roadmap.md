@@ -266,6 +266,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Dispatcher list/drawer polish (2026-06-24):** ✅ Shipped — delivery label modal dismiss + Push to E-Tag copy; activity history compact dedup + raw full view; Issue Summary column Pickup Scheduled priority when ready
 - **Short pickup clipboard (2026-07-03):** ✅ Shipped — Copy Pickup Information omits status/items/qty; demo ORD-001..006 short-format + staging rules in `verify:delivery-consistency`
 - **Dispatcher staging-action rows (2026-07-03):** ✅ Shipped — missing staging alone triggers `dispatcher-action-required` dark-orange row (any status/received count; `installed` exempt); Issue Summary **Assign staging location** top priority; verify offline + live Staging Loc. column
+- **Vendor emailDomain (2026-07-05):** ✅ Shipped — `emailDomain` on Vendor model + Vendors UI column/form; demo seed + email fixtures; client matcher uses explicit domain
 - `emailDomain` on `Vendor` for matching when live monitoring starts
 - Live inbox monitoring with **human-reviewed proposed updates first**
 - Narrow automation only for explicitly approved, high-confidence event types — high confidence alone is not blanket permission to update records

@@ -23,6 +23,8 @@ function vendorFromSender(
   const byDomain = vendors.find((v) => {
     const mapped = domains?.get(v.id);
     if (mapped && mapped.toLowerCase() === domain) return true;
+    const explicit = v.emailDomain?.replace(/^@+/, "").toLowerCase();
+    if (explicit && explicit === domain) return true;
     const contact = v.email?.split("@")[1]?.toLowerCase();
     return contact === domain;
   });

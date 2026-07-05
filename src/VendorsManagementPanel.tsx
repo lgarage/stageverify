@@ -13,6 +13,20 @@ function formatPhone(raw: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+function normalizeEmailDomain(raw: string): string | undefined {
+  const trimmed = raw.trim().replace(/^@+/, "").toLowerCase();
+  if (!trimmed) return undefined;
+  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(trimmed)) {
+    return undefined;
+  }
+  return trimmed;
+}
+
+function domainFromEmail(email: string): string | undefined {
+  const domain = email.split("@")[1]?.trim().toLowerCase();
+  return domain || undefined;
+}
+
 const cardStyle = {
   backgroundColor: "#fff",
   border: "1px solid #dde1e7",
@@ -34,6 +48,7 @@ export function VendorsManagementPanel({
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [emailDomain, setEmailDomain] = useState("");
   const [address, setAddress] = useState("");
   const [supplies, setSupplies] = useState("");
   const [notes, setNotes] = useState("");
@@ -45,6 +60,7 @@ export function VendorsManagementPanel({
     contactName: "",
     contactPhone: "",
     email: "",
+    emailDomain: "",
     address: "",
     supplies: "",
     notes: "",
@@ -59,6 +75,7 @@ export function VendorsManagementPanel({
       contactName: vendor.contactName ?? "",
       contactPhone: vendor.contactPhone ?? "",
       email: vendor.email ?? "",
+      emailDomain: vendor.emailDomain ?? "",
       address: vendor.address ?? "",
       supplies: vendor.supplies ?? "",
       notes: vendor.notes ?? "",
@@ -77,6 +94,9 @@ export function VendorsManagementPanel({
       contactName: editDraft.contactName.trim() || undefined,
       contactPhone: editDraft.contactPhone.trim() || undefined,
       email: editDraft.email.trim() || undefined,
+      emailDomain:
+        normalizeEmailDomain(editDraft.emailDomain) ??
+        domainFromEmail(editDraft.email),
       address: editDraft.address.trim() || undefined,
       supplies: editDraft.supplies.trim() || undefined,
       notes: editDraft.notes.trim() || undefined,
@@ -112,6 +132,7 @@ export function VendorsManagementPanel({
       contactName: contactName.trim() || undefined,
       contactPhone: contactPhone.trim() || undefined,
       email: email.trim() || undefined,
+      emailDomain: normalizeEmailDomain(emailDomain) ?? domainFromEmail(email),
       address: address.trim() || undefined,
       supplies: supplies.trim() || undefined,
       notes: notes.trim() || undefined,
@@ -127,6 +148,7 @@ export function VendorsManagementPanel({
     setContactName("");
     setContactPhone("");
     setEmail("");
+    setEmailDomain("");
     setAddress("");
     setSupplies("");
     setNotes("");
@@ -171,7 +193,7 @@ export function VendorsManagementPanel({
               >
                 <thead>
                   <tr style={{ backgroundColor: NAVY }}>
-                    {["Name", "PIN", "Active", "Contact Name", "Contact Phone", "Email", "Address", "Supplies", "Notes", ""].map(
+                    {["Name", "PIN", "Active", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
                           key={i}
@@ -305,6 +327,24 @@ export function VendorsManagementPanel({
                             />
                           ) : (
                             vendor.email ?? "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "#333" }}>
+                          {isEditing ? (
+                            <input
+                              style={inlineInput}
+                              value={editDraft.emailDomain}
+                              placeholder="johnstone.com"
+                              data-testid="edit-vendor-email-domain"
+                              onChange={(e) =>
+                                setEditDraft((d) => ({
+                                  ...d,
+                                  emailDomain: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : (
+                            vendor.emailDomain ?? domainFromEmail(vendor.email ?? "") ?? "—"
                           )}
                         </td>
                         <td style={{ ...tdBase, color: "#333" }}>
@@ -599,6 +639,38 @@ export function VendorsManagementPanel({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1.5px solid #ccd0d7",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      color: "#333",
+                      outline: "none",
+                      backgroundColor: "#fff",
+                      fontFamily: FONT,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Email Domain
+                  </label>
+                  <input
+                    type="text"
+                    value={emailDomain}
+                    onChange={(e) => setEmailDomain(e.target.value)}
+                    placeholder="johnstone.com"
+                    data-testid="add-vendor-email-domain"
                     style={{
                       width: "100%",
                       padding: "10px 12px",

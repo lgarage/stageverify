@@ -296,6 +296,8 @@ export interface Vendor {
   contactName?: string;
   contactPhone?: string;
   email?: string;
+  /** Sender domain for Phase 6 live email matching (e.g. johnstone.com). */
+  emailDomain?: string;
   address?: string;
   supplies?: string;
   notes?: string;
