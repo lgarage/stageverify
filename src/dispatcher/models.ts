@@ -477,6 +477,10 @@ export interface DeliveryOrder {
   /** Job-site delivery from invoice order notes — no shop staging. */
   invoiceDeliverToSite?: boolean;
   invoiceDeliverToLabel?: string;
+  /** Dispatcher confirms material reached the stated deliver-to site. */
+  invoiceDeliverToSiteConfirmed?: boolean;
+  invoiceDeliverToSiteConfirmedAt?: string;
+  invoiceDeliverToSiteConfirmedBy?: string;
   createdFromInvoiceImport?: boolean;
   vendorInvoiceNumber?: string;
   vendorOrderNumber?: string;

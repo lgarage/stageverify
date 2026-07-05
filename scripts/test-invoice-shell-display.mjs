@@ -3,7 +3,9 @@
  * Usage: node scripts/test-invoice-shell-display.mjs
  */
 import {
+  buildDeliverToSiteIssueSummary,
   extractDeliverToSiteLabel,
+  isDeliverToSiteConfirmed,
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
   resolveDeliveryPoNumber,
@@ -123,6 +125,7 @@ const deliverToSiteReadiness = computeDeliveryReadiness(
     vendorOrderComplete: true,
     vendorOrderCompleteSource: "vendor_email",
     invoiceDeliverToSite: true,
+    invoiceDeliverToSiteConfirmed: true,
     invoiceImportStatus: "pending",
     createdFromInvoiceImport: true,
   },
@@ -153,6 +156,64 @@ assert(
 assert(
   "deliver-to-site complete shells count as complete status (not staged)",
   deliverToSiteReadiness.deliveryStatus === "complete",
+);
+
+const deliverToSiteUnconfirmed = computeDeliveryReadiness(
+  {
+    id: "delivery-vii-test-unconfirmed",
+    orderNumber: "4046362",
+    jobId: "job-1",
+    vendorId: "v-1",
+    vendorName: "Johnstone",
+    deliveryDate: "2026-01-08",
+    status: "complete",
+    vendorOrderComplete: true,
+    vendorOrderCompleteSource: "vendor_email",
+    invoiceDeliverToSite: true,
+    invoiceImportStatus: "pending",
+    invoiceDeliverToLabel: "Planet Fitness Hartford",
+    createdFromInvoiceImport: true,
+  },
+  [
+    {
+      id: "item-1",
+      deliveryOrderId: "delivery-vii-test-unconfirmed",
+      jobId: "job-1",
+      description: "Filter",
+      qtyOrdered: 4,
+      qtyReceived: 0,
+      qtyBackordered: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+    },
+  ],
+);
+assert(
+  "deliver-to-site without confirmation stays ready_for_pickup in list counts",
+  deliverToSiteUnconfirmed.deliveryStatus === "ready_for_pickup",
+);
+
+assert(
+  "buildDeliverToSiteIssueSummary pending shows confirm line",
+  buildDeliverToSiteIssueSummary({
+    invoiceDeliverToSite: true,
+    invoiceDeliverToLabel: "Planet Fitness Hartford",
+  }) === "Confirm delivery to Planet Fitness Hartford",
+);
+
+assert(
+  "buildDeliverToSiteIssueSummary confirmed shows delivered line",
+  buildDeliverToSiteIssueSummary({
+    invoiceDeliverToSite: true,
+    invoiceDeliverToLabel: "Planet Fitness Hartford",
+    invoiceDeliverToSiteConfirmed: true,
+  }) === "Delivered to Planet Fitness Hartford",
+);
+
+assert(
+  "isDeliverToSiteConfirmed requires explicit flag",
+  !isDeliverToSiteConfirmed({}) &&
+    isDeliverToSiteConfirmed({ invoiceDeliverToSiteConfirmed: true }),
 );
 
 assert(

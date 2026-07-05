@@ -5,15 +5,20 @@ import {
   ITEM_ISSUE_STATUS_COLOR,
   type ItemIssueDisplayStatus,
 } from "../deliveryDisplayHelpers";
+import { DeliverToSitePanel } from "./DeliverToSitePanel";
 
 export function IssueSummaryPanel({
   details,
   navy,
   font,
+  loading = false,
+  onSetDeliverToSiteConfirmed,
 }: {
   details: DeliveryDetails;
   navy: string;
   font: string;
+  loading?: boolean;
+  onSetDeliverToSiteConfirmed?: (confirmed: boolean) => Promise<void>;
 }) {
   const [receivedExpanded, setReceivedExpanded] = useState(false);
 
@@ -68,6 +73,18 @@ export function IssueSummaryPanel({
           padding: "14px 16px",
         }}
       >
+        <DeliverToSitePanel
+          details={details}
+          navy={navy}
+          font={font}
+          loading={loading}
+          onSetConfirmed={
+            onSetDeliverToSiteConfirmed ??
+            (async () => {
+              /* no-op when handler not wired */
+            })
+          }
+        />
         <ul
           data-testid="issue-summary-lines"
           style={{

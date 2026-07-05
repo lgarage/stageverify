@@ -936,6 +936,60 @@ export class FirestoreDataService implements DispatcherDataService {
     return this.getDeliveryDetails(deliveryId);
   }
 
+  async setDeliverToSiteConfirmed(
+    deliveryId: string,
+    confirmed: boolean,
+    actorName = "Dispatcher",
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+    const delivery = deliverySnap.data() as DeliveryOrder;
+    if (delivery.invoiceDeliverToSite !== true) {
+      return this.getDeliveryDetails(deliveryId);
+    }
+
+    const now = new Date().toISOString();
+    const eventId = `event-${crypto.randomUUID()}`;
+    const batch = writeBatch(db);
+    const siteLabel = delivery.invoiceDeliverToLabel?.trim();
+
+    if (confirmed) {
+      batch.update(doc(db, "deliveries", deliveryId), {
+        invoiceDeliverToSiteConfirmed: true,
+        invoiceDeliverToSiteConfirmedAt: now,
+        invoiceDeliverToSiteConfirmedBy: actorName,
+        updatedAt: now,
+      });
+    } else {
+      batch.update(doc(db, "deliveries", deliveryId), {
+        invoiceDeliverToSiteConfirmed: false,
+        invoiceDeliverToSiteConfirmedAt: null,
+        invoiceDeliverToSiteConfirmedBy: null,
+        updatedAt: now,
+      });
+    }
+
+    batch.set(doc(db, "statusHistory", eventId), {
+      id: eventId,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus: delivery.status,
+      toStatus: delivery.status,
+      reason: confirmed
+        ? siteLabel
+          ? `Delivered to site: ${siteLabel}`
+          : "Delivered to site"
+        : "Site delivery confirmation cleared",
+      actorType: "dispatcher",
+      actorName,
+      createdAt: now,
+    });
+
+    await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
+    return this.getDeliveryDetails(deliveryId);
+  }
+
   async revertDeliveryStatus(
     deliveryId: string,
     actorType: "vendor" | "dispatcher",

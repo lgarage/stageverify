@@ -692,6 +692,35 @@ export function DispatcherDashboardPage() {
     }
   };
 
+  const handleSetDeliverToSiteConfirmed = async (
+    confirmed: boolean,
+  ): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await firestoreDataService.setDeliverToSiteConfirmed(
+        selectedDeliveryId,
+        confirmed,
+      );
+      if (updated) {
+        setSelectedDetails(updated);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to update site delivery confirmation.");
+      }
+    } catch (err) {
+      setMutationError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update site delivery confirmation.",
+      );
+      console.error(err);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   const handleUpdateShopStockPickList = async (
     items: string[],
     locationNote: string,
@@ -1218,11 +1247,17 @@ export function DispatcherDashboardPage() {
                     const cellStrong = actionRequired ? "#fff" : "#111";
                     const cellBody = actionRequired ? "#fff" : "#333";
                     const issueSummaryColor =
-                      row.issueSummary === "Pickup Scheduled"
+                      row.issueSummary === "Pickup Scheduled" ||
+                      row.issueSummary.startsWith("Delivered to ")
                         ? actionRequired
                           ? "#fff"
                           : NAVY
-                        : row.issueSummary
+                        : row.issueSummary.startsWith("Confirm delivery") ||
+                            row.issueSummary === "Confirm site delivery"
+                          ? actionRequired
+                            ? "#fff"
+                            : "#c62828"
+                          : row.issueSummary
                           ? actionRequired
                             ? "#fff"
                             : "#c62828"
@@ -1822,6 +1857,7 @@ export function DispatcherDashboardPage() {
                 onRevertStatus={handleRevertStatus}
                 onMarkShipped={handleMarkShipped}
                 onUpdateIssueSummary={handleUpdateIssueSummary}
+                onSetDeliverToSiteConfirmed={handleSetDeliverToSiteConfirmed}
                 onUpdateShopStockPickList={handleUpdateShopStockPickList}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
@@ -2234,6 +2270,7 @@ function DetailContent({
   onRevertStatus,
   onMarkShipped,
   onUpdateIssueSummary,
+  onSetDeliverToSiteConfirmed,
   onUpdateShopStockPickList,
   stagingLocations,
   onUpdateStagingLocation,
@@ -2254,6 +2291,7 @@ function DetailContent({
   onRevertStatus: () => Promise<void>;
   onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
+  onSetDeliverToSiteConfirmed: (confirmed: boolean) => Promise<void>;
   onUpdateShopStockPickList: (
     items: string[],
     locationNote: string,
@@ -2853,7 +2891,13 @@ function DetailContent({
           }}
           onReviewVendorEmail={expandEmailEvidenceReview}
         />
-        <IssueSummaryPanel details={details} navy={navy} font={font} />
+        <IssueSummaryPanel
+          details={details}
+          navy={navy}
+          font={font}
+          loading={mutationLoading}
+          onSetDeliverToSiteConfirmed={onSetDeliverToSiteConfirmed}
+        />
         {renderDrawerSection(
           "Readiness Evidence",
           <ReadinessEvidencePanel

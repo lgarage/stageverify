@@ -183,7 +183,8 @@ export function computeDeliveryReadiness(
 
   if (readyForPickup) {
     const deliverToSiteComplete =
-      delivery.invoiceDeliverToSite === true && delivery.status === "complete";
+      delivery.invoiceDeliverToSite === true &&
+      delivery.invoiceDeliverToSiteConfirmed === true;
     return {
       readyForPickup: true,
       readinessStatus: "ready_for_pickup",

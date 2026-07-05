@@ -1,4 +1,5 @@
 import type { InvoiceFulfillmentMethod } from "./types";
+import type { DeliveryOrder } from "../models";
 
 type ShellDeliveryStatus =
   | "pending"
@@ -106,6 +107,30 @@ export function isInvoiceShellNoShopStaging(
   if (delivery.invoiceFulfillmentMethod === "will_call_pickup") return true;
   if (delivery.invoiceDeliverToSite === true) return true;
   return false;
+}
+
+/** True when dispatcher confirmed delivery to the parsed job-site location. */
+export function isDeliverToSiteConfirmed(
+  delivery: Pick<DeliveryOrder, "invoiceDeliverToSiteConfirmed">,
+): boolean {
+  return delivery.invoiceDeliverToSiteConfirmed === true;
+}
+
+/** Issue Summary / list column text for deliver-to-site deliveries. */
+export function buildDeliverToSiteIssueSummary(
+  delivery: Pick<
+    DeliveryOrder,
+    | "invoiceDeliverToSite"
+    | "invoiceDeliverToLabel"
+    | "invoiceDeliverToSiteConfirmed"
+  >,
+): string | null {
+  if (delivery.invoiceDeliverToSite !== true) return null;
+  const label = delivery.invoiceDeliverToLabel?.trim();
+  if (delivery.invoiceDeliverToSiteConfirmed === true) {
+    return label ? `Delivered to ${label}` : "Delivered to site";
+  }
+  return label ? `Confirm delivery to ${label}` : "Confirm site delivery";
 }
 
 export function resolveShellDeliveryStatus(

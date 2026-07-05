@@ -110,14 +110,21 @@ export function DrawerActionBanner({
     [delivery, items, materialIssues, emailReviewRequired, vendorPhone, vendorEmail],
   );
 
+  const deliverToSitePending =
+    delivery.invoiceDeliverToSite === true &&
+    delivery.invoiceDeliverToSiteConfirmed !== true;
+
   const allClear =
     bannerContent.bannerMode === "all_clear" ||
     (readiness.readyForPickup &&
       !emailReviewRequired &&
-      displayState.blockerLabels.length === 0);
+      displayState.blockerLabels.length === 0 &&
+      !deliverToSitePending);
 
   const calmWaiting = bannerContent.bannerMode === "calm_waiting";
-  const attentionRequired = bannerContent.bannerMode === "attention_required";
+  const attentionRequired =
+    bannerContent.bannerMode === "attention_required" ||
+    (deliverToSitePending && readiness.readyForPickup);
 
   const borderColor = allClear ? "#2e7d32" : calmWaiting ? "#b45309" : "#bf0a30";
   const backgroundColor = allClear

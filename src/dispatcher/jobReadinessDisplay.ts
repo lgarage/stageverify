@@ -37,7 +37,7 @@ export function deliveryReadinessDisplayLabel(
   }
   if (
     delivery.invoiceDeliverToSite === true &&
-    delivery.status === "complete"
+    delivery.invoiceDeliverToSiteConfirmed === true
   ) {
     return "Complete";
   }

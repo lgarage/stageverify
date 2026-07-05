@@ -11,7 +11,10 @@ import {
   MATERIAL_ISSUE_TYPE_LABEL,
   type DeliveryStatus,
 } from "./models";
-import { isInvoiceShellNoShopStaging } from "./invoice/invoiceShellDisplayHelpers";
+import {
+  buildDeliverToSiteIssueSummary,
+  isInvoiceShellNoShopStaging,
+} from "./invoice/invoiceShellDisplayHelpers";
 import { deliveryReadinessDisplayLabel } from "./jobReadinessDisplay";
 import {
   computeDeliveryReadiness,
@@ -205,9 +208,20 @@ function buildComputedIssueSummary(
     return DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY;
   }
 
+  const deliverToSiteSummary = buildDeliverToSiteIssueSummary(delivery);
+  if (
+    deliverToSiteSummary &&
+    delivery.invoiceDeliverToSiteConfirmed !== true
+  ) {
+    return deliverToSiteSummary;
+  }
+
   if (readiness.readyForPickup) {
     if (displayOptions?.jobPickupScheduled) {
       return "Pickup Scheduled";
+    }
+    if (deliverToSiteSummary) {
+      return deliverToSiteSummary;
     }
     return "";
   }
@@ -573,6 +587,24 @@ export function buildDrawerActionBannerContent(
     !options?.emailReviewRequired &&
     !vendorClaimsDelivered(delivery);
 
+  const deliverToSitePending =
+    delivery.invoiceDeliverToSite === true &&
+    delivery.invoiceDeliverToSiteConfirmed !== true;
+
+  if (deliverToSitePending) {
+    const label = delivery.invoiceDeliverToLabel?.trim();
+    pushWhy(
+      label
+        ? `Vendor shipped to job site (${label}) — confirm when material is on site`
+        : "Deliver-to-site order — confirm when material reaches the job site",
+    );
+    pushNext(
+      label
+        ? `Mark delivered to site in Issue Summary when ${label} has the material`
+        : "Mark delivered to site in Issue Summary when the job site has the material",
+    );
+  }
+
   if (options?.emailReviewRequired) {
     pushWhy("Vendor email proposal needs dispatcher review");
     pushNext("Click Review Vendor Email to open matched email evidence below");
@@ -642,7 +674,8 @@ export function buildDrawerActionBannerContent(
     !calmWaiting &&
     (whyBullets.length > 0 ||
       openBlockingMaterialIssues(materialIssues).length > 0 ||
-      options?.emailReviewRequired === true);
+      options?.emailReviewRequired === true) ||
+    (deliverToSitePending && display.readiness.readyForPickup);
 
   const openBlockingIssueCount = display.openBlockingIssueCount;
   let resolveDisabledReason: string;
@@ -675,7 +708,11 @@ export function buildDrawerActionBannerContent(
 
   let bannerMode: DrawerBannerMode;
   let attentionHeadline: string;
-  if (display.readiness.readyForPickup && !options?.emailReviewRequired) {
+  if (
+    display.readiness.readyForPickup &&
+    !options?.emailReviewRequired &&
+    !deliverToSitePending
+  ) {
     bannerMode = "all_clear";
     attentionHeadline =
       "Ready for Pickup — vendor order complete, physical complete, no blocking issues.";
