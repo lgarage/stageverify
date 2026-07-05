@@ -62,6 +62,7 @@
     "verify:pickup-issue-resolution:prod": "node scripts/run-verify-with-learning.mjs --script verify:pickup-issue-resolution:prod scripts/verify-pickup-issue-resolution-readback.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:public-network-error": "node scripts/verify-public-network-error.mjs",
     "verify:settings-staging:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-staging:prod scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
+    "audit:watch-clickthrough": "node scripts/audit-watch-clickthrough.mjs",
     "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",
     "measure:routes": "node scripts/measure-mobile-route-performance.mjs",
     "measure:vendor-submit-latency": "node scripts/measure-vendor-submit-latency.mjs",
