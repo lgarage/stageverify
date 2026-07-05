@@ -3756,6 +3756,7 @@ function DetailContent({
         <InvoiceParsedInspectModal
           importRow={inspectImport}
           readOnly
+          deliverToSiteConfirmed={details.delivery.invoiceDeliverToSiteConfirmed === true}
           onClose={() => setInspectImport(null)}
         />
       ) : null}

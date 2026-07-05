@@ -20,11 +20,18 @@ export interface ExpectedFieldRow {
   notes: string;
 }
 
+export interface ExpectedFieldsChecklistContext {
+  /** Linked delivery has site delivery confirmed — review/approve prompts are N/A. */
+  deliverToSiteConfirmed?: boolean;
+}
+
 export interface ExpectedFieldsSummary {
   documentType: string;
   importStatus: string;
   reviewStatus: string;
   approvalEligible: boolean;
+  approvalEligibleLabel: "Yes" | "No" | "N/A";
+  hideAutoImportSuggestion: boolean;
   blockReason: string;
   zeroLinesNote?: string;
   rows: ExpectedFieldRow[];
@@ -159,8 +166,10 @@ function buildLineRows(importRow: VendorInvoiceImportReview): ExpectedFieldRow[]
 
 export function buildExpectedJohnstoneFieldChecklist(
   importRow: VendorInvoiceImportReview,
+  context?: ExpectedFieldsChecklistContext,
 ): ExpectedFieldsSummary {
   const approveBlocked = importRow.importStatus === "issue";
+  const siteConfirmed = context?.deliverToSiteConfirmed === true;
   const lineCount = importRow.parsedLineCount ?? importRow.parsedLines?.length ?? 0;
   const blockReason =
     importRow.error?.trim() ||
@@ -173,6 +182,12 @@ export function buildExpectedJohnstoneFieldChecklist(
       ? "Zero parsed lines — may need Refresh Now reprocess if the PDF has line items."
       : undefined;
 
+  const approvalEligible =
+    !siteConfirmed &&
+    (importRow.reviewStatus === "pending_review" ||
+      importRow.reviewStatus === "rejected") &&
+    !approveBlocked;
+
   return {
     documentType: documentTypeLabel(inferDocumentType(importRow)),
     importStatus: vendorInvoiceImportDisplayLabelForRow(
@@ -180,10 +195,13 @@ export function buildExpectedJohnstoneFieldChecklist(
       importRow.orderNotes,
     ),
     reviewStatus: reviewStatusLabel(importRow.reviewStatus),
-    approvalEligible:
-      (importRow.reviewStatus === "pending_review" ||
-        importRow.reviewStatus === "rejected") &&
-      !approveBlocked,
+    approvalEligible,
+    approvalEligibleLabel: siteConfirmed
+      ? "N/A"
+      : approvalEligible
+        ? "Yes"
+        : "No",
+    hideAutoImportSuggestion: siteConfirmed,
     blockReason,
     zeroLinesNote,
     rows: buildHeaderRows(importRow),

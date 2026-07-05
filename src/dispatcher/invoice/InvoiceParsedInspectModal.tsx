@@ -57,6 +57,7 @@ export function InvoiceParsedInspectModal({
   onReopen,
   onLink,
   readOnly = false,
+  deliverToSiteConfirmed = false,
   onViewPdf,
   pdfLoading = false,
   pdfUnavailableMessage = null,
@@ -76,11 +77,15 @@ export function InvoiceParsedInspectModal({
   onLink?: () => void;
   /** Drawer inspect — hide review actions and delivery picker. */
   readOnly?: boolean;
+  /** Linked delivery confirmed delivered to job site — suppress review-required UI. */
+  deliverToSiteConfirmed?: boolean;
   onViewPdf?: () => void;
   pdfLoading?: boolean;
   pdfUnavailableMessage?: string | null;
 }) {
-  const checklist = buildExpectedJohnstoneFieldChecklist(importRow);
+  const checklist = buildExpectedJohnstoneFieldChecklist(importRow, {
+    deliverToSiteConfirmed,
+  });
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
   const normalizedHeader = normalizeParsedHeader(importRow.parsedHeader);
   const codContext = codPaymentContext(importRow);
@@ -268,11 +273,16 @@ export function InvoiceParsedInspectModal({
               <div
                 data-testid="invoice-parsed-inspect-approval"
                 style={{
-                  color: checklist.approvalEligible ? "#166534" : "#9a3412",
+                  color:
+                    checklist.approvalEligibleLabel === "Yes"
+                      ? "#166534"
+                      : checklist.approvalEligibleLabel === "N/A"
+                        ? "#6b7280"
+                        : "#9a3412",
                   fontWeight: 600,
                 }}
               >
-                {checklist.approvalEligible ? "Yes" : "No"}
+                {checklist.approvalEligibleLabel}
               </div>
             </div>
             <div>
@@ -321,7 +331,9 @@ export function InvoiceParsedInspectModal({
               {checklist.zeroLinesNote}
             </div>
           )}
-          <AutoImportSuggestionPanel importRow={importRow} />
+          {!checklist.hideAutoImportSuggestion ? (
+            <AutoImportSuggestionPanel importRow={importRow} />
+          ) : null}
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>

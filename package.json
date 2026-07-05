@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.6",
+  "version": "0.0.7",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -90,6 +90,7 @@
     "test:pdf-extract-4046362": "cd functions && npm run build && cd .. && npx tsx scripts/test-pdf-extract-4046362.mjs",
     "test:invoice-batch": "npx tsx scripts/test-invoice-batch.mjs",
     "test:invoice-shell-display": "npx tsx scripts/test-invoice-shell-display.mjs",
+    "test:parsed-inspect-site-confirmed": "npx tsx scripts/test-parsed-inspect-site-confirmed.mjs",
     "test:gmail-api": "npx tsx scripts/test-gmail-api.mjs",
     "test:send-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-send-vendor-email.mjs\"",
     "test:process-inbound-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-process-inbound-vendor-email.mjs\"",
