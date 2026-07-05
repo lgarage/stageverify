@@ -1,0 +1,1 @@
+var e=`svbotmail@gmail.com`;export{e as t};
