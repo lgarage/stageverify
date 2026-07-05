@@ -1,32 +1,34 @@
 ---
-description: Mandatory commit, push, and deploy after substantive stageverify changes.
+description: Ship every change on stageverify — commit, push, deploy when applicable; never wait for "ship it".
 alwaysApply: true
 ---
 
 # Ship Loop (stageverify)
 
-After **any** substantive code or config change in this repo, complete the ship loop before declaring done.
+After **every change** in this repo, complete the ship loop before declaring done.
 
-## Dan's standing preference — always ship (never wait for "ship it")
+## Dan's standing preference — ship every change (never wait for "ship it")
 
-**Purpose:** Dan verifies every update on live **gh-pages** (`https://lgarage.github.io/stageverify`) — shipping is how he confirms things are right. Agents must treat deploy as part of "done," not a separate optional step.
+**Purpose:** Dan verifies **every change** on live **gh-pages** (`https://lgarage.github.io/stageverify`) — shipping is how he confirms things are right. Agents must treat commit + push + deploy as part of "done," not a separate optional step.
 
-**Default:** After any substantive code or config update, **commit → push → deploy** in the **same session** without prompting. When the frontend bundle changed and validation passed, run **`npm run deploy`** (gh-pages) automatically. Bump `package.json` `version` in the **same commit**, before build — see `version-bump-ship-gate.mdc`.
+**Default = ship every change.** After any update — bug fix, UI tweak, feature, rules/docs on `main`, config — **commit → push → deploy (when applicable)** in the **same session** without prompting. When the frontend bundle changed and validation passed, run **`npm run deploy`** (gh-pages) automatically. Bump `package.json` `version` in the **same commit**, before build — see `version-bump-ship-gate.mdc`.
 
-**"Ship it" is optional confirmation, not a required trigger.** Do **not** wait for Dan to say "ship it," "deploy," or "push it" before shipping. If validation passes and skip triggers below do not apply, ship without asking.
+**What "every change" includes:** fixes, UI, service logic, rules, docs, and PROJECT_STATUS updates that land on `main`. Rules/docs-only changes: commit + push (gh-pages skip when no bundle impact). Bundle changes: commit + push + gh-pages. CF/rules changes: commit + push + Firebase after security gate.
+
+**"Ship it" is optional confirmation, not a required trigger.** Do **not** wait for Dan to say "ship it," "deploy," or "push it" before shipping. If validation passes and the skip list below does not apply, ship without asking.
 
 **Do not wait to be asked.** Dan's safety net is **`git revert <hash>`** — not holding back ship.
 
 | Default | Skip only when |
 |---------|----------------|
-| Commit + push + deploy without prompting | Dan says "do not deploy", "hold", "commit only", "local only", "commit and push only" |
+| Ship **every change** — commit + push + deploy when applicable, without prompting | Dan explicitly says hold, do not deploy, local only, commit only, or commit and push only |
 | gh-pages when the frontend bundle changed and validation passed | Work is WIP on a branch (not `main`) |
 | Firebase (CF, Firestore rules) when the change requires it | Build or Playwright / `verify:*` failed |
 | Same session as the code change | Sonnet security gate returns **HIGH** and fix is not yet applied |
 
 **Rollback:** prefer `git revert <hash>` (then redeploy if needed) over avoiding deploy. Do not treat "might need revert" as a reason to skip ship.
 
-**Workspace wins:** this rule overrides the generic Cursor user rule "only commit when requested" for **stageverify**. Multitask prompts that say "no deploy unless required" apply **only to that task's stated scope**.
+**Workspace wins:** this rule overrides the generic Cursor user rule **"only commit when requested"** for **stageverify**. Agents must not treat that generic rule as permission to leave changes uncommitted or undeployed. Multitask prompts that say "no deploy unless required" apply **only to that task's stated scope**.
 
 **Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, Firebase deploy, production verification, security gate timing, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
 
@@ -94,9 +96,9 @@ Deploy Firebase targets in the **same session** when the substantive change requ
 
 ## When to skip
 
-Skip commit, push, and/or deploy when:
+**Only these cases** — no other reason to hold back ship:
 
-- Dan explicitly says hold off, do not deploy, hold deploy, local only, commit and push only, or similar.
+- Dan **explicitly** says hold off, do not deploy, hold deploy, local only, commit and push only, or similar.
 - Work is WIP on a branch (not `main`).
 - Validation failed (build, Playwright, or relevant `verify:*`).
 - Sonnet security gate **HIGH** risk remains unfixed.
