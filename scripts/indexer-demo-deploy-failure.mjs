@@ -69,7 +69,31 @@ assert(
   "deploy learning should describe propagation, not code failure",
 );
 
-// --- Case 2: stale bundle classification ---
+// --- Case 2: stuck building (13d9110) → branch/live mismatch terms ---
+const stuckBuildingLog = `
+deploy: gh-pages branch push complete
+deploy: Pages build status: queued
+deploy: Pages build status: building
+deploy: FAIL — timed out after 1740s waiting for Pages build status=built (last: building)
+`;
+const stuckResult = classifyDeployFailure({
+  exitCode: 1,
+  failureKind: "timeout",
+  message: "timed out after 1740s waiting for Pages build status=built (last: building)",
+  stderrTail: stuckBuildingLog,
+  stdoutTail: "",
+});
+assert(
+  stuckResult.summary.toLowerCase().includes("stuck") ||
+    stuckResult.summary.toLowerCase().includes("branch"),
+  "stuck-building timeout should mention stuck building or branch/live mismatch",
+);
+assert(
+  (stuckResult.triggerTerms ?? []).some((t) => /pages build stuck|old bundle/i.test(t)),
+  "stuck-building should emit Pages build stuck or old-bundle trigger terms",
+);
+
+// --- Case 3: stale bundle classification ---
 const staleClassified = classifyDeployFailure({
   exitCode: 1,
   failureKind: "stale-bundle",
@@ -84,7 +108,7 @@ assert(
   "stale-bundle should mention live bundle/index asset",
 );
 
-// --- Case 3: pending entry injects gateWarning for frontend deploy/prod task ---
+// --- Case 4: pending entry injects gateWarning for frontend deploy/prod task ---
 if (captureResult.entry) {
   const ingestInput = pendingToIngestInput(captureResult.entry);
   assert(
@@ -142,7 +166,7 @@ if (captureResult.entry) {
   }
 }
 
-// --- Case 4: session dedup ---
+// --- Case 5: session dedup ---
 const dedup1 = captureDeployFailure({
   exitCode: 1,
   failureKind: "timeout",
@@ -162,7 +186,7 @@ assert(
   `expected dedup on retry; got ${dedup2.action}`,
 );
 
-// --- Case 5: validatePendingLearnings ---
+// --- Case 6: validatePendingLearnings ---
 const { errors: pendingErrors } = validatePendingLearnings();
 assert(pendingErrors.length === 0, `validatePendingLearnings errors: ${pendingErrors.join("; ")}`);
 

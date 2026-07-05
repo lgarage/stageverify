@@ -139,12 +139,15 @@
       "match": [
         "prod verify fail",
         "prod verify",
+        "frontend UI prod verify",
         "gh-pages stale",
         "gh-pages deploy",
         "gh-pages",
         "redeploy",
         "bundle stale",
         "stale bundle",
+        "live bundle stale",
+        "old bundle still live",
         "STAGEVERIFY_BASE_URL",
         "prod deploy",
         "local pass but prod fail",
@@ -163,15 +166,21 @@
       "commands": ["npm run deploy"],
       "gateCandidate": true,
       "injectBefore": ["prod Playwright", "final ship loop", "diagnosing prod-only UI failure"],
-      "warning": "Local build/verify can PASS while gh-pages serves a stale pre-fix bundle. Before treating prod-only UI failure as a code bug: confirm deployed bundle/hash is current, redeploy gh-pages if needed, wait for Pages build status built, then rerun :prod verify."
+      "warning": "Local build/verify can PASS while gh-pages serves a stale pre-fix bundle. Before treating prod-only UI failure as a code bug: check Pages build status + live index.html main JS hash vs dist/ (branch may already have the new bundle). Redeploy or Pages rebuild if needed; wait for status=built, then rerun :prod verify."
     },
     {
       "id": "gh-pages-deploy-freshness",
       "match": [
         "deploy timeout",
         "npm run deploy",
+        "gh-pages deploy",
         "Pages build status",
+        "Pages build stuck",
+        "pages build stuck",
         "live bundle mismatch",
+        "live bundle stale",
+        "old bundle still live",
+        "local bundle differs from live",
         "deploy fail",
         "gh-pages deploy fail",
         "pages build errored",
@@ -179,7 +188,8 @@
         "deploy propagation",
         "push succeeded build pending",
         "live bundle",
-        "deploy timed out"
+        "deploy timed out",
+        "pages rebuild"
       ],
       "orchestratorSteps": [],
       "dossierTags": [],
@@ -188,8 +198,8 @@
       "rules": ["ship-loop.mdc", "composer-orchestrator.mdc § UI Verification Protocol"],
       "commands": ["npm run deploy"],
       "gateCandidate": true,
-      "injectBefore": ["prod Playwright", ":prod verify", "claiming deploy complete", "ship loop"],
-      "warning": "gh-pages push can succeed while Pages build is still queued, errored, or timing out — CDN may serve old index.html assets. Before :prod verify or claiming live: confirm deploy reported status=built and live index main JS asset matches dist/. Prod verify failure after deploy timeout is often propagation, not a code bug."
+      "injectBefore": ["prod Playwright", ":prod verify", "claiming deploy complete", "ship loop", "diagnosing prod UI old behavior"],
+      "warning": "gh-pages branch can hold a new bundle while live still serves an old index.html asset (13d9110). Pages build may stay stuck building ~30min then error after push succeeds — not a code bug. Before :prod verify or claiming live: confirm status=built and live index main JS hash matches dist/; if mismatch or stuck/errored, retry npm run deploy or POST repos/lgarage/stageverify/pages/builds. Prod UI showing old behavior → check Pages build + live bundle hash before debugging code."
     },
     {
       "id": "dispatcher-clipboard",

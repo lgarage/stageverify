@@ -260,7 +260,7 @@ export function isFrontendGhPagesTask(taskQuery, typeKey) {
   if (/firestore rules|cloud function|schema migration|backend deploy|cf deploy|rules-only|inbound email ingest/i.test(q)) {
     return false;
   }
-  return /gh-pages|prod verify|npm run deploy|frontend|ui change|pickup|invoice|settings|dispatcher|:prod|bundle stale|deploy timeout|ship loop|pages build|live bundle/i.test(
+  return /gh-pages|prod verify|npm run deploy|frontend|ui change|pickup|invoice|settings|dispatcher|:prod|bundle stale|deploy timeout|ship loop|pages build|live bundle|old bundle still live|frontend ui prod verify|local bundle differs/i.test(
     q,
   );
 }
@@ -292,24 +292,31 @@ export function classifyDeployFailure(ctx) {
 
   const kind = ctx.failureKind ?? "";
 
-  if (kind === "timeout") {
+  if (kind === "timeout" || kind === "build-stuck") {
     category = "gotcha";
     gateCandidate = true;
     summary =
-      "npm run deploy timed out waiting for Pages build status=built — gh-pages push may have succeeded; live may still serve old bundle";
-    addTerms("deploy timeout", "Pages build status", "propagation", "push succeeded build pending");
+      "npm run deploy timed out or Pages build stuck building — gh-pages branch may have new bundle while live still serves old index.html asset";
+    addTerms(
+      "deploy timeout",
+      "Pages build stuck",
+      "Pages build status",
+      "propagation",
+      "push succeeded build pending",
+      "old bundle still live",
+    );
   } else if (kind === "stale-bundle") {
     category = "gotcha";
     gateCandidate = true;
     summary =
       "npm run deploy — live bundle mismatch; confirm live index.html main JS asset before :prod verify or claiming live";
-    addTerms("live bundle mismatch", "stale bundle", "live index asset", "propagation lag");
+    addTerms("live bundle mismatch", "stale bundle", "live index asset", "propagation lag", "local bundle differs from live");
   } else if (kind === "build-errored") {
     category = "gotcha";
     gateCandidate = true;
     summary =
-      "npm run deploy — GitHub Pages build errored after retry; live may serve stale pre-fix bundle";
-    addTerms("Pages build errored", "build failed", "gh-pages stale");
+      "npm run deploy — GitHub Pages build errored after retry; live may serve stale pre-fix bundle (retry deploy or POST pages/builds)";
+    addTerms("Pages build errored", "build failed", "gh-pages stale", "pages rebuild");
   } else if (kind === "push-failed") {
     category = "lesson";
     gateCandidate = false;
@@ -320,24 +327,31 @@ export function classifyDeployFailure(ctx) {
     gateCandidate = true;
     summary = "npm run deploy — could not fetch live index.html to verify bundle freshness";
     addTerms("live fetch", "live index asset", "gh-pages");
-  } else if (/timed out.*pages build|waiting for pages build status/i.test(combined)) {
+  } else if (/timed out.*pages build|waiting for pages build status|pages build status: building/i.test(combined)) {
     category = "gotcha";
     gateCandidate = true;
     summary =
-      "npm run deploy timed out waiting for Pages build status=built — gh-pages push may have succeeded; live may still serve old bundle";
-    addTerms("deploy timeout", "Pages build status", "propagation", "push succeeded build pending");
+      "npm run deploy timed out or Pages build stuck building — gh-pages branch may have new bundle while live still serves old index.html asset";
+    addTerms(
+      "deploy timeout",
+      "Pages build stuck",
+      "Pages build status",
+      "propagation",
+      "push succeeded build pending",
+      "old bundle still live",
+    );
   } else if (/live bundle mismatch/i.test(combined)) {
     category = "gotcha";
     gateCandidate = true;
     summary =
       "npm run deploy — live bundle mismatch; confirm live index.html main JS asset before :prod verify or claiming live";
-    addTerms("live bundle mismatch", "stale bundle", "live index asset", "propagation lag");
+    addTerms("live bundle mismatch", "stale bundle", "live index asset", "propagation lag", "local bundle differs from live");
   } else if (/pages build errored|build errored after retry/i.test(combined)) {
     category = "gotcha";
     gateCandidate = true;
     summary =
-      "npm run deploy — GitHub Pages build errored after retry; live may serve stale pre-fix bundle";
-    addTerms("Pages build errored", "build failed", "gh-pages stale");
+      "npm run deploy — GitHub Pages build errored after retry; live may serve stale pre-fix bundle (retry deploy or POST pages/builds)";
+    addTerms("Pages build errored", "build failed", "gh-pages stale", "pages rebuild");
   } else if (/gh-pages push failed|push failed/i.test(combined)) {
     category = "lesson";
     gateCandidate = false;
@@ -372,8 +386,8 @@ export function pendingToIngestInput(pending, opts = {}) {
   const mitigation =
     pending.category === "gotcha" && pending.gateCandidate
       ? isDeploy
-        ? "Confirm deploy script reported Pages status=built + live index asset matches dist/ before :prod verify; redeploy if timeout or mismatch"
-        : "Redeploy gh-pages (npm run deploy), wait for Pages built, rerun :prod verify"
+        ? "Confirm deploy reported Pages status=built + live index.html main JS hash matches dist/ before :prod verify; if stuck building, errored, or branch/live mismatch — retry npm run deploy or POST repos/lgarage/stageverify/pages/builds"
+        : "Redeploy gh-pages (npm run deploy), wait for Pages built, confirm live bundle hash, rerun :prod verify"
       : pending.category === "lesson"
         ? "See summary — re-run setup or fix environment before retry"
         : null;
@@ -430,10 +444,10 @@ export function collectPendingLearningGateWarnings(taskQuery, typeKey) {
     });
 
     if (!termMatch) {
-      if (isDeploy && !/deploy|gh-pages|prod verify|frontend|ship loop|bundle|pages build/i.test(q)) {
+      if (isDeploy && !/deploy|gh-pages|prod verify|frontend|ship loop|bundle|pages build|live bundle|old bundle/i.test(q)) {
         continue;
       }
-      if (isVerifyGhPages && !/prod verify|gh-pages|stale|pickup|invoice|frontend|:prod/i.test(q)) {
+      if (isVerifyGhPages && !/prod verify|gh-pages|stale|pickup|invoice|frontend|:prod|old bundle|live bundle/i.test(q)) {
         continue;
       }
     }

@@ -90,17 +90,26 @@ function assertCase(name, merged) {
     if (!matched.includes("prod-verify-redeploy")) {
       failures.push(`expected matchedTriggers to include prod-verify-redeploy; got ${matched.join(", ") || "none"}`);
     }
+    if (!matched.includes("gh-pages-deploy-freshness")) {
+      failures.push(
+        `expected matchedTriggers to include gh-pages-deploy-freshness; got ${matched.join(", ") || "none"}`,
+      );
+    }
     if (gateWarnings.length === 0) {
       failures.push("expected gateWarnings (stale gh-pages) to be non-empty");
     }
-    if (!String(gateWarnings[0] ?? "").toLowerCase().includes("stale")) {
-      failures.push("expected gate warning to mention stale bundle");
+    const warningText = gateWarnings.join(" ").toLowerCase();
+    if (!warningText.includes("stale") && !warningText.includes("bundle") && !warningText.includes("live")) {
+      failures.push("expected gate warning to mention stale/bundle/live mismatch");
     }
   }
 
   if (name === "negative") {
     if (matched.includes("prod-verify-redeploy")) {
       failures.push("prod-verify-redeploy should NOT match backend firestore rules task");
+    }
+    if (matched.includes("gh-pages-deploy-freshness")) {
+      failures.push("gh-pages-deploy-freshness should NOT match backend firestore rules task");
     }
     if (gateWarnings.length > 0) {
       failures.push(`expected no gateWarnings; got ${gateWarnings.length}`);
