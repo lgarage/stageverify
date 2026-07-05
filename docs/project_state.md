@@ -2,7 +2,7 @@
 
 > **Canonical phase truth** ? single source for current phase, features, deployment status, and known issues.
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
-> **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` ? end-to-end product design; all features and agent work must align with scope § there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
+> **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` ? end-to-end product design; all features and agent work must align with scope ï¿½ there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
 > **Maintained by:** Composer 2.5 (update after major milestones)
 > **Last reviewed:** 2026-06-23
 
@@ -62,7 +62,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Johnstone invoice import Slice 1 (shipped 2026-07-03):** Offline prototype ? `src/dispatcher/invoice/` parses text-extracted invoice pages (fixtures mimic Sioux Falls PDF batch); fulfillment method from explicit PO/Ship Via/header language only (never from backorder lines); backorders drive completeness (`partial` + human review) without assuming future pickup/delivery; fully fulfilled will-call ? `pickup_at_vendor` / **Will-Call / Pickup.**; excludes core/return lines; `npm run test:invoice-parser` ?95% gate (13 fixtures). No upload UI, PDF upload UI, or Firestore writes in this slice.
 
-**Johnstone invoice import Slice 2 (shipped 2026-07-03):** Offline batch pipeline ? `pdfTextAdapter.ts` (page boundaries, multi-page merge, fixture/extraction adapt) + `processInvoiceBatch` / `processInvoiceBatchFromExtracted` (one `importBatchId` per batch, page-level **processed** / **needs_review** / **failed**, spec §11 failure isolation); feeds Slice 1 parser; `npm run test:invoice-batch` ?95% gate. No PDF binary upload UI, Firestore writes, or Cloud Functions.
+**Johnstone invoice import Slice 2 (shipped 2026-07-03):** Offline batch pipeline ? `pdfTextAdapter.ts` (page boundaries, multi-page merge, fixture/extraction adapt) + `processInvoiceBatch` / `processInvoiceBatchFromExtracted` (one `importBatchId` per batch, page-level **processed** / **needs_review** / **failed**, spec ï¿½11 failure isolation); feeds Slice 1 parser; `npm run test:invoice-batch` ?95% gate. No PDF binary upload UI, Firestore writes, or Cloud Functions.
 
 **Slice 1 (shipped 2026-06-08):** Report Issue from pickup portal (public `createMaterialIssue` CF), warning-only blocking banner, dispatcher open-issue badge + read-only Material Issues panel. Does **not** change `delivery.status` to `issue`; queue rules unchanged.
 
@@ -86,7 +86,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **M1 vendor revert hydration (shipped 2026-06-08):** `revertDeliveryStatus` vendor paths (early return + post-commit) route through `hydrateAfterVendorWrite` ? unauthenticated revert no longer calls auth-only `getDeliveryDetails`. Focused security review: PASS. Local verify: vendor-e2e 10/10, pickup PASS.
 
-Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** ? pickup issue resolution readback + `verify:phase4-integration`. **Phase 3 gate closed 2026-06-19?20** (integration verify + permanent shop-stock mapping). **Batch 3 shipped 2026-06-17?18:** vendor session (Slice 4), pickup tokens (Slice 5), §10?§11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`?`041`; see `archives/away-batch-3.json`). **Away batch 047?053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`). **Away-054..058 (2026-06-21):** fingerprint dedup, `verify:phase5-email`, correction-to-earlier-email fixture, expanded proposal review detail, drawer READINESS EVIDENCE (read-only). **Away-059 (2026-06-21):** `processInboundVendorEmail` CF ? high-confidence `vendor_order_complete` auto-applies Condition 1 server-side only (`vendorOrderComplete` + confidence + `vendorEmailEvents` audit); conflicts ? review; drawer shows ? Complete / Review Required; tests: `test:process-inbound-vendor-email`, Sonnet security PASS. **Away-060 (2026-06-21):** retired Proposed Email Updates dashboard table; slim Needs Review strip (unmatched/ambiguous only) + collapsed drawer Email Evidence with View Original Email; Deliveries table unchanged. Future email parent-match strategy (Job rollup vs PO rollup) deferred to Phase 6+ Settings ? not implemented in Phase 5.
+Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** ? pickup issue resolution readback + `verify:phase4-integration`. **Phase 3 gate closed 2026-06-19?20** (integration verify + permanent shop-stock mapping). **Batch 3 shipped 2026-06-17?18:** vendor session (Slice 4), pickup tokens (Slice 5), ï¿½10?ï¿½11 pickup UI, combination staging stub, Phase 4 issue resolve (`away-021`?`041`; see `archives/away-batch-3.json`). **Away batch 047?053 (2026-06-19):** pickup submit label, Phase 5 email panel polish, public network-error UX, resolution-type picker, Phase 4 integration verify, **Phase 5 inbox settings UI** (`away-053`). **Away-054..058 (2026-06-21):** fingerprint dedup, `verify:phase5-email`, correction-to-earlier-email fixture, expanded proposal review detail, drawer READINESS EVIDENCE (read-only). **Away-059 (2026-06-21):** `processInboundVendorEmail` CF ? high-confidence `vendor_order_complete` auto-applies Condition 1 server-side only (`vendorOrderComplete` + confidence + `vendorEmailEvents` audit); conflicts ? review; drawer shows ? Complete / Review Required; tests: `test:process-inbound-vendor-email`, Sonnet security PASS. **Away-060 (2026-06-21):** retired Proposed Email Updates dashboard table; slim Needs Review strip (unmatched/ambiguous only) + collapsed drawer Email Evidence with View Original Email; Deliveries table unchanged. Future email parent-match strategy (Job rollup vs PO rollup) deferred to Phase 6+ Settings ? not implemented in Phase 5.
 
 Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architecture.md`, and this file.
 
@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-110** ? Verify regression bundle + learning-pending merge.
+1. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` â€” refill queue via `away-list.json` when ready.
 2. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 3. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
 4. **ESL integration** ? Phase 7; blocked on Minew credentials.
@@ -222,11 +222,11 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 **Option A ? issue-import queue (2026-07-04)** ? Parses with `importStatus: issue` (e.g. S/O confirmation missing Invoice #) now write `vendorInvoiceImports` review rows with parsed lines + issue reason; Approve blocked server-side + UI; Reject allowed. Refresh Now (`retryOnError`) backfills legacy parsed emails with 0 queued invoices. Verify: `verify:inbound-email-ingest`, `test:retry-on-error-inbound`, `verify:invoice-review`.
 
-**away-084 (2026-07-03)** ? Mini-librarian phase 3: `PROJECT_STATUS/gotcha-map.json` maps task triggers to composer-orchestrator steps 6?8 (MODEL_DOSSIER index, § agent-lessons, USER_SCOPE_REJECTIONS). New `npm run context:gotcha -- --task "<?>"` CLI (JSON/markdown); validated in `away:validate`. Corrects prior mislabel ? drawer UI work was never librarian scope. Verify: `away:validate`, `build`.
+**away-084 (2026-07-03)** ? Mini-librarian phase 3: `PROJECT_STATUS/gotcha-map.json` maps task triggers to composer-orchestrator steps 6?8 (MODEL_DOSSIER index, ï¿½ agent-lessons, USER_SCOPE_REJECTIONS). New `npm run context:gotcha -- --task "<?>"` CLI (JSON/markdown); validated in `away:validate`. Corrects prior mislabel ? drawer UI work was never librarian scope. Verify: `away:validate`, `build`.
 
 **away-086 (2026-07-03)** ? Mini-librarian phase 3: rotated QR confidence, session confidence, and outcome log tables from `MODEL_DOSSIER.md` to `archives/dossier-notes.md`; trimmed warm dossier to 134 lines; updated `dossier-index.json` line ranges. Verify: `dossier:slice --tag agent-lessons`, `away:validate`, `build`.
 
-**away-085 (2026-07-03)** ? Mini-librarian phase 3: `npm run context:packet -- --tags <tags>` (hot tier + dossier § slices + optional `--queue`); `npm run away:next -- --packet` merges queue brief + blocker one-liner + tag slices. Shared lib `context-packet-lib.mjs`. Verify: `away:validate`, `build`.
+**away-085 (2026-07-03)** ? Mini-librarian phase 3: `npm run context:packet -- --tags <tags>` (hot tier + dossier ï¿½ slices + optional `--queue`); `npm run away:next -- --packet` merges queue brief + blocker one-liner + tag slices. Shared lib `context-packet-lib.mjs`. Verify: `away:validate`, `build`.
 
 **away-083 (2026-07-03)** ? Mini-librarian phase 3: `away:ship` + `away:validate` auto-sync `docs/project_state.md` Immediate Next Steps #1 with queue head (same rule as CURRENT_STATE + NEXT.md). Helpers in `away-memory-lib.mjs`. Verify: `away:validate`, `build`.
 
@@ -242,11 +242,11 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 **Fast UI pass (2026-06-24)** ? Delivery label modal closes on outside click / Escape; primary action renamed **Push to E-Tag** (copy only). Activity History: collapse repeated entity/status events in compact view; **Show Full History** shows raw audit list. List **Issue Summary** column prioritizes **Pickup Scheduled** when delivery is ready and job is scheduled (display-only). Verify: `verify:delivery-consistency` (361 checks).
 
-**Demo drawer uniformity (2026-06-24)** ? All seed/demo orders (ORD-001..006) use the same dispatcher drawer structure as ORD-005: Delivery Basics (no top notes) ? pickup pills + 2×2 action grid ? staging banner when unassigned ? status banner ? Issue Summary ? Readiness Evidence ? Assign Staging Location ? Advanced Manual Controls (collapsed) ? Experimental Stock Tools (collapsed) ? Items ? Activity History. Vendor Communications, Recently Resolved, Need More Space, workflow status pill, and PO editor hidden globally (`DRAWER_HIDE_*`). Verify: `verify:delivery-consistency` loops all demo orders.
+**Demo drawer uniformity (2026-06-24)** ? All seed/demo orders (ORD-001..006) use the same dispatcher drawer structure as ORD-005: Delivery Basics (no top notes) ? pickup pills + 2ï¿½2 action grid ? staging banner when unassigned ? status banner ? Issue Summary ? Readiness Evidence ? Assign Staging Location ? Advanced Manual Controls (collapsed) ? Experimental Stock Tools (collapsed) ? Items ? Activity History. Vendor Communications, Recently Resolved, Need More Space, workflow status pill, and PO editor hidden globally (`DRAWER_HIDE_*`). Verify: `verify:delivery-consistency` loops all demo orders.
 
 **Drawer lower-section UI (mislabeled away-084, 2026-06-24)** ? Items show neutral "Not received yet" at qty 0 (not green pickup-ready); Pickup Summary hidden when 0 received; Status History renamed **Activity History** (collapsed default, max 3 friendly events, Show Full History audit expand); Delivery Notes compact above history. Display-only via `deliveryDisplayHelpers.ts`. Verify: `verify:delivery-consistency`.
 
-**Drawer top cleanup (2026-06-24)** ? Delivery Basics shows Job #, Job Name, Order #, Vendor, PO #, Staging only (notes moved to Activity History audit read-only); pickup scheduled + active link expiry combined in compact pill inside action grid (no floating line below buttons); 2×2 button grid unchanged. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`, `test:readiness` ×3.
+**Drawer top cleanup (2026-06-24)** ? Delivery Basics shows Job #, Job Name, Order #, Vendor, PO #, Staging only (notes moved to Activity History audit read-only); pickup scheduled + active link expiry combined in compact pill inside action grid (no floating line below buttons); 2ï¿½2 button grid unchanged. Verify: `verify:delivery-consistency`, `verify:dispatcher-nav`, `test:readiness` ï¿½3.
 
 **away-075 (2026-06-23)** ? Mini-librarian planning path dedup (Action 2): Scout A runs `away:next --minimal` first; skip scouts when queue head answers; index-only MODEL_DOSSIER in scout table; suggestion-verify reuse clause. Verify: `away:validate`.
 
