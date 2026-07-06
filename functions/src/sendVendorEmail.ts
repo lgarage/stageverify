@@ -72,6 +72,7 @@ function bodyExcerpt(body: string): string {
 
 interface SendVendorEmailRequest {
   deliveryOrderId?: string;
+  vendorId?: string;
   materialIssueId?: string;
   to?: string;
   subject?: string;
@@ -94,6 +95,9 @@ export const sendVendorEmail = onCall(
 
     const data = (request.data ?? {}) as SendVendorEmailRequest;
     const deliveryOrderId = asNonEmptyString(data.deliveryOrderId, MAX_ID_LEN);
+    const vendorIdParam = data.vendorId
+      ? asNonEmptyString(data.vendorId, MAX_ID_LEN)
+      : null;
     const materialIssueId = data.materialIssueId
       ? asNonEmptyString(data.materialIssueId, MAX_ID_LEN)
       : null;
@@ -101,10 +105,10 @@ export const sendVendorEmail = onCall(
     const subject = asNonEmptyString(data.subject, MAX_SUBJECT_LEN);
     const body = asNonEmptyString(data.body, MAX_BODY_LEN);
 
-    if (!deliveryOrderId || !to || !subject || !body) {
+    if (!to || !subject || !body) {
       throw new HttpsError(
         "invalid-argument",
-        "deliveryOrderId, to, subject, and body are required.",
+        "to, subject, and body are required.",
       );
     }
 
@@ -147,66 +151,97 @@ export const sendVendorEmail = onCall(
       );
     }
 
-    const deliverySnap = await db.collection("deliveries").doc(deliveryOrderId).get();
-    if (!deliverySnap.exists) {
-      throw new HttpsError("not-found", "Delivery not found.");
-    }
-
-    const delivery = deliverySnap.data() as {
-      vendorId?: string;
-      jobId?: string;
-      purchaseOrderId?: string;
-    };
-
-    if (!delivery.vendorId) {
-      throw new HttpsError("failed-precondition", "Delivery has no vendor.");
-    }
-
-    const vendorSnap = await db.collection("vendors").doc(delivery.vendorId).get();
-    if (!vendorSnap.exists) {
-      throw new HttpsError("not-found", "Vendor not found.");
-    }
-
-    const vendor = vendorSnap.data() as { email?: string };
-    const vendorEmail = vendor.email?.trim().toLowerCase() ?? "";
     const saveVendorEmail = data.saveVendorEmail === true;
+    const isIssueContext = !!materialIssueId;
+    let resolvedVendorId: string | undefined;
+    let resolvedJobId: string | undefined;
+    let resolvedPurchaseOrderId: string | undefined;
+    let resolvedDeliveryOrderId: string | undefined;
 
-    if (vendorEmail && to !== vendorEmail) {
-      if (!saveVendorEmail) {
+    async function enforceVendorEmailMatch(
+      vendorId: string,
+      vendorEmailOnFile: string,
+    ): Promise<void> {
+      const vendorEmail = vendorEmailOnFile.trim().toLowerCase();
+      if (vendorEmail && to !== vendorEmail) {
+        if (!saveVendorEmail) {
+          throw new HttpsError(
+            "invalid-argument",
+            "Recipient differs from vendor email on file. Confirm save to vendor record.",
+          );
+        }
+      } else if (!vendorEmail && !saveVendorEmail) {
         throw new HttpsError(
           "invalid-argument",
-          "Recipient differs from vendor email on file. Confirm save to vendor record.",
+          "Vendor has no email on file. Confirm save to vendor record.",
         );
       }
-    } else if (!vendorEmail && !saveVendorEmail) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Vendor has no email on file. Confirm save to vendor record.",
-      );
-    }
-
-    if (materialIssueId) {
-      const issueSnap = await db.collection("materialIssues").doc(materialIssueId).get();
-      if (!issueSnap.exists) {
-        throw new HttpsError("not-found", "Material issue not found.");
-      }
-      const issue = issueSnap.data() as { deliveryOrderId?: string };
-      if (issue.deliveryOrderId !== deliveryOrderId) {
-        throw new HttpsError(
-          "invalid-argument",
-          "Material issue does not belong to this delivery.",
+      if (saveVendorEmail && to !== vendorEmail) {
+        await db.collection("vendors").doc(vendorId).set(
+          {
+            email: to,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
         );
       }
     }
 
-    if (saveVendorEmail && to !== vendorEmail) {
-      await db.collection("vendors").doc(delivery.vendorId).set(
-        {
-          email: to,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
+    if (deliveryOrderId) {
+      const deliverySnap = await db.collection("deliveries").doc(deliveryOrderId).get();
+      if (!deliverySnap.exists) {
+        throw new HttpsError("not-found", "Delivery not found.");
+      }
+
+      const delivery = deliverySnap.data() as {
+        vendorId?: string;
+        jobId?: string;
+        purchaseOrderId?: string;
+      };
+
+      if (!delivery.vendorId) {
+        throw new HttpsError("failed-precondition", "Delivery has no vendor.");
+      }
+
+      const vendorSnap = await db.collection("vendors").doc(delivery.vendorId).get();
+      if (!vendorSnap.exists) {
+        throw new HttpsError("not-found", "Vendor not found.");
+      }
+
+      const vendor = vendorSnap.data() as { email?: string };
+      if (isIssueContext) {
+        await enforceVendorEmailMatch(
+          delivery.vendorId,
+          vendor.email?.trim() ?? "",
+        );
+      }
+
+      if (materialIssueId) {
+        const issueSnap = await db.collection("materialIssues").doc(materialIssueId).get();
+        if (!issueSnap.exists) {
+          throw new HttpsError("not-found", "Material issue not found.");
+        }
+        const issue = issueSnap.data() as { deliveryOrderId?: string };
+        if (issue.deliveryOrderId !== deliveryOrderId) {
+          throw new HttpsError(
+            "invalid-argument",
+            "Material issue does not belong to this delivery.",
+          );
+        }
+      }
+
+      resolvedVendorId = delivery.vendorId;
+      resolvedJobId = delivery.jobId;
+      resolvedPurchaseOrderId = delivery.purchaseOrderId;
+      resolvedDeliveryOrderId = deliveryOrderId;
+    } else if (vendorIdParam) {
+      const vendorSnap = await db.collection("vendors").doc(vendorIdParam).get();
+      if (!vendorSnap.exists) {
+        throw new HttpsError("not-found", "Vendor not found.");
+      }
+      const vendor = vendorSnap.data() as { email?: string };
+      await enforceVendorEmailMatch(vendorIdParam, vendor.email?.trim() ?? "");
+      resolvedVendorId = vendorIdParam;
     }
 
     let accessToken: string;
@@ -267,6 +302,9 @@ export const sendVendorEmail = onCall(
 
     const now = new Date().toISOString();
     const eventId = `vee-${randomUUID()}`;
+    const communicationPurpose = isIssueContext
+      ? "need_more_information"
+      : "general";
     const eventDoc = omitUndefined({
       id: eventId,
       sourceMessageId: gmailResult.id,
@@ -274,17 +312,17 @@ export const sendVendorEmail = onCall(
       rfc822MessageId,
       trackingToken,
       direction: "outbound",
-      communicationPurpose: "need_more_information",
+      communicationPurpose,
       materialIssueId: materialIssueId ?? undefined,
       senderEmail: fromEmail,
       recipientEmails: [to],
       replyToAddress: replyTo,
       subject: taggedSubject,
       receivedAt: now,
-      vendorId: delivery.vendorId,
-      jobId: delivery.jobId,
-      deliveryOrderId,
-      purchaseOrderId: delivery.purchaseOrderId,
+      vendorId: resolvedVendorId,
+      jobId: resolvedJobId,
+      deliveryOrderId: resolvedDeliveryOrderId,
+      purchaseOrderId: resolvedPurchaseOrderId,
       reviewStatus: "approved",
       sentBy: uid,
       sentAt: now,

@@ -303,6 +303,49 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.waitForTimeout(400);
   assertUrl(page, /\/dispatcher/, "back to dispatcher");
 
+  await page
+    .getByRole("heading", { name: "Delivery Overview" })
+    .waitFor({ timeout: 15_000 });
+
+  console.log("Vendor Communications entry point…");
+  const vendorCommsEntry = page.getByTestId("vendor-communications-entry");
+  await vendorCommsEntry.waitFor({ timeout: 10_000 });
+  await vendorCommsEntry.click();
+  await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
+  const sendBtn = page.getByTestId("vendor-comms-send");
+  if (await sendBtn.isEnabled()) {
+    throw new Error("Vendor Communications Send must be disabled when fields empty");
+  }
+  await page.getByTestId("vendor-comms-to").fill("test@example.com");
+  await page.getByTestId("vendor-comms-subject").fill("Test subject");
+  if (await sendBtn.isEnabled()) {
+    throw new Error("Vendor Communications Send must stay disabled without message body");
+  }
+  await page.getByTestId("vendor-comms-body").fill("Test body");
+  console.log("PASS: Vendor Communications required field validation.");
+
+  const sendEnabled = await sendBtn.isEnabled();
+  const disconnectedVisible = await page
+    .getByTestId("vendor-comms-provider-disconnected")
+    .isVisible()
+    .catch(() => false);
+  if (sendEnabled) {
+    console.log(
+      "Note: Gmail connected in this environment — Send enabled with valid fields (no send click).",
+    );
+  } else if (disconnectedVisible) {
+    console.log("PASS: Vendor Communications Send gated when Gmail disconnected.");
+  } else {
+    throw new Error(
+      "Vendor Communications Send disabled without disconnected banner — unexpected state",
+    );
+  }
+  console.log("PASS: Vendor Communications modal opens.");
+
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByTestId("vendor-communications-modal").waitFor({ state: "hidden", timeout: 10_000 });
+  console.log("PASS: Vendor Communications modal closes.");
+
   console.log("Top bar: + New Delivery…");
   await page.getByRole("button", { name: "+ New Delivery" }).click();
   await page.getByRole("heading", { name: "New Delivery" }).waitFor({

@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **feat v0.0.15** ? Stage 1 tracked vendor email layer (outbound tokens, reply router dark-shipped behind `emailReplyIngestEnabled`; Needs Review live query)
+- Last shipped: **feat v0.0.16** ? Vendor Communications hub on Dispatcher Dashboard (compose modal, general `sendVendorEmail` path); Resolve Issue unchanged
+- Also shipped: **feat v0.0.15** ? Stage 1 tracked vendor email layer (outbound tokens, reply router dark-shipped behind `emailReplyIngestEnabled`; Needs Review live query)
 - Also shipped: **fix v0.0.14** ? Firestore `fetchAll`/`fetchWhere` merge doc id (drawer opens on list rows); seed demo ORD-001..006 hidden from dispatcher list on prod gh-pages only
 - Also shipped: **away-112** — End-to-end integration verify harness (§14 smoke)
 - Also shipped: **away-109** ? Vendor emailDomain field + Settings UI

@@ -737,9 +737,10 @@ export interface IssueResolution {
   resolvedBy?: string;
 }
 
-/** Outbound vendor email from Resolve Issue (Phase 6 slice 2). */
+/** Outbound vendor email — Resolve Issue or Vendor Communications hub. */
 export interface SendVendorEmailInput {
-  deliveryOrderId: string;
+  deliveryOrderId?: string;
+  vendorId?: string;
   materialIssueId?: string;
   to: string;
   subject: string;

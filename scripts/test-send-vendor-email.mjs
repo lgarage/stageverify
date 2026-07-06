@@ -212,6 +212,7 @@ await seedDelivery(undefined);
 try {
   await sendVendorEmail({
     deliveryOrderId: "del-1",
+    materialIssueId: "issue-1",
     to: "first-vendor@example.com",
     subject: "Question",
     body: "Need info.",
@@ -219,6 +220,26 @@ try {
   fail("vendor with no email should require saveVendorEmail");
 } catch (err) {
   expectInvalidArgument(err, "rejects send when vendor has no email and saveVendorEmail false");
+}
+
+try {
+  await sendVendorEmail({
+    to: "general-test@example.com",
+    subject: "General hub test",
+    body: "No delivery association.",
+  });
+  fail("general send without delivery should proceed past validation (fail at Gmail)");
+} catch (err) {
+  const ok =
+    String(err?.message ?? "").includes("failed-precondition") ||
+    String(err?.message ?? "").includes("internal") ||
+    err?.code === "functions/failed-precondition" ||
+    err?.code === "functions/internal";
+  if (ok) {
+    pass("general send without deliveryOrderId proceeds (fails at Gmail as expected)");
+  } else {
+    fail("general send without deliveryOrderId should not require delivery", err);
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

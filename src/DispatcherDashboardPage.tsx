@@ -68,6 +68,7 @@ import {
   buildNeedMoreInfoEmailSubject,
 } from "./dispatcher/drawer/needMoreInfoDraft";
 import { ResolveIssueModal } from "./dispatcher/drawer/ResolveIssueModal";
+import { VendorCommunicationsModal } from "./dispatcher/drawer/VendorCommunicationsModal";
 import { VendorCommunicationsPanel } from "./dispatcher/drawer/VendorCommunicationsPanel";
 import {
   buildSuggestedResolutionNote,
@@ -323,6 +324,7 @@ export function DispatcherDashboardPage() {
   >([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showVendorCommsModal, setShowVendorCommsModal] = useState(false);
 
   const fetchAllDataRef = useRef<() => Promise<void>>(async () => {});
   const lastRefreshGeneration = useRef(0);
@@ -334,6 +336,7 @@ export function DispatcherDashboardPage() {
     setLastUpdated,
     handleRefreshNow,
     refreshGeneration,
+    vendors,
   } = useDispatcherPortal();
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
@@ -815,6 +818,29 @@ export function DispatcherDashboardPage() {
         <DispatcherPortalTopBar
           title="Dispatcher Dashboard"
           subtitle="Delivery Overview"
+          headerExtra={
+            <button
+              type="button"
+              data-testid="vendor-communications-entry"
+              onClick={() => setShowVendorCommsModal(true)}
+              style={{
+                marginLeft: 8,
+                padding: "4px 10px",
+                borderRadius: 4,
+                border: `1.5px solid ${NAVY}`,
+                backgroundColor: "#fff",
+                color: NAVY,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: FONT,
+                outline: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Vendor Communications
+            </button>
+          }
           lastUpdated={refreshLastUpdated}
           refreshBusy={refreshBusy}
           refreshDisabled={listLoading}
@@ -1872,6 +1898,19 @@ export function DispatcherDashboardPage() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={() => void fetchAllData()}
+      />
+
+      <VendorCommunicationsModal
+        open={showVendorCommsModal}
+        vendors={vendors}
+        deliveries={allRows}
+        emailProviderConnected={emailProviderConnected}
+        navy={NAVY}
+        font={FONT}
+        onClose={() => setShowVendorCommsModal(false)}
+        onSend={async (input) => {
+          await sendVendorEmail(input);
+        }}
       />
     </div>
   );

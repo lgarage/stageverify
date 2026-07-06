@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { DispatcherPortalLinks } from "./PortalNavBar";
@@ -11,6 +12,7 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 export type DispatcherPortalTopBarProps = {
   title: string;
   subtitle?: string;
+  headerExtra?: ReactNode;
   lastUpdated?: string | null;
   refreshBusy?: boolean;
   refreshDisabled?: boolean;
@@ -23,6 +25,7 @@ export type DispatcherPortalTopBarProps = {
 export function DispatcherPortalTopBar({
   title,
   subtitle,
+  headerExtra,
   lastUpdated,
   refreshBusy = false,
   refreshDisabled = false,
@@ -57,6 +60,7 @@ export function DispatcherPortalTopBar({
         {subtitle ? (
           <span style={{ color: "#9ca3af", fontSize: 13 }}>/ {subtitle}</span>
         ) : null}
+        {headerExtra}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
         <DispatcherPortalLinks />

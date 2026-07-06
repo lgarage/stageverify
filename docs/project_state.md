@@ -208,6 +208,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Vendor Communications hub (2026-07-06, v0.0.16)** — Dispatcher Dashboard top bar **Vendor Communications** button opens compose modal (to/subject/body, optional vendor + delivery association). Calls `sendVendorEmail` with optional `deliveryOrderId`/`vendorId` (general path allows any recipient for dispatcher testing). Stage 1 tracking preserved ([SV-*] tag, Reply-To, outbound `vendorEmailEvents`). Resolve Issue flow unchanged. Verify: `verify:dispatcher-nav`, `test:send-vendor-email`.
+
 **Stage 1 tracked vendor email layer (2026-07-06, v0.0.15)** — Outbound `sendVendorEmail`: UUID `[SV-*]` subject tag, plus-address Reply-To, RFC Message-ID capture, `requireDispatcherAuth`. Inbound: extended header parse, flag-gated reply router in `no_pdf` branch (`appSettings.emailReplyIngestEnabled`, default off), deterministic matching ladder, `vendorEmailEvents` inbound docs (review-only, no delivery mutation). Needs Review strip reads live pending inbound events. **Dark-shipped** until Dan enables flag + completes Pub/Sub checklist. Verify: `test:email-thread-matching`, `test:vendor-email-reply-router`, `verify:inbound-email-ingest`.
 
 **Firestore doc id merge + prod demo row hide (2026-07-05, v0.0.14)** ? `fetchAll`/`fetchWhere` merge Firestore doc id into returned objects (fixes dispatcher drawer when body omits `id`); seed demo deliveries ORD-001..006 hidden from `listDeliveries` on prod gh-pages only (`import.meta.env.PROD`). Invoice shells (4046362 etc.) unchanged. Verify: `npm run build`, `verify:delivery-consistency`, `verify:dispatcher-nav` prod.
