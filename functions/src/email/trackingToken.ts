@@ -38,6 +38,37 @@ export function formatBodyTrackingFooter(token: string): string {
   return `\n\n---\nRef: ${TRACKING_SUBJECT_PREFIX}${token}`;
 }
 
+const DEFAULT_OUTBOUND_SIGNATURE = "Thanks,\nL. Garage Dispatch";
+
+/** True when the user body already ends with a sign-off or tracking footer. */
+export function bodyHasSignatureOrFooter(body: string): boolean {
+  const trimmed = body.trim();
+  if (!trimmed) return false;
+  if (
+    /Ref:\s*SV-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(
+      trimmed,
+    )
+  ) {
+    return true;
+  }
+  if (/\n---(?:\s*\n|\s*$)/.test(trimmed)) return true;
+  const tail = trimmed.split("\n").slice(-3).join("\n");
+  if (/^(?:thanks|thank you|regards|best|sincerely),?\s*$/im.test(tail)) {
+    return true;
+  }
+  if (/L\.\s*Garage\s+Dispatch/i.test(trimmed)) return true;
+  return false;
+}
+
+/** User message + optional default signature + Ref footer (Ref always last). */
+export function assembleOutboundEmailBody(body: string, token: string): string {
+  const trimmed = body.trimEnd();
+  const withSignature = bodyHasSignatureOrFooter(trimmed)
+    ? trimmed
+    : `${trimmed}\n\n${DEFAULT_OUTBOUND_SIGNATURE}`;
+  return `${withSignature}${formatBodyTrackingFooter(token)}`;
+}
+
 const SUBJECT_TOKEN_RE = new RegExp(
   `\\[${TRACKING_SUBJECT_PREFIX}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\]`,
   "i",

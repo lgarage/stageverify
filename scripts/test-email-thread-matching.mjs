@@ -4,6 +4,7 @@
  */
 import { resolveReplyToThread } from "../functions/src/email/resolveReplyToThread.ts";
 import {
+  assembleOutboundEmailBody,
   buildPlusReplyTo,
   extractTokenFromBody,
   extractTokenFromSubject,
@@ -85,10 +86,24 @@ console.log("\n1b. Outbound clean subject (no visible [SV-*] tag)");
 const userSubject = "hey";
 const userBody = "Please confirm ETA";
 const outboundSubject = userSubject;
-const outboundBody = `${userBody}${formatBodyTrackingFooter(TOKEN)}`;
+const outboundBody = assembleOutboundEmailBody(userBody, TOKEN);
 assert("outbound subject has no [SV-] tag", !/\[SV-/i.test(outboundSubject));
 assert("outbound subject unchanged", outboundSubject === userSubject);
 assert("outbound body includes Ref footer", outboundBody.includes(`Ref: SV-${TOKEN}`));
+assert(
+  "default signature before Ref when absent",
+  outboundBody.includes("Thanks,\nL. Garage Dispatch") &&
+    outboundBody.indexOf("Thanks,\nL. Garage Dispatch") <
+      outboundBody.indexOf(`Ref: SV-${TOKEN}`),
+);
+const issueStyleBody = "Please confirm ETA.\n\nThank you,";
+const issueOutboundBody = assembleOutboundEmailBody(issueStyleBody, TOKEN);
+assert(
+  "Resolve Issue sign-off kept; Ref after sign-off",
+  issueOutboundBody.endsWith(formatBodyTrackingFooter(TOKEN).trim()) &&
+    issueOutboundBody.includes("Thank you,") &&
+    !issueOutboundBody.includes("Thanks,\nL. Garage Dispatch"),
+);
 
 console.log("\n2. threadId match");
 const threadMatch = resolveReplyToThread({
@@ -172,7 +187,7 @@ const plusMatch = resolveReplyToThread({
 assert("matchedBy plusToken", plusMatch.matchedBy === "plusToken");
 
 console.log("\n6. body footer token match");
-const bodyWithRef = `Shipped today.${formatBodyTrackingFooter(TOKEN)}`;
+const bodyWithRef = assembleOutboundEmailBody("Shipped today.", TOKEN);
 const bodyMatch = resolveReplyToThread({
   message: {
     sourceMessageId: "msg-in-4b",

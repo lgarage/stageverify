@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **feat v0.0.17** — Vendor Communications polish (clean outbound subject, body Ref footer, field labels, send-success toast); `sendVendorEmail` stores token internally only
+- Last shipped: **feat v0.0.18** — Vendor Communications form labels (Vendor, Associated Delivery / Order), helper text for new tracked thread, Ref footer below default signature in outbound email body
+- Also shipped: **feat v0.0.17** — Vendor Communications polish (clean outbound subject, body Ref footer, field labels, send-success toast); `sendVendorEmail` stores token internally only
 - Also shipped: **feat v0.0.16** — Vendor Communications hub on Dispatcher Dashboard (compose modal, general `sendVendorEmail` path); Resolve Issue unchanged
 - Also shipped: **feat v0.0.15** ? Stage 1 tracked vendor email layer (outbound tokens, reply router dark-shipped behind `emailReplyIngestEnabled`; Needs Review live query)
 - Also shipped: **fix v0.0.14** ? Firestore `fetchAll`/`fetchWhere` merge doc id (drawer opens on list rows); seed demo ORD-001..006 hidden from dispatcher list on prod gh-pages only

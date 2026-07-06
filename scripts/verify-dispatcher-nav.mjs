@@ -314,8 +314,8 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
 
   const labelChecks = [
-    ["vendor-comms-vendor", "Vendor / Contact"],
-    ["vendor-comms-delivery", "Related Delivery / Order"],
+    ["vendor-comms-vendor", "Vendor"],
+    ["vendor-comms-delivery", "Associated Delivery / Order"],
     ["vendor-comms-to", "Email Address"],
     ["vendor-comms-subject", "Subject"],
     ["vendor-comms-body", "Message"],
@@ -331,6 +331,15 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     }
   }
   console.log("PASS: Vendor Communications field labels visible.");
+
+  const helperText = await page.getByTestId("vendor-comms-helper").innerText();
+  if (
+    !helperText.includes("This starts a new tracked vendor email thread") ||
+    !helperText.includes("Needs Review until inbound ingest is enabled")
+  ) {
+    throw new Error(`Unexpected vendor comms helper text: ${helperText}`);
+  }
+  console.log("PASS: Vendor Communications helper text visible.");
 
   const sendBtn = page.getByTestId("vendor-comms-send");
   if (await sendBtn.isEnabled()) {
@@ -501,7 +510,23 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
         throw new Error("Vendor Communications empty state must be collapsed by default");
       }
       await page.getByTestId("vendor-communications-toggle").click();
-      await page.getByTestId("vendor-communications-empty").waitFor({ timeout: 10_000 });
+      await page.waitForFunction(
+        () => {
+          if (document.querySelector('[data-testid="vendor-communications-loading"]')) {
+            return false;
+          }
+          return (
+            document.querySelector('[data-testid="vendor-communications-empty"]') ||
+            document.querySelector('[data-testid="vendor-communications-list"]') ||
+            document.querySelector('[data-testid="vendor-communications-error"]')
+          );
+        },
+        undefined,
+        { timeout: 15_000 },
+      );
+      if (await page.getByTestId("vendor-communications-list").isVisible().catch(() => false)) {
+        console.log("PASS: Vendor Communications drawer shows outbound list (away-068).");
+      } else {
       const emptyText = await page.getByTestId("vendor-communications-empty").innerText();
       const okDisconnected =
         /No messages yet/i.test(emptyText) && /connect Gmail in Settings/i.test(emptyText);
@@ -511,6 +536,7 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
         throw new Error(`Vendor Communications empty state unexpected: ${emptyText}`);
       }
       console.log("PASS: Vendor Communications read-only placeholder (away-068).");
+      }
     } else {
       console.log("SKIP Vendor Communications: panel not on this delivery.");
     }

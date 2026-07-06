@@ -202,9 +202,17 @@ export function VendorCommunicationsModal({
         >
           Vendor Communications
         </h2>
-        <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6b7280" }}>
-          Send tracked outbound email via StageVerify. Replies stay in Needs
-          Review until inbound ingest is enabled.
+        <p
+          data-testid="vendor-comms-helper"
+          style={{
+            margin: "0 0 18px",
+            fontSize: 13,
+            color: "#6b7280",
+            textAlign: "left",
+          }}
+        >
+          This starts a new tracked vendor email thread. Replies will stay in
+          Needs Review until inbound ingest is enabled.
         </p>
 
         <label
@@ -217,7 +225,7 @@ export function VendorCommunicationsModal({
             fontFamily: font,
           }}
         >
-          Vendor / Contact
+          Vendor
         </label>
         <select
           id="vendor-comms-vendor"
@@ -254,7 +262,7 @@ export function VendorCommunicationsModal({
             fontFamily: font,
           }}
         >
-          Related Delivery / Order
+          Associated Delivery / Order
         </label>
         <select
           id="vendor-comms-delivery"

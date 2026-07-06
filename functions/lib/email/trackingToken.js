@@ -6,6 +6,8 @@ exports.formatSubjectTag = formatSubjectTag;
 exports.subjectWithTrackingTag = subjectWithTrackingTag;
 exports.buildPlusReplyTo = buildPlusReplyTo;
 exports.formatBodyTrackingFooter = formatBodyTrackingFooter;
+exports.bodyHasSignatureOrFooter = bodyHasSignatureOrFooter;
+exports.assembleOutboundEmailBody = assembleOutboundEmailBody;
 exports.extractTokenFromSubject = extractTokenFromSubject;
 exports.extractTokenFromAddress = extractTokenFromAddress;
 exports.extractTokenFromAddresses = extractTokenFromAddresses;
@@ -45,6 +47,33 @@ function buildPlusReplyTo(baseEmail, token) {
 /** Human-visible body footer (secondary match signal — not load-bearing). */
 function formatBodyTrackingFooter(token) {
     return `\n\n---\nRef: ${exports.TRACKING_SUBJECT_PREFIX}${token}`;
+}
+const DEFAULT_OUTBOUND_SIGNATURE = "Thanks,\nL. Garage Dispatch";
+/** True when the user body already ends with a sign-off or tracking footer. */
+function bodyHasSignatureOrFooter(body) {
+    const trimmed = body.trim();
+    if (!trimmed)
+        return false;
+    if (/Ref:\s*SV-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(trimmed)) {
+        return true;
+    }
+    if (/\n---(?:\s*\n|\s*$)/.test(trimmed))
+        return true;
+    const tail = trimmed.split("\n").slice(-3).join("\n");
+    if (/^(?:thanks|thank you|regards|best|sincerely),?\s*$/im.test(tail)) {
+        return true;
+    }
+    if (/L\.\s*Garage\s+Dispatch/i.test(trimmed))
+        return true;
+    return false;
+}
+/** User message + optional default signature + Ref footer (Ref always last). */
+function assembleOutboundEmailBody(body, token) {
+    const trimmed = body.trimEnd();
+    const withSignature = bodyHasSignatureOrFooter(trimmed)
+        ? trimmed
+        : `${trimmed}\n\n${DEFAULT_OUTBOUND_SIGNATURE}`;
+    return `${withSignature}${formatBodyTrackingFooter(token)}`;
 }
 const SUBJECT_TOKEN_RE = new RegExp(`\\[${exports.TRACKING_SUBJECT_PREFIX}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\]`, "i");
 const PLUS_TOKEN_RE = /\+t-([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@/i;

@@ -181,7 +181,7 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         throw new https_1.HttpsError("failed-precondition", "Gmail token expired. Reconnect in Settings.");
     }
     const trackingToken = (0, trackingToken_1.generateTrackingToken)();
-    const bodyWithFooter = `${body}${(0, trackingToken_1.formatBodyTrackingFooter)(trackingToken)}`;
+    const bodyWithFooter = (0, trackingToken_1.assembleOutboundEmailBody)(body, trackingToken);
     const replyTo = (0, trackingToken_1.buildPlusReplyTo)(fromEmail, trackingToken);
     const raw = (0, gmailApi_1.buildGmailRawMessage)(to, fromEmail, subject, bodyWithFooter, {
         replyTo,

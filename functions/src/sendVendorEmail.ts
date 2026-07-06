@@ -17,8 +17,8 @@ import {
 } from "./gmailApi";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import {
+  assembleOutboundEmailBody,
   buildPlusReplyTo,
-  formatBodyTrackingFooter,
   generateTrackingToken,
 } from "./email/trackingToken";
 
@@ -265,7 +265,7 @@ export const sendVendorEmail = onCall(
     }
 
     const trackingToken = generateTrackingToken();
-    const bodyWithFooter = `${body}${formatBodyTrackingFooter(trackingToken)}`;
+    const bodyWithFooter = assembleOutboundEmailBody(body, trackingToken);
     const replyTo = buildPlusReplyTo(fromEmail, trackingToken);
 
     const raw = buildGmailRawMessage(to, fromEmail, subject, bodyWithFooter, {
