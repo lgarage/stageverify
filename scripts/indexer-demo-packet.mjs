@@ -54,6 +54,19 @@ const CASES = {
     dependsOn: null,
     acceptance: "away:next --packet includes indexerMemory entries",
   },
+  "gmail-cf": {
+    id: "away-demo-gmail-cf-ship",
+    title: "Stage 1 tracked vendor email Gmail CF + UI ship",
+    scope:
+      "firebase deploy functions + npm run deploy gh-pages for tracked vendor email layer; dark-ship emailReplyIngestEnabled until Pub/Sub + CF revision + gh-pages v0.0.15 verified before claiming live",
+    type: "backend-write-critical",
+    subtype: "cf-ingest",
+    tier: "T3",
+    status: "queued",
+    dependsOn: null,
+    acceptance:
+      "Packet injects deploy-state-verification + firebase-deploy + gh-pages gate warnings before claiming live",
+  },
 };
 
 /**
@@ -111,6 +124,9 @@ function assertCase(name, merged) {
     if (matched.includes("gh-pages-deploy-freshness")) {
       failures.push("gh-pages-deploy-freshness should NOT match backend firestore rules task");
     }
+    if (matched.includes("deploy-state-verification")) {
+      failures.push("deploy-state-verification should NOT match rules-only backend task");
+    }
     if (gateWarnings.length > 0) {
       failures.push(`expected no gateWarnings; got ${gateWarnings.length}`);
     }
@@ -119,6 +135,39 @@ function assertCase(name, merged) {
   if (name === "indexer") {
     if (!indexerIds.includes("idx-001")) {
       failures.push(`expected indexer idx-001 match; got ${indexerIds.join(", ") || "none"}`);
+    }
+  }
+
+  if (name === "gmail-cf") {
+    if (!matched.includes("deploy-state-verification")) {
+      failures.push(
+        `expected matchedTriggers to include deploy-state-verification; got ${matched.join(", ") || "none"}`,
+      );
+    }
+    if (!matched.includes("firebase-deploy")) {
+      failures.push(`expected matchedTriggers to include firebase-deploy; got ${matched.join(", ") || "none"}`);
+    }
+    if (!matched.includes("gh-pages-deploy-freshness")) {
+      failures.push(
+        `expected matchedTriggers to include gh-pages-deploy-freshness; got ${matched.join(", ") || "none"}`,
+      );
+    }
+    if (gateWarnings.length === 0) {
+      failures.push("expected gateWarnings for combined Gmail/CF ship to be non-empty");
+    }
+    const warningText = gateWarnings.join(" ").toLowerCase();
+    if (!warningText.includes("functions") && !warningText.includes("revision")) {
+      failures.push("expected gate warning to mention Cloud Functions revision verification");
+    }
+    if (
+      !warningText.includes("gh-pages") &&
+      !warningText.includes("bundle") &&
+      !warningText.includes("sidebar")
+    ) {
+      failures.push("expected gate warning to mention gh-pages/bundle/sidebar freshness");
+    }
+    if (!warningText.includes("reply ingest") && !warningText.includes("emailreplyingest")) {
+      failures.push("expected gate warning to mention reply ingest enable gate");
     }
   }
 
@@ -138,7 +187,7 @@ const selectedCases =
       : null;
 
 if (!selectedCases) {
-  console.error(`Unknown --case ${caseFilter}. Use: positive|negative|indexer|all`);
+  console.error(`Unknown --case ${caseFilter}. Use: positive|negative|indexer|gmail-cf|all`);
   process.exit(1);
 }
 

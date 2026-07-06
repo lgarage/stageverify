@@ -270,13 +270,82 @@
     },
     {
       "id": "firebase-deploy",
-      "match": ["firebase deploy", "cloud functions deploy", "functions:list", "CF deploy", "one deploy worker"],
+      "match": [
+        "firebase deploy",
+        "cloud functions deploy",
+        "functions deploy",
+        "functions:list",
+        "CF deploy",
+        "one deploy worker",
+        "functions deployed",
+        "backend ship",
+        "sendVendorEmail deploy",
+        "reply router deploy"
+      ],
       "orchestratorSteps": [6],
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
       "files": ["functions/src/"],
       "rules": ["ship-loop.mdc", "parallel-agent-strategy.mdc"],
-      "commands": ["firebase functions:list --project stageverify-db"]
+      "commands": [
+        "firebase functions:list --project stageverify-db",
+        "firebase functions:log --project stageverify-db"
+      ],
+      "gateCandidate": true,
+      "injectBefore": ["firebase deploy", "claiming functions live", "final ship loop", "enabling emailReplyIngestEnabled"],
+      "warning": "firebase deploy CLI success or functions:list presence ≠ prod revision current. Before claiming CF live: confirm deploy finished without error AND affected functions show post-ship DEPLOYMENT_ROLLOUT / UpdateFunction logs after intended main commit (Stage 1 overnight: Jul 4 revision while main had a55b3e9). Emulator/offline tests green is necessary not sufficient. Combined UI+CF ships also require gh-pages freshness (see deploy-state-verification)."
+    },
+    {
+      "id": "deploy-state-verification",
+      "match": [
+        "deploy state",
+        "deploy state verification",
+        "claim live",
+        "claiming live",
+        "shipped live",
+        "declare live",
+        "main on main",
+        "emulator pass",
+        "local pass prod",
+        "tests pass prod",
+        "dark-shipped",
+        "dark shipped",
+        "enable reply ingest",
+        "flip reply ingest",
+        "reply ingest enable",
+        "gmail reply ingest",
+        "tracked vendor email",
+        "vendor email layer",
+        "stage 1 email",
+        "combined ship",
+        "gh-pages and functions",
+        "ui and functions deploy",
+        "outbound tracking live",
+        "functions revision",
+        "cf revision",
+        "prod live verification",
+        "claiming deploy complete",
+        "claiming shipped"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "ship-verify",
+      "files": ["PROJECT_STATUS/CURRENT_STATE.md", "docs/project_state.md"],
+      "rules": ["ship-loop.mdc", "composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": [
+        "firebase functions:log --project stageverify-db",
+        "STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:dispatcher-nav"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "final ship loop",
+        "claiming deploy complete",
+        "claiming shipped",
+        "enabling emailReplyIngestEnabled",
+        "prod Playwright",
+        ":prod verify"
+      ],
+      "warning": "Source on main + local/emulator tests PASS ≠ prod live. Before claiming shipped/live: (1) gh-pages — Pages status=built (not errored/stuck building) and live index.html main JS + portal-sidebar-version match expected package.json version; (2) Cloud Functions — firebase deploy succeeded AND affected functions show post-ship revision (functions:log DEPLOYMENT_ROLLOUT after intended commit, not pre-ship date); (3) combined UI+CF ships verify BOTH. Dark-shipped: keep emailReplyIngestEnabled off until runtime deps verified. Do NOT enable reply ingest until: Stage 1+ functions deployed, GMAIL_PUBSUB_TOPIC secret set, Pub/Sub topic exists, Gmail publisher IAM, Gmail watch registered, controlled ingest test passes. Frontend-only ships: gh-pages freshness only. Backend-only CF: functions revision only. Docs-only: no deploy warning."
     },
     {
       "id": "invoice-import",
