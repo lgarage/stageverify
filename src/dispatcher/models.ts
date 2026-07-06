@@ -752,6 +752,9 @@ export interface SendVendorEmailResult {
   eventId: string;
   sourceMessageId: string;
   threadId: string | null;
+  trackingToken: string;
+  rfc822MessageId: string | null;
+  replyToAddress: string;
   sentAt: string;
 }
 
@@ -761,6 +764,18 @@ export interface VendorEmailEvent {
   /** Stable Gmail (or provider) message id for idempotent ingestion. */
   sourceMessageId: string;
   threadId?: string;
+  /** RFC 822 Message-ID header (outbound capture or inbound parse). */
+  rfc822MessageId?: string;
+  trackingToken?: string;
+  matchedBy?: string;
+  replyToAddress?: string;
+  inReplyTo?: string;
+  references?: string[];
+  vendorInvoiceImportId?: string;
+  applyConflictReason?: string;
+  snippet?: string;
+  bodyText?: string;
+  senderAuthPass?: boolean;
   contentFingerprint?: string;
   /** Defaults to inbound for legacy Phase 5 documents. */
   direction?: VendorEmailDirection;
@@ -803,6 +818,7 @@ export type InboundEmailProcessingStatus =
   | "extracted"
   | "parsed"
   | "no_pdf"
+  | "reply_processed"
   | "error";
 
 export interface InboundEmailProcessing {
@@ -823,6 +839,10 @@ export interface InboundEmailProcessing {
     total: number;
     reviewRecordIds: string[];
   };
+  vendorEmailEventId?: string;
+  messageIdHeader?: string;
+  inReplyTo?: string;
+  references?: string[];
   createdAt: string;
   updatedAt: string;
 }

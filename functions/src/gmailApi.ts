@@ -69,28 +69,46 @@ function encodeRfc2822Subject(subject: string): string {
   return encoded;
 }
 
+export interface BuildGmailRawMessageOptions {
+  replyTo?: string;
+  /** Friendly display name — e.g. "L. Garage Dispatch (StageVerify)" */
+  fromDisplayName?: string;
+}
+
+function formatFromHeader(fromEmail: string, displayName?: string): string {
+  if (!displayName?.trim()) return fromEmail;
+  assertSafeEmailHeaderValue(displayName, "From display name");
+  const escaped = displayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}" <${fromEmail}>`;
+}
+
 /** Base64url-encoded RFC 2822 message for Gmail users.messages.send. */
 export function buildGmailRawMessage(
   to: string,
   from: string,
   subject: string,
   bodyText: string,
-  replyTo?: string,
+  options?: BuildGmailRawMessageOptions | string,
 ): string {
+  const opts: BuildGmailRawMessageOptions =
+    typeof options === "string" ? { replyTo: options } : (options ?? {});
+
   assertSafeEmailHeaderValue(to, "To");
   assertSafeEmailHeaderValue(from, "From");
   assertSafeEmailHeaderValue(subject, "Subject");
-  if (replyTo !== undefined) {
-    assertSafeEmailHeaderValue(replyTo, "Reply-To");
+  if (opts.replyTo !== undefined) {
+    assertSafeEmailHeaderValue(opts.replyTo, "Reply-To");
   }
+
+  const fromHeader = formatFromHeader(from, opts.fromDisplayName);
 
   const headerLines = [
     formatEmailHeader("To", to),
-    formatEmailHeader("From", from),
+    formatEmailHeader("From", fromHeader),
     formatEmailHeader("Subject", encodeRfc2822Subject(subject)),
   ];
-  if (replyTo !== undefined) {
-    headerLines.push(formatEmailHeader("Reply-To", replyTo));
+  if (opts.replyTo !== undefined) {
+    headerLines.push(formatEmailHeader("Reply-To", opts.replyTo));
   }
   headerLines.push(
     "MIME-Version: 1.0",
@@ -130,4 +148,37 @@ export async function sendGmailMessage(
     throw new Error("gmail send missing message id");
   }
   return { id: data.id, threadId: data.threadId };
+}
+
+const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
+
+/** Fetch RFC 822 Message-ID after send (Gmail send API returns only internal id). */
+export async function getGmailMessageMetadata(
+  accessToken: string,
+  messageId: string,
+): Promise<{ rfc822MessageId?: string; threadId?: string }> {
+  const params = new URLSearchParams({
+    format: "metadata",
+    metadataHeaders: "Message-ID",
+  });
+  const res = await fetch(
+    `${GMAIL_BASE}/messages/${encodeURIComponent(messageId)}?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`gmail metadata failed: ${res.status}`);
+  }
+  const data = JSON.parse(text) as {
+    threadId?: string;
+    payload?: { headers?: Array<{ name?: string; value?: string }> };
+  };
+  let rfc822MessageId: string | undefined;
+  for (const h of data.payload?.headers ?? []) {
+    if (h.name?.toLowerCase() === "message-id" && h.value) {
+      rfc822MessageId = h.value.trim();
+      break;
+    }
+  }
+  return { rfc822MessageId, threadId: data.threadId };
 }

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getGmailAccessTokenForProvider = getGmailAccessTokenForProvider;
 exports.parseEmailAddress = parseEmailAddress;
 exports.parseGmailHeaders = parseGmailHeaders;
+exports.extractGmailBodyText = extractGmailBodyText;
 exports.findPdfAttachments = findPdfAttachments;
 exports.fetchGmailMessage = fetchGmailMessage;
 exports.downloadGmailAttachment = downloadGmailAttachment;
@@ -44,26 +45,95 @@ function parseEmailAddress(raw) {
         return trimmed.toLowerCase();
     return trimmed.toLowerCase();
 }
+function splitAddressList(raw) {
+    return raw
+        .split(",")
+        .map((part) => parseEmailAddress(part))
+        .filter(Boolean);
+}
+function parseReferencesHeader(raw) {
+    return raw
+        .split(/\s+/)
+        .map((id) => id.trim())
+        .filter(Boolean);
+}
 function parseGmailHeaders(headers) {
-    const map = new Map();
-    for (const h of headers ?? []) {
-        if (h.name && h.value)
-            map.set(h.name.toLowerCase(), h.value);
+    try {
+        const map = new Map();
+        for (const h of headers ?? []) {
+            if (h.name && h.value)
+                map.set(h.name.toLowerCase(), h.value);
+        }
+        const fromRaw = map.get("from") ?? "";
+        const subject = (map.get("subject") ?? "").trim();
+        const dateRaw = map.get("date") ?? "";
+        let receivedAt = new Date().toISOString();
+        if (dateRaw) {
+            const parsed = Date.parse(dateRaw);
+            if (!Number.isNaN(parsed))
+                receivedAt = new Date(parsed).toISOString();
+        }
+        const referencesRaw = map.get("references") ?? "";
+        return {
+            senderEmail: parseEmailAddress(fromRaw),
+            subject,
+            receivedAt,
+            messageIdHeader: map.get("message-id")?.trim(),
+            inReplyTo: map.get("in-reply-to")?.trim(),
+            references: referencesRaw ? parseReferencesHeader(referencesRaw) : undefined,
+            toAddresses: map.get("to") ? splitAddressList(map.get("to")) : undefined,
+            ccAddresses: map.get("cc") ? splitAddressList(map.get("cc")) : undefined,
+            deliveredTo: map.get("delivered-to")
+                ? splitAddressList(map.get("delivered-to"))
+                : undefined,
+            authenticationResults: map.get("authentication-results")?.trim(),
+            autoSubmitted: map.get("auto-submitted")?.trim(),
+            precedence: map.get("precedence")?.trim(),
+        };
     }
-    const fromRaw = map.get("from") ?? "";
-    const subject = (map.get("subject") ?? "").trim();
-    const dateRaw = map.get("date") ?? "";
-    let receivedAt = new Date().toISOString();
-    if (dateRaw) {
-        const parsed = Date.parse(dateRaw);
-        if (!Number.isNaN(parsed))
-            receivedAt = new Date(parsed).toISOString();
+    catch {
+        const map = new Map();
+        for (const h of headers ?? []) {
+            if (h.name && h.value)
+                map.set(h.name.toLowerCase(), h.value);
+        }
+        const fromRaw = map.get("from") ?? "";
+        const subject = (map.get("subject") ?? "").trim();
+        const dateRaw = map.get("date") ?? "";
+        let receivedAt = new Date().toISOString();
+        if (dateRaw) {
+            const parsed = Date.parse(dateRaw);
+            if (!Number.isNaN(parsed))
+                receivedAt = new Date(parsed).toISOString();
+        }
+        return {
+            senderEmail: parseEmailAddress(fromRaw),
+            subject,
+            receivedAt,
+        };
     }
-    return {
-        senderEmail: parseEmailAddress(fromRaw),
-        subject,
-        receivedAt,
+}
+/** Extract plain-text body from a Gmail message payload (best-effort). */
+function extractGmailBodyText(payload, maxLen = 12_000) {
+    if (!payload)
+        return "";
+    const parts = [];
+    const walk = (part) => {
+        const mime = (part.mimeType ?? "").toLowerCase();
+        if (part.parts?.length) {
+            for (const child of part.parts)
+                walk(child);
+            return;
+        }
+        if (mime === "text/plain" && part.body?.data) {
+            parts.push(decodeGmailBodyData(part.body.data));
+        }
     };
+    walk(payload);
+    const combined = parts.join("\n").trim();
+    if (combined.length <= maxLen)
+        return combined;
+    return `${combined.slice(0, maxLen - 1)}…`;
 }
 function isPdfPart(part) {
     const mime = (part.mimeType ?? "").toLowerCase();

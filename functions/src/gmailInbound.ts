@@ -23,6 +23,15 @@ export interface ParsedGmailHeaders {
   senderEmail: string;
   subject: string;
   receivedAt: string;
+  messageIdHeader?: string;
+  inReplyTo?: string;
+  references?: string[];
+  toAddresses?: string[];
+  ccAddresses?: string[];
+  deliveredTo?: string[];
+  authenticationResults?: string;
+  autoSubmitted?: string;
+  precedence?: string;
 }
 
 function gmailHeadersInit(accessToken: string): HeadersInit {
@@ -54,24 +63,95 @@ export function parseEmailAddress(raw: string): string {
   return trimmed.toLowerCase();
 }
 
+function splitAddressList(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((part) => parseEmailAddress(part))
+    .filter(Boolean);
+}
+
+function parseReferencesHeader(raw: string): string[] {
+  return raw
+    .split(/\s+/)
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
 export function parseGmailHeaders(headers: GmailMessageHeader[] | undefined): ParsedGmailHeaders {
-  const map = new Map<string, string>();
-  for (const h of headers ?? []) {
-    if (h.name && h.value) map.set(h.name.toLowerCase(), h.value);
+  try {
+    const map = new Map<string, string>();
+    for (const h of headers ?? []) {
+      if (h.name && h.value) map.set(h.name.toLowerCase(), h.value);
+    }
+    const fromRaw = map.get("from") ?? "";
+    const subject = (map.get("subject") ?? "").trim();
+    const dateRaw = map.get("date") ?? "";
+    let receivedAt = new Date().toISOString();
+    if (dateRaw) {
+      const parsed = Date.parse(dateRaw);
+      if (!Number.isNaN(parsed)) receivedAt = new Date(parsed).toISOString();
+    }
+    const referencesRaw = map.get("references") ?? "";
+    return {
+      senderEmail: parseEmailAddress(fromRaw),
+      subject,
+      receivedAt,
+      messageIdHeader: map.get("message-id")?.trim(),
+      inReplyTo: map.get("in-reply-to")?.trim(),
+      references: referencesRaw ? parseReferencesHeader(referencesRaw) : undefined,
+      toAddresses: map.get("to") ? splitAddressList(map.get("to")!) : undefined,
+      ccAddresses: map.get("cc") ? splitAddressList(map.get("cc")!) : undefined,
+      deliveredTo: map.get("delivered-to")
+        ? splitAddressList(map.get("delivered-to")!)
+        : undefined,
+      authenticationResults: map.get("authentication-results")?.trim(),
+      autoSubmitted: map.get("auto-submitted")?.trim(),
+      precedence: map.get("precedence")?.trim(),
+    };
+  } catch {
+    const map = new Map<string, string>();
+    for (const h of headers ?? []) {
+      if (h.name && h.value) map.set(h.name.toLowerCase(), h.value);
+    }
+    const fromRaw = map.get("from") ?? "";
+    const subject = (map.get("subject") ?? "").trim();
+    const dateRaw = map.get("date") ?? "";
+    let receivedAt = new Date().toISOString();
+    if (dateRaw) {
+      const parsed = Date.parse(dateRaw);
+      if (!Number.isNaN(parsed)) receivedAt = new Date(parsed).toISOString();
+    }
+    return {
+      senderEmail: parseEmailAddress(fromRaw),
+      subject,
+      receivedAt,
+    };
   }
-  const fromRaw = map.get("from") ?? "";
-  const subject = (map.get("subject") ?? "").trim();
-  const dateRaw = map.get("date") ?? "";
-  let receivedAt = new Date().toISOString();
-  if (dateRaw) {
-    const parsed = Date.parse(dateRaw);
-    if (!Number.isNaN(parsed)) receivedAt = new Date(parsed).toISOString();
-  }
-  return {
-    senderEmail: parseEmailAddress(fromRaw),
-    subject,
-    receivedAt,
+}
+
+/** Extract plain-text body from a Gmail message payload (best-effort). */
+export function extractGmailBodyText(
+  payload: GmailMessagePart | undefined,
+  maxLen = 12_000,
+): string {
+  if (!payload) return "";
+  const parts: string[] = [];
+
+  const walk = (part: GmailMessagePart): void => {
+    const mime = (part.mimeType ?? "").toLowerCase();
+    if (part.parts?.length) {
+      for (const child of part.parts) walk(child);
+      return;
+    }
+    if (mime === "text/plain" && part.body?.data) {
+      parts.push(decodeGmailBodyData(part.body.data));
+    }
   };
+
+  walk(payload);
+  const combined = parts.join("\n").trim();
+  if (combined.length <= maxLen) return combined;
+  return `${combined.slice(0, maxLen - 1)}…`;
 }
 
 function isPdfPart(part: GmailMessagePart): boolean {

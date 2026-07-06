@@ -6,6 +6,7 @@ import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
 import {
   downloadGmailAttachment,
+  extractGmailBodyText,
   fetchGmailMessage,
   findPdfAttachments,
   parseGmailHeaders,
@@ -19,6 +20,11 @@ import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibil
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import { firestoreSafeValue } from "./firestoreSafeValue";
 import { sanitizeParsedLines } from "./sanitizeParsedLines";
+import {
+  isMessageEligibleForReplyIngest,
+  loadReplyIngestSettings,
+} from "../email/loadOutboundEmailContext";
+import { processInboundReply } from "./replyRouter";
 import type {
   GmailMessage,
   InboundEmailProcessingDoc,
@@ -62,6 +68,8 @@ export interface ProcessInboundGmailMessageResult {
   reviewRecordIds: string[];
   /** Set when skipped=true — existing doc status before skip. */
   skippedProcessingStatus?: InboundEmailProcessingDoc["processingStatus"];
+  /** Inbound vendorEmailEvents id when reply router processed a non-PDF message. */
+  vendorEmailEventId?: string;
 }
 
 export interface ProcessInboundGmailMessageOptions {
@@ -105,7 +113,10 @@ export function shouldReprocessExistingDoc(
     return true;
   }
 
+  if (data.processingStatus === "reply_processed") return false;
+
   if (!options?.retryOnError) return false;
+  if (data.processingStatus === "no_pdf") return false;
   if (data.processingStatus === "error") return true;
   if (cached && hasCustomFontPdfEncoding(cached)) return true;
   if (data.processingStatus !== "parsed") return false;
@@ -324,6 +335,29 @@ export async function processInboundGmailMessage(
     const attachmentFilenames = pdfRefs.map((p) => p.filename);
 
     if (pdfRefs.length === 0) {
+      const replySettings = await loadReplyIngestSettings();
+      const eligibleForReply =
+        replySettings.enabled &&
+        isMessageEligibleForReplyIngest(receivedAt, replySettings.since);
+
+      let processingStatus: InboundEmailProcessingDoc["processingStatus"] = "no_pdf";
+      let vendorEmailEventId: string | undefined;
+
+      if (eligibleForReply) {
+        const routerResult = await processInboundReply({
+          gmailMessageId,
+          threadId: message.threadId,
+          headers,
+          bodyText: extractGmailBodyText(message.payload),
+          snippet: message.snippet,
+          settings: replySettings,
+        });
+        if (routerResult.eventId && !routerResult.skipped) {
+          processingStatus = "reply_processed";
+          vendorEmailEventId = routerResult.eventId;
+        }
+      }
+
       const noPdfDoc: InboundEmailProcessingDoc = {
         id: docId,
         gmailMessageId,
@@ -333,18 +367,23 @@ export async function processInboundGmailMessage(
         receivedAt,
         attachmentFilenames: [],
         pdfAttachments: [],
-        processingStatus: "no_pdf",
+        processingStatus,
         reviewStatus: "pending_review",
         createdAt: now,
         updatedAt: new Date().toISOString(),
+        ...(vendorEmailEventId ? { vendorEmailEventId } : {}),
+        ...(headers.messageIdHeader ? { messageIdHeader: headers.messageIdHeader } : {}),
+        ...(headers.inReplyTo ? { inReplyTo: headers.inReplyTo } : {}),
+        ...(headers.references?.length ? { references: headers.references } : {}),
       };
       await ref.set(noPdfDoc);
       return {
         docId,
         gmailMessageId,
         skipped: false,
-        processingStatus: "no_pdf",
+        processingStatus,
         reviewRecordIds: [],
+        vendorEmailEventId,
       };
     }
 

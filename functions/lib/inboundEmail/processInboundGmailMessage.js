@@ -15,6 +15,8 @@ const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportElig
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
 const firestoreSafeValue_1 = require("./firestoreSafeValue");
 const sanitizeParsedLines_1 = require("./sanitizeParsedLines");
+const loadOutboundEmailContext_1 = require("../email/loadOutboundEmailContext");
+const replyRouter_1 = require("./replyRouter");
 const COLLECTION = "inboundEmailProcessing";
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_EXTRACTED_TEXT_STORE = 120_000;
@@ -61,7 +63,11 @@ function shouldReprocessExistingDoc(data, options) {
         reviewIds.length > 0) {
         return true;
     }
+    if (data.processingStatus === "reply_processed")
+        return false;
     if (!options?.retryOnError)
+        return false;
+    if (data.processingStatus === "no_pdf")
         return false;
     if (data.processingStatus === "error")
         return true;
@@ -241,6 +247,25 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
         const pdfRefs = (0, gmailInbound_1.findPdfAttachments)(message.payload).slice(0, MAX_PDF_ATTACHMENTS_PER_MESSAGE);
         const attachmentFilenames = pdfRefs.map((p) => p.filename);
         if (pdfRefs.length === 0) {
+            const replySettings = await (0, loadOutboundEmailContext_1.loadReplyIngestSettings)();
+            const eligibleForReply = replySettings.enabled &&
+                (0, loadOutboundEmailContext_1.isMessageEligibleForReplyIngest)(receivedAt, replySettings.since);
+            let processingStatus = "no_pdf";
+            let vendorEmailEventId;
+            if (eligibleForReply) {
+                const routerResult = await (0, replyRouter_1.processInboundReply)({
+                    gmailMessageId,
+                    threadId: message.threadId,
+                    headers,
+                    bodyText: (0, gmailInbound_1.extractGmailBodyText)(message.payload),
+                    snippet: message.snippet,
+                    settings: replySettings,
+                });
+                if (routerResult.eventId && !routerResult.skipped) {
+                    processingStatus = "reply_processed";
+                    vendorEmailEventId = routerResult.eventId;
+                }
+            }
             const noPdfDoc = {
                 id: docId,
                 gmailMessageId,
@@ -250,18 +275,23 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
                 receivedAt,
                 attachmentFilenames: [],
                 pdfAttachments: [],
-                processingStatus: "no_pdf",
+                processingStatus,
                 reviewStatus: "pending_review",
                 createdAt: now,
                 updatedAt: new Date().toISOString(),
+                ...(vendorEmailEventId ? { vendorEmailEventId } : {}),
+                ...(headers.messageIdHeader ? { messageIdHeader: headers.messageIdHeader } : {}),
+                ...(headers.inReplyTo ? { inReplyTo: headers.inReplyTo } : {}),
+                ...(headers.references?.length ? { references: headers.references } : {}),
             };
             await ref.set(noPdfDoc);
             return {
                 docId,
                 gmailMessageId,
                 skipped: false,
-                processingStatus: "no_pdf",
+                processingStatus,
                 reviewRecordIds: [],
+                vendorEmailEventId,
             };
         }
         const pdfAttachments = [];

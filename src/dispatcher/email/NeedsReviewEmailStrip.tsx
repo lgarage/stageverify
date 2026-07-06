@@ -4,15 +4,73 @@ import {
   filterNeedsReviewEmails,
   getHumanReviewReason,
 } from "./emailReviewHelpers";
+import { listPendingInboundVendorEmailEvents } from "../firestoreService";
+import type { VendorEmailEvent } from "../models";
+import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
+  return {
+    messageId: event.sourceMessageId,
+    subject: event.subject,
+    senderEmail: event.senderEmail,
+    receivedAt: event.receivedAt,
+    classification: (event.emailClassification ?? "needs_dispatcher_review") as ProposedEmailUpdate["classification"],
+    poNumber: event.proposedPoNumber ?? null,
+    vendorName: null,
+    confidenceScore: event.confidenceScore ?? 0,
+    confidenceReason: event.confidenceReason ?? event.applyConflictReason ?? "pending_review",
+    reviewStatus: "pending_review",
+    duplicate: false,
+    matchedJobNumber: event.proposedJobNumber ?? null,
+    matchedPoLabel: event.proposedPoNumber ?? null,
+    matchedOrderLabel: event.proposedOrderNumber ?? null,
+    matchedDeliveryLabel: event.deliveryOrderId ?? null,
+    matchedDeliveryOrderId: event.deliveryOrderId ?? null,
+    itemLines: [],
+    bodyExcerpt: event.bodyExcerpt ?? "",
+    originalBody: event.bodyExcerpt ?? "",
+    recipientEmails: event.recipientEmails ?? [],
+    threadId: event.threadId,
+    proposedOperationalMeaning: event.matchedBy
+      ? `Matched via ${event.matchedBy} — dispatcher confirm required`
+      : "Unmatched inbound reply",
+    affectsCondition1: false,
+    condition1ApprovalNote: "",
+  };
+}
+
 export function NeedsReviewEmailStrip() {
+  const [liveEvents, setLiveEvents] = useState<VendorEmailEvent[]>([]);
+  const [liveLoaded, setLiveLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listPendingInboundVendorEmailEvents()
+      .then((rows) => {
+        if (!cancelled) {
+          setLiveEvents(rows);
+          setLiveLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLiveLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const needsReview = useMemo(() => {
+    if (liveEvents.length > 0) {
+      return liveEvents.map(liveEventToProposal);
+    }
+    if (!liveLoaded) return [];
     const all = getProposedEmailUpdates();
     return filterNeedsReviewEmails(all);
-  }, []);
+  }, [liveEvents, liveLoaded]);
   const [expanded, setExpanded] = useState(false);
   const [openOriginalId, setOpenOriginalId] = useState<string | null>(null);
   const stripRef = useRef<HTMLElement>(null);

@@ -1345,6 +1345,24 @@ export async function listVendorEmailEventsForDelivery(
   return events;
 }
 
+/** Live pending inbound vendor email events for Needs Review strip (Stage 1). */
+export async function listPendingInboundVendorEmailEvents(
+  limit = 50,
+): Promise<VendorEmailEvent[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, V2_COLLECTION_NAMES.vendorEmailEvents),
+      where("reviewStatus", "==", "pending_review"),
+    ),
+  );
+  const events = snap.docs
+    .map((d) => d.data() as VendorEmailEvent)
+    .filter((e) => e.direction === "inbound" || !e.direction)
+    .slice(0, limit);
+  events.sort((a, b) => (b.receivedAt ?? b.createdAt).localeCompare(a.receivedAt ?? a.createdAt));
+  return events;
+}
+
 export const firestoreDataService = new FirestoreDataService();
 
 export async function addStagingLocation(

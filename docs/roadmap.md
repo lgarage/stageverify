@@ -260,6 +260,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 
 - **Johnstone alphanumeric Invoice # parser (2026-07-04):** ✅ Shipped — tabular pdf.js header row extracts `P411190` and wide-row Ship Via; S/O 4046362 PDF no longer false `issue` when Invoice # present; `test:pdf-extract-4046362` + `verify:inbound-email-ingest` §3e
 - **Shared Refresh Now sync (2026-07-04):** ✅ Shipped — `DispatcherPortalProvider` at portal layout; Refresh Now on any dispatcher tab refreshes invoice queue, vendors, zones + Gmail sync; all tabs consume same snapshot on navigate; dashboard re-fetches deliveries on refresh generation
+- **Stage 1 tracked vendor email (2026-07-06, v0.0.15):** ✅ Shipped dark — outbound tracking tokens + reply router behind `emailReplyIngestEnabled`; Needs Review live query; enable flag + Pub/Sub for end-to-end
 - **Outbound send (away-068):** ✅ Shipped — `sendVendorEmail` CF (Gmail API); Email Vendor enabled in Resolve Issue when `emailProviderConnected`; outbound `vendorEmailEvents` audit
 - **Drawer/readiness UX (away-072, away-073, clarity correction):** ✅ Shipped — Issue Summary item table only (no Open Issues accordion); calm **Waiting on Delivery** banner for normal pending; **What Needs Attention** only for true exceptions; exception-only issue counts; `verify:delivery-consistency` + `test:demo-matrix`
 - **Demo drawer uniformity (2026-06-24):** ✅ Shipped — ORD-005 layout/rules on all seed orders (ORD-001..006); hidden lower sections global; verify loop per demo order

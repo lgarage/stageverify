@@ -14,6 +14,7 @@ const scheduler_1 = require("firebase-functions/v2/scheduler");
 const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
 const processInboundGmailMessage_1 = require("./inboundEmail/processInboundGmailMessage");
+const loadOutboundEmailContext_1 = require("./email/loadOutboundEmailContext");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const INBOUND_COLLECTION = "inboundEmailProcessing";
 const PROVIDER_ID = "gmail";
@@ -151,7 +152,14 @@ async function runInboundGmailSync(options) {
         }
     }
     if (messageIds.length === 0) {
-        const recent = await (0, gmailInbound_1.listRecentInboxMessageIds)(accessToken, { maxResults: 15 });
+        const replySettings = await (0, loadOutboundEmailContext_1.loadReplyIngestSettings)();
+        const fallbackQuery = replySettings.enabled
+            ? "in:inbox (has:attachment filename:pdf OR -has:attachment)"
+            : "has:attachment filename:pdf in:inbox";
+        const recent = await (0, gmailInbound_1.listRecentInboxMessageIds)(accessToken, {
+            maxResults: 15,
+            query: fallbackQuery,
+        });
         messageIds = recent.map((m) => m.id);
     }
     if (!latestHistoryId) {

@@ -135,6 +135,8 @@ function matchEmailToRecords(message, parsed, ctx) {
     };
 }
 function shouldAutoApplyVendorOrderComplete(parsed, match) {
+    if (parsed.poNumbers.length > 1 || parsed.orderNumbers.length > 1)
+        return false;
     if (!parsed.vendorOrderCompleteClaim)
         return false;
     if (match.humanReviewRequired)

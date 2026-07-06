@@ -60,6 +60,32 @@ assert("senderEmail parsed", headers.senderEmail === "billing@johnstonesupply.co
 assert("subject parsed", headers.subject.includes("6164159"));
 assert("receivedAt ISO", !Number.isNaN(Date.parse(headers.receivedAt)));
 
+console.log("\n1b. Extended Gmail headers (Stage 1)");
+const EXT_HEADERS = [
+  { name: "From", value: "rep@johnstone.com" },
+  { name: "Subject", value: "Re: [SV-a1b2c3d4-e5f6-7890-abcd-ef1234567890] PO update" },
+  { name: "Date", value: "Sun, 6 Jul 2026 10:00:00 +0000" },
+  { name: "Message-ID", value: "<in-msg-001@test>" },
+  { name: "In-Reply-To", value: "<out-msg-001@svbotmail>" },
+  { name: "References", value: "<out-msg-001@svbotmail> <other@x.com>" },
+  { name: "To", value: "svbotmail+t-abc@gmail.com" },
+  { name: "Delivered-To", value: "svbotmail@gmail.com" },
+  { name: "Authentication-Results", value: "spf=pass dkim=pass" },
+];
+const ext = parseGmailHeaders(EXT_HEADERS);
+assert("messageIdHeader", ext.messageIdHeader === "<in-msg-001@test>");
+assert("inReplyTo", ext.inReplyTo === "<out-msg-001@svbotmail>");
+assert("references array", (ext.references?.length ?? 0) === 2);
+assert("toAddresses", (ext.toAddresses?.length ?? 0) >= 1);
+assert("deliveredTo", (ext.deliveredTo?.length ?? 0) >= 1);
+assert("authenticationResults", ext.authenticationResults?.includes("spf=pass"));
+
+console.log("\n1c. reply_processed terminal skip");
+assert(
+  "reply_processed not reprocessed",
+  !shouldReprocessExistingDoc({ processingStatus: "reply_processed" }, { retryOnError: true }),
+);
+
 console.log("\n2. PDF attachment discovery");
 const pdfs = findPdfAttachments(FIXTURE_MESSAGE.payload);
 assert("finds one PDF", pdfs.length === 1);

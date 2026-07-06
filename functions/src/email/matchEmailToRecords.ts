@@ -205,6 +205,7 @@ export function shouldAutoApplyVendorOrderComplete(
   parsed: ParsedEmailContent,
   match: EmailMatchCandidate,
 ): boolean {
+  if (parsed.poNumbers.length > 1 || parsed.orderNumbers.length > 1) return false;
   if (!parsed.vendorOrderCompleteClaim) return false;
   if (match.humanReviewRequired) return false;
   if (match.confidenceScore < EMAIL_AUTO_APPLY_CONFIDENCE) return false;

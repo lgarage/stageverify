@@ -16,6 +16,7 @@ import {
   listRecentInboxMessageIds,
 } from "./gmailInbound";
 import { processInboundGmailMessage, shouldReprocessExistingDoc } from "./inboundEmail/processInboundGmailMessage";
+import { loadReplyIngestSettings } from "./email/loadOutboundEmailContext";
 import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboundEmail/types";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
@@ -214,7 +215,14 @@ export async function runInboundGmailSync(
   }
 
   if (messageIds.length === 0) {
-    const recent = await listRecentInboxMessageIds(accessToken, { maxResults: 15 });
+    const replySettings = await loadReplyIngestSettings();
+    const fallbackQuery = replySettings.enabled
+      ? "in:inbox (has:attachment filename:pdf OR -has:attachment)"
+      : "has:attachment filename:pdf in:inbox";
+    const recent = await listRecentInboxMessageIds(accessToken, {
+      maxResults: 15,
+      query: fallbackQuery,
+    });
     messageIds = recent.map((m) => m.id);
   }
 

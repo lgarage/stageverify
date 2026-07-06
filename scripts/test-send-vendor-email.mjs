@@ -143,12 +143,22 @@ async function seedDelivery(vendorEmail) {
   });
 }
 
+async function seedDispatcherRole(uid) {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", uid), {
+      active: true,
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+  });
+}
+
 try {
   await createUserWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
 } catch {
   // user may already exist from prior runs
 }
 await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+await seedDispatcherRole(auth.currentUser.uid);
 
 console.log("\n=== sendVendorEmail saveVendorEmail validation ===\n");
 

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.14",
+  "version": "0.0.15",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -86,6 +86,8 @@
     "test:demo-matrix": "npx tsx scripts/demo-delivery-matrix.mjs",
     "test:evidence-alignment": "npx tsx scripts/test-evidence-model-alignment.mjs",
     "test:email-parser": "npx tsx scripts/test-email-parser.mjs",
+    "test:email-thread-matching": "npx tsx scripts/test-email-thread-matching.mjs",
+    "test:vendor-email-reply-router": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-vendor-email-reply-router.mjs\"",
     "test:invoice-parser": "npx tsx scripts/test-invoice-parser.mjs",
     "test:auto-import-eligibility": "npx tsx scripts/test-auto-import-eligibility.mjs",
     "test:pdf-text-normalize": "npx tsx scripts/test-pdf-text-normalize.mjs",

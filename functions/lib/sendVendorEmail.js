@@ -10,6 +10,8 @@ const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
 const gmailApi_1 = require("./gmailApi");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
+const trackingToken_1 = require("./email/trackingToken");
 const PROVIDER_ID = "gmail";
 const MAX_SUBJECT_LEN = 500;
 const MAX_BODY_LEN = 12_000;
@@ -64,9 +66,7 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         "https://lgarage.github.io",
     ],
 }, async (request) => {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("permission-denied", "Sign in as a dispatcher to send vendor email.");
-    }
+    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const deliveryOrderId = asNonEmptyString(data.deliveryOrderId, MAX_ID_LEN);
     const materialIssueId = data.materialIssueId
@@ -152,7 +152,14 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         }, { merge: true });
         throw new https_1.HttpsError("failed-precondition", "Gmail token expired. Reconnect in Settings.");
     }
-    const raw = (0, gmailApi_1.buildGmailRawMessage)(to, fromEmail, subject, body);
+    const trackingToken = (0, trackingToken_1.generateTrackingToken)();
+    const taggedSubject = (0, trackingToken_1.subjectWithTrackingTag)(subject, trackingToken);
+    const bodyWithFooter = `${body}${(0, trackingToken_1.formatBodyTrackingFooter)(trackingToken)}`;
+    const replyTo = (0, trackingToken_1.buildPlusReplyTo)(fromEmail, trackingToken);
+    const raw = (0, gmailApi_1.buildGmailRawMessage)(to, fromEmail, taggedSubject, bodyWithFooter, {
+        replyTo,
+        fromDisplayName: "L. Garage Dispatch (StageVerify)",
+    });
     let gmailResult;
     try {
         gmailResult = await (0, gmailApi_1.sendGmailMessage)(accessToken, raw);
@@ -162,25 +169,39 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         console.error("sendVendorEmail gmail send failed:", message);
         throw new https_1.HttpsError("internal", "Failed to send email. Check Gmail connection and try again.");
     }
+    let rfc822MessageId;
+    try {
+        const meta = await (0, gmailApi_1.getGmailMessageMetadata)(accessToken, gmailResult.id);
+        rfc822MessageId = meta.rfc822MessageId;
+        if (!gmailResult.threadId && meta.threadId) {
+            gmailResult = { ...gmailResult, threadId: meta.threadId };
+        }
+    }
+    catch (err) {
+        console.warn("sendVendorEmail: Message-ID metadata fetch failed (non-fatal):", err instanceof Error ? err.message : String(err));
+    }
     const now = new Date().toISOString();
     const eventId = `vee-${(0, crypto_1.randomUUID)()}`;
     const eventDoc = omitUndefined({
         id: eventId,
         sourceMessageId: gmailResult.id,
         threadId: gmailResult.threadId,
+        rfc822MessageId,
+        trackingToken,
         direction: "outbound",
         communicationPurpose: "need_more_information",
         materialIssueId: materialIssueId ?? undefined,
         senderEmail: fromEmail,
         recipientEmails: [to],
-        subject,
+        replyToAddress: replyTo,
+        subject: taggedSubject,
         receivedAt: now,
         vendorId: delivery.vendorId,
         jobId: delivery.jobId,
         deliveryOrderId,
         purchaseOrderId: delivery.purchaseOrderId,
         reviewStatus: "approved",
-        sentBy: request.auth.uid,
+        sentBy: uid,
         sentAt: now,
         bodyExcerpt: bodyExcerpt(body),
         provider: PROVIDER_ID,
@@ -192,6 +213,9 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         eventId,
         sourceMessageId: gmailResult.id,
         threadId: gmailResult.threadId ?? null,
+        trackingToken,
+        rfc822MessageId: rfc822MessageId ?? null,
+        replyToAddress: replyTo,
         sentAt: now,
     };
 });

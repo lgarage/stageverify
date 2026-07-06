@@ -6,6 +6,7 @@ export type InboundEmailProcessingStatus =
   | "extracted"
   | "parsed"
   | "no_pdf"
+  | "reply_processed"
   | "error";
 
 export type InboundEmailReviewStatus = "pending_review";
@@ -47,6 +48,11 @@ export interface InboundEmailProcessingDoc {
   parseResult?: InboundEmailParseSummary;
   /** Invoice imports from email are always pending_review until human approval. */
   reviewStatus: InboundEmailReviewStatus;
+  /** Linked vendorEmailEvents doc when non-PDF reply router ran. */
+  vendorEmailEventId?: string;
+  messageIdHeader?: string;
+  inReplyTo?: string;
+  references?: string[];
   createdAt: string;
   updatedAt: string;
 }

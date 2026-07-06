@@ -9,11 +9,19 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   buildGmailRawMessage,
   containsCrlfInEmailHeader,
+  getGmailMessageMetadata,
   gmailClientId,
   gmailClientSecret,
   refreshGmailAccessToken,
   sendGmailMessage,
 } from "./gmailApi";
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
+import {
+  buildPlusReplyTo,
+  formatBodyTrackingFooter,
+  generateTrackingToken,
+  subjectWithTrackingTag,
+} from "./email/trackingToken";
 
 const PROVIDER_ID = "gmail";
 const MAX_SUBJECT_LEN = 500;
@@ -82,12 +90,7 @@ export const sendVendorEmail = onCall(
     ],
   },
   async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError(
-        "permission-denied",
-        "Sign in as a dispatcher to send vendor email.",
-      );
-    }
+    const uid = await requireDispatcherAuth(request);
 
     const data = (request.data ?? {}) as SendVendorEmailRequest;
     const deliveryOrderId = asNonEmptyString(data.deliveryOrderId, MAX_ID_LEN);
@@ -227,7 +230,15 @@ export const sendVendorEmail = onCall(
       );
     }
 
-    const raw = buildGmailRawMessage(to, fromEmail, subject, body);
+    const trackingToken = generateTrackingToken();
+    const taggedSubject = subjectWithTrackingTag(subject, trackingToken);
+    const bodyWithFooter = `${body}${formatBodyTrackingFooter(trackingToken)}`;
+    const replyTo = buildPlusReplyTo(fromEmail, trackingToken);
+
+    const raw = buildGmailRawMessage(to, fromEmail, taggedSubject, bodyWithFooter, {
+      replyTo,
+      fromDisplayName: "L. Garage Dispatch (StageVerify)",
+    });
     let gmailResult: { id: string; threadId?: string };
     try {
       gmailResult = await sendGmailMessage(accessToken, raw);
@@ -240,25 +251,42 @@ export const sendVendorEmail = onCall(
       );
     }
 
+    let rfc822MessageId: string | undefined;
+    try {
+      const meta = await getGmailMessageMetadata(accessToken, gmailResult.id);
+      rfc822MessageId = meta.rfc822MessageId;
+      if (!gmailResult.threadId && meta.threadId) {
+        gmailResult = { ...gmailResult, threadId: meta.threadId };
+      }
+    } catch (err) {
+      console.warn(
+        "sendVendorEmail: Message-ID metadata fetch failed (non-fatal):",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+
     const now = new Date().toISOString();
     const eventId = `vee-${randomUUID()}`;
     const eventDoc = omitUndefined({
       id: eventId,
       sourceMessageId: gmailResult.id,
       threadId: gmailResult.threadId,
+      rfc822MessageId,
+      trackingToken,
       direction: "outbound",
       communicationPurpose: "need_more_information",
       materialIssueId: materialIssueId ?? undefined,
       senderEmail: fromEmail,
       recipientEmails: [to],
-      subject,
+      replyToAddress: replyTo,
+      subject: taggedSubject,
       receivedAt: now,
       vendorId: delivery.vendorId,
       jobId: delivery.jobId,
       deliveryOrderId,
       purchaseOrderId: delivery.purchaseOrderId,
       reviewStatus: "approved",
-      sentBy: request.auth.uid,
+      sentBy: uid,
       sentAt: now,
       bodyExcerpt: bodyExcerpt(body),
       provider: PROVIDER_ID,
@@ -272,6 +300,9 @@ export const sendVendorEmail = onCall(
       eventId,
       sourceMessageId: gmailResult.id,
       threadId: gmailResult.threadId ?? null,
+      trackingToken,
+      rfc822MessageId: rfc822MessageId ?? null,
+      replyToAddress: replyTo,
       sentAt: now,
     };
   },
