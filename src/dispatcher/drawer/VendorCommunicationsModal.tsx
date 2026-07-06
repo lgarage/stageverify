@@ -15,6 +15,7 @@ export function VendorCommunicationsModal({
   navy,
   font,
   onClose,
+  onSuccess,
   onSend,
 }: {
   open: boolean;
@@ -24,6 +25,7 @@ export function VendorCommunicationsModal({
   navy: string;
   font: string;
   onClose: () => void;
+  onSuccess?: () => void;
   onSend: (input: {
     to: string;
     subject: string;
@@ -41,7 +43,6 @@ export function VendorCommunicationsModal({
   const [saveVendorEmail, setSaveVendorEmail] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const sortedVendors = useMemo(
@@ -82,7 +83,6 @@ export function VendorCommunicationsModal({
     setSaveVendorEmail(false);
     setSending(false);
     setError(null);
-    setSuccess(false);
     setValidationError(null);
   }, [open]);
 
@@ -121,7 +121,6 @@ export function VendorCommunicationsModal({
   const handleSend = async () => {
     setValidationError(null);
     setError(null);
-    setSuccess(false);
     const trimmedTo = to.trim();
     const trimmedSubject = subject.trim();
     const trimmedBody = body.trim();
@@ -153,7 +152,7 @@ export function VendorCommunicationsModal({
         deliveryOrderId: deliveryOrderId || undefined,
         saveVendorEmail: needsSaveCheckbox ? saveVendorEmail : undefined,
       });
-      setSuccess(true);
+      onSuccess?.();
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Failed to send vendor email.";
@@ -218,7 +217,7 @@ export function VendorCommunicationsModal({
             fontFamily: font,
           }}
         >
-          Vendor (optional)
+          Vendor / Contact
         </label>
         <select
           id="vendor-comms-vendor"
@@ -255,7 +254,7 @@ export function VendorCommunicationsModal({
             fontFamily: font,
           }}
         >
-          Associate delivery (optional)
+          Related Delivery / Order
         </label>
         <select
           id="vendor-comms-delivery"
@@ -291,7 +290,7 @@ export function VendorCommunicationsModal({
             fontFamily: font,
           }}
         >
-          To
+          Email Address
         </label>
         <input
           id="vendor-comms-to"
@@ -421,15 +420,6 @@ export function VendorCommunicationsModal({
             style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 10px" }}
           >
             {error}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p
-            data-testid="vendor-comms-send-success"
-            style={{ color: "#166534", fontSize: 13, margin: "0 0 10px" }}
-          >
-            Email sent. Tracking tag and Reply-To were applied.
           </p>
         ) : null}
 

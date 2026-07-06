@@ -325,6 +325,7 @@ export function DispatcherDashboardPage() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showVendorCommsModal, setShowVendorCommsModal] = useState(false);
+  const [vendorCommsToast, setVendorCommsToast] = useState<string | null>(null);
 
   const fetchAllDataRef = useRef<() => Promise<void>>(async () => {});
   const lastRefreshGeneration = useRef(0);
@@ -819,27 +820,55 @@ export function DispatcherDashboardPage() {
           title="Dispatcher Dashboard"
           subtitle="Delivery Overview"
           headerExtra={
-            <button
-              type="button"
-              data-testid="vendor-communications-entry"
-              onClick={() => setShowVendorCommsModal(true)}
+            <div
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
                 marginLeft: 8,
-                padding: "4px 10px",
-                borderRadius: 4,
-                border: `1.5px solid ${NAVY}`,
-                backgroundColor: "#fff",
-                color: NAVY,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: FONT,
-                outline: "none",
-                whiteSpace: "nowrap",
+                flexWrap: "wrap",
               }}
             >
-              Vendor Communications
-            </button>
+              {vendorCommsToast ? (
+                <div
+                  data-testid="vendor-comms-toast"
+                  role="status"
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    backgroundColor: "#ecfdf5",
+                    border: "1px solid #86efac",
+                    color: "#166534",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: FONT,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {vendorCommsToast}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                data-testid="vendor-communications-entry"
+                onClick={() => setShowVendorCommsModal(true)}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 4,
+                  border: `1.5px solid ${NAVY}`,
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                  outline: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Vendor Communications
+              </button>
+            </div>
           }
           lastUpdated={refreshLastUpdated}
           refreshBusy={refreshBusy}
@@ -1908,6 +1937,11 @@ export function DispatcherDashboardPage() {
         navy={NAVY}
         font={FONT}
         onClose={() => setShowVendorCommsModal(false)}
+        onSuccess={() => {
+          setShowVendorCommsModal(false);
+          setVendorCommsToast("Email sent. Tracking and Reply-To applied.");
+          window.setTimeout(() => setVendorCommsToast(null), 3500);
+        }}
         onSend={async (input) => {
           await sendVendorEmail(input);
         }}

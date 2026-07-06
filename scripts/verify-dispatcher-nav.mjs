@@ -312,6 +312,26 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await vendorCommsEntry.waitFor({ timeout: 10_000 });
   await vendorCommsEntry.click();
   await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
+
+  const labelChecks = [
+    ["vendor-comms-vendor", "Vendor / Contact"],
+    ["vendor-comms-delivery", "Related Delivery / Order"],
+    ["vendor-comms-to", "Email Address"],
+    ["vendor-comms-subject", "Subject"],
+    ["vendor-comms-body", "Message"],
+  ];
+  for (const [id, expected] of labelChecks) {
+    const el = page.locator(`label[for="${id}"]`);
+    const text = (await el.innerText()).trim();
+    if (text !== expected) {
+      throw new Error(`Expected label "${expected}", got "${text}"`);
+    }
+    if (!(await el.isVisible())) {
+      throw new Error(`Label "${expected}" not visible`);
+    }
+  }
+  console.log("PASS: Vendor Communications field labels visible.");
+
   const sendBtn = page.getByTestId("vendor-comms-send");
   if (await sendBtn.isEnabled()) {
     throw new Error("Vendor Communications Send must be disabled when fields empty");

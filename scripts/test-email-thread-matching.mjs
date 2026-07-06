@@ -5,7 +5,9 @@
 import { resolveReplyToThread } from "../functions/src/email/resolveReplyToThread.ts";
 import {
   buildPlusReplyTo,
+  extractTokenFromBody,
   extractTokenFromSubject,
+  formatBodyTrackingFooter,
   formatSubjectTag,
   generateTrackingToken,
   subjectWithTrackingTag,
@@ -70,6 +72,23 @@ assert(
   "plus Reply-To format",
   buildPlusReplyTo("svbotmail@gmail.com", TOKEN).includes("+t-"),
 );
+assert(
+  "body footer Ref format",
+  formatBodyTrackingFooter(TOKEN).includes(`Ref: SV-${TOKEN}`),
+);
+assert(
+  "extractTokenFromBody",
+  extractTokenFromBody(`Thanks\n\n---\nRef: SV-${TOKEN}`) === TOKEN.toLowerCase(),
+);
+
+console.log("\n1b. Outbound clean subject (no visible [SV-*] tag)");
+const userSubject = "hey";
+const userBody = "Please confirm ETA";
+const outboundSubject = userSubject;
+const outboundBody = `${userBody}${formatBodyTrackingFooter(TOKEN)}`;
+assert("outbound subject has no [SV-] tag", !/\[SV-/i.test(outboundSubject));
+assert("outbound subject unchanged", outboundSubject === userSubject);
+assert("outbound body includes Ref footer", outboundBody.includes(`Ref: SV-${TOKEN}`));
 
 console.log("\n2. threadId match");
 const threadMatch = resolveReplyToThread({
@@ -152,7 +171,26 @@ const plusMatch = resolveReplyToThread({
 });
 assert("matchedBy plusToken", plusMatch.matchedBy === "plusToken");
 
-console.log("\n6. unmatched → none");
+console.log("\n6. body footer token match");
+const bodyWithRef = `Shipped today.${formatBodyTrackingFooter(TOKEN)}`;
+const bodyMatch = resolveReplyToThread({
+  message: {
+    sourceMessageId: "msg-in-4b",
+    senderEmail: "unknown@evil.com",
+    recipientEmails: ["svbotmail@gmail.com"],
+    subject: "Re: hey",
+    bodyText: bodyWithRef,
+    receivedAt: "2026-07-06T12:16:00Z",
+  },
+  headers: {},
+  outboundEvents: OUTBOUND,
+  matchContext: BASE_CTX,
+  senderDomainKnown: false,
+});
+assert("matchedBy bodyToken", bodyMatch.matchedBy === "bodyToken");
+assert("body token unknown sender flagged", bodyMatch.humanReviewRequired === true);
+
+console.log("\n7. unmatched → none");
 const noneMatch = resolveReplyToThread({
   message: {
     sourceMessageId: "msg-in-5",
@@ -170,7 +208,7 @@ const noneMatch = resolveReplyToThread({
 assert("matchedBy none", noneMatch.matchedBy === "none");
 assert("humanReviewRequired", noneMatch.humanReviewRequired === true);
 
-console.log("\n7. multi-PO forces review");
+console.log("\n8. multi-PO forces review");
 const multiPo = resolveReplyToThread({
   message: {
     sourceMessageId: "msg-in-6",

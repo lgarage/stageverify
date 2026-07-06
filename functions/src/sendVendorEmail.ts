@@ -20,7 +20,6 @@ import {
   buildPlusReplyTo,
   formatBodyTrackingFooter,
   generateTrackingToken,
-  subjectWithTrackingTag,
 } from "./email/trackingToken";
 
 const PROVIDER_ID = "gmail";
@@ -266,11 +265,10 @@ export const sendVendorEmail = onCall(
     }
 
     const trackingToken = generateTrackingToken();
-    const taggedSubject = subjectWithTrackingTag(subject, trackingToken);
     const bodyWithFooter = `${body}${formatBodyTrackingFooter(trackingToken)}`;
     const replyTo = buildPlusReplyTo(fromEmail, trackingToken);
 
-    const raw = buildGmailRawMessage(to, fromEmail, taggedSubject, bodyWithFooter, {
+    const raw = buildGmailRawMessage(to, fromEmail, subject, bodyWithFooter, {
       replyTo,
       fromDisplayName: "L. Garage Dispatch (StageVerify)",
     });
@@ -317,7 +315,7 @@ export const sendVendorEmail = onCall(
       senderEmail: fromEmail,
       recipientEmails: [to],
       replyToAddress: replyTo,
-      subject: taggedSubject,
+      subject,
       receivedAt: now,
       vendorId: resolvedVendorId,
       jobId: resolvedJobId,
