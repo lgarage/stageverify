@@ -208,6 +208,7 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Firestore doc id merge + prod demo row hide (2026-07-05, v0.0.14)** ? `fetchAll`/`fetchWhere` merge Firestore doc id into returned objects (fixes dispatcher drawer when body omits `id`); seed demo deliveries ORD-001..006 hidden from `listDeliveries` on prod gh-pages only (`import.meta.env.PROD`). Invoice shells (4046362 etc.) unchanged. Verify: `npm run build`, `verify:delivery-consistency`, `verify:dispatcher-nav` prod.
 
 **Remove Installed overview filter; Picked Up ? Complete (2026-07-05, v0.0.12)** ? Delivery Overview no longer shows Installed summary tile or filter chip; picked_up (and legacy installed) rows count in Complete tile and match Complete filter; Delivered filter unchanged. Verify: `test:invoice-shell-display`, `verify:dispatcher-nav` local+prod.
 

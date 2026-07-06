@@ -155,7 +155,7 @@ function stagingLocationFromSnap(
 
 async function fetchAll<T>(colName: string): Promise<T[]> {
   const snap = await getDocs(query(collection(db, colName), limit(COLLECTION_SAFETY_LIMIT)));
-  return snap.docs.map((d) => d.data() as T);
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
 }
 
 async function fetchWhere<T>(
@@ -166,7 +166,24 @@ async function fetchWhere<T>(
   const snap = await getDocs(
     query(collection(db, colName), where(field, "==", value)),
   );
-  return snap.docs.map((d) => d.data() as T);
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
+}
+
+/** Seed/demo deliveries from seedFirestore.ts — hidden on prod gh-pages list only. */
+const SEED_DEMO_DELIVERY_IDS = new Set([
+  "delivery-1",
+  "delivery-2",
+  "delivery-3",
+  "delivery-demo-vendor-1",
+  "delivery-demo-vendor-2",
+]);
+
+const SEED_DEMO_ORDER_PATTERN = /^ORD-00[1-6]$/;
+
+function isSeedDemoDelivery(delivery: DeliveryOrder): boolean {
+  if (SEED_DEMO_DELIVERY_IDS.has(delivery.id)) return true;
+  const orderNumber = delivery.orderNumber?.trim() ?? "";
+  return SEED_DEMO_ORDER_PATTERN.test(orderNumber);
 }
 
 const DEFAULT_PAGE = 1;
@@ -333,8 +350,12 @@ export class FirestoreDataService implements DispatcherDataService {
       materialIssuesByDelivery.set(issue.deliveryOrderId, list);
     }
 
+    const hideSeedDemoRows = import.meta.env.PROD;
+
     const rows: DeliveryListRow[] = [];
     for (const delivery of deliveries) {
+      if (hideSeedDemoRows && isSeedDemoDelivery(delivery)) continue;
+
       const job = allJobs.find((j) => j.id === delivery.jobId);
       const vendor = allVendors.find((v) => v.id === delivery.vendorId);
       if (!job || !vendor) continue;

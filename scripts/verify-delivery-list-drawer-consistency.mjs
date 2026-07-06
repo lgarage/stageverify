@@ -1152,20 +1152,40 @@ async function assertOrd006EmailReviewAction(page, record) {
   await page.waitForTimeout(400);
   const search = page.locator('input[placeholder*="Job #, name, PO"]');
   await search.waitFor({ state: "visible", timeout: 15_000 });
+  const isProdBase = /lgarage\.github\.io\/stageverify/i.test(baseUrl);
+  const drawerProbeOrder = isProdBase
+    ? (process.env.STAGEVERIFY_VERIFY_ORDER ?? "4046362")
+    : "ORD-005";
   await search.fill("");
-  await search.fill("ORD-005");
+  await search.fill(drawerProbeOrder);
   await page.waitForTimeout(1500);
+
   const targetRow = page
-    .locator("table tbody tr", { hasText: "ORD-005" })
+    .locator("table tbody tr", { hasText: drawerProbeOrder })
     .first();
   if ((await targetRow.count()) === 0) {
-    throw new Error("ORD-005 fixture row not found for drawer consistency verify");
+    if (isProdBase) {
+      const fallbackRow = page.locator("table tbody tr").first();
+      if ((await fallbackRow.count()) === 0) {
+        throw new Error("No delivery rows found on prod for drawer consistency verify");
+      }
+      record(
+        "Prod drawer probe order not in table (demo rows hidden)",
+        true,
+        `${drawerProbeOrder} absent — using first row`,
+      );
+    } else {
+      throw new Error("ORD-005 fixture row not found for drawer consistency verify");
+    }
   }
-  const viewBtn = targetRow.locator("button").filter({ hasText: /^View$/ });
+  const ord005Row = (await targetRow.count()) > 0
+    ? targetRow
+    : page.locator("table tbody tr").first();
+  const viewBtn = ord005Row.locator("button").filter({ hasText: /^View$/ });
   if (await viewBtn.isVisible().catch(() => false)) {
     await viewBtn.click({ force: true });
   } else {
-    await targetRow.click({ force: true });
+    await ord005Row.click({ force: true });
   }
   await page.waitForTimeout(1200);
   await assertDeliveryDrawerOpen(page);
@@ -1197,7 +1217,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   record("Drawer action banner visible", true, heading);
 
   const listStatus = (
-    await targetRow.locator("td").first().innerText()
+    await ord005Row.locator("td").first().innerText()
   ).trim();
   record("List status captured", listStatus.length > 0, listStatus);
 
@@ -1223,7 +1243,7 @@ async function assertOrd006EmailReviewAction(page, record) {
 
   if (itemsReceivedLine) {
     const listItemsRecv = (
-      await targetRow.locator("td").nth(8).innerText()
+      await ord005Row.locator("td").nth(8).innerText()
     ).trim();
     const drawerMatch = itemsReceivedLine.match(/^(\d+) of (\d+) Items Received$/);
     if (drawerMatch && /^\d+\/\d+$/.test(listItemsRecv)) {
