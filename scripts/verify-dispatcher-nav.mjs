@@ -273,6 +273,23 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     timeout: 15_000,
   });
 
+  console.log("Vendor Communications persistent on Staging Map…");
+  const vendorCommsOnZones = page.getByTestId("vendor-communications-entry");
+  await vendorCommsOnZones.waitFor({ timeout: 10_000 });
+  if (!(await vendorCommsOnZones.isVisible())) {
+    throw new Error(
+      "Vendor Communications button must stay visible on Staging Map",
+    );
+  }
+  await vendorCommsOnZones.click();
+  await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByTestId("vendor-communications-modal").waitFor({
+    state: "hidden",
+    timeout: 10_000,
+  });
+  console.log("PASS: Vendor Communications persistent on Staging Map.");
+
   console.log("Sidebar: Vendors…");
   await nav.getByRole("link", { name: "Vendors", exact: true }).click();
   await page.waitForTimeout(400);

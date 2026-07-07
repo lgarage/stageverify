@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **fix v0.0.19** — Vendor Communications modal field labels readable (NAVY on white panel; body inherited light text); Playwright label color assertions + screenshot
+- Last shipped: **feat v0.0.20** — Vendor Communications button persistent on all dispatcher portal tabs (`VendorCommunicationsTopBarEntry` in shared top bar); Playwright asserts button on Staging Map + Dashboard
+- Also shipped: **fix v0.0.19** — Vendor Communications modal field labels readable (NAVY on white panel; body inherited light text); Playwright label color assertions + screenshot
 - Also shipped: **feat v0.0.18** — Vendor Communications form labels (Vendor, Associated Delivery / Order), helper text for new tracked thread, Ref footer below default signature in outbound email body
 - Also shipped: **feat v0.0.17** — Vendor Communications polish (clean outbound subject, body Ref footer, field labels, send-success toast); `sendVendorEmail` stores token internally only
 - Also shipped: **feat v0.0.16** — Vendor Communications hub on Dispatcher Dashboard (compose modal, general `sendVendorEmail` path); Resolve Issue unchanged

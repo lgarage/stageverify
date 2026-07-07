@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { DispatcherPortalLinks } from "./PortalNavBar";
+import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
 
 const NAVY = "#0a3161";
@@ -60,6 +61,7 @@ export function DispatcherPortalTopBar({
         {subtitle ? (
           <span style={{ color: "#9ca3af", fontSize: 13 }}>/ {subtitle}</span>
         ) : null}
+        <VendorCommunicationsTopBarEntry />
         {headerExtra}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
