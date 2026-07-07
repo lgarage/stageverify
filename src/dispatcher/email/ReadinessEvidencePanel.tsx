@@ -8,7 +8,8 @@ import {
 import { hasVendorOrderCompleteApplyConflict } from "./emailApplyConflicts";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
 import {
-  getHumanReviewReason,
+  formatEmailReviewPreview,
+  getEmailReviewHeadlines,
   getSvInterpretation,
   proposalNeedsDrawerReview,
 } from "./emailReviewHelpers";
@@ -84,6 +85,9 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
   const [showOriginal, setShowOriginal] = useState(false);
   const interpretation = getSvInterpretation(row);
   const needsReview = proposalNeedsDrawerReview(row);
+  const headlines = needsReview ? getEmailReviewHeadlines(row) : null;
+  const preview = formatEmailReviewPreview(row);
+  const isCalmMatch = headlines?.tier === "matched_vendor_reply";
 
   return (
     <div
@@ -96,40 +100,59 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
       }}
     >
       <div
+        data-testid={`email-evidence-preview-${row.messageId}`}
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          gap: 8,
-          marginBottom: 6,
+          marginBottom: 10,
+          padding: "10px 12px",
+          backgroundColor: "#f8fafc",
+          border: "1px solid #e8ecf0",
+          borderRadius: 4,
+          fontSize: 12,
+          color: "#334155",
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
-          {row.vendorName ?? row.senderEmail}
-        </span>
-        <span style={{ fontSize: 11, color: "#64748b" }}>
-          {row.receivedAt.slice(0, 10)}
-        </span>
-      </div>
-      <p style={{ margin: "0 0 8px", fontSize: 12, color: "#475569" }}>
-        {row.subject}
-        {row.poNumber ? (
-          <span style={{ fontFamily: "monospace", marginLeft: 6 }}>{row.poNumber}</span>
-        ) : null}
-      </p>
-
-      {needsReview ? (
-        <p
-          data-testid={`email-evidence-review-${row.messageId}`}
-          style={{
-            margin: "0 0 8px",
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#b45309",
-          }}
-        >
-          Review Required — {getHumanReviewReason(row)}
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          {preview.sender}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          {preview.subject}
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Received: </span>
+          {preview.receivedLabel}
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
+          {preview.replyPreview}
         </p>
+      </div>
+
+      {headlines ? (
+        <>
+          <p
+            data-testid={`email-evidence-review-${row.messageId}`}
+            style={{
+              margin: "0 0 4px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: isCalmMatch ? "#0a3161" : "#b45309",
+            }}
+          >
+            {headlines.primary}
+          </p>
+          <p
+            data-testid={`email-evidence-secondary-${row.messageId}`}
+            style={{
+              margin: "0 0 8px",
+              fontSize: 11,
+              color: "#64748b",
+              lineHeight: 1.4,
+            }}
+          >
+            {headlines.secondary}
+          </p>
+        </>
       ) : null}
 
       {interpretation.length > 0 && (
@@ -185,7 +208,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           cursor: "pointer",
         }}
       >
-        {showOriginal ? "Hide Original Email" : "View Original Email"}
+        {showOriginal ? "Hide Original Email" : "Show Original Email"}
       </button>
 
       {showOriginal && (
@@ -206,11 +229,6 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           <div style={{ marginBottom: 4 }}>
             <strong>To:</strong> {row.recipientEmails.join(", ")}
           </div>
-          {row.threadId ? (
-            <div style={{ marginBottom: 4 }}>
-              <strong>Thread:</strong> {row.threadId}
-            </div>
-          ) : null}
           <div style={{ marginBottom: 4 }}>
             <strong>Date:</strong> {new Date(row.receivedAt).toLocaleString()}
           </div>

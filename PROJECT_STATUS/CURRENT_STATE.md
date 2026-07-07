@@ -6,7 +6,8 @@
 
 ## Snapshot
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
-- Last shipped: **fix v0.0.22** — Pre-ingest vendor reply matching hardening (canonical footer Ref only, spoof/conflict → Needs Review; ingest still dark)
+- Last shipped: **fix v0.0.23** — Vendor Reply Needs Review calmer copy for matched thread replies; preview block + Show/Hide Original Email; Suspicious label only for unmatched/ambiguous/spoof
+- Also shipped: **fix v0.0.22** — Pre-ingest vendor reply matching hardening (canonical footer Ref only, spoof/conflict → Needs Review; ingest still dark)
 - Also shipped: **fix v0.0.21** — Vendor Communications top-bar x-position stable across dispatcher tabs (360px breadcrumb grid column + Playwright Δ≤4px assert)
 - Also shipped: **feat v0.0.20** — Vendor Communications button persistent on all dispatcher portal tabs (`VendorCommunicationsTopBarEntry` in shared top bar); Playwright asserts button on Staging Map + Dashboard
 - Also shipped: **fix v0.0.19** — Vendor Communications modal field labels readable (NAVY on white panel; body inherited light text); Playwright label color assertions + screenshot

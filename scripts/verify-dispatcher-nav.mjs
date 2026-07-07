@@ -19,6 +19,10 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
+  classifyEmailReviewDisplay,
+  getEmailReviewHeadlines,
+} from "../src/dispatcher/email/emailReviewHelpers.ts";
+import {
   assertDeliveryDrawerOpen,
   ensureAuthenticated,
   loadEnvLocal,
@@ -106,6 +110,79 @@ function assertReadableLabelColor(page, testId, label) {
 const RIVERSIDE_JOB_ID = "job-1";
 const STALE_PICKUP_TOKEN =
   "d113403af1d6d98b9e9c96d19fcc91125aba2d611e6faca551ace710b91f5b26";
+
+function assertEmailReviewCopyHelpers() {
+  const matched = {
+    messageId: "test-matched",
+    subject: "Re: Delivery question",
+    senderEmail: "vendor@johnstone.com",
+    receivedAt: "2026-07-06T20:58:00Z",
+    classification: "needs_dispatcher_review",
+    poNumber: null,
+    vendorName: null,
+    confidenceScore: 95,
+    confidenceReason: "thread_ladder:threadId",
+    reviewStatus: "pending_review",
+    duplicate: false,
+    matchedJobNumber: null,
+    matchedPoLabel: null,
+    matchedOrderLabel: null,
+    matchedDeliveryLabel: "del-1",
+    matchedDeliveryOrderId: "del-1",
+    itemLines: [],
+    bodyExcerpt: "test received. 8:58pm",
+    originalBody: "test received. 8:58pm",
+    recipientEmails: ["dispatcher@example.com"],
+    proposedOperationalMeaning: "",
+    affectsCondition1: false,
+    condition1ApprovalNote: "",
+    matchedBy: "threadId",
+    humanReviewRequired: true,
+  };
+
+  const matchedTier = classifyEmailReviewDisplay(matched);
+  if (matchedTier !== "matched_vendor_reply") {
+    throw new Error(`Expected matched_vendor_reply tier, got ${matchedTier}`);
+  }
+  const matchedHeadlines = getEmailReviewHeadlines(matched);
+  if (!matchedHeadlines.primary.includes("Vendor Reply — Needs Review")) {
+    throw new Error(`Matched primary label unexpected: ${matchedHeadlines.primary}`);
+  }
+  if (/Suspicious/i.test(matchedHeadlines.primary)) {
+    throw new Error("Matched vendor reply must not show Suspicious in primary label");
+  }
+
+  const spoof = {
+    ...matched,
+    messageId: "test-spoof",
+    matchedBy: "bodyToken",
+    confidenceReason: "thread_ladder:bodyToken; spoofed_body_ref_failed_auth",
+    applyConflictReason: "spoofed_body_ref_failed_auth",
+  };
+  const spoofTier = classifyEmailReviewDisplay(spoof);
+  if (spoofTier !== "spoof_conflict") {
+    throw new Error(`Expected spoof_conflict tier, got ${spoofTier}`);
+  }
+  const spoofHeadlines = getEmailReviewHeadlines(spoof);
+  if (!/Suspicious/i.test(spoofHeadlines.primary)) {
+    throw new Error(`Spoof case should retain caution label: ${spoofHeadlines.primary}`);
+  }
+
+  const unmatched = {
+    ...matched,
+    messageId: "test-unmatched",
+    matchedBy: "none",
+    matchedDeliveryOrderId: null,
+    classification: "unable_to_match",
+    confidenceReason: "unable_to_match",
+  };
+  const unmatchedTier = classifyEmailReviewDisplay(unmatched);
+  if (unmatchedTier !== "unmatched") {
+    throw new Error(`Expected unmatched tier, got ${unmatchedTier}`);
+  }
+
+  console.log("PASS: email review copy helpers (matched vs suspicious tiers).");
+}
 
 function extractPickupToken(text) {
   const match = text.match(/#\/pickup\?t=([a-f0-9]{64})/);
@@ -819,6 +896,7 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.waitForTimeout(400);
 
   console.log("Needs Review email strip (Phase 5)…");
+  assertEmailReviewCopyHelpers();
   await page.getByTestId("needs-review-email-strip").waitFor({
     timeout: 15_000,
   });
@@ -833,6 +911,48 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     await needsReviewToggle.click();
     const needsReviewList = page.getByTestId("needs-review-email-list");
     await needsReviewList.waitFor({ timeout: 10_000 });
+
+    const firstItem = page.locator('[data-testid^="needs-review-email-item-"]').first();
+    if (await firstItem.count()) {
+      const itemTestId = await firstItem.getAttribute("data-testid");
+      const reviewTier = await firstItem.getAttribute("data-review-tier");
+      const messageId = itemTestId?.replace("needs-review-email-item-", "") ?? "";
+      if (messageId) {
+        const reasonText = await page
+          .getByTestId(`needs-review-email-reason-${messageId}`)
+          .innerText();
+        if (reviewTier === "matched_vendor_reply" && /Suspicious/i.test(reasonText)) {
+          throw new Error(
+            `Matched vendor reply must not show Suspicious: ${reasonText}`,
+          );
+        }
+        if (
+          (reviewTier === "unmatched" || reviewTier === "spoof_conflict") &&
+          !/Review Required/i.test(reasonText)
+        ) {
+          throw new Error(`Caution tier expected Review Required prefix: ${reasonText}`);
+        }
+        const showOriginalBtn = page.getByTestId(
+          `needs-review-view-original-${messageId}`,
+        );
+        const btnLabel = (await showOriginalBtn.innerText()).trim();
+        if (btnLabel !== "Show Original Email") {
+          throw new Error(`Expected Show Original Email toggle, got: ${btnLabel}`);
+        }
+        await showOriginalBtn.click();
+        await page.getByTestId(`needs-review-original-${messageId}`).waitFor({
+          timeout: 10_000,
+        });
+        const hideLabel = (await showOriginalBtn.innerText()).trim();
+        if (hideLabel !== "Hide Original Email") {
+          throw new Error(`Expected Hide Original Email toggle, got: ${hideLabel}`);
+        }
+        console.log(
+          `PASS: Needs Review item tier=${reviewTier ?? "unknown"}; original email toggle works.`,
+        );
+      }
+    }
+
     await page.getByRole("heading", { name: "Delivery Overview" }).click();
     await needsReviewList.waitFor({ state: "hidden", timeout: 10_000 });
     console.log("Needs Review PASS: outside click collapses expanded strip.");

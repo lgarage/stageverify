@@ -37,6 +37,10 @@ export interface ProposedEmailUpdate {
   proposedOperationalMeaning: string;
   affectsCondition1: boolean;
   condition1ApprovalNote: string;
+  /** Live inbound reply-router fields — UI classification only. */
+  matchedBy?: string;
+  humanReviewRequired?: boolean;
+  applyConflictReason?: string;
 }
 
 const vendorNameById = new Map(

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getProposedEmailUpdates } from "./getProposedEmailUpdates";
 import {
   filterNeedsReviewEmails,
-  getHumanReviewReason,
+  formatEmailReviewPreview,
+  getEmailReviewHeadlines,
 } from "./emailReviewHelpers";
 import { listPendingInboundVendorEmailEvents } from "../firestoreService";
 import type { VendorEmailEvent } from "../models";
@@ -12,12 +13,14 @@ const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
+  const originalBody = event.bodyText ?? event.bodyExcerpt ?? "";
   return {
     messageId: event.sourceMessageId,
     subject: event.subject,
     senderEmail: event.senderEmail,
     receivedAt: event.receivedAt,
-    classification: (event.emailClassification ?? "needs_dispatcher_review") as ProposedEmailUpdate["classification"],
+    classification: (event.emailClassification ??
+      "needs_dispatcher_review") as ProposedEmailUpdate["classification"],
     poNumber: event.proposedPoNumber ?? null,
     vendorName: null,
     confidenceScore: event.confidenceScore ?? 0,
@@ -31,14 +34,18 @@ function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
     matchedDeliveryOrderId: event.deliveryOrderId ?? null,
     itemLines: [],
     bodyExcerpt: event.bodyExcerpt ?? "",
-    originalBody: event.bodyExcerpt ?? "",
+    originalBody,
     recipientEmails: event.recipientEmails ?? [],
     threadId: event.threadId,
-    proposedOperationalMeaning: event.matchedBy
-      ? `Matched via ${event.matchedBy} — dispatcher confirm required`
-      : "Unmatched inbound reply",
+    proposedOperationalMeaning:
+      event.matchedBy && event.matchedBy !== "none"
+        ? "Matched vendor reply — dispatcher confirm required"
+        : "Unmatched inbound reply",
     affectsCondition1: false,
     condition1ApprovalNote: "",
+    matchedBy: event.matchedBy,
+    humanReviewRequired: event.humanReviewRequired,
+    applyConflictReason: event.applyConflictReason,
   };
 }
 
@@ -164,7 +171,7 @@ export function NeedsReviewEmailStrip() {
           Needs Review ({needsReview.length})
         </span>
         <span style={{ fontSize: 12, color: "#64748b" }}>
-          {expanded ? "Hide" : "Show"} unmatched · ambiguous · corrections
+          {expanded ? "Hide" : "Show"} vendor replies · unmatched · ambiguous
         </span>
       </button>
 
@@ -173,65 +180,85 @@ export function NeedsReviewEmailStrip() {
           data-testid="needs-review-email-list"
           style={{ padding: "12px 18px 16px", display: "flex", flexDirection: "column", gap: 10 }}
         >
-          <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
-            Matched vendor emails appear in the delivery drawer only — not here.
-          </p>
           {needsReview.map((row) => {
-            const reviewReason = getHumanReviewReason(row);
+            const headlines = getEmailReviewHeadlines(row);
+            const preview = formatEmailReviewPreview(row);
             const showOriginal = openOriginalId === row.messageId;
+            const isCalmMatch = headlines.tier === "matched_vendor_reply";
+
             return (
               <article
                 key={row.messageId}
                 data-testid={`needs-review-email-item-${row.messageId}`}
+                data-review-tier={headlines.tier}
                 style={{
                   border: "1px solid #e0e3e8",
                   borderRadius: 6,
                   padding: "12px",
-                  backgroundColor: "#fffef8",
+                  backgroundColor: isCalmMatch ? "#f8fafc" : "#fffef8",
                 }}
               >
                 <div
+                  data-testid={`needs-review-email-preview-${row.messageId}`}
                   style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    marginBottom: 6,
+                    marginBottom: 10,
+                    padding: "10px 12px",
+                    backgroundColor: "#fff",
+                    border: "1px solid #e8ecf0",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    color: "#334155",
                   }}
                 >
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
-                    {row.vendorName ?? row.senderEmail}
-                  </span>
-                  <span style={{ fontSize: 11, color: "#64748b" }}>
-                    {row.receivedAt.slice(0, 10)}
-                  </span>
+                  <div style={{ marginBottom: 4 }}>
+                    <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+                    {preview.sender}
+                  </div>
+                  <div style={{ marginBottom: 4 }}>
+                    <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+                    {preview.subject}
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ color: "#64748b", fontWeight: 600 }}>Received: </span>
+                    {preview.receivedLabel}
+                  </div>
+                  <p
+                    data-testid={`needs-review-email-excerpt-${row.messageId}`}
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      color: "#1e293b",
+                      lineHeight: 1.45,
+                      fontStyle: preview.replyPreview ? "normal" : "italic",
+                    }}
+                  >
+                    {preview.replyPreview}
+                  </p>
                 </div>
-                <p
-                  style={{ margin: "0 0 8px", fontSize: 12, color: "#475569" }}
-                  title={row.subject}
-                >
-                  {row.subject}
-                  {row.poNumber ? (
-                    <span style={{ fontFamily: "monospace", marginLeft: 6 }}>{row.poNumber}</span>
-                  ) : null}
-                </p>
+
                 <p
                   data-testid={`needs-review-email-reason-${row.messageId}`}
                   style={{
-                    margin: "0 0 8px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#b45309",
+                    margin: "0 0 4px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: isCalmMatch ? NAVY : "#b45309",
                   }}
                 >
-                  Review Required — {reviewReason}
+                  {headlines.primary}
                 </p>
-                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b" }}>
-                  {row.classification.replace(/_/g, " ")}
-                  {row.matchedDeliveryLabel
-                    ? ` · possible match: ${row.matchedDeliveryLabel}`
-                    : ""}
+                <p
+                  data-testid={`needs-review-email-secondary-${row.messageId}`}
+                  style={{
+                    margin: "0 0 10px",
+                    fontSize: 12,
+                    color: "#64748b",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {headlines.secondary}
                 </p>
+
                 <button
                   type="button"
                   data-testid={`needs-review-view-original-${row.messageId}`}
@@ -251,7 +278,7 @@ export function NeedsReviewEmailStrip() {
                     cursor: "pointer",
                   }}
                 >
-                  {showOriginal ? "Hide Original Email" : "View Original Email"}
+                  {showOriginal ? "Hide Original Email" : "Show Original Email"}
                 </button>
                 {showOriginal && (
                   <div

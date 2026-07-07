@@ -315,8 +315,8 @@ async function ensureAuthenticated(page) {
   if (/confidence low/i.test(reasonText)) {
     throw new Error(`Review reason must not say confidence low: ${reasonText}`);
   }
-  if (!/Review Required/i.test(reasonText)) {
-    throw new Error(`Expected Review Required label: ${reasonText}`);
+  if (!/Review Required|Vendor Reply — Needs Review/i.test(reasonText)) {
+    throw new Error(`Expected review label: ${reasonText}`);
   }
 
   console.log("View Original Email hidden until click…");
