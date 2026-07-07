@@ -35,7 +35,7 @@ const REASON_TOKEN_LABEL: Record<string, string> = {
   ambiguous_po_multiple_records: "Multiple PO records matched",
   ambiguous_order_number: "Multiple order numbers matched",
   ambiguous_job_number: "Multiple job numbers matched",
-  unknown_sender_domain: "Unknown vendor",
+  unknown_sender_domain: "Unknown sender or vendor domain",
   correction_to_earlier_email: "Correction to previous email",
   po_job_conflict: "PO and job number conflict",
   po_not_found: "PO number not found",
@@ -155,6 +155,19 @@ export function getEmailReviewHeadlines(proposal: ProposedEmailUpdate): EmailRev
     };
   }
 
+  if (tier === "unmatched") {
+    const reasonTokens = proposal.confidenceReason.split(";").map((t) => t.trim());
+    const unknownDomain = reasonTokens.includes("unknown_sender_domain");
+    const secondary = unknownDomain
+      ? "Unknown sender or vendor domain. This email did not match an existing StageVerify thread. Review before taking action."
+      : "This email did not match an existing StageVerify thread. Review before taking action.";
+    return {
+      tier,
+      primary: "Unmatched Email — Needs Review",
+      secondary,
+    };
+  }
+
   return {
     tier,
     primary: `Review Required — ${getHumanReviewReason(proposal)}`,
@@ -260,6 +273,14 @@ export function proposalNeedsDrawerReview(proposal: ProposedEmailUpdate): boolea
   return isNeedsReviewDashboardEmail(proposal);
 }
 
+function normalizeReviewSubject(subject: string): string {
+  return subject.replace(/^Subject:\s*/i, "").trim();
+}
+
+function normalizeReviewPreviewExcerpt(text: string): string {
+  return text.replace(/^Body:\s*/i, "").trim();
+}
+
 /** Reply preview above raw email — sender metadata + first non-quoted lines. */
 export function formatEmailReviewPreview(proposal: ProposedEmailUpdate): {
   sender: string;
@@ -280,14 +301,16 @@ export function formatEmailReviewPreview(proposal: ProposedEmailUpdate): {
     // keep date slice
   }
 
+  const rawExcerpt = proposal.bodyExcerpt || proposal.originalBody;
+  const cleanedExcerpt = normalizeReviewPreviewExcerpt(rawExcerpt);
   const replyPreview =
-    extractReplyPreview(proposal.bodyExcerpt || proposal.originalBody) ||
-    proposal.bodyExcerpt ||
-    "(No preview available)";
+    normalizeReviewPreviewExcerpt(
+      extractReplyPreview(cleanedExcerpt || rawExcerpt) || cleanedExcerpt,
+    ) || "(No preview available)";
 
   return {
     sender: proposal.vendorName ?? proposal.senderEmail,
-    subject: proposal.subject,
+    subject: normalizeReviewSubject(proposal.subject),
     receivedLabel,
     replyPreview,
   };

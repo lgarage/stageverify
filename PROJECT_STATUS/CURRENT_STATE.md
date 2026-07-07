@@ -8,7 +8,8 @@
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** since `2026-07-07T01:57:42.389Z` — controlled flag-on test only; 1 matched inbound in Needs Review; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan. Handoff: `HANDOFF_VENDOR_EMAIL_2026-07-07.md`; gotchas: `gotcha-map.json` vendor-reply-ingest-pilot / gmail-push-payload.
 - **Security gate evidence (2026-07-07):** `SECURITY_GATE_AUDIT_2026-07-07.md` — subagent + `security-gate-id` required; do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified; gotcha `security-gate-evidence`.
-- Last shipped: **fix v0.0.23** — Vendor Reply Needs Review calmer copy for matched thread replies; preview block + Show/Hide Original Email; Suspicious label only for unmatched/ambiguous/spoof
+- Last shipped: **fix v0.0.24** — Unmatched Needs Review calmer copy ("Unmatched Email — Needs Review"); Suspicious reserved for spoof/ambiguous; preview strips Body:/Subject: prefix duplication
+- Also shipped: **fix v0.0.23** — Vendor Reply Needs Review calmer copy for matched thread replies; preview block + Show/Hide Original Email; Suspicious label only for unmatched/ambiguous/spoof
 - Also shipped: **fix v0.0.22** — Pre-ingest vendor reply matching hardening (canonical footer Ref only, spoof/conflict → Needs Review; ingest still dark)
 - Also shipped: **fix v0.0.21** — Vendor Communications top-bar x-position stable across dispatcher tabs (360px breadcrumb grid column + Playwright Δ≤4px assert)
 - Also shipped: **feat v0.0.20** — Vendor Communications button persistent on all dispatcher portal tabs (`VendorCommunicationsTopBarEntry` in shared top bar); Playwright asserts button on Staging Map + Dashboard
