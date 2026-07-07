@@ -107,3 +107,13 @@ export const DRAWER_MODAL_INPUT_STYLE = {
   color: "#111827",
   backgroundColor: "#fff",
 } as const;
+
+/** Field labels on white modal panels — body inherits light text otherwise. */
+export const DRAWER_MODAL_LABEL_STYLE = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  marginBottom: 6,
+  color: "#0a3161",
+  textAlign: "left",
+} as const;

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DeliveryListRow, Vendor } from "../models";
-import { DRAWER_MODAL_INPUT_STYLE } from "./resolveIssueDefaults";
+import {
+  DRAWER_MODAL_INPUT_STYLE,
+  DRAWER_MODAL_LABEL_STYLE,
+} from "./resolveIssueDefaults";
 
 function isValidEmail(value: string): boolean {
   const trimmed = value.trim();
@@ -217,13 +220,8 @@ export function VendorCommunicationsModal({
 
         <label
           htmlFor="vendor-comms-vendor"
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 6,
-            fontFamily: font,
-          }}
+          data-testid="vendor-comms-label-vendor"
+          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
         >
           Vendor
         </label>
@@ -254,13 +252,8 @@ export function VendorCommunicationsModal({
 
         <label
           htmlFor="vendor-comms-delivery"
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 6,
-            fontFamily: font,
-          }}
+          data-testid="vendor-comms-label-delivery"
+          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
         >
           Associated Delivery / Order
         </label>
@@ -290,13 +283,8 @@ export function VendorCommunicationsModal({
 
         <label
           htmlFor="vendor-comms-to"
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 6,
-            fontFamily: font,
-          }}
+          data-testid="vendor-comms-label-email"
+          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
         >
           Email Address
         </label>
@@ -344,13 +332,8 @@ export function VendorCommunicationsModal({
 
         <label
           htmlFor="vendor-comms-subject"
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 6,
-            fontFamily: font,
-          }}
+          data-testid="vendor-comms-label-subject"
+          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
         >
           Subject
         </label>
@@ -373,13 +356,8 @@ export function VendorCommunicationsModal({
 
         <label
           htmlFor="vendor-comms-body"
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 6,
-            fontFamily: font,
-          }}
+          data-testid="vendor-comms-label-message"
+          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
         >
           Message
         </label>

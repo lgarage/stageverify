@@ -67,6 +67,24 @@ function assertReadableInputColor(page, testId, label) {
   });
 }
 
+function assertReadableLabelColor(page, testId, label) {
+  return page.getByTestId(testId).evaluate((el) => {
+    const style = window.getComputedStyle(el);
+    const color = style.color;
+    const rgb = color.match(/\d+/g);
+    if (!rgb || rgb.length < 3) return { ok: false, color };
+    const [r, g, b] = rgb.map(Number);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return { ok: luminance < 0.45, color, luminance };
+  }).then((result) => {
+    if (!result.ok) {
+      throw new Error(
+        `${label}: label text should be dark/readable on white panel, got color ${result.color}`,
+      );
+    }
+  });
+}
+
 const RIVERSIDE_JOB_ID = "job-1";
 const STALE_PICKUP_TOKEN =
   "d113403af1d6d98b9e9c96d19fcc91125aba2d611e6faca551ace710b91f5b26";
@@ -314,14 +332,14 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
 
   const labelChecks = [
-    ["vendor-comms-vendor", "Vendor"],
-    ["vendor-comms-delivery", "Associated Delivery / Order"],
-    ["vendor-comms-to", "Email Address"],
-    ["vendor-comms-subject", "Subject"],
-    ["vendor-comms-body", "Message"],
+    ["vendor-comms-label-vendor", "Vendor"],
+    ["vendor-comms-label-delivery", "Associated Delivery / Order"],
+    ["vendor-comms-label-email", "Email Address"],
+    ["vendor-comms-label-subject", "Subject"],
+    ["vendor-comms-label-message", "Message"],
   ];
-  for (const [id, expected] of labelChecks) {
-    const el = page.locator(`label[for="${id}"]`);
+  for (const [testId, expected] of labelChecks) {
+    const el = page.getByTestId(testId);
     const text = (await el.innerText()).trim();
     if (text !== expected) {
       throw new Error(`Expected label "${expected}", got "${text}"`);
@@ -329,8 +347,18 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     if (!(await el.isVisible())) {
       throw new Error(`Label "${expected}" not visible`);
     }
+    await assertReadableLabelColor(page, testId, expected);
   }
-  console.log("PASS: Vendor Communications field labels visible.");
+  console.log("PASS: Vendor Communications field labels visible and readable.");
+
+  const vendorCommsShotDir = resolve(process.cwd(), "screenshots");
+  mkdirSync(vendorCommsShotDir, { recursive: true });
+  const vendorCommsShotPath = resolve(
+    vendorCommsShotDir,
+    "vendor-comms-modal-labels.png",
+  );
+  await page.screenshot({ path: vendorCommsShotPath, fullPage: false });
+  console.log(`Screenshot: ${vendorCommsShotPath}`);
 
   const helperText = await page.getByTestId("vendor-comms-helper").innerText();
   if (
