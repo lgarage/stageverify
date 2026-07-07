@@ -29,21 +29,21 @@
       "title": "Process / agents",
       "anchor": "## Process / agents",
       "startLine": 25,
-      "endLine": 37
+      "endLine": 40
     },
     {
       "id": "vendor-email-reply",
       "title": "Vendor email / reply ingest",
       "anchor": "## Vendor email / reply ingest",
-      "startLine": 39,
-      "endLine": 46
+      "startLine": 42,
+      "endLine": 50
     },
     {
       "id": "timing-pointer",
       "title": "Timing (pointer only)",
       "anchor": "## Timing (pointer only)",
-      "startLine": 48,
-      "endLine": 50
+      "startLine": 52,
+      "endLine": 54
     }
   ],
   "entries": [

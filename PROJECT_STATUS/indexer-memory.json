@@ -227,8 +227,8 @@
       "subtype": "reply-ingest",
       "slice": {
         "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
-        "startLine": 39,
-        "endLine": 46,
+        "startLine": 42,
+        "endLine": 50,
         "anchor": "## Vendor email / reply ingest"
       },
       "relatedFiles": [
@@ -241,6 +241,49 @@
       "promotionCandidate": false,
       "notes": "Overnight audit 2026-07-07; gotcha-map triggers vendor-reply-ingest-pilot, gmail-push-payload, gmail-sync-404-noise, vendor-email-test-account. Unique triggerTerms only — gotcha-map owns gate injection.",
       "createdAt": "2026-07-07T09:00:00.000Z"
+    },
+    {
+      "id": "idx-008",
+      "category": "model-routing note",
+      "summary": "Security gate evidence audit: four review types; mandatory report block; do not claim Sonnet PASS or Fable verdict without invocation evidence; RC-3 model execution unverified; vendor email controlled tests OK but independent Sonnet unverified before real pilot",
+      "canonicalLocation": "PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "security-gate",
+        "sonnet-gate",
+        "fable",
+        "evidence-audit"
+      ],
+      "triggerTerms": [
+        "security gate evidence audit",
+        "SECURITY_GATE_AUDIT_2026-07-07",
+        "sonnet pass without evidence",
+        "fable-style not fable",
+        "model execution unverified",
+        "RC-3 security gate",
+        "checklist-only sonnet pass",
+        "security-gate-evidence gotcha",
+        "31758824-06be-486f-8c76-90e64c47d77e"
+      ],
+      "type": "backend-write-critical",
+      "subtype": "cf-ingest",
+      "slice": {
+        "file": "PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md",
+        "startLine": 1,
+        "endLine": 60,
+        "anchor": "# Security Gate Evidence Audit"
+      },
+      "relatedFiles": [
+        "PROJECT_STATUS/gotcha-map.json",
+        "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
+        ".cursor/rules/security-review-gate.mdc"
+      ],
+      "confidence": 0.95,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "notes": "Jul 7 2026 Sonnet/Fable evidence audit persistence; gotcha-map security-gate-evidence owns gate injection.",
+      "createdAt": "2026-07-07T10:32:00.000Z"
     }
   ]
 }

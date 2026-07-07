@@ -35,6 +35,9 @@
 14. **Best reply / handoff prompt** — gather → draft → challenge → revise → present once; **handoffs min 2 internal passes**, best copy-paste block on **first** present (never v1 + "want improvements?"); read away-list + away-status head, verify npm scripts in package.json, self-contained scope + real away-NNN ids + `startedAt` placeholder; execute prompts need "go build it"; backend scope → Sonnet gate before push (`best-reply-gate.mdc`).
 18. **Browser extension console:** "Message channel closed" / "listener indicated asynchronous response" — not StageVerify; Chrome extension noise. Verify incognito without extensions.
 20. **Inbound CF writes:** firestoreSafeValue strips undefined before review writes; Refresh Now reprocesses cached-text reparse; reprocess must not overwrite approved/rejected `vendorInvoiceImports` rows; Sonnet security-review Task before CF push.
+27. **Security gate evidence standard** — report block: `security_gate_id`, reviewer/subagent, claimed model, `actual model invocation evidence: yes/no/unknown`, evidence path, verdict, limitations, `production decision affected`. Full spec: `SECURITY_GATE_AUDIT_2026-07-07.md`.
+28. **Do not write "Sonnet PASS"** unless actual Sonnet model invocation evidence exists — `security-gate-id` + subagent transcript required; UUID alone ≠ verified independent Sonnet (RC-3 default `unknown`). Composer/checklist or away-status note without Task UUID = NOT RUN.
+29. **Fable 5 explicit Task only** — `model: claude-fable-5-thinking-high` via Task; "Fable-style" narrative review ≠ Fable 5 verdict; Fable never ran in Jul 7 audit (retention block).
 
 ## Vendor email / reply ingest
 
@@ -44,6 +47,7 @@
 24. **Test email accounts:** `test@stageverify.dev` has no MX — never use for ingest tests; prod Playwright uses `STAGEVERIFY_TEST_EMAIL`; bot inbox is `svbotmail@gmail.com`.
 25. **Thread hygiene:** do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use; old `no_pdf` docs are NOT reprocessed — fresh replies must be after `emailReplyIngestSince`.
 26. **Needs Review tier:** matched vendor replies → "Vendor Reply — Needs Review" (calm copy v0.0.23); Suspicious only for unmatched/ambiguous/spoof. Reply ingest must NOT mutate delivery status or create delivery shells.
+30. **Vendor email security evidence:** controlled behavior + wrong-thread negative tests passed — safe for controlled testing; independent Sonnet model execution for CF/rules ships **unverified** (RC-3). Before real vendor pilot: verified independent review OR label ship checklist/subagent-only with `production decision affected: yes`.
 
 ## Timing (pointer only)
 
@@ -68,5 +72,6 @@ Actual elapsed minutes live in **`PROJECT_STATUS/estimate-log.md`** only (Dan ap
 ## Jul 7 2026 session
 
 - **Vendor reply ingest overnight audit:** flag ON for controlled pilot; push ingest broken; poll/manual sync works; gotcha-map triggers vendor-reply-ingest-pilot / gmail-push-payload / gmail-sync-404-noise / vendor-email-test-account — lessons #21–26.
+- **Security gate evidence audit:** `SECURITY_GATE_AUDIT_2026-07-07.md`; gotcha `security-gate-evidence`; lessons #27–30 — do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified.
 
 Archive when active body exceeds ~40 lines: `PROJECT_STATUS/archives/librarian-lessons-archive.md`

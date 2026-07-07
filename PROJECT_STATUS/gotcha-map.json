@@ -240,13 +240,65 @@
     },
     {
       "id": "sonnet-gate",
-      "match": ["sonnet gate", "sonnet pass", "merged on main", "commit-range diff", "branch changes empty"],
+      "match": [
+        "sonnet gate",
+        "sonnet pass",
+        "merged on main",
+        "commit-range diff",
+        "branch changes empty",
+        "security-gate-id",
+        "model execution unverified",
+        "RC-3"
+      ],
       "orchestratorSteps": [6],
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
-      "files": [],
-      "rules": ["model-audit-gate.mdc"],
+      "files": ["PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md"],
+      "rules": ["model-audit-gate.mdc", "security-review-gate.mdc"],
       "commands": []
+    },
+    {
+      "id": "security-gate-evidence",
+      "match": [
+        "security gate evidence",
+        "security-gate-id",
+        "security gate audit",
+        "sonnet pass without evidence",
+        "sonnet pass",
+        "independent model review",
+        "checklist review",
+        "composer self-review",
+        "composer inline pass",
+        "fable verdict",
+        "fable-style",
+        "fable 5",
+        "claude-fable-5",
+        "model execution unverified",
+        "RC-3",
+        "RC-1 cosmetic label",
+        "subagent transcript",
+        "away-status sonnet pass"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "process-agents",
+      "files": [
+        "PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md",
+        "PROJECT_STATUS/security-scan-2026-07-04-invoice.md"
+      ],
+      "rules": ["security-review-gate.mdc", "model-audit-gate.mdc", "ship-loop.mdc"],
+      "commands": [],
+      "gateCandidate": true,
+      "injectBefore": [
+        "claiming Sonnet PASS",
+        "writing Fable verdict",
+        "CF push",
+        "firebase deploy",
+        "firestore rules deploy",
+        "production decision on vendor email",
+        "enabling emailReplyIngestEnabled for real vendor pilot"
+      ],
+      "warning": "Four review types — do not conflate: (1) verified independent model review, (2) security-review subagent transcript + security-gate-id, (3) Composer/checklist review (NOT RUN), (4) unverifiable model execution (RC-3). Mandatory report block: security_gate_id, reviewer/subagent, claimed model, actual model invocation evidence yes/no/unknown, evidence path, verdict, limitations, production decision affected. Do NOT write Sonnet PASS without invocation evidence; Fable 5 requires explicit Task — Fable-style ≠ Fable 5. Historical away-status Sonnet PASS without UUID = checklist-only. Vendor email: controlled behavior tests passed; independent Sonnet execution unverified — before real vendor pilot use verified review OR label checklist/subagent-only. Full audit: PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md."
     },
     {
       "id": "best-reply",
