@@ -99,10 +99,14 @@ async function processInboundReply(input) {
             toAddresses: input.headers.toAddresses,
             ccAddresses: input.headers.ccAddresses,
             deliveredTo: input.headers.deliveredTo,
+            replyToAddresses: input.headers.replyToAddresses,
         },
         outboundEvents,
         matchContext,
         senderDomainKnown: senderDomainKnown(message.senderEmail, matchContext),
+        senderAuthPass: input.headers.authenticationResults
+            ? !/spf=(?:fail|softfail)|dkim=(?:fail|softfail)/i.test(input.headers.authenticationResults)
+            : undefined,
     });
     const parsed = (0, parseVendorEmail_1.parseVendorEmail)(message);
     const now = new Date().toISOString();
@@ -146,7 +150,7 @@ async function processInboundReply(input) {
         bodyExcerpt: bodyExcerpt(message.bodyText),
         snippet: input.snippet?.slice(0, 500),
         senderAuthPass: input.headers.authenticationResults
-            ? !/fail|softfail/i.test(input.headers.authenticationResults)
+            ? !/spf=(?:fail|softfail)|dkim=(?:fail|softfail)/i.test(input.headers.authenticationResults)
             : undefined,
         provider: "gmail",
         createdAt: now,

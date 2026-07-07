@@ -86,6 +86,9 @@ function parseGmailHeaders(headers) {
             deliveredTo: map.get("delivered-to")
                 ? splitAddressList(map.get("delivered-to"))
                 : undefined,
+            replyToAddresses: map.get("reply-to")
+                ? splitAddressList(map.get("reply-to"))
+                : undefined,
             authenticationResults: map.get("authentication-results")?.trim(),
             autoSubmitted: map.get("auto-submitted")?.trim(),
             precedence: map.get("precedence")?.trim(),

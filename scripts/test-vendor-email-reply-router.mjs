@@ -133,27 +133,34 @@ async function seedBase(dispatcherUid) {
   });
 }
 
-function buildReplyFixture(gmailMessageId) {
-  const bodyText = "All items shipped for PO 411190.";
+function buildReplyFixture(gmailMessageId, overrides = {}) {
+  const bodyText = overrides.bodyText ?? "All items shipped for PO 411190.";
   const bodyData = Buffer.from(bodyText, "utf8")
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
+  const headers = [
+    { name: "From", value: overrides.from ?? "rep@johnstone.com" },
+    { name: "To", value: "svbotmail@gmail.com" },
+    { name: "Subject", value: overrides.subject ?? "Re: status" },
+    { name: "Date", value: "Sun, 6 Jul 2026 11:00:00 +0000" },
+    { name: "Message-ID", value: `<${gmailMessageId}@reply.test>` },
+    { name: "In-Reply-To", value: "<out-seed@svbotmail>" },
+  ];
+  if (overrides.authenticationResults) {
+    headers.push({
+      name: "Authentication-Results",
+      value: overrides.authenticationResults,
+    });
+  }
   return {
     id: gmailMessageId,
     threadId: THREAD_ID,
     internalDate: String(Date.parse("2026-07-06T11:00:00Z")),
     snippet: bodyText.slice(0, 80),
     payload: {
-      headers: [
-        { name: "From", value: "rep@johnstone.com" },
-        { name: "To", value: "svbotmail@gmail.com" },
-        { name: "Subject", value: "Re: status" },
-        { name: "Date", value: "Sun, 6 Jul 2026 11:00:00 +0000" },
-        { name: "Message-ID", value: `<${gmailMessageId}@reply.test>` },
-        { name: "In-Reply-To", value: "<out-seed@svbotmail>" },
-      ],
+      headers,
       mimeType: "text/plain",
       body: { data: bodyData, size: bodyText.length },
     },
@@ -222,6 +229,11 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     } else {
       fail("delivery link missing");
     }
+    if (event?.humanReviewRequired !== true) {
+      pass("trusted thread match not forced to review");
+    } else {
+      fail("unexpected humanReviewRequired on clean thread match");
+    }
     const deliverySnap = await getDoc(doc(adminDb, "deliveries", "del-1"));
     if (deliverySnap.data()?.vendorOrderComplete !== true) {
       pass("delivery status not mutated");
@@ -251,7 +263,60 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   }
 });
 
-console.log("\n4. flag off keeps no_pdf");
+console.log("\n4. spoof ingest — known vendor + forged Ref + failed SPF");
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(
+    doc(adminDb, "appSettings", "config"),
+    { emailReplyIngestEnabled: true },
+    { merge: true },
+  );
+  const msgId = "gmail-spoof-forged-ref";
+  const forgedToken = generateTrackingToken();
+  const result = await processInboundGmailMessage("fake-token", msgId, {
+    prefetchedMessage: buildReplyFixture(msgId, {
+      bodyText: `Ref: SV-${forgedToken}\n\nShipped PO 411190.`,
+      authenticationResults: "spf=fail dkim=none",
+    }),
+  });
+  if (result.processingStatus === "reply_processed" && result.vendorEmailEventId) {
+    pass("spoof reply still ingested as review-only event");
+    const eventSnap = await getDoc(
+      doc(adminDb, "vendorEmailEvents", result.vendorEmailEventId),
+    );
+    const event = eventSnap.data();
+    if (event?.matchedBy === "threadId" && event?.humanReviewRequired === true) {
+      pass("thread match flagged humanReviewRequired");
+    } else {
+      fail("spoof match fields", JSON.stringify(event));
+    }
+    if (
+      event?.applyConflictReason?.includes("spoofed_body_ref_failed_auth") ||
+      event?.applyConflictReason?.includes("non_canonical_body_ref")
+    ) {
+      pass("spoof conflict reason recorded");
+    } else {
+      fail("missing spoof conflict reason", event?.applyConflictReason);
+    }
+    const deliverySnap = await getDoc(doc(adminDb, "deliveries", "del-1"));
+    if (deliverySnap.data()?.vendorOrderComplete !== true) {
+      pass("spoof reply did not mutate delivery");
+    } else {
+      fail("delivery mutated by spoof reply");
+    }
+    const shellSnap = await getDocs(collection(adminDb, "deliveries"));
+    const shellCount = shellSnap.docs.filter((d) => d.id.startsWith("delivery-vii-")).length;
+    if (shellCount === 0) {
+      pass("spoof reply did not create delivery shell");
+    } else {
+      fail("unexpected delivery shells from spoof reply");
+    }
+  } else {
+    fail("spoof reply not processed", JSON.stringify(result));
+  }
+});
+
+console.log("\n5. flag off keeps no_pdf");
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await setDoc(
@@ -270,7 +335,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   }
 });
 
-console.log("\n5. decodeGmailBodyText sanity");
+console.log("\n6. decodeGmailBodyText sanity");
 const sampleBody = decodeGmailBodyData(
   Buffer.from("Hello vendor reply", "utf8")
     .toString("base64")

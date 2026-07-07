@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TRACKING_SUBJECT_PREFIX = void 0;
+exports.CANONICAL_FOOTER_SEPARATOR = exports.TRACKING_SUBJECT_PREFIX = void 0;
 exports.generateTrackingToken = generateTrackingToken;
 exports.formatSubjectTag = formatSubjectTag;
 exports.subjectWithTrackingTag = subjectWithTrackingTag;
@@ -11,6 +11,9 @@ exports.assembleOutboundEmailBody = assembleOutboundEmailBody;
 exports.extractTokenFromSubject = extractTokenFromSubject;
 exports.extractTokenFromAddress = extractTokenFromAddress;
 exports.extractTokenFromAddresses = extractTokenFromAddresses;
+exports.canonicalFooterZone = canonicalFooterZone;
+exports.extractCanonicalFooterTokenFromBody = extractCanonicalFooterTokenFromBody;
+exports.extractNonCanonicalBodyRefTokens = extractNonCanonicalBodyRefTokens;
 exports.extractTokenFromBody = extractTokenFromBody;
 exports.tokensEqual = tokensEqual;
 /**
@@ -44,9 +47,13 @@ function buildPlusReplyTo(baseEmail, token) {
     const compact = token.replace(/-/g, "");
     return `${local}+t-${compact}@${domain}`;
 }
+/** Server footer delimiter — canonical Ref must appear after the last occurrence. */
+exports.CANONICAL_FOOTER_SEPARATOR = "\n\n---\n";
+const TRACKING_UUID_CAPTURE = "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
+const FOOTER_REF_RE = new RegExp(`Ref:\\s*${exports.TRACKING_SUBJECT_PREFIX}${TRACKING_UUID_CAPTURE}`, "gi");
 /** Human-visible body footer (secondary match signal — not load-bearing). */
 function formatBodyTrackingFooter(token) {
-    return `\n\n---\nRef: ${exports.TRACKING_SUBJECT_PREFIX}${token}`;
+    return `${exports.CANONICAL_FOOTER_SEPARATOR}Ref: ${exports.TRACKING_SUBJECT_PREFIX}${token}`;
 }
 const DEFAULT_OUTBOUND_SIGNATURE = "Thanks,\nL. Garage Dispatch";
 /** True when the user body already ends with a sign-off or tracking footer. */
@@ -106,13 +113,41 @@ function extractTokenFromAddresses(addresses) {
     }
     return null;
 }
-/** Extract token from body footer Ref: SV-uuid */
-function extractTokenFromBody(body) {
-    const footerRe = new RegExp(`Ref:\\s*${exports.TRACKING_SUBJECT_PREFIX}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})`, "i");
-    const m = body.match(footerRe);
+/** Canonical footer zone — after the last `\n\n---\n` server delimiter. */
+function canonicalFooterZone(body) {
+    const lastIdx = body.lastIndexOf(exports.CANONICAL_FOOTER_SEPARATOR);
+    if (lastIdx < 0)
+        return null;
+    return body.slice(lastIdx);
+}
+/** Extract token from canonical server footer only (weak fallback signal). */
+function extractCanonicalFooterTokenFromBody(body) {
+    const zone = canonicalFooterZone(body);
+    if (!zone)
+        return null;
+    const m = zone.match(new RegExp(`Ref:\\s*${exports.TRACKING_SUBJECT_PREFIX}${TRACKING_UUID_CAPTURE}`, "i"));
     if (!m?.[1])
         return null;
     return normalizeToken(m[1]);
+}
+/** All Ref: SV-uuid tokens outside the canonical footer (quoted/copied/forged). */
+function extractNonCanonicalBodyRefTokens(body) {
+    const canonical = extractCanonicalFooterTokenFromBody(body);
+    const found = [];
+    for (const m of body.matchAll(FOOTER_REF_RE)) {
+        const token = normalizeToken(m[1] ?? "");
+        if (!token)
+            continue;
+        if (canonical && tokensEqual(canonical, token))
+            continue;
+        if (!found.includes(token))
+            found.push(token);
+    }
+    return found;
+}
+/** Extract token from body footer Ref: SV-uuid (canonical zone only). */
+function extractTokenFromBody(body) {
+    return extractCanonicalFooterTokenFromBody(body);
 }
 function normalizeToken(token) {
     return token.trim().toLowerCase();

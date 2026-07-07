@@ -29,6 +29,7 @@ export interface ParsedGmailHeaders {
   toAddresses?: string[];
   ccAddresses?: string[];
   deliveredTo?: string[];
+  replyToAddresses?: string[];
   authenticationResults?: string;
   autoSubmitted?: string;
   precedence?: string;
@@ -103,6 +104,9 @@ export function parseGmailHeaders(headers: GmailMessageHeader[] | undefined): Pa
       ccAddresses: map.get("cc") ? splitAddressList(map.get("cc")!) : undefined,
       deliveredTo: map.get("delivered-to")
         ? splitAddressList(map.get("delivered-to")!)
+        : undefined,
+      replyToAddresses: map.get("reply-to")
+        ? splitAddressList(map.get("reply-to")!)
         : undefined,
       authenticationResults: map.get("authentication-results")?.trim(),
       autoSubmitted: map.get("auto-submitted")?.trim(),

@@ -6,6 +6,8 @@ import { resolveReplyToThread } from "../functions/src/email/resolveReplyToThrea
 import {
   assembleOutboundEmailBody,
   buildPlusReplyTo,
+  extractCanonicalFooterTokenFromBody,
+  extractNonCanonicalBodyRefTokens,
   extractTokenFromBody,
   extractTokenFromSubject,
   formatBodyTrackingFooter,
@@ -15,6 +17,7 @@ import {
 } from "../functions/src/email/trackingToken.ts";
 
 const TOKEN = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+const OTHER_TOKEN = "b2c3d4e5-f6a7-8901-bcde-f12345678901";
 const OUTBOUND = [
   {
     eventId: "vee-out-1",
@@ -78,8 +81,22 @@ assert(
   formatBodyTrackingFooter(TOKEN).includes(`Ref: SV-${TOKEN}`),
 );
 assert(
-  "extractTokenFromBody",
+  "extractTokenFromBody canonical footer only",
   extractTokenFromBody(`Thanks\n\n---\nRef: SV-${TOKEN}`) === TOKEN.toLowerCase(),
+);
+assert(
+  "quoted Ref outside footer ignored for extraction",
+  extractTokenFromBody(`Ref: SV-${OTHER_TOKEN}\n\nShipped today.`) === null,
+);
+assert(
+  "non-canonical refs detected",
+  extractNonCanonicalBodyRefTokens(`Ref: SV-${OTHER_TOKEN}\n\nThanks\n\n---\nRef: SV-${TOKEN}`).includes(
+    OTHER_TOKEN.toLowerCase(),
+  ),
+);
+assert(
+  "canonical footer token extracted",
+  extractCanonicalFooterTokenFromBody(assembleOutboundEmailBody("Hi", TOKEN)) === TOKEN.toLowerCase(),
 );
 
 console.log("\n1b. Outbound clean subject (no visible [SV-*] tag)");
@@ -243,6 +260,112 @@ assert(
   "multiple_po_references reason",
   multiPo.applyConflictReason?.includes("multiple_po_references"),
 );
+
+console.log("\n9. spoofed Ref does not override threadId match");
+const spoofRefBody = `Ref: SV-${OTHER_TOKEN}\n\nOn Tue wrote:\n> original\n\nShipped today.`;
+const spoofOverride = resolveReplyToThread({
+  message: {
+    sourceMessageId: "msg-in-7",
+    threadId: "thread-abc",
+    senderEmail: "rep@johnstone.com",
+    recipientEmails: ["svbotmail@gmail.com"],
+    subject: "Re: status",
+    bodyText: spoofRefBody,
+    receivedAt: "2026-07-06T12:30:00Z",
+  },
+  headers: { threadId: "thread-abc" },
+  outboundEvents: OUTBOUND,
+  matchContext: BASE_CTX,
+  senderDomainKnown: true,
+  senderAuthPass: true,
+});
+assert("still matchedBy threadId", spoofOverride.matchedBy === "threadId");
+assert("links original delivery", spoofOverride.outboundEvent?.deliveryOrderId === "del-1");
+assert("non-canonical ref flagged", spoofOverride.applyConflictReason?.includes("non_canonical_body_ref"));
+assert("humanReviewRequired on conflict", spoofOverride.humanReviewRequired === true);
+
+console.log("\n10. conflicting canonical footer Ref → Needs Review");
+const conflictBody = assembleOutboundEmailBody("Update", OTHER_TOKEN);
+const conflictMatch = resolveReplyToThread({
+  message: {
+    sourceMessageId: "msg-in-8",
+    threadId: "thread-abc",
+    senderEmail: "rep@johnstone.com",
+    recipientEmails: ["svbotmail@gmail.com"],
+    subject: "Re: status",
+    bodyText: conflictBody,
+    receivedAt: "2026-07-06T12:35:00Z",
+  },
+  headers: { threadId: "thread-abc" },
+  outboundEvents: OUTBOUND,
+  matchContext: BASE_CTX,
+  senderDomainKnown: true,
+  senderAuthPass: true,
+});
+assert("threadId wins over footer", conflictMatch.matchedBy === "threadId");
+assert("body_ref_conflict reason", conflictMatch.applyConflictReason?.includes("body_ref_conflict"));
+assert("conflict needs review", conflictMatch.humanReviewRequired === true);
+
+console.log("\n11. footer Ref matched only when no stronger signal");
+const footerOnlyBody = assembleOutboundEmailBody("Shipped today.", TOKEN);
+const footerOnly = resolveReplyToThread({
+  message: {
+    sourceMessageId: "msg-in-9",
+    senderEmail: "rep@johnstone.com",
+    recipientEmails: ["svbotmail@gmail.com"],
+    subject: "Re: hey",
+    bodyText: footerOnlyBody,
+    receivedAt: "2026-07-06T12:40:00Z",
+  },
+  headers: {},
+  outboundEvents: OUTBOUND,
+  matchContext: BASE_CTX,
+  senderDomainKnown: true,
+  senderAuthPass: true,
+});
+assert("matchedBy bodyToken weak fallback", footerOnly.matchedBy === "bodyToken");
+assert("footer always needs review", footerOnly.humanReviewRequired === true);
+
+console.log("\n12. known vendor + forged Ref + failed SPF stays flagged");
+const forgedSpoof = resolveReplyToThread({
+  message: {
+    sourceMessageId: "msg-in-10",
+    threadId: "thread-abc",
+    senderEmail: "rep@johnstone.com",
+    recipientEmails: ["svbotmail@gmail.com"],
+    subject: "Re: status",
+    bodyText: `Ref: SV-${OTHER_TOKEN}\n\nShipped.`,
+    receivedAt: "2026-07-06T12:45:00Z",
+  },
+  headers: { threadId: "thread-abc" },
+  outboundEvents: OUTBOUND,
+  matchContext: BASE_CTX,
+  senderDomainKnown: true,
+  senderAuthPass: false,
+});
+assert("thread match preserved", forgedSpoof.matchedBy === "threadId");
+assert("spoof auth flag", forgedSpoof.applyConflictReason?.includes("spoofed_body_ref_failed_auth"));
+assert("humanReviewRequired", forgedSpoof.humanReviewRequired === true);
+
+console.log("\n13. trusted thread match clears review when no conflicts");
+const trusted = resolveReplyToThread({
+  message: {
+    sourceMessageId: "msg-in-11",
+    threadId: "thread-abc",
+    senderEmail: "rep@johnstone.com",
+    recipientEmails: ["svbotmail@gmail.com"],
+    subject: "Re: status",
+    bodyText: "Shipped today.",
+    receivedAt: "2026-07-06T12:50:00Z",
+  },
+  headers: { threadId: "thread-abc" },
+  outboundEvents: OUTBOUND,
+  matchContext: BASE_CTX,
+  senderDomainKnown: true,
+  senderAuthPass: true,
+});
+assert("trusted threadId match", trusted.matchedBy === "threadId");
+assert("no review when clean", trusted.humanReviewRequired === false);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

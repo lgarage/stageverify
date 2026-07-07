@@ -33,9 +33,20 @@ export function buildPlusReplyTo(baseEmail: string, token: string): string {
   return `${local}+t-${compact}@${domain}`;
 }
 
+/** Server footer delimiter — canonical Ref must appear after the last occurrence. */
+export const CANONICAL_FOOTER_SEPARATOR = "\n\n---\n";
+
+const TRACKING_UUID_CAPTURE =
+  "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
+
+const FOOTER_REF_RE = new RegExp(
+  `Ref:\\s*${TRACKING_SUBJECT_PREFIX}${TRACKING_UUID_CAPTURE}`,
+  "gi",
+);
+
 /** Human-visible body footer (secondary match signal — not load-bearing). */
 export function formatBodyTrackingFooter(token: string): string {
-  return `\n\n---\nRef: ${TRACKING_SUBJECT_PREFIX}${token}`;
+  return `${CANONICAL_FOOTER_SEPARATOR}Ref: ${TRACKING_SUBJECT_PREFIX}${token}`;
 }
 
 const DEFAULT_OUTBOUND_SIGNATURE = "Thanks,\nL. Garage Dispatch";
@@ -106,15 +117,40 @@ export function extractTokenFromAddresses(addresses: string[]): string | null {
   return null;
 }
 
-/** Extract token from body footer Ref: SV-uuid */
-export function extractTokenFromBody(body: string): string | null {
-  const footerRe = new RegExp(
-    `Ref:\\s*${TRACKING_SUBJECT_PREFIX}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})`,
-    "i",
+/** Canonical footer zone — after the last `\n\n---\n` server delimiter. */
+export function canonicalFooterZone(body: string): string | null {
+  const lastIdx = body.lastIndexOf(CANONICAL_FOOTER_SEPARATOR);
+  if (lastIdx < 0) return null;
+  return body.slice(lastIdx);
+}
+
+/** Extract token from canonical server footer only (weak fallback signal). */
+export function extractCanonicalFooterTokenFromBody(body: string): string | null {
+  const zone = canonicalFooterZone(body);
+  if (!zone) return null;
+  const m = zone.match(
+    new RegExp(`Ref:\\s*${TRACKING_SUBJECT_PREFIX}${TRACKING_UUID_CAPTURE}`, "i"),
   );
-  const m = body.match(footerRe);
   if (!m?.[1]) return null;
   return normalizeToken(m[1]);
+}
+
+/** All Ref: SV-uuid tokens outside the canonical footer (quoted/copied/forged). */
+export function extractNonCanonicalBodyRefTokens(body: string): string[] {
+  const canonical = extractCanonicalFooterTokenFromBody(body);
+  const found: string[] = [];
+  for (const m of body.matchAll(FOOTER_REF_RE)) {
+    const token = normalizeToken(m[1] ?? "");
+    if (!token) continue;
+    if (canonical && tokensEqual(canonical, token)) continue;
+    if (!found.includes(token)) found.push(token);
+  }
+  return found;
+}
+
+/** Extract token from body footer Ref: SV-uuid (canonical zone only). */
+export function extractTokenFromBody(body: string): string | null {
+  return extractCanonicalFooterTokenFromBody(body);
 }
 
 function normalizeToken(token: string): string {

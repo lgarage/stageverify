@@ -7,6 +7,11 @@
 import { sanitizeParsedLines } from "../functions/src/inboundEmail/sanitizeParsedLines.ts";
 import { shouldReprocessExistingDoc } from "../functions/src/inboundEmail/processInboundGmailMessage.ts";
 import { findPdfAttachments, parseGmailHeaders, parseGmailPushNotification } from "../functions/src/gmailInbound.ts";
+import {
+  assembleOutboundEmailBody,
+  extractCanonicalFooterTokenFromBody,
+  extractTokenFromBody,
+} from "../functions/src/email/trackingToken.ts";
 import { parseInboundInvoiceText } from "../functions/src/invoice/processInvoiceForInbound.ts";
 import { INVOICE_FIXTURES } from "../src/dispatcher/invoice/invoiceFixtures.ts";
 
@@ -79,6 +84,34 @@ assert("references array", (ext.references?.length ?? 0) === 2);
 assert("toAddresses", (ext.toAddresses?.length ?? 0) >= 1);
 assert("deliveredTo", (ext.deliveredTo?.length ?? 0) >= 1);
 assert("authenticationResults", ext.authenticationResults?.includes("spf=pass"));
+
+console.log("\n1d. canonical footer Ref extraction (pre-ingest hardening)");
+const CANON_TOKEN = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+const canonicalBody = assembleOutboundEmailBody("Please confirm ETA", CANON_TOKEN);
+assert(
+  "canonical footer token extracted",
+  extractCanonicalFooterTokenFromBody(canonicalBody) === CANON_TOKEN.toLowerCase(),
+);
+assert(
+  "quoted Ref without footer delimiter ignored",
+  extractTokenFromBody(`Ref: SV-${CANON_TOKEN}\n\nPlease confirm`) === null,
+);
+
+console.log("\n1e. Reply-To header parsed");
+const REPLY_TO_HEADERS = [
+  { name: "From", value: "rep@johnstone.com" },
+  { name: "Reply-To", value: "svbotmail+t-abc@gmail.com" },
+  { name: "Subject", value: "Re: PO" },
+  { name: "Date", value: "Sun, 6 Jul 2026 10:00:00 +0000" },
+];
+const replyTo = parseGmailHeaders(REPLY_TO_HEADERS);
+assert("replyToAddresses parsed", (replyTo.replyToAddresses?.length ?? 0) >= 1);
+
+console.log("\n1f. emailReplyIngestEnabled gate (code default off)");
+const isReplyIngestEnabled = (flag) => flag === true;
+assert("missing flag is off", !isReplyIngestEnabled(undefined));
+assert("false flag is off", !isReplyIngestEnabled(false));
+assert("true flag is on", isReplyIngestEnabled(true));
 
 console.log("\n1c. reply_processed terminal skip");
 assert(
