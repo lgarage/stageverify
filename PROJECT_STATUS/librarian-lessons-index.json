@@ -32,11 +32,18 @@
       "endLine": 37
     },
     {
+      "id": "vendor-email-reply",
+      "title": "Vendor email / reply ingest",
+      "anchor": "## Vendor email / reply ingest",
+      "startLine": 39,
+      "endLine": 46
+    },
+    {
       "id": "timing-pointer",
       "title": "Timing (pointer only)",
       "anchor": "## Timing (pointer only)",
-      "startLine": 39,
-      "endLine": 41
+      "startLine": 48,
+      "endLine": 50
     }
   ],
   "entries": [
@@ -149,6 +156,11 @@
       "type": "ui-component",
       "subtype": "layout-style",
       "sectionId": "dispatcher-ui"
+    },
+    {
+      "type": "backend-write-critical",
+      "subtype": "reply-ingest",
+      "sectionId": "vendor-email-reply"
     },
     {
       "type": "ui-component",

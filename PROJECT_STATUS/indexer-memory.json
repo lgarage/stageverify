@@ -202,6 +202,45 @@
       "promotionCandidate": false,
       "notes": "Timing SSOT is estimate-log.md — slice is protocol excerpt only.",
       "createdAt": "2026-07-04T18:15:00.000Z"
+    },
+    {
+      "id": "idx-007",
+      "category": "lesson",
+      "summary": "Vendor reply ingest controlled pilot: verify emailReplyIngestEnabled + emailReplyIngestSince; push broken use poll/sync; no delivery mutation; matched tier calm copy; no bounce thread reuse",
+      "canonicalLocation": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
+      "sourceTask": null,
+      "sourceCommit": null,
+      "tags": [
+        "vendor-email",
+        "reply-ingest",
+        "gmail"
+      ],
+      "triggerTerms": [
+        "HANDOFF_VENDOR_EMAIL_2026-07-07",
+        "overnight vendor email audit",
+        "wargame vendor email layer",
+        "reply ingest pilot state",
+        "controlled flag-on reply",
+        "vendor reply ingest lessons"
+      ],
+      "type": "backend-write-critical",
+      "subtype": "reply-ingest",
+      "slice": {
+        "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
+        "startLine": 39,
+        "endLine": 46,
+        "anchor": "## Vendor email / reply ingest"
+      },
+      "relatedFiles": [
+        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md",
+        "PROJECT_STATUS/gotcha-map.json",
+        "PROJECT_STATUS/WARGAME_VENDOR_EMAIL_LAYER.md"
+      ],
+      "confidence": 0.95,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "notes": "Overnight audit 2026-07-07; gotcha-map triggers vendor-reply-ingest-pilot, gmail-push-payload, gmail-sync-404-noise, vendor-email-test-account. Unique triggerTerms only — gotcha-map owns gate injection.",
+      "createdAt": "2026-07-07T09:00:00.000Z"
     }
   ]
 }

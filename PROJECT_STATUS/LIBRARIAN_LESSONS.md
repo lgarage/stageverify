@@ -36,6 +36,15 @@
 18. **Browser extension console:** "Message channel closed" / "listener indicated asynchronous response" — not StageVerify; Chrome extension noise. Verify incognito without extensions.
 20. **Inbound CF writes:** firestoreSafeValue strips undefined before review writes; Refresh Now reprocesses cached-text reparse; reprocess must not overwrite approved/rejected `vendorInvoiceImports` rows; Sonnet security-review Task before CF push.
 
+## Vendor email / reply ingest
+
+21. **Controlled pilot only:** reply ingest is not broad production — verify `emailReplyIngestEnabled` + `emailReplyIngestSince` on `appSettings/config` and report both before any ingest work; do NOT flip flag without Dan explicit go/rollback.
+22. **Push ingest broken:** `gmailInboxPushIngest` logs `unparseable push payload — skipping` — use Refresh Now / `syncInboundGmail` / `triggerInboundGmailSyncCallable` for controlled tests.
+23. **Sync 404 noise:** Gmail message `19f3a2e9dfccab1e` 404 on every manual sync is orphan history noise — not a reply-ingest blocker.
+24. **Test email accounts:** `test@stageverify.dev` has no MX — never use for ingest tests; prod Playwright uses `STAGEVERIFY_TEST_EMAIL`; bot inbox is `svbotmail@gmail.com`.
+25. **Thread hygiene:** do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use; old `no_pdf` docs are NOT reprocessed — fresh replies must be after `emailReplyIngestSince`.
+26. **Needs Review tier:** matched vendor replies → "Vendor Reply — Needs Review" (calm copy v0.0.23); Suspicious only for unmatched/ambiguous/spoof. Reply ingest must NOT mutate delivery status or create delivery shells.
+
 ## Timing (pointer only)
 
 Actual elapsed minutes live in **`PROJECT_STATUS/estimate-log.md`** only (Dan approval → completion report). Do not duplicate timing here.
@@ -55,5 +64,9 @@ Actual elapsed minutes live in **`PROJECT_STATUS/estimate-log.md`** only (Dan ap
 - **Gmail sync banner vs invoice queue:** processed/skipped counts from `inboundEmailProcessing`, not import rows — lesson #16.
 - **Dispatcher Refresh Now:** shared `refreshAll()` across tabs, not per-page fetch — lesson #17.
 - **Chrome extension console noise:** not SV bugs — lesson #18.
+
+## Jul 7 2026 session
+
+- **Vendor reply ingest overnight audit:** flag ON for controlled pilot; push ingest broken; poll/manual sync works; gotcha-map triggers vendor-reply-ingest-pilot / gmail-push-payload / gmail-sync-404-noise / vendor-email-test-account — lessons #21–26.
 
 Archive when active body exceeds ~40 lines: `PROJECT_STATUS/archives/librarian-lessons-archive.md`

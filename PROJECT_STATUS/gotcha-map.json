@@ -476,6 +476,118 @@
       "files": [],
       "rules": [],
       "commands": []
+    },
+    {
+      "id": "vendor-reply-ingest-pilot",
+      "match": [
+        "vendor reply ingest",
+        "reply ingest pilot",
+        "email reply ingest",
+        "flip emailReplyIngestEnabled",
+        "emailReplyIngestEnabled flag",
+        "emailReplyIngestSince cutoff",
+        "controlled reply test",
+        "controlled pilot reply",
+        "vendor email reply",
+        "reply router pilot",
+        "no_pdf reprocess",
+        "bounce polluted thread",
+        "test5 bounce thread",
+        "wrong thread negative",
+        "wrong-thread negative test",
+        "matched vendor reply",
+        "Vendor Reply Needs Review",
+        "reply_processed inbound",
+        "vendorEmailEvents inbound"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "vendor-email-reply",
+      "files": [
+        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md",
+        "PROJECT_STATUS/WARGAME_VENDOR_EMAIL_LAYER.md",
+        "functions/src/inboundEmail/processInboundGmailMessage.ts"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [
+        "npm run test:vendor-email-reply-router",
+        "npm run test:email-thread-matching",
+        "npm run verify:inbound-email-ingest"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "enabling emailReplyIngestEnabled",
+        "controlled reply test",
+        "vendor email ingest test",
+        "claiming reply ingest live"
+      ],
+      "warning": "Reply ingest is controlled-pilot ONLY — not broad production. ALWAYS read appSettings/config and report emailReplyIngestEnabled + emailReplyIngestSince before any ingest work; do NOT flip the flag without Dan explicit go/rollback. Use Refresh Now / triggerInboundGmailSyncCallable / syncInboundGmail for controlled tests (push ingest unreliable — see gmail-push-payload). Do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use. Matched thread replies → Needs Review tier \"Vendor Reply — Needs Review\" (not Suspicious). Reply ingest must NOT mutate delivery status or create delivery shells. Old no_pdf docs are NOT reprocessed when flag turns on — send fresh replies after emailReplyIngestSince. Handoff: PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md."
+    },
+    {
+      "id": "gmail-push-payload",
+      "match": [
+        "gmail push ingest",
+        "gmail inbox push",
+        "gmailInboxPushIngest logs",
+        "unparseable push payload",
+        "pubsub push ingest",
+        "gmail push payload",
+        "parse gmail push notification"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "vendor-email-reply",
+      "files": [
+        "functions/src/gmailInbound.ts",
+        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [
+        "firebase functions:log --project stageverify-db"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "relying on push ingest",
+        "gmail watch push",
+        "real-time ingest test"
+      ],
+      "warning": "Gmail push ingest is NOT reliable in prod — gmailInboxPushIngest logs only \"unparseable push payload — skipping\" (Pub/Sub envelope vs parseGmailPushNotification shape mismatch). Poll/manual sync (Refresh Now / syncInboundGmail / triggerInboundGmailSyncCallable) works for controlled tests. Do NOT treat push failure as blocking controlled pilot; do NOT fix push unless trivial logging-only with zero behavior risk."
+    },
+    {
+      "id": "gmail-sync-404-noise",
+      "match": [
+        "gmail sync 404",
+        "message 19f3a2e9dfccab1e",
+        "syncInboundGmail 404",
+        "orphan history id",
+        "sync errors=1",
+        "stale gmail message"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "vendor-email-reply",
+      "files": ["functions/src/syncInboundGmail.ts"],
+      "rules": [],
+      "commands": ["npm run verify:inbound-email-ingest"],
+      "warning": "Stale Gmail message id 19f3a2e9dfccab1e returns 404 on every manual sync (orphan history id) — sync noise only, NOT a blocker for controlled reply ingest. errors=1 on sync banner does not mean reply ingest failed."
+    },
+    {
+      "id": "vendor-email-test-account",
+      "match": [
+        "test@stageverify.dev",
+        "stageverify.dev email",
+        "email ingest test account",
+        "vendor email test address"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "vendor-email-reply",
+      "files": [
+        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md"
+      ],
+      "rules": [],
+      "commands": [],
+      "warning": "test@stageverify.dev has NO MX — must NOT be used for email ingest tests. Prod Playwright uses STAGEVERIFY_TEST_EMAIL from .env.local (dispatcher auth). Emulator tests use dispatcher-test@stageverify.test. Connected bot inbox: svbotmail@gmail.com (emailProviderConnections/gmail). Do not hardcode new test defaults without Dan confirming CI/secrets."
     }
   ]
 }
