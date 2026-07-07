@@ -45,6 +45,24 @@ function assertUrl(page, pattern, label) {
   }
 }
 
+/** Left edge x of vendor-communications-entry (stable across breadcrumb lengths). */
+async function vendorCommsEntryX(page) {
+  const box = await page.getByTestId("vendor-communications-entry").boundingBox();
+  if (!box) {
+    throw new Error("vendor-communications-entry has no bounding box");
+  }
+  return box.x;
+}
+
+function assertStableVendorCommsX(dashboardX, zonesX, tolerancePx = 4) {
+  const delta = Math.abs(dashboardX - zonesX);
+  if (delta > tolerancePx) {
+    throw new Error(
+      `Vendor Communications x must stay within ${tolerancePx}px across tabs (dashboard=${dashboardX.toFixed(1)}, zones=${zonesX.toFixed(1)}, delta=${delta.toFixed(1)})`,
+    );
+  }
+}
+
 function sidebar(page) {
   return page.locator("aside");
 }
@@ -258,6 +276,19 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   }
   console.log(`PASS: sidebar version label (${versionText}).`);
 
+  console.log("Vendor Communications horizontal position (Dashboard)…");
+  const vendorCommsDashboard = page.getByTestId("vendor-communications-entry");
+  await vendorCommsDashboard.waitFor({ timeout: 10_000 });
+  const dashboardCommsX = await vendorCommsEntryX(page);
+  await vendorCommsDashboard.click();
+  await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByTestId("vendor-communications-modal").waitFor({
+    state: "hidden",
+    timeout: 10_000,
+  });
+  console.log(`PASS: Vendor Communications modal opens on Dashboard (x=${dashboardCommsX.toFixed(1)}).`);
+
   if (
     (await nav.getByRole("link", { name: "Deliveries", exact: true }).count()) >
     0
@@ -281,6 +312,11 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
       "Vendor Communications button must stay visible on Staging Map",
     );
   }
+  const zonesCommsX = await vendorCommsEntryX(page);
+  assertStableVendorCommsX(dashboardCommsX, zonesCommsX);
+  console.log(
+    `PASS: Vendor Communications x stable Dashboard→Staging Map (Δ≤4px, dashboard=${dashboardCommsX.toFixed(1)}, zones=${zonesCommsX.toFixed(1)}).`,
+  );
   await vendorCommsOnZones.click();
   await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
   await page.getByRole("button", { name: "Close" }).click();

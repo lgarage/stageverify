@@ -4,7 +4,6 @@ import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { DispatcherPortalLinks } from "./PortalNavBar";
 import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
-import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -47,23 +46,37 @@ export function DispatcherPortalTopBar({
 
   return (
     <div
-      className={PORTAL_TOPBAR_CLASS}
+      data-testid="dispatcher-portal-topbar"
+      className="shrink-0 z-10"
       style={{
         backgroundColor: "#fff",
         borderBottom: "1px solid #e0e3e8",
         height: 52,
         padding: "0 20px",
         boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+        display: "grid",
+        gridTemplateColumns: "360px max-content minmax(0, 1fr) auto",
+        alignItems: "center",
+        columnGap: 12,
+        minWidth: 0,
       }}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div
+        data-testid="dispatcher-topbar-breadcrumb"
+        style={{
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
         <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>{title}</span>
         {subtitle ? (
-          <span style={{ color: "#9ca3af", fontSize: 13 }}>/ {subtitle}</span>
+          <span style={{ color: "#9ca3af", fontSize: 13 }}> / {subtitle}</span>
         ) : null}
-        <VendorCommunicationsTopBarEntry />
-        {headerExtra}
       </div>
+      <VendorCommunicationsTopBarEntry />
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center" }}>{headerExtra}</div>
       <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
         <DispatcherPortalLinks />
         {showNewDelivery ? (

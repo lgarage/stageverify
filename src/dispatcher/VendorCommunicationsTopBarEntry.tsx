@@ -32,12 +32,13 @@ export function VendorCommunicationsTopBarEntry() {
   return (
     <>
       <div
+        data-testid="dispatcher-topbar-vendor-comms-slot"
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
-          marginLeft: 8,
-          flexWrap: "wrap",
+          flexShrink: 0,
+          flexWrap: "nowrap",
         }}
       >
         {toast ? (
