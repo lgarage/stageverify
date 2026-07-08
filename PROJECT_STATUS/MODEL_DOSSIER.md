@@ -22,6 +22,7 @@
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
 | `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail |
+| `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -134,3 +135,14 @@ Only after that: one fix + one verify script run. **Do not** call Sonnet for dia
 ### Rule file alignment
 
 See `model-gates.mdc` § 2-fail diagnose-only rule. Sonnet stays mandatory for rules/auth gate, not for routine first attempts.
+
+## Critical Reviewer — Grok 4.5 Fast (tag: critical-reviewer)
+
+Purpose: skeptical outside-party review before major architecture, harness, or workflow decisions are finalized. A different model family has uncorrelated blind spots and no authorship bias — pilot run 2026-07-08 caught a factual error (aecs install state) and two design flaws (Phase 4 silent attach failure, inverted path-classifier risk) that two same-model review passes missed.
+
+- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true`, never edits code
+- Triggers + exclusions (SSOT): `.cursor/rules/model-gates.mdc` § Critical Reviewer auto-invoke
+- Never overrides Fable (architecture), Sonnet 4.6 (security verdict), or Composer (build/ship)
+- Required output, exactly five sections: strongest concern · simplification opportunities · hidden risks · alternative approach · final recommendation with confidence
+- Evidence: Task id + model line in the report, else NOT RUN (same standard as security gate)
+- Budget: one run per decision; rerun only if the plan materially changes after review

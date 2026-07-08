@@ -8,7 +8,7 @@
       "title": "MODEL_DOSSIER index table",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
       "startLine": 7,
-      "endLine": 24,
+      "endLine": 25,
       "anchor": "## Index"
     },
     {
@@ -16,8 +16,8 @@
       "tags": ["qr-routing", "receive-deep-link", "encode-qr"],
       "title": "§ qr-routing",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 26,
-      "endLine": 31,
+      "startLine": 27,
+      "endLine": 32,
       "anchor": "## § qr-routing"
     },
     {
@@ -25,8 +25,8 @@
       "tags": ["zone-lookup"],
       "title": "§ zone-lookup",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 32,
-      "endLine": 36,
+      "startLine": 33,
+      "endLine": 37,
       "anchor": "## § zone-lookup"
     },
     {
@@ -34,8 +34,8 @@
       "tags": ["billing"],
       "title": "§ billing",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 37,
-      "endLine": 41,
+      "startLine": 38,
+      "endLine": 42,
       "anchor": "## § billing"
     },
     {
@@ -43,8 +43,8 @@
       "tags": ["backend-critical", "delivery-status"],
       "title": "§ backend-critical",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 42,
-      "endLine": 45,
+      "startLine": 43,
+      "endLine": 46,
       "anchor": "## § backend-critical"
     },
     {
@@ -52,8 +52,8 @@
       "tags": ["agent-lessons", "scope-rejections"],
       "title": "§ agent-lessons",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 46,
-      "endLine": 63,
+      "startLine": 47,
+      "endLine": 64,
       "anchor": "## § agent-lessons"
     },
     {
@@ -61,8 +61,8 @@
       "tags": ["delivery-display-wiring"],
       "title": "§ delivery-display-wiring",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 65,
-      "endLine": 76,
+      "startLine": 66,
+      "endLine": 77,
       "anchor": "## § delivery-display-wiring"
     },
     {
@@ -70,8 +70,8 @@
       "tags": ["html5-qr-type", "qr-preview", "qr-perf", "diagnose-before-tweak"],
       "title": "Diagnose before tweak (appear vs tap)",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 77,
-      "endLine": 92,
+      "startLine": 78,
+      "endLine": 93,
       "anchor": "### Diagnose before tweak"
     },
     {
@@ -79,9 +79,18 @@
       "tags": ["composer-trace", "composer-without-sonnet"],
       "title": "§ Composer without Sonnet",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 94,
-      "endLine": 136,
+      "startLine": 95,
+      "endLine": 137,
       "anchor": "## § Composer without Sonnet"
+    },
+    {
+      "id": "critical-reviewer",
+      "tags": ["critical-reviewer"],
+      "title": "§ Critical Reviewer — Grok 4.5 Fast",
+      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
+      "startLine": 139,
+      "endLine": 148,
+      "anchor": "## Critical Reviewer — Grok 4.5 Fast"
     },
     {
       "id": "qr-confidence",

@@ -52,3 +52,15 @@ After every substantive code/config change, brief audit before reporting done.
 When security gate triggered: `security-gate-id: <uuid>`, `model: claude-4.6-sonnet-medium-thinking`, `actual model invocation evidence: yes/no/unknown`, `verdict: PASS|MEDIUM|HIGH|NOT RUN`. No UUID → **NOT RUN**, not PASS.
 
 Complete ship loop (`ship-loop.mdc`) before declaring done for code/config changes.
+
+## Critical Reviewer auto-invoke (Grok — Dan 2026-07-08)
+
+Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "grok-4.5-fast-xhigh"`, `readonly: true`) BEFORE finalizing or presenting, when ANY of:
+
+- New `.cursor/rules/` file, or an edit changing >30 lines of an existing rule/protocol file
+- A plan with ≥3 phases or touching ≥5 files is about to be presented for approval
+- A new gate, model role, subagent lane, or recurring workflow is being proposed
+- An architecture decision with ≥2 competing options is being put to Dan
+- Dan says "grok review" or "devil's advocate"
+
+Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, or executing an already-reviewed plan. One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`.
