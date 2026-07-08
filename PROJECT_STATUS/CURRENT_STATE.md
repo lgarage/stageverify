@@ -5,9 +5,8 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` ? scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
+- Active Phase: **Location-first transition — Phase 1 groundwork** (spec: `docs/location-first-transition-spec.md` § Phase Tracker — permanent location QR, PIN tiers, no status cards; do not start later phases without prior-phase drift review). Phase 5→6 vendor email ingest pilot remains live in background.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** since `2026-07-07T01:57:42.389Z` — controlled flag-on test only; 1 matched inbound in Needs Review; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan. Handoff: `HANDOFF_VENDOR_EMAIL_2026-07-07.md`; gotchas: `gotcha-map.json` vendor-reply-ingest-pilot / gmail-push-payload.
-- **Location-first transition (2026-07-07):** Spec approved — `docs/location-first-transition-spec.md` (permanent location QR, PIN tiers, no status cards). Read spec § Phase Tracker for current phase. Next: **Phase 1** (docs/types/clipboard groundwork). Do not start later phases without prior-phase drift review.
 - **Security gate evidence (2026-07-07):** `SECURITY_GATE_AUDIT_2026-07-07.md` — subagent + `security-gate-id` required; do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified; gotcha `security-gate-evidence`.
 - Last shipped: **fix v0.0.24** — Unmatched Needs Review calmer copy ("Unmatched Email — Needs Review"); Suspicious reserved for spoof/ambiguous; preview strips Body:/Subject: prefix duplication
 - Also shipped: **fix v0.0.23** — Vendor Reply Needs Review calmer copy for matched thread replies; preview block + Show/Hide Original Email; Suspicious label only for unmatched/ambiguous/spoof
@@ -62,7 +61,7 @@
 4. **Inbound Gmail CF + rules deploy** ? `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **Location-first Phase 1** — docs/types/clipboard groundwork per `docs/location-first-transition-spec.md` § Phase 1 (ESL plan amendment, additive model types, job-level pickup clipboard format). Do not start Phase 2+ without Phase 1 drift review.
 
 ## Canonical references
 - Handoff: `MINI_LIBRARIAN_HANDOFF.md` | Indexer: `dossier-index.json`, `indexer-memory.json`, `npm run away:next --packet`
