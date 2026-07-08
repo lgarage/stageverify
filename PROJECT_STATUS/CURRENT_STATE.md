@@ -6,6 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Location-first transition — Phase 1 complete** (spec: `docs/location-first-transition-spec.md` § Phase Tracker — Phase 2 privacy hardening next; Sonnet-gated; explicit Dan approval before rules/CF). Phase 5→6 vendor email ingest pilot remains live in background.
+- **Vendor PIN REVISED to job-scoped (Dan 2026-07-08, D14):** PIN per JOB, not per vendor/company — wrong-spot scan shows only that job's spots; overflow shows only empty unassigned spots. Vendor-scoped visibility REJECTED. Read spec § Job-scoped vendor PIN before Phases 2–4 work.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** since `2026-07-07T01:57:42.389Z` — controlled flag-on test only; 1 matched inbound in Needs Review; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan. Handoff: `HANDOFF_VENDOR_EMAIL_2026-07-07.md`; gotchas: `gotcha-map.json` vendor-reply-ingest-pilot / gmail-push-payload.
 - **Security gate evidence (2026-07-07):** `SECURITY_GATE_AUDIT_2026-07-07.md` — subagent + `security-gate-id` required; do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified; gotcha `security-gate-evidence`.
 - Last shipped: **feat v0.0.25** — Location-first Phase 1: ESL plan rejects occupancy-dynamic QR-flip; additive location-first types; job-level pickup clipboard format; permanent URL locked `#/s?loc=`

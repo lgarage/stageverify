@@ -64,7 +64,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | ------- | -------------- | ---- |
 | **Security gate (CF/auth/rules)** | `model-audit-gate.mdc` § Security gate invocation + timing | Before push T2+/backend-write-critical; Task `security-review` + `model: claude-4.6-sonnet-medium-thinking`; subagent id in report. **Merged-on-main re-review:** empty branch diff fails — Sonnet Task with `git diff COMMIT^..COMMIT -- functions/` (`security-review` or readonly `generalPurpose` + Custom Instructions); report subagent id or `commit-range workaround`. Ref 6476b2a MEDIUM (uid-only auth latent; retryOnError delete non-atomic). |
 | Parallel builds (disjoint) | `parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain; parallel Composer 2.5 when paths disjoint |
-| Location-first transition (QR/PIN/pickup rework) | `docs/location-first-transition-spec.md` § Phase Tracker | "What are we working on", any location-QR/PIN-tier/pickup-v2 work — read tracker first |
+| Location-first transition (QR/PIN/pickup rework) | `docs/location-first-transition-spec.md` § Phase Tracker | Read tracker first. **Vendor PIN = job-scoped (D14, Dan 2026-07-08)** — § Job-scoped vendor PIN before any PIN/scan visibility work; vendor/company-scoped visibility REJECTED |
 | ESL / Minew | `ESL_INTEGRATION_PLAN.md` | Phase 7; placeholders only |
 | Nav rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
 | Delivery display / dossier § | `deliveryDisplayHelpers.ts`, `dossier-index.json`, `npm run dossier:slice -- --tag <tag>` | List/drawer readiness; dossier by tag only |

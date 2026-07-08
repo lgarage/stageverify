@@ -9,6 +9,8 @@ When the task touches **vendor receive**, **PIN gate**, `/#/receive`, **iPhone/S
 
 **Canonical vendor UI:** `ReceivingPage` at `/#/receive` only. `appSettings.vendorDeliveryMode` toggles exception-only Delivered hub vs legacy full check-in on the **same page**. Legacy `/#/` and `/#/checkin/:id` redirect to receive — do not rebuild separate vendor UIs.
 
+**PIN visibility design (binding):** the vendor PIN is **job-scoped** — post-PIN UI shows only that job's spots/deliveries, never the company's other jobs; overflow shows only empty unassigned spots. See `docs/location-first-transition-spec.md` § Job-scoped vendor PIN (D14, Dan 2026-07-08).
+
 1. **Open** the demo QR page in Glass/browser:
    `https://lgarage.github.io/stageverify/#/demo/vendor-scan`
    (or `npm run open:vendor-demo-qr` on Windows)

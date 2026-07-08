@@ -4,7 +4,7 @@
 | --- | --- |
 | **Title** | StageVerify transition: delivery-tag-first → permanent-location-QR-first workflow |
 | **Date approved** | 2026-07-07 |
-| **Status** | Approved — **Phase 1 complete** (2026-07-08) |
+| **Status** | Approved — **Phase 1 complete** (2026-07-08) · **Vendor PIN scope REVISED to job-scoped** (Dan 2026-07-08 — see § Job-scoped vendor PIN) |
 | **Authors** | War-game/spec: Fable 5 (planner) · Implementation: Composer 2.5 (one phase at a time) · Security review: Sonnet 4.6 (`claude-4.6-sonnet-medium-thinking`) for Phases 2, 5, 6 |
 
 > **How to use this file (agents):** Read **§ Phase Tracker** first — it is the living source of truth for current state. Implement **exactly one phase** at a time, precisely as specified in that phase's section. **Never start a later phase until the prior phase's drift review passes.** When a phase completes, update the Phase Tracker table **and** `PROJECT_STATUS/CURRENT_STATE.md` in the **same commit** as phase completion. Do not invent design decisions — everything binding is in § Locked design decisions; anything ambiguous is in § Open questions and needs Dan.
@@ -14,6 +14,8 @@
 ## § Phase Tracker (LIVING SECTION — agents update this)
 
 > **Approved next action: Phase 2** (privacy hardening — Sonnet-gated; explicit Dan approval before rules/CF deploy). Phase 1 completed 2026-07-08.
+>
+> **REVISION (Dan 2026-07-08):** Vendor PIN is now **job-scoped**, not vendor/company-scoped — read **§ Job-scoped vendor PIN (D14)** before implementing Phases 2–4. The original vendor-scoped D3 visibility model is REJECTED.
 
 | Phase | Name | Status | Started | Completed | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -37,7 +39,7 @@
 
 - Every staging location (G1–G6 ground, S1A… shelf) gets **one static QR** encoding a **location-only URL that never changes**.
 - Scanning that QR lands on a **role gate**:
-  - **Vendor PIN** → that vendor's deliveries only.
+  - **Vendor PIN (job-scoped)** → that **JOB's** staging context only — never the vendor's other jobs (REVISED Dan 2026-07-08; see § Job-scoped vendor PIN).
   - **Technician PIN** → full job pickup package.
   - **Management PIN** → shop-wide audit view.
 - Deliveries are **dynamically assigned** to locations in **three distinct roles** — never conflated:
@@ -50,13 +52,36 @@
 
 ---
 
+## § Job-scoped vendor PIN (REVISION — Dan 2026-07-08, binding)
+
+> **Supersedes** the original vendor-scoped PIN visibility model everywhere in this spec. The pre-revision D3 wording ("show a list of that vendor's active orders") and the master-architecture bullet "Vendor PIN → that vendor's deliveries only" are **REJECTED** as written — vendor/company-scoped visibility is the hazard this revision eliminates. Any phase section or older doc that implies a vendor PIN reveals company-wide orders is superseded by this section.
+
+### The rule
+
+1. **The vendor PIN is tied to each JOB, not to the vendor/company.** Entering a PIN reveals only that one job's staging context.
+2. **Wrong-spot scan:** a vendor driver scans ANY location QR (e.g. G2) and enters their job PIN → the UI shows **only the staging spots assigned to THAT job** (e.g. G1, G15, S1A). It must **never** reveal the vendor's orders or spots for other jobs — even when the scanned spot is assigned to the **same company** for a different job.
+3. **Overflow / Need More Space:** if the driver indicates they need more space, show additional spots that are **EMPTY and NOT assigned to any company** — never spots assigned to other jobs, **including the same vendor's other jobs**.
+
+### Rationale (data integrity, not just privacy)
+
+If a driver delivering for job A scans G2 and learns G2 is assigned to their company for job B, they may simply dump job A's items in G2. The jobs get mixed, and the whole StageVerify location-first process falls apart. Cross-job visibility is an **anti-mixup / data-integrity hazard** — hiding other jobs is what keeps physical staging truthful, not merely a privacy nicety.
+
+### Implementation implications (Phases 2–4)
+
+- The existing **per-vendor** `pinCode`/`pinHash` infrastructure (vendors collection, `verifyVendorPin` CF, `vendorSessions`) must be **extended or replaced with per-job PINs** — one PIN per job, issued in the vendor email ("put the stuff in G1"). Session resolution returns a **job scope**, not a vendor scope.
+- Post-PIN resolvers (Phase 3) filter by **job**, not vendor: deliveries/spots for the PIN's job only.
+- Need More Space v2 (Phase 4) spot suggestions must exclude every spot assigned to **any** job/company — only empty, unassigned spots qualify (strict-occupancy D2 already helps; this adds "not planned/assigned for anyone" to the filter).
+- Cross-**job** absence becomes a mandatory negative test alongside cross-vendor absence (see Phase 3 acceptance criteria).
+
+---
+
 ## § Locked design decisions
 
 | ID | Decision |
 | --- | --- |
 | **D1** | Privacy hardening (read isolation) ships **BEFORE** the new vendor scan flow — no expanded security-theater window. |
 | **D2** | **Strict occupancy** — one delivery per spot, everywhere (ground and shelf); existing `StagingLocationOccupiedError` behavior stands. |
-| **D3** | **Wrong-spot scan** — after vendor PIN, show a list of that vendor's active orders (order # / PO # + assigned location), never a dead end. A single match may deep-link straight in. |
+| **D3** *(REVISED Dan 2026-07-08)* | **Wrong-spot scan** — after the **job-scoped** vendor PIN, show only THAT JOB's assigned staging spots (order # / PO # + assigned location for that job), never a dead end. A single match may deep-link straight in. **Never** show the vendor's orders/spots for other jobs, even if the scanned spot belongs to the same company on a different job — see § Job-scoped vendor PIN. *(Original vendor-scoped wording "that vendor's active orders" REJECTED.)* |
 | **D4** | **Planned-spot release** — explicit prompt "Did you place anything in G1?"; "No" releases immediately, logged for the dispatcher via `plannedLocationReleases` audit entries. |
 | **D5** | **Management = one shared shop PIN** in Settings (hashed); audit view + narrowly-gated resolution actions; **NO broad edit powers**. |
 | **D6** | **Technician = per-technician PINs** (pickup accountability). |
@@ -67,6 +92,7 @@
 | **D11** *(default, open to Dan veto)* | `needs_review` = review **FLAG** overlaying existing statuses (`reviewFlag` object on `DeliveryOrder`), **NOT** a new status enum value — keeps `firestore.rules` and the forward-only transition graph untouched. |
 | **D12** *(default, open to Dan veto)* | "Reserved" (waiting for delivery) = **DERIVED display state** (planned locations assigned + status pending/shipped), **not** a new enum value. |
 | **D13** | Vendor pickup orders display as **"Will-Call / Pickup"** — already shipped as the `invoiceFulfillmentMethod: will_call_pickup` display label; keep it, do not create a new status. Will-call / deliver-to-site shells legitimately skip shop staging; location-first logic must **not** force locations onto them. |
+| **D14** *(Dan 2026-07-08)* | **Job-scoped vendor PIN** — the vendor PIN is per-JOB, not per-vendor/company. Post-PIN visibility = that job's spots only; overflow suggestions = empty spots unassigned to any company only. Full rule + rationale: § Job-scoped vendor PIN. |
 
 ---
 
@@ -80,7 +106,7 @@ What already exists in the codebase — the transition builds on these, and phas
 4. **Zone QR exists but resolution is unsafe.** `#/receive?zone=G2` works via `receiveQrUrls.ts`, but resolution (`getDeliveryDetailsByStagingCode` in `firestoreService.ts` ~L1687–1712) picks **ONE** delivery — most-recently-updated on collision, with only a `console.warn`. Unsafe; must be replaced by the role-aware resolver.
 5. **Pickup token is JOB-scoped.** `functions/src/generatePickupToken.ts`, `validatePickupToken.ts`; `pickupTokens/{hash}` → `jobId`. `JobPickupScreen` in `PickupPortalPage.tsx` already aggregates all job deliveries grouped by staging code. `recordPickupEvent` CF **already accepts `stagingLocationIds`** but the UI never passes it.
 6. **Clipboard is single-delivery despite job-scoped token.** Dispatcher drawer `CopyPickupLinkButton` (`DispatcherDashboardPage.tsx` ~L2001) copies SINGLE-delivery text via `buildPickupInformationClipboardText` (`deliveryDisplayHelpers.ts`).
-7. **Vendor PIN infrastructure exists.** Per-vendor `pinCode`/`pinHash` on the vendors collection; `verifyVendorPin` CF; delivery-scoped `vendorSessions` (~15 min, `appSettings.vendorSessionMinutes`); rate-limited via `vendorPinAttempts`. Client gate: `VendorPinGate.tsx`. Offline fallback `vendorPinVerifier` digest on public delivery docs (flagged MEDIUM in security scan). **NO technician or management PIN exists.**
+7. **Vendor PIN infrastructure exists — but is per-VENDOR, which the 2026-07-08 revision supersedes.** Per-vendor `pinCode`/`pinHash` on the vendors collection; `verifyVendorPin` CF; delivery-scoped `vendorSessions` (~15 min, `appSettings.vendorSessionMinutes`); rate-limited via `vendorPinAttempts`. Client gate: `VendorPinGate.tsx`. Offline fallback `vendorPinVerifier` digest on public delivery docs (flagged MEDIUM in security scan). **NO technician or management PIN exists.** Per § Job-scoped vendor PIN (D14), this infrastructure must evolve to **per-job PINs** — the per-vendor pattern (hashing, rate limiting, sessions) is reused, but scope resolution becomes job-scoped.
 8. **SECURITY (critical).** `firestore.rules` allows **public read** on deliveries, items, jobs, purchaseOrders, stagingLocations, appSettings — any unauth caller can enumerate ≤500 deliveries (full cross-vendor visibility). Unauth delivery/item writes are constrained by field whitelist + forward-only transitions but are **NOT bound to any session**. Pre-PIN hydration on `/receive` leaks delivery+items before the PIN. Already flagged HIGH in `PROJECT_STATUS/security-scan-2026-07-04-invoice.md` (away-107).
 9. **Email ingest safety rails to preserve.** Default `pending_review`; auto-apply only ≥85 confidence; `humanReviewRequired`; no delivery-shell auto-creation from inbound email. Reply-ingest pilot is live (flag on since 2026-07-07).
 10. **Need More Space partial UI exists.** `VendorNeedMoreSpaceFlow.tsx`; `assignVendorStagingLocation` CF (session-gated). Occupancy: `stagingOccupancy.ts` throws `StagingLocationOccupiedError`.
@@ -228,12 +254,12 @@ Open pickup checklist:
 
 ## § Phase 3 — Permanent location entry + vendor scan v2
 
-**Goal:** The core new vendor experience — scan the permanent sign, PIN in, see YOUR deliveries, confirm.
+**Goal:** The core new vendor experience — scan the permanent sign, PIN in, see THAT JOB's deliveries/spots, confirm. **(Job-scoped per D14 / § Job-scoped vendor PIN — Dan 2026-07-08.)**
 
 **Scope:**
 
 1. **New landing route** (`#/s?loc=…` — final form from Phase 1): location header → PIN gate (session-backed, duration from Settings).
-2. **Post-PIN resolver:** list of this vendor's active deliveries (order # / PO # + assigned locations) **regardless of scanned spot** (D3); a single match may deep-link straight in; record `scannedStagingLocationId` (+ `scannedAt`).
+2. **Post-PIN resolver (JOB-scoped):** list of the PIN's **job** deliveries (order # / PO # + that job's assigned locations) **regardless of scanned spot** (D3 revised); a single match may deep-link straight in; record `scannedStagingLocationId` (+ `scannedAt`). **Never** list the vendor's deliveries/spots for other jobs — even when the scanned spot is the same company's spot on a different job (§ Job-scoped vendor PIN).
 3. **Confirm-delivered** reuses `VendorDeliveredHub` / `markVendorDelivered` (session-gated per Phase 2).
 4. **In-app printable sign generator** on `ZoneManagementPage` (D8): location name + permanent QR + down arrow.
 5. **Settings:** vendor session minutes editable (D10).
@@ -249,8 +275,8 @@ Open pickup checklist:
 
 **Acceptance criteria (Playwright):**
 
-- Scan-sim → PIN → own-deliveries list shows **ONLY** that vendor's records (**assert another vendor's delivery is absent**) → confirm delivered → status correct.
-- Wrong-spot scan shows the list, not a dead end.
+- Scan-sim → PIN → deliveries list shows **ONLY** that job's records (**assert another vendor's delivery is absent AND the same vendor's other-job delivery is absent** — D14 cross-job negative test) → confirm delivered → status correct.
+- Wrong-spot scan (e.g. scanned G2, job assigned G1/G15/S1A) shows that job's spot list only, not a dead end and not the company's other-job spots.
 - Sign page QR encodes the **exact** permanent URL.
 - Existing receive verify scripts stay green.
 
@@ -272,7 +298,7 @@ Open pickup checklist:
 
 **Scope:**
 
-1. **Need More Space v2** (extends `VendorNeedMoreSpaceFlow.tsx`): available spots honoring strict occupancy (D2); suggest adjacent ground strings via `adjacentGroupId`; checkbox multi-select → actual locations written via session-gated CF.
+1. **Need More Space v2** (extends `VendorNeedMoreSpaceFlow.tsx`): available spots honoring strict occupancy (D2) **AND job-scoped filtering (D14)** — suggest only spots that are **empty and not assigned/planned for any company or job** (never another job's spots, including the same vendor's other jobs); suggest adjacent ground strings via `adjacentGroupId`; checkbox multi-select → actual locations written via session-gated CF.
 2. **Release prompt** when the planned spot is not among the selected actuals: "Did you place anything in G1?" → "No" releases now + writes a `plannedLocationReleases` entry + dispatcher drawer visibility (D4).
 3. **Dispatcher planned-multi UI:** assign `plannedStagingLocationIds` (single or string) from the drawer; planned-vs-actual divergence visible in drawer **and** list (list shows actuals, badge indicates divergence).
 4. **"Reserved" derived display state** (D12) in dispatcher views: planned locations assigned + status pending/shipped.
@@ -420,6 +446,7 @@ Open pickup checklist:
 Fable 5 reviews each phase's diff summary against this spec **before the next phase begins**. Drift tripwires:
 
 - Delivery-specific QRs reappearing.
+- **Vendor PIN visibility widening back to vendor/company scope** — any UI or resolver that shows a vendor's other-job orders/spots after PIN violates D14 (§ Job-scoped vendor PIN).
 - Planned/actual conflation.
 - Pickup logic forking between the two doors.
 - Management scope creep beyond capture/flag.
@@ -453,7 +480,7 @@ Fable 5 reviews each phase's diff summary against this spec **before the next ph
 | **Scanned location** | Workflow entry point — the spot whose QR the vendor actually scanned at check-in (`scannedStagingLocationId` + `scannedAt`). |
 | **Actual location** | Physical truth — where the delivery physically sits. Existing `stagingLocationId` + `additionalStagingLocationIds`, formally reinterpreted (never renamed). |
 | **Spot codes G/S** | `G1–G6` = ground spots; `S1A…` = shelf spots. Registered in the `stagingLocations` collection (`code` + `type`). |
-| **PIN tiers** | Three role gates behind the same permanent location QR: **vendor** (per-vendor PIN — own deliveries only), **technician** (per-tech PIN — job pickup package), **management** (one shared shop PIN — audit view + narrow resolution actions). Sessions expire per-tier via Settings minutes (D10). |
+| **PIN tiers** | Three role gates behind the same permanent location QR: **vendor** (**per-JOB PIN — that job's spots/deliveries only**, D14; never company-wide), **technician** (per-tech PIN — job pickup package), **management** (one shared shop PIN — audit view + narrow resolution actions). Sessions expire per-tier via Settings minutes (D10). |
 | **Audit walk** | Management routine: scan any location QR → shared PIN → shop-wide audit view → walk the zones resolving unexpected deliveries, mismatches, and needs-review flags. Replaces the physical colored status cards (D9). |
 | **Reserved** | Derived display state (D12): planned locations assigned + status pending/shipped. Not an enum value. |
 | **Review flag** | D11 overlay: `reviewFlag` object on `DeliveryOrder` — flags a delivery for review without adding a `needs_review` enum status. |
