@@ -1,0 +1,24 @@
+---
+description: Minew NDA hard stops + vendor phone-test QR requirements.
+alwaysApply: true
+---
+
+# Product Guardrails
+
+## Minew NDA (hard prohibitions)
+
+Never commit/deploy/paste into cloud AI: Minew API docs, login URLs, credentials, authenticated examples, NDA legal docs. Minew HTTP calls **server-side only** (`functions/src/` + Firebase secrets — never `src/` client). `minew-confidential/` never staged. Public UI: StageVerify QR URLs only (`#/r?`, `#/p?`) — never Minew API endpoints. Public product model names OK; platform/API internals forbidden.
+
+**Legal detail, retention, AI-usage table, pre-ship checklist:** `PROJECT_STATUS/KNOWLEDGE/minew-nda.md`
+
+## Vendor phone test — always show QR
+
+When task touches **vendor receive**, **PIN gate**, `/#/receive`, or iPhone/Safari vendor testing:
+
+**Canonical vendor UI:** `ReceivingPage` at `/#/receive` only — never rebuild separate vendor UIs. **Vendor PIN is job-scoped (D14)** — post-PIN shows only that job's spots/deliveries.
+
+1. Open demo QR: `https://lgarage.github.io/stageverify/#/demo/vendor-scan` (PIN `1234`)
+2. **Include in reply** — link, PIN, Playwright screenshot at `screenshots/vendor-demo/qr-for-phone.png`
+3. Fallback: `https://lgarage.github.io/stageverify/#/receive?id=delivery-demo-vendor-1`
+
+Do not declare vendor/iPhone work "ready for Dan" without step 2.

@@ -37,9 +37,9 @@ Protocol: **STOP before implementation** — state plan + tier, wait for Dan's e
 
 ## Sequence (full ship)
 
-0. **Version bump** — increment `package.json` `version` (patch default) in the same commit as the change, **before** build — see `version-bump-ship-gate.mdc`.
+0. **Version bump** — increment `package.json` `version` (patch default) in the **same commit**, **before** `npm run build`. Skip when: Dan says hold/local-only with no deploy intent, WIP branch, or docs/rules-only with no bundle impact. Report new `v*` in completion reply when bumped.
 1. **Validate** — `npm run build` clean; local Playwright / `verify:*` for affected routes (per `composer-orchestrator.mdc`). If any test fails, **do not deploy** — fix and re-run.
-2. **Security gate** (when triggered) — **before push**; invoke exactly one Task per `model-audit-gate.mdc` § Security gate invocation. Fix HIGH before continuing. No push until subagent returns; no Composer self-review substitute.
+2. **Security gate** (when triggered) — **before push**; one Task per `security-review-gate.mdc`. Fix HIGH before continuing. No push until subagent returns; no Composer self-review substitute.
 3. `git status` — stage **only** task-related files.
 4. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
 5. `git push origin main` — must succeed.
@@ -98,6 +98,8 @@ Do **not** declare done until:
 - Push succeeded, and
 - Required deploys succeeded (or failure is clearly reported with next steps): gh-pages when bundle changed; Firebase when CF/rules changed; prod verification ran when applicable.
 - Live URL + commit hash reported when gh-pages shipped.
+
+**Session cleanup (mandatory):** you started it, you stop it — dev servers, background shells, Task subagents; delete verify PNGs (`before-*/after-*`, ephemeral `screenshots/**`); `git status` clean before push; ports 5173–5176 clear. Keep `playwright/.auth/state.json`. Append cleanup checklist line to completion report.
 
 ## UI changes
 

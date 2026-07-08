@@ -29,7 +29,7 @@
       "dossierTags": ["qr-routing", "composer-trace", "diagnose-before-tweak"],
       "lessonsSection": "ship-verify",
       "files": ["src/scanRouting.ts", "src/receiveQrUrls.ts"],
-      "rules": ["vendor-phone-qr.mdc"],
+      "rules": ["product-guardrails.mdc"],
       "commands": ["npm run dossier:slice -- --tag qr-routing", "npm run context:packet -- --tags qr-routing,composer-trace"]
     },
     {
@@ -39,7 +39,7 @@
       "dossierTags": ["qr-routing", "receive-deep-link", "agent-lessons"],
       "lessonsSection": "ship-verify",
       "files": ["src/pages/ReceivingPage.tsx", "src/scanRouting.ts"],
-      "rules": ["vendor-phone-qr.mdc"],
+      "rules": ["product-guardrails.mdc"],
       "commands": ["npm run context:lookup -- --concern \"vendor receive\""]
     },
     {
@@ -76,7 +76,7 @@
       "orchestratorSteps": [6],
       "dossierTags": ["backend-critical", "billing"],
       "files": ["firestore.rules", "functions/src/"],
-      "rules": ["ship-loop.mdc", "minew-nda-compliance.mdc"],
+      "rules": ["ship-loop.mdc", "product-guardrails.mdc"],
       "commands": ["npm run dossier:slice -- --tag backend-critical"]
     },
     {
@@ -85,7 +85,7 @@
       "orchestratorSteps": [6],
       "dossierTags": ["zone-lookup", "encode-qr"],
       "files": ["src/dispatcher/firestoreService.ts"],
-      "rules": ["minew-nda-compliance.mdc"],
+      "rules": ["product-guardrails.mdc"],
       "commands": ["npm run dossier:slice -- --tag zone-lookup"]
     },
     {
@@ -113,7 +113,7 @@
       "orchestratorSteps": [],
       "dossierTags": [],
       "files": ["PROJECT_STATUS/CURRENT_STATE.md", "PROJECT_STATUS/MEMORY.md"],
-      "rules": ["parallel-agent-strategy.mdc § Planning question protocol", "suggestion-verify-gate.mdc"],
+      "rules": ["parallel-agent-strategy.mdc § Planning question protocol", "answer-quality.mdc"],
       "commands": ["npm run away:next -- --minimal", "npm run away:plan"]
     },
     {
@@ -235,7 +235,7 @@
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
       "files": ["firestore.rules", "functions/src/"],
-      "rules": ["model-audit-gate.mdc", "ship-loop.mdc"],
+      "rules": ["model-gates.mdc", "ship-loop.mdc"],
       "commands": ["npm run dossier:slice -- --tag backend-critical"]
     },
     {
@@ -254,7 +254,7 @@
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
       "files": ["PROJECT_STATUS/archives/SECURITY_GATE_AUDIT_2026-07-07.md"],
-      "rules": ["model-audit-gate.mdc", "security-review-gate.mdc"],
+      "rules": ["model-gates.mdc", "security-review-gate.mdc"],
       "commands": []
     },
     {
@@ -286,7 +286,7 @@
         "PROJECT_STATUS/archives/SECURITY_GATE_AUDIT_2026-07-07.md",
         "PROJECT_STATUS/archives/security-scan-2026-07-04-invoice.md"
       ],
-      "rules": ["security-review-gate.mdc", "model-audit-gate.mdc", "ship-loop.mdc"],
+      "rules": ["security-review-gate.mdc", "model-gates.mdc", "ship-loop.mdc"],
       "commands": [],
       "gateCandidate": true,
       "injectBefore": [
@@ -307,7 +307,7 @@
       "dossierTags": ["agent-lessons"],
       "lessonsSection": "process-agents",
       "files": ["PROJECT_STATUS/away-list.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md"],
-      "rules": ["best-reply-gate.mdc", "Final-Answer-Review-Gate.mdc", "suggestion-verify-gate.mdc"],
+      "rules": ["answer-quality.mdc"],
       "commands": ["npm run away:next -- --minimal"]
     },
     {
@@ -317,7 +317,7 @@
       "dossierTags": ["agent-lessons"],
       "lessonsSection": "process-agents",
       "files": ["PROJECT_STATUS/away-list.json", "PROJECT_STATUS/away-status.json", "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md", "package.json"],
-      "rules": ["best-reply-gate.mdc", "Final-Answer-Review-Gate.mdc", "suggestion-verify-gate.mdc", "time-awareness.mdc"],
+      "rules": ["answer-quality.mdc", "time-awareness.mdc"],
       "commands": ["npm run away:next -- --minimal"]
     },
     {
@@ -417,7 +417,7 @@
         "src/dispatcher/invoice/",
         "src/InvoiceReviewPage.tsx"
       ],
-      "rules": ["minew-nda-compliance.mdc", "ship-loop.mdc"],
+      "rules": ["product-guardrails.mdc", "ship-loop.mdc"],
       "commands": [
         "npm run verify:inbound-email-ingest",
         "npm run verify:invoice-review"

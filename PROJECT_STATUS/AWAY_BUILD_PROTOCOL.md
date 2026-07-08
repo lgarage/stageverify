@@ -98,7 +98,7 @@ For each id in `executionProtocol.sequence`:
 3. State scope in one line (what you will / will not add) — **cite matching `svscope_simple.md` §**; do not implement outside scope.
 4. Parallel scouts if applicable → synthesis → implement (orchestrator only).
 5. Run **all** `verifyBeforeNext` commands.
-6. If `escalateWhen` or `escalateBeforeShip`: security-review Task **before push** — one Task only per `model-audit-gate.mdc` § Security gate invocation. Await verdict; fix HIGH; completion report must include subagent id + verdict (NOT RUN if gate did not complete).
+6. If `escalateWhen` or `escalateBeforeShip`: security-review Task **before push** — see `security-review-gate.mdc`. Await verdict; fix HIGH; completion report must include subagent id + verdict (NOT RUN if gate did not complete).
 7. **Worker `task-finish` (hard rule):** Immediately before completion report, post `task-finish` with `finishedAt`, `actualElapsedMin` from timestamp math, `timingSource: worker_reported_timestamps`. Optional `pausedAt`/`resumedAt` when blocking.
 8. Set item `status: done` via **`npm run away:ship -- --id <id> --commit <hash> --note "..."`** (updates list, status, CURRENT_STATE, NEXT.md atomically). **Timing audit — `PROJECT_STATUS/estimate-log.md` only** (single source of truth; do not store est/actual in `away-status.json`):
    - **Librarian records** worker `task-start`/`task-finish` into `estimate-log.md` (rolling 15 rows): `startedAt`, `finishedAt`, `budgetMin`, `actualElapsedMin`, `timingSource`, **Type**, **Subtype**, deploy flag, notes — see that file for methodology.
@@ -117,8 +117,8 @@ For each id in `executionProtocol.sequence`:
 
 | Trigger | Action |
 |---------|--------|
-| CF / rules / auth / idempotency (T2+) | security-review Task **before push** — see `model-audit-gate.mdc` § Security gate invocation |
-| Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — mandatory (`MODEL_DOSSIER.md` § Composer without Sonnet); 1st fail → self-trace prep |
+| CF / rules / auth / idempotency (T2+) | security-review Task **before push** — see `security-review-gate.mdc` |
+| Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — see `model-gates.mdc` § 2-fail diagnose-only rule |
 | Acceptance needs out-of-scope schema/rules | Mark `blocked` — do not widen scope |
 
 ## Current queue

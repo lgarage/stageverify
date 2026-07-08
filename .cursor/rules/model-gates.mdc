@@ -1,0 +1,54 @@
+---
+description: Pre-edit dispatch + post-change model audit — archetype, tier, escalation, security pointer.
+alwaysApply: true
+---
+
+# Model Gates (pre-edit + post-change)
+
+## Pre-edit dispatch (announce-and-go)
+
+**BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc`.
+
+> **Billing:** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
+
+| Tier | Archetypes | Model |
+|------|-----------|-------|
+| T0 | `ui-component`, `css-restyle`, `docs-update`, scout/inventory | **Composer 2.5 Fast** (inline) |
+| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) |
+| T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
+| T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — Sonnet security gate before push |
+
+## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative)
+
+When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis).
+
+- **Only Composer** updates code, runs verify, and completes the ship loop.
+- Sonnet = **diagnostic reviewer only** — no commits, no file edits, no ship loop.
+- After Sonnet returns findings, **Composer** implements + verify + ship.
+
+**Counting failures:** two implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted.
+
+**Failure sequence:** **1st fail** → Composer retry (+ optional self-trace per `MODEL_DOSSIER.md` tag `composer-trace`). **2nd fail** → Sonnet diagnose-only (mandatory). Composer implements after Sonnet returns.
+
+Other Sonnet triggers: security verifier before push; architecture unclear after synthesis; confStart < 70. **Not** for scouts or routine T0/T1/T2 before 1st fail + retry. Opus 4.6 = locked fallback only if Sonnet security gate returns HIGH Composer cannot resolve.
+
+## Security gate
+
+Invocation, model lock, and evidence requirements: **`security-review-gate.mdc`** (sole authoritative copy). Run **before push** — not after commit. Never self-report PASS from Composer inline review.
+
+## Post-change model audit
+
+After every substantive code/config change, brief audit before reporting done.
+
+**Low-risk exemption:** read-only audits, docs/rules-only → short line OK (e.g. `Model routing: T0 docs/rules; no escalation`).
+
+**Code/config** — compact block:
+
+```
+### Model audit
+| Change | Archetype | Tier | Worker | Scouts parallel? | Escalation review? | Verdict |
+```
+
+When security gate triggered: `security-gate-id: <uuid>`, `model: claude-4.6-sonnet-medium-thinking`, `actual model invocation evidence: yes/no/unknown`, `verdict: PASS|MEDIUM|HIGH|NOT RUN`. No UUID → **NOT RUN**, not PASS.
+
+Complete ship loop (`ship-loop.mdc`) before declaring done for code/config changes.

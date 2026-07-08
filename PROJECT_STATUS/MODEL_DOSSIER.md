@@ -21,7 +21,7 @@
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
-| `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — Composer implements; Sonnet never edits |
+| `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -57,7 +57,7 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 6. **Confidence downgrade when user still sees the bug.** Code-only fix that doesn't deploy rules or pass E2E → lower conf, do not mark ok until Playwright + user path green.
 7. **Auto-submit and Done must share the same gates** (shop stock + staged item checklists) — any second code path bypassing a gate will reproduce the bug.
 8. **Scope:** do not add portal pickers, cross-links, or hub buttons unless Dan asked. Check `USER_SCOPE_REJECTIONS.md` before `PortalNavBar` / `MobileHubPage` edits.
-9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd fail → Sonnet diagnose-only**; Composer implements after Sonnet returns.
+9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd fail → Sonnet diagnose-only** per `model-gates.mdc`; Composer implements after Sonnet returns.
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 11. **Away batches:** follow `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` — orchestrator runs verify; parallel scouts read-only only.
 12. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
@@ -133,4 +133,4 @@ Only after that: one fix + one verify script run. **Do not** call Sonnet for dia
 
 ### Rule file alignment
 
-`composer-orchestrator.mdc` § **2-fail diagnose-only rule**: 1st fail → self-trace prep here; 2nd fail → Sonnet diagnosis only (mandatory); Composer implements + verify + ship. Sonnet stays mandatory for rules/auth gate, not for routine first attempts.
+See `model-gates.mdc` § 2-fail diagnose-only rule. Sonnet stays mandatory for rules/auth gate, not for routine first attempts.

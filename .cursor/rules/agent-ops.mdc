@@ -1,48 +1,38 @@
 ---
-description: Enforce the agent-ops efficiency loop in stageverify (model routing, away-list, outcome logging).
+description: Enforce the agent-ops efficiency loop in stageverify (outcome logging, brain repo).
 alwaysApply: true
 ---
 
 # agent-ops loop (stageverify)
 
-This repo uses the **agent-ops** skill (personal skill at `~/.cursor/skills/agent-ops`,
-git source `C:\Projects\cursor-agent-brain`). Follow it every session.
+This repo uses the **agent-ops** skill (`~/.cursor/skills/agent-ops`, git `C:\Projects\cursor-agent-brain`).
 
 ## Orchestration profile
-- **Profile:** `composer-default` (explicit opt-in; overrides SKILL.md §10 Sonnet-default)
-- **Trials:** `.cursor/trials.json` (per-project; NOT `cursor-agent-brain/trials.json`)
-- **Authority:** This file wins over SKILL.md on orchestration; SKILL.md wins on outcome schema and tier table.
 
-## Mini librarian + session start
-
-**Authoritative:** `.cursor/rules/composer-orchestrator.mdc` § Mini librarian and § Session Start — follow every session; do not duplicate here.
+- **Profile:** `composer-default` (overrides SKILL.md §10 Sonnet-default)
+- **Trials:** `.cursor/trials.json` (per-project)
+- **Authority:** This file wins on orchestration; SKILL.md wins on outcome schema and tier table.
+- **Session start / pre-edit / model routing:** `composer-orchestrator.mdc` + `model-gates.mdc` — do not duplicate here.
 
 ## During work
-- Classify each task into an archetype and route to the tier-table default model.
-  **Composer 2.5 Fast is the orchestrator and default worker** — overrides global agent-ops §10 Sonnet-default for stageverify. Parallel read-only scouts per `parallel-agent-strategy.mdc` (including § Planning question protocol for "what's next"); Sonnet rare escalation only.
-  Do T0/T1/T2 edits inline. Escalate to Sonnet 4.6 only for security verifier or triggers in `parallel-agent-strategy.mdc`.
-  Opus 4.6 is the locked fallback only if Sonnet's security gate finds a HIGH risk Composer cannot resolve.
-- **PRE-EDIT GATE (mandatory)**: Before any file edit, state archetype + tier + dispatch decision.
-  See `.cursor/rules/model-dispatch-gate.mdc` for the full gate protocol and tier defaults.
-- Offer to queue qualifying side-tasks to `PROJECT_STATUS/away-list.json`
-  (agent-ops triage rule §4) — pre-scoped, reversible, self-verifiable, ≥85% conf.
-- `backend-write-critical`: Composer 2.5 implements inline (trial active, 3/5 clean passes). Sonnet 4.6 security gate runs automatically before pushing every such change. Opus 4.6 is the locked fallback only if Sonnet flags a HIGH risk Composer cannot resolve.
-- **Windows shell**: always use `cmd /c dir` (not `Get-ChildItem` / `ls`) when listing directory contents in a Shell tool call. PowerShell object-pipeline output does not render reliably in Cursor's terminal capture on this machine.
-- **STATS.md is stale**: `cursor-agent-brain/STATS.md` is regenerated nightly and may be hours behind. When making a Phase-2 readiness decision, do NOT trust its outcome count — instead run `cmd /c dir C:\Projects\cursor-agent-brain\outcomes\` and count the actual `.jsonl` files / lines to get the real total.
 
-## Session end (MANDATORY when work was substantive — do not skip)
-Append ONE outcome line to the brain repo, then commit+push it. Use the machine
-hostname as the filename. PowerShell:
+- **Windows shell:** use `cmd /c dir` (not `Get-ChildItem` / `ls`) — PowerShell pipeline output unreliable in Cursor terminal capture.
+- **STATS.md is stale:** `cursor-agent-brain/STATS.md` regenerated nightly — count actual `.jsonl` files in `outcomes/` for Phase-2 readiness.
+
+## Session end (MANDATORY when substantive — do not skip)
+
+Append ONE outcome line to brain repo, then commit+push. PowerShell:
+
 ```powershell
 $m = $env:COMPUTERNAME
 $row = '{"date":"<YYYY-MM-DD>","repo":"stageverify","archetype":"<slug>","model":"<slug>","tier":"<T?>","confStart":<n>,"confAfter":<n>,"outcome":"ok","machine":"'+$m+'","note":"<=80 chars"}'
 Add-Content -Path "C:\Projects\cursor-agent-brain\outcomes\$m.jsonl" -Value $row
 cd "C:\Projects\cursor-agent-brain"; git add outcomes; git commit -m "log: <archetype> <model>"; git push
 ```
-- `archetype` MUST be a slug from `archetypes.json`. `outcome` = ok | fail | escalate.
-- Skip logging trivial/no-signal turns (typos, pure Q&A, duplicate patterns).
-- The nightly cloud job recomputes the tier table from these rows — no local recompute needed.
 
-## stageverify project commits
-Normal stageverify code changes are committed to the stageverify repo as usual.
-Only the one outcome line goes to the brain repo. Keep the two pushes separate.
+- `archetype` = slug from `archetypes.json`. `outcome` = ok | fail | escalate.
+- Skip trivial/no-signal turns.
+
+## stageverify vs brain commits
+
+Stageverify code → stageverify repo. One outcome line → brain repo. Keep pushes separate.

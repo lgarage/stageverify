@@ -405,7 +405,7 @@ Open pickup checklist:
 
 - Same **permanent location identity** — the e-tag replaces nothing structural.
 - The e-tag renders: location, job # / name, vendor, PO, order, expected date, status, notes, QR.
-- **Server-side Minew calls only** (NDA rule `minew-nda-compliance.mdc`) — CF-triggered on delivery/location changes per the amended ESL plan (Phase 1 amendment).
+- **Server-side Minew calls only** (NDA rule `product-guardrails.mdc`) — CF-triggered on delivery/location changes per the amended ESL plan (Phase 1 amendment).
 - **Blocked on Minew creds regardless** of transition progress.
 
 ---

@@ -1,0 +1,47 @@
+---
+description: Pre-present quality gate — challenge-revise-present before Dan sees substantive replies.
+alwaysApply: true
+---
+
+# Answer Quality Gate (pre-present)
+
+**Authority:** Don't ship first draft. Run loop **before Dan sees your answer**.
+
+## When to run
+
+Plans, handoffs, recommendations, architecture, away prompts, "what's next", rule edits, post-ship **Remaining time options**.
+
+**Skip:** trivial typos, single-fact read-only answers, pure code execution with no recommendation.
+
+## Mandatory loop
+
+1. **Gather** — read authoritative sources (`CURRENT_STATE.md`, `MEMORY.md`, `away-list.json`, adjacent rules); not memory alone.
+2. **Draft privately** — full answer in working context only.
+3. **Challenge** — What did I miss? Wrong away IDs? Contradicts rules/docs? First-draft syndrome?
+4. **Revise once** — rules files: max **2** passes. Handoffs: min **2** internal passes.
+5. **Present ONLY the final version** — never v1 + "want me to improve?"
+
+## Cross-check (suggestions / plans / roadmap)
+
+When presenting architectural suggestions, rules edits, away plans, or roadmap answers:
+
+1. **Cross-check** authoritative sources (`CURRENT_STATE.md`, `MEMORY.md`, `AWAY_BUILD_PROTOCOL.md`, `away-list.json`, `docs/roadmap.md`, adjacent rules); **contradiction scan** on related docs.
+2. **Time-bound filter** — budget only per `time-awareness.mdc`; remove out-of-budget from **Fits now** / **To continue**; **Save for later** only (no CTA).
+3. **Hard stop** — do not present as "ready" if contradicts `AWAY_BUILD_PROTOCOL`, ship-loop, or authoritative rules.
+
+Authority order: `AWAY_BUILD_PROTOCOL.md` → `composer-orchestrator.mdc` → domain rules → verbal suggestions.
+
+## Handoffs (best on first present)
+
+Deliver **final** copy-paste block on first present. Read `away-list.json` + `away-status.json`; verify npm scripts in `package.json`; self-contained scope + real away-NNN ids (`npm run away:next -- --minimal`); `startedAt` placeholder; execute prompts need **"go build it"**; backend scope → Sonnet gate before push per `security-review-gate.mdc`.
+
+Bias: ship StageVerify faster/cheaper; cost/token efficiency; simple workflow; repo-grounded answers.
+
+## Completion report
+
+Substantive done replies lead with **What we did** — 1–3 sentences plain language (user-visible behavior, data, process). Not file lists or audit tables first.
+
+## Confidence line (mandatory)
+
+- `Verified against: [sources]` — cross-check passed.
+- `Caveat: [uncertainty]` — source missing or ambiguous; do not say "ready."

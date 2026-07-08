@@ -24,7 +24,7 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel*
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Read `PROJECT_STATUS/MEMORY.md` — especially **“What’s next to build?”** (narrow answer rules).
 **STOP after hot tier** for routine tasks. Steps 3–8 below are **on demand** — only when the task triggers them. Do **not** read `svscope_simple.md` at session start; load it only for scope disputes (see MEMORY.md authority chain).
-3. For **planning questions** (“what’s next”, “what else can be worked on”, roadmap/priority) — follow **`parallel-agent-strategy.mdc` § Planning question protocol**: parallel scouts → synthesize → **`suggestion-verify-gate.mdc`** → present with confidence line. Do not answer from `docs/roadmap.md` LATER/NEXT alone.
+3. For **planning questions** (“what’s next”, “what else can be worked on”, roadmap/priority) — follow **`parallel-agent-strategy.mdc` § Planning question protocol**: parallel scouts → synthesize → **`answer-quality.mdc`** → present with confidence line. Do not answer from `docs/roadmap.md` LATER/NEXT alone.
 4. For **away / sleep / overnight** (`what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, etc.) — **Plan → Approve → Queue → Execute** (never skip to execute on first message). See `time-awareness.mdc` — do not assume overnight when Dan is in active daytime chat:
    - **First message / plan phase:** run **`npm run away:plan`** — suggest `queuedItems` + draft `suggestedAdditions`; **do not write `away-list.json`**; **do not run `away:batch`** until Dan approves (`go build it`, `queue it`, similar).
    - **After explicit approval + queue updated:** run **`npm run away:batch`** and execute every item; verify → `away:ship` → `away:validate` per item per `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`. Long batch is Dan's default; if `batchSize` < 3 at plan time, use `suggestedAdditions` as drafts only.
@@ -34,7 +34,7 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel*
 8. For **dispatcher portal nav / Settings / sidebar**, read `PROJECT_STATUS/USER_SCOPE_REJECTIONS.md` — do not re-introduce rejected nav or merged pages.
 
 ## Suggestion Verify (before present)
-Before presenting architectural suggestions, rule edits, away plans, or roadmap answers, run `.cursor/rules/suggestion-verify-gate.mdc` — cross-check authoritative sources and adjacent rules; Dan should not have to ask for a review loop.
+Before presenting architectural suggestions, rule edits, away plans, or roadmap answers, run `.cursor/rules/answer-quality.mdc` — cross-check authoritative sources and adjacent rules; Dan should not have to ask for a review loop.
 
 ## Pre-Action Clarification Gate
 High-risk per ship-loop.mdc § Two-tier ship model (firestore.rules, CF deploy, auth, secrets, migrations) → state plan + tier and get Dan's approval BEFORE implementation. Fast-safe → build without asking. Still ask one focused question when scope is genuinely ambiguous.
@@ -175,28 +175,13 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 ## Escalation Triggers
 
-### 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative)
-
-When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent so Sonnet can help figure out **why** the task keeps failing (diagnosis, root cause, hypothesis).
-
-- **Only Composer** updates code, runs verify, and completes the ship loop
-- Sonnet = **diagnostic reviewer only** — no commits, no file edits, no ship loop
-- After Sonnet returns findings, **Composer** implements the fix + verify + ship
-
-**Counting failures:** two implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate and remain mandatory before push — not counted toward this threshold.
-
-**Failure sequence:** **1st fail** → Composer retry (+ optional self-trace prep below). **2nd fail on same task** → Sonnet diagnose-only (mandatory). Composer implements + verify + ship after Sonnet returns.
+**2-fail diagnose-only:** see `model-gates.mdc` § 2-fail diagnose-only rule. QR/scan bugs: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
 
 ### Escalate to Sonnet 4.6 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
-- **Second failed fix on the same task** — per **2-fail diagnose-only rule** above (include self-trace block from 1st fail or post at escalation)
+- **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail diagnose-only rule
 - The task involves non-obvious cross-file dependencies requiring deep architectural reasoning after one Composer pass and still stuck
 - You are genuinely unsure whether a change has security or data integrity implications
-
-**QR/scan/slow-load bugs:** on **1st failed fix**, Composer posts the symptom block (appear vs tap; grep `applyHashFromScannedQr`) before retry. On **2nd fail**, dispatch Sonnet with that block — no third Composer-only attempt.
-
-### Composer self-trace (recommended on 1st failed fix — required context for 2nd-fail Sonnet)
-Read `MODEL_DOSSIER.md` tag `composer-trace`. Post symptom column (a|b|c), appear vs tap hooks, one hypothesis, one next change. Then implement once + Playwright. If that fails (**2nd fail** on same task), dispatch Sonnet for diagnosis only — Composer implements after Sonnet returns; Sonnet must not edit files.
 
 ### Escalation triggers — Opus 4.6 (locked fallback only)
 Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review returns a HIGH risk finding that Composer cannot resolve. Do not dispatch Opus for the implementation of T3 work — Composer handles that inline during the trial.
@@ -228,21 +213,21 @@ Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only �
 
 **Learning capture (automatic):** When a task hit failure, regression, or a security finding worth remembering, ship with `npm run away:ship -- --id away-NNN --note "…" --learned "…"` (or `--failure` + `--fix`) — **do not** run manual `npm run indexer:ingest`. Auto-parse of `--note` (`root cause:`, `fix:`, `prod verify fail`, `stale gh-pages`) also triggers capture. **`verify:*` failures** auto-queue to `learning-pending.json` (wrapper in package.json); `away:ship` merges pending on ship — review `learning-pending.json` if verify failed mid-task. Future similar work: `npm run away:next -- --packet` injects `gateWarnings` + lessons § + indexer matches (see `docs/aecs/librarian-plan.md` learning loop).
 
-**Then** the existing compact report unchanged: model audit (or low-risk line per `model-audit-gate.mdc`), cleanup checklist (`session-cleanup-gate.mdc`), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
+**Then** the existing compact report unchanged: model audit (or low-risk line per `model-gates.mdc`), cleanup checklist (`ship-loop.mdc` § Done gate), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
 
 Skip **What we did** for trivial Q&A, typos, or read-only answers where no work was performed.
 
 ### Post-change model audit (mandatory)
-After every substantive **code or config** change, run the **model audit** protocol in `.cursor/rules/model-audit-gate.mdc`; include the full audit table unless the low-risk exemption in that file applies.
+After every substantive **code or config** change, run the **model audit** protocol in `.cursor/rules/model-gates.mdc`; include the full audit table unless the low-risk exemption in that file applies.
 
 ### Session cleanup (mandatory)
-**Always clean up your messes.** After every substantive task, run the **cleanup** protocol in `.cursor/rules/session-cleanup-gate.mdc` (stop dev servers, kill background shells, delete ephemeral Playwright PNGs, fix dirty git status, confirm ports clear).
+**Always clean up your messes.** After every substantive task, run cleanup per `ship-loop.mdc` § Done gate (stop dev servers, kill background shells, delete ephemeral Playwright PNGs, fix dirty git status, confirm ports clear).
 
 ### Remaining time options (post-ship)
-When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § **Time-bound suggestions** + **Remaining time options**. Filter before present: only in-budget items under **Fits now** / **To continue**; out-of-budget → **Save for later** with no CTA. Queue via `away:next` / `away-list.json`; verify per `suggestion-verify-gate.mdc` (time-bound filter step).
+When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § **Time-bound suggestions** + **Remaining time options**. Filter before present: only in-budget items under **Fits now** / **To continue**; out-of-budget → **Save for later** with no CTA. Queue via `away:next` / `away-list.json`; verify per `answer-quality.mdc` (time-bound filter step).
 
 ### Pre-edit gate
-**Announce-and-go.** State archetype + tier + model, then run `npm run context:lessons -- --type <type>/<subtype>` when Type/Subtype are known (slice only — not full `LIBRARIAN_LESSONS.md`), then immediately start editing. Do not wait for a "go ahead" reply.
+**Announce-and-go.** State archetype + tier + model per `model-gates.mdc`, then run `npm run context:lessons -- --type <type>/<subtype>` when Type/Subtype are known (slice only — not full `LIBRARIAN_LESSONS.md`), then immediately start editing. Do not wait for a "go ahead" reply.
 
 ### Git commits + push (mandatory — user standing preference)
 **Always commit and push** after any code or project-status changes in this repo. Do not wait to be asked. This overrides generic "commit only when requested" guidance for stageverify.
@@ -254,38 +239,17 @@ When Dan stated a time window, append **Remaining time options** after cleanup/m
 Skip commit/push only when Dan explicitly says to hold off or work is WIP on a branch.
 
 ### Deploy
-**Always ship without waiting to be asked** — commit, push, deploy per **`ship-loop.mdc`** (authoritative). Bump `package.json` version before build on every substantive ship — see **`version-bump-ship-gate.mdc`**. Default includes gh-pages (frontend) and Firebase (CF, rules) when the change requires it, after Sonnet security gate passes. Skip only on explicit Dan hold, validation failure, WIP branch, or unfixed HIGH from the gate. Rollback: `git revert <hash>` — not holding back ship.
+**Always ship without waiting to be asked** — commit, push, deploy per **`ship-loop.mdc`** (authoritative). Version bump per ship-loop Sequence step 0. Default includes gh-pages (frontend) and Firebase (CF, rules) when the change requires it, after Sonnet security gate passes. Skip only on explicit Dan hold, validation failure, WIP branch, or unfixed HIGH from the gate. Rollback: `git revert <hash>` — not holding back ship.
 
 ### PROJECT_STATUS updates
 When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` in the **same commit** as the feature code. Keep them in sync — never let code land without updating the project state. Do this inline in the same commit — no separate subagent pass needed.
 
 ### Security gate
 
-**Authoritative invocation + timing:** `model-audit-gate.mdc` § Security gate invocation; model lock: `security-review-gate.mdc`. Workspace rules override global `review-security` SKILL when they conflict.
-
-Run **automatically** (exactly **one** Task per ship — await before push) when change touches:
-- Every `backend-write-critical` path (firestore.rules, Cloud Function write paths, auth logic)
-- Every T2 commit that touches auth UI, route guards, or Firestore reads
-
-Do not wait to be asked. **Cursor UI note (RC-1):** parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only; validity = **`security-gate-id`** + model line in completion report (see `security-review-gate.mdc`).
-
-**Self-contained invocation (workers — paste verbatim, including `model`):**
-
-```text
-Task({
-  subagent_type: "security-review",
-  model: "claude-4.6-sonnet-medium-thinking",
-  readonly: true,
-  run_in_background: false,
-  description: "Security Review",
-  prompt: "Full Repository Path: c:\\Projects\\stageverify\nDiff: uncommitted changes"
-})
-```
-
-Before first push use `Diff: uncommitted changes`. After merge on main without prior gate use `Diff: branch changes` with commit-range context in Custom Instructions. **Await** the Task; copy returned UUID into completion report as **`security-gate-id: <uuid>`**. Hard stops and retry policy — `model-audit-gate.mdc` § Security gate invocation.
+See `security-review-gate.mdc` (model lock + invocation + evidence). Run automatically before push when `backend-write-critical` or auth/T2 — exactly one Task per ship; await before push.
 
 ### T3 / backend-write-critical during Composer trial
-Composer implements inline (trial is at 3/5 clean passes). After every `backend-write-critical` change, run the security gate per `model-audit-gate.mdc` before `git push`. Do not dispatch Opus unless security-review returns HIGH that Composer cannot resolve.
+Composer implements inline (trial 3/5 clean passes). Security gate per `security-review-gate.mdc` before `git push`. Opus only if Sonnet returns HIGH Composer cannot resolve.
 
 ### Workspace rules override global skill
 stageverify workspace rules (`.cursor/rules/`) override the global agent-ops skill where they conflict. When in doubt, follow the workspace rule.

@@ -7,7 +7,7 @@ alwaysApply: true
 
 Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **default** for independent read-only work. Dan does **not** need to ask for parallel execution when this file's triggers apply.
 
-**Authority:** This file governs fan-out vs serialize. `composer-orchestrator.mdc` governs build/Playwright/ship. `model-dispatch-gate.mdc` governs tier/model pick. On conflict about *whether* to parallelize, this file wins. On conflict about *commit/deploy*, ship-loop wins.
+**Authority:** This file governs fan-out vs serialize. `composer-orchestrator.mdc` governs build/Playwright/ship. `model-gates.mdc` governs tier/model pick. On conflict about *whether* to parallelize, this file wins. On conflict about *commit/deploy*, ship-loop wins.
 
 ## Roles
 
@@ -22,7 +22,7 @@ Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **de
 
 ## Default pipeline
 
-1. **Classify** — archetype + tier (`model-dispatch-gate.mdc`).
+1. **Classify** — archetype + tier (`model-gates.mdc`).
 2. **Plan parallel scouts** — if independent read-only work applies, dispatch **2–4 scouts in one message**. Do not wait for Dan to request parallel.
 3. **Synthesize** — merge scout outputs: findings, conflicts, file list, single implementation plan. **No file edits before synthesis.**
 4. **Execute** — one constrained executor **or** parallel **non-overlapping** domain executors (see File-ownership batches); coordinator merges before verify.
@@ -96,7 +96,7 @@ Use scouts **A + B + C** minimum; add **D** when the answer may involve UI route
 
 1. **Dispatch** — 2–4 scouts, one message, scout boilerplate below.
 2. **Synthesize** — merge scout outputs (`### Scout synthesis` block); resolve conflicts; rank 1–3 recommendations.
-3. **Verify** — run `.cursor/rules/suggestion-verify-gate.mdc` on the synthesized answer (cross-check sources scouts cited; contradiction scan).
+3. **Verify** — run `.cursor/rules/answer-quality.mdc` on the synthesized answer (cross-check sources scouts cited; contradiction scan).
 4. **Present** — answer Dan with ranked options + **`Verified against: [sources]`** or **`Caveat: …`**.
 
 Do **not** answer from `docs/roadmap.md` alone — queue/hot state (Scout A) wins on "what's next."
@@ -167,7 +167,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 - Assign domains; **forbid overlapping paths** in every executor prompt
 - Merge conflicts and shared interfaces **before** build/verify
 - Run build/verify **once** after all executors complete
-- Single push/deploy; await all background executors (`session-cleanup-gate.mdc`)
+- Single push/deploy; await all background executors (`ship-loop.mdc` § Done gate)
 
 ### Examples
 
@@ -194,7 +194,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 Use Sonnet Task subagent **only** when:
 - `backend-write-critical` security **verifier** (step 2) before push
 - Architecture unclear after synthesis + one Composer pass
-- **Second failed fix on the same task** — mandatory Sonnet diagnose-only (`MODEL_DOSSIER.md` § Composer without Sonnet); include self-trace block from 1st fail or post at escalation; no commits, no file edits, no ship loop; Composer implements after findings (`composer-orchestrator.mdc` § **2-fail diagnose-only rule**)
+- **Second failed fix on the same task** — see `model-gates.mdc` § 2-fail diagnose-only rule
 - DB/schema design with competing approaches
 - **confStart < 70** or Dan says "still broken" without new hypothesis (after 1st-fail self-trace prep)
 
@@ -227,10 +227,10 @@ Return ≤25 lines: findings, file paths, conflicts, recommended next step.
 
 ## Interaction with other gates
 
-- **Pre-edit gate:** State parallel plan before **executor** edits (`model-dispatch-gate.mdc`).
+- **Pre-edit gate:** State parallel plan before **executor** edits (`model-gates.mdc`).
 - **Scope:** Scouts read widely; executors do only what Dan asked (`composer-orchestrator.mdc`).
 - **Build / Playwright / ship:** Coordinator only — serial after merge (`ship-loop.mdc`).
-- **Cleanup:** Await background scouts **and domain executors** before done (`session-cleanup-gate.mdc`).
+- **Cleanup:** Await background scouts **and domain executors** before done (`ship-loop.mdc` § Done gate).
 
 ## What NOT to do
 

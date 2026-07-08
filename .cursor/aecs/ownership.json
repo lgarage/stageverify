@@ -65,17 +65,22 @@
       "localOverride": false
     },
     {
-      "path": ".cursor/rules/model-dispatch-gate.mdc",
+      "path": ".cursor/rules/model-gates.mdc",
       "ownership": "owned-by-project",
       "localOverride": false
     },
     {
-      "path": ".cursor/rules/model-audit-gate.mdc",
+      "path": ".cursor/rules/answer-quality.mdc",
       "ownership": "owned-by-project",
       "localOverride": false
     },
     {
-      "path": ".cursor/rules/session-cleanup-gate.mdc",
+      "path": ".cursor/rules/product-guardrails.mdc",
+      "ownership": "owned-by-project",
+      "localOverride": false
+    },
+    {
+      "path": ".cursor/rules/security-review-gate.mdc",
       "ownership": "owned-by-project",
       "localOverride": false
     },
