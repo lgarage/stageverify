@@ -123,7 +123,7 @@ const testEnv = await initializeTestEnvironment({
 });
 
 try {
-  console.log("\n=== Allowed unauthenticated delivery status transitions ===\n");
+  console.log("\n=== Blocked unauthenticated delivery writes (Phase 2 — CF-only) ===\n");
   for (const tc of ALLOWED) {
     const deliveryId = `allow-${tc.from}-${tc.to}`;
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -135,12 +135,12 @@ try {
     });
     const unauthed = testEnv.unauthenticatedContext();
     try {
-      await assertSucceeds(
+      await assertFails(
         unauthStatusUpdate(unauthed.firestore(), deliveryId, tc.to, tc.extra ?? {}),
       );
-      pass(`${tc.label} (${tc.from} → ${tc.to})`);
+      pass(`${tc.label} (${tc.from} → ${tc.to}) denied for unauth`);
     } catch (err) {
-      fail(`${tc.label} (${tc.from} → ${tc.to})`, err);
+      fail(`${tc.label} (${tc.from} → ${tc.to}) should be denied`, err);
     }
   }
 
@@ -222,20 +222,20 @@ try {
     fail("readinessStatus forgery should be denied", err);
   }
 
-  console.log("\n=== Non-status unauthenticated delivery updates ===\n");
+  console.log("\n=== Non-status unauthenticated delivery updates (all denied — Phase 2) ===\n");
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await seedDelivery(ctx, "partial");
   });
   try {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(deliveryRef(unauthed.firestore()), {
         lastCheckmarkAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }),
     );
-    pass("lastCheckmarkAt-only update allowed (vendor item check-off)");
+    pass("lastCheckmarkAt-only update denied for unauth (vendor CF required)");
   } catch (err) {
-    fail("lastCheckmarkAt-only update should be allowed", err);
+    fail("lastCheckmarkAt-only update should be denied", err);
   }
 
   try {
@@ -280,7 +280,7 @@ try {
   }
 
   try {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(deliveryRef(unauthed.firestore(), "test-delivery"), {
         status: "arrived",
         vendorPhysicalDropoffConfirmed: false,
@@ -291,9 +291,9 @@ try {
         updatedAt: new Date().toISOString(),
       }),
     );
-    pass("vendor revert may clear physical evidence (false/null only)");
+    pass("vendor revert evidence clear denied for unauth (vendor CF required)");
   } catch (err) {
-    fail("vendor revert evidence clear should be allowed", err);
+    fail("vendor revert evidence clear should be denied", err);
   }
 
   try {

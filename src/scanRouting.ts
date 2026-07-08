@@ -2,12 +2,7 @@
  * Single QR scan router — all entry points (URL deep link, camera, manual) call here.
  * See PROJECT_STATUS/MODEL_DOSSIER.md tag: qr-routing
  */
-import {
-  getDeliveryDetailsByStagingCode,
-  getDeliveryDetailsPublic,
-} from "./dispatcher/firestoreService";
-import type { DeliveryDetails } from "./dispatcher/models";
-import { shouldRouteScanToPickup } from "./dispatcher/models";
+import { resolveReceiveZoneLookupClient } from "./phase2CallableClients";
 import {
   parseScannedQr,
   pickupPath,
@@ -53,13 +48,6 @@ export function syncScanIntent(parsed: ParsedQrScan): SyncScanIntent {
   return { kind: "unrecognized" };
 }
 
-function deliveryToScanResult(details: DeliveryDetails): ScanHandleResult {
-  if (shouldRouteScanToPickup(details.delivery.status)) {
-    return { action: "not-found" };
-  }
-  return { action: "load-receive", deliveryId: details.delivery.id };
-}
-
 export async function resolveSyncScanIntent(
   intent: SyncScanIntent,
   _target: ScanHandlerTarget,
@@ -68,14 +56,18 @@ export async function resolveSyncScanIntent(
     return { action: "navigate", path: intent.path };
   }
   if (intent.kind === "resolve-delivery") {
-    const details = await getDeliveryDetailsPublic(intent.deliveryId);
-    if (!details) return { action: "not-found" };
-    return deliveryToScanResult(details);
+    return { action: "load-receive", deliveryId: intent.deliveryId };
   }
   if (intent.kind === "resolve-zone") {
-    const details = await getDeliveryDetailsByStagingCode(intent.zoneCode);
-    if (!details) return { action: "not-found" };
-    return deliveryToScanResult(details);
+    const lookup = await resolveReceiveZoneLookupClient(intent.zoneCode);
+    if (!lookup.found) return { action: "not-found" };
+    if (lookup.kind === "pickup") {
+      return {
+        action: "navigate",
+        path: pickupPath(lookup.jobId, lookup.deliveryId),
+      };
+    }
+    return { action: "load-receive", deliveryId: lookup.deliveryId };
   }
   return { action: "not-found" };
 }
@@ -97,14 +89,14 @@ export type ZoneScanDisposition =
 export async function resolveZoneScanDisposition(
   zoneCode: string,
 ): Promise<ZoneScanDisposition> {
-  const details = await getDeliveryDetailsByStagingCode(zoneCode);
-  if (!details) return null;
-  if (shouldRouteScanToPickup(details.delivery.status)) {
+  const lookup = await resolveReceiveZoneLookupClient(zoneCode);
+  if (!lookup.found) return null;
+  if (lookup.kind === "pickup") {
     return {
       kind: "pickup",
-      jobId: details.delivery.jobId,
-      deliveryId: details.delivery.id,
+      jobId: lookup.jobId,
+      deliveryId: lookup.deliveryId,
     };
   }
-  return { kind: "receive", deliveryId: details.delivery.id };
+  return { kind: "receive", deliveryId: lookup.deliveryId };
 }

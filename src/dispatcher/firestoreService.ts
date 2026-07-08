@@ -13,12 +13,19 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
-import { restGetDelivery, restGetItemsForDelivery } from "../firestoreRest";
-import { withTimeout } from "../withTimeout";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import { getVendorSessionToken } from "../vendorPinSession";
 import { validateVendorSessionClient } from "../validateVendorSessionClient";
+import {
+  getPickupPortalDataClient,
+  getVendorReceiveDetailsClient,
+  getVendorStagingOccupancyClient,
+  markPickupDeliveryInstalledClient,
+  submitVendorCheckinClient,
+  updateVendorDeliveryStatusClient,
+  updateVendorItemQtyClient,
+} from "../phase2CallableClients";
 import {
   VendorSessionError,
   vendorSessionErrorMessage,
@@ -525,6 +532,21 @@ export class FirestoreDataService implements DispatcherDataService {
     actorType: "dispatcher" | "technician" | "vendor" = "dispatcher",
     actorName?: string,
   ): Promise<DeliveryDetails | null> {
+    if (actorType === "vendor" && !getAuth().currentUser) {
+      const sessionToken = getVendorSessionToken(deliveryId);
+      if (!sessionToken) {
+        throw new VendorSessionError("Session expired. Enter your PIN again.");
+      }
+      const { details } = await updateVendorDeliveryStatusClient({
+        deliveryId,
+        sessionToken,
+        toStatus,
+        action: "update",
+        actorName,
+      });
+      return details;
+    }
+
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
@@ -860,6 +882,20 @@ export class FirestoreDataService implements DispatcherDataService {
       qtyDamaged: number;
     }>,
   ): Promise<DeliveryDetails | null> {
+    if (!getAuth().currentUser) {
+      const sessionToken = getVendorSessionToken(deliveryId);
+      if (!sessionToken) {
+        throw new VendorSessionError("Session expired. Enter your PIN again.");
+      }
+      const { details } = await submitVendorCheckinClient({
+        deliveryId,
+        sessionToken,
+        driverName,
+        itemUpdates,
+      });
+      return details;
+    }
+
     await requireActiveVendorSession(deliveryId);
 
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
@@ -1057,6 +1093,20 @@ export class FirestoreDataService implements DispatcherDataService {
     actorType: "vendor" | "dispatcher",
     vendorRevertWindowMinutes = 60,
   ): Promise<DeliveryDetails | null> {
+    if (actorType === "vendor" && !getAuth().currentUser) {
+      const sessionToken = getVendorSessionToken(deliveryId);
+      if (!sessionToken) {
+        throw new VendorSessionError("Session expired. Enter your PIN again.");
+      }
+      const { details } = await updateVendorDeliveryStatusClient({
+        deliveryId,
+        sessionToken,
+        action: "revert",
+        vendorRevertWindowMinutes,
+      });
+      return details;
+    }
+
     const hydrateResult = (id: string): Promise<DeliveryDetails | null> =>
       actorType === "vendor"
         ? hydrateAfterVendorWrite(id, (hydrateId) =>
@@ -1143,6 +1193,22 @@ export class FirestoreDataService implements DispatcherDataService {
     qtyReceived: number,
     qtyMissing: number,
   ): Promise<void> {
+    if (!getAuth().currentUser) {
+      const sessionToken = getVendorSessionToken(deliveryId);
+      if (!sessionToken) {
+        throw new VendorSessionError("Session expired. Enter your PIN again.");
+      }
+      await updateVendorItemQtyClient({
+        deliveryId,
+        sessionToken,
+        itemId,
+        qtyOrdered,
+        qtyReceived,
+        qtyMissing,
+      });
+      return;
+    }
+
     const now = new Date().toISOString();
     let itemStatus: ItemStatus = "missing";
     if (qtyReceived >= qtyOrdered) itemStatus = "received";
@@ -1419,38 +1485,16 @@ export async function addStagingLocation(
   await batch.commit();
 }
 
-/** Default pickup queue: ready_for_pickup plus in-progress/completed pickups. */
-const PICKUP_PORTAL_DELIVERY_STATUSES: DeliveryStatus[] = [
-  "ready_for_pickup",
-  "picked_up",
-  "installed",
-];
-
-const PICKUP_PORTAL_NOT_READY_DETAIL_STATUSES: DeliveryStatus[] = [
-  "partial",
-  "arrived",
-];
-
 export async function loadPickupReadyDeliveriesPublic(
   jobId: string,
-  options?: { includeDeliveryId?: string },
+  options: { pickupToken: string; includeDeliveryId?: string },
 ): Promise<DeliveryDetails[]> {
-  const deliveries = await fetchWhere<DeliveryOrder>(
-    "deliveries",
-    "jobId",
+  const { deliveries } = await getPickupPortalDataClient({
+    token: options.pickupToken,
     jobId,
-  );
-  const includeId = options?.includeDeliveryId;
-  const visibleOnPickup = deliveries.filter(
-    (d) =>
-      PICKUP_PORTAL_DELIVERY_STATUSES.includes(d.status) ||
-      PICKUP_PORTAL_NOT_READY_DETAIL_STATUSES.includes(d.status) ||
-      (includeId !== undefined && d.id === includeId),
-  );
-  const detailsList = await Promise.all(
-    visibleOnPickup.map((d) => getDeliveryDetailsPublic(d.id)),
-  );
-  return detailsList.filter((d): d is DeliveryDetails => d !== null);
+    includeDeliveryId: options.includeDeliveryId,
+  });
+  return deliveries;
 }
 
 type FirestoreDocSnap = Awaited<ReturnType<typeof getDoc>>;
@@ -1476,7 +1520,9 @@ async function hydrateAfterVendorWrite(
   if (getAuth().currentUser) {
     return authenticatedHydrate(deliveryId);
   }
-  return getDeliveryDetailsPublic(deliveryId);
+  const sessionToken = getVendorSessionToken(deliveryId);
+  if (!sessionToken) return null;
+  return getVendorReceiveDetailsClient({ deliveryId, sessionToken });
 }
 
 /** Hydrate public delivery details when the delivery doc is already loaded (zone scan path). */
@@ -1524,69 +1570,25 @@ async function hydrateDeliveryDetailsPublic(
   };
 }
 
-const VENDOR_DELIVERY_LOAD_MS = 10_000;
-const VENDOR_RECEIVE_CACHE_PREFIX = "sv-vendor-recv:";
 
-const vendorReceiveInflight = new Map<
-  string,
-  Promise<DeliveryDetails | null>
->();
-
-function readVendorReceiveCache(
+export async function getDeliveryDetailsPublicForVendorReceive(
   deliveryId: string,
-): DeliveryDetails | null {
+): Promise<DeliveryDetails | null> {
+  const sessionToken = getVendorSessionToken(deliveryId);
+  if (!sessionToken) return null;
   try {
-    const raw = sessionStorage.getItem(
-      `${VENDOR_RECEIVE_CACHE_PREFIX}${deliveryId}`,
-    );
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DeliveryDetails;
-    if (
-      typeof parsed.delivery?.id !== "string" ||
-      !Array.isArray(parsed.items)
-    ) {
-      return null;
-    }
-    return parsed;
+    return await getVendorReceiveDetailsClient({ deliveryId, sessionToken });
   } catch {
     return null;
   }
 }
 
-function writeVendorReceiveCache(
-  deliveryId: string,
-  details: DeliveryDetails,
-): void {
-  try {
-    sessionStorage.setItem(
-      `${VENDOR_RECEIVE_CACHE_PREFIX}${deliveryId}`,
-      JSON.stringify(details),
-    );
-  } catch {
-    /* sessionStorage quota — non-fatal */
-  }
-}
-
-/** Start loading delivery + items while vendor enters PIN (REST-only — reliable on iOS). */
+/** No-op — pre-PIN delivery prefetch removed in Phase 2 privacy hardening. */
 export function prefetchVendorReceiveDelivery(
-  deliveryId: string,
-  options?: { force?: boolean },
+  _deliveryId: string,
+  _options?: { force?: boolean },
 ): void {
-  const trimmed = deliveryId.trim();
-  if (!trimmed) return;
-  if (!options?.force && vendorReceiveInflight.has(trimmed)) return;
-  vendorReceiveInflight.set(
-    trimmed,
-    loadVendorReceiveViaRest(trimmed)
-      .then((details) => {
-        if (details) writeVendorReceiveCache(trimmed, details);
-        return details;
-      })
-      .catch((err: unknown) => {
-        vendorReceiveInflight.delete(trimmed);
-        throw err;
-      }),
-  );
+  /* intentionally empty */
 }
 
 function deliveryOrderFromSnap(
@@ -1596,66 +1598,12 @@ function deliveryOrderFromSnap(
   return { ...data, id: data.id ?? deliveryId };
 }
 
-function buildMinimalPublicDetails(
-  delivery: DeliveryOrder,
-  items: Item[],
-): DeliveryDetails {
-  const { notes: _n, ...publicDelivery } = delivery;
-  return {
-    delivery: publicDelivery as DeliveryOrder,
-    vendor: publicVendorFromDelivery(delivery) as Vendor,
-    items,
-    statusHistory: [],
-    pickupEvents: [],
-    materialIssues: [],
-  };
-}
-
-/**
- * Fast public hydrate for vendor PIN unlock — delivery + line items only.
- * Skips job/PO/staging reads that can stall iOS Safari; enrich later if needed.
- */
-async function loadVendorReceiveViaRest(
-  deliveryId: string,
-): Promise<DeliveryDetails | null> {
-  const delivery = await withTimeout(
-    restGetDelivery(deliveryId),
-    VENDOR_DELIVERY_LOAD_MS,
-    "Delivery load timed out. Check your connection and try again.",
-  );
-  if (!delivery) return null;
-  const items = await withTimeout(
-    restGetItemsForDelivery(deliveryId),
-    VENDOR_DELIVERY_LOAD_MS,
-    "Items load timed out. Check your connection and try again.",
-  );
-  return buildMinimalPublicDetails(delivery, items);
-}
-
-export async function getDeliveryDetailsPublicForVendorReceive(
-  deliveryId: string,
-): Promise<DeliveryDetails | null> {
-  const cached = readVendorReceiveCache(deliveryId);
-  if (cached) return cached;
-
-  const inflight = vendorReceiveInflight.get(deliveryId);
-  if (inflight) {
-    try {
-      const details = await inflight;
-      if (details) return details;
-    } catch {
-      /* prefetch failed — fresh REST load below */
-    }
-  }
-
-  const details = await loadVendorReceiveViaRest(deliveryId);
-  if (details) writeVendorReceiveCache(deliveryId, details);
-  return details;
-}
-
 export async function getDeliveryDetailsPublic(
   deliveryId: string,
 ): Promise<DeliveryDetails | null> {
+  if (!getAuth().currentUser) {
+    return null;
+  }
   const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
   if (!deliverySnap.exists()) return null;
   const delivery = deliveryOrderFromSnap(
@@ -1792,6 +1740,19 @@ export interface StagingLocationOccupant {
 export async function mapOccupancyByLocationId(
   excludeDeliveryId?: string,
 ): Promise<Record<string, StagingLocationOccupant>> {
+  if (!getAuth().currentUser) {
+    const deliveryId = excludeDeliveryId;
+    if (!deliveryId) return {};
+    const sessionToken = getVendorSessionToken(deliveryId);
+    if (!sessionToken) return {};
+    const { occupancy } = await getVendorStagingOccupancyClient({
+      deliveryId,
+      sessionToken,
+      excludeDeliveryId,
+    });
+    return occupancy;
+  }
+
   const locations = await fetchAllStagingLocations();
   const deliveries = await fetchAll<DeliveryOrder>("deliveries");
   const byLocationId: Record<string, StagingLocationOccupant> = {};
@@ -2161,7 +2122,24 @@ export async function listMaterialIssuesForDelivery(
   return issues;
 }
 
-export async function markDeliveryInstalled(deliveryId: string): Promise<void> {
+export async function markDeliveryInstalled(
+  deliveryId: string,
+  options?: { jobId?: string; pickupToken?: string },
+): Promise<void> {
+  if (!getAuth().currentUser) {
+    const jobId = options?.jobId;
+    const pickupToken = options?.pickupToken;
+    if (!jobId || !pickupToken) {
+      throw new Error("Pickup link required to mark installed.");
+    }
+    await markPickupDeliveryInstalledClient({
+      deliveryId,
+      jobId,
+      pickupToken,
+    });
+    return;
+  }
+
   const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
   if (!deliverySnap.exists()) return;
 

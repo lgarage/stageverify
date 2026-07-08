@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  prefetchVendorReceiveDelivery,
-  getAppSettings,
-} from "./dispatcher/firestoreService";
+import { getAppSettings } from "./dispatcher/firestoreService";
 import { verifyVendorPin } from "./verifyVendorPinClient";
 import {
   setPinSession,
@@ -82,10 +79,6 @@ export function VendorPinGate({
     },
     [deliveryId, onVerified],
   );
-
-  useEffect(() => {
-    prefetchVendorReceiveDelivery(deliveryId);
-  }, [deliveryId]);
 
   useEffect(() => {
     if (digits.length !== 4 || submitting || verified) return;

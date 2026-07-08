@@ -2,28 +2,19 @@ rules_version = '2';
 
 // stageverify Firestore Security Rules
 // ------------------------------------
-// Access model:
+// Access model (Phase 2 privacy hardening):
 //
-// PUBLIC READ (no auth): deliveries, items, stagingLocations, appSettings
-//   - Mobile scan/check-in flows read delivery data, line items, zone codes,
-//     and global timing config without signing in.
-//   - Vendor PIN sessions: vendorSessions collection (CF Admin SDK only).
-//     Vendor check-in writes (submitCheckin) require active delivery-scoped session
-//     validated via validateVendorSession CF before client write.
-//     vendorPhysicalDropoffConfirmed evidence is written via markVendorDelivered CF only.
+// PUBLIC READ (no auth): stagingLocations, appSettings, shopStockLocationMappings
+//   - Location/branding for pre-PIN receive and pickup location labels only.
+//   - Sensitive delivery/item/job/PO data is CF-mediated (vendor session or pickup token).
 //
-// AUTH REQUIRED READ: jobs, purchaseOrders, statusHistory, pickupEvents
+// AUTH REQUIRED READ: deliveries, items, jobs, purchaseOrders, statusHistory, pickupEvents
 //   - Dispatcher/settings UI and audit views require Firebase Auth.
 //
-// UNAUTHENTICATED WRITES (mobile scan/check-in):
-//   - deliveries: update only — physical facts + vendor workflow status (never picked_up or ready_for_pickup)
-//     Derived readiness summary fields (physicalDropoffComplete*, stagingAssignmentComplete) are CF-only.
-//   - items: update only — qtyReceived, qtyMissing, qtyDamaged, status
-//   - statusHistory: create only — vendor physical transitions (never picked_up or ready_for_pickup)
-//   - pickupEvents / pickupOperations: writes via Admin SDK (recordPickupEvent CF) only
-//   - Readiness promotion: recalculateDeliveryReadiness CF (Admin SDK) only
-//   - Vendor revert (partial|ready_for_pickup|complete → arrived) is the only intentional backward path.
-//   - Terminal states picked_up and installed cannot be reopened without auth.
+// UNAUTHENTICATED WRITES: none on deliveries/items/statusHistory
+//   - Vendor writes via session-gated Cloud Functions (Admin SDK).
+//   - Pickup writes via token-gated Cloud Functions (Admin SDK).
+//   - Readiness promotion: recalculateDeliveryReadiness CF (Admin SDK) only.
 //
 // AUTHENTICATED WRITES (dispatcher/settings UI):
 //   - deliveries: full create/update/delete
@@ -73,96 +64,20 @@ service cloud.firestore {
       ];
     }
 
-    // Vendor physical workflow only — no unauth picked_up or ready_for_pickup promotion.
-    // Same-status updates are allowed (idempotent vendor DELIVERED / re-submit check-in).
-    function unauthDeliveryStatusTransitionAllowed(fromStatus, toStatus) {
-      return fromStatus == toStatus
-        || (fromStatus == 'pending' && toStatus == 'arrived')
-        || (fromStatus == 'shipped' && toStatus == 'arrived')
-        || (fromStatus == 'arrived' && toStatus == 'partial')
-        || (fromStatus == 'partial' && toStatus == 'arrived')
-        || (fromStatus == 'ready_for_pickup' && toStatus == 'arrived')
-        || (fromStatus == 'complete' && toStatus == 'arrived');
-    }
-
-    // Positive vendor physical evidence is CF-only; unauth may clear on vendor revert.
-    function unauthVendorEvidenceWriteAllowed() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let d = request.resource.data;
-      return (!changed.hasAny(['vendorPhysicalDropoffConfirmed'])
-          || d.vendorPhysicalDropoffConfirmed == false)
-        && (!changed.hasAny(['vendorPhysicalDropoffConfirmedAt'])
-          || d.vendorPhysicalDropoffConfirmedAt == null)
-        && (!changed.hasAny(['deliveredAt'])
-          || d.deliveredAt == null)
-        && (!changed.hasAny(['physicalDropoffSource'])
-          || d.physicalDropoffSource == null);
-    }
-
-    function unauthDeliveryUpdateAllowed() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let fromStatus = resource.data.status;
-      let toStatus = request.resource.data.status;
-      return changed.hasOnly([
-          'status',
-          'submittedAt',
-          'updatedAt',
-          'lastCheckmarkAt',
-          'vendorPhysicalDropoffConfirmed',
-          'vendorPhysicalDropoffConfirmedAt',
-          'deliveredAt',
-          'physicalDropoffSource',
-        ])
-        && unauthVendorEvidenceWriteAllowed()
-        && resource.data.keys().hasAll(['status'])
-        && request.resource.data.keys().hasAll(['status'])
-        && isValidDeliveryStatus(fromStatus)
-        && isValidDeliveryStatus(toStatus)
-        && (!changed.hasAny(['status'])
-          || unauthDeliveryStatusTransitionAllowed(fromStatus, toStatus));
-    }
-
-    function unauthItemUpdateAllowed() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let d = request.resource.data;
-      return changed.hasOnly([
-          'qtyReceived',
-          'qtyMissing',
-          'qtyDamaged',
-          'status',
-        ])
-        && (!changed.hasAny(['status']) || isValidItemStatus(d.status))
-        && (!changed.hasAny(['qtyReceived']) || (d.qtyReceived is int && d.qtyReceived >= 0 && d.qtyReceived <= 9999))
-        && (!changed.hasAny(['qtyMissing'])  || (d.qtyMissing  is int && d.qtyMissing  >= 0 && d.qtyMissing  <= 9999))
-        && (!changed.hasAny(['qtyDamaged'])  || (d.qtyDamaged  is int && d.qtyDamaged  >= 0 && d.qtyDamaged  <= 9999));
-    }
-
-    function unauthStatusHistoryCreateAllowed() {
-      let d = request.resource.data;
-      return d.keys().hasAll(['id', 'entityType', 'entityId', 'toStatus', 'actorType', 'createdAt'])
-        && d.entityType == 'delivery_order'
-        && d.actorType == 'vendor'
-        && isValidDeliveryStatus(d.toStatus)
-        && d.toStatus != 'picked_up'
-        && d.toStatus != 'ready_for_pickup'
-        && d.actorName is string
-        && d.actorName.size() <= 128;
-    }
-
     match /deliveries/{deliveryId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create, delete: if isAuthenticated();
-      allow update: if isAuthenticated() || unauthDeliveryUpdateAllowed();
+      allow update: if isAuthenticated();
     }
 
     match /items/{itemId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create, delete: if isAuthenticated();
-      allow update: if isAuthenticated() || unauthItemUpdateAllowed();
+      allow update: if isAuthenticated();
     }
 
     match /jobs/{jobId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
       allow delete: if false;
     }
@@ -198,14 +113,14 @@ service cloud.firestore {
     }
 
     match /purchaseOrders/{poId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
       allow delete: if false;
     }
 
     match /statusHistory/{eventId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() || unauthStatusHistoryCreateAllowed();
+      allow create: if isAuthenticated();
       allow update, delete: if false;
     }
 

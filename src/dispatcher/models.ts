@@ -446,7 +446,7 @@ export interface DeliveryOrder {
   vendorId: string;
   /** Denormalized for public vendor flows when vendors collection is auth-only. */
   vendorName?: string;
-  /** SHA-256 verifier for offline PIN check when verifyVendorPin CF is unreachable. */
+  /** @deprecated Phase 2 — removed from delivery docs; PIN verify is CF-only. */
   vendorPinVerifier?: string;
   purchaseOrderId?: string;
   deliveryDate: string;

@@ -5,11 +5,12 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` ? scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Location-first transition — Phase 1 complete** (spec: `docs/location-first-transition-spec.md` § Phase Tracker — Phase 2 privacy hardening next; Sonnet-gated; explicit Dan approval before rules/CF). Phase 5→6 vendor email ingest pilot remains live in background.
+- Active Phase: **Location-first transition — Phase 2 complete** (privacy hardening: `firestore.rules` auth-only reads on deliveries/items/jobs/POs; session/token-gated CF reads/writes; `vendorPinVerifier` offline fallback removed). Phase 5→6 vendor email ingest pilot remains live in background.
 - **Vendor PIN REVISED to job-scoped (Dan 2026-07-08, D14):** PIN per JOB, not per vendor/company — wrong-spot scan shows only that job's spots; overflow shows only empty unassigned spots. Vendor-scoped visibility REJECTED. Read spec § Job-scoped vendor PIN before Phases 2–4 work.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** since `2026-07-07T01:57:42.389Z` — controlled flag-on test only; 1 matched inbound in Needs Review; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan. Handoff: `HANDOFF_VENDOR_EMAIL_2026-07-07.md`; gotchas: `gotcha-map.json` vendor-reply-ingest-pilot / gmail-push-payload.
 - **Security gate evidence (2026-07-07):** `SECURITY_GATE_AUDIT_2026-07-07.md` — subagent + `security-gate-id` required; do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified; gotcha `security-gate-evidence`.
-- Last shipped: **feat v0.0.25** — Location-first Phase 1: ESL plan rejects occupancy-dynamic QR-flip; additive location-first types; job-level pickup clipboard format; permanent URL locked `#/s?loc=`
+- Last shipped: **feat v0.0.26** — Location-first Phase 2: Firestore privacy hardening; vendor/pickup data behind session/token CFs; offline PIN verifier removed; negative privacy verify script
+- Also shipped: **feat v0.0.25** — Location-first Phase 1: ESL plan rejects occupancy-dynamic QR-flip; additive location-first types; job-level pickup clipboard format; permanent URL locked `#/s?loc=`
 - Also shipped: **fix v0.0.24** — Unmatched Needs Review calmer copy ("Unmatched Email — Needs Review"); Suspicious reserved for spoof/ambiguous; preview strips Body:/Subject: prefix duplication
 - Also shipped: **fix v0.0.23** — Vendor Reply Needs Review calmer copy for matched thread replies; preview block + Show/Hide Original Email; Suspicious label only for unmatched/ambiguous/spoof
 - Also shipped: **fix v0.0.22** — Pre-ingest vendor reply matching hardening (canonical footer Ref only, spoof/conflict → Needs Review; ingest still dark)
@@ -63,7 +64,7 @@
 4. **Inbound Gmail CF + rules deploy** ? `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Location-first Phase 2** — privacy hardening (backend) per `docs/location-first-transition-spec.md` § Phase 2. Sonnet security gate + **explicit Dan approval** before any `firestore:rules` or CF deploy. Phase 1 drift review complete in spec tracker.
+- **Location-first Phase 3** — permanent location entry + vendor scan v2 (`#/s?loc=`) per `docs/location-first-transition-spec.md` § Phase 3. Sign printing blocked on shop map + shelving decision (Jake Korb).
 
 ## Canonical references
 - Handoff: `MINI_LIBRARIAN_HANDOFF.md` | Indexer: `dossier-index.json`, `indexer-memory.json`, `npm run away:next --packet`

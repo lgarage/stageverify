@@ -14,7 +14,6 @@ import {
 import {
   firestoreDataService,
   getAppSettings,
-  getDeliveryDetailsPublic,
   getDeliveryDetailsPublicForVendorReceive,
   mapOccupancyByLocationId,
   prefetchVendorReceiveDelivery,
@@ -667,7 +666,7 @@ export function ReceivingPage() {
     const deliveryId = deliveryDetails.delivery.id;
     if (enrichedDeliveryIdRef.current === deliveryId) return;
     enrichedDeliveryIdRef.current = deliveryId;
-    void getDeliveryDetailsPublic(deliveryId).then((full) => {
+    void getDeliveryDetailsPublicForVendorReceive(deliveryId).then((full) => {
       if (full) setDeliveryDetails(full);
     });
   }, [step, deliveryDetails]);

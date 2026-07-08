@@ -10,7 +10,6 @@ import { resolve } from "path";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
-import { computeVendorPinVerifier } from "./vendorPinVerifier.mjs";
 
 function loadEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -77,7 +76,6 @@ for (const delivery of deliveries) {
     doc(db, "deliveries", delivery.id),
     {
       vendorName: delivery.vendorName,
-      vendorPinVerifier: computeVendorPinVerifier(delivery.id, delivery.pin),
       updatedAt: now,
     },
     { merge: true },

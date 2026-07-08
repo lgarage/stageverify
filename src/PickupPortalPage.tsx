@@ -3,11 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
-  getDeliveryDetailsPublic,
   loadPickupReadyDeliveriesPublic,
   markDeliveryInstalled,
   reportMaterialIssue,
 } from "./dispatcher/firestoreService";
+import { getPickupPortalDataClient } from "./phase2CallableClients";
 import {
   getAllStagingLocationIds,
   ISSUE_RESOLUTION_TYPE_LABEL,
@@ -688,19 +688,26 @@ function JobPickupScreen({
   checkedRef.current = checked;
 
   const loadJobDeliveries = useCallback(async () => {
+    if (!pickupToken) {
+      setError("Invalid or expired pickup link.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     initialHighlightDone.current = false;
 
     try {
-      const [settings, loaded, stagingLocs] = await Promise.all([
+      const [settings, portalData] = await Promise.all([
         getAppSettings(),
-        loadPickupReadyDeliveriesPublic(jobId, {
+        getPickupPortalDataClient({
+          token: pickupToken,
+          jobId,
           includeDeliveryId: highlightDeliveryId ?? undefined,
         }),
-        firestoreDataService.listStagingLocations(),
       ]);
-      setAllStagingLocations(stagingLocs);
+      const loaded = portalData.deliveries;
+      setAllStagingLocations(portalData.stagingLocations);
       setAutoSubmitMinutes(settings.autoSubmitMinutes);
       if (settings.autoSubmitMinutes > 0) {
         setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
@@ -738,7 +745,20 @@ function JobPickupScreen({
     } finally {
       setLoading(false);
     }
-  }, [jobId, highlightDeliveryId]);
+  }, [jobId, highlightDeliveryId, pickupToken]);
+
+  const refreshPickupDelivery = useCallback(
+    async (deliveryId: string) => {
+      if (!pickupToken) return null;
+      const { deliveries } = await getPickupPortalDataClient({
+        token: pickupToken,
+        jobId,
+        includeDeliveryId: deliveryId,
+      });
+      return deliveries.find((d) => d.delivery.id === deliveryId) ?? null;
+    },
+    [jobId, pickupToken],
+  );
 
   const highlightCard = useCallback((deliveryId: string) => {
     setPulsingId(deliveryId);
@@ -793,7 +813,7 @@ function JobPickupScreen({
           pickupToken ?? undefined,
         );
         setChecked((prev) => new Set([...prev, deliveryId]));
-        const refreshed = await getDeliveryDetailsPublic(deliveryId);
+        const refreshed = await refreshPickupDelivery(deliveryId);
         if (refreshed) {
           setDeliveries((prev) =>
             prev.map((d) =>
@@ -813,7 +833,7 @@ function JobPickupScreen({
         });
       }
     },
-    [notes, pickupToken],
+    [notes, pickupToken, refreshPickupDelivery],
   );
 
   const handleMarkInstalled = useCallback(async (deliveryId: string) => {
@@ -825,8 +845,8 @@ function JobPickupScreen({
     });
 
     try {
-      await markDeliveryInstalled(deliveryId);
-      const refreshed = await getDeliveryDetailsPublic(deliveryId);
+      await markDeliveryInstalled(deliveryId, { jobId, pickupToken: pickupToken ?? undefined });
+      const refreshed = await refreshPickupDelivery(deliveryId);
       if (refreshed) {
         setDeliveries((prev) =>
           prev.map((d) =>
@@ -848,7 +868,7 @@ function JobPickupScreen({
         return next;
       });
     }
-  }, []);
+  }, [jobId, pickupToken, refreshPickupDelivery]);
 
   const toggleShopStockItem = useCallback((key: string) => {
     setCheckedShopStockKeys((prev) => {
@@ -1106,12 +1126,14 @@ function JobPickupScreen({
   );
 
   const reloadDeliveries = useCallback(async () => {
+    if (!pickupToken) return [];
     const loaded = await loadPickupReadyDeliveriesPublic(jobId, {
+      pickupToken,
       includeDeliveryId: highlightDeliveryId ?? undefined,
     });
     setDeliveries(loaded);
     return loaded;
-  }, [jobId, highlightDeliveryId]);
+  }, [jobId, highlightDeliveryId, pickupToken]);
 
   const openIssueModal = useCallback((deliveryId: string) => {
     setIssueModalDeliveryId(deliveryId);

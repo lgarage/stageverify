@@ -35,6 +35,14 @@ import {
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
 import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
+import { getVendorReceiveDetails } from "./getVendorReceiveDetails";
+import { resolveReceiveZoneLookup } from "./resolveReceiveZoneLookup";
+import { getPickupPortalData } from "./getPickupPortalData";
+import { getVendorStagingOccupancy } from "./getVendorStagingOccupancy";
+import { submitVendorCheckin } from "./submitVendorCheckin";
+import { updateVendorItemQty } from "./updateVendorItemQty";
+import { updateVendorDeliveryStatus } from "./updateVendorDeliveryStatus";
+import { markPickupDeliveryInstalled } from "./markPickupDeliveryInstalled";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -162,6 +170,14 @@ export {
   recalculateDeliveryReadiness,
   markVendorDelivered,
   assignVendorStagingLocation,
+  getVendorReceiveDetails,
+  resolveReceiveZoneLookup,
+  getPickupPortalData,
+  getVendorStagingOccupancy,
+  submitVendorCheckin,
+  updateVendorItemQty,
+  updateVendorDeliveryStatus,
+  markPickupDeliveryInstalled,
   processInboundVendorEmail,
   initiateGmailOAuth,
   completeGmailOAuth,

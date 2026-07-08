@@ -10,7 +10,6 @@ import { resolve } from "path";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, doc, writeBatch, deleteField } from "firebase/firestore";
-import { computeVendorPinVerifier } from "./vendorPinVerifier.mjs";
 
 function loadEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -75,7 +74,6 @@ const deliveries = {
     jobId: "job-2",
     vendorId: "vendor-1",
     vendorName: "Johnstone Supply",
-    vendorPinVerifier: computeVendorPinVerifier("delivery-2", "1234"),
     purchaseOrderId: "po-4",
     deliveryDate: "2026-06-01",
     stagingLocationId: deleteField(),
@@ -90,7 +88,6 @@ const deliveries = {
     jobId: "job-3",
     vendorId: "vendor-1",
     vendorName: "Johnstone Supply",
-    vendorPinVerifier: computeVendorPinVerifier("delivery-3", "1234"),
     purchaseOrderId: "po-5",
     deliveryDate: "2026-06-02",
     stagingLocationId: "staging-4",
@@ -108,7 +105,6 @@ const deliveries = {
     jobId: "job-1",
     vendorId: "vendor-1",
     vendorName: "Johnstone Supply",
-    vendorPinVerifier: computeVendorPinVerifier("delivery-demo-vendor-1", "1234"),
     purchaseOrderId: "po-demo-vendor-1",
     deliveryDate: "2026-06-02",
     stagingLocationId: deleteField(),
@@ -123,7 +119,6 @@ const deliveries = {
     jobId: "job-2",
     vendorId: "vendor-1",
     vendorName: "Johnstone Supply",
-    vendorPinVerifier: computeVendorPinVerifier("delivery-demo-vendor-2", "1234"),
     purchaseOrderId: "po-6",
     deliveryDate: "2026-06-03",
     stagingLocationId: deleteField(),
