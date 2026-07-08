@@ -1,5 +1,9 @@
 # Harness Cleanup Spec — 5 Phases (Composer 2.5 execution)
 
+> **AMENDED 2026-07-08 (post Grok 4.5 critical review).** Executor: re-read this spec at the
+> START of each phase — do not work from a cached copy. Phase 1 is unchanged (and already
+> EXECUTED 2026-07-08, commit `e09aeca` — do not re-run); Phases 2–5 have material changes.
+
 > **Planned by Fable 5, approved by Dan 2026-07-08. Executor: Composer 2.5.**
 > This spec is mechanical on purpose. Execute steps EXACTLY as written. Zero judgment calls.
 > If anything here does not match the repo, STOP and report — do not improvise.
@@ -52,6 +56,9 @@ one general rule each; archive the specifics.
   `Last shipped: **…**` line; (b) `librarian-lessons-index.json` startLine/endLine must match
   `LIBRARIAN_LESSONS.md` `##` anchors — recompute after rotation; (c) warns >35 lines
   CURRENT_STATE, >70 MEMORY.
+- **aecs:** `.cursor/aecs/installed-manifest.json` exists (Phase 2 scaffold, committed 2026-06-05,
+  `cdf7bf8`) — installed as scaffold, not operationally used; leave `.cursor/aecs/` untouched this
+  cleanup.
 - All 15 `.cursor/rules/*.mdc` files named in Phases 2–5 exist with these measured line counts:
   ship-loop 123, composer-orchestrator 317, time-awareness 206, parallel-agent-strategy 244,
   security-review-gate 73, agent-ops 48, best-reply-gate 89, Final-Answer-Review-Gate 36,
@@ -60,7 +67,7 @@ one general rule each; archive the specifics.
 
 ---
 
-# PHASE 1 — Pure moves, zero behavior change
+# PHASE 1 — Pure moves, zero behavior change ✅ EXECUTED 2026-07-08 (commit `e09aeca`) — do not re-run
 
 **Commit message (exact):**
 `chore: archive one-off reports, rotate status files, trim CURRENT_STATE to cap`
@@ -198,16 +205,18 @@ Loop unchanged: build → verify → commit → push → `npm run deploy` (when 
 
 ### High-risk (STOP before implementation)
 
-**Paths/changes:** `firestore.rules` (any diff, including comment-only), `functions/**` when deploying, auth/route guards, secrets/config (`firebase.json`, `.github/workflows/`, env), permissions, billing, data deletion, schema/data migrations, Gmail watch/Pub/Sub, `functions/package.json`.
+**Paths/changes:** `firestore.rules` (any diff, including comment-only), `functions/**` when deploying, auth/route guards, secrets/config (`firebase.json`, `.github/workflows/`, env), permissions, billing, data deletion, schema/data migrations, Gmail watch/Pub/Sub, `functions/package.json`; **any `src/` file implementing auth, route guards, session/token handling, or login logic** — the `src/` path prefix alone does NOT make a change fast-safe; **root `package.json` edits to the `scripts` section or deploy wiring** (e.g. the `deploy` script, build commands).
 
 Protocol: **STOP before implementation** — state plan + tier, wait for Dan's explicit approval. After approval: implement → **Sonnet security gate before push** (unchanged, orthogonal — still mandatory for `backend-write-critical` regardless of approval) → push → deploy **only if approval covered deploy**.
+
+**When tier is ambiguous, classify high-risk and ask — misclassifying down is the failure mode.**
 
 ### Edge rulings
 
 - CF read-path change: implementation **fast-safe**; `firebase deploy --only functions` **high-risk**.
-- Auth/session/token read logic: **high-risk entirely**.
+- Auth/session/token read logic: **high-risk entirely** (wherever it lives, including `src/`).
 - `firestore.rules` comment-only diff: **high-risk** (file-class rule, no loophole).
-- Root `package.json` dep bump: **fast-safe**; `functions/package.json` or firebase SDK major: **high-risk**.
+- Root `package.json` ordinary dependency version bump: **fast-safe**; root `package.json` `scripts`/deploy wiring, `functions/package.json`, or firebase SDK major: **high-risk**.
 - Existing hard stops stack: security gate **HIGH unfixed** or **NOT RUN** blocks push regardless of tier.
 
 **Workspace wins:** for fast-safe changes this rule overrides the generic Cursor user rule "only commit when requested" — never leave fast-safe changes uncommitted or undeployed. **Authoritative:** this file is the source of truth for commit, push, deploy, production verification, security gate timing, and skip triggers; other rules cross-reference here.
@@ -328,7 +337,17 @@ Merges `minew-nda-compliance.mdc` (91) + `vendor-phone-qr.mdc` (20).
   (`grep` each deleted filename; expect hits in `composer-orchestrator.mdc`, `MEMORY.md`,
   `FAST_UI_PROMPT.md`, `AWAY_BUILD_PROTOCOL.md`, docs).
 
-## 3.8 Validate + ship (rules/docs-only)
+## 3.8 Grep gate (mechanical dedup verification — REQUIRED before commit)
+
+- [ ] Grep repo-wide (exclude `node_modules/`, `dist/`, `archives/`) for the security-gate Task
+  invocation block (`subagent_type: "security-review"`) and for `security-gate-id` requirements:
+  the FULL invocation block must appear in exactly ONE file — `.cursor/rules/security-review-gate.mdc`.
+  All other occurrences must be ≤3-line pointers.
+- [ ] Grep for `2-fail` and `diagnose-only`: the full rule must appear in exactly ONE file —
+  `.cursor/rules/model-gates.mdc`. All other occurrences must be ≤3-line pointers.
+- [ ] If either count is wrong, fix before committing — do not ship with duplicates.
+
+## 3.9 Validate + ship (rules/docs-only)
 
 - [ ] `npm run away:validate` pass; `npm run build` pass; `.cursor/rules/` now has 9 files
   (15 − 9 deleted + 3 created); net always-applied lines sharply down.
@@ -336,41 +355,62 @@ Merges `minew-nda-compliance.mdc` (91) + `vendor-phone-qr.mdc` (20).
 
 ---
 
-# PHASE 4 — On-demand conversion (ONLY after Dan's observation window)
+# PHASE 4 — Trim time-awareness + parallel-agent-strategy IN PLACE (alwaysApply KEPT)
+
+**AMENDED 2026-07-08:** the original on-demand `alwaysApply: false` flip is CANCELLED — heuristic
+on-demand attachment can silently drop binding behaviors (budget filters, scout fan-out) with no
+error and no test. Both files STAY `alwaysApply: true`; this phase only deletes redundant prose.
 
 **Gate:** Dan has confirmed 2–3 normal work sessions after Phase 3 with no regressions. Do not
 start without that confirmation in the current session's prompt.
 
 **Commit message (exact):**
-`chore: convert time-awareness and parallel-agent-strategy to on-demand rules`
+`chore: trim time-awareness and parallel-agent-strategy in place (alwaysApply kept)`
 
-**FORBIDDEN in Phase 4:** deleting either file; changing rule semantics; touching any other rule
-file except the `composer-orchestrator.mdc` pointer lines below.
+**FORBIDDEN in Phase 4:** flipping `alwaysApply` on ANY file; deleting either file; changing any
+frontmatter; changing rule semantics — deletions of examples/duplication only; touching any other
+rule file.
 
-- [ ] `.cursor/rules/time-awareness.mdc` frontmatter: `alwaysApply: true` → `alwaysApply: false`;
-  replace `description:` with: `Load when Dan states a deadline, duration, or time window; when asked what fits in remaining time; or for away/overnight planning.`
-- [ ] `.cursor/rules/parallel-agent-strategy.mdc` frontmatter: `alwaysApply: true` →
-  `alwaysApply: false`; replace `description:` with: `Load for planning questions ("what's next"), before dispatching any scout or domain executor, and for multi-domain items.`
-- [ ] Add 2–4 pointer lines to `composer-orchestrator.mdc` core (Session Start area) telling the
-  agent when to load each (mirror the two descriptions above).
-- [ ] While converting, trim worked examples: time-awareness 206 → ~180 (cut Wrong-vs-right
-  duplicate examples, keep one pair); parallel-agent-strategy 244 → ~220 (cut Examples table +
-  redundant wrong/right prose, keep hard stops + pipelines intact).
-- [ ] **Rollback plan (state in report):** flip the two frontmatter fields back.
+- [ ] `.cursor/rules/time-awareness.mdc` 206 → ~100 lines. KEEP the binding rules: budget-vs-typical
+  filter (filter on budget only), never offer out-of-budget CTAs, the Remaining time options
+  required-section skeleton, session-mode fork (A/B), stated-window tracking, and the FULL
+  calibration anchor table (category budgets/typicals). DELETE: the worked Wrong-vs-right example
+  blocks, the duplicated example markdown snippets, and prose paragraphs restating rules already
+  expressed in the tables.
+- [ ] `.cursor/rules/parallel-agent-strategy.mdc` 244 → ~120 lines. KEEP: roles table, default
+  pipeline, the full hard-stops list, planning question protocol skeleton (triggers, scout domains
+  table, orchestrator pipeline order), scout prompt boilerplate, file-ownership batch rules
+  (when-to-use / when-NOT / coordinator-only paths). DELETE: worked examples, wrong-vs-right
+  sections, and paragraphs duplicating `composer-orchestrator.mdc` content.
+- [ ] **Rollback plan (state in report):** `git revert <hash>` — no frontmatter changed.
 - [ ] `away:validate` + `build` pass → commit (exact message) → push. No deploy, no version bump.
+
+**Deferred — NOT part of this cleanup:** converting these two files to on-demand
+(`alwaysApply: false` + description triggers) may be revisited later ONLY after on-demand rule
+attachment is proven reliable in this Cursor setup. Do not implement it in any phase of this spec.
 
 ---
 
 # PHASE 5 — Orchestrator slim (highest risk — LAST, only after Phase 4 observation)
 
-**Gate:** Phase 4 shipped AND its observation window passed (time-awareness still loads when Dan
-states a window — see regression watch below). Do not start without Dan's go.
+**Gate:** Phase 4 shipped AND its observation window passed (timed sessions still produce
+"Remaining time options"; planning questions still fan out scouts — see regression watch below).
+Do not start without Dan's go.
 
 **Commit message (exact):**
 `chore: slim composer-orchestrator to kernel, move UI-verify detail to FAST_UI_PROMPT`
 
 **FORBIDDEN in Phase 5:** deleting any obligation without relocating it; touching rule semantics
-of other files; editing `src/`/`functions/`.
+of other files; editing `src/`/`functions/`; flipping `alwaysApply` on any file.
+
+**MUST REMAIN ALWAYSAPPLY — never move these to on-demand docs (line targets bend before these get cut):**
+
+- UI-verify kernel: UI change ⇒ matching `verify:*` script or before/after screenshots BEFORE
+  "done", + auth via `playwright/.auth/state.json`.
+- Security-gate pointer and its hard stop (HIGH unfixed / NOT RUN blocks push).
+- Session-start hot-tier steps (`CURRENT_STATE.md` + `MEMORY.md` first).
+- The two-tier ship table (fast-safe / high-risk classifier).
+- The post-edit build gate (`npm run build` clean before done).
 
 - [ ] `composer-orchestrator.mdc` 317 → ~110:
   - Extract § UI Verification Protocol + Playwright command reference (~95 lines) into
@@ -380,10 +420,12 @@ of other files; editing `src/`/`functions/`.
     leave a 1-line pointer.
   - Delete § Session Defaults paragraphs that duplicate ship-loop (ship loop, deploy, git
     commits+push) → 1-line pointers to `ship-loop.mdc`.
-- [ ] **End-state check (must hold before commit):** `.cursor/rules/` contains exactly 9 files —
-  7 alwaysApply ≈ 450 lines total (ship-loop ~105, composer-orchestrator ~110, model-gates ~55,
-  security-review-gate ~45, answer-quality ~40, agent-ops ~30, product-guardrails ~25) + 2
-  on-demand (time-awareness ~180, parallel-agent-strategy ~220). Report actual counts.
+- [ ] **End-state check (must hold before commit):** `.cursor/rules/` contains exactly 9 files,
+  ALL `alwaysApply: true` — 7 core ≈ 450 lines (ship-loop ~105, composer-orchestrator ~110,
+  model-gates ~55, security-review-gate ~45, answer-quality ~40, agent-ops ~30,
+  product-guardrails ~25) + 2 trimmed (time-awareness ~100, parallel-agent-strategy ~120) →
+  total ≈ 670–700 always-applied lines, down from 1,611 planned / 1,596 measured (~57% reduction).
+  Report actual counts.
 - [ ] `away:validate` + `build` pass → commit (exact message) → push. No deploy, no version bump.
 
 ---
@@ -397,5 +439,6 @@ of other files; editing `src/`/`functions/`.
 
 - `learning-pending.json` auto-captures verify/deploy failures — check it after each phase.
 - `verify:dispatcher-nav` catches missed version bumps.
-- Missing "Remaining time options" sections in timed sessions after Phase 4 = time-awareness
-  failed to load on-demand → revert Phase 4 (flip frontmatter back) and report.
+- Missing "Remaining time options" sections in timed sessions, or planning questions answered
+  without scout fan-out, after Phase 4 = the trim cut a binding rule → `git revert` the Phase 4
+  commit and report.
