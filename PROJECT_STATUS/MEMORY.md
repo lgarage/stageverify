@@ -15,9 +15,7 @@
 
 Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT_STATE.md` immediate next + that item’s scope in `away-list.json`.
 
-- Do **not** infer the next build item from `docs/roadmap.md` LATER/NEXT narrative; optional work sizing: `npm run away:preflight`.
-- If the away queue is empty/blocked: the active initiative is CURRENT_STATE.md Active Phase → currently the location-first transition; read `docs/location-first-transition-spec.md` § Phase Tracker for current phase + next action.
-- **Full program status** (Phase 3/4+, LATER): separate question — read `roadmap.md` + `project_state.md`.
+- Do **not** infer the next build item from `docs/roadmap.md` LATER/NEXT narrative (`npm run away:preflight` for sizing). Queue empty/blocked → `docs/location-first-transition-spec.md` § Phase Tracker. **Full program status** (Phase 3/4+, LATER) → `roadmap.md` + `project_state.md`.
 
 ## Away / sleep workflow (mandatory — 4 phases)
 

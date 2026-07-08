@@ -7,21 +7,21 @@
       "id": "ship-verify",
       "title": "Ship / verify",
       "anchor": "## Ship / verify",
-      "startLine": 5,
-      "endLine": 10
+      "startLine": 7,
+      "endLine": 12
     },
     {
       "id": "dispatcher-ui",
       "title": "Dispatcher UI",
       "anchor": "## Dispatcher UI",
-      "startLine": 12,
-      "endLine": 16
+      "startLine": 13,
+      "endLine": 17
     },
     {
       "id": "invoice-parser",
       "title": "Invoice / parser",
       "anchor": "## Invoice / parser",
-      "startLine": 18,
+      "startLine": 19,
       "endLine": 23
     },
     {
@@ -29,21 +29,21 @@
       "title": "Process / agents",
       "anchor": "## Process / agents",
       "startLine": 25,
-      "endLine": 40
+      "endLine": 38
     },
     {
       "id": "vendor-email-reply",
       "title": "Vendor email / reply ingest",
       "anchor": "## Vendor email / reply ingest",
-      "startLine": 42,
-      "endLine": 50
+      "startLine": 40,
+      "endLine": 45
     },
     {
       "id": "timing-pointer",
       "title": "Timing (pointer only)",
       "anchor": "## Timing (pointer only)",
-      "startLine": 52,
-      "endLine": 54
+      "startLine": 47,
+      "endLine": 49
     }
   ],
   "entries": [

@@ -147,7 +147,7 @@ Documented in `ship-loop.mdc` + `composer-orchestrator.mdc`:
 |------|------|-------|--------|
 | `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md` | Audit (archived) | Layer 2 history | Reference only |
 | `PROJECT_STATUS/archives/AGENT_OPS_PHASE2.md` | Stale plan | Archive | Candidate removal after AECS supersedes |
-| `PROJECT_STATUS/security-report-2026-06-02.md` | Security episodic | Layer 3 | Keep |
+| `PROJECT_STATUS/archives/security-report-2026-06-02.md` | Security episodic | Layer 3 | Keep |
 | `docs/archives/*` | Historical product docs | Layer 3 | Keep |
 
 ### 1.11 External / home-dir references

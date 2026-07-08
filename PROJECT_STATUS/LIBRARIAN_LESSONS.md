@@ -1,77 +1,51 @@
 # Librarian lessons learned (SSOT)
 
+> **Compression rule (Dan 2026-07-08):** this file keeps only compressed, reusable rules that change future behavior — never a log of every failure. Distill specifics into general rules; archive the specifics to `archives/librarian-lessons-archive.md`.
+
 > **Canonical rolling log** — mini librarian owns agent lessons. **Feeds (not duplicates):** `gotcha-map.json` (task triggers), `MODEL_DOSSIER.md` § agent-lessons (domain depth), `estimate-log.md` (timing audit only).
 
 ## Ship / verify
 
-1. **Deploy + prod verify are one gate.** gh-pages can serve a stale bundle while local verify PASS — always `npm run deploy` then prod scripts after UI ship.
+1. **Verify deployment completed before marking done.** gh-pages branch push ≠ live — always `npm run deploy`, wait for GitHub Pages build status `built`, then prod scripts after UI ship.
 2. **Windows prod verify:** use `cmd /c "set STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify&& npm run verify:…"` — Unix `VAR=… cmd` prefix fails in PowerShell.
 3. **Do not say "fixed" without Playwright.** Build alone is insufficient; interactive flows need verify scripts. Detail: dossier § agent-lessons.
-- gh-pages branch push ≠ live: npm run deploy must wait for GitHub Pages build status built (legacy build can error after push succeeds).
 
 ## Dispatcher UI
 
 4. **Staging action rows:** missing `stagingCode` alone triggers the dark-orange action row — not only pending/readiness (away-089 tighten arc).
 5. **Copy Pickup clipboard:** short format omits status/items/qty — customer-facing fields only (job, vendor, PO, link).
-17. **Dispatcher portal refresh:** Refresh Now on any tab runs `DispatcherPortalProvider.refreshAll()` — Gmail sync + shared cache (invoices, vendors, zones) + `refreshGeneration`; all tabs read same data. Not per-page local fetch only.
+6. **Dispatcher portal refresh:** Refresh Now on any tab runs `DispatcherPortalProvider.refreshAll()` — Gmail sync + shared cache (invoices, vendors, zones) + `refreshGeneration`; all tabs read same data. Not per-page local fetch only.
 
 ## Invoice / parser
 
-6. **Johnstone parser:** backorder-safe fulfillment/status; gate with `test:invoice-parser` and batch fixtures before ship.
-15. **Invoice review UX:** Delivery Overview "Needs Review" = offline email fixtures (`emailFixtures.ts` / `getProposedEmailUpdates`), NOT `vendorInvoiceImports`. Johnstone PDF invoices → `/#/invoice-review` only; approve/reject there only. Needs Review has no Approve button by design.
-16. **Gmail sync banner:** Sync processed/skipped counts = `inboundEmailProcessing` docs, NOT `vendorInvoiceImports` rows. Banner distinguishes scanned vs queued (`invoicesQueued`, `skippedByStatus`). Empty Invoice Review after sync → check `no_pdf`, parse fail, pending filter, GCP Pub/Sub blocker #4.
-19. **Johnstone S/O 4046362 / U+XX00:** tabular header parsing; pdf-parse custom-font encoding; issue-import when Invoice # missing; Approve blocked server+UI.
+7. **Johnstone parser:** backorder-safe fulfillment/status; gate with `test:invoice-parser` and batch fixtures before ship.
+8. **Invoice review UX:** Delivery Overview "Needs Review" = offline email fixtures (`emailFixtures.ts` / `getProposedEmailUpdates`), NOT `vendorInvoiceImports`. Johnstone PDF invoices → `/#/invoice-review` only; approve/reject there only. Needs Review has no Approve button by design.
+9. **Gmail sync banner:** Sync processed/skipped counts = `inboundEmailProcessing` docs, NOT `vendorInvoiceImports` rows. Banner distinguishes scanned vs queued (`invoicesQueued`, `skippedByStatus`). Empty Invoice Review after sync → check `no_pdf`, parse fail, pending filter, GCP Pub/Sub blocker #4.
 
 ## Process / agents
 
-7. **2-fail Sonnet rule:** 1st fail → Composer self-trace; 2nd fail on same task → Sonnet diagnose-only (no edits); Composer implements after findings.
-8. **`away:validate` before memory commits** — `CURRENT_STATE.md` requires `Last shipped: **away-NNN**`; narrative after the id is OK.
-9. **Gotcha supplements this file** — `npm run context:gotcha -- --task "…"` on task match; read here for rolling lessons, dossier § for domain depth.
-- **Lessons index + slice CLI:** type/subtype maps to LIBRARIAN_LESSONS section; away:validate fails on index drift; gotcha prepends matched section.
-10. **Security gate on merged commits** — code on main → empty branch diff; use `git diff <commit>^..<commit>` or `git show --stat`; never claim Sonnet PASS without real security-review subagent.
-11. **One deploy worker** — after gate: coordinator serially `firebase functions:list` → deploy only if missing → verify; no parallel deploy subagents; interrupt duplicates on request.
-12. **Verify ship state before gate/deploy** — confirm `git rev-parse HEAD` vs `origin/main` and `firebase functions:list` for expected CF names; committed ≠ deployed.
-13. **Temp secret files** — `.tmp-*secret*` etc.: add to `.gitignore` at creation; delete before session end.
-14. **Best reply / handoff prompt** — gather → draft → challenge → revise → present once; **handoffs min 2 internal passes**, best copy-paste block on **first** present (never v1 + "want improvements?"); read away-list + away-status head, verify npm scripts in package.json, self-contained scope + real away-NNN ids + `startedAt` placeholder; execute prompts need "go build it"; backend scope → Sonnet gate before push (`best-reply-gate.mdc`).
-18. **Browser extension console:** "Message channel closed" / "listener indicated asynchronous response" — not StageVerify; Chrome extension noise. Verify incognito without extensions.
+10. **2-fail Sonnet rule:** 1st fail → Composer self-trace; 2nd fail on same task → Sonnet diagnose-only (no edits); Composer implements after findings.
+11. **`away:validate` before memory commits** — `CURRENT_STATE.md` requires `Last shipped: **…**`; narrative after the id is OK.
+12. **Gotcha supplements this file** — `npm run context:gotcha -- --task "…"` on task match; read here for rolling lessons, dossier § for domain depth.
+13. **Lessons index + slice CLI:** type/subtype maps to LIBRARIAN_LESSONS section; away:validate fails on index drift; gotcha prepends matched section.
+14. **Security gate on merged commits** — code on main → empty branch diff; use `git diff <commit>^..<commit>` or `git show --stat`; never claim Sonnet PASS without real security-review subagent.
+15. **One deploy worker** — after gate: coordinator serially `firebase functions:list` → deploy only if missing → verify; no parallel deploy subagents; interrupt duplicates on request.
+16. **Verify ship state before gate/deploy** — confirm `git rev-parse HEAD` vs `origin/main` and `firebase functions:list` for expected CF names; committed ≠ deployed.
+17. **Temp secret files** — `.tmp-*secret*` etc.: add to `.gitignore` at creation; delete before session end.
+18. **Best reply / handoff prompt** — gather → draft → challenge → revise → present once; **handoffs min 2 internal passes**, best copy-paste block on **first** present (never v1 + "want improvements?"); read away-list + away-status head, verify npm scripts in package.json, self-contained scope + real away-NNN ids + `startedAt` placeholder; execute prompts need "go build it"; backend scope → Sonnet gate before push (`best-reply-gate.mdc`).
+19. **Browser extension console:** "Message channel closed" / "listener indicated asynchronous response" — not StageVerify; Chrome extension noise. Verify incognito without extensions.
 20. **Inbound CF writes:** firestoreSafeValue strips undefined before review writes; Refresh Now reprocesses cached-text reparse; reprocess must not overwrite approved/rejected `vendorInvoiceImports` rows; Sonnet security-review Task before CF push.
-27. **Security gate evidence standard** — report block: `security_gate_id`, reviewer/subagent, claimed model, `actual model invocation evidence: yes/no/unknown`, evidence path, verdict, limitations, `production decision affected`. Full spec: `SECURITY_GATE_AUDIT_2026-07-07.md`.
-28. **Do not write "Sonnet PASS"** unless actual Sonnet model invocation evidence exists — `security-gate-id` + subagent transcript required; UUID alone ≠ verified independent Sonnet (RC-3 default `unknown`). Composer/checklist or away-status note without Task UUID = NOT RUN.
-29. **Fable 5 explicit Task only** — `model: claude-fable-5-thinking-high` via Task; "Fable-style" narrative review ≠ Fable 5 verdict; Fable never ran in Jul 7 audit (retention block).
+21. **Security gate evidence standard** — report block: `security-gate-id`, reviewer/subagent, claimed model, `actual model invocation evidence: yes/no/unknown`, evidence path, verdict, limitations, `production decision affected`. Do NOT write Sonnet PASS or Fable verdict without invocation evidence; Fable 5 requires explicit Task — Fable-style ≠ Fable 5. Full spec: `PROJECT_STATUS/archives/SECURITY_GATE_AUDIT_2026-07-07.md`.
 
 ## Vendor email / reply ingest
 
-21. **Controlled pilot only:** reply ingest is not broad production — verify `emailReplyIngestEnabled` + `emailReplyIngestSince` on `appSettings/config` and report both before any ingest work; do NOT flip flag without Dan explicit go/rollback.
-22. **Push ingest broken:** `gmailInboxPushIngest` logs `unparseable push payload — skipping` — use Refresh Now / `syncInboundGmail` / `triggerInboundGmailSyncCallable` for controlled tests.
-23. **Sync 404 noise:** Gmail message `19f3a2e9dfccab1e` 404 on every manual sync is orphan history noise — not a reply-ingest blocker.
-24. **Test email accounts:** `test@stageverify.dev` has no MX — never use for ingest tests; prod Playwright uses `STAGEVERIFY_TEST_EMAIL`; bot inbox is `svbotmail@gmail.com`.
-25. **Thread hygiene:** do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use; old `no_pdf` docs are NOT reprocessed — fresh replies must be after `emailReplyIngestSince`.
-26. **Needs Review tier:** matched vendor replies → "Vendor Reply — Needs Review" (calm copy v0.0.23); Suspicious only for unmatched/ambiguous/spoof. Reply ingest must NOT mutate delivery status or create delivery shells.
-30. **Vendor email security evidence:** controlled behavior + wrong-thread negative tests passed — safe for controlled testing; independent Sonnet model execution for CF/rules ships **unverified** (RC-3). Before real vendor pilot: verified independent review OR label ship checklist/subagent-only with `production decision affected: yes`.
+22. **Controlled pilot only:** reply ingest is not broad production — verify `emailReplyIngestEnabled` + `emailReplyIngestSince` on `appSettings/config` and report both before any ingest work; do NOT flip flag without Dan explicit go/rollback.
+23. **Push ingest broken:** `gmailInboxPushIngest` logs `unparseable push payload — skipping` — use Refresh Now / `syncInboundGmail` / `triggerInboundGmailSyncCallable` for controlled tests.
+24. **Thread hygiene:** do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use; old `no_pdf` docs are NOT reprocessed — fresh replies must be after `emailReplyIngestSince`.
+25. **Needs Review tier:** matched vendor replies → "Vendor Reply — Needs Review" (calm copy v0.0.23); Suspicious only for unmatched/ambiguous/spoof. Reply ingest must NOT mutate delivery status or create delivery shells.
 
 ## Timing (pointer only)
 
 Actual elapsed minutes live in **`PROJECT_STATUS/estimate-log.md`** only (Dan approval → completion report). Do not duplicate timing here.
-
----
-
-## Jul 3 2026 session
-
-- **Stale gh-pages:** code at b2e60af, prod still on 12044c2 until redeploy — prod verify caught it (lesson #1).
-- **Staging rows + short clipboard** shipped same session (lessons #4–5).
-- **Dan-to-done timing** + estimate-log subtype taxonomy — timing SSOT in estimate-log only.
-- **2-fail Sonnet escalation** rule shipped (replaced 3-fail); lesson #7.
-
-## Jul 4 2026 session
-
-- **Invoice review vs Needs Review:** agents confused offline email fixtures with `vendorInvoiceImports` — lessons #15–16.
-- **Gmail sync banner vs invoice queue:** processed/skipped counts from `inboundEmailProcessing`, not import rows — lesson #16.
-- **Dispatcher Refresh Now:** shared `refreshAll()` across tabs, not per-page fetch — lesson #17.
-- **Chrome extension console noise:** not SV bugs — lesson #18.
-
-## Jul 7 2026 session
-
-- **Vendor reply ingest overnight audit:** flag ON for controlled pilot; push ingest broken; poll/manual sync works; gotcha-map triggers vendor-reply-ingest-pilot / gmail-push-payload / gmail-sync-404-noise / vendor-email-test-account — lessons #21–26.
-- **Security gate evidence audit:** `SECURITY_GATE_AUDIT_2026-07-07.md`; gotcha `security-gate-evidence`; lessons #27–30 — do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified.
 
 Archive when active body exceeds ~40 lines: `PROJECT_STATUS/archives/librarian-lessons-archive.md`

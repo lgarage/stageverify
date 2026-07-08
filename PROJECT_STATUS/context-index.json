@@ -92,7 +92,7 @@
       "concern": "token efficiency",
       "aliases": ["librarian", "indexer", "context packet"],
       "dossierTags": ["index"],
-      "files": ["PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md", "PROJECT_STATUS/MEMORY.md"]
+      "files": ["PROJECT_STATUS/archives/LIBRARIAN_TOKEN_EFFICIENCY.md", "PROJECT_STATUS/MEMORY.md"]
     },
     {
       "concern": "away queue",

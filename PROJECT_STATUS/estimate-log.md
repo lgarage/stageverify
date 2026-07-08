@@ -33,31 +33,14 @@ Finer **Subtype** on each row enables median recalibration per slice (see **Reca
 | ui-component | settings-email | Settings Gmail/mailbox connect UI |
 | docs-update | process | estimate audit, protocol automation |
 
-## Roles (worker vs librarian)
+## Roles and timing (digest)
 
-| Role | Owns | Must not |
-| ---- | ---- | -------- |
-| **Worker** (orchestrator / domain executor) | `task-start` and `task-finish` records; ISO timestamps; timezone; optional `pausedAt`/`resumedAt` | Invent, pad, infer, or backfill elapsed minutes; start implementation before `task-start` |
-| **Librarian** (coordinator at ship / validate) | Record start/finish into this log; verify timestamp math; append calibration rows; flag anomalies | Guess durations; write numeric `actualElapsedMin` without both timestamps; use memory, session wall-clock, or model judgment for Actual |
-
-## What counts as "actual" (calibration-safe)
-
-| Term | Meaning |
-| ---- | ------- |
-| **startedAt** | ISO-8601 when the **worker creates `task-start`** — immediately before implementation (first file edit, first tool call for the task). Include timezone offset. **`unknown`** if no start record exists — do not infer from Dan approval, first commit, or session open. |
-| **finishedAt** | ISO-8601 when the **worker creates `task-finish`** — immediately before the completion report (after verify/ship prep, before **What we did**). Not the feature commit alone. |
-| **actualElapsedMin** | **Timestamp math only:** `round((finishedAt − startedAt) / 60s)` to nearest whole minute. Only when both timestamps are valid ISO. If worker-stated Actual disagrees with math, **math wins** — note timing anomaly in Notes. |
-| **implementationElapsedMin** | Active work minutes (excludes documented wait/block). **Used for `estimate:audit` calibration** when logged; else fall back to `actualElapsedMin`. |
-| **totalWallClockMin** | Full interval including queue wait, deploy propagation, Dan blocking — optional commentary only; never substitute for calibration Actual. |
-| **timingSource** | `worker_reported_timestamps` (calibration-safe) · `legacy_dan_approval_interval` (pre-protocol rows — audit may use with caution) · `unknown` (not calibration-safe). |
-| **approx / ~N** | Non-calibration commentary only — prefix `~N approx (estimated)` in chat or Notes. **Never** write `~N` as `actualElapsedMin` on new rows. |
-| **unknown** | Missing `startedAt` or `finishedAt` — **do not** invent minutes; do not use Dan's subjective feel, agent tool runtime, or message count. |
-
-**Hard start rule:** No implementation until worker posts `task-start` (`id`, `startedAt`, `timezone`, `timingSource: worker_reported`).
-
-**Hard finish rule:** Worker posts `task-finish` (`finishedAt`, `timezone`, `actualElapsedMin` from math, `timingSource: worker_reported_timestamps`) immediately before completion report.
-
-**NOT calibration data:** feature commit time alone; agent tool-only runtime; "~25 min" estimates; inferred/backfilled minutes; rows where `timingSource` ≠ `worker_reported_timestamps` (skip in `estimate:audit` unless explicitly marked legacy).
+- **Worker** posts `task-start` before implementation and `task-finish` before completion report (ISO timestamps with timezone).
+- **Librarian** records worker timestamps into this log at ship — never invents or backfills elapsed minutes.
+- **actualElapsedMin** = timestamp math only: `round((finishedAt − startedAt) / 60s)`; missing either timestamp → `unknown`.
+- **timingSource:** `worker_reported_timestamps` (calibration-safe) · `legacy_dan_approval_interval` · `unknown`.
+- Hard rules: no implementation before `task-start`; no guessed Actual; math wins over worker-stated Actual when they disagree.
+- Run `npm run estimate:audit` every **15 log rows** (see **Audit every 15 rows** below).
 
 ## Columns
 
@@ -73,27 +56,6 @@ Finer **Subtype** on each row enables median recalibration per slice (see **Reca
 | **Subtype** | Narrow slice from taxonomy above (e.g. `parser-slice`, `table-action-row`) — required at ship |
 | **Deploy** | `y` if gh-pages or backend deploy ran; `n` if commit/push only |
 | **Notes** | One short line — summary; timing anomaly if worker Actual ≠ math; optional `impl=N totalWall=N` |
-
-## Ship-time rule (mandatory)
-
-At each `npm run away:ship` (see `AWAY_BUILD_PROTOCOL.md` step 6):
-
-1. Worker must have posted **`task-start`** before implementation and **`task-finish`** before completion report.
-2. **Librarian** (coordinator) **records** worker timestamps into this file — does not invent or round-trip guess.
-3. **Append one row** with `startedAt`, `finishedAt`, `budgetMin`, `actualElapsedMin` (from timestamp math), `timingSource`, **Type**, **Subtype**, deploy flag, notes.
-4. Set `timingSource: worker_reported_timestamps` only when both timestamps are worker-reported and math matches.
-5. Missing either timestamp → `actualElapsedMin: unknown`, `timingSource: unknown` — honest beats guessed.
-6. **`away:ship --note`** — short ship summary only. Optional cross-ref: `timing: estimate-log row N`. Do **not** duplicate timestamps in the note.
-
-Completion report (chat): **timing table** after **What we did** — see `composer-orchestrator.mdc` § Completion report.
-
-| When budget exists | Columns |
-| ------------------ | ------- |
-| Pre-ship budget | `\| ID/Task \| Budget \| Started \| Finished \| Actual \| Timing source \| Commit \|` |
-| No budget | `\| ID/Task \| Started \| Finished \| Actual \| Timing source \| Commit \|` — omit Budget |
-
-Example (budget): `| away-096 TOCTOU guard | 35 min | 2026-07-04T02:05-05:00 | 2026-07-04T02:22-05:00 | 17 min | worker_reported_timestamps | 80163b1 |`  
-Example (unknown): `| deploy-pages-poll | 35 min | unknown | 2026-07-04T00:35-05:00 | unknown | unknown | abc1234 |`
 
 ## Log
 

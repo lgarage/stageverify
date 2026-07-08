@@ -121,7 +121,7 @@
       "match": ["librarian", "context packet", "index-first", "token efficiency", "dossier slice"],
       "orchestratorSteps": [],
       "dossierTags": ["index"],
-      "files": ["PROJECT_STATUS/LIBRARIAN_TOKEN_EFFICIENCY.md", "PROJECT_STATUS/MEMORY.md"],
+      "files": ["PROJECT_STATUS/archives/LIBRARIAN_TOKEN_EFFICIENCY.md", "PROJECT_STATUS/MEMORY.md"],
       "rules": [],
       "commands": ["npm run context:packet -- --tags index", "npm run context:gotcha -- --list"]
     },
@@ -253,7 +253,7 @@
       "orchestratorSteps": [6],
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
-      "files": ["PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md"],
+      "files": ["PROJECT_STATUS/archives/SECURITY_GATE_AUDIT_2026-07-07.md"],
       "rules": ["model-audit-gate.mdc", "security-review-gate.mdc"],
       "commands": []
     },
@@ -283,8 +283,8 @@
       "dossierTags": ["backend-critical"],
       "lessonsSection": "process-agents",
       "files": [
-        "PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md",
-        "PROJECT_STATUS/security-scan-2026-07-04-invoice.md"
+        "PROJECT_STATUS/archives/SECURITY_GATE_AUDIT_2026-07-07.md",
+        "PROJECT_STATUS/archives/security-scan-2026-07-04-invoice.md"
       ],
       "rules": ["security-review-gate.mdc", "model-audit-gate.mdc", "ship-loop.mdc"],
       "commands": [],
@@ -298,7 +298,7 @@
         "production decision on vendor email",
         "enabling emailReplyIngestEnabled for real vendor pilot"
       ],
-      "warning": "Four review types — do not conflate: (1) verified independent model review, (2) security-review subagent transcript + security-gate-id, (3) Composer/checklist review (NOT RUN), (4) unverifiable model execution (RC-3). Mandatory report block: security_gate_id, reviewer/subagent, claimed model, actual model invocation evidence yes/no/unknown, evidence path, verdict, limitations, production decision affected. Do NOT write Sonnet PASS without invocation evidence; Fable 5 requires explicit Task — Fable-style ≠ Fable 5. Historical away-status Sonnet PASS without UUID = checklist-only. Vendor email: controlled behavior tests passed; independent Sonnet execution unverified — before real vendor pilot use verified review OR label checklist/subagent-only. Full audit: PROJECT_STATUS/SECURITY_GATE_AUDIT_2026-07-07.md."
+      "warning": "Four review types — do not conflate: (1) verified independent model review, (2) security-review subagent transcript + security-gate-id, (3) Composer/checklist review (NOT RUN), (4) unverifiable model execution (RC-3). Mandatory report block: security_gate_id, reviewer/subagent, claimed model, actual model invocation evidence yes/no/unknown, evidence path, verdict, limitations, production decision affected. Do NOT write Sonnet PASS without invocation evidence; Fable 5 requires explicit Task — Fable-style ≠ Fable 5. Historical away-status Sonnet PASS without UUID = checklist-only. Vendor email: controlled behavior tests passed; independent Sonnet execution unverified — before real vendor pilot use verified review OR label checklist/subagent-only. Full audit: PROJECT_STATUS/archives/SECURITY_GATE_AUDIT_2026-07-07.md."
     },
     {
       "id": "best-reply",
@@ -556,8 +556,8 @@
       "dossierTags": ["backend-critical"],
       "lessonsSection": "vendor-email-reply",
       "files": [
-        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md",
-        "PROJECT_STATUS/WARGAME_VENDOR_EMAIL_LAYER.md",
+        "PROJECT_STATUS/archives/HANDOFF_VENDOR_EMAIL_2026-07-07.md",
+        "PROJECT_STATUS/archives/WARGAME_VENDOR_EMAIL_LAYER.md",
         "functions/src/inboundEmail/processInboundGmailMessage.ts"
       ],
       "rules": ["ship-loop.mdc"],
@@ -573,7 +573,7 @@
         "vendor email ingest test",
         "claiming reply ingest live"
       ],
-      "warning": "Reply ingest is controlled-pilot ONLY — not broad production. ALWAYS read appSettings/config and report emailReplyIngestEnabled + emailReplyIngestSince before any ingest work; do NOT flip the flag without Dan explicit go/rollback. Use Refresh Now / triggerInboundGmailSyncCallable / syncInboundGmail for controlled tests (push ingest unreliable — see gmail-push-payload). Do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use. Matched thread replies → Needs Review tier \"Vendor Reply — Needs Review\" (not Suspicious). Reply ingest must NOT mutate delivery status or create delivery shells. Old no_pdf docs are NOT reprocessed when flag turns on — send fresh replies after emailReplyIngestSince. Handoff: PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md."
+      "warning": "Reply ingest is controlled-pilot ONLY — not broad production. ALWAYS read appSettings/config and report emailReplyIngestEnabled + emailReplyIngestSince before any ingest work; do NOT flip the flag without Dan explicit go/rollback. Use Refresh Now / triggerInboundGmailSyncCallable / syncInboundGmail for controlled tests (push ingest unreliable — see gmail-push-payload). Do NOT reuse bounce-polluted threads (test5/bounce); run wrong-thread negative tests before real vendor use. Matched thread replies → Needs Review tier \"Vendor Reply — Needs Review\" (not Suspicious). Reply ingest must NOT mutate delivery status or create delivery shells. Old no_pdf docs are NOT reprocessed when flag turns on — send fresh replies after emailReplyIngestSince. Handoff: PROJECT_STATUS/archives/HANDOFF_VENDOR_EMAIL_2026-07-07.md."
     },
     {
       "id": "gmail-push-payload",
@@ -591,7 +591,7 @@
       "lessonsSection": "vendor-email-reply",
       "files": [
         "functions/src/gmailInbound.ts",
-        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md"
+        "PROJECT_STATUS/archives/HANDOFF_VENDOR_EMAIL_2026-07-07.md"
       ],
       "rules": ["ship-loop.mdc"],
       "commands": [
@@ -635,7 +635,7 @@
       "dossierTags": ["backend-critical"],
       "lessonsSection": "vendor-email-reply",
       "files": [
-        "PROJECT_STATUS/HANDOFF_VENDOR_EMAIL_2026-07-07.md"
+        "PROJECT_STATUS/archives/HANDOFF_VENDOR_EMAIL_2026-07-07.md"
       ],
       "rules": [],
       "commands": [],

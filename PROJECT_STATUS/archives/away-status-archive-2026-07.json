@@ -1,0 +1,636 @@
+{
+  "archivedAt": "2026-07-08",
+  "source": "away-status.json results rotation — Harness Cleanup Phase 1",
+  "results": [
+    {
+      "id": "away-001",
+      "title": "Dispatcher dashboard: Refresh Now button + 30s auto-poll",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-002",
+      "title": "Fix QR scan silent wrong-order fallback",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-003",
+      "title": "Fix frozen clock on Entry Display board",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-004",
+      "title": "Clear stagingLocationId on delivery picked_up transition",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-005",
+      "title": "Route-level code-splitting via React.lazy in main.tsx",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-006",
+      "title": "Pickup portal UX: remove name field, checkbox icons, misleading Complete badge",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-007",
+      "title": "Full repo security audit — all src/ files",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-008",
+      "title": "Add maxLength={64} to ReceivingPage manual ID input",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-009",
+      "title": "Align blocking-issue pickup with svscope (CF allows pickup with warning)",
+      "status": "built",
+      "commit": "faaed82",
+      "note": "isPickupEligible filters unresolved_blocking_issues; Sonnet SECURITY: PASS; CF deployed stageverify-db; test:pickup-authority + verify:pickup PASS."
+    },
+    {
+      "id": "away-010",
+      "title": "Phase 3 Slice 3: Copy Pickup Information clipboard",
+      "status": "built",
+      "commit": "faaed82",
+      "note": "Copy Pickup Information button + full clipboard message; verify:dispatcher-nav + verify:pickup PASS."
+    },
+    {
+      "id": "away-011",
+      "title": "Phase 3 Slice 3: Pickup Scheduled job flag",
+      "status": "built",
+      "commit": "faaed82",
+      "note": "pickupScheduledAt/By on Job; dispatcher toggle + badge; roadmap Slice 3 partial; verify PASS."
+    },
+    {
+      "id": "away-012",
+      "title": "Fix verify:pickup:prod reset to use production base URL",
+      "status": "built",
+      "commit": "faaed82",
+      "note": "reset-pickup-verify-fixture --base-url passthrough; verify:pickup:prod PASS (no localhost ERR_CONNECTION_REFUSED)."
+    },
+    {
+      "id": "away-013",
+      "title": "Rename pickup Done button to Order Pickup Complete",
+      "status": "built",
+      "commit": "faaed82",
+      "note": "Button + verify selectors updated; verify:pickup PASS local + prod."
+    },
+    {
+      "id": "away-014",
+      "title": "Phase 3 Slice 3: ready-only pickup queue filter",
+      "status": "built",
+      "commit": "faaed82",
+      "note": "Queue shows ready_for_pickup/picked_up/installed only; ?delivery= deep-link include; verify:pickup + verify:pickup:prod PASS."
+    },
+    {
+      "id": "away-015",
+      "title": "Ship Slice 3 close-out: job readiness panel",
+      "status": "built",
+      "commit": "314d4d3",
+      "note": "Slice 3 readiness panel already in 314d4d3; deploy + verify:dispatcher-nav + verify:pickup PASS; gh-pages deployed."
+    },
+    {
+      "id": "away-016",
+      "title": "Phase 3 remainder: Expected Materials on pickup cards",
+      "status": "built",
+      "commit": "54d9a40",
+      "note": "Read-only expected-materials on pickup cards; verify:pickup PASS."
+    },
+    {
+      "id": "away-017",
+      "title": "Phase 3 remainder: unstaged deliveries visible (detail only)",
+      "status": "built",
+      "commit": "5a3118f",
+      "note": "partial/arrived de-emphasized with pickup-not-ready-row; ready queue checkoff unchanged; verify:pickup PASS."
+    },
+    {
+      "id": "away-018",
+      "title": "Phase 3 remainder: shop stock Not Pulled / Pulled labels",
+      "status": "built",
+      "commit": "95fff8a",
+      "note": "shop-stock-pull-state Not Pulled/Pulled; verify harness tap assertion; verify:pickup PASS."
+    },
+    {
+      "id": "away-019",
+      "title": "Slice 6: clear staging assignment on full CF pickup",
+      "status": "built",
+      "commit": "8989cdb",
+      "note": "additionalStagingLocationIds cleared on fullyPicked; Sonnet SECURITY: PASS; CF deployed; test:pickup-authority + verify:pickup PASS."
+    },
+    {
+      "id": "away-020",
+      "title": "Overnight batch close: deploy UI + prod verify gate",
+      "status": "built",
+      "commit": "3a5feb9",
+      "note": "gh-pages deploy + verify:pickup:prod + verify:dispatcher-nav; roadmap/CURRENT_STATE updated."
+    },
+    {
+      "id": "away-021",
+      "title": "Slice 4: vendor delivery session after PIN (CF)",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-022",
+      "title": "Slice 4: enforce vendor session on receive writes",
+      "status": "built",
+      "commit": "archived",
+      "note": "Backfilled Phase 1+2 memory consolidation; see archives/away-batch-3.json"
+    },
+    {
+      "id": "away-023",
+      "title": "Slice 4: configurable vendor session TTL in Settings",
+      "status": "built",
+      "commit": "12e6db1",
+      "note": "vendorSessionMinutes in Settings Workflow; CF + client session honor TTL; verify:dispatcher-nav + verify:vendor-delivered PASS."
+    },
+    {
+      "id": "away-024",
+      "title": "Slice 4: optional shop geofence warn on vendor receive",
+      "status": "built",
+      "commit": "c14f654",
+      "note": "shop lat/lng/radius + enforce toggle; vendor-geofence-warn banner; npm run build PASS."
+    },
+    {
+      "id": "away-025",
+      "title": "Slice 5: pickup token model + dispatcher generate",
+      "status": "built",
+      "commit": "b7dabff",
+      "note": "pickupTokens CF-only collection; generate/revoke/status callables; PickupTokenControls in job drawer; Sonnet SECURITY: PASS; rules + CF deployed."
+    },
+    {
+      "id": "away-026",
+      "title": "Slice 5: validatePickupToken CF + public route",
+      "status": "built",
+      "commit": "9c6d3f6",
+      "note": "validatePickupToken CF deployed; PickupPortalPage ?t= route; verify:pickup PASS with token fixture; Sonnet SECURITY: PASS."
+    },
+    {
+      "id": "away-027",
+      "title": "Slice 5: Copy Pickup Information uses token URL",
+      "status": "built",
+      "commit": "cf32bfa",
+      "note": "Copy uses session-stored token URL when active; verify:dispatcher-nav clipboard assert PASS."
+    },
+    {
+      "id": "away-028",
+      "title": "Slice 5: leave-shop geofence reminder (best-effort)",
+      "status": "deferred",
+      "commit": "n/a",
+      "note": "Deferred per Dan 2026-06-17 — leave-shop GPS pickup reminder not shipped; do not re-implement in batch. away-024 vendor geofence settings remain dormant (warn-only). Queue marked done in away-list.json for dependsOn chain only."
+    },
+    {
+      "id": "away-029",
+      "title": "svscope §10: pickup job header (site, customer, PO list)",
+      "status": "built",
+      "commit": "032d4f2",
+      "note": "pickup-job-header with site/job/PO; verify:pickup PASS."
+    },
+    {
+      "id": "away-030",
+      "title": "svscope §10: group pickup queue by staging location",
+      "status": "built",
+      "commit": "02c590c",
+      "note": "pickup-location-section by primary staging code; not-ready rows after sections; verify:pickup PASS."
+    },
+    {
+      "id": "away-031",
+      "title": "svscope §10: PO line labels on pickup item rows",
+      "status": "built",
+      "commit": "d1bb5c7",
+      "note": "PO prefix on pickup-item-row; vendor hidden unless duplicate SKU; verify:pickup PASS."
+    },
+    {
+      "id": "away-032",
+      "title": "svscope §10: persist technician item checklist on delivery",
+      "status": "built",
+      "commit": "339b495",
+      "note": "pickupCheckedItemIds + updatePickupChecklist CF with pickup token auth; verify + test:pickup-authority PASS."
+    },
+    {
+      "id": "away-033",
+      "title": "svscope §11: shop stock Staged pull-state label",
+      "status": "built",
+      "commit": "e4b48db",
+      "note": "shop-stock-pull-state Not Pulled/Pulled/Staged; verify Scenario A staged assert PASS."
+    },
+    {
+      "id": "away-034",
+      "title": "svscope §11: Running Low on shop stock lines",
+      "status": "built",
+      "commit": "21b4c24",
+      "note": "running_low material issue type + shop-stock-running-low button; Sonnet SECURITY: PASS; CF deployed; verify:pickup + verify:material-issue-dashboard PASS."
+    },
+    {
+      "id": "away-035",
+      "title": "svscope §11: shop stock grouped by location header",
+      "status": "built",
+      "commit": "0072bdf",
+      "note": "shop-stock-location-group + header from shopStockLocationNote; verify:pickup full/minimal asserts PASS."
+    },
+    {
+      "id": "away-036",
+      "title": "Slice 6: combination staging group model stub",
+      "status": "built",
+      "commit": "6398ce0",
+      "note": "combinationStagingGroupId fields + dispatcher read-only label; verify:dispatcher-nav PASS."
+    },
+    {
+      "id": "away-037",
+      "title": "Slice 6: combination group atomic staging release in CF",
+      "status": "built",
+      "commit": "b654774",
+      "note": "recordPickupEvent clears combination members on full pickup; test:pickup-authority PASS; CF deployed."
+    },
+    {
+      "id": "away-038",
+      "title": "svscope §13: dispatcher pickup summary after technician submit",
+      "status": "built",
+      "commit": "4c508a9",
+      "note": "pickup-summary-panel in delivery drawer; verify:dispatcher-nav PASS."
+    },
+    {
+      "id": "away-039",
+      "title": "Phase 4: dispatcher resolve material issue workflow",
+      "status": "built",
+      "commit": "4c508a9",
+      "note": "resolveMaterialIssue CF + Resolve button; verify:material-issue-dashboard PASS."
+    },
+    {
+      "id": "away-040",
+      "title": "Phase 4: resolved issue triggers readiness recalc",
+      "status": "built",
+      "commit": "4c508a9",
+      "note": "resolveMaterialIssue CF invokes readiness when no blocking issues remain."
+    },
+    {
+      "id": "away-041",
+      "title": "Batch 3 close: deploy UI + prod verify + roadmap sync",
+      "status": "built",
+      "commit": "4c508a9",
+      "note": "gh-pages deploy + verify:pickup:prod + roadmap/CURRENT_STATE sync."
+    },
+    {
+      "id": "away-042",
+      "title": "Phase 5: email parser fixture gate (offline prototype)",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Johnstone+First Supply fixtures pass (8 msgs); test:email-parser exit 0; build clean; no Firestore writes"
+    },
+    {
+      "id": "away-043",
+      "title": "Phase 5: Ferguson + edge-case email fixtures",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Ferguson vendor+PO+2 fixtures; multi-PO+unknown-vendor edge cases; test:email-parser PASS"
+    },
+    {
+      "id": "away-044",
+      "title": "Phase 5: fixture accuracy report (≥95% gate)",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Per-fixture pass/fail + aggregate accuracy report; 11/11=100% gate PASS"
+    },
+    {
+      "id": "away-045",
+      "title": "Phase 5: read-only proposed email updates panel",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "Read-only ProposedEmailUpdatesPanel on dispatcher; verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-046",
+      "title": "Phase 3: integration verify script (chained pickup smoke)",
+      "status": "built",
+      "commit": "fd450e3",
+      "note": "verify:phase3-integration chained smoke; verify:pickup PASS"
+    },
+    {
+      "id": "away-047",
+      "title": "Phase 3 gate close: integration + prod verify",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "verify:phase3-integration + verify:pickup PASS; integration gate docs synced"
+    },
+    {
+      "id": "away-048",
+      "title": "Pickup submit label: Order Pickup Complete",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "Order Pickup Complete demo copy; verify:pickup PASS"
+    },
+    {
+      "id": "away-049",
+      "title": "Phase 5 email prototype polish",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "WinSupply fixtures + email panel filters; test:email-parser 100%; verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-050",
+      "title": "Public portal network-failure UX",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "PublicNetworkErrorPanel receive+pickup; verify:public-network-error PASS"
+    },
+    {
+      "id": "away-051",
+      "title": "Phase 4 resolution workflow: type picker",
+      "status": "built",
+      "commit": "9b3bc26",
+      "note": "8-type resolution picker + CF resolutionType; Sonnet PASS; verify:material-issue-dashboard PASS"
+    },
+    {
+      "id": "away-053",
+      "title": "Phase 5 inbox settings UI",
+      "status": "built",
+      "commit": "bb7a5d1",
+      "note": "Email Monitoring settings card; verify:settings-staging PASS"
+    },
+    {
+      "id": "away-054",
+      "title": "Phase 5: fingerprint dedup in getProposedEmailUpdates",
+      "status": "built",
+      "commit": "4fd53c6",
+      "note": "Fingerprint dedup in getProposedEmailUpdates; test:email-parser + verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-055",
+      "title": "Phase 5: verify:phase5-email interactive harness",
+      "status": "built",
+      "commit": "d47ce29",
+      "note": "verify:phase5-email filter clicks + row expand PASS"
+    },
+    {
+      "id": "away-056",
+      "title": "Phase 5: email correction fixture + parser expectations",
+      "status": "built",
+      "commit": "4ad3bc5",
+      "note": "msg-correction-015 fixture; test:email-parser 15/15 100%"
+    },
+    {
+      "id": "away-057",
+      "title": "Phase 5: proposal review detail panel",
+      "status": "built",
+      "commit": "dde119c",
+      "note": "Expanded proposal review detail; verify:phase5-email + test:email-parser PASS"
+    },
+    {
+      "id": "away-058",
+      "title": "Phase 5: readiness evidence in delivery drawer",
+      "status": "built",
+      "commit": "8bf021b",
+      "note": "Drawer READINESS EVIDENCE panel; verify:dispatcher-nav + verify:phase5-email PASS"
+    },
+    {
+      "id": "away-059",
+      "title": "Phase 5: vendor_order_complete CF auto-apply (Condition 1 only)",
+      "status": "built",
+      "commit": "c88a0f4",
+      "note": "processInboundVendorEmail CF; test+security PASS"
+    },
+    {
+      "id": "away-060",
+      "title": "Phase 5: retire Proposed Email Updates table",
+      "status": "built",
+      "commit": "5048470",
+      "note": "Needs Review strip + drawer Email Evidence; verify:phase5-email + verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-061",
+      "title": "Drawer priority UX — action banner + section reorder",
+      "status": "built",
+      "commit": "7202f63",
+      "note": "Fix: StatusActionPanel below banner/material issues/readiness; verify PASS"
+    },
+    {
+      "id": "away-062",
+      "title": "Fix drawer section order — status below action banner",
+      "status": "built",
+      "commit": "06ef6ad",
+      "note": "StatusActionPanel moved below banner, material issues, readiness evidence"
+    },
+    {
+      "id": "away-063",
+      "title": "Harden dispatcher drawer action workflow",
+      "status": "built",
+      "commit": "286dd94",
+      "note": "Resolve defaults, call vendor tel link, need-more-info draft; consolidate blocking issues in banner"
+    },
+    {
+      "id": "away-064",
+      "title": "Fix drawer action modals",
+      "status": "built",
+      "commit": "91708bc",
+      "note": "Resolve prefilled note + readable inputs; Call Vendor SV modal; Need More Info copy draft"
+    },
+    {
+      "id": "away-065",
+      "title": "Drawer UX — resolve modal Need More Information + banner simplify",
+      "status": "built",
+      "commit": "b2029a0",
+      "note": "Remove Need More Info banner button; larger resolve modal; context-aware defaults; email preview in resolve modal when type selected; verify:dispatcher-nav + verify:phase5-email PASS"
+    },
+    {
+      "id": "away-066",
+      "title": "Phase 6 foundation: vendor communication data model + drawer placeholder",
+      "status": "built",
+      "commit": "1af3fca",
+      "note": "VendorEmailEvent types + Vendor Communications drawer placeholder; verify:dispatcher-nav + verify:phase5-email PASS"
+    },
+    {
+      "id": "away-067",
+      "title": "Phase 6 slice 1: Gmail OAuth connection state (no send, no watch)",
+      "status": "built",
+      "commit": "c3129ec",
+      "note": "COMPLETE final verification: trimSecret safeguard kept; OAuth debug logging removed; CF deploy; prod disconnect PASS; Connect reaches Google OAuth (manual Gmail consent for full connect/refresh/re-login); Email Vendor still disabled"
+    },
+    {
+      "id": "away-068",
+      "title": "Phase 6 slice 2: Outbound sendVendorEmail + enable Email Vendor",
+      "status": "built",
+      "commit": "cd753c3",
+      "note": "Follow-up: editable To/Subject/Body in Resolve modal; saveVendorEmail CF updates vendor.email; Other requires note; Sonnet LOW"
+    },
+    {
+      "id": "away-072",
+      "title": "Delivery drawer exception-management UX (Issue Summary panel)",
+      "status": "built",
+      "commit": "cc19045",
+      "note": "Issue Summary top; Action Required deduped; section reorder; verify:delivery-consistency + verify:dispatcher-nav PASS"
+    },
+    {
+      "id": "away-073",
+      "title": "Readiness model alignment — qty=0 cannot persist as partial",
+      "status": "built",
+      "commit": "5ba4e0f",
+      "note": "474f334 CF+client partial gate; 4cf65a8 unit counts + Pending Delivery; 5ba4e0f list filter computed readiness + demo matrix; test:readiness + verify:delivery-consistency PASS; CF deployed"
+    },
+    {
+      "id": "away-074",
+      "title": "Copy Pickup Information token validity repair",
+      "status": "built",
+      "commit": "8168668",
+      "note": "Validate sessionStorage token before copy reuse; fresh generate when stale; PickupTokenControls regen hint; verify:dispatcher-nav ORD-005 token lifecycle PASS"
+    },
+    {
+      "id": "away-075",
+      "title": "Mini-librarian: planning path dedup (Action 2)",
+      "status": "built",
+      "commit": "61f3c5856d8ba2c94e72287363936f7f8e06fe3e",
+      "note": "Planning path dedup: away:next --minimal first, skip scouts when queue head answers, index-only dossier in scout table; suggestion-verify reuse clause"
+    },
+    {
+      "id": "away-076",
+      "title": "Mini-librarian: extend context-index for roadmap + project_state (Action 3)",
+      "status": "built",
+      "commit": "61f3c5856d8ba2c94e72287363936f7f8e06fe3e",
+      "note": "Context-index sections for roadmap NOW/NEXT/LATER + project_state slices; context-lookup line-range slicing; away:validate drift checks"
+    },
+    {
+      "id": "away-077",
+      "title": "Drawer staging-location banner when unassigned",
+      "status": "built",
+      "commit": "0a44d26",
+      "note": "Orange STAGING LOCATION NEEDED banner before status banner; Delivery Basics Not Assigned; Assign Location scroll/focus; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-078",
+      "title": "Pickup drawer controls cleanup — disabled copy, separate pills, 2x2 grid",
+      "status": "built",
+      "commit": "d72e548",
+      "note": "No Items to Pick Up when 0 received; separate blue Pickup Scheduled + green active link pills; Clear Pickup Scheduled blue styling; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-080",
+      "title": "Lower dispatcher drawer simplification",
+      "status": "built",
+      "commit": "e1d72e7",
+      "note": "Hide vendor comms, resolved material issues, Need More Space in drawer; remove workflow status pill; Manual Controls heading"
+    },
+    {
+      "id": "away-081",
+      "title": "Lower drawer refocus on staging assignment",
+      "status": "built",
+      "commit": "a64e7c1",
+      "note": "Prominent Assign Staging Location card; Advanced Manual Controls + Experimental Stock Tools collapsed; PO edit removed from lower drawer; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-082",
+      "title": "Mini-librarian phase 3: slim execution packet (Action 1)",
+      "status": "built",
+      "commit": "af8f79a",
+      "note": "Action 1: buildNextBrief readFirst drops default svscope_simple.md; scopeDispute flag adds it on demand; renderNextMd updated"
+    },
+    {
+      "id": "away-087",
+      "title": "Verify Action 1: buildNextBrief readFirst excludes svscope unless scopeDispute",
+      "status": "built",
+      "commit": "8e1f0f4",
+      "note": "Verified buildNextBrief readFirst omits svscope unless scopeDispute; away:validate+build pass"
+    },
+    {
+      "id": "away-083",
+      "title": "Mini-librarian phase 3: away:ship + validate sync project_state Immediate Next",
+      "status": "built",
+      "commit": "f5c8dfb",
+      "note": "away:ship + validate auto-sync project_state Immediate Next #1"
+    },
+    {
+      "id": "away-085",
+      "title": "Mini-librarian phase 3: context:packet + away:next --packet",
+      "status": "built",
+      "commit": "133c98a",
+      "note": "context:packet + away:next --packet CLI; dossier slices by tag"
+    },
+    {
+      "id": "away-086",
+      "title": "Mini-librarian phase 3: rotate cold dossier § to archives (optional)",
+      "status": "built",
+      "commit": "c00ac38",
+      "note": "rotate cold dossier tables to archive; timing: estimate-log row 4"
+    },
+    {
+      "id": "away-084",
+      "title": "Mini-librarian phase 3: task-trigger gotcha map + orchestrator steps 6-8 → CLI",
+      "status": "built",
+      "commit": "4b2ca83",
+      "note": "task-trigger gotcha map + context:gotcha CLI (orchestrator steps 6-8); timing: estimate-log row 5"
+    },
+    {
+      "id": "away-088",
+      "title": "Johnstone invoice import Slice 1 — offline parser prototype",
+      "status": "built",
+      "commit": "87fa640",
+      "note": "src/dispatcher/invoice/ + test:invoice-parser 100% gate; timing: estimate-log row 6"
+    },
+    {
+      "id": "away-089",
+      "title": "Johnstone invoice import Slice 2 — PDF adapter + batch processor",
+      "status": "built",
+      "commit": "92635a0",
+      "note": "pdfTextAdapter + processInvoiceBatch; test:invoice-batch 27/27; timing: estimate-log row 9"
+    },
+    {
+      "id": "away-090",
+      "title": "Dispatcher drawer — Copy Pickup Information for unreceived orders",
+      "status": "built",
+      "commit": "3f74e25",
+      "note": "Copy enabled when job/vendor/PO present; richer clipboard; verify:delivery-consistency PASS; timing: estimate-log row 13"
+    },
+    {
+      "id": "away-091",
+      "title": "Reset Pickup Link drawer label (was Revoke Pickup Link)",
+      "status": "built",
+      "commit": "9ed8944",
+      "note": "Drawer action label Reset Pickup Link; behavior unchanged; verify:delivery-consistency PASS"
+    },
+    {
+      "id": "away-092",
+      "title": "Persist parsed.lines[] on vendorInvoiceImports",
+      "status": "built",
+      "commit": "5a57fc2",
+      "note": "\\"
+    },
+    {
+      "id": "away-093",
+      "title": "matchInvoiceToRecords callable",
+      "status": "built",
+      "commit": "58f392d",
+      "note": "matchInvoiceToRecords"
+    },
+    {
+      "id": "away-094",
+      "title": "approveVendorInvoiceImport CF + firestore.rules",
+      "status": "built",
+      "commit": "518a0a1",
+      "note": "approveVendorInvoiceImport"
+    },
+    {
+      "id": "away-095",
+      "title": "dispatcher review UI",
+      "status": "built",
+      "commit": "c00d4a9",
+      "note": "Invoice review UI at /invoice-review; verify:dispatcher-nav PASS"
+    }
+  ]
+}

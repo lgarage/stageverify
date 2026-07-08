@@ -313,7 +313,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 
 | Item                            | Notes                                                     |
 | ------------------------------- | --------------------------------------------------------- |
-| Security audit (away-007)       | Done — see `PROJECT_STATUS/security-report-2026-06-02.md` |
+| Security audit (away-007)       | Done — see `PROJECT_STATUS/archives/security-report-2026-06-02.md` |
 | `listDeliveries` pagination     | Technical debt; acceptable until ~500+ deliveries         |
 | Shared types in Cloud Functions | Refactor CF `DeliveryStatus` duplicate                    |
 | Shop map / location IDs         | Blocked on Jake Korb shelving decision                    |
