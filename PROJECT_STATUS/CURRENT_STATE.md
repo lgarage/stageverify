@@ -7,6 +7,7 @@
 ## Snapshot
 - Active Phase: **Phase 5?6 ? Vendor Email + Inbound Invoice Ingestion**
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** since `2026-07-07T01:57:42.389Z` — controlled flag-on test only; 1 matched inbound in Needs Review; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan. Handoff: `HANDOFF_VENDOR_EMAIL_2026-07-07.md`; gotchas: `gotcha-map.json` vendor-reply-ingest-pilot / gmail-push-payload.
+- **Location-first transition (2026-07-07):** Spec approved — `docs/location-first-transition-spec.md` (permanent location QR, PIN tiers, no status cards). Read spec § Phase Tracker for current phase. Next: **Phase 1** (docs/types/clipboard groundwork). Do not start later phases without prior-phase drift review.
 - **Security gate evidence (2026-07-07):** `SECURITY_GATE_AUDIT_2026-07-07.md` — subagent + `security-gate-id` required; do not claim Sonnet/Fable without invocation evidence; RC-3 model execution unverified; gotcha `security-gate-evidence`.
 - Last shipped: **fix v0.0.24** — Unmatched Needs Review calmer copy ("Unmatched Email — Needs Review"); Suspicious reserved for spoof/ambiguous; preview strips Body:/Subject: prefix duplication
 - Also shipped: **fix v0.0.23** — Vendor Reply Needs Review calmer copy for matched thread replies; preview block + Show/Hide Original Email; Suspicious label only for unmatched/ambiguous/spoof
