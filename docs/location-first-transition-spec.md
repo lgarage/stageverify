@@ -4,7 +4,7 @@
 | --- | --- |
 | **Title** | StageVerify transition: delivery-tag-first → permanent-location-QR-first workflow |
 | **Date approved** | 2026-07-07 |
-| **Status** | Approved — Phase 1 not started |
+| **Status** | Approved — **Phase 1 complete** (2026-07-08) |
 | **Authors** | War-game/spec: Fable 5 (planner) · Implementation: Composer 2.5 (one phase at a time) · Security review: Sonnet 4.6 (`claude-4.6-sonnet-medium-thinking`) for Phases 2, 5, 6 |
 
 > **How to use this file (agents):** Read **§ Phase Tracker** first — it is the living source of truth for current state. Implement **exactly one phase** at a time, precisely as specified in that phase's section. **Never start a later phase until the prior phase's drift review passes.** When a phase completes, update the Phase Tracker table **and** `PROJECT_STATUS/CURRENT_STATE.md` in the **same commit** as phase completion. Do not invent design decisions — everything binding is in § Locked design decisions; anything ambiguous is in § Open questions and needs Dan.
@@ -13,11 +13,11 @@
 
 ## § Phase Tracker (LIVING SECTION — agents update this)
 
-> **Approved next action: Phase 1.** All phases below are `not_started`.
+> **Approved next action: Phase 2** (privacy hardening — Sonnet-gated; explicit Dan approval before rules/CF deploy). Phase 1 completed 2026-07-08.
 
 | Phase | Name | Status | Started | Completed | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Groundwork: docs, types, clipboard | `not_started` | — | — | Recommended first phase; zero behavior change except clipboard text |
+| 1 | Groundwork: docs, types, clipboard | `complete` | 2026-07-08 | 2026-07-08 | ESL plan amended; additive types; job-level clipboard; URL locked `#/s?loc=` |
 | 2 | Privacy hardening (backend) | `not_started` | — | — | Sonnet-gated; EXPLICIT Dan approval before rules/CF deploy |
 | 3 | Permanent location entry + vendor scan v2 | `not_started` | — | — | Sign printing blocked on shop map + shelving decision (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `not_started` | — | — | Multi-spot, releases, planned/actual divergence |
@@ -25,7 +25,9 @@
 | 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | Sonnet-gated; shared shop PIN; highest-sensitivity surface after Phase 2 |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
-**Current phase: Phase 1 — not started. Next action: implement Phase 1 scope exactly as specified in § Phase 1.**
+**Current phase: Phase 2 — not started. Next action: drift review Phase 1, then await Dan approval before Phase 2 rules/CF deploy per § Phase 2.**
+
+**Phase 1 drift review:** ESL plan rejects occupancy-dynamic QR-flip; types additive only; clipboard job-level format shipped; permanent URL **`#/s?loc={code}`** locked (see § Permanent URL scheme).
 
 ---
 
@@ -129,9 +131,12 @@ What already exists in the codebase — the transition builds on these, and phas
 
 ## § Permanent URL scheme
 
-- **One URL per location.** Working proposal: `#/s?loc=G1`. The final form is decided in Phase 1 docs.
-- Rationale for the short form: QR density (shorter URL → coarser, more scannable QR); distinct from the existing `#/receive?zone=` so **legacy behavior is untouched during migration**.
-- **Once signs are printed, this URL is a permanent contract with the physical shop — never change it.** This is the one non-revertible commitment of the entire transition (decided in Phase 1, reviewed before Phase 3 printing).
+**Phase 1 decision (locked):** `#/s?loc={code}` — full production form:
+
+`https://lgarage.github.io/stageverify/#/s?loc=G1`
+
+- **One URL per location.** Short hash path for QR density; distinct from legacy `#/receive?zone=` so migration does not break printed receive materials.
+- **Once signs are printed, this URL is a permanent contract with the physical shop — never change it.** Review again before Phase 3 sign printing.
 - The landing page routes by PIN tier: **vendor** (Phase 3), **technician** (Phase 5), **management** (Phase 6). Unimplemented tiers degrade gracefully.
 
 ---
@@ -434,7 +439,7 @@ Fable 5 reviews each phase's diff summary against this spec **before the next ph
 ## § Open questions (non-blocking; Dan can veto anytime)
 
 1. **D11/D12 defaults** (review-flag overlay; derived Reserved state) were adopted without explicit Dan confirmation — open to veto.
-2. **Exact permanent URL path** (`#/s?loc=` vs alternative) — Phase 1 decides; permanent once signs print.
+2. **Exact permanent URL path** — **decided Phase 1:** `#/s?loc={code}` (see § Permanent URL scheme). Permanent once signs print.
 3. **Phase 6 "SV occupied / spot empty":** MVP flags for the dispatcher rather than direct management release; escalate later if the flag loop proves too slow.
 4. **Physical shop map / shelving decision (Jake Korb)** blocks Phase 3 sign *printing*; Phases 1–2 unaffected.
 

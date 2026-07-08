@@ -4,17 +4,21 @@ import type {
   Item,
   MaterialIssue,
   PickupEvent,
+  PurchaseOrder,
+  StagingLocation,
   StatusHistoryEvent,
 } from "./models";
 import {
   DELIVERY_STATUS_LABEL,
   MATERIAL_ISSUE_TYPE_LABEL,
+  getAllStagingLocationIds,
   type DeliveryStatus,
 } from "./models";
 import {
   buildDeliverToSiteIssueSummary,
   isDeliverToSiteConfirmed,
   isInvoiceShellNoShopStaging,
+  resolveDeliveryPoNumber,
 } from "./invoice/invoiceShellDisplayHelpers";
 import { deliveryReadinessDisplayLabel } from "./jobReadinessDisplay";
 import {
@@ -1065,42 +1069,65 @@ export function deliveryHasCopyPickupIdentifyingInfo(
   return hasJobIdentifier && hasVendor && hasOrderIdentifier;
 }
 
-/** Short handoff text — checklist link is source of truth for item/status detail. */
+export interface PickupClipboardJobContext {
+  jobDeliveries: DeliveryOrder[];
+  jobPurchaseOrders: PurchaseOrder[];
+  stagingLocations: StagingLocation[];
+}
+
+/** Job-level pickup handoff — checklist link is source of truth for item/status detail. */
 export function buildPickupInformationClipboardText(
   details: DeliveryDetails,
   pickupLink: string,
+  jobContext?: PickupClipboardJobContext,
 ): string {
-  const { delivery, job, vendor, purchaseOrder, stagingLocation } = details;
+  const { delivery, job } = details;
+  const deliveries = jobContext?.jobDeliveries ?? [delivery];
+  const purchaseOrders = jobContext?.jobPurchaseOrders ?? [];
+  const stagingLocations = jobContext?.stagingLocations ?? [];
+  const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
+
+  const poNumbers = new Set<string>();
+  const orderNumbers = new Set<string>();
+  const stagingCodes = new Set<string>();
+
+  for (const jobDelivery of deliveries) {
+    const linkedPo = jobDelivery.purchaseOrderId
+      ? purchaseOrders.find((po) => po.id === jobDelivery.purchaseOrderId)
+      : undefined;
+    const poNumber = resolveDeliveryPoNumber(
+      jobDelivery.customerPoOrReference,
+      linkedPo?.poNumber,
+    );
+    if (poNumber) poNumbers.add(poNumber);
+
+    const orderNumber = jobDelivery.orderNumber?.trim();
+    if (orderNumber) orderNumbers.add(orderNumber);
+
+    for (const locId of getAllStagingLocationIds(jobDelivery)) {
+      const code = locById.get(locId)?.code?.trim();
+      if (code) stagingCodes.add(code);
+    }
+  }
 
   const lines: string[] = ["StageVerify Pickup"];
+
+  const jobName = job?.jobName?.trim();
+  if (jobName) lines.push(`Job Name: ${jobName}`);
 
   const jobNumber = job?.jobNumber?.trim();
   if (jobNumber) lines.push(`Job #: ${jobNumber}`);
 
-  const jobName = job?.jobName?.trim();
-  if (jobName) lines.push(`Job name: ${jobName}`);
+  const aggregatedPos = [...poNumbers].sort().join(", ");
+  if (aggregatedPos) lines.push(`PO #: ${aggregatedPos}`);
 
-  const vendorName =
-    vendor?.name?.trim() || delivery.vendorName?.trim() || "";
-  if (vendorName) lines.push(`Vendor: ${vendorName}`);
+  const aggregatedOrders = [...orderNumbers].sort().join(", ");
+  if (aggregatedOrders) lines.push(`Order #: ${aggregatedOrders}`);
 
-  const poNumber = purchaseOrder?.poNumber?.trim();
-  if (poNumber) lines.push(`PO #: ${poNumber}`);
-
-  const orderNumber = delivery.orderNumber?.trim();
-  if (orderNumber) lines.push(`Order #: ${orderNumber}`);
-
-  if (stagingLocation?.code?.trim()) {
-    const code = stagingLocation.code.trim();
-    const label = stagingLocation.label?.trim();
-    lines.push(
-      label
-        ? `Staging location: ${code} (${label})`
-        : `Staging location: ${code}`,
-    );
-  } else {
-    lines.push("Staging location: Not assigned");
-  }
+  const aggregatedStaging = [...stagingCodes].sort().join(", ");
+  lines.push(
+    `Staging Location(s): ${aggregatedStaging || "Not assigned"}`,
+  );
 
   lines.push("");
   lines.push("Open pickup checklist:");

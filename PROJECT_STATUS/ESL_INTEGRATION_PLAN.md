@@ -59,11 +59,21 @@ Dynamic (updated when delivery assigned/cleared):
 - OCCUPIED: "[ORD-042] Acme Lighting � Staged 2:14 PM"
 - EMPTY: "AVAILABLE"
 
-### QR Code Routing (always present on zone tags)
-- When EMPTY: QR encodes `https://lgarage.github.io/stageverify/#/receive?zone=G1`
-  ? scanned by vendor/staff ? opens receiving flow pre-set to that zone
-- When OCCUPIED: QR encodes `https://lgarage.github.io/stageverify/#/receive?id={deliveryId}`
-  ? scanned ? opens receiving flow for the specific delivery already staged there
+### QR Code Routing (permanent location QR — **REJECTED: occupancy-dynamic flip**)
+
+> **Superseded 2026-07-07** by `docs/location-first-transition-spec.md` (Phase 1). The occupancy-dynamic QR-flip design below is **explicitly rejected**. Printed zone QRs are **permanent and dumb**; software is dynamic and role-aware.
+
+**Locked decision (Phase 1):** Every zone tag encodes one **never-changing** location URL:
+
+`https://lgarage.github.io/stageverify/#/s?loc={code}`
+
+(e.g. `#/s?loc=G1` for ground spot G1). The landing route is implemented in Phase 3; legacy `#/receive?zone=` and `#/receive?id=` links keep working during migration.
+
+**E-tag premium layer (future):** E-ink tags display dynamic job/vendor/status content on the **same permanent location identity** — server-side CF push only; the QR URL **never changes** when occupancy changes.
+
+~~### QR Code Routing (always present on zone tags)~~ *(rejected)*
+~~- When EMPTY: QR encodes `https://lgarage.github.io/stageverify/#/receive?zone=G1`~~
+~~- When OCCUPIED: QR encodes `https://lgarage.github.io/stageverify/#/receive?id={deliveryId}`~~
 
 ### Entryway Overview Tag (7.3" � NOT a zone tag)
 Aggregates all active deliveries. Shows a directory:

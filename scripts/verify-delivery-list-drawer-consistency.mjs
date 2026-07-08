@@ -38,7 +38,7 @@ function record(name, pass, detail = "") {
 function isShortPickupClipboard(text) {
   if (!/^StageVerify Pickup/m.test(text)) return false;
   if (!/#\/pickup\?t=[a-f0-9]{64}/.test(text)) return false;
-  if (!/Staging location:/i.test(text)) return false;
+  if (!/Staging Location\(s\):/i.test(text)) return false;
   if (!/Open pickup checklist:/i.test(text)) return false;
   if (/^Status:/m.test(text)) return false;
   if (/^Items:/m.test(text)) return false;

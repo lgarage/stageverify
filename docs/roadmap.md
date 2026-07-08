@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-07-03 (mini-librarian away-084 task-trigger gotcha map + context:gotcha CLI)
+> **Last updated:** 2026-07-08 (location-first Phase 1 complete — `v0.0.25`)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
@@ -44,6 +44,16 @@
 | **§14** | End-to-end flow (27 steps) | Cross-phase integration test | ⬜ Full flow not gate-passed |
 | — | **Firebase App Check** on public writes | **Cross-cutting security (LATER)** | ⬜ Explicitly deferred |
 | — | **Gmail / live inbox connection** | Phase 6 only (after Phase 5 prototype) | ⬜ Deferred |
+
+---
+
+## Location-first transition (`docs/location-first-transition-spec.md`)
+
+| Phase | Status | Notes |
+| ----- | ------ | ----- |
+| **1** Groundwork | ✅ Complete 2026-07-08 (`v0.0.25`) | ESL plan rejects occupancy-dynamic QR-flip; additive types; job-level pickup clipboard; permanent URL locked `#/s?loc={code}` |
+| **2** Privacy hardening | ⬜ Not started | Sonnet security gate + **explicit Dan approval** before `firestore:rules` / CF deploy |
+| **3–6** | ⬜ Not started | Permanent location scan, vendor exceptions, technician door, management audit — per spec tracker |
 
 ---
 

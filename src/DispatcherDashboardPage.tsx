@@ -2001,10 +2001,12 @@ function PickupTokenControls({
 function CopyPickupLinkButton({
   details,
   font,
+  stagingLocations,
   onTokenGenerated,
 }: {
   details: DeliveryDetails;
   font: string;
+  stagingLocations: StagingLocation[];
   onTokenGenerated?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -2038,7 +2040,12 @@ function CopyPickupLinkButton({
     setCopyError(null);
     try {
       const link = await resolveSecurePickupLink();
-      const text = buildPickupInformationClipboardText(details, link);
+      const breakdown = await firestoreDataService.getJobReadinessBreakdown(jobId);
+      const text = buildPickupInformationClipboardText(details, link, {
+        jobDeliveries: breakdown?.deliveries ?? [details.delivery],
+        jobPurchaseOrders: breakdown?.purchaseOrders ?? [],
+        stagingLocations,
+      });
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
@@ -2825,6 +2832,7 @@ function DetailContent({
                 <CopyPickupLinkButton
                   details={details}
                   font={font}
+                  stagingLocations={stagingLocations}
                   onTokenGenerated={() =>
                     setPickupTokenRefreshKey((value) => value + 1)
                   }

@@ -450,9 +450,18 @@ export interface DeliveryOrder {
   vendorPinVerifier?: string;
   purchaseOrderId?: string;
   deliveryDate: string;
-  /** Assigned staging location — where material should be staged. */
+  /** Actual staging location — physical truth (location-first: not renamed; see location-first-transition-spec). */
   stagingLocationId?: string;
   additionalStagingLocationIds?: string[];
+  /** Dispatcher instruction — where delivery should go (location-first Phase 1 types only). */
+  plannedStagingLocationIds?: string[];
+  /** Spot whose QR the vendor scanned at check-in (location-first Phase 1 types only). */
+  scannedStagingLocationId?: string;
+  scannedAt?: string;
+  /** Audit entries for planned-spot release (location-first Phase 1 types only). */
+  plannedLocationReleases?: PlannedLocationRelease[];
+  /** Review-flag overlay — not a status enum value (location-first Phase 1 types only). */
+  reviewFlag?: DeliveryReviewFlag;
   status: DeliveryStatus;
   /** V2 business readiness; when unset, derive from `status` via `effectiveReadinessStatus`. */
   readinessStatus?: ReadinessStatus;
@@ -528,6 +537,22 @@ export interface DeliveryOrder {
   updatedAt: string;
 }
 
+/** Planned-spot release audit entry (location-first D4). */
+export interface PlannedLocationRelease {
+  locationId: string;
+  releasedAt: string;
+  releasedBy: string;
+  reason?: string;
+}
+
+/** Review-flag overlay on delivery — not a DeliveryStatus value (location-first D11). */
+export interface DeliveryReviewFlag {
+  flagged: boolean;
+  reason?: string;
+  flaggedBy?: string;
+  flaggedAt?: string;
+}
+
 export type VendorDeliveryMode = "full_checkin" | "exception_only";
 
 export interface AppSettings {
@@ -548,6 +573,12 @@ export interface AppSettings {
   monitoringInboxEmail?: string;
   /** When false or inbox unset, email monitor reports missing configuration. */
   emailMonitoringEnabled?: boolean;
+  /** Minutes before technician PIN session expires (location-first Phase 1 types only). */
+  technicianSessionMinutes?: number;
+  /** Minutes before management PIN session expires (location-first Phase 1 types only). */
+  managementSessionMinutes?: number;
+  /** Hashed shared shop PIN for management audit tier (location-first Phase 1 types only). */
+  managementPinHash?: string;
 }
 
 export interface Item {
@@ -621,6 +652,10 @@ export interface StagingLocation {
   eslTagId?: string;
   widthFt?: number;
   depthFt?: number;
+  /** Capacity hint for spot suggestions (location-first Phase 1 types only). */
+  sizeClass?: string;
+  /** Ground-spot adjacency group for Need More Space (location-first Phase 1 types only). */
+  adjacentGroupId?: string;
 }
 
 export const isOversizedSpot = (loc: StagingLocation): boolean =>

@@ -647,8 +647,8 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
           `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
         );
       }
-      if (!clipboardText.includes("Staging location:")) {
-        throw new Error("Copy Pickup Information expected Staging location: line");
+      if (!clipboardText.includes("Staging Location(s):")) {
+        throw new Error("Copy Pickup Information expected Staging Location(s): line");
       }
       console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
 
