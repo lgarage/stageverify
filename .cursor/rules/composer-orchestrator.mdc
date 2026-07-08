@@ -37,12 +37,7 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel*
 Before presenting architectural suggestions, rule edits, away plans, or roadmap answers, run `.cursor/rules/suggestion-verify-gate.mdc` — cross-check authoritative sources and adjacent rules; Dan should not have to ask for a review loop.
 
 ## Pre-Action Clarification Gate
-Before writing any code, STOP and ask ONE focused question if ANY of these are true:
-- The request scope is unclear or could be interpreted multiple ways
-- The request touches Firestore schema, auth logic, or security rules
-- The request seems to contradict the current architecture described in CURRENT_STATE.md
-
-Pattern: state your interpretation first ("I'm reading this as X — is that right?"), then wait for confirmation. Do not build first and ask later.
+High-risk per ship-loop.mdc § Two-tier ship model (firestore.rules, CF deploy, auth, secrets, migrations) → state plan + tier and get Dan's approval BEFORE implementation. Fast-safe → build without asking. Still ask one focused question when scope is genuinely ambiguous.
 
 ## Scope Discipline
 - Do **exactly** what was asked. Nothing more.

@@ -7,38 +7,33 @@ alwaysApply: true
 
 After **every change** in this repo, complete the ship loop before declaring done.
 
-## Dan's standing preference — ship every change (never wait for "ship it")
+## Two-tier ship model (Dan 2026-07-08 — authoritative)
 
-**Purpose:** Dan verifies **every change** on live **gh-pages** (`https://lgarage.github.io/stageverify`) — shipping is how he confirms things are right. Agents must treat commit + push + deploy as part of "done," not a separate optional step.
+Classify every change by **file path** BEFORE implementation. Tier decides approval, not effort.
 
-**Default = ship every change.** After any update — bug fix, UI tweak, feature, rules/docs on `main`, config — **commit → push → deploy (when applicable)** in the **same session** without prompting. When the frontend bundle changed and validation passed, run **`npm run deploy`** (gh-pages) automatically. Bump `package.json` `version` in the **same commit**, before build — see `version-bump-ship-gate.mdc`.
+### Fast-safe (default — ship without asking)
 
-**What "every change" includes:** fixes, UI, service logic, rules, docs, and PROJECT_STATUS updates that land on `main`. Rules/docs-only changes: commit + push (gh-pages skip when no bundle impact). Bundle changes: commit + push + gh-pages. CF/rules changes: commit + push + Firebase after security gate.
+**Paths:** `src/`, `public/`, `scripts/verify-*`, `docs/`, `PROJECT_STATUS/`, `.cursor/rules/`, root `package.json`, routine service logic with no auth/rules surface.
 
-**"Ship it" is optional confirmation, not a required trigger.** Do **not** wait for Dan to say "ship it," "deploy," or "push it" before shipping. If validation passes and the skip list below does not apply, ship without asking.
+Loop unchanged: build → verify → commit → push → `npm run deploy` (when the frontend bundle changed and validation passed) → prod verify. No approval needed; **"ship it" is never required.** Rules/docs-only: commit + push; skip gh-pages when no bundle impact. Dan's safety net is `git revert <hash>` — "might need revert" is never a reason to hold ship.
 
-**Do not wait to be asked.** Dan's safety net is **`git revert <hash>`** — not holding back ship.
+### High-risk (STOP before implementation)
 
-| Default | Skip only when |
-|---------|----------------|
-| Ship **every change** — commit + push + deploy when applicable, without prompting | Dan explicitly says hold, do not deploy, local only, commit only, or commit and push only |
-| gh-pages when the frontend bundle changed and validation passed | Work is WIP on a branch (not `main`) |
-| Firebase (CF, Firestore rules) when the change requires it | Build or Playwright / `verify:*` failed |
-| Same session as the code change | Sonnet security gate returns **HIGH** and fix is not yet applied |
+**Paths/changes:** `firestore.rules` (any diff, including comment-only), `functions/**` when deploying, auth/route guards, secrets/config (`firebase.json`, `.github/workflows/`, env), permissions, billing, data deletion, schema/data migrations, Gmail watch/Pub/Sub, `functions/package.json`; **any `src/` file implementing auth, route guards, session/token handling, or login logic** — the `src/` path prefix alone does NOT make a change fast-safe; **root `package.json` edits to the `scripts` section or deploy wiring** (e.g. the `deploy` script, build commands).
 
-**Rollback:** prefer `git revert <hash>` (then redeploy if needed) over avoiding deploy. Do not treat "might need revert" as a reason to skip ship.
+Protocol: **STOP before implementation** — state plan + tier, wait for Dan's explicit approval. After approval: implement → **Sonnet security gate before push** (unchanged, orthogonal — still mandatory for `backend-write-critical` regardless of approval) → push → deploy **only if approval covered deploy**.
 
-**Workspace wins:** this rule overrides the generic Cursor user rule **"only commit when requested"** for **stageverify**. Agents must not treat that generic rule as permission to leave changes uncommitted or undeployed. Multitask prompts that say "no deploy unless required" apply **only to that task's stated scope**.
+**When tier is ambiguous, classify high-risk and ask — misclassifying down is the failure mode.**
 
-**Authoritative:** This file is the source of truth for commit, push, gh-pages deploy, Firebase deploy, production verification, security gate timing, and skip triggers. Other rules cross-reference here; do not duplicate full policy elsewhere.
+### Edge rulings
 
-## Default deploy policy
+- CF read-path change: implementation **fast-safe**; `firebase deploy --only functions` **high-risk**.
+- Auth/session/token read logic: **high-risk entirely** (wherever it lives, including `src/`).
+- `firestore.rules` comment-only diff: **high-risk** (file-class rule, no loophole).
+- Root `package.json` ordinary dependency version bump: **fast-safe**; root `package.json` `scripts`/deploy wiring, `functions/package.json`, or firebase SDK major: **high-risk**.
+- Existing hard stops stack: security gate **HIGH unfixed** or **NOT RUN** blocks push regardless of tier.
 
-**Frontend:** passing validation → commit, push, `npm run deploy` (gh-pages), prod verification — unless Dan explicitly skips (see **When to skip**).
-
-**Backend (CF, Firestore rules, auth/security):** deploy by default in the **same session** after security-review subagent verdict PASS or acceptable MEDIUM. Gate Task **before push** — see `model-audit-gate.mdc` § Security gate invocation. Fix **HIGH** before push; **NOT RUN** = do not push. Only hold backend deploy when Dan explicitly says hold **or** HIGH unfixed.
-
-**Rules-only / docs-only** (no frontend bundle change): commit + push; skip gh-pages unless Dan asks. Skip Firebase deploy when the change did not touch CF/rules.
+**Workspace wins:** for fast-safe changes this rule overrides the generic Cursor user rule "only commit when requested" — never leave fast-safe changes uncommitted or undeployed. **Authoritative:** this file is the source of truth for commit, push, deploy, production verification, security gate timing, and skip triggers; other rules cross-reference here.
 
 ## Sequence (full ship)
 
@@ -81,18 +76,9 @@ Run only scripts relevant to the shipped change. Retry once after **15s** if fai
 
 When `npm run away:next -- --packet` includes **`gateWarnings`** (from `PROJECT_STATUS/gotcha-map.json` gateCandidate triggers — SSOT), read them before prod `:prod` verify; they do not replace mandatory ship-loop steps.
 
-## Backend deploy (default after gate)
+## Backend deploy (high-risk tier)
 
-Deploy Firebase targets in the **same session** when the substantive change requires it — **after** Sonnet security gate passes (when triggered). Do **not** wait for a separate "approve deploy" message unless Dan said hold.
-
-| Action | Command / behavior |
-|--------|-------------------|
-| Firestore rules | `firebase deploy --only firestore:rules --project stageverify-db` |
-| Cloud Functions | `firebase deploy --only functions --project stageverify-db` (or scoped names) |
-| Gmail watch / sync / inbound auto-ingest | Deploy when change enables production email sync |
-| Other backend / security deploys | Auth changes, secrets, public unauthenticated writes, schema migrations — deploy after gate; fix HIGH before push |
-
-**Hard stop (do not push/deploy):** Sonnet security gate returns **HIGH** and the finding is not fixed. This is not "ask Dan first" — fix or escalate, then ship.
+Deploy Firebase targets only when Dan's approval covered deploy AND the security gate passed (§ Two-tier ship model). Commands: `firebase deploy --only firestore:rules --project stageverify-db` · `firebase deploy --only functions --project stageverify-db` (or scoped names). **Hard stop:** gate HIGH unfixed or NOT RUN — do not push/deploy regardless of approval.
 
 ## When to skip
 

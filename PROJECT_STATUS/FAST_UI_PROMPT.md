@@ -49,7 +49,7 @@ Validation:
 
 Ship:
 - commit, push origin/main, deploy gh-pages (frontend-only default per ship-loop.mdc)
-- Do NOT deploy Firestore rules, CF, backend without Dan approval
+- Do NOT deploy Firestore rules, CF, backend without Dan approval (high-risk tier — ship-loop.mdc § Two-tier ship model)
 
 Production verification (same route area as local):
 - **Dispatcher drawer (any drawer ship):**  
