@@ -90,7 +90,17 @@ async function enterViaDemoQrScan(page) {
   record("QR payload encodes demo delivery", true);
 
   console.log(`Simulating scan → ${qrUrl}`);
-  await page.goto(qrUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const receiveUrl =
+    baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")
+      ? qrUrl.replace(
+          /^https:\/\/lgarage\.github\.io\/stageverify/i,
+          appBase.replace(/\/$/, ""),
+        )
+      : qrUrl;
+  if (receiveUrl !== qrUrl) {
+    console.log(`Rewrote receive URL for local dev → ${receiveUrl}`);
+  }
+  await page.goto(receiveUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
   record("QR scan opens receive deep link", true);
 }
 
@@ -151,11 +161,19 @@ async function runDeliveredFlow(page) {
   // Shelf path
   await page.getByRole("button", { name: "Shelf", exact: true }).click();
   await waitForSpaceTier("Shelf spot");
-  const shelfBody = await page.locator("body").innerText();
-  const shelfOk =
-    /Recommended/i.test(shelfBody) ||
-    /No shelf spots available/i.test(shelfBody) ||
-    /Add this spot/i.test(shelfBody);
+  await page
+    .getByTestId("vendor-need-more-space-flow")
+    .waitFor({ state: "visible", timeout: 10_000 });
+  await page.waitForTimeout(800);
+  const shelfMulti = await page
+    .getByTestId("nms-spot-multi-select")
+    .isVisible()
+    .catch(() => false);
+  const shelfNoSpots = await page
+    .getByText(/No shelf spots available/i)
+    .isVisible()
+    .catch(() => false);
+  const shelfOk = shelfMulti || shelfNoSpots;
   record(
     "Shelf path resolves",
     shelfOk,
@@ -170,11 +188,15 @@ async function runDeliveredFlow(page) {
   // Ground path
   await page.getByRole("button", { name: "Ground", exact: true }).click();
   await waitForSpaceTier("Ground spot");
-  const groundBody = await page.locator("body").innerText();
-  const groundOk =
-    /Recommended/i.test(groundBody) ||
-    /No ground spots available/i.test(groundBody) ||
-    /Add this spot/i.test(groundBody);
+  const groundMulti = await page
+    .getByTestId("nms-spot-multi-select")
+    .isVisible()
+    .catch(() => false);
+  const groundNoSpots = await page
+    .getByText(/No ground spots available/i)
+    .isVisible()
+    .catch(() => false);
+  const groundOk = groundMulti || groundNoSpots;
   record(
     "Ground path resolves",
     groundOk,

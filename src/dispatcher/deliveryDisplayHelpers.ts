@@ -27,6 +27,53 @@ import {
   type ReadinessComputeOptions,
 } from "./readiness";
 
+/** D12 — derived display when planned spots exist and material is still inbound. */
+export function isReservedDisplayState(
+  delivery: Pick<DeliveryOrder, "plannedStagingLocationIds" | "status">,
+): boolean {
+  const planned = delivery.plannedStagingLocationIds ?? [];
+  if (planned.length === 0) return false;
+  return delivery.status === "pending" || delivery.status === "shipped";
+}
+
+export function hasPlannedStagingLocations(
+  delivery: Pick<DeliveryOrder, "plannedStagingLocationIds">,
+): boolean {
+  return (delivery.plannedStagingLocationIds?.length ?? 0) > 0;
+}
+
+/** Planned set differs from actual staging assignment (Phase 4 divergence). */
+export function hasPlannedActualDivergence(delivery: DeliveryOrder): boolean {
+  const planned = [...(delivery.plannedStagingLocationIds ?? [])].sort();
+  if (planned.length === 0) return false;
+  const actual = [...getAllStagingLocationIds(delivery)].sort();
+  return planned.join(",") !== actual.join(",");
+}
+
+export function formatActualStagingCodes(
+  delivery: DeliveryOrder,
+  locById: Map<string, StagingLocation>,
+): string | undefined {
+  const ids = getAllStagingLocationIds(delivery);
+  if (ids.length === 0) return undefined;
+  return ids
+    .map((id) => locById.get(id)?.code?.trim() || id)
+    .filter(Boolean)
+    .join(", ");
+}
+
+export function formatPlannedStagingCodes(
+  delivery: DeliveryOrder,
+  locById: Map<string, StagingLocation>,
+): string {
+  const ids = delivery.plannedStagingLocationIds ?? [];
+  if (ids.length === 0) return "—";
+  return ids
+    .map((id) => locById.get(id)?.code?.trim() || id)
+    .filter(Boolean)
+    .join(", ");
+}
+
 export const READINESS_BLOCK_LABEL: Record<string, string> = {
   vendor_order_incomplete: "Vendor order not complete",
   physical_dropoff_incomplete: "Physical drop-off not complete",

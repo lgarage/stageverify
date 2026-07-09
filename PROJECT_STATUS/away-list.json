@@ -9,7 +9,7 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Away batch 2026-07-05: away-109..112 Phase 6 prep + verify bundle + invoice fixtures + e2e smoke. Composer 2.5 owns verify/ship. Halt on fail.",
+    "instructions": "Phase 4 overnight batch 2026-07-08: away-113..117 UI slices + verify harness. Composer 2.5 owns verify/ship. Halt on fail. No CF/rules deploy.",
     "sequence": []
   },
   "queue": [

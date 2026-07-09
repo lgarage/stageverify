@@ -81,6 +81,8 @@ import {
 } from "./readiness";
 import {
   computeDeliveryDisplayState,
+  formatActualStagingCodes,
+  hasPlannedActualDivergence,
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
 import { resolveDeliveryPoNumber } from "./invoice/invoiceShellDisplayHelpers";
@@ -95,6 +97,7 @@ import type {
 import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } from "./service";
 import {
   StagingLocationOccupiedError,
+  buildGloballyAssignedStagingLocationIds,
   deliveryUsesStagingLocation,
 } from "./stagingOccupancy";
 import {
@@ -370,9 +373,8 @@ export class FirestoreDataService implements DispatcherDataService {
       const po = delivery.purchaseOrderId
         ? allPOs.find((p) => p.id === delivery.purchaseOrderId)
         : undefined;
-      const loc = delivery.stagingLocationId
-        ? allLocations.find((l) => l.id === delivery.stagingLocationId)
-        : undefined;
+      const locById = new Map(allLocations.map((loc) => [loc.id, loc]));
+      const stagingLocationCode = formatActualStagingCodes(delivery, locById);
 
       const lineItems = allItems.filter(
         (i) => i.deliveryOrderId === delivery.id,
@@ -405,7 +407,8 @@ export class FirestoreDataService implements DispatcherDataService {
         orderNumber: delivery.orderNumber,
         vendorName: vendor.name,
         deliveryDate: delivery.deliveryDate,
-        stagingLocationCode: loc?.code,
+        stagingLocationCode,
+        plannedActualDivergence: hasPlannedActualDivergence(delivery),
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary: display.issueSummary,
         openIssueCount: display.openIssueCount,
@@ -725,6 +728,26 @@ export class FirestoreDataService implements DispatcherDataService {
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );
+  }
+
+  async updatePlannedStagingLocations(
+    deliveryId: string,
+    plannedStagingLocationIds: string[],
+  ): Promise<DeliveryDetails | null> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+
+    const now = new Date().toISOString();
+    await setDoc(
+      doc(db, "deliveries", deliveryId),
+      {
+        plannedStagingLocationIds,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    await invokeRecalculateDeliveryReadiness(deliveryId);
+    return this.getDeliveryDetails(deliveryId);
   }
 
   async updateShopStockPickList(
@@ -1796,6 +1819,18 @@ export async function findStagingLocationOccupant(
 ): Promise<StagingLocationOccupant | null> {
   const map = await mapOccupancyByLocationId(excludeDeliveryId);
   return map[locationId] ?? null;
+}
+
+/** D14 — globally planned or actual assignments (auth: full scan; vendor: occupancy only). */
+export async function listGloballyAssignedStagingLocationIdsForDelivery(
+  excludeDeliveryId: string,
+): Promise<Set<string>> {
+  if (!getAuth().currentUser) {
+    const occupancy = await mapOccupancyByLocationId(excludeDeliveryId);
+    return new Set(Object.keys(occupancy));
+  }
+  const deliveries = await fetchAll<DeliveryOrder>("deliveries");
+  return buildGloballyAssignedStagingLocationIds(deliveries, excludeDeliveryId);
 }
 
 async function assertStagingLocationAvailable(

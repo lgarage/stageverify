@@ -90,6 +90,8 @@ interface ZoneFormState {
   eslTagId: string;
   widthFt: string;
   depthFt: string;
+  adjacentGroupId: string;
+  sizeClass: string;
 }
 
 function defaultDimensionsForType(type: ZoneType): {
@@ -113,6 +115,8 @@ const EMPTY_FORM: ZoneFormState = {
   notes: "",
   sortOrder: "",
   eslTagId: "",
+  adjacentGroupId: "",
+  sizeClass: "",
   ...defaultDimensionsForType("ground"),
 };
 
@@ -127,6 +131,8 @@ function zoneToForm(zone: StagingLocation): ZoneFormState {
     eslTagId: zone.eslTagId ?? "",
     widthFt: zone.widthFt != null ? String(zone.widthFt) : "",
     depthFt: zone.depthFt != null ? String(zone.depthFt) : "",
+    adjacentGroupId: zone.adjacentGroupId ?? "",
+    sizeClass: zone.sizeClass ?? "",
   };
 }
 
@@ -146,6 +152,8 @@ function formToZoneData(form: ZoneFormState): Omit<StagingLocation, "id"> {
     eslTagId: form.eslTagId.trim() || undefined,
     widthFt: Number.isFinite(widthFt) ? widthFt : undefined,
     depthFt: Number.isFinite(depthFt) ? depthFt : undefined,
+    adjacentGroupId: form.adjacentGroupId.trim() || undefined,
+    sizeClass: form.sizeClass.trim() || undefined,
   };
 }
 
@@ -687,6 +695,33 @@ export function ZoneManagementPage() {
                     <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
                       Used to suggest spot sizes during check-in
                     </p>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Adjacent Group ID</label>
+                    <input
+                      style={inputStyle}
+                      data-testid="zone-adjacent-group-id"
+                      value={form.adjacentGroupId}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          adjacentGroupId: e.target.value,
+                        }))
+                      }
+                      placeholder="pipe-row-a"
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Size Class</label>
+                    <input
+                      style={inputStyle}
+                      data-testid="zone-size-class"
+                      value={form.sizeClass}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, sizeClass: e.target.value }))
+                      }
+                      placeholder="standard / large"
+                    />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={labelStyle}>Notes</label>

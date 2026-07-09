@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   addStagingLocation,
   firestoreDataService,
+  listGloballyAssignedStagingLocationIdsForDelivery,
   mapOccupancyByLocationId,
 } from "./dispatcher/firestoreService";
 import {
@@ -12,6 +13,7 @@ import {
   isStagingLocationOccupiedError,
   recommendNeedMoreSpaceSpots,
 } from "./dispatcher/stagingOccupancy";
+import { getAllStagingLocationIds } from "./dispatcher/models";
 
 type SpaceTier = "pick" | "shelf" | "ground" | "large";
 
@@ -27,6 +29,15 @@ function formatSizeLine(
   return `${w} × ${d} ft`;
 }
 
+function uniqueSpots(spots: StagingLocation[]): StagingLocation[] {
+  const seen = new Set<string>();
+  return spots.filter((loc) => {
+    if (seen.has(loc.id)) return false;
+    seen.add(loc.id);
+    return true;
+  });
+}
+
 interface VendorNeedMoreSpaceFlowProps {
   delivery: DeliveryOrder;
   onDeliveryUpdated?: (delivery: DeliveryOrder) => void;
@@ -40,37 +51,52 @@ export function VendorNeedMoreSpaceFlow({
 }: VendorNeedMoreSpaceFlowProps) {
   const [tier, setTier] = useState<SpaceTier>("pick");
   const [localDelivery, setLocalDelivery] = useState(delivery);
-  const [shelfSpot, setShelfSpot] = useState<StagingLocation | undefined>();
-  const [groundSpot, setGroundSpot] = useState<StagingLocation | undefined>();
+  const [suggestedSpots, setSuggestedSpots] = useState<StagingLocation[]>([]);
+  const [selectedSpotIds, setSelectedSpotIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const tierLabel = tier === "shelf" ? "Shelf spot" : "Ground spot";
+
   const loadTierSpot = useCallback(
     async (selectedTier: "shelf" | "ground") => {
       setLoading(true);
       setLoadError(null);
+      setSelectedSpotIds(new Set());
       try {
         const all = await firestoreDataService.listStagingLocations();
         const occupancy = await mapOccupancyByLocationId(localDelivery.id);
+        const globallyAssigned =
+          await listGloballyAssignedStagingLocationIdsForDelivery(
+            localDelivery.id,
+          );
         const recs = recommendNeedMoreSpaceSpots(
           all,
           localDelivery,
           Object.keys(occupancy),
+          globallyAssigned,
         );
-        if (selectedTier === "shelf") {
-          setShelfSpot(recs.shelfSpot);
-          setGroundSpot(undefined);
-          if (!recs.shelfSpot) {
-            setLoadError("No shelf spots available right now.");
-          }
+        const primary =
+          selectedTier === "shelf" ? recs.shelfSpot : recs.groundSpot;
+        const adjacent = recs.adjacentGroundSpots ?? [];
+        const spots = uniqueSpots(
+          primary
+            ? [primary, ...adjacent.filter((loc) => loc.id !== primary.id)]
+            : adjacent,
+        );
+        setSuggestedSpots(spots);
+        if (spots.length > 0) {
+          setSelectedSpotIds(new Set(spots.map((loc) => loc.id)));
         } else {
-          setGroundSpot(recs.groundSpot);
-          setShelfSpot(undefined);
-          if (!recs.groundSpot) {
-            setLoadError("No ground spots available right now.");
-          }
+          setLoadError(
+            selectedTier === "shelf"
+              ? "No shelf spots available right now."
+              : "No ground spots available right now.",
+          );
         }
         setTier(selectedTier);
       } catch {
@@ -91,20 +117,44 @@ export function VendorNeedMoreSpaceFlow({
     else if (tier === "ground") await loadTierSpot("ground");
   }, [tier, loadTierSpot]);
 
-  const handleAddSpot = async (loc: StagingLocation) => {
+  const selectedSpots = useMemo(
+    () => suggestedSpots.filter((loc) => selectedSpotIds.has(loc.id)),
+    [suggestedSpots, selectedSpotIds],
+  );
+
+  const toggleSpot = (locId: string, checked: boolean) => {
+    setSelectedSpotIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(locId);
+      else next.delete(locId);
+      return next;
+    });
+  };
+
+  const handleAddSelectedSpots = async () => {
+    if (selectedSpots.length === 0) return;
     setAdding(true);
     try {
-      await addStagingLocation(localDelivery.id, loc.id);
-      const updated: DeliveryOrder = {
-        ...localDelivery,
-        additionalStagingLocationIds: [
-          ...(localDelivery.additionalStagingLocationIds ?? []),
-          loc.id,
-        ],
-      };
+      let updated = localDelivery;
+      for (const loc of selectedSpots) {
+        if (getAllStagingLocationIds(updated).includes(loc.id)) continue;
+        await addStagingLocation(updated.id, loc.id);
+        if (!updated.stagingLocationId?.trim()) {
+          updated = { ...updated, stagingLocationId: loc.id };
+        } else {
+          updated = {
+            ...updated,
+            additionalStagingLocationIds: [
+              ...(updated.additionalStagingLocationIds ?? []),
+              loc.id,
+            ],
+          };
+        }
+      }
       setLocalDelivery(updated);
       onDeliveryUpdated?.(updated);
-      setConfirmLabel(loc.label);
+      const labels = selectedSpots.map((loc) => loc.label).join(", ");
+      setConfirmLabel(labels);
       window.setTimeout(() => {
         setConfirmLabel(null);
         onClose();
@@ -113,14 +163,12 @@ export function VendorNeedMoreSpaceFlow({
       if (isStagingLocationOccupiedError(err)) {
         await refreshAfterOccupiedConflict();
       } else {
-        setLoadError("Could not add spot. Try again.");
+        setLoadError("Could not add spot(s). Try again.");
       }
     } finally {
       setAdding(false);
     }
   };
-
-  const activeSpot = tier === "shelf" ? shelfSpot : groundSpot;
 
   return (
     <div
@@ -130,6 +178,7 @@ export function VendorNeedMoreSpaceFlow({
       <div
         className="rounded-t-2xl border-t border-border bg-bg-primary px-4 pt-5 pb-[calc(env(safe-area-inset-bottom,16px)+20px)] max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        data-testid="vendor-need-more-space-flow"
       >
         {confirmLabel ? (
           <p className="text-center text-sm font-medium text-accent-green py-8">
@@ -214,8 +263,11 @@ export function VendorNeedMoreSpaceFlow({
         ) : (
           <>
             <h2 className="text-lg font-bold text-text-primary text-center mb-1">
-              {tier === "shelf" ? "Shelf spot" : "Ground spot"}
+              {tierLabel}
             </h2>
+            <p className="text-xs text-text-secondary text-center mb-3">
+              Select one or more adjacent spots (empty + unassigned only).
+            </p>
             {loading && (
               <p className="text-sm text-text-secondary text-center py-8">
                 Loading locations…
@@ -226,27 +278,57 @@ export function VendorNeedMoreSpaceFlow({
                 {loadError}
               </p>
             )}
-            {activeSpot && !loading && (
-              <div className="rounded-xl border border-border bg-bg-surface p-4 mt-4">
-                <p className="text-[10px] uppercase tracking-widest text-text-secondary mb-1">
-                  Recommended
+            {!loading && suggestedSpots.length > 0 && (
+              <div
+                className="rounded-xl border border-border bg-bg-surface p-4 mt-2"
+                data-testid="nms-spot-multi-select"
+              >
+                <p className="text-[10px] uppercase tracking-widest text-text-secondary mb-2">
+                  Available spots
                 </p>
-                <p className="font-semibold text-text-primary text-lg">
-                  {activeSpot.label}
-                </p>
-                <p className="text-xs text-text-secondary mt-1">
-                  {formatSizeLine(
-                    activeSpot,
-                    tier === "shelf" ? { w: 3, d: 3 } : { w: 4, d: 4 },
-                  )}
-                </p>
+                <div className="flex flex-col gap-2 mb-4">
+                  {suggestedSpots.map((loc) => (
+                    <label
+                      key={loc.id}
+                      data-testid={`nms-spot-option-${loc.code}`}
+                      className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-bg-secondary"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedSpotIds.has(loc.id)}
+                        disabled={adding}
+                        onChange={(e) => toggleSpot(loc.id, e.target.checked)}
+                      />
+                      <span className="flex-1">
+                        <span className="font-semibold text-text-primary">
+                          {loc.label}
+                        </span>
+                        <span className="block text-xs text-text-secondary mt-0.5">
+                          {formatSizeLine(
+                            loc,
+                            tier === "shelf"
+                              ? { w: 3, d: 3 }
+                              : { w: 4, d: 4 },
+                          )}
+                          {loc.adjacentGroupId
+                            ? ` · group ${loc.adjacentGroupId}`
+                            : ""}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
                 <button
                   type="button"
-                  disabled={adding}
-                  onClick={() => void handleAddSpot(activeSpot)}
-                  className="mt-4 w-full rounded-xl bg-accent-green py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
+                  data-testid="nms-add-selected-spots"
+                  disabled={adding || selectedSpots.length === 0}
+                  onClick={() => void handleAddSelectedSpots()}
+                  className="w-full rounded-xl bg-accent-green py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
                 >
-                  Add this spot
+                  {adding
+                    ? "Adding…"
+                    : `Add ${selectedSpots.length} selected spot${selectedSpots.length === 1 ? "" : "s"}`}
                 </button>
               </div>
             )}

@@ -60,7 +60,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, incrementOverviewStatusCounts, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
+import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, incrementOverviewStatusCounts, formatPlannedStagingCodes, hasPlannedActualDivergence, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
 import { isInvoiceShellNoShopStaging, resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
 import {
@@ -241,6 +241,11 @@ function listStatusBadge(
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Picked Up") return STATUS_BADGE.picked_up;
   if (label === "Partial") return STATUS_BADGE.partial;
+  if (label === "Reserved") {
+    return row.status === "shipped"
+      ? STATUS_BADGE.shipped
+      : STATUS_BADGE.pending;
+  }
   if (label === "Pending Delivery" || label === "Awaiting Vendor Delivery") {
     return row.status === "shipped"
       ? STATUS_BADGE.shipped
@@ -463,6 +468,33 @@ export function DispatcherDashboardPage() {
         );
         console.error(e);
       }
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleUpdatePlannedStagingLocations = async (
+    plannedIds: string[],
+  ): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await firestoreDataService.updatePlannedStagingLocations(
+        selectedDeliveryId,
+        plannedIds,
+      );
+      if (updated) {
+        setSelectedDetails(updated);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to update planned staging locations.");
+      }
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while updating planned locations.",
+      );
+      console.error(e);
     } finally {
       setMutationLoading(false);
     }
@@ -1441,22 +1473,69 @@ export function DispatcherDashboardPage() {
                           {row.stagingLocationCode ? (
                             <span
                               style={{
-                                display: "inline-block",
-                                padding: "3px 8px",
-                                borderRadius: 4,
-                                backgroundColor: actionRequired
-                                  ? "rgba(255,255,255,0.2)"
-                                  : "#eef2ff",
-                                color: actionRequired ? "#fff" : NAVY,
-                                fontSize: 12,
-                                fontWeight: 700,
-                                fontFamily: "monospace",
-                                border: actionRequired
-                                  ? "1px solid rgba(255,255,255,0.45)"
-                                  : `1px solid #c7d4f0`,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                flexWrap: "wrap",
                               }}
                             >
-                              {row.stagingLocationCode}
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "3px 8px",
+                                  borderRadius: 4,
+                                  backgroundColor: actionRequired
+                                    ? "rgba(255,255,255,0.2)"
+                                    : "#eef2ff",
+                                  color: actionRequired ? "#fff" : NAVY,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  fontFamily: "monospace",
+                                  border: actionRequired
+                                    ? "1px solid rgba(255,255,255,0.45)"
+                                    : `1px solid #c7d4f0`,
+                                }}
+                              >
+                                {row.stagingLocationCode}
+                              </span>
+                              {row.plannedActualDivergence ? (
+                                <span
+                                  data-testid={`staging-divergence-badge-${row.deliveryId}`}
+                                  title="Planned staging differs from actual assignment"
+                                  style={{
+                                    display: "inline-block",
+                                    padding: "2px 6px",
+                                    borderRadius: 4,
+                                    backgroundColor: "#fff7ed",
+                                    color: "#9a3412",
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    letterSpacing: "0.04em",
+                                    textTransform: "uppercase",
+                                    border: "1px solid #fdba74",
+                                  }}
+                                >
+                                  Divergence
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : row.plannedActualDivergence ? (
+                            <span
+                              data-testid={`staging-divergence-badge-${row.deliveryId}`}
+                              style={{
+                                display: "inline-block",
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                backgroundColor: "#fff7ed",
+                                color: "#9a3412",
+                                fontSize: 10,
+                                fontWeight: 800,
+                                letterSpacing: "0.04em",
+                                textTransform: "uppercase",
+                                border: "1px solid #fdba74",
+                              }}
+                            >
+                              Divergence
                             </span>
                           ) : (
                             <span
@@ -1852,6 +1931,7 @@ export function DispatcherDashboardPage() {
                 onUpdateShopStockPickList={handleUpdateShopStockPickList}
                 stagingLocations={availableStagingLocations}
                 onUpdateStagingLocation={handleUpdateStagingLocation}
+                onUpdatePlannedStagingLocations={handleUpdatePlannedStagingLocations}
                 onUpdateJobPickupScheduled={handleUpdateJobPickupScheduled}
                 onDeliveryOrderUpdated={(delivery) => {
                   setSelectedDetails((prev) =>
@@ -2272,6 +2352,7 @@ function DetailContent({
   onUpdateShopStockPickList,
   stagingLocations,
   onUpdateStagingLocation,
+  onUpdatePlannedStagingLocations,
   onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
   onResolveMaterialIssue,
@@ -2297,6 +2378,7 @@ function DetailContent({
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
+  onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
   onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   onResolveMaterialIssue: (
@@ -3187,6 +3269,7 @@ function DetailContent({
           onUpdateIssueSummary={onUpdateIssueSummary}
           onUpdateShopStockPickList={onUpdateShopStockPickList}
           onUpdateStagingLocation={onUpdateStagingLocation}
+          onUpdatePlannedStagingLocations={onUpdatePlannedStagingLocations}
           onDeliveryOrderUpdated={onDeliveryOrderUpdated}
           stagingLocations={stagingLocations}
           navy={navy}
@@ -3776,6 +3859,7 @@ function StatusActionPanel({
   onUpdateIssueSummary,
   onUpdateShopStockPickList,
   onUpdateStagingLocation,
+  onUpdatePlannedStagingLocations,
   onDeliveryOrderUpdated,
   stagingLocations,
   navy,
@@ -3795,6 +3879,7 @@ function StatusActionPanel({
     linkedMappingId?: string,
   ) => Promise<void>;
   onUpdateStagingLocation: (id: string | null) => Promise<void>;
+  onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   stagingLocations: StagingLocation[];
   navy: string;
@@ -3811,6 +3896,9 @@ function StatusActionPanel({
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [pendingLocationId, setPendingLocationId] = useState<string>(
     details.stagingLocation?.id ?? "",
+  );
+  const [pendingPlannedIds, setPendingPlannedIds] = useState<string[]>(
+    () => details.delivery.plannedStagingLocationIds ?? [],
   );
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [stockToolsExpanded, setStockToolsExpanded] = useState(false);
@@ -3833,6 +3921,11 @@ function StatusActionPanel({
     details.delivery.shopStockLocationNote ?? "",
   );
   const isDirty = pendingLocationId !== (details.stagingLocation?.id ?? "");
+  const plannedDirty =
+    [...pendingPlannedIds].sort().join(",") !==
+    [...(details.delivery.plannedStagingLocationIds ?? [])].sort().join(",");
+  const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
+  const plannedDivergence = hasPlannedActualDivergence(details.delivery);
   const savedShopStockLocationNote =
     details.delivery.shopStockLocationNote ?? "";
   const parsedPickList = parseShopStockPickListLines(pickListText);
@@ -3845,6 +3938,10 @@ function StatusActionPanel({
   useEffect(() => {
     setPendingLocationId(details.stagingLocation?.id ?? "");
   }, [details.stagingLocation?.id, details.delivery.id]);
+
+  useEffect(() => {
+    setPendingPlannedIds(details.delivery.plannedStagingLocationIds ?? []);
+  }, [details.delivery.plannedStagingLocationIds, details.delivery.id]);
 
   useEffect(() => {
     setPickListText(
@@ -4124,6 +4221,140 @@ function StatusActionPanel({
         >
           Red locations are already assigned to another delivery.
         </p>
+
+        <div
+          data-testid="planned-staging-assignment"
+          style={{
+            marginTop: 16,
+            paddingTop: 14,
+            borderTop: "1px solid #e5e7eb",
+          }}
+        >
+          <h4
+            style={{
+              margin: "0 0 6px",
+              fontSize: 13,
+              fontWeight: 700,
+              color: navy,
+              fontFamily: font,
+            }}
+          >
+            Planned Staging (dispatcher instruction)
+          </h4>
+          <p
+            style={{
+              margin: "0 0 10px",
+              fontSize: 12,
+              color: "#6b7280",
+              lineHeight: 1.45,
+              fontFamily: font,
+            }}
+          >
+            Assign one or more spots the vendor should use (e.g. G4+G5+G6 for
+            pipe). List shows actual assignments; divergence badge appears when
+            planned ≠ actual.
+          </p>
+          <p
+            data-testid="planned-staging-current"
+            style={{
+              margin: "0 0 10px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: plannedDivergence ? "#9a3412" : "#4b5563",
+              fontFamily: font,
+            }}
+          >
+            Planned:{" "}
+            <span style={{ fontFamily: "monospace" }}>
+              {formatPlannedStagingCodes(details.delivery, locById)}
+            </span>
+            {plannedDivergence ? (
+              <span
+                data-testid="drawer-planned-divergence-badge"
+                style={{
+                  marginLeft: 8,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  backgroundColor: "#fff7ed",
+                  color: "#9a3412",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  border: "1px solid #fdba74",
+                }}
+              >
+                Divergence
+              </span>
+            ) : null}
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              maxHeight: 180,
+              overflowY: "auto",
+              marginBottom: 10,
+            }}
+          >
+            {stagingLocations.map((loc) => {
+              const checked = pendingPlannedIds.includes(loc.id);
+              return (
+                <label
+                  key={loc.id}
+                  data-testid={`planned-staging-option-${loc.code}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    color: "#333",
+                    fontFamily: font,
+                    cursor: loading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={loading}
+                    onChange={(e) => {
+                      setPendingPlannedIds((prev) =>
+                        e.target.checked
+                          ? [...prev, loc.id]
+                          : prev.filter((id) => id !== loc.id),
+                      );
+                    }}
+                  />
+                  <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                    {loc.code}
+                  </span>
+                  <span style={{ color: "#6b7280" }}>{loc.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            data-testid="save-planned-staging"
+            disabled={loading || !plannedDirty}
+            onClick={() => void onUpdatePlannedStagingLocations(pendingPlannedIds)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: loading || !plannedDirty ? "not-allowed" : "pointer",
+              backgroundColor: loading || !plannedDirty ? "#f3f4f6" : navy,
+              color: loading || !plannedDirty ? "#9ca3af" : "#fff",
+              border: `1.5px solid ${loading || !plannedDirty ? "#d1d5db" : navy}`,
+            }}
+          >
+            {loading ? "Saving…" : "Save Planned Spots"}
+          </button>
+        </div>
+
         {!DRAWER_HIDE_NEED_MORE_SPACE &&
           getAllStagingLocationIds(details.delivery).length > 0 && (
             <div style={{ marginTop: 12 }}>

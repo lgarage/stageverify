@@ -1058,6 +1058,8 @@ export interface DeliveryListRow {
   vendorName: string;
   deliveryDate: string;
   stagingLocationCode?: string;
+  /** Phase 4 — planned ≠ actual staging assignment. */
+  plannedActualDivergence?: boolean;
   itemsReceivedLabel: string;
   issueSummary: string;
   openIssueCount: number;

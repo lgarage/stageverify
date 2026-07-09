@@ -32,6 +32,37 @@
       "mergedAt": "2026-07-05T14:00:16.743Z",
       "mergedToId": null,
       "sourceTask": "away-110"
+    },
+    {
+      "id": "vfl-001",
+      "scriptName": "verify:vendor-delivered:prod",
+      "fingerprint": "b6ee9b809747caa4",
+      "exitCode": 1,
+      "category": "gotcha",
+      "summary": "verify:vendor-delivered:prod prod verify fail — likely stale gh-pages bundle; redeploy before :prod verify",
+      "triggerTerms": [
+        "prod verify",
+        "gh-pages",
+        "STAGEVERIFY_BASE_URL",
+        "vendor-receive",
+        "prod verify fail",
+        "stale bundle",
+        "gh-pages stale",
+        "redeploy",
+        "local pass prod fail"
+      ],
+      "type": "ui-component",
+      "subtype": "playwright",
+      "gateCandidate": true,
+      "domain": "vendor-receive",
+      "source": "verify-auto-capture",
+      "taskHint": null,
+      "stderrTail": "\n1 check(s) failed.",
+      "stdoutTail": "PASS: Ground path resolves — ground tier rendered\n  screenshot: c:\\Projects\\stageverify\\screenshots\\vendor-delivered\\05-ground-path.png\nPASS: Large/oversized shows dispatcher call\n  screenshot: c:\\Projects\\stageverify\\screenshots\\vendor-delivered\\06-large-oversized.png\nPASS: Issue submit succeeds\n  screenshot: c:\\Projects\\stageverify\\screenshots\\vendor-delivered\\07-issue-submitted.png\nPASS: DELIVERED confirms without item checkoff\n  screenshot: c:\\Projects\\stageverify\\screenshots\\vendor-delivered\\08-delivery-confirmed.png\nPASS: Status stays arrived (not ready_for_pickup UI)\nFAIL: Dispatcher visibility — locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button').filter({ hasText: /^View$/ }).first()\n\nPASS: Revert returns to Delivered hub\n  screenshot: c:\\Projects\\stageverify\\screenshots\\vendor-delivered\\09-reverted-to-hub.png\n\n--- Vendor Delivered E2E summary ---\n  [ok] Demo QR scan page loads\n  [ok] QR payload encodes demo delivery\n  [ok] QR scan opens receive deep link\n  [ok] Job / Site visible on hub\n  [ok] Order # visible on hub\n  [ok] PO # visible on hub\n  [ok] PIN unlocks Delivered hub\n  [ok] Exception-only Delivered hub\n  [ok] No legacy full_checkin UI\n  [ok] No item checkoff on happy path\n  [ok] Delivery context card visible\n  [ok] Need More Space tier picker opens\n  [ok] Shelf path resolves: shelf tier rendered\n  [ok] Ground path resolves: ground tier rendered\n  [ok] Large/oversized shows dispatcher call\n  [ok] Issue submit succeeds\n  [ok] DELIVERED confirms without item checkoff\n  [ok] Status stays arrived (not ready_for_pickup UI)\n  [X] Dispatcher visibility: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button').filter({ hasText: /^View$/ }).first()\n\n  [ok] Revert returns to Delivered hub",
+      "createdAt": "2026-07-08T12:45:59.204Z",
+      "mergedAt": "2026-07-09T02:44:44.228Z",
+      "mergedToId": null,
+      "sourceTask": "away-117"
     }
   ]
 }

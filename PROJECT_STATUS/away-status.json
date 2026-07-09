@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-05",
+  "lastRun": "2026-07-09",
   "batch": "away-001..041 archived; away-042..076 built; queue empty except blocked away-069",
   "results": [
     {
@@ -106,6 +106,13 @@
       "status": "built",
       "commit": "675d652",
       "note": "verify:e2e-smoke harness added; pickup leg blocked on delivery-3 Firestore state"
+    },
+    {
+      "id": "away-117",
+      "title": "Phase 4: verify harness scaffold (G1→G4 E2E)",
+      "status": "built",
+      "commit": "864e70b",
+      "note": "Phase 4 overnight batch away-113..117: Reserved D12, planned-multi+divergence, Zones adjacency, NMS v2 multi-select UI, verify:location-phase4 scaffold — v0.0.28"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"

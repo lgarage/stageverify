@@ -278,6 +278,7 @@ const deliveryOrders: DeliveryOrder[] = [
     vendorName: "Johnstone Supply",
     purchaseOrderId: "po-6",
     deliveryDate: "2026-06-03",
+    plannedStagingLocationIds: ["staging-4", "staging-5"],
     status: "shipped",
     issueSummary: "",
     notes:
