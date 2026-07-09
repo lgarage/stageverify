@@ -6,35 +6,35 @@
       "id": "away-118",
       "title": "Phase 4 verify: NMS + planned-staging interactive",
       "status": "built",
-      "commit": "pending",
+      "commit": "03fe7ef",
       "note": "verify:location-phase4 NMS + planned-staging save + vendor path"
     },
     {
       "id": "away-119",
       "title": "Fix verify:e2e-smoke pickup leg",
       "status": "built",
-      "commit": "pending",
+      "commit": "03fe7ef",
       "note": "seed pickup readiness + verify-e2e-pickup-leg; e2e-smoke PASS"
     },
     {
       "id": "away-120",
       "title": "Phase 4 list badge seed",
       "status": "built",
-      "commit": "pending",
+      "commit": "03fe7ef",
       "note": "patch ORD-005/006 plannedStagingLocationIds; list badge asserts required"
     },
     {
       "id": "away-121",
       "title": "Invoice parser fixtures (offline)",
       "status": "built",
-      "commit": "pending",
+      "commit": "03fe7ef",
       "note": "3 non-Johnstone edge fixtures; test:invoice-parser 100%"
     },
     {
       "id": "away-123",
       "title": "Wire orphan verify npm scripts",
       "status": "built",
-      "commit": "pending",
+      "commit": "03fe7ef",
       "note": "verify:public-network-error + verify:typography npm entries"
     },
     {

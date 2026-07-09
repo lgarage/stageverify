@@ -243,8 +243,8 @@ async function runScenarioA(page, pickupToken) {
         if (/already reported|duplicate/i.test(errText)) {
           console.log("Running Low PASS: duplicate restock alert (prior run).");
         } else {
-          console.log(
-            "SKIP Running Low: no success toast (fixture idempotency or CF lag).",
+          throw new Error(
+            `Running Low FAIL: no success toast.${errText ? ` Error: ${errText}` : ""}`,
           );
         }
       }
@@ -264,29 +264,23 @@ async function runScenarioA(page, pickupToken) {
       );
     }
     await cardBtn.click();
-    try {
-      await page.waitForFunction(
-        () => {
-          const el = document.querySelector('[data-testid="shop-stock-pull-state"]');
-          return el?.textContent?.trim() === "Staged";
-        },
-        { timeout: 12_000 },
-      );
-      const staged = (
-        (await page.getByTestId("shop-stock-pull-state").first().textContent()) ?? ""
-      ).trim();
-      if (staged !== "Staged") {
-        console.log(
-          `SKIP shop stock Staged: expected Staged after card check-off, got "${staged}".`,
-        );
-      } else {
-        console.log("Shop stock PASS: Pulled → Staged after delivery card check-off.");
-      }
-    } catch {
-      console.log(
-        "SKIP shop stock Staged transition (fixture idempotency or blocking-issue path).",
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector('[data-testid="shop-stock-pull-state"]');
+        return el?.textContent?.trim() === "Staged";
+      },
+      { timeout: 20_000 },
+    );
+    const staged = (
+      (await page.getByTestId("shop-stock-pull-state").first().textContent()) ?? ""
+    ).trim();
+    if (staged !== "Staged") {
+      const cardErr = await page.locator(".text-accent-red").first().textContent().catch(() => "");
+      throw new Error(
+        `Shop stock FAIL: expected Staged after delivery card check-off, got "${staged}".${cardErr ? ` Card error: ${cardErr}` : ""}`,
       );
     }
+    console.log("Shop stock PASS: Pulled → Staged after delivery card check-off.");
   }
 
   await waitForDoneEnabled(page);
