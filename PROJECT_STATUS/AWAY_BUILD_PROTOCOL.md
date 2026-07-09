@@ -112,7 +112,7 @@ For each id in `executionProtocol.sequence`:
    - **Lessons learned:** append one bullet via `npm run lessons:append` or manual edit; `npm run away:validate` catches index drift.
 9. Run **`npm run away:validate`** — must pass before commit.
 10. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
-11. **Ship Verifier (Grok) — after every substantive push**, same as interactive work (`model-gates.mdc` § Ship Verifier auto-invoke): one read-only Task, `generalPurpose` + `model: "grok-4.5-fast-xhigh"`, path-classified (`src/`, `functions/src/`, `public/`, behavior-bearing `scripts/*.mjs`; never by commit prefix). Docs/PROJECT_STATUS-only item → `ship-verifier: N/A (paths excluded)`. **FAIL** → apply fix list, re-verify **once**; still failing or NOT RUN → **halt the batch** (step 5 semantics), record state, go to REPORT.
+11. **Ship Verifier (Grok) — after every substantive push**, same as interactive work (`model-gates.mdc` § Ship Verifier auto-invoke): one read-only Task, `generalPurpose` + `model: "grok-4.5-fast-xhigh"`, path-classified per `model-gates.mdc` § Ship Verifier auto-invoke (SSOT — never by commit prefix). Docs/PROJECT_STATUS-only item → `ship-verifier: N/A (paths excluded)`. **FAIL** → apply fix list, re-verify **once**; still failing or NOT RUN → **halt the batch** (step 5 semantics), record state, go to REPORT.
 12. **Item completion report** must include `ship-verifier: <task-id>` (or `N/A (paths excluded)`) and `gotchas: none | recorded — <name>` lines per `composer-orchestrator.mdc` — missing line = NOT RUN.
 13. Session cleanup — then next item.
 
