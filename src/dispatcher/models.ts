@@ -286,6 +286,10 @@ export interface Job {
   pickupScheduledAt?: string;
   /** Dispatcher email or name who marked Pickup Scheduled. */
   pickupScheduledBy?: string;
+  /** Job-scoped vendor PIN (D14) — 4-digit; verified server-side only. */
+  pinCode?: string;
+  /** scrypt hash `salt:hex` — preferred over pinCode when set. */
+  pinHash?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -312,8 +316,12 @@ export interface Vendor {
 }
 
 export interface VerifyVendorPinInput {
-  deliveryId: string;
   pin: string;
+  /** Legacy `#/receive?id=` flow. */
+  deliveryId?: string;
+  /** Location-first `#/s?loc=` flow (Phase 3). */
+  stagingLocationCode?: string;
+  jobId?: string;
 }
 
 export interface VerifyVendorPinResult {
@@ -322,10 +330,31 @@ export interface VerifyVendorPinResult {
   vendorId?: string;
   vendorName?: string;
   deliveryId?: string;
-  /** Opaque server-issued session token (delivery-scoped). */
+  jobId?: string;
+  sessionScope?: "job" | "delivery";
+  scannedStagingLocationCode?: string;
+  /** Opaque server-issued session token. */
   sessionToken?: string;
   /** ISO expiry from server session doc. */
   expiresAt?: string;
+}
+
+export interface JobVendorDeliverySummary {
+  deliveryId: string;
+  orderNumber: string;
+  poNumber?: string;
+  vendorName: string;
+  status: string;
+  stagingLocationCodes: string[];
+  scannedStagingLocationCode?: string;
+}
+
+export interface LocationPublicBranding {
+  found: boolean;
+  locationId?: string;
+  code?: string;
+  label?: string;
+  type?: string;
 }
 
 /** Server-validated pickup token (Firestore pickupTokens/{tokenHash}). */
@@ -373,6 +402,10 @@ export interface VendorSession {
   vendorName: string;
   expiresAt: string;
   createdAt: string;
+  sessionScope?: "job" | "delivery";
+  jobId?: string;
+  scannedStagingLocationId?: string;
+  scannedStagingLocationCode?: string;
 }
 
 export interface PinVerificationEvent {

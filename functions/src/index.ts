@@ -43,6 +43,9 @@ import { submitVendorCheckin } from "./submitVendorCheckin";
 import { updateVendorItemQty } from "./updateVendorItemQty";
 import { updateVendorDeliveryStatus } from "./updateVendorDeliveryStatus";
 import { markPickupDeliveryInstalled } from "./markPickupDeliveryInstalled";
+import { getLocationPublicBranding } from "./getLocationPublicBranding";
+import { getJobVendorDeliveries } from "./getJobVendorDeliveries";
+import { recordVendorLocationScan } from "./recordVendorLocationScan";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -178,6 +181,9 @@ export {
   updateVendorItemQty,
   updateVendorDeliveryStatus,
   markPickupDeliveryInstalled,
+  getLocationPublicBranding,
+  getJobVendorDeliveries,
+  recordVendorLocationScan,
   processInboundVendorEmail,
   initiateGmailOAuth,
   completeGmailOAuth,

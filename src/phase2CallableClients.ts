@@ -130,3 +130,36 @@ export async function markPickupDeliveryInstalledClient(input: {
 }): Promise<{ details: DeliveryDetails | null }> {
   return callCallable("markPickupDeliveryInstalled", input);
 }
+
+export async function getLocationPublicBrandingClient(
+  locationCode: string,
+): Promise<
+  | { found: false }
+  | {
+      found: true;
+      locationId: string;
+      code: string;
+      label: string;
+      type: string;
+    }
+> {
+  return callCallable("getLocationPublicBranding", { locationCode });
+}
+
+export async function getJobVendorDeliveriesClient(input: {
+  jobId: string;
+  sessionToken: string;
+}): Promise<{
+  jobId: string;
+  scannedStagingLocationCode: string | null;
+  deliveries: import("./dispatcher/models").JobVendorDeliverySummary[];
+}> {
+  return callCallable("getJobVendorDeliveries", input);
+}
+
+export async function recordVendorLocationScanClient(input: {
+  deliveryId: string;
+  sessionToken: string;
+}): Promise<{ ok: boolean; recorded: boolean }> {
+  return callCallable("recordVendorLocationScan", input);
+}

@@ -25,6 +25,7 @@ import {
 import { mapActiveShopStockReservationsByCode } from "./dispatcher/shopStockMapping";
 import {
   buildZoneEslQrUrl,
+  buildPermanentLocationUrl,
   formatZoneEslStatusLine,
 } from "./receiveQrUrls";
 import { EslQrCode } from "./EslQrCode";
@@ -823,6 +824,10 @@ export function ZoneManagementPage() {
                         shopStockByCode,
                       );
                       const qrUrl = buildZoneEslQrUrl(zone.code, occupancy);
+                      const permanentSignUrl = buildPermanentLocationUrl(
+                        zone.code,
+                        { forPrint: true },
+                      );
                       const eslStatus = formatZoneEslStatusLine(occupancy);
                       const tagLinked = Boolean(zone.eslTagId?.trim());
                       return (
@@ -889,6 +894,87 @@ export function ZoneManagementPage() {
                               </p>
                               <EslQrCode value={qrUrl} variant="preview" />
                             </div>
+                          </div>
+
+                          <div
+                            data-testid="permanent-location-sign"
+                            style={{
+                              marginTop: 14,
+                              padding: "12px 14px",
+                              borderRadius: 8,
+                              border: `1.5px solid ${NAVY}`,
+                              backgroundColor: "#f8fafc",
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                color: NAVY,
+                                margin: "0 0 8px",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                              }}
+                            >
+                              Permanent location sign (print)
+                            </p>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 16,
+                              }}
+                            >
+                              <div style={{ textAlign: "center" }}>
+                                <p
+                                  style={{
+                                    fontSize: 22,
+                                    fontWeight: 900,
+                                    color: NAVY,
+                                    margin: 0,
+                                    fontFamily: FONT,
+                                  }}
+                                >
+                                  {zone.code}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: 11,
+                                    color: "#374151",
+                                    margin: "4px 0 0",
+                                  }}
+                                >
+                                  {zone.label}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: 28,
+                                    lineHeight: 1,
+                                    margin: "6px 0 0",
+                                    color: RED,
+                                  }}
+                                  aria-hidden
+                                >
+                                  ↓
+                                </p>
+                              </div>
+                              <EslQrCode
+                                value={permanentSignUrl}
+                                variant="preview"
+                              />
+                            </div>
+                            <p
+                              style={{
+                                fontSize: 10,
+                                color: "#6b7280",
+                                marginTop: 8,
+                                marginBottom: 0,
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              Permanent URL: {permanentSignUrl}
+                            </p>
                           </div>
 
                           <div

@@ -21,13 +21,13 @@
 | --- | --- | --- | --- | --- | --- |
 | 1 | Groundwork: docs, types, clipboard | `complete` | 2026-07-08 | 2026-07-08 | ESL plan amended; additive types; job-level clipboard; URL locked `#/s?loc=` |
 | 2 | Privacy hardening (backend) | `complete` | 2026-07-08 | 2026-07-08 | Rules auth-only reads; session/token CF mediation; vendorPinVerifier removed; verify:privacy |
-| 3 | Permanent location entry + vendor scan v2 | `not_started` | — | — | Sign printing blocked on shop map + shelving decision (Jake Korb) |
+| 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `not_started` | — | — | Multi-spot, releases, planned/actual divergence |
 | 5 | Technician door two + pickup verification v2 | `not_started` | — | — | Sonnet-gated; per-tech PINs; two-level verification |
 | 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | Sonnet-gated; shared shop PIN; highest-sensitivity surface after Phase 2 |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
-**Current phase: Phase 2 — complete. Next action: Phase 3 — permanent location entry + vendor scan v2 (sign printing blocked on shop map).**
+**Current phase: Phase 3 — complete (core software slice). Next action: Phase 4 — vendor exception flows + dispatcher planning.**
 
 **Phase 1 drift review:** ESL plan rejects occupancy-dynamic QR-flip; types additive only; clipboard job-level format shipped; permanent URL **`#/s?loc={code}`** locked (see § Permanent URL scheme).
 

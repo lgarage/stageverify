@@ -39,14 +39,19 @@ function readRaw(deliveryId: string): VendorPinSession | null {
   }
 }
 
-function serverSessionExpired(session: VendorPinSession): boolean {
+function serverSessionExpired(session: {
+  expiresAt?: string;
+}): boolean {
   if (!session.expiresAt) return false;
   const expiresMs = Date.parse(session.expiresAt);
   if (!Number.isFinite(expiresMs)) return true;
   return Date.now() >= expiresMs;
 }
 
-function clientInactivityExpired(session: VendorPinSession): boolean {
+function clientInactivityExpired(session: {
+  lastActivityAt: number;
+  sessionMinutes?: number;
+}): boolean {
   const minutes = session.sessionMinutes ?? VENDOR_PIN_SESSION_MS / 60_000;
   return Date.now() - session.lastActivityAt >= minutes * 60_000;
 }
@@ -77,6 +82,119 @@ export function getPinSession(deliveryId: string): VendorPinSession | null {
 export function getVendorSessionToken(deliveryId: string): string | null {
   const session = getPinSession(deliveryId);
   return session?.sessionToken ?? null;
+}
+
+const JOB_STORAGE_PREFIX = "sv-job-pin:";
+
+export interface JobPinSession {
+  jobId: string;
+  vendorId: string;
+  vendorName: string;
+  lastActivityAt: number;
+  sessionToken?: string;
+  expiresAt?: string;
+  sessionMinutes?: number;
+  scannedStagingLocationCode?: string;
+}
+
+function jobStorageKey(jobId: string): string {
+  return `${JOB_STORAGE_PREFIX}${jobId}`;
+}
+
+function readJobRaw(jobId: string): JobPinSession | null {
+  try {
+    const raw = sessionStorage.getItem(jobStorageKey(jobId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as JobPinSession;
+    if (
+      typeof parsed.jobId !== "string" ||
+      typeof parsed.vendorId !== "string" ||
+      typeof parsed.vendorName !== "string" ||
+      typeof parsed.lastActivityAt !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function isJobPinSessionValid(jobId: string): boolean {
+  const session = readJobRaw(jobId);
+  if (!session) return false;
+  if (serverSessionExpired(session) || clientInactivityExpired(session)) {
+    clearJobPinSession(jobId);
+    return false;
+  }
+  return true;
+}
+
+export function getJobPinSession(jobId: string): JobPinSession | null {
+  const session = readJobRaw(jobId);
+  if (!session || !isJobPinSessionValid(jobId)) {
+    clearJobPinSession(jobId);
+    return null;
+  }
+  return session;
+}
+
+export function getJobSessionToken(jobId: string): string | null {
+  return getJobPinSession(jobId)?.sessionToken ?? null;
+}
+
+export function setJobPinSession(
+  jobId: string,
+  vendorId: string,
+  vendorName: string,
+  options?: {
+    sessionToken?: string;
+    expiresAt?: string;
+    sessionMinutes?: number;
+    scannedStagingLocationCode?: string;
+  },
+): JobPinSession {
+  const session: JobPinSession = {
+    jobId,
+    vendorId,
+    vendorName,
+    lastActivityAt: Date.now(),
+    sessionToken: options?.sessionToken,
+    expiresAt: options?.expiresAt,
+    sessionMinutes: options?.sessionMinutes,
+    scannedStagingLocationCode: options?.scannedStagingLocationCode,
+  };
+  sessionStorage.setItem(jobStorageKey(jobId), JSON.stringify(session));
+  return session;
+}
+
+export function touchJobPinSession(jobId: string): void {
+  const session = readJobRaw(jobId);
+  if (!session || serverSessionExpired(session)) {
+    clearJobPinSession(jobId);
+    return;
+  }
+  session.lastActivityAt = Date.now();
+  sessionStorage.setItem(jobStorageKey(jobId), JSON.stringify(session));
+}
+
+export function clearJobPinSession(jobId: string): void {
+  sessionStorage.removeItem(jobStorageKey(jobId));
+}
+
+/** Copy job session token onto a delivery for legacy vendor CF clients. */
+export function bridgeJobSessionToDelivery(
+  jobId: string,
+  deliveryId: string,
+): boolean {
+  const jobSession = getJobPinSession(jobId);
+  if (!jobSession?.sessionToken) return false;
+  setPinSession(deliveryId, jobSession.vendorId, jobSession.vendorName, {
+    sessionToken: jobSession.sessionToken,
+    expiresAt: jobSession.expiresAt,
+    sessionMinutes: jobSession.sessionMinutes,
+  });
+  return true;
 }
 
 export function setPinSession(

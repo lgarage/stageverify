@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
-import { normalizeLegacyAppHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
+import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
@@ -15,7 +15,12 @@ const CheckinToReceiveRedirect = lazy(() =>
     default: m.CheckinToReceiveRedirect,
   })),
 );
-const EntryDisplayPage = lazy(() => import("./EntryDisplayPage").then(m => ({ default: m.EntryDisplayPage })));
+const LocationScanPage = lazy(() =>
+  import("./LocationScanPage").then((m) => ({ default: m.LocationScanPage })),
+);
+const EntryDisplayPage = lazy(() =>
+  import("./EntryDisplayPage").then((m) => ({ default: m.EntryDisplayPage })),
+);
 const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").then(m => ({ default: m.DispatcherDashboardPage })));
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
 const ZoneManagementPage = lazy(() => import("./ZoneManagementPage").then(m => ({ default: m.ZoneManagementPage })));
@@ -78,6 +83,7 @@ const renderApp = () => {
               <Route path="/p" element={<CompactPickupRedirect />} />
               <Route path="/checkin/:orderId" element={<CheckinToReceiveRedirect />} />
               <Route path="/receive" element={<ReceivingPage />} />
+              <Route path="/s" element={<LocationScanPage />} />
               <Route path="/r" element={<CompactReceiveRedirect />} />
               <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
               <Route path="/demo/pickup-scan" element={<PickupDemoScanPage />} />
@@ -104,6 +110,7 @@ const renderApp = () => {
 normalizeLegacyAppHash();
 normalizeReceiveHash();
 normalizePickupHash();
+normalizeLocationScanHash();
 renderApp();
 if (import.meta.env.DEV) {
   seedFirestore().catch((err) => {

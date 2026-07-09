@@ -453,6 +453,45 @@ export function pickupPath(jobId: string, deliveryId?: string | null): string {
   return `/pickup?${params.toString()}`;
 }
 
+/** Permanent location QR URL — locked Phase 1 contract (never change after print). */
+export function buildPermanentLocationUrl(
+  locationCode: string,
+  eslOptions?: EslQrOptions,
+): string {
+  const base = qrBaseUrl(eslOptions);
+  return joinBaseAndHash(
+    base,
+    `#/s?loc=${encodeURIComponent(locationCode.trim())}`,
+  );
+}
+
+/** Fix compact / legacy location scan hashes for HashRouter. */
+export function normalizeLocationScanHash(): void {
+  const hash = window.location.hash;
+  if (!/^#\/?s(\?|$)/i.test(hash)) return;
+  const qsStart = hash.indexOf("?");
+  const params =
+    qsStart !== -1
+      ? new URLSearchParams(hash.slice(qsStart + 1))
+      : new URLSearchParams();
+  const loc = params.get("loc") ?? params.get("l");
+  if (!loc) return;
+  window.location.hash = `#/s?loc=${encodeURIComponent(loc)}`;
+}
+
+export function readLocationScanParams(
+  searchParams: URLSearchParams,
+): { loc: string | null } {
+  const loc = searchParams.get("loc") ?? searchParams.get("l");
+  if (loc) return { loc };
+
+  const hash = window.location.hash;
+  const qs = hash.indexOf("?");
+  if (qs === -1) return { loc: null };
+  const fromHash = new URLSearchParams(hash.slice(qs + 1));
+  return { loc: fromHash.get("loc") ?? fromHash.get("l") };
+}
+
 /** Read pickup deep-link params from router search or hash (mobile Safari fallback). */
 export function readPickupParams(
   searchParams: URLSearchParams,

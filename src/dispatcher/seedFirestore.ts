@@ -22,6 +22,7 @@ const jobs: Job[] = [
     materialOwnerName: "Dispatch Lead",
     createdAt: "2026-05-20T08:00:00Z",
     updatedAt: "2026-05-29T15:00:00Z",
+    pinCode: "1234",
   },
   {
     id: "job-2",
@@ -31,6 +32,7 @@ const jobs: Job[] = [
     status: "active",
     createdAt: "2026-05-18T09:00:00Z",
     updatedAt: "2026-05-28T10:10:00Z",
+    pinCode: "5678",
   },
   {
     id: "job-3",
@@ -259,6 +261,8 @@ const deliveryOrders: DeliveryOrder[] = [
     vendorName: "Johnstone Supply",
     purchaseOrderId: "po-demo-vendor-1",
     deliveryDate: "2026-06-02",
+    stagingLocationId: "staging-1",
+    plannedStagingLocationIds: ["staging-1", "staging-2", "staging-3"],
     status: "pending",
     issueSummary: "",
     notes:

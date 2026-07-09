@@ -1,12 +1,13 @@
 import * as admin from "firebase-admin";
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { asFourDigitPin, pinMatches } from "./pinMatching";
+import type { VendorSessionScope } from "./vendorSessionValidation";
 
 function getDb() {
   return admin.firestore();
 }
 
-const PIN_LEN = 4;
 const MAX_ATTEMPTS_PER_WINDOW = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const MIN_ATTEMPT_INTERVAL_MS = 750;
@@ -16,6 +17,9 @@ interface VerifyVendorPinRequest {
   deliveryId?: string;
   orderId?: string;
   pin?: string;
+  /** Location-first permanent QR scan (Phase 3). */
+  stagingLocationCode?: string;
+  jobId?: string;
 }
 
 interface VendorDoc {
@@ -28,23 +32,24 @@ interface VendorDoc {
   active?: boolean;
 }
 
+interface JobDoc {
+  pinCode?: string;
+  pinHash?: string;
+  status?: string;
+}
+
 interface DeliveryDoc {
   id: string;
   vendorId: string;
+  jobId?: string;
   orderNumber?: string;
+  vendorName?: string;
 }
 
 interface PinAttemptDoc {
   count?: number;
   windowStartedAt?: string;
   lastAttemptAt?: string;
-}
-
-function asFourDigitPin(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!/^\d{4}$/.test(trimmed)) return null;
-  return trimmed;
 }
 
 function asDeliveryId(value: unknown): string | null {
@@ -54,32 +59,22 @@ function asDeliveryId(value: unknown): string | null {
   return trimmed;
 }
 
+function asJobId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 128) return null;
+  return trimmed;
+}
+
+function asStagingLocationCode(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 32) return null;
+  return trimmed;
+}
+
 function vendorDisplayName(vendor: VendorDoc): string {
   return vendor.name ?? vendor.vendorName ?? "Vendor";
-}
-
-function hashPin(pin: string, salt: string): string {
-  return scryptSync(pin, salt, 32).toString("hex");
-}
-
-function pinMatches(vendor: VendorDoc, pin: string): boolean {
-  if (typeof vendor.pinCode === "string" && vendor.pinCode.length > 0) {
-    return vendor.pinCode === pin;
-  }
-  if (typeof vendor.pinHash === "string" && vendor.pinHash.includes(":")) {
-    const [salt, expected] = vendor.pinHash.split(":");
-    if (!salt || !expected) return false;
-    const actual = hashPin(pin, salt);
-    try {
-      return timingSafeEqual(
-        Buffer.from(actual, "hex"),
-        Buffer.from(expected, "hex"),
-      );
-    } catch {
-      return false;
-    }
-  }
-  return false;
 }
 
 async function resolveDeliveryId(
@@ -98,8 +93,8 @@ async function resolveDeliveryId(
   return snap.docs[0].id;
 }
 
-async function checkRateLimit(deliveryId: string): Promise<void> {
-  const ref = getDb().collection("vendorPinAttempts").doc(deliveryId);
+async function checkRateLimit(attemptKey: string): Promise<void> {
+  const ref = getDb().collection("vendorPinAttempts").doc(attemptKey);
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
@@ -143,8 +138,8 @@ async function checkRateLimit(deliveryId: string): Promise<void> {
   });
 }
 
-async function clearRateLimitOnSuccess(deliveryId: string): Promise<void> {
-  await getDb().collection("vendorPinAttempts").doc(deliveryId).delete();
+async function clearRateLimitOnSuccess(attemptKey: string): Promise<void> {
+  await getDb().collection("vendorPinAttempts").doc(attemptKey).delete();
 }
 
 async function getVendorSessionMinutes(): Promise<number> {
@@ -163,11 +158,80 @@ async function getVendorSessionMinutes(): Promise<number> {
   return DEFAULT_VENDOR_SESSION_MINUTES;
 }
 
-async function createVendorSession(
-  deliveryId: string,
-  vendorId: string,
-  vendorName: string,
-): Promise<{ sessionToken: string; expiresAt: string }> {
+async function resolveStagingLocation(
+  code: string,
+): Promise<{ id: string; code: string } | null> {
+  const snap = await getDb()
+    .collection("stagingLocations")
+    .where("code", "==", code)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  return { id: doc.id, code: String(doc.data().code ?? code) };
+}
+
+async function findJobByPin(pin: string): Promise<{
+  id: string;
+  data: JobDoc;
+} | null> {
+  const db = getDb();
+  const pinCodeSnap = await db
+    .collection("jobs")
+    .where("pinCode", "==", pin)
+    .limit(2)
+    .get();
+  if (pinCodeSnap.size === 1) {
+    return { id: pinCodeSnap.docs[0].id, data: pinCodeSnap.docs[0].data() as JobDoc };
+  }
+  if (pinCodeSnap.size > 1) return null;
+
+  const allJobs = await db.collection("jobs").limit(500).get();
+  for (const doc of allJobs.docs) {
+    const job = doc.data() as JobDoc;
+    if (pinMatches(job, pin)) {
+      return { id: doc.id, data: job };
+    }
+  }
+  return null;
+}
+
+async function primaryVendorForJob(jobId: string): Promise<{
+  vendorId: string;
+  vendorName: string;
+  deliveryId: string;
+} | null> {
+  const snap = await getDb()
+    .collection("deliveries")
+    .where("jobId", "==", jobId)
+    .limit(20)
+    .get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  const delivery = doc.data() as DeliveryDoc;
+  const vendorSnap = await getDb()
+    .collection("vendors")
+    .doc(delivery.vendorId)
+    .get();
+  const vendor = vendorSnap.exists
+    ? (vendorSnap.data() as VendorDoc)
+    : { name: "Vendor" };
+  return {
+    vendorId: delivery.vendorId,
+    vendorName: vendorDisplayName(vendor),
+    deliveryId: doc.id,
+  };
+}
+
+async function createVendorSession(input: {
+  deliveryId: string;
+  vendorId: string;
+  vendorName: string;
+  sessionScope: VendorSessionScope;
+  jobId?: string;
+  scannedStagingLocationId?: string;
+  scannedStagingLocationCode?: string;
+}): Promise<{ sessionToken: string; expiresAt: string }> {
   const sessionMinutes = await getVendorSessionMinutes();
   const now = Date.now();
   const expiresAt = new Date(
@@ -177,37 +241,124 @@ async function createVendorSession(
 
   await getDb().collection("vendorSessions").doc(sessionToken).set({
     id: sessionToken,
-    deliveryId,
-    vendorId,
-    vendorName,
+    deliveryId: input.deliveryId,
+    vendorId: input.vendorId,
+    vendorName: input.vendorName,
     expiresAt,
     createdAt: new Date(now).toISOString(),
+    sessionScope: input.sessionScope,
+    ...(input.jobId ? { jobId: input.jobId } : {}),
+    ...(input.scannedStagingLocationId
+      ? { scannedStagingLocationId: input.scannedStagingLocationId }
+      : {}),
+    ...(input.scannedStagingLocationCode
+      ? { scannedStagingLocationCode: input.scannedStagingLocationCode }
+      : {}),
   });
 
   return { sessionToken, expiresAt };
 }
 
-async function writePinVerifiedAudit(
-  deliveryId: string,
-  vendorId: string,
-  vendorName: string,
-): Promise<void> {
+async function writePinVerifiedAudit(input: {
+  deliveryId: string;
+  vendorId: string;
+  vendorName: string;
+  jobId?: string;
+  stagingLocationCode?: string;
+}): Promise<void> {
   const now = new Date().toISOString();
   const eventId = `pin-${createHash("sha256")
-    .update(`${deliveryId}:${now}:${randomBytes(8).toString("hex")}`)
+    .update(`${input.deliveryId}:${now}:${randomBytes(8).toString("hex")}`)
     .digest("hex")
     .slice(0, 24)}`;
 
   await getDb().collection("pinVerificationEvents").doc(eventId).set({
     id: eventId,
-    deliveryOrderId: deliveryId,
-    vendorId,
-    vendorName,
+    deliveryOrderId: input.deliveryId,
+    vendorId: input.vendorId,
+    vendorName: input.vendorName,
     pinVerified: true,
     action: "PIN_VERIFIED",
     timestamp: now,
     createdAt: now,
+    ...(input.jobId ? { jobId: input.jobId } : {}),
+    ...(input.stagingLocationCode
+      ? { stagingLocationCode: input.stagingLocationCode }
+      : {}),
   });
+}
+
+async function verifyLegacyDeliveryPin(
+  deliveryId: string,
+  pin: string,
+): Promise<{
+  vendorId: string;
+  vendorName: string;
+  deliveryId: string;
+  jobId?: string;
+  pinMatchedVia: "job" | "vendor";
+}> {
+  const deliverySnap = await getDb()
+    .collection("deliveries")
+    .doc(deliveryId)
+    .get();
+  if (!deliverySnap.exists) {
+    throw new HttpsError("not-found", "Invalid code.");
+  }
+
+  const delivery = deliverySnap.data() as DeliveryDoc;
+  const jobId =
+    typeof delivery.jobId === "string" && delivery.jobId.trim()
+      ? delivery.jobId.trim()
+      : undefined;
+
+  if (jobId) {
+    const jobSnap = await getDb().collection("jobs").doc(jobId).get();
+    if (jobSnap.exists) {
+      const job = jobSnap.data() as JobDoc;
+      if (pinMatches(job, pin)) {
+        const vendorSnap = await getDb()
+          .collection("vendors")
+          .doc(delivery.vendorId)
+          .get();
+        const vendor = vendorSnap.exists
+          ? (vendorSnap.data() as VendorDoc)
+          : { name: delivery.vendorName ?? "Vendor" };
+        return {
+          vendorId: delivery.vendorId,
+          vendorName: vendorDisplayName(vendor),
+          deliveryId,
+          jobId,
+          pinMatchedVia: "job",
+        };
+      }
+    }
+  }
+
+  const vendorSnap = await getDb()
+    .collection("vendors")
+    .doc(delivery.vendorId)
+    .get();
+  if (!vendorSnap.exists) {
+    throw new HttpsError("not-found", "Invalid code.");
+  }
+
+  const vendor = vendorSnap.data() as VendorDoc;
+  if (vendor.active === false) {
+    throw new HttpsError("not-found", "Invalid code.");
+  }
+
+  if (!pinMatches(vendor, pin)) {
+    throw new HttpsError("not-found", "Invalid code.");
+  }
+
+  return {
+    vendorId: delivery.vendorId,
+    vendorName: vendorDisplayName(vendor),
+    deliveryId,
+    jobId,
+    pinMatchedVia: "vendor",
+  };
 }
 
 export const verifyVendorPin = onCall(
@@ -222,55 +373,128 @@ export const verifyVendorPin = onCall(
   async (request) => {
     const data = (request.data ?? {}) as VerifyVendorPinRequest;
     const pin = asFourDigitPin(data.pin);
+    const stagingLocationCode = asStagingLocationCode(data.stagingLocationCode);
+    const explicitJobId = asJobId(data.jobId);
     const deliveryId = await resolveDeliveryId(
       asDeliveryId(data.deliveryId),
       asDeliveryId(data.orderId),
     );
 
-    if (!pin || !deliveryId) {
+    if (!pin) {
       throw new HttpsError("invalid-argument", "Invalid code.");
     }
 
-    const deliverySnap = await getDb()
-      .collection("deliveries")
-      .doc(deliveryId)
-      .get();
-    if (!deliverySnap.exists) {
+    const locationFirst = Boolean(stagingLocationCode) && !deliveryId;
+
+    if (!locationFirst && !deliveryId) {
+      throw new HttpsError("invalid-argument", "Invalid code.");
+    }
+
+    const attemptKey = locationFirst
+      ? `loc:${stagingLocationCode}`
+      : `del:${deliveryId}`;
+
+    await checkRateLimit(attemptKey);
+    if (locationFirst) {
+      await checkRateLimit("pin:location-first:global");
+    }
+
+    if (locationFirst) {
+      const jobMatch = explicitJobId
+        ? await (async () => {
+            const snap = await getDb().collection("jobs").doc(explicitJobId).get();
+            if (!snap.exists) return null;
+            const job = snap.data() as JobDoc;
+            return pinMatches(job, pin) ? { id: snap.id, data: job } : null;
+          })()
+        : await findJobByPin(pin);
+
+      if (!jobMatch) {
+        return { success: false, message: "Invalid code." };
+      }
+
+      const jobId = jobMatch.id;
+      const vendorInfo = await primaryVendorForJob(jobId);
+      if (!vendorInfo) {
+        return { success: false, message: "Invalid code." };
+      }
+
+      const location = await resolveStagingLocation(stagingLocationCode!);
+
+      await clearRateLimitOnSuccess(attemptKey);
+      if (locationFirst) {
+        await clearRateLimitOnSuccess("pin:location-first:global");
+      }
+      await writePinVerifiedAudit({
+        deliveryId: vendorInfo.deliveryId,
+        vendorId: vendorInfo.vendorId,
+        vendorName: vendorInfo.vendorName,
+        jobId,
+        stagingLocationCode: stagingLocationCode ?? undefined,
+      });
+
+      const session = await createVendorSession({
+        deliveryId: vendorInfo.deliveryId,
+        vendorId: vendorInfo.vendorId,
+        vendorName: vendorInfo.vendorName,
+        sessionScope: "job",
+        jobId,
+        scannedStagingLocationId: location?.id,
+        scannedStagingLocationCode: location?.code ?? stagingLocationCode ?? undefined,
+      });
+
+      return {
+        success: true,
+        vendorId: vendorInfo.vendorId,
+        vendorName: vendorInfo.vendorName,
+        deliveryId: vendorInfo.deliveryId,
+        jobId,
+        sessionScope: "job" as const,
+        scannedStagingLocationCode: location?.code ?? stagingLocationCode,
+        sessionToken: session.sessionToken,
+        expiresAt: session.expiresAt,
+      };
+    }
+
+    let verified: {
+      vendorId: string;
+      vendorName: string;
+      deliveryId: string;
+      jobId?: string;
+      pinMatchedVia: "job" | "vendor";
+    };
+    try {
+      verified = await verifyLegacyDeliveryPin(deliveryId!, pin);
+    } catch {
       return { success: false, message: "Invalid code." };
     }
 
-    const delivery = deliverySnap.data() as DeliveryDoc;
-    const vendorSnap = await getDb()
-      .collection("vendors")
-      .doc(delivery.vendorId)
-      .get();
-    if (!vendorSnap.exists) {
-      return { success: false, message: "Invalid code." };
-    }
+    await clearRateLimitOnSuccess(attemptKey);
+    await writePinVerifiedAudit({
+      deliveryId: verified.deliveryId,
+      vendorId: verified.vendorId,
+      vendorName: verified.vendorName,
+      jobId: verified.jobId,
+    });
 
-    const vendor = vendorSnap.data() as VendorDoc;
-    if (vendor.active === false) {
-      return { success: false, message: "Invalid code." };
-    }
+    const sessionScope: VendorSessionScope =
+      verified.pinMatchedVia === "job" && verified.jobId ? "job" : "delivery";
 
-    await checkRateLimit(deliveryId);
-
-    if (!pinMatches(vendor, pin)) {
-      return { success: false, message: "Invalid code." };
-    }
-
-    const vendorId = delivery.vendorId;
-    const vendorName = vendorDisplayName(vendor);
-
-    await clearRateLimitOnSuccess(deliveryId);
-    await writePinVerifiedAudit(deliveryId, vendorId, vendorName);
-    const session = await createVendorSession(deliveryId, vendorId, vendorName);
+    const session = await createVendorSession({
+      deliveryId: verified.deliveryId,
+      vendorId: verified.vendorId,
+      vendorName: verified.vendorName,
+      sessionScope,
+      jobId: sessionScope === "job" ? verified.jobId : undefined,
+    });
 
     return {
       success: true,
-      vendorId,
-      vendorName,
-      deliveryId,
+      vendorId: verified.vendorId,
+      vendorName: verified.vendorName,
+      deliveryId: verified.deliveryId,
+      jobId: sessionScope === "job" ? verified.jobId : undefined,
+      sessionScope,
       sessionToken: session.sessionToken,
       expiresAt: session.expiresAt,
     };

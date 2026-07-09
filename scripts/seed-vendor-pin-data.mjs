@@ -50,12 +50,23 @@ const vendors = [
   { id: "vendor-3", pinCode: "3456", active: true },
 ];
 
+const jobs = [
+  { id: "job-1", pinCode: "1234" },
+  { id: "job-2", pinCode: "5678" },
+];
+
 const deliveries = [
-  { id: "delivery-1", vendorName: "Johnstone Supply", pin: "1234" },
-  { id: "delivery-2", vendorName: "Johnstone Supply", pin: "1234" },
-  { id: "delivery-3", vendorName: "Johnstone Supply", pin: "1234" },
-  { id: "delivery-demo-vendor-1", vendorName: "Johnstone Supply", pin: "1234" },
-  { id: "delivery-demo-vendor-2", vendorName: "Johnstone Supply", pin: "1234" },
+  { id: "delivery-1", vendorName: "Johnstone Supply" },
+  { id: "delivery-2", vendorName: "Johnstone Supply" },
+  { id: "delivery-3", vendorName: "Johnstone Supply" },
+  {
+    id: "delivery-demo-vendor-1",
+    vendorName: "Johnstone Supply",
+    stagingLocationId: "staging-1",
+    plannedStagingLocationIds: ["staging-1", "staging-2", "staging-3"],
+    status: "pending",
+  },
+  { id: "delivery-demo-vendor-2", vendorName: "Johnstone Supply", status: "shipped" },
 ];
 
 const now = new Date().toISOString();
@@ -71,16 +82,26 @@ for (const vendor of vendors) {
   console.log(`Patched vendor ${vendor.id}`);
 }
 
-for (const delivery of deliveries) {
+for (const job of jobs) {
   await setDoc(
-    doc(db, "deliveries", delivery.id),
+    doc(db, "jobs", job.id),
+    { pinCode: job.pinCode, updatedAt: now },
+    { merge: true },
+  );
+  console.log(`Patched job ${job.id} pinCode`);
+}
+
+for (const delivery of deliveries) {
+  const { id, ...fields } = delivery;
+  await setDoc(
+    doc(db, "deliveries", id),
     {
-      vendorName: delivery.vendorName,
+      ...fields,
       updatedAt: now,
     },
     { merge: true },
   );
-  console.log(`Patched delivery ${delivery.id}`);
+  console.log(`Patched delivery ${id}`);
 }
 
 console.log("Vendor PIN seed complete.");

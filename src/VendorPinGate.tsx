@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAppSettings } from "./dispatcher/firestoreService";
 import { verifyVendorPin } from "./verifyVendorPinClient";
+import type { VerifyVendorPinInput } from "./dispatcher/models";
 import {
   setPinSession,
+  setJobPinSession,
   touchPinSession,
+  touchJobPinSession,
   VENDOR_PIN_SESSION_MS,
 } from "./vendorPinSession";
 
@@ -14,9 +17,23 @@ const KEYPAD = [
   ["", "0", "back"],
 ] as const;
 
+export interface VendorPinVerifiedPayload {
+  vendorId: string;
+  vendorName: string;
+  deliveryId?: string;
+  jobId?: string;
+  sessionScope?: "job" | "delivery";
+}
+
 interface VendorPinGateProps {
-  deliveryId: string;
-  onVerified: (vendorId: string, vendorName: string) => void;
+  /** Legacy receive deep link. */
+  deliveryId?: string;
+  /** Location-first permanent QR (Phase 3). */
+  stagingLocationCode?: string;
+  jobId?: string;
+  title?: string;
+  subtitle?: string;
+  onVerified: (payload: VendorPinVerifiedPayload) => void;
   onCancel?: () => void;
 }
 
@@ -35,6 +52,10 @@ function pinVerifyErrorMessage(err: unknown): string {
 
 export function VendorPinGate({
   deliveryId,
+  stagingLocationCode,
+  jobId,
+  title = "Enter Vendor PIN",
+  subtitle,
   onVerified,
   onCancel,
 }: VendorPinGateProps) {
@@ -43,12 +64,24 @@ export function VendorPinGate({
   const [submitting, setSubmitting] = useState(false);
   const [verified, setVerified] = useState(false);
 
+  const defaultSubtitle =
+    stagingLocationCode && !deliveryId
+      ? "Enter the 4-digit PIN for this job delivery."
+      : "Enter the 4-digit PIN for this delivery.";
+
+  const activityKey = jobId ?? deliveryId ?? stagingLocationCode ?? "pin";
+
   const submitPin = useCallback(
     async (pin: string) => {
       setSubmitting(true);
       setError(null);
       try {
-        const result = await verifyVendorPin({ deliveryId, pin });
+        const input: VerifyVendorPinInput = { pin };
+        if (deliveryId) input.deliveryId = deliveryId;
+        if (stagingLocationCode) input.stagingLocationCode = stagingLocationCode;
+        if (jobId) input.jobId = jobId;
+
+        const result = await verifyVendorPin(input);
         if (!result.success) {
           setDigits([]);
           setError(result.message ?? "Invalid code.");
@@ -64,12 +97,35 @@ export function VendorPinGate({
           vendorSessionMinutes: 15,
         }));
         const sessionMinutes = settings.vendorSessionMinutes ?? 15;
-        setPinSession(deliveryId, result.vendorId, result.vendorName, {
+        const sessionOpts = {
           sessionToken: result.sessionToken,
           expiresAt: result.expiresAt,
           sessionMinutes,
+        };
+
+        if (result.sessionScope === "job" && result.jobId) {
+          setJobPinSession(
+            result.jobId,
+            result.vendorId,
+            result.vendorName,
+            {
+              ...sessionOpts,
+              scannedStagingLocationCode: result.scannedStagingLocationCode,
+            },
+          );
+        }
+
+        if (result.deliveryId) {
+          setPinSession(result.deliveryId, result.vendorId, result.vendorName, sessionOpts);
+        }
+
+        onVerified({
+          vendorId: result.vendorId,
+          vendorName: result.vendorName,
+          deliveryId: result.deliveryId,
+          jobId: result.jobId,
+          sessionScope: result.sessionScope,
         });
-        onVerified(result.vendorId, result.vendorName);
       } catch (err) {
         setDigits([]);
         setError(pinVerifyErrorMessage(err));
@@ -77,7 +133,7 @@ export function VendorPinGate({
         setSubmitting(false);
       }
     },
-    [deliveryId, onVerified],
+    [deliveryId, stagingLocationCode, jobId, onVerified],
   );
 
   useEffect(() => {
@@ -87,17 +143,18 @@ export function VendorPinGate({
 
   useEffect(() => {
     const resetOnInactivity = () => {
-      touchPinSession(deliveryId);
+      if (jobId) touchJobPinSession(jobId);
+      else if (deliveryId) touchPinSession(deliveryId);
     };
     const interval = window.setInterval(() => {
-      touchPinSession(deliveryId);
+      resetOnInactivity();
     }, VENDOR_PIN_SESSION_MS / 2);
     window.addEventListener("pointerdown", resetOnInactivity);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("pointerdown", resetOnInactivity);
     };
-  }, [deliveryId]);
+  }, [activityKey, jobId, deliveryId]);
 
   const locked = submitting || verified;
 
@@ -127,10 +184,10 @@ export function VendorPinGate({
         </p>
         <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-surface p-6 shadow-lg">
           <h1 className="text-xl font-bold text-center text-text-primary mb-2">
-            Enter Vendor PIN
+            {title}
           </h1>
           <p className="text-sm text-center text-text-secondary mb-8">
-            Enter the 4-digit PIN for this delivery.
+            {subtitle ?? defaultSubtitle}
           </p>
 
           <div
