@@ -41,6 +41,9 @@ Read PROJECT_STATUS/MEMORY.md and CURRENT_STATE.md first.
 Run npm run away:batch and execute every returned item in order (away = sleep = overnight).
 Protocol: PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md
 Product authority: PROJECT_STATUS/svscope_simple.md
-After each item: npm run away:ship then npm run away:validate; halt on fail.
+After each item: npm run away:ship then npm run away:validate, then Ship Verifier (Grok) per
+model-gates.mdc when paths qualify; report ship-verifier: and gotchas: lines per item.
+Halt on fail (verify OR Ship Verifier FAIL/NOT RUN after one re-verify) — go to report, not next item.
+High-risk items (ship-loop tier table) run only if danApproved: true; else skip + mark blocked.
 Do not widen scope. Do not redo archived away-001…041.
 ```

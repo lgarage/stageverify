@@ -77,6 +77,10 @@ function validateAwayList() {
       warn(`away-list.json: ${item.id} is built in active queue — archive to PROJECT_STATUS/archives/away-batch-3.json`);
     }
 
+    if (item.riskTier === "high-risk" && item.danApproved !== true) {
+      fail(`away-list.json: ${item.id} is high-risk without danApproved: true — Dan pre-approval required to queue (ship-loop.mdc two-tier)`);
+    }
+
     if (item.dependsOn && (item.status === "queued" || item.status === "built")) {
       const sequence = list.executionProtocol?.sequence ?? [];
       const pred = list.queue.find((q) => q.id === item.dependsOn);

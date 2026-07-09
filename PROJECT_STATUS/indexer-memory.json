@@ -190,8 +190,8 @@
       "subtype": "process",
       "slice": {
         "file": "PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md",
-        "startLine": 97,
-        "endLine": 105,
+        "startLine": 98,
+        "endLine": 106,
         "anchor": "**Worker `task-start` (hard rule):**"
       },
       "relatedFiles": [

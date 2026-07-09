@@ -15,7 +15,7 @@
 | ----- | ------------------- | -------------- |
 | **1 Plan** | `what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, first away/sleep question | **`npm run away:plan`** — return `queuedItems` + optional `suggestedAdditions` (drafts). **Do not write `away-list.json`.** Do not run `away:batch` yet. |
 | **2 Approve** | `go build it`, `queue it`, `approved`, `yes build that`, similar explicit approval | Confirm which drafts/items Dan approved. |
-| **3 Queue** | After approval only | Add approved items to `PROJECT_STATUS/away-list.json`. Never auto-queue during plan. |
+| **3 Queue** | After approval only | Add approved items to `PROJECT_STATUS/away-list.json`. Never auto-queue during plan. **High-risk items** (`ship-loop.mdc` tier table) queue only with Dan's explicit pre-approval recorded on the item: `"riskTier": "high-risk", "danApproved": true` (`away:validate` enforces). |
 | **4 Execute** | Queue ready (or Dan re-opens with execute starter) | **`npm run away:batch`** — full queued sequence; implement → verify → `away:ship` → `away:validate` per item; halt on fail. |
 
 ### Plan phase details
@@ -32,8 +32,9 @@ For away/sleep/overnight **execute** (phase 4 only):
 1. **`npm run away:batch`** — all queued items in `executionProtocol.sequence` order.
 2. If **`batchSize` < 3**, note short batch — suggest more at **plan** time next round; do not invent IDs during execute.
 3. Read **`PROJECT_STATUS/OVERNIGHT_PROMPT.md`** — starter (B) for execute after approval.
-4. Execute items **one at a time**: implement → verify all `verifyBeforeNext` → `npm run away:ship` → `npm run away:validate` → next item.
-5. **Halt on fail** — mark blocked, log `away-status.json`, stop batch. Do not widen to unqueued roadmap work.
+4. Execute items **one at a time**: implement → verify all `verifyBeforeNext` → `npm run away:ship` → `npm run away:validate` → **Ship Verifier** (below) → next item.
+5. **Halt on fail** — mark blocked, log `away-status.json`, stop batch and go to REPORT (not the next item). Do not widen to unqueued roadmap work.
+6. **Two-tier gate:** if an item turns out mid-build to be **high-risk** (`ship-loop.mdc` tier table) without `danApproved: true`, skip it — mark blocked, report; never improvise or deploy.
 
 Suggest **batch runs** to Dan at plan time; run them only after queue + approval.
 
@@ -111,7 +112,9 @@ For each id in `executionProtocol.sequence`:
    - **Lessons learned:** append one bullet via `npm run lessons:append` or manual edit; `npm run away:validate` catches index drift.
 9. Run **`npm run away:validate`** — must pass before commit.
 10. Commit, push, deploy UI/CF as required (`ship-loop.mdc`).
-11. Session cleanup — then next item.
+11. **Ship Verifier (Grok) — after every substantive push**, same as interactive work (`model-gates.mdc` § Ship Verifier auto-invoke): one read-only Task, `generalPurpose` + `model: "grok-4.5-fast-xhigh"`, path-classified (`src/`, `functions/src/`, `public/`, behavior-bearing `scripts/*.mjs`; never by commit prefix). Docs/PROJECT_STATUS-only item → `ship-verifier: N/A (paths excluded)`. **FAIL** → apply fix list, re-verify **once**; still failing or NOT RUN → **halt the batch** (step 5 semantics), record state, go to REPORT.
+12. **Item completion report** must include `ship-verifier: <task-id>` (or `N/A (paths excluded)`) and `gotchas: none | recorded — <name>` lines per `composer-orchestrator.mdc` — missing line = NOT RUN.
+13. Session cleanup — then next item.
 
 ## Escalation
 
@@ -120,6 +123,8 @@ For each id in `executionProtocol.sequence`:
 | CF / rules / auth / idempotency (T2+) | security-review Task **before push** — see `security-review-gate.mdc` |
 | Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — see `model-gates.mdc` § 2-fail diagnose-only rule |
 | Acceptance needs out-of-scope schema/rules | Mark `blocked` — do not widen scope |
+| High-risk item without `danApproved: true` | Skip — mark `blocked`, report; never improvise or deploy |
+| Item is a phase of a Fable-authored spec | Phase-boundary **work-verifier** (Fable) before the next phase item starts — spec's own gate note is authoritative (e.g. `docs/location-first-transition-spec.md`); report `work-verifier:` line |
 
 ## Current queue
 
