@@ -640,6 +640,32 @@
       "rules": [],
       "commands": [],
       "warning": "test@stageverify.dev has NO MX — must NOT be used for email ingest tests. Prod Playwright uses STAGEVERIFY_TEST_EMAIL from .env.local (dispatcher auth). Emulator tests use dispatcher-test@stageverify.test. Connected bot inbox: svbotmail@gmail.com (emailProviderConnections/gmail). Do not hardcode new test defaults without Dan confirming CI/secrets."
+    },
+    {
+      "id": "subagent-shell-unavailable",
+      "match": [
+        "shell unavailable",
+        "shell execution failed",
+        "cannot run commands",
+        "subagent shell",
+        "shell backend",
+        "shell down",
+        "wc line count",
+        "measure line counts"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": [],
+      "rules": ["ship-loop.mdc"],
+      "commands": [],
+      "gateCandidate": true,
+      "injectBefore": [
+        "subagent measurement or audit work",
+        "running git/npm/deploy from a subagent",
+        "skipping a validation step"
+      ],
+      "warning": "Subagent shell backends can be unavailable for an entire session (observed 2026-07-08) — shell commands never execute. Do NOT stall or fail the task: switch to Read/Glob/Grep for measurements (line counts via file reads, not wc/dir) and report the caveat; git/npm commands must run in the parent session or be deferred. If the task REQUIRES shell (git/npm/deploy/validation), STOP and report the blocker — never silently skip validation steps."
     }
   ]
 }
