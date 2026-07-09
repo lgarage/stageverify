@@ -45,9 +45,9 @@ const appBase = resolveAppBase(baseUrl);
 const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
 const job1Order = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
 const otherJobOrder = process.env.STAGEVERIFY_OTHER_JOB_ORDER ?? "ORD-006";
-/** Job-3 fixture order (vendor-3 PO chain) — must not appear for job-1 PIN session. */
+/** Ferguson (vendor-3) order at G2 — must not appear for job-1 Johnstone PIN session. */
 const crossVendorOrder =
-  process.env.STAGEVERIFY_CROSS_VENDOR_ORDER ?? "ORD-004";
+  process.env.STAGEVERIFY_CROSS_VENDOR_ORDER ?? "ORD-007";
 const signLocationCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G2";
 
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");

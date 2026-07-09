@@ -73,6 +73,20 @@ const deliveries = [
     status: "pending",
   },
   { id: "delivery-demo-vendor-2", vendorName: "Johnstone Supply", status: "shipped" },
+  {
+    id: "delivery-cross-vendor-1",
+    orderNumber: "ORD-007",
+    jobId: "job-3",
+    vendorId: "vendor-3",
+    vendorName: "Ferguson HVAC",
+    purchaseOrderId: "po-3",
+    deliveryDate: "2026-06-02",
+    stagingLocationId: "staging-2",
+    plannedStagingLocationIds: ["staging-2"],
+    status: "pending",
+    issueSummary: "",
+    notes: "Ferguson cross-vendor fixture — must stay absent for job-1 PIN (D14).",
+  },
 ];
 
 const now = new Date().toISOString();

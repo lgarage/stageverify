@@ -285,6 +285,22 @@ const deliveryOrders: DeliveryOrder[] = [
     createdAt: "2026-06-02T16:00:00Z",
     updatedAt: "2026-06-03T06:30:00Z",
   },
+  {
+    id: "delivery-cross-vendor-1",
+    orderNumber: "ORD-007",
+    jobId: "job-3",
+    vendorId: "vendor-3",
+    vendorName: "Ferguson HVAC",
+    purchaseOrderId: "po-3",
+    deliveryDate: "2026-06-02",
+    stagingLocationId: "staging-2",
+    plannedStagingLocationIds: ["staging-2"],
+    status: "pending",
+    issueSummary: "",
+    notes: "Ferguson cross-vendor fixture — must stay absent for job-1 PIN (D14).",
+    createdAt: "2026-06-02T14:00:00Z",
+    updatedAt: "2026-06-02T14:00:00Z",
+  },
 ];
 
 const items: Item[] = [

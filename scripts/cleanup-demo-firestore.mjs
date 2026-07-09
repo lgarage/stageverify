@@ -41,9 +41,10 @@ const DEMO_DELIVERY_IDS = [
   "delivery-3",
   "delivery-demo-vendor-1",
   "delivery-demo-vendor-2",
+  "delivery-cross-vendor-1",
 ];
 
-const DEMO_ORDER_NUMBERS = ["ORD-001", "ORD-002", "ORD-004", "ORD-005", "ORD-006"];
+const DEMO_ORDER_NUMBERS = ["ORD-001", "ORD-002", "ORD-004", "ORD-005", "ORD-006", "ORD-007"];
 
 const STATIC_IDS = {
   deliveries: DEMO_DELIVERY_IDS,
