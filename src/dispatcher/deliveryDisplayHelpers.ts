@@ -47,6 +47,7 @@ export function hasPlannedActualDivergence(delivery: DeliveryOrder): boolean {
   const planned = [...(delivery.plannedStagingLocationIds ?? [])].sort();
   if (planned.length === 0) return false;
   const actual = [...getAllStagingLocationIds(delivery)].sort();
+  if (actual.length === 0) return false;
   return planned.join(",") !== actual.join(",");
 }
 

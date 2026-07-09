@@ -82,7 +82,8 @@ export function VendorNeedMoreSpaceFlow({
         );
         const primary =
           selectedTier === "shelf" ? recs.shelfSpot : recs.groundSpot;
-        const adjacent = recs.adjacentGroundSpots ?? [];
+        const adjacent =
+          selectedTier === "ground" ? (recs.adjacentGroundSpots ?? []) : [];
         const spots = uniqueSpots(
           primary
             ? [primary, ...adjacent.filter((loc) => loc.id !== primary.id)]

@@ -30,9 +30,6 @@ export function deliveryReadinessDisplayLabel(
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return "Picked Up";
   }
-  if (isReservedDisplayState(delivery)) {
-    return "Reserved";
-  }
   if (delivery.invoiceImportStatus === "pickup_at_vendor") {
     return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
   }
@@ -47,6 +44,9 @@ export function deliveryReadinessDisplayLabel(
   }
   if (countOpenIssuesForLabel(delivery, materialIssues) > 0) {
     return "Issue / Review Required";
+  }
+  if (isReservedDisplayState(delivery)) {
+    return "Reserved";
   }
   if (readiness.readyForPickup) {
     return "Ready for Pickup";
