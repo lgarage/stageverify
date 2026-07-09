@@ -5,10 +5,10 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Location-first transition — Phase 4 UI slice in progress** (`v0.0.28`): Reserved display (D12), planned-multi drawer + divergence badge, Zones adjacency editors, NMS v2 multi-select UI (no CF writes yet). Release-prompt CF + full G1→G4 E2E still pending Dan approval.
+- Active Phase: **Location-first transition — Phase 4 verify hardening** (`v0.0.30`): interactive `verify:location-phase4` (NMS + planned-staging + list badges); release-prompt CF + full G1→G4 E2E still pending Dan approval.
 - **Vendor PIN (D14):** per-JOB PIN on `jobs.pinCode`/`pinHash`; session scope `job`; cross-job absence enforced server-side in `getJobVendorDeliveries`.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** — controlled flag-on test only; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan.
-- Last shipped: **away-117** — Phase 4: verify harness scaffold (G1→G4 E2E)
+- Last shipped: **away-118..121 + away-123** — Phase 4 verify hardening, e2e-smoke pickup leg, invoice fixtures, orphan verify npm entries
 - Stack + Data: React 19 + TS, Vite 8, Firebase 11.x, CF v2 → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers

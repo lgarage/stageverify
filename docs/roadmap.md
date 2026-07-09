@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-07-09 (location-first Phase 4 UI slice — `v0.0.28` away-113..117)
+> **Last updated:** 2026-07-09 (Phase 4 verify hardening — `v0.0.30` away-118..121 + away-123)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 

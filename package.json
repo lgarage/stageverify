@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.29",
+  "version": "0.0.30",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -51,6 +51,7 @@
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:delivery-consistency": "npx tsx scripts/verify-delivery-list-drawer-consistency.mjs",
     "verify:e2e-smoke": "node scripts/verify-e2e-smoke.mjs",
+    "verify:e2e-pickup-leg": "node scripts/verify-e2e-pickup-leg.mjs",
     "verify:phase5-email": "node scripts/verify-phase5-email.mjs",
     "verify:email-oauth-connect": "node scripts/verify-email-oauth-connect.mjs",
     "verify:email-oauth-connect:prod": "node scripts/run-verify-with-learning.mjs --script verify:email-oauth-connect:prod scripts/verify-email-oauth-connect.mjs --base-url=https://lgarage.github.io/stageverify",
@@ -66,6 +67,8 @@
     "verify:location-scan:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:location-phase4": "node scripts/run-verify-with-learning.mjs --script verify:location-phase4 scripts/verify-location-phase4.mjs",
     "verify:location-phase4:prod": "STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify node scripts/run-verify-with-learning.mjs --script verify:location-phase4:prod scripts/verify-location-phase4.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:public-network-error": "node scripts/verify-public-network-error.mjs",
+    "verify:typography": "node scripts/verify-typography.mjs",
     "verify:settings-staging:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-staging:prod scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
     "audit:watch-clickthrough": "node scripts/audit-watch-clickthrough.mjs",
     "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",

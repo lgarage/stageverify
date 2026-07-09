@@ -107,7 +107,8 @@ const deliveries = {
     vendorName: "Johnstone Supply",
     purchaseOrderId: "po-demo-vendor-1",
     deliveryDate: "2026-06-02",
-    stagingLocationId: deleteField(),
+    stagingLocationId: "staging-1",
+    plannedStagingLocationIds: ["staging-1", "staging-2", "staging-3"],
     status: "pending",
     issueSummary: "",
     notes:
@@ -122,6 +123,7 @@ const deliveries = {
     purchaseOrderId: "po-6",
     deliveryDate: "2026-06-03",
     stagingLocationId: deleteField(),
+    plannedStagingLocationIds: ["staging-4", "staging-5"],
     status: "shipped",
     issueSummary: "",
     notes:

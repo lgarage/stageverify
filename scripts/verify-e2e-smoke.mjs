@@ -45,6 +45,15 @@ runStep("dispatcher nav smoke", "node", ["scripts/verify-dispatcher-nav.mjs"]);
 runStep("patch dispatcher demos", "node", [
   "scripts/patch-dispatcher-demo-deliveries.mjs",
 ]);
-runStep("pickup portal smoke", "npm", ["run", "verify:pickup"]);
+runStep("reset pickup fixture", "node", [
+  "scripts/reset-pickup-verify-fixture.mjs",
+]);
+runStep("seed pickup readiness", "npx", [
+  "tsx",
+  "scripts/seed-pickup-verify-readiness.mjs",
+]);
+runStep("pickup portal smoke", "node", [
+  "scripts/verify-e2e-pickup-leg.mjs",
+]);
 
 console.log("\nverify:e2e-smoke PASS");

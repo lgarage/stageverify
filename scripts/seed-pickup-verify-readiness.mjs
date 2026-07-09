@@ -23,6 +23,7 @@ import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import {
   collection,
   doc,
+  deleteField,
   getDoc,
   getDocs,
   getFirestore,
@@ -187,6 +188,9 @@ batch.update(deliveryRef, {
   vendorOrderCompleteSource: "dispatcher",
   stagingLocationId,
   pickedUpStagingLocationIds: [],
+  pickedUpAt: deleteField(),
+  pickedUpBy: deleteField(),
+  pickupTechnicianName: deleteField(),
   openIssueCount: issueCounts.openIssueCount,
   openBlockingIssueCount: issueCounts.openBlockingIssueCount,
   status: "partial",

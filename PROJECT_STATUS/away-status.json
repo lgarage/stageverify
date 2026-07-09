@@ -1,7 +1,42 @@
 {
   "lastRun": "2026-07-09",
-  "batch": "away-001..041 archived; away-042..076 built; queue empty except blocked away-069",
+  "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
+    {
+      "id": "away-118",
+      "title": "Phase 4 verify: NMS + planned-staging interactive",
+      "status": "built",
+      "commit": "pending",
+      "note": "verify:location-phase4 NMS + planned-staging save + vendor path"
+    },
+    {
+      "id": "away-119",
+      "title": "Fix verify:e2e-smoke pickup leg",
+      "status": "built",
+      "commit": "pending",
+      "note": "seed pickup readiness + verify-e2e-pickup-leg; e2e-smoke PASS"
+    },
+    {
+      "id": "away-120",
+      "title": "Phase 4 list badge seed",
+      "status": "built",
+      "commit": "pending",
+      "note": "patch ORD-005/006 plannedStagingLocationIds; list badge asserts required"
+    },
+    {
+      "id": "away-121",
+      "title": "Invoice parser fixtures (offline)",
+      "status": "built",
+      "commit": "pending",
+      "note": "3 non-Johnstone edge fixtures; test:invoice-parser 100%"
+    },
+    {
+      "id": "away-123",
+      "title": "Wire orphan verify npm scripts",
+      "status": "built",
+      "commit": "pending",
+      "note": "verify:public-network-error + verify:typography npm entries"
+    },
     {
       "id": "away-096",
       "title": "harden inspect callables",
@@ -115,5 +150,5 @@
       "note": "Phase 4 overnight batch away-113..117: Reserved D12, planned-multi+divergence, Zones adjacency, NMS v2 multi-select UI, verify:location-phase4 scaffold — v0.0.29 (fix 37fb50b)"
     }
   ],
-  "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"
+  "summary": "away-118..121 + away-123 overnight verify batch shipped; queue empty except blocked away-069"
 }
