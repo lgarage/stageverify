@@ -17,6 +17,7 @@ This repo uses the **agent-ops** skill (`~/.cursor/skills/agent-ops`, git `C:\Pr
 ## During work
 
 - **Windows shell:** use `cmd /c dir` (not `Get-ChildItem` / `ls`) — PowerShell pipeline output unreliable in Cursor terminal capture.
+- **Shell backend can die mid-session** (observed 3× on 2026-07-08): if shell commands return no results after 1–2 retries, do NOT stall or fail — fall back to Read/Glob/Grep for measurements and file checks; defer git/npm to the parent session or a later retry; report the caveat. If the task REQUIRES shell (commit/push/deploy/validate), STOP and report the blocker. Detail: `gotcha-map.json` → `subagent-shell-unavailable`.
 - **STATS.md is stale:** `cursor-agent-brain/STATS.md` regenerated nightly — count actual `.jsonl` files in `outcomes/` for Phase-2 readiness.
 
 ## Session end (MANDATORY when substantive — do not skip)
