@@ -9,8 +9,18 @@
  */
 
 import { chromium } from "playwright";
-import { mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
+import { resolveAppBase } from "./resolveAppBase.mjs";
+
+const PROD_APP_BASE = "https://lgarage.github.io/stageverify";
+
+/** Mirrors receiveQrUrls.buildPermanentLocationUrl (forPrint). */
+function buildPermanentLocationUrl(locationCode) {
+  const base = PROD_APP_BASE.replace(/\/$/, "");
+  const loc = encodeURIComponent(locationCode.trim());
+  return `${base}/#/s?loc=${loc}`;
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -19,10 +29,28 @@ const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
 
+const envPath = resolve(process.cwd(), ".env.local");
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const [k, ...v] = line.split("=");
+    if (k && v.length) process.env[k.trim()] = v.join("=").trim();
+  }
+}
+
+const email = process.env.STAGEVERIFY_TEST_EMAIL;
+const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+
+const appBase = resolveAppBase(baseUrl);
+
 const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
 const job1Order = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
 const otherJobOrder = process.env.STAGEVERIFY_OTHER_JOB_ORDER ?? "ORD-006";
-const scanLoc = process.env.STAGEVERIFY_SCAN_LOC ?? "G2";
+/** Job-3 fixture order (vendor-3 PO chain) — must not appear for job-1 PIN session. */
+const crossVendorOrder =
+  process.env.STAGEVERIFY_CROSS_VENDOR_ORDER ?? "ORD-004";
+const signLocationCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G2";
+
+const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 
 const outDir = resolve(process.cwd(), "screenshots", "location-scan");
 mkdirSync(outDir, { recursive: true });
@@ -46,6 +74,75 @@ async function enterPin(page, digits) {
   }
 }
 
+async function ensureZonesAuthenticated(page) {
+  await page.goto(`${appBase}/#/zones`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForTimeout(1500);
+  if (!page.url().includes("/login")) return;
+
+  if (!email || !password) {
+    throw new Error(
+      "Zones page requires login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
+    );
+  }
+
+  await page.fill("#email", email);
+  await page.fill("#password", password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(/\/#\/(zones|dispatcher|settings|hub)/, {
+    timeout: 20_000,
+  });
+  if (!page.url().includes("/zones")) {
+    await page.goto(`${appBase}/#/zones`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+  }
+}
+
+async function assertPermanentSignUrl(browser) {
+  const expectedUrl = buildPermanentLocationUrl(signLocationCode);
+  const expectedLine = `Permanent URL: ${expectedUrl}`;
+
+  const zonesContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    ...(existsSync(authState) ? { storageState: authState } : {}),
+  });
+  const zonesPage = await zonesContext.newPage();
+  try {
+    await ensureZonesAuthenticated(zonesPage);
+    await zonesPage
+      .getByTestId("permanent-location-sign")
+      .first()
+      .waitFor({ timeout: 30_000 });
+    const urlLine = zonesPage.getByText(expectedLine, { exact: true });
+    const urlVisible = await urlLine.isVisible().catch(() => false);
+    const signBlock = zonesPage
+      .getByTestId("permanent-location-sign")
+      .filter({ hasText: signLocationCode })
+      .filter({ hasText: expectedLine })
+      .first();
+    const signVisible = await signBlock.isVisible().catch(() => false);
+    record(
+      "Permanent sign URL encodes exact permanent URL",
+      urlVisible && signVisible,
+      urlVisible ? expectedUrl : `expected ${expectedLine}`,
+    );
+    await shot(zonesPage, "04-zones-permanent-sign");
+  } catch (err) {
+    record(
+      "Permanent sign URL encodes exact permanent URL",
+      false,
+      err instanceof Error ? err.message : String(err),
+    );
+  } finally {
+    await zonesPage.close();
+    await zonesContext.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -54,7 +151,7 @@ async function enterPin(page, digits) {
   });
   const page = await context.newPage();
 
-  const url = `${baseUrl.replace(/\/$/, "")}/#/s?loc=${encodeURIComponent(scanLoc)}`;
+  const url = `${appBase}/#/s?loc=${encodeURIComponent(signLocationCode)}`;
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
@@ -71,7 +168,14 @@ async function enterPin(page, digits) {
   if (await listHeading.isVisible().catch(() => false)) {
     record("Job-scoped delivery list shown (multi-delivery)", true);
     const bodyBeforeSelect = await page.locator("body").innerText();
-    record("Same-vendor other-job order absent on list (D14)", !bodyBeforeSelect.includes(otherJobOrder));
+    record(
+      "Same-vendor other-job order absent on list (D14)",
+      !bodyBeforeSelect.includes(otherJobOrder),
+    );
+    record(
+      "Cross-vendor order absent on list (D14)",
+      !bodyBeforeSelect.includes(crossVendorOrder),
+    );
     await page.getByRole("button", { name: new RegExp(job1Order) }).click();
   }
 
@@ -88,13 +192,22 @@ async function enterPin(page, digits) {
 
   const body = await page.locator("body").innerText();
   record("Job delivery order visible", body.includes(job1Order));
-  record("Same-vendor other-job order absent (D14)", !body.includes(otherJobOrder));
+  record(
+    "Same-vendor other-job order absent (D14)",
+    !body.includes(otherJobOrder),
+  );
+  record(
+    "Cross-vendor order absent (D14)",
+    !body.includes(crossVendorOrder),
+  );
   record("Wrong-spot shows job spot context", /G1|S1|Spot|location/i.test(body));
 
   await page.getByRole("button", { name: "DELIVERED", exact: true }).click();
   await page.waitForSelector("text=Delivery Confirmed", { timeout: 30_000 });
   record("Confirm delivered updates status", true);
   await shot(page, "03-confirmed");
+
+  await assertPermanentSignUrl(browser);
 
   await browser.close();
 
