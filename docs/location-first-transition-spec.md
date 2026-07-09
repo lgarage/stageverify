@@ -29,6 +29,8 @@
 
 **Current phase: Phase 3 — complete (core software slice). Next action: Phase 4 — vendor exception flows + dispatcher planning.**
 
+> **Phase-boundary gate:** after each phase ships and before the next phase starts, dispatch the Fable 5 work-verifier (`MODEL_DOSSIER.md` tag `work-verifier`; trigger spec `.cursor/rules/model-gates.mdc`) to verify scope fidelity + semantic tripwires (D14 job-scoping, PIN visibility, legacy-route stability). Phase N+1 is blocked until the verifier returns PASS or Dan waives. *(Phase 3 shipped 2026-07-08, commit `783b703`, with verification run retroactively.)*
+
 **Phase 1 drift review:** ESL plan rejects occupancy-dynamic QR-flip; types additive only; clipboard job-level format shipped; permanent URL **`#/s?loc={code}`** locked (see § Permanent URL scheme).
 
 ---

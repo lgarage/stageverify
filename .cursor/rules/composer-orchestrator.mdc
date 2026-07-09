@@ -215,6 +215,8 @@ Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only �
 
 **Then** the existing compact report unchanged: model audit (or low-risk line per `model-gates.mdc`), cleanup checklist (`ship-loop.mdc` § Done gate), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
 
+**Gotcha line (mandatory):** every substantive task's completion report ends with `gotchas: none` OR `gotchas: recorded — <short name>` after adding any newly-encountered environment failure, tool quirk, or workaround to `PROJECT_STATUS/gotcha-map.json` (SSOT). A workaround mentioned in prose but not recorded = dropped lesson — the explicit line makes omission visible. Readonly subagent workers surface the gotcha in their final response for the parent to record.
+
 Skip **What we did** for trivial Q&A, typos, or read-only answers where no work was performed.
 
 ### Post-change model audit (mandatory)
