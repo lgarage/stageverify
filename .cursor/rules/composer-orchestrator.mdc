@@ -215,7 +215,7 @@ Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only �
 
 **Then** the existing compact report unchanged: model audit (or low-risk line per `model-gates.mdc`), cleanup checklist (`ship-loop.mdc` § Done gate), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** last (`time-awareness.mdc`).
 
-**Verifier lines (mandatory):** substantive ships (path-classified per `model-gates.mdc` § Ship Verifier auto-invoke) MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)`; `work-verifier:` (Fable) line only for Fable-spec phase ships. Missing line = NOT RUN.
+**Verifier lines (mandatory):** substantive ships (path-classified per `model-gates.mdc` § Ship Verifier auto-invoke) MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)`; `work-verifier:` (Fable) line only for Fable-spec phase ships; `fix-verified: <re-verify task-id>` for every closed verifier finding (`model-gates.mdc` § Fix-closure rule). Missing line = NOT RUN.
 
 **Gotcha line (mandatory):** every substantive task's completion report ends with `gotchas: none` OR `gotchas: recorded — <short name>` after adding any newly-encountered environment failure, tool quirk, or workaround to `PROJECT_STATUS/gotcha-map.json` (SSOT). A workaround mentioned in prose but not recorded = dropped lesson — the explicit line makes omission visible. Readonly subagent workers surface the gotcha in their final response for the parent to record.
 

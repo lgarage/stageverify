@@ -64,13 +64,17 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 
 Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**.
 
+## Fix-closure rule (universal — Dan 2026-07-08)
+
+When any verifier/reviewer model (Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 
 **Substantive ship (path-classified — NEVER by commit message prefix):** any pushed commit(s) touching `src/`, `functions/src/`, `public/`, `index.html`, or behavior-bearing `scripts/*.mjs` — even if labeled `chore:`. Excluded: commits touching only `docs/`, `PROJECT_STATUS/`, `.cursor/`, README, or compiled `functions/lib` sync-only. Multi-commit ships (feature + fix in one session) = ONE verification covering the full range.
 
 **Dispatch + evidence:** after push, the conversation that shipped dispatches exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "grok-4.5-fast-xhigh"`, `readonly: true`). Completion report MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` — missing line = NOT RUN. **Blocking:** the next substantive ship in any conversation is blocked while a prior ship's verification is NOT RUN or has an unresolved FAIL — check CURRENT_STATE blockers.
 
-**Loop bounds:** PASS → done. FAIL → exact fix list (file:line, required change, why) → Composer fixes → Ship Verifier re-verifies ONCE → still failing → escalate to Fable (ambiguity/architecture) or Dan (everything else). **Security:** Ship Verifier never judges security — it directs Composer to invoke the Sonnet gate; Sonnet prescribes and verifies its own fixes per existing rules.
+**Loop bounds:** PASS → done. FAIL → exact fix list (file:line, required change, why) → Composer fixes → same-model re-verify per § Fix-closure rule → still failing → escalate to Fable (ambiguity/architecture) or Dan (everything else). **Security:** Ship Verifier never judges security — it directs Composer to invoke the Sonnet gate; Sonnet closes its own findings per § Fix-closure rule.
 
 ## Critical Reviewer auto-invoke (Grok — Dan 2026-07-08)
 
@@ -86,4 +90,4 @@ Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security revie
 
 ## Work Verifier auto-invoke (Fable 5 — tier 3 only, Dan 2026-07-08)
 
-Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: same bounds as Ship Verifier (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
+Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: § Fix-closure rule (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
