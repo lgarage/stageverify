@@ -23,7 +23,8 @@
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
 | `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
-| `work-verifier` | post-phase verification of Fable-spec work, "fable verify" / "fable check" | **§ Work Verifier — Fable 5** — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
+| `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
+| `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -150,11 +151,18 @@ Purpose: skeptical outside-party review before major architecture, harness, or w
 
 ## Work Verifier — Fable 5 (tag: work-verifier)
 
-Purpose: post-execution verification of Composer 2.5's substantive work — scope fidelity and correctness. Fable never edits code, never ships, never overrides Sonnet security verdicts.
+Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a path check or Ship Verifier cannot judge. Fable never edits code, never ships, never overrides Sonnet security verdicts. Per-ship verification belongs to the Ship Verifier (Grok, tier 1) — not Fable.
 
 - Model: `claude-fable-5-thinking-high` via generalPurpose Task, `readonly: true`
-- **Triggers (only these):** (1) Dan says "fable verify" / "fable check"; (2) after Composer completes a phase of a Fable-authored product/architecture spec that defines semantic drift tripwires — before phase N+1 starts. NOT for mechanical checklist phases (e.g. harness cleanup), away batches, or routine T2+ work.
-- **Preconditions:** runs only after `npm run build` + `npm run away:validate` (+ route `verify:*` when UI) are green. Scope check is mechanical FIRST: `git diff --name-only` vs the spec's allowed paths, fail closed — no LLM needed. Fable reviews only semantic drift a path check cannot see.
-- **Fix loop (max 1 cycle):** Fable returns an exact fix list — checklist/tripwire id, PASS/FAIL, file:line evidence, required change — no prose absolution. Composer applies fixes; Fable re-verifies ONCE. Still failing → escalate to Dan.
-- **Precedence:** red build/verify failures stay on the Sonnet 2-fail diagnose path — Fable never diagnoses failing gates; one diagnose owner per failure.
-- **Evidence:** completion report must cite Task id + `model: claude-fable-5-thinking-high` + invocation evidence (yes/no/unknown); missing = NOT RUN. For Fable-authored spec phase gates, NOT RUN blocks starting phase N+1.
+- **Triggers (only these):** (1) phase boundary of a Fable-authored product/architecture spec with semantic drift tripwires — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, stays authoritative); (2) Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that).
+- **Preconditions:** build + `away:validate` (+ route `verify:*` when UI) green; mechanical `git diff --name-only` vs allowed paths runs first, fail closed.
+- **Fix loop (max 1 cycle):** exact fix list (tripwire id, PASS/FAIL, file:line, required change) → Composer applies → Fable re-verifies ONCE → still failing → Dan.
+- **Evidence:** Task id + `model: claude-fable-5-thinking-high` + invocation evidence, else NOT RUN; spec-phase NOT RUN blocks phase N+1 (`work-verifier:` report line per `model-gates.mdc`).
+
+## Ship Verifier — Grok 4.5 Fast (tag: ship-verifier)
+
+Purpose: **tier 1 (cheap)** post-ship verification after EVERY substantive ship — scope fidelity, correctness, and whether the Sonnet security gate should have fired but didn't. Never judges security itself — directs Composer to invoke the Sonnet gate when a security-relevant diff shipped without a `security-gate-id`.
+
+- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true` — never edits code
+- **SSOT:** `model-gates.mdc` § Ship Verifier auto-invoke — substantive-ship path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`; never commit-prefix), one Task per ship (multi-commit = one range), `ship-verifier:` report line, blocking semantics, 1-fix-cycle loop with escalation to Fable (ambiguity/architecture) or Dan.
+- Distinct from the Critical Reviewer role (same model, pre-decision devil's advocate — separate triggers).
