@@ -55,6 +55,12 @@ const jobs = [
   { id: "job-2", pinCode: "5678" },
 ];
 
+const stagingLocations = [
+  { id: "staging-1", code: "G1", label: "Ground Spot 1", type: "ground", status: "Active", sortOrder: 1 },
+  { id: "staging-2", code: "G2", label: "Ground Spot 2", type: "ground", status: "Active", sortOrder: 2 },
+  { id: "staging-3", code: "S1-A", label: "Shelf 1 - Bin A", type: "shelf", status: "Active", sortOrder: 3 },
+];
+
 const deliveries = [
   { id: "delivery-1", vendorName: "Johnstone Supply" },
   { id: "delivery-2", vendorName: "Johnstone Supply" },
@@ -89,6 +95,15 @@ for (const job of jobs) {
     { merge: true },
   );
   console.log(`Patched job ${job.id} pinCode`);
+}
+
+for (const loc of stagingLocations) {
+  await setDoc(
+    doc(db, "stagingLocations", loc.id),
+    { ...loc, updatedAt: now },
+    { merge: true },
+  );
+  console.log(`Patched staging location ${loc.code}`);
 }
 
 for (const delivery of deliveries) {

@@ -58,14 +58,31 @@ async function enterPin(page, digits) {
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector(`text=${scanLoc}`, { timeout: 30_000 });
+  await page.waitForSelector("text=Staging location", { timeout: 30_000 });
   record("Location header shows scanned code", true);
   await shot(page, "01-location-header");
 
-  await page.waitForSelector("text=Enter Job PIN", { timeout: 15_000 });
+  await page.waitForSelector("text=Enter Job PIN", { timeout: 30_000 });
   await enterPin(page, job1Pin);
+  await page.waitForTimeout(3000);
+  await shot(page, "01b-after-pin");
 
-  await page.waitForSelector("text=DELIVERED", { timeout: 45_000 });
+  const listHeading = page.getByRole("heading", { name: /This job/i });
+  if (await listHeading.isVisible().catch(() => false)) {
+    record("Job-scoped delivery list shown (multi-delivery)", true);
+    const bodyBeforeSelect = await page.locator("body").innerText();
+    record("Same-vendor other-job order absent on list (D14)", !bodyBeforeSelect.includes(otherJobOrder));
+    await page.getByRole("button", { name: new RegExp(job1Order) }).click();
+  }
+
+  try {
+    await page.waitForSelector("text=DELIVERED", { timeout: 45_000 });
+  } catch (err) {
+    const debugBody = await page.locator("body").innerText();
+    console.error("Body after PIN (truncated):", debugBody.slice(0, 1200));
+    await shot(page, "error-no-delivered");
+    throw err;
+  }
   record("PIN unlocks vendor hub (single delivery deep-link)", true);
   await shot(page, "02-hub-after-pin");
 

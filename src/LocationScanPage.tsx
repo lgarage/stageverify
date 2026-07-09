@@ -196,12 +196,18 @@ export function LocationScanPage() {
     [openDelivery],
   );
 
+  useEffect(() => {
+    if (step !== "pin" || !jobId || !isJobPinSessionValid(jobId)) return;
+    void loadJobDeliveries(jobId);
+  }, [step, jobId, loadJobDeliveries]);
+
   const handlePinVerified = useCallback(
     (payload: { jobId?: string }) => {
       if (!payload.jobId) {
         setError("Invalid session.");
         return;
       }
+      setJobId(payload.jobId);
       void loadJobDeliveries(payload.jobId);
     },
     [loadJobDeliveries],
@@ -281,14 +287,6 @@ export function LocationScanPage() {
   }
 
   if (step === "pin" && branding && locationCode) {
-    if (jobId && isJobPinSessionValid(jobId)) {
-      void loadJobDeliveries(jobId);
-      return (
-        <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary items-center justify-center px-6">
-          <p className="text-sm text-text-secondary">Opening job deliveries…</p>
-        </div>
-      );
-    }
     return (
       <div className="flex flex-col h-screen h-dvh">
         <div className="shrink-0 px-6 py-5 border-b border-border bg-bg-surface text-center">
