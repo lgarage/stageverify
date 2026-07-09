@@ -666,6 +666,24 @@
         "skipping a validation step"
       ],
       "warning": "Subagent shell backends can be unavailable for an entire session (observed 2026-07-08) — shell commands never execute. Do NOT stall or fail the task: switch to Read/Glob/Grep for measurements (line counts via file reads, not wc/dir) and report the caveat; git/npm commands must run in the parent session or be deferred. If the task REQUIRES shell (git/npm/deploy/validation), STOP and report the blocker — never silently skip validation steps."
+    },
+    {
+      "id": "powershell5-no-ampersand-chaining",
+      "match": [
+        "&& not valid",
+        "valid statement separator",
+        "powershell chaining",
+        "command chaining",
+        "powershell &&",
+        "cmd1 && cmd2"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": [],
+      "rules": [],
+      "commands": [],
+      "warning": "Windows PowerShell 5 rejects `&&` chaining — \"The token '&&' is not a valid statement separator\" (unlike PS7+/bash). Shell commands on this machine run under PS5-compatible PowerShell: never write `cmd1 && cmd2`. Use `;` when the second command can run regardless of the first's failure; when it must only run on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08)."
     }
   ]
 }
