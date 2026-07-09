@@ -111,8 +111,8 @@
       "id": "away-117",
       "title": "Phase 4: verify harness scaffold (G1→G4 E2E)",
       "status": "built",
-      "commit": "864e70b",
-      "note": "Phase 4 overnight batch away-113..117: Reserved D12, planned-multi+divergence, Zones adjacency, NMS v2 multi-select UI, verify:location-phase4 scaffold — v0.0.28"
+      "commit": "37fb50b",
+      "note": "Phase 4 overnight batch away-113..117: Reserved D12, planned-multi+divergence, Zones adjacency, NMS v2 multi-select UI, verify:location-phase4 scaffold — v0.0.29 (fix 37fb50b)"
     }
   ],
   "summary": "away-091 Reset Pickup Link label; away-090 drawer copy pickup unreceived; queue blocked away-069"
