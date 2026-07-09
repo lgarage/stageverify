@@ -13,7 +13,7 @@
 | `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in Receive/Pickup; vendor UI is **only** `ReceivingPage` (`/#/receive`) |
 | `zone-lookup` | staging code → delivery | `getDeliveryDetailsByStagingCode`; match zones via `getAllStagingLocationIds` |
 | `receive-deep-link` | `/receive` URL params or camera | `deepLinkPending` before camera; failed lookup → show error (no silent empty screen) |
-| `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; zone assigned → `#/r?z=` not long id |
+| `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; long `#/receive?` / `#/pickup?` forms emitted (compact `#/r?` / `#/p?` parse-only legacy) |
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
@@ -23,6 +23,7 @@
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
 | `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
+| `work-verifier` | post-phase verification of Fable-spec work, "fable verify" / "fable check" | **§ Work Verifier — Fable 5** — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -146,3 +147,14 @@ Purpose: skeptical outside-party review before major architecture, harness, or w
 - Required output, exactly five sections: strongest concern · simplification opportunities · hidden risks · alternative approach · final recommendation with confidence
 - Evidence: Task id + model line in the report, else NOT RUN (same standard as security gate)
 - Budget: one run per decision; rerun only if the plan materially changes after review
+
+## Work Verifier — Fable 5 (tag: work-verifier)
+
+Purpose: post-execution verification of Composer 2.5's substantive work — scope fidelity and correctness. Fable never edits code, never ships, never overrides Sonnet security verdicts.
+
+- Model: `claude-fable-5-thinking-high` via generalPurpose Task, `readonly: true`
+- **Triggers (only these):** (1) Dan says "fable verify" / "fable check"; (2) after Composer completes a phase of a Fable-authored product/architecture spec that defines semantic drift tripwires — before phase N+1 starts. NOT for mechanical checklist phases (e.g. harness cleanup), away batches, or routine T2+ work.
+- **Preconditions:** runs only after `npm run build` + `npm run away:validate` (+ route `verify:*` when UI) are green. Scope check is mechanical FIRST: `git diff --name-only` vs the spec's allowed paths, fail closed — no LLM needed. Fable reviews only semantic drift a path check cannot see.
+- **Fix loop (max 1 cycle):** Fable returns an exact fix list — checklist/tripwire id, PASS/FAIL, file:line evidence, required change — no prose absolution. Composer applies fixes; Fable re-verifies ONCE. Still failing → escalate to Dan.
+- **Precedence:** red build/verify failures stay on the Sonnet 2-fail diagnose path — Fable never diagnoses failing gates; one diagnose owner per failure.
+- **Evidence:** completion report must cite Task id + `model: claude-fable-5-thinking-high` + invocation evidence (yes/no/unknown); missing = NOT RUN. For Fable-authored spec phase gates, NOT RUN blocks starting phase N+1.

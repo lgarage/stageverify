@@ -4,97 +4,140 @@
   "entries": [
     {
       "id": "dossier-index",
-      "tags": ["index", "routing"],
+      "tags": [
+        "index",
+        "routing"
+      ],
       "title": "MODEL_DOSSIER index table",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
       "startLine": 7,
-      "endLine": 25,
+      "endLine": 26,
       "anchor": "## Index"
     },
     {
       "id": "qr-routing",
-      "tags": ["qr-routing", "receive-deep-link", "encode-qr"],
+      "tags": [
+        "qr-routing",
+        "receive-deep-link",
+        "encode-qr"
+      ],
       "title": "§ qr-routing",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 27,
-      "endLine": 32,
+      "startLine": 28,
+      "endLine": 33,
       "anchor": "## § qr-routing"
     },
     {
       "id": "zone-lookup",
-      "tags": ["zone-lookup"],
+      "tags": [
+        "zone-lookup"
+      ],
       "title": "§ zone-lookup",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 33,
-      "endLine": 37,
+      "startLine": 34,
+      "endLine": 38,
       "anchor": "## § zone-lookup"
     },
     {
       "id": "billing",
-      "tags": ["billing"],
+      "tags": [
+        "billing"
+      ],
       "title": "§ billing",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 38,
-      "endLine": 42,
+      "startLine": 39,
+      "endLine": 43,
       "anchor": "## § billing"
     },
     {
       "id": "backend-critical",
-      "tags": ["backend-critical", "delivery-status"],
+      "tags": [
+        "backend-critical",
+        "delivery-status"
+      ],
       "title": "§ backend-critical",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 43,
-      "endLine": 46,
+      "startLine": 44,
+      "endLine": 47,
       "anchor": "## § backend-critical"
     },
     {
       "id": "agent-lessons",
-      "tags": ["agent-lessons", "scope-rejections"],
+      "tags": [
+        "agent-lessons",
+        "scope-rejections"
+      ],
       "title": "§ agent-lessons",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 47,
-      "endLine": 64,
+      "startLine": 48,
+      "endLine": 65,
       "anchor": "## § agent-lessons"
     },
     {
       "id": "delivery-display-wiring",
-      "tags": ["delivery-display-wiring"],
+      "tags": [
+        "delivery-display-wiring"
+      ],
       "title": "§ delivery-display-wiring",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 66,
-      "endLine": 77,
+      "startLine": 67,
+      "endLine": 78,
       "anchor": "## § delivery-display-wiring"
     },
     {
       "id": "diagnose-before-tweak",
-      "tags": ["html5-qr-type", "qr-preview", "qr-perf", "diagnose-before-tweak"],
+      "tags": [
+        "html5-qr-type",
+        "qr-preview",
+        "qr-perf",
+        "diagnose-before-tweak"
+      ],
       "title": "Diagnose before tweak (appear vs tap)",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 78,
-      "endLine": 93,
+      "startLine": 79,
+      "endLine": 94,
       "anchor": "### Diagnose before tweak"
     },
     {
       "id": "composer-without-sonnet",
-      "tags": ["composer-trace", "composer-without-sonnet"],
+      "tags": [
+        "composer-trace",
+        "composer-without-sonnet"
+      ],
       "title": "§ Composer without Sonnet",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 95,
-      "endLine": 137,
+      "startLine": 96,
+      "endLine": 138,
       "anchor": "## § Composer without Sonnet"
     },
     {
       "id": "critical-reviewer",
-      "tags": ["critical-reviewer"],
+      "tags": [
+        "critical-reviewer"
+      ],
       "title": "§ Critical Reviewer — Grok 4.5 Fast",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 139,
-      "endLine": 148,
+      "startLine": 140,
+      "endLine": 149,
       "anchor": "## Critical Reviewer — Grok 4.5 Fast"
     },
     {
+      "id": "work-verifier",
+      "tags": [
+        "work-verifier"
+      ],
+      "title": "§ Work Verifier — Fable 5",
+      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
+      "startLine": 151,
+      "endLine": 160,
+      "anchor": "## Work Verifier — Fable 5"
+    },
+    {
       "id": "qr-confidence",
-      "tags": ["qr-confidence", "encode-qr-detail"],
+      "tags": [
+        "qr-confidence",
+        "encode-qr-detail"
+      ],
       "title": "QR confidence scoring",
       "file": "PROJECT_STATUS/archives/dossier-notes.md",
       "startLine": 20,
@@ -103,7 +146,9 @@
     },
     {
       "id": "session-confidence",
-      "tags": ["session-confidence"],
+      "tags": [
+        "session-confidence"
+      ],
       "title": "Session confidence full thread",
       "file": "PROJECT_STATUS/archives/dossier-notes.md",
       "startLine": 41,
@@ -112,7 +157,9 @@
     },
     {
       "id": "outcome-log",
-      "tags": ["outcome-log"],
+      "tags": [
+        "outcome-log"
+      ],
       "title": "Active outcome log",
       "file": "PROJECT_STATUS/archives/dossier-notes.md",
       "startLine": 63,
@@ -121,7 +168,9 @@
     },
     {
       "id": "archive-qr-routing",
-      "tags": ["qr-routing-archive"],
+      "tags": [
+        "qr-routing-archive"
+      ],
       "title": "Cold qr-routing notes",
       "file": "PROJECT_STATUS/archives/dossier-notes.md",
       "startLine": 5,
@@ -130,7 +179,9 @@
     },
     {
       "id": "archive-zone-lookup",
-      "tags": ["zone-lookup-archive"],
+      "tags": [
+        "zone-lookup-archive"
+      ],
       "title": "Cold zone-lookup notes",
       "file": "PROJECT_STATUS/archives/dossier-notes.md",
       "startLine": 9,
@@ -139,7 +190,9 @@
     },
     {
       "id": "archive-receive-deep-link",
-      "tags": ["receive-deep-link-archive"],
+      "tags": [
+        "receive-deep-link-archive"
+      ],
       "title": "Cold receive-deep-link notes",
       "file": "PROJECT_STATUS/archives/dossier-notes.md",
       "startLine": 13,
@@ -148,7 +201,9 @@
     },
     {
       "id": "scope-rejections-file",
-      "tags": ["scope-rejections-nav"],
+      "tags": [
+        "scope-rejections-nav"
+      ],
       "title": "USER_SCOPE_REJECTIONS",
       "file": "PROJECT_STATUS/USER_SCOPE_REJECTIONS.md",
       "startLine": 1,
