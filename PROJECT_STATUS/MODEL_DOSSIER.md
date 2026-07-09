@@ -28,10 +28,10 @@
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
 - **Single vendor UI:** `ReceivingPage` at `/#/receive`. Legacy `/#/`, `/#/checkin/:id`, compact `#/r?` rewrite to receive. Demo QR: `/#/demo/vendor-scan`.
 - `appSettings.vendorDeliveryMode`: `exception_only` (Delivered hub) \| `full_checkin` (line-item flow, same page).
-- Zone tags + dispatcher print: `buildEslTagQrUrl` / `buildZoneEslQrUrl` — compact `#/p?` / `#/r?i=` / `#/r?z=` by status.
+- Zone e-tags + dispatcher print: `buildEslTagQrUrl` / `buildZoneEslQrUrl` — long `#/pickup?` / `#/receive?id=` / `#/receive?zone=` (compact `#/r?` / `#/p?` parse-only). Printed location signs: **static** `#/s?loc={code}`, never changes — occupancy-dynamic QR-flip REJECTED (`docs/location-first-transition-spec.md`; route lands Phase 3).
 
 ## § zone-lookup
-- QR routing: `getDeliveryDetailsByStagingCode` (includes pickup-ready).
+- QR routing: `getDeliveryDetailsByStagingCode` (includes pickup-ready; most-recently-updated on collision — Phase 3 replaces with the role-aware resolver per `docs/location-first-transition-spec.md`).
 - Receive-only (exclude blocked): `getDeliveryDetailsPublicByStagingCode`.
 - Occupancy map: `mapActiveZoneOccupancyByCode`.
 
