@@ -88,7 +88,7 @@ Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: 
 
 Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, or executing an already-reviewed plan. One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`.
 
-**Freeze check (D-15):** before approving any new gate, role, workflow, or abstraction, verify the proposal against `PROJECT_STATUS/HARNESS_V1_FREEZE.md` reopening criteria and apply the D-13 evidence-pairing and D-14 deletion/80-20 tests.
+**Freeze check (D-16):** before approving any new gate, role, workflow, or abstraction, verify the proposal against `PROJECT_STATUS/HARNESS_V1_FREEZE.md` reopening criteria and apply the D-14 evidence-pairing and D-15 deletion/80-20 tests.
 
 ## Work Verifier auto-invoke (Fable 5 — tier 3 only, Dan 2026-07-08)
 

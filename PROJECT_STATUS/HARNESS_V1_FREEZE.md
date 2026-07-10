@@ -1,4 +1,4 @@
-# Harness V1 Freeze (D-15, 2026-07-09)
+# Harness V1 Freeze (D-16, 2026-07-09)
 
 Charter after adversarial review rounds 1–5. StageVerify MVP takes priority over new orchestration layers.
 
@@ -8,7 +8,7 @@ Two-tier ship model · verification ladder + fix-closure · security gate · awa
 
 ## Asymmetric rule
 
-**Deletions/compressions:** always legal, no ticket. **Additions** require: same friction logged ≥2× (named, dated), OR security incident, OR production incident, OR measured bottleneck, OR real customer exposing a missing capability. Proposer carries the burden (D-14).
+**Deletions/compressions:** always legal, no ticket. **Additions** require: same friction logged ≥2× (named, dated), OR security incident, OR production incident, OR measured bottleneck, OR real customer exposing a missing capability. Proposer carries the burden (D-15).
 
 ## Reopening IS justified by
 
