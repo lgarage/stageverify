@@ -10,7 +10,12 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Overnight batch 2026-07-09 away-118..121 + away-123 shipped. Queue empty.",
-    "sequence": []
+    "sequence": [],
+    "commandInterface": {
+      "paused": false,
+      "pauseAfterCurrentTask": false,
+      "updatedAt": "2026-07-10T03:54:28.072Z"
+    }
   },
   "queue": [
     {

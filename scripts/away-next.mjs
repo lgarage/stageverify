@@ -34,6 +34,17 @@ function parseTags(argv) {
 }
 
 const list = readJson(PATHS.awayList);
+const ci = list.executionProtocol?.commandInterface;
+if (ci?.paused && !minimal) {
+  console.error(
+    JSON.stringify({
+      paused: true,
+      message:
+        "Command interface pause flag set (away-list executionProtocol.commandInterface). Say Continue in Slack or clear the flag.",
+    }),
+  );
+  process.exit(2);
+}
 const archive = readJson(PATHS.awayArchive);
 const next = firstRunnableItem(list.queue, archive);
 

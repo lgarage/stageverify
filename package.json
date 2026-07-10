@@ -114,6 +114,8 @@
     "away:validate": "node scripts/away-validate.mjs",
     "estimate:audit": "node scripts/estimate-audit.mjs",
     "away:next": "node scripts/away-next.mjs",
+    "command:slack": "node scripts/run-command-interface-slack.mjs",
+    "verify:command-interface": "node scripts/verify-command-interface.mjs",
     "away:plan": "node scripts/away-plan.mjs",
     "away:batch": "node scripts/away-batch.mjs",
     "away:preflight": "node scripts/away-preflight.mjs",

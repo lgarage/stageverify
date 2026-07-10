@@ -9,7 +9,7 @@
 - **Harness V1 Freeze (D-16):** additions need pain tickets (charter: HARNESS_V1_FREEZE.md); deletions always legal.
 - **Vendor PIN (D14):** per-JOB PIN on `jobs.pinCode`/`pinHash`; session scope `job`; cross-job absence enforced server-side in `getJobVendorDeliveries`.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** — controlled flag-on test only; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan.
-- Last shipped: **Harness V1 Freeze** D-14..D-16 + D-17 CTO role (`edff7e1`, this commit) — time-awareness 207→67 lines; freeze charter live
+- **Command interface (Phase 0):** `npm run command:slack` before drive — Slack transport over harness state.
 - Stack + Data: React 19 + TS, Vite 8, Firebase 11.x, CF v2 → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
