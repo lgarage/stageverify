@@ -151,7 +151,7 @@ Purpose: skeptical outside-party review before major architecture, harness, or w
 
 ## Work Verifier — Fable 5 (tag: work-verifier)
 
-Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a path check or Ship Verifier cannot judge. Fable never edits code, never ships, never overrides Sonnet security verdicts. Per-ship verification belongs to the Ship Verifier (Grok, tier 1) — not Fable.
+Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a path check or Ship Verifier cannot judge. Fable never edits code, never ships, never overrides Sonnet security verdicts. Per-ship verification belongs to the Ship Verifier (Grok, tier 1) — not Fable. Verify-only — never edits files; Composer implements, Fable re-verifies, ship gated on Fable pass.
 
 - Model: `claude-fable-5-thinking-high` via generalPurpose Task, `readonly: true`
 - **Triggers (only these):** (1) phase boundary of a Fable-authored product/architecture spec with semantic drift tripwires — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, stays authoritative); (2) Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that).
