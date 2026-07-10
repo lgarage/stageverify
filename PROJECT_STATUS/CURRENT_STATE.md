@@ -19,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Product:** finish location-first Phase 4 (release-prompt CF + G1→G4 E2E await Dan approval); fix push ingest (poll-only since 2026-07-07). **Dan-side:** shop map, shelving decision (Jake), Gmail topic config. **Mobile (only approved work):** 30-min Siri/Slack announce road test on next drive + passive batch notifications — experiment with kill condition.
+- **Product:** finish location-first Phase 4 (release-prompt CF + G1→G4 E2E **[high-risk]** await Dan approval); fix push ingest **[high-risk: Gmail/Pub-Sub CF — approval + Sonnet gate before deploy]** (poll-only since 2026-07-07). **Dan-side:** shop map, shelving decision (Jake), Gmail topic config. **Mobile (only approved work):** 30-min Siri/Slack announce road test on next drive + passive batch notifications — experiment with kill condition.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

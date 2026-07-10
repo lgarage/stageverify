@@ -22,7 +22,7 @@ Elegance/symmetry/"while we're in there"; new model releases alone; hypothetical
 
 Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel → one dated line here. No form, no ceremony.
 
-*(empty — seed list)*
+- 2026-07-09: first new-conv bootstrap re-derived tier and misclassified push ingest (Gmail/Pub-Sub, high-risk) as fast-safe → fixed same night: flush now records tiers; bootstrap defaults unrecorded to high-risk.
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
