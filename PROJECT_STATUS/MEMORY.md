@@ -36,6 +36,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Phase / deployment | `docs/project_state.md` | Phase gates, what's built |
 | Priorities / gates | `docs/roadmap.md` | NOW/NEXT/LATER, scope § mapping |
 | Hot snapshot | `PROJECT_STATUS/CURRENT_STATE.md` | Blockers, immediate next (~30 lines) |
+| Why was X decided / decision history | `PROJECT_STATUS/DECISIONS.md` | Harness + product decisions; superseded → `DECISIONS_ARCHIVE.md` |
 
 ## Away queue (work spec + ship log)
 

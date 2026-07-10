@@ -23,6 +23,7 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel*
 0. **Load `time-awareness.mdc` — time constraints bind every reply** (alwaysApply; budget filter, no out-of-budget CTAs, remaining-time options). **Session mode fork:** unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice (e.g. "away-style planning") → skip re-ask. Away planning = Plan → Approve → Queue only until **"go build it"**; not overnight-specific.
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Read `PROJECT_STATUS/MEMORY.md` — especially **“What’s next to build?”** (narrow answer rules).
+**Prepare for new conv (handoff):** When Dan says "context is full", "prepare for a new conv", "handoff", or similar — (a) record any unrecorded decisions in `PROJECT_STATUS/DECISIONS.md`, (b) update `CURRENT_STATE.md` with in-flight task, exact status, and immediate next step (must point at `DECISIONS.md`), (c) commit + push, (d) reply one line confirming the new conv needs no pasted context.
 **STOP after hot tier** for routine tasks. Steps 3–8 below are **on demand** — only when the task triggers them. Do **not** read `svscope_simple.md` at session start; load it only for scope disputes (see MEMORY.md authority chain).
 3. For **planning questions** (“what’s next”, “what else can be worked on”, roadmap/priority) — follow **`parallel-agent-strategy.mdc` § Planning question protocol**: parallel scouts → synthesize → **`answer-quality.mdc`** → present with confidence line. Do not answer from `docs/roadmap.md` LATER/NEXT alone.
 4. For **away / sleep / overnight** (`what should I build while I'm away`, `while I sleep`, `overnight batch`, `run while I'm away`, etc.) — **Plan → Approve → Queue → Execute** (never skip to execute on first message). See `time-awareness.mdc` — do not assume overnight when Dan is in active daytime chat:
@@ -218,6 +219,8 @@ Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only �
 **Verifier lines (mandatory):** substantive ships (path-classified per `model-gates.mdc` § Ship Verifier auto-invoke) MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)`; `work-verifier:` (Fable) line only for Fable-spec phase ships; `fix-verified: <re-verify task-id>` for every closed verifier finding (`model-gates.mdc` § Fix-closure rule). Missing line = NOT RUN.
 
 **Gotcha line (mandatory):** every substantive task's completion report ends with `gotchas: none` OR `gotchas: recorded — <short name>` after adding any newly-encountered environment failure, tool quirk, or workaround to `PROJECT_STATUS/gotcha-map.json` (SSOT). A workaround mentioned in prose but not recorded = dropped lesson — the explicit line makes omission visible. Readonly subagent workers surface the gotcha in their final response for the parent to record.
+
+**Decisions line (mandatory):** every substantive task's completion report includes `decisions: D-NN recorded` or `decisions: none`. New decisions go into `PROJECT_STATUS/DECISIONS.md` in the same commit as the implementing change; superseded → `DECISIONS_ARCHIVE.md` with `superseded-by D-NN`.
 
 Skip **What we did** for trivial Q&A, typos, or read-only answers where no work was performed.
 
