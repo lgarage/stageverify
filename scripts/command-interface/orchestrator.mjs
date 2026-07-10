@@ -9,10 +9,30 @@ import { recordTurn, getRecentTurns } from "./conversation.mjs";
 /** @typedef {import('./types.mjs').IncomingMessage} IncomingMessage */
 
 /**
+ * @param {string | undefined} userId
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function isAllowedSlackUser(userId, env = process.env) {
+  if (!userId) return false;
+  const raw =
+    env.STAGEVERIFY_SLACK_ALLOWED_USER_IDS ?? "U0B47NC4A9L";
+  const allowed = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return allowed.includes(userId);
+}
+
+/**
  * @param {Transport} transport
  * @param {IncomingMessage} message
+ * @param {Record<string, string | undefined>} [env]
  */
-export async function handleIncoming(transport, message) {
+export async function handleIncoming(transport, message, env = process.env) {
+  if (!isAllowedSlackUser(message.userId, env)) {
+    console.log(`[command] ignored message from ${message.userId ?? "unknown"}`);
+    return null;
+  }
   recordTurn("user", message.text);
   const routed = routeIntent(message.text, getRecentTurns());
   const response = await executeIntent(routed);

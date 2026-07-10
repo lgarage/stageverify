@@ -25,7 +25,7 @@ const RULES = [
     pauseAfterCurrentTask: true,
   },
   {
-    patterns: [/\b(pause|hold|wait)\b/i, /\bstop\b/i],
+    patterns: [/\b(pause|hold)\b/i],
     type: "pause",
     confidence: 0.88,
   },

@@ -6,6 +6,7 @@
  *   STAGEVERIFY_SLACK_BOT_TOKEN=xoxb-...   (same bot as user-slack MCP)
  *   STAGEVERIFY_SLACK_CHANNEL_ID=C0B43DJPMS7
  *   STAGEVERIFY_SLACK_BOT_USER_ID=U0B3UBNHRK9  (optional — skip own messages)
+ *   STAGEVERIFY_SLACK_ALLOWED_USER_IDS=U0B47NC4A9L  (comma-separated; default Dan only)
  *
  * Run before driving:
  *   npm run command:slack
