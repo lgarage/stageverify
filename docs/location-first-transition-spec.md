@@ -13,7 +13,7 @@
 
 ## § Phase Tracker (LIVING SECTION — agents update this)
 
-> **Approved next action: Phase 3** (permanent location entry + vendor scan v2). Phase 2 completed 2026-07-08 (`v0.0.26`).
+> **Approved next action: Phase 4** (vendor exception flows + dispatcher planning). Phase 3 completed 2026-07-08 (v0.0.27).
 >
 > **REVISION (Dan 2026-07-08):** Vendor PIN is now **job-scoped**, not vendor/company-scoped — read **§ Job-scoped vendor PIN (D14)** before implementing Phases 2–4. The original vendor-scoped D3 visibility model is REJECTED.
 
@@ -22,7 +22,7 @@
 | 1 | Groundwork: docs, types, clipboard | `complete` | 2026-07-08 | 2026-07-08 | ESL plan amended; additive types; job-level clipboard; URL locked `#/s?loc=` |
 | 2 | Privacy hardening (backend) | `complete` | 2026-07-08 | 2026-07-08 | Rules auth-only reads; session/token CF mediation; vendorPinVerifier removed; verify:privacy |
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
-| 4 | Vendor exception flows + dispatcher planning | `not_started` | — | — | Multi-spot, releases, planned/actual divergence |
+| 4 | Vendor exception flows + dispatcher planning | `in_progress` | — | — | UI slices (away-113..117) + verify hardening (away-118..121) shipped; release-prompt CF + full G1→G4 E2E pending Dan approval |
 | 5 | Technician door two + pickup verification v2 | `not_started` | — | — | Sonnet-gated; per-tech PINs; two-level verification |
 | 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | Sonnet-gated; shared shop PIN; highest-sensitivity surface after Phase 2 |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |

@@ -6,6 +6,7 @@
 
 ## Snapshot
 - Active Phase: **Location-first transition — Phase 4 verify hardening** (`v0.0.30`): interactive `verify:location-phase4` (NMS + planned-staging + list badges); release-prompt CF + full G1→G4 E2E still pending Dan approval.
+- **Harness V1 Freeze (D-15):** additions need pain tickets (charter: HARNESS_V1_FREEZE.md); deletions always legal.
 - **Vendor PIN (D14):** per-JOB PIN on `jobs.pinCode`/`pinHash`; session scope `job`; cross-job absence enforced server-side in `getJobVendorDeliveries`.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** — controlled flag-on test only; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan.
 - Last shipped: **away-118..121 + away-123** — Phase 4 verify hardening, e2e-smoke pickup leg, invoice fixtures, orphan verify npm entries
@@ -18,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **Product:** finish location-first Phase 4 (release-prompt CF + G1→G4 E2E await Dan approval); fix push ingest (poll-only since 2026-07-07). **Dan-side:** shop map, shelving decision (Jake), Gmail topic config.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

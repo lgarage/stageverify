@@ -13,80 +13,30 @@ alwaysApply: true
 - **Remaining time options** — mandatory after successful ship when a window was stated.
 - **Active default** — overnight/away-batch execute only on explicit sleep/overnight trigger.
 
-Dan wants agents **time aware** in every conversation.
-
 ## Session mode fork (mandatory — early in substantive sessions)
 
-Before implement/ship work, confirm **how Dan wants to work** — unless he already stated mode this session.
-
-Ask **one** focused question when intent is unclear or at the start of substantive work:
-
-> **A) Active now** — small builds, interactive updates, ship as we go  
-> **B) Away planning** — rank/queue candidates, draft away-NNN items, wait for **"go build it"**
+Before implement/ship work, confirm **how Dan wants to work** — unless mode already stated. Ask **one** question when unclear: **A) Active now** (interactive ship-as-we-go) vs **B) Away planning** (rank/queue, draft away-NNN, wait for **"go build it"**).
 
 | Rule | Detail |
 |------|--------|
-| Explicit mode | If Dan says e.g. "active now", "away-style planning", "just plan" — **skip re-ask**; enter that mode |
-| Away planning ≠ overnight | Plan → Approve → Queue can run **any time of day** (morning check-in, daytime, evening) |
-| Away planning actions | **`npm run away:plan`** only — suggest `suggestedAdditions`; **do not** write `away-list.json`; **do not** run `away:batch` until Dan approves |
-| Active now actions | Normal interactive implement → verify → ship per task |
-| Execute after approval | Plan → Approve → Queue → Execute — see `AWAY_BUILD_PROTOCOL.md` and `composer-orchestrator.mdc` |
+| Explicit mode | "active now", "away-style planning", "just plan" → **skip re-ask** |
+| Away planning ≠ overnight | Plan → Approve → Queue anytime; **`npm run away:plan`** only; no `away-list.json` write; no `away:batch` until Dan approves |
+| Active now | Normal implement → verify → ship |
+| After approval | Plan → Approve → Queue → Execute — `AWAY_BUILD_PROTOCOL.md`, `composer-orchestrator.mdc` |
 
-Do **not** use sleep/overnight framing when Dan chose away planning during daytime.
+No sleep/overnight framing when Dan chose away planning during daytime.
 
-## Infer time
+## Infer time & stated window
 
-- **`user_info` "Today's date"** — anchor calendar day.
-- **Conversation cues** — Dan stating time (`5:31 am`), waking up, morning coffee, good morning, etc.
-- When cues conflict, trust what Dan says now over stale overnight framing.
+Anchor on **`user_info` "Today's date"**; trust Dan's cues over stale overnight framing. On deadline/window (`until 6:15`, `30 more minutes`): **record** (clock or duration), **re-estimate** after each ship cycle, **replace** (don't stack) if Dan changes mid-session.
 
-## Stated time window (track)
+## Session pacing
 
-When Dan states a deadline or availability window (`until 6:15`, `30 more minutes`, `on wifi for X`):
-
-- **Record** the window when first stated — clock deadline (anchor on today's date) or duration from the cue.
-- **Re-estimate** minutes left after each completed build/verify/ship cycle.
-- If Dan extends or narrows the window mid-session, replace the old estimate — do not stack both.
-
-## Active daytime session (default)
-
-When Dan is chatting in the morning/day **without** sleep/overnight language:
-
-- Normal interactive work: implement, verify, ship per task.
-- **Do not default to:** overnight batch, "while you sleep", "good night", Plan-only `away:plan`, or queue-before-sleep framing.
-- Morning check-in → read `CURRENT_STATE.md`; brief summary + daytime next steps.
-
-## Overnight / away / sleep (explicit triggers only)
-
-Enter Plan → Approve → Queue → Execute **only** when Dan says e.g.:
-
-- sleep, overnight, while I'm away, good night (for batch)
-- away/sleep plan requests, `go build it` / queue approval for sleeping
-
-See `composer-orchestrator.mdc` and `AWAY_BUILD_PROTOCOL.md`.
-
-## Tone and pacing
-
-| Context | Agent behavior |
-|---------|----------------|
-| Early AM / just woke up | Brief greeting; what shipped overnight; **session mode fork** unless Dan already chose A or B |
-| Daytime active chat | Task-focused; use fork when intent unclear — away planning OK without sleep framing |
-| Evening + sleep intent | Default **B) Away planning** if Dan mentions sleep/overnight; else ask fork |
-
-"Morning after batch" is **not** a sleep session — Dan is awake; use daytime mode.
+Morning/day without sleep language → active work; no default overnight framing; check-in → `CURRENT_STATE.md`. Overnight/sleep triggers only → Plan → Approve → Queue → Execute (`composer-orchestrator.mdc`, `AWAY_BUILD_PROTOCOL.md`). Early AM → brief greeting + **session mode fork** unless mode chosen. Evening + sleep → default **B)** if sleep mentioned. "Morning after batch" = daytime mode (Dan awake).
 
 ## Time estimate calibration
 
-Estimates are **heuristics** — calibrate from session actuals when available (note elapsed after each ship/verify cycle).
-
-When presenting work that might fit a stated window, use **two numbers**:
-
-| Column | Meaning |
-|--------|---------|
-| **Budget** | Upper bound for "fits window" filter (conservative) |
-| **Typical** | Expected elapsed time in normal conditions |
-
-### Category anchors (stageverify)
+Heuristics — calibrate from actuals. Present **Budget** (conservative filter) + **Typical** (expected elapsed).
 
 | Category | Budget | Typical |
 |----------|--------|---------|
@@ -97,110 +47,21 @@ When presenting work that might fit a stated window, use **two numbers**:
 | T1 verify harness script | 35 min | 15–25 min |
 | T3 CF + Sonnet + deploy | 50 min | 35–45 min |
 
-### Rules
-
-- **Time-bound filter uses budget only** — never offer if `budget > remaining`; typical is informational only.
-- **After ship/verify:** when Dan gave a time window, note **actual elapsed** in the chat completion report (feeds calibration) — cite `estimate-log.md` for away ships; do not store actuals in `away-status.json`.
-- **Away ships:** worker-owned `task-start`/`task-finish` timestamps recorded by librarian into `PROJECT_STATUS/estimate-log.md` only — see `AWAY_BUILD_PROTOCOL.md` step 7–8 and `estimate-log.md` methodology; `actualElapsedMin` from timestamp math; `timingSource: worker_reported_timestamps` for calibration; `startedAt`/`finishedAt: unknown` when not recorded — never guess; **`npm run estimate:audit`** at every 15 log rows.
-- **Scouts/orchestrator:** prefer npm script names (`verify:pickup:prod`, `away-054`) over vague "20 min build".
-
-### Wrong vs right (budget vs typical)
-
-**Wrong:** quoting 10–15 min per verify when the bundle completes in ~90s without noting typical.
-
-**Right:** `verify:settings` — budget 10–15 min, typical ~2 min.
+- Filter on **budget only** — never offer if `budget > remaining`; typical informational.
+- After ship/verify with stated window → note **actual elapsed**; away ships cite `estimate-log.md`.
+- Away ships: `task-start`/`task-finish` → `estimate-log.md`; `actualElapsedMin` from timestamps; `timingSource: worker_reported_timestamps`; unknown when not recorded; **`npm run estimate:audit`** every 15 rows.
+- Prefer npm script names over vague estimates.
 
 ## Time-bound suggestions (mandatory)
 
-**Users are always time-bound.** Track stated deadlines/durations (see **Stated time window**) and treat remaining minutes as a hard budget for every suggestion.
-
-### Before any actionable suggestion
-
-Before suggesting or asking Dan to **"go build X"**, **"want to run Y"**, or **"To continue:"** with a command:
-
-1. **Estimate** each candidate using **budget** from **Time estimate calibration** (build + verify + ship when applicable).
-2. **Compare** budget to **remaining** window — re-estimate after each completed cycle.
-3. **Include in "Fits now" / "To continue"** only items where `budget ≤ remaining` (typical is informational; never filter on typical alone).
-4. **Never** ask Dan to approve or run work that **cannot fit** in remaining time.
-5. **Never** present out-of-budget items as actionable choices — no `"say go build away-054"` when ~5 min left; no **"if you have ~25+ min"** hypotheticals unless Dan **updates** the window this session.
-
-### Out-of-budget items
-
-- List under **Save for later** only — name + estimate; **no call-to-action**.
-- Do **not** ask "want to run…?", "should I…?", or "if you have time…" for work that does not fit.
-- Scouts, orchestrator, and `suggestion-verify-gate.mdc` must **filter before present**.
-
-### Wrong vs right
-
-**Wrong** (~5 min left, offering a ~20 min build):
-
-```markdown
-### Remaining time options
-- **~5 min left** (until 6:15 PM)
-- **Fits now:** away-054 (~20 min)
-- **To continue:** `go build away-054`
-```
-
-Or: *"If you have ~25+ min left, say go build away-054"* — nonsensical when the stated budget is already ~5 min.
-
-**Right** (~5 min left):
-
-```markdown
-### Remaining time options
-- **~5 min left** (until 6:15 PM)
-- **Fits now:** nothing shippable in ~5 min — quick verify only or stop
-- **Save for later:** away-054 (~20 min) · away-055 (~45 min)
-```
-
-**Right** (~25 min left, away-054 fits):
-
-```markdown
-### Remaining time options
-- **~25 min left** (until 6:15 PM)
-- **Fits now:** away-054 (small UI copy fix, ~20 min)
-- **Save for later:** away-055 (multi-file receive flow, ~45 min)
-- **To continue:** `go build away-054`
-```
+Hard budget on remaining minutes. Before actionable suggestions: estimate with **budget**, compare to **remaining**, include in Fits now/To continue only when `budget ≤ remaining`, never ask for unaffordable work, never present out-of-budget as actionable (no hypotheticals unless Dan updates window). Out-of-budget → **Save for later** only (name + estimate; no CTA). Filter before present.
 
 ## Remaining time options (post-ship — mandatory)
 
-Dan's standing preference: after a successful build/verify/ship **within** a stated time window, end the "what was done" reply with a **Remaining time options** section. When a window was stated, also note **actual elapsed** for the task just completed in chat (away ships: cite `estimate-log.md` row). Apply **Time-bound suggestions** — only in-budget items are actionable.
+After successful ship within stated window → **Remaining time options** section + **actual elapsed** (away: `estimate-log.md` row). Include when: window stated, task succeeded, remaining **> 0**.
 
-### When to include
+**Format:** `### Remaining time options` — **~N min left**; **Fits now:** (2–3 ranked, `budget ≤ remaining` only, or nothing shippable); **Save for later:** (out-of-budget, no CTA); **To continue:** (in-budget only; omit or "quick verify only or stop").
 
-All must hold:
+**Rank:** (1) `away-list.json` / `npm run away:next` — no invented ids; (2) cross-check `CURRENT_STATE.md`, blockers, scope; (3) calibration table; (4) drop over-budget from Fits now/To continue; (5) no overnight/`away:plan` hypotheticals in active window; (6) away planning → approve candidates, **"go build it"** before batch.
 
-1. Dan stated a time window this session (see **Stated time window**).
-2. The current task's build/verify/ship completed successfully.
-3. Estimated minutes remaining **> 0**.
-
-### Required section format
-
-```markdown
-### Remaining time options
-- **~N min left** (until 6:15 PM / "30 more minutes" from [when stated])
-- **Fits now:** (2–3 ranked bullets — **only** items where budget ≤ remaining; or state clearly if nothing shippable fits)
-- **Save for later:** (out-of-budget items — name + budget estimate; **no** call-to-action)
-- **To continue:** (optional — **only** in-budget commands; omit or say "quick verify only or stop" when nothing fits)
-```
-
-### How to rank (accuracy required)
-
-1. **Queue truth** — read `PROJECT_STATUS/away-list.json`; run or cite `npm run away:next` for the next queued away item. Do not invent away-NNN ids.
-2. **Verify before present** — cross-check `PROJECT_STATUS/CURRENT_STATE.md`, active blockers, and item scope; run `suggestion-verify-gate.mdc` on ranked items (lightweight pass OK when `away:next` is authoritative).
-3. **Use calibration table** — see **Time estimate calibration** for budget/typical anchors; present both when helpful (filter on budget only).
-4. **Filter before present** — drop any item where `budget > remaining` from **Fits now** and **To continue**; move to **Save for later** with no CTA. If nothing fits: *"nothing shippable in N min — quick verify only or stop"*.
-5. **Active window only** — suggest **active builds** (Dan says `go build away-NNN`) or **quick verifies** (`verify:*`, `:prod` after deploy) **only when they fit**. Do **not** suggest overnight batch, "while you sleep", `away:plan`-only queue framing, or **"if you have time"** hypotheticals during an active window.
-6. **Away planning mode** — if Dan chose **B) Away planning**, ranked items are candidates to approve; still require explicit **"go build it"** before `away:batch` — and only suggest approval for items that could fit if Dan extends the window, not as immediate run requests when they do not fit.
-
-### When to skip
-
-| Situation | Action |
-|-----------|--------|
-| Deadline passed | Skip section; optional one-line "window closed" |
-| No window stated | Skip; ask once if time pressure seems implied: "Any time budget for what's next?" |
-| Remaining time unknown | Skip minute estimate; omit section or ask once for a fresh deadline |
-
-### Example (after away-053 within "until 6:15", ~25 min remaining)
-
-See **Wrong vs right** above. When ~25 min remain, away-054 (~20 min) may appear under **Fits now** with **To continue:** `go build away-054`. When ~5 min remain, the same item belongs under **Save for later** only — never under **To continue**.
+**Skip:** deadline passed; no window (skip or ask once); remaining unknown (omit or ask once).

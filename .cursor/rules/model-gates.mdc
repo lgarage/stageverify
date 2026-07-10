@@ -88,6 +88,8 @@ Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: 
 
 Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, or executing an already-reviewed plan. One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`.
 
+**Freeze check (D-15):** before approving any new gate, role, workflow, or abstraction, verify the proposal against `PROJECT_STATUS/HARNESS_V1_FREEZE.md` reopening criteria and apply the D-13 evidence-pairing and D-14 deletion/80-20 tests.
+
 ## Work Verifier auto-invoke (Fable 5 — tier 3 only, Dan 2026-07-08)
 
 Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: § Fix-closure rule (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
