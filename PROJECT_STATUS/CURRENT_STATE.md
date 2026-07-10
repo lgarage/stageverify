@@ -9,7 +9,7 @@
 - **Harness V1 Freeze (D-16):** additions need pain tickets (charter: HARNESS_V1_FREEZE.md); deletions always legal.
 - **Vendor PIN (D14):** per-JOB PIN on `jobs.pinCode`/`pinHash`; session scope `job`; cross-job absence enforced server-side in `getJobVendorDeliveries`.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** — controlled flag-on test only; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan.
-- Last shipped: **away-118..121 + away-123** — Phase 4 verify hardening, e2e-smoke pickup leg, invoice fixtures, orphan verify npm entries
+- Last shipped: **Harness V1 Freeze** D-14..D-16 + D-17 CTO role (`edff7e1`, this commit) — time-awareness 207→67 lines; freeze charter live
 - Stack + Data: React 19 + TS, Vite 8, Firebase 11.x, CF v2 → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -19,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Product:** finish location-first Phase 4 (release-prompt CF + G1→G4 E2E await Dan approval); fix push ingest (poll-only since 2026-07-07). **Dan-side:** shop map, shelving decision (Jake), Gmail topic config.
+- **Product:** finish location-first Phase 4 (release-prompt CF + G1→G4 E2E await Dan approval); fix push ingest (poll-only since 2026-07-07). **Dan-side:** shop map, shelving decision (Jake), Gmail topic config. **Mobile (only approved work):** 30-min Siri/Slack announce road test on next drive + passive batch notifications — experiment with kill condition.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
