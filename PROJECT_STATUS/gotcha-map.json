@@ -169,6 +169,23 @@
       "warning": "Local build/verify can PASS while gh-pages serves a stale pre-fix bundle. Before treating prod-only UI failure as a code bug: check Pages build status + live index.html main JS hash vs dist/ (branch may already have the new bundle). Redeploy or Pages rebuild if needed; wait for status=built, then rerun :prod verify."
     },
     {
+      "id": "prod-verify-hide-seed-demo",
+      "match": [
+        "hideSeedDemoRows",
+        "ORD-005 not found",
+        "demo rows hidden",
+        "verify:location-phase4:prod",
+        "openDelivery"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": ["agent-lessons"],
+      "lessonsSection": "ship-verify",
+      "files": ["src/dispatcher/firestoreService.ts", "scripts/verify-location-phase4.mjs"],
+      "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": ["npm run verify:location-phase4", "npm run verify:location-phase4:prod"],
+      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..006) from dispatcher list. Phase 4 prod verify must open drawer via `#/dispatcher?openDelivery=<id>` (shipped v0.0.33+) or assert badges in drawer — list search for ORD-005 fails on live prod until deploy."
+    },
+    {
       "id": "gh-pages-deploy-freshness",
       "match": [
         "deploy timeout",

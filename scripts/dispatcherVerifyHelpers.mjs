@@ -185,6 +185,20 @@ export async function openOrderDrawerBySearch(page, orderNumber) {
   await page.getByTestId("copy-pickup-information").waitFor({ timeout: 15_000 });
 }
 
+/** Open dispatcher drawer by delivery id (prod verify when demo list rows are hidden). */
+export async function openDeliveryDrawerByDeepLink(page, appBase, deliveryId) {
+  await page.goto(
+    `${appBase}/#/dispatcher?openDelivery=${encodeURIComponent(deliveryId)}`,
+    { waitUntil: "domcontentloaded", timeout: 45_000 },
+  );
+  await page
+    .getByText("Loading detail panel…")
+    .waitFor({ state: "hidden", timeout: 25_000 })
+    .catch(() => {});
+  const drawerMarker = page.getByTestId("issue-summary-panel");
+  await drawerMarker.waitFor({ state: "visible", timeout: 25_000 });
+}
+
 export async function openDeliveryDrawer(page, orderNumber, deliveryId) {
   const drawerOpen = await page
     .getByText("Order Workflow Status", { exact: false })

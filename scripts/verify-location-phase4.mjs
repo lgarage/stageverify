@@ -16,6 +16,7 @@ import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   ensureAuthenticated,
   loadEnvLocal,
+  openDeliveryDrawerByDeepLink,
 } from "./dispatcherVerifyHelpers.mjs";
 
 const args = process.argv.slice(2);
@@ -25,6 +26,9 @@ const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
+const isProdBase = /lgarage\.github\.io\/stageverify/i.test(baseUrl);
+const PHASE4_DELIVERY_ORD005 = "delivery-demo-vendor-1";
+const PHASE4_DELIVERY_ORD006 = "delivery-demo-vendor-2";
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 const outDir = resolve(process.cwd(), "screenshots", "location-phase4");
 mkdirSync(outDir, { recursive: true });
@@ -203,13 +207,21 @@ async function openDeliveryDrawerBySearch(page, term) {
   await waitForDrawerReady(page);
 }
 
-async function verifyPlannedStagingInteractive(page) {
+async function openPhase4Drawer(page) {
   await page.goto(`${appBase}/#/dispatcher`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
   await closeDrawerIfOpen(page);
+  if (isProdBase) {
+    await openDeliveryDrawerByDeepLink(page, appBase, PHASE4_DELIVERY_ORD005);
+    return;
+  }
   await openDeliveryDrawerBySearch(page, "ORD-005");
+}
+
+async function verifyPlannedStagingInteractive(page) {
+  await openPhase4Drawer(page);
 
   const plannedPanel = page.getByTestId("planned-staging-assignment");
   await plannedPanel.waitFor({ state: "visible", timeout: 20_000 });
@@ -270,6 +282,37 @@ async function verifyPlannedStagingInteractive(page) {
 
 async function verifyListBadges(page) {
   await closeDrawerIfOpen(page);
+
+  if (isProdBase) {
+    await openDeliveryDrawerByDeepLink(page, appBase, PHASE4_DELIVERY_ORD005);
+    const divergenceVisible = await page
+      .getByTestId("drawer-planned-divergence-badge")
+      .isVisible()
+      .catch(() => false);
+    record(
+      "ORD-005 Divergence badge in list",
+      divergenceVisible,
+      divergenceVisible
+        ? "drawer badge (demo rows hidden on prod)"
+        : "missing drawer divergence badge",
+    );
+    await closeDrawerIfOpen(page);
+
+    await openDeliveryDrawerByDeepLink(page, appBase, PHASE4_DELIVERY_ORD006);
+    const drawerText = await page.locator("body").innerText().catch(() => "");
+    const reservedVisible = /Reserved/i.test(drawerText);
+    record(
+      "ORD-006 Reserved badge in list",
+      reservedVisible,
+      reservedVisible
+        ? "drawer/list label (demo rows hidden on prod)"
+        : "missing Reserved label",
+    );
+    await closeDrawerIfOpen(page);
+    await shot(page, "03-dispatcher-list-badges");
+    return;
+  }
+
   const search = page.locator('input[placeholder*="Job #, name, PO"]');
   await search.waitFor({ state: "visible", timeout: 15_000 });
 
@@ -348,7 +391,7 @@ async function main() {
       timeout: 45_000,
     });
     await ensureAuthenticated(page, appBase);
-    await openDeliveryDrawerBySearch(page, "ORD-005");
+    await openPhase4Drawer(page);
     const plannedPanel = page.getByTestId("planned-staging-assignment");
     await plannedPanel.waitFor({ state: "visible", timeout: 20_000 });
     record("Drawer planned-staging-assignment visible", true);
