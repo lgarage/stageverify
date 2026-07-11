@@ -22,7 +22,8 @@ Elegance/symmetry/"while we're in there"; new model releases alone; hypothetical
 
 Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel → one dated line here. No form, no ceremony.
 
-- 2026-07-09: first new-conv bootstrap re-derived tier and misclassified push ingest (Gmail/Pub-Sub, high-risk) as fast-safe → fixed same night: flush now records tiers; bootstrap defaults unrecorded to high-risk.
+- 2026-07-09: first new-conv bootstrap re-derived tier and misclassified push ingest (Gmail/Pub/Sub, high-risk) as fast-safe → fixed same night: flush now records tiers; bootstrap defaults unrecorded to high-risk.
+- 2026-07-10: consecutive same-failure stall — Composer retried identical verify/build fixes twice without new hypotheses; wanted cheap Grok pivot before Sonnet (D-19).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

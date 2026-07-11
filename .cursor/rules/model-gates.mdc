@@ -18,19 +18,62 @@ alwaysApply: true
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — Sonnet security gate before push |
 
-## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative)
+## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)
 
-When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis).
+When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis) — **unless** the 2nd fail shares the **same failure fingerprint** as the 1st (then **Grok stall-advisor** runs first; Sonnet when still stuck per sequence below).
 
 - **Only Composer** updates code, runs verify, and completes the ship loop.
 - Sonnet = **diagnostic reviewer only** — no commits, no file edits, no ship loop.
-- After Sonnet returns findings, **Composer** implements + verify + ship.
+- Grok stall-advisor = **advisory only** — hypotheses + next experiments; no commits, no file edits, no ship loop.
+- After Sonnet or Grok returns findings, **Composer** implements + verify + ship.
 
-**Counting failures:** two implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted.
+**Counting failures:** implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted.
 
-**Failure sequence:** **1st fail** → Composer retry (+ optional self-trace per `MODEL_DOSSIER.md` tag `composer-trace`). **2nd fail** → Sonnet diagnose-only (mandatory). Composer implements after Sonnet returns.
+### Same failure fingerprint (D-19)
 
-Other Sonnet triggers: security verifier before push; architecture unclear after synthesis; confStart < 70. **Not** for scouts or routine T0/T1/T2 before 1st fail + retry. Opus 4.6 = locked fallback only if Sonnet security gate returns HIGH Composer cannot resolve.
+Two consecutive fails on the same task scope share a fingerprint when the **normalized failure key** matches:
+
+| Source | Fingerprint key |
+|--------|-----------------|
+| `verify:*` / `scripts/verify-*.mjs` | script name (or npm script) + first failed assertion or error message (whitespace-normalized; strip timestamps/paths that drift per run) |
+| `npm run build` / `tsc` | error code + file + line (e.g. `TS2322:src/foo.ts:42`) |
+| Playwright / runtime | test or step name + error class + stable message substring (first 120 chars, normalized) |
+
+**Different fingerprint** on 2nd fail → skip Grok stall-advisor; 2nd fail triggers Sonnet directly.
+
+### Failure sequence (ordered)
+
+1. **1st fail** → Composer retry (+ optional self-trace per `MODEL_DOSSIER.md` tag `composer-trace`).
+2. **2nd fail, same fingerprint as 1st** → **Grok stall-advisor** (mandatory; § below) → Composer retry per hypotheses.
+3. **Sonnet diagnose-only** (mandatory) when **still stuck** — ANY of:
+   - 2nd implement+verify fail where 2nd fingerprint **≠** 1st (Grok skipped);
+   - 3rd+ implement+verify fail on same task after Grok stall-advisor ran;
+   - `confStart < 70` or Dan says "still broken" without new hypothesis (after 1st-fail self-trace).
+4. Composer implements after Sonnet returns.
+
+Other Sonnet triggers: security verifier before push; architecture unclear after synthesis. **Not** for scouts or routine T0/T1/T2 before 1st fail + retry. Opus 4.6 = locked fallback only if Sonnet security gate returns HIGH Composer cannot resolve.
+
+## Grok stall-advisor auto-invoke (Dan 2026-07-10 — D-19)
+
+**Pain event:** Dan 2026-07-10 consecutive same-failure stall — Composer retried identical fixes without a cheap pivot.
+
+Dispatch exactly **one** read-only Task when **2nd consecutive implement+verify fail** on the same task scope shares the **same failure fingerprint** as the 1st:
+
+```text
+Task({
+  subagent_type: "generalPurpose",
+  model: "grok-4.5-fast-xhigh",
+  readonly: true,
+  description: "Stall advisor",
+  prompt: "…symptom, fingerprint, task scope, files touched, prior fix attempts, self-trace block… Return hypotheses + ranked next experiments only — no implementation."
+})
+```
+
+**Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: grok-4.5-fast-xhigh`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
+
+**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — 3rd+ same fingerprint after Grok → Sonnet, not a second stall-advisor.
+
+**vs Ship Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
 
 ## Security gate
 
@@ -59,6 +102,7 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 |------|-------|------|--------------|
 | 0 (free) | Composer 2.5 + scripts | Builder + mechanical checks: build, `away:validate`, `verify:*`, diff-vs-scope paths, mandatory report lines | Always (existing behavior) |
 | 1 (cheap) | Grok 4.5 Fast — **Ship Verifier** | Post-ship scope/correctness + missed-security-gate check | After EVERY substantive ship (§ below) |
+| 1b (cheap) | Grok 4.5 Fast — **Stall Advisor** | Mid-task same-failure pivot — hypotheses + next experiments only | 2nd consecutive same fingerprint on same task (§ Grok stall-advisor) |
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 

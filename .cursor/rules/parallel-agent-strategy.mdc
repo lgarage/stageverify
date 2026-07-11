@@ -194,7 +194,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 Use Sonnet Task subagent **only** when:
 - `backend-write-critical` security **verifier** (step 2) before push
 - Architecture unclear after synthesis + one Composer pass
-- **Second failed fix on the same task** — see `model-gates.mdc` § 2-fail diagnose-only rule
+- **Second failed fix on the same task** — see `model-gates.mdc` § 2-fail diagnose-only rule (same fingerprint → Grok stall-advisor first; Sonnet when still stuck)
 - DB/schema design with competing approaches
 - **confStart < 70** or Dan says "still broken" without new hypothesis (after 1st-fail self-trace prep)
 

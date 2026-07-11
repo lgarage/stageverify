@@ -11,7 +11,7 @@
       "title": "MODEL_DOSSIER index table",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
       "startLine": 7,
-      "endLine": 27,
+      "endLine": 28,
       "anchor": "## Index"
     },
     {
@@ -23,8 +23,8 @@
       ],
       "title": "§ qr-routing",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 29,
-      "endLine": 34,
+      "startLine": 30,
+      "endLine": 35,
       "anchor": "## § qr-routing"
     },
     {
@@ -34,8 +34,8 @@
       ],
       "title": "§ zone-lookup",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 35,
-      "endLine": 39,
+      "startLine": 36,
+      "endLine": 40,
       "anchor": "## § zone-lookup"
     },
     {
@@ -45,8 +45,8 @@
       ],
       "title": "§ billing",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 40,
-      "endLine": 44,
+      "startLine": 41,
+      "endLine": 45,
       "anchor": "## § billing"
     },
     {
@@ -57,8 +57,8 @@
       ],
       "title": "§ backend-critical",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 45,
-      "endLine": 48,
+      "startLine": 46,
+      "endLine": 49,
       "anchor": "## § backend-critical"
     },
     {
@@ -69,8 +69,8 @@
       ],
       "title": "§ agent-lessons",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 49,
-      "endLine": 66,
+      "startLine": 50,
+      "endLine": 67,
       "anchor": "## § agent-lessons"
     },
     {
@@ -80,8 +80,8 @@
       ],
       "title": "§ delivery-display-wiring",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 68,
-      "endLine": 79,
+      "startLine": 69,
+      "endLine": 80,
       "anchor": "## § delivery-display-wiring"
     },
     {
@@ -94,8 +94,8 @@
       ],
       "title": "Diagnose before tweak (appear vs tap)",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 80,
-      "endLine": 95,
+      "startLine": 81,
+      "endLine": 96,
       "anchor": "### Diagnose before tweak"
     },
     {
@@ -106,8 +106,8 @@
       ],
       "title": "§ Composer without Sonnet",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 97,
-      "endLine": 139,
+      "startLine": 98,
+      "endLine": 140,
       "anchor": "## § Composer without Sonnet"
     },
     {
@@ -117,8 +117,8 @@
       ],
       "title": "§ Critical Reviewer — Grok 4.5 Fast",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 141,
-      "endLine": 150,
+      "startLine": 142,
+      "endLine": 151,
       "anchor": "## Critical Reviewer — Grok 4.5 Fast"
     },
     {
@@ -128,8 +128,8 @@
       ],
       "title": "§ Work Verifier — Fable 5",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 152,
-      "endLine": 160,
+      "startLine": 153,
+      "endLine": 161,
       "anchor": "## Work Verifier — Fable 5"
     },
     {
@@ -139,9 +139,20 @@
       ],
       "title": "§ Ship Verifier — Grok 4.5 Fast",
       "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
-      "startLine": 162,
-      "endLine": 168,
+      "startLine": 163,
+      "endLine": 169,
       "anchor": "## Ship Verifier — Grok 4.5 Fast"
+    },
+    {
+      "id": "stall-advisor",
+      "tags": [
+        "stall-advisor"
+      ],
+      "title": "§ Stall Advisor — Grok 4.5 Fast",
+      "file": "PROJECT_STATUS/MODEL_DOSSIER.md",
+      "startLine": 171,
+      "endLine": 177,
+      "anchor": "## Stall Advisor — Grok 4.5 Fast"
     },
     {
       "id": "qr-confidence",

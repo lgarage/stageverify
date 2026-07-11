@@ -177,11 +177,11 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 ## Escalation Triggers
 
-**2-fail diagnose-only:** see `model-gates.mdc` § 2-fail diagnose-only rule. QR/scan bugs: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
+**2-fail diagnose-only:** see `model-gates.mdc` § 2-fail diagnose-only rule. **Same-failure stall:** 2nd consecutive same fingerprint → Grok stall-advisor (`stall-advisor:` report line) before Sonnet when still stuck. QR/scan bugs: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
 
 ### Escalate to Sonnet 4.6 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
-- **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail diagnose-only rule
+- **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail diagnose-only rule (same fingerprint → Grok stall-advisor first; Sonnet when still stuck)
 - The task involves non-obvious cross-file dependencies requiring deep architectural reasoning after one Composer pass and still stuck
 - You are genuinely unsure whether a change has security or data integrity implications
 

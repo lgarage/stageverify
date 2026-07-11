@@ -21,7 +21,8 @@
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
-| `composer-trace` | 1st fail → self-trace prep; 2nd fail → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail |
+| `composer-trace` | 1st fail → self-trace prep; 2nd same fingerprint → Grok stall-advisor; still stuck → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail + § Grok stall-advisor |
+| `stall-advisor` | 2nd consecutive same-failure stall mid-task | **§ Stall Advisor — Grok 4.5 Fast** (tier 1b) — SSOT in `model-gates.mdc` § Grok stall-advisor auto-invoke |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
 | `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
 | `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
@@ -60,7 +61,7 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 6. **Confidence downgrade when user still sees the bug.** Code-only fix that doesn't deploy rules or pass E2E → lower conf, do not mark ok until Playwright + user path green.
 7. **Auto-submit and Done must share the same gates** (shop stock + staged item checklists) — any second code path bypassing a gate will reproduce the bug.
 8. **Scope:** do not add portal pickers, cross-links, or hub buttons unless Dan asked. Check `USER_SCOPE_REJECTIONS.md` before `PortalNavBar` / `MobileHubPage` edits.
-9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd fail → Sonnet diagnose-only** per `model-gates.mdc`; Composer implements after Sonnet returns.
+9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd same fingerprint → Grok stall-advisor** (`stall-advisor:` line); **still stuck → Sonnet diagnose-only** per `model-gates.mdc`; Composer implements after Grok/Sonnet returns.
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 11. **Away batches:** follow `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` — orchestrator runs verify; parallel scouts read-only only.
 12. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
@@ -96,7 +97,7 @@ Map **appear** vs **tap** before camera/fps tweaks (Sonnet postmortem on double-
 
 ## § Composer without Sonnet (make Composer “best”)
 
-**Goal:** Sonnet only for (1) security gate / `backend-write-critical`, (2) **2nd failed fix** on same task — diagnosis only; Composer implements after Sonnet returns.
+**Goal:** Sonnet only for (1) security gate / `backend-write-critical`, (2) **still stuck** after Grok stall-advisor or **2nd failed fix** with different fingerprint — diagnosis only; Composer implements after Grok/Sonnet returns.
 
 ### Before any code (session start on scan/nav/async)
 
@@ -105,7 +106,7 @@ Map **appear** vs **tap** before camera/fps tweaks (Sonnet postmortem on double-
 
 ### On 1st failed fix (recommended self-trace prep)
 
-Composer posts this block **in the reply** (not only in docs) before the retry. On **2nd failure** on the same task, dispatch Sonnet for diagnosis only (mandatory) — include this block or repost at escalation; Composer implements after findings.
+Composer posts this block **in the reply** (not only in docs) before the retry. On **2nd failure with same fingerprint**, dispatch Grok stall-advisor (mandatory) — include this block in the prompt. When **still stuck**, dispatch Sonnet for diagnosis only — repost this block at escalation; Composer implements after findings.
 
 ```
 Symptom: (a) decode | (b) slow after decode | (c) wrong route after tap
@@ -116,7 +117,7 @@ Hypothesis: one sentence
 Next change: one file/behavior only
 ```
 
-Only after that: one fix + one verify script run. **Do not** call Sonnet for diagnosis before 2nd fail on same task — security gate Sonnet runs remain separate.
+Only after that: one fix + one verify script run. **Do not** call Sonnet for diagnosis before Grok stall-advisor (2nd same fingerprint) or still-stuck threshold — security gate Sonnet runs remain separate.
 
 ### What Dan can do (high leverage)
 
@@ -132,11 +133,11 @@ Only after that: one fix + one verify script run. **Do not** call Sonnet for dia
 
 - **confStart** = tier table default.
 - **confAfter** = after verify + Dan signal; downgrade ≥15 if “still broken” without new hypothesis.
-- Tag `composer-trace` when self-trace prep ran on 1st fail; `outcome: escalate` when Sonnet ran for 2nd-fail diagnosis.
+- Tag `composer-trace` when self-trace prep ran on 1st fail; `stall-advisor:` when Grok ran on 2nd same fingerprint; `outcome: escalate` when Sonnet ran for still-stuck diagnosis.
 
 ### Rule file alignment
 
-See `model-gates.mdc` § 2-fail diagnose-only rule. Sonnet stays mandatory for rules/auth gate, not for routine first attempts.
+See `model-gates.mdc` § 2-fail + § Grok stall-advisor. Sonnet stays mandatory for rules/auth gate and still-stuck diagnosis, not for routine first attempts.
 
 ## Critical Reviewer — Grok 4.5 Fast (tag: critical-reviewer)
 
@@ -166,3 +167,11 @@ Purpose: **tier 1 (cheap)** post-ship verification after EVERY substantive ship 
 - Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true` — never edits code
 - **SSOT:** `model-gates.mdc` § Ship Verifier auto-invoke — substantive-ship path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`; never commit-prefix), one Task per ship (multi-commit = one range), `ship-verifier:` report line, blocking semantics, 1-fix-cycle loop with escalation to Fable (ambiguity/architecture) or Dan.
 - Distinct from the Critical Reviewer role (same model, pre-decision devil's advocate — separate triggers).
+
+## Stall Advisor — Grok 4.5 Fast (tag: stall-advisor)
+
+Purpose: **tier 1b (cheap)** mid-task pivot when Composer hits the **same failure twice** — ranked hypotheses and next experiments only; Composer implements after. Not post-ship (Ship Verifier) and not pre-decision review (Critical Reviewer).
+
+- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true` — never edits code
+- **SSOT:** `model-gates.mdc` § Grok stall-advisor auto-invoke — same failure fingerprint table, one Task per fingerprint per task scope, `stall-advisor:` report line
+- Sonnet diagnose-only runs when **still stuck** after Grok (different fingerprint on 2nd fail, or 3rd+ fail) — see § 2-fail
