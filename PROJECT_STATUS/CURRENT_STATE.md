@@ -5,11 +5,11 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset); **prod verify fix** branch `cursor/location-phase4-prod-verify-8202` — `openDelivery` deep link + verify harness (`v0.0.33` PR pending deploy)
-- Active Phase: **Location-first Phase 4** (`v0.0.33` pending): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
+- Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset); **Phase 4 prod verify** `verify:location-phase4:prod` **15/15 PASS** (`v0.0.33`, gh-pages `2dd401e`) — `openDelivery` deep link PR `cursor/location-phase4-prod-verify-77d5`
+- Active Phase: **Location-first Phase 4** (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
-- **Verify:** `verify:location-phase4` **11/11 PASS** local — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
+- **Verify:** `verify:location-phase4` **15/15 PASS** local + **prod** — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -20,7 +20,7 @@
 
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
-- **Product:** Merge PR + `npm run deploy` then `verify:location-phase4:prod` (`openDelivery` deep link for hidden demo rows); push ingest still **[high-risk]** — Dan approval.
+- **Product:** Merge PR `cursor/location-phase4-prod-verify-77d5`; Phase 4 prod verify gate **closed** — Fable work-verifier still required before Phase 5; push ingest still **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18.
 
 ## Canonical references

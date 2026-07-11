@@ -803,16 +803,13 @@ export function DispatcherDashboardPage() {
     }
   };
 
-  const openedDeliveryFromQueryRef = useRef<string | null>(null);
-
   /* Deep-link drawer for verify harnesses when seed demo rows are hidden on prod. */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const openId = params.get("openDelivery")?.trim();
-    if (!openId || openedDeliveryFromQueryRef.current === openId) return;
-    openedDeliveryFromQueryRef.current = openId;
+    if (!openId || selectedDeliveryId === openId) return;
     void selectDelivery(openId);
-  }, [location.search]);
+  }, [location.search, selectedDeliveryId]);
 
   /* ── Filter / sort helpers ── */
   const toggleStatus = (status: DeliveryOverviewFilterStatus) => {

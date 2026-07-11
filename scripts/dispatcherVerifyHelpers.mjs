@@ -195,8 +195,10 @@ export async function openDeliveryDrawerByDeepLink(page, appBase, deliveryId) {
     .getByText("Loading detail panel…")
     .waitFor({ state: "hidden", timeout: 25_000 })
     .catch(() => {});
-  const drawerMarker = page.getByTestId("issue-summary-panel");
-  await drawerMarker.waitFor({ state: "visible", timeout: 25_000 });
+  const drawerMarker = page
+    .getByTestId("issue-summary-panel")
+    .or(page.getByTestId("planned-staging-assignment"));
+  await drawerMarker.first().waitFor({ state: "visible", timeout: 25_000 });
 }
 
 export async function openDeliveryDrawer(page, orderNumber, deliveryId) {
