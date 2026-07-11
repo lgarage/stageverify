@@ -1,4 +1,5 @@
 import { PortalSidebar } from "./PortalSidebar";
+import { InvoiceOfflineBatchPanel } from "./dispatcher/invoice/InvoiceOfflineBatchPanel";
 import { InvoiceReviewPanel } from "./dispatcher/invoice/InvoiceReviewPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
@@ -37,7 +38,7 @@ export function InvoiceReviewPage() {
       >
         <DispatcherPortalTopBar
           title="Invoice Review"
-          subtitle="Johnstone import queue"
+          subtitle="Offline preview + inbound email import queue"
           lastUpdated={lastUpdated}
           refreshBusy={refreshBusy}
           gmailSyncMessage={gmailSyncMessage}
@@ -69,10 +70,13 @@ export function InvoiceReviewPage() {
                 Invoice import review
               </h1>
               <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                Review parsed Johnstone invoices from inbound email. Approve applies
-                expected items only — no shop receipt or readiness changes.
+                Run an offline batch preview locally, or review parsed Johnstone invoices from
+                the inbound email queue. Approve applies expected items only — no shop receipt
+                or readiness changes.
               </p>
             </div>
+
+            <InvoiceOfflineBatchPanel />
 
             <InvoiceReviewPanel
               syncedImports={invoiceImports}

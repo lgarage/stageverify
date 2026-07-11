@@ -7,6 +7,7 @@ export * from "./processInvoiceBatch";
 export * from "./pdfTextAdapter";
 export * from "./invoiceFixtures";
 export * from "./invoiceBatchFixtures";
+export * from "./mapBatchResultToPreviewRows";
 export * from "./computeAutoImportEligibility";
 export * from "./invoiceShellDisplayHelpers";
 export * from "./autoImportSuggestionUi";

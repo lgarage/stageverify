@@ -266,6 +266,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Invoice import spec (docs):** `docs/vendor-import/johnstone-invoice-import-spec.md` — PDF batch → expected vendor orders; `pickup_at_vendor` displays as **Will-Call / Pickup.**; import ≠ shop receipt
 - **Invoice import Slice 1 (shipped 2026-07-03):** Offline text-fixture parser in `src/dispatcher/invoice/` — header/line extraction, fulfillment inference, import status + dispatcher labels, confidence/review routing; `npm run test:invoice-parser` ≥95% gate on spec worked examples + Table D; no PDF upload UI or Firestore writes yet
 - **Invoice import Slice 2 (shipped 2026-07-03):** PDF text adapter + `processInvoiceBatch` — multi-page extraction fixtures, one `importBatchId` per batch, page outcomes processed/needs_review/failed, failure isolation; `npm run test:invoice-batch` ≥95% gate; still offline — no upload UI or Firestore
+- **Invoice import Slice 3 (shipped 2026-07-11):** Offline batch preview panel on Invoice Review — local fixtures/paste/.txt via Slice 1–2 pipeline, preview table + read-only inspect modal; `npm run test:invoice-offline-preview`; no Firestore/CF writes
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
