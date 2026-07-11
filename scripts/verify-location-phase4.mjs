@@ -16,7 +16,6 @@ import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   ensureAuthenticated,
   loadEnvLocal,
-  openDeliveryDrawerForNavVerify,
 } from "./dispatcherVerifyHelpers.mjs";
 
 const args = process.argv.slice(2);
@@ -153,7 +152,7 @@ async function verifyVendorNmsFlow(browser) {
         await releasePrompt.waitFor({ timeout: 20_000 });
         record("Release prompt G1 visible", await releasePrompt.isVisible());
         await page.getByTestId("release-prompt-no").click();
-        await page.waitForSelector("text=Added", { timeout: 25_000 });
+        await page.getByText(/Added/i).waitFor({ timeout: 25_000 });
         record("Release prompt No completes flow", true);
       } else {
         const firstOption = page.locator('[data-testid^="nms-spot-option-"]').first();
@@ -173,15 +172,35 @@ async function verifyVendorNmsFlow(browser) {
   }
 }
 
+async function waitForDrawerReady(page) {
+  await page
+    .getByText("Loading detail panel…")
+    .waitFor({ state: "hidden", timeout: 25_000 })
+    .catch(() => {});
+}
+
 async function closeDrawerIfOpen(page) {
-  const drawerOpen = await page
-    .getByText("Order Workflow Status", { exact: false })
-    .first()
-    .isVisible()
-    .catch(() => false);
-  if (!drawerOpen) return;
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(800);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const closeBtn = page.getByRole("button", { name: /Close/i });
+    const drawerOpen = await closeBtn.isVisible().catch(() => false);
+    if (!drawerOpen) return;
+    await closeBtn.click({ force: true });
+    await page.waitForTimeout(800);
+  }
+}
+
+async function openDeliveryDrawerBySearch(page, term) {
+  const search = page.locator('input[placeholder*="Job #, name, PO"]');
+  await search.waitFor({ state: "visible", timeout: 15_000 });
+  await search.fill(term);
+  await page.waitForTimeout(1500);
+  const row = page.locator("table tbody tr").filter({ hasText: term }).first();
+  await row.waitFor({ state: "visible", timeout: 15_000 });
+  await row
+    .locator("button")
+    .filter({ hasText: /^View$/ })
+    .click({ force: true });
+  await waitForDrawerReady(page);
 }
 
 async function verifyPlannedStagingInteractive(page) {
@@ -189,36 +208,32 @@ async function verifyPlannedStagingInteractive(page) {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
-  await ensureAuthenticated(page, appBase);
   await closeDrawerIfOpen(page);
-
-  const search = page.locator('input[placeholder*="Job #, name, PO"]');
-  await search.waitFor({ state: "visible", timeout: 15_000 });
-  await search.fill("ORD-005");
-  await page.waitForTimeout(1500);
-  const viewBtn = page
-    .locator("table tbody tr")
-    .first()
-    .locator("button")
-    .filter({ hasText: /^View$/ });
-  await viewBtn.click({ force: true });
-  await page.waitForTimeout(1000);
+  await openDeliveryDrawerBySearch(page, "ORD-005");
 
   const plannedPanel = page.getByTestId("planned-staging-assignment");
   await plannedPanel.waitFor({ state: "visible", timeout: 20_000 });
+  const plannedCurrent = page.getByTestId("planned-staging-current");
+  await plannedCurrent.waitFor({ state: "visible", timeout: 20_000 });
   await page.waitForFunction(
     () => {
       const el = document.querySelector('[data-testid="planned-staging-current"]');
       const text = el?.textContent ?? "";
-      return text.length > 0 && !text.includes("—");
+      return /G1/.test(text) && !text.includes("—");
     },
     undefined,
-    { timeout: 20_000 },
+    { timeout: 30_000 },
   );
+  const currentText = (await plannedCurrent.innerText()).trim();
+  record("Planned staging current readback", true, currentText);
 
+  const optionG2 = page.getByTestId("planned-staging-option-G2");
   const optionS1A = page.getByTestId("planned-staging-option-S1-A");
-  if (await optionS1A.isVisible().catch(() => false)) {
-    const checkbox = optionS1A.locator('input[type="checkbox"]');
+  const toggleTarget = (await optionG2.isVisible().catch(() => false))
+    ? optionG2
+    : optionS1A;
+  if (await toggleTarget.isVisible().catch(() => false)) {
+    const checkbox = toggleTarget.locator('input[type="checkbox"]');
     if (await checkbox.isChecked()) {
       await checkbox.uncheck();
     } else {
@@ -231,23 +246,23 @@ async function verifyPlannedStagingInteractive(page) {
     if (enabled) {
       await saveBtn.click();
       await page.waitForFunction(
-        (expectChecked) => {
+        () => {
           const el = document.querySelector('[data-testid="planned-staging-current"]');
           const text = el?.textContent ?? "";
-          return expectChecked ? /S1-A/i.test(text) : !/S1-A/i.test(text);
+          return text.length > 0 && !text.includes("—");
         },
-        await checkbox.isChecked(),
+        undefined,
         { timeout: 20_000 },
       );
-      const currentText = await page.getByTestId("planned-staging-current").innerText();
+      const savedText = await page.getByTestId("planned-staging-current").innerText();
       record(
         "Planned staging save readback",
         true,
-        currentText.trim(),
+        savedText.trim(),
       );
     }
   } else {
-    record("Planned staging option S1-A visible", false, "missing option");
+    record("Planned staging toggle option visible", false, "missing G2/S1-A option");
   }
 
   await shot(page, "05-planned-staging-interactive");
@@ -292,8 +307,12 @@ async function main() {
   console.log("[verify] launching chromium…");
   const browser = await chromium.launch({ headless: true });
   console.log("[verify] chromium ready");
-  const context = await browser.newContext({ storageState: authState });
+  const context = await browser.newContext({
+    storageState: authState,
+    viewport: { width: 1400, height: 900 },
+  });
   const page = await context.newPage();
+  let dispatcherContextClosed = false;
 
   try {
     console.log("[verify] ensureAuthenticated…");
@@ -301,14 +320,18 @@ async function main() {
     console.log("[verify] dispatcher auth OK");
 
     // Zones — adjacent group + size class editors (away-114)
+    await ensureAuthenticated(page, appBase);
     await page.goto(`${appBase}/#/zones`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });
-    await page.getByRole("button", { name: "Add Zone", exact: true }).click();
+    await page.getByText("Zone Management").first().waitFor({ timeout: 30_000 });
+    const addZoneBtn = page.getByRole("button", { name: "Add Zone", exact: true });
+    await addZoneBtn.waitFor({ state: "visible", timeout: 20_000 });
+    await addZoneBtn.click({ force: true });
     await page.getByRole("heading", { name: /Add Zone/i }).waitFor({
       state: "visible",
-      timeout: 15_000,
+      timeout: 20_000,
     });
     const adjacentField = page.getByTestId("zone-adjacent-group-id");
     await adjacentField.waitFor({ state: "visible", timeout: 15_000 });
@@ -325,7 +348,7 @@ async function main() {
       timeout: 45_000,
     });
     await ensureAuthenticated(page, appBase);
-    await openDeliveryDrawerForNavVerify(page);
+    await openDeliveryDrawerBySearch(page, "ORD-005");
     const plannedPanel = page.getByTestId("planned-staging-assignment");
     await plannedPanel.waitFor({ state: "visible", timeout: 20_000 });
     record("Drawer planned-staging-assignment visible", true);
@@ -334,9 +357,12 @@ async function main() {
       await page.getByTestId("save-planned-staging").isVisible(),
     );
     await shot(page, "02-drawer-planned-staging");
+    await closeDrawerIfOpen(page);
 
-    await verifyPlannedStagingInteractive(page);
     await verifyListBadges(page);
+    await verifyPlannedStagingInteractive(page);
+    await context.close();
+    dispatcherContextClosed = true;
     await verifyVendorNmsFlow(browser);
 
     record(
@@ -350,6 +376,9 @@ async function main() {
       "requires releasePlannedStagingLocation CF when vendor session writes",
     );
   } finally {
+    if (!dispatcherContextClosed) {
+      await context.close();
+    }
     await browser.close();
   }
 

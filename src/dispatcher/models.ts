@@ -671,6 +671,9 @@ export function parseStagingLocation(
     eslTagId: typeof data.eslTagId === "string" ? data.eslTagId : undefined,
     widthFt: typeof data.widthFt === "number" ? data.widthFt : undefined,
     depthFt: typeof data.depthFt === "number" ? data.depthFt : undefined,
+    sizeClass: typeof data.sizeClass === "string" ? data.sizeClass : undefined,
+    adjacentGroupId:
+      typeof data.adjacentGroupId === "string" ? data.adjacentGroupId : undefined,
   };
 }
 

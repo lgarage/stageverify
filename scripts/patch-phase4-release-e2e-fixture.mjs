@@ -6,7 +6,11 @@ import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, doc, writeBatch } from "firebase/firestore";
+import { getFirestore, doc, writeBatch, getDocs, collection, deleteField } from "firebase/firestore";
+
+const TARGET_DELIVERY_ID = "delivery-demo-vendor-1";
+/** Ground spots for NMS G2+GL release-prompt E2E — must be free for other deliveries. */
+const RELEASE_E2E_SPOT_IDS = ["staging-2", "staging-5"];
 
 const FIREBASE_TIMEOUT_MS = 60_000;
 
@@ -65,6 +69,53 @@ console.log("[patch-phase4-release] sign-in OK");
 const now = new Date().toISOString();
 const batch = writeBatch(db);
 
+const deliverySnap = await getDocs(collection(db, "deliveries"));
+for (const docSnap of deliverySnap.docs) {
+  if (docSnap.id === TARGET_DELIVERY_ID) continue;
+  const data = docSnap.data();
+  /** @type {Record<string, unknown>} */
+  const updates = {};
+  let dirty = false;
+
+  if (RELEASE_E2E_SPOT_IDS.includes(String(data.stagingLocationId ?? ""))) {
+    updates.stagingLocationId = deleteField();
+    dirty = true;
+  }
+
+  const additional = Array.isArray(data.additionalStagingLocationIds)
+    ? data.additionalStagingLocationIds
+    : [];
+  const filteredAdditional = additional.filter(
+    (id) => !RELEASE_E2E_SPOT_IDS.includes(String(id)),
+  );
+  if (filteredAdditional.length !== additional.length) {
+    updates.additionalStagingLocationIds =
+      filteredAdditional.length > 0 ? filteredAdditional : deleteField();
+    dirty = true;
+  }
+
+  const planned = Array.isArray(data.plannedStagingLocationIds)
+    ? data.plannedStagingLocationIds
+    : [];
+  const filteredPlanned = planned.filter(
+    (id) => !RELEASE_E2E_SPOT_IDS.includes(String(id)),
+  );
+  if (filteredPlanned.length !== planned.length) {
+    updates.plannedStagingLocationIds =
+      filteredPlanned.length > 0 ? filteredPlanned : deleteField();
+    dirty = true;
+  }
+
+  if (dirty) {
+    updates.updatedAt = now;
+    batch.set(docSnap.ref, updates, { merge: true });
+  }
+}
+
+console.log(
+  `[patch-phase4-release] cleared G2/GL occupancy on peer deliveries (${deliverySnap.size} scanned)`,
+);
+
 batch.set(
   doc(db, "stagingLocations", "staging-2"),
   {
@@ -77,6 +128,13 @@ batch.set(
 batch.set(
   doc(db, "stagingLocations", "staging-5"),
   {
+    code: "GL",
+    label: "Large Ground Spot",
+    type: "ground",
+    status: "Active",
+    sortOrder: 5,
+    widthFt: 4,
+    depthFt: 10,
     adjacentGroupId: "pipe-a",
     sizeClass: "large",
     updatedAt: now,
@@ -101,6 +159,6 @@ batch.set(
 console.log("[patch-phase4-release] committing batch…");
 await withTimeout(batch.commit(), "Firestore batch.commit");
 console.log(
-  "Phase 4 release E2E fixture: planned G1 only on delivery-demo-vendor-1; pipe-a adjacency on G2+GL.",
+  "Phase 4 release E2E fixture: planned G1+G2 on delivery-demo-vendor-1; pipe-a adjacency on G2+GL.",
 );
 process.exit(0);
