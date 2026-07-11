@@ -1,3 +1,8 @@
+/**
+ * @deprecated Demo seed — no longer auto-run. Dispatcher data comes from
+ * approved vendor invoice imports (`vendorInvoiceImports` → deliveries).
+ * IDs stay aligned with `scripts/cleanup-demo-firestore.mjs`.
+ */
 import { collection, getDocs, writeBatch, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import type {

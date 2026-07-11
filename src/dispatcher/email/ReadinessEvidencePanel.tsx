@@ -3,7 +3,7 @@ import type { DeliveryDetails, StagingLocation } from "../models";
 import { computeDeliveryDisplayState } from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
-  getProposedEmailUpdates,
+  inboundVendorEventsToProposals,
 } from "./getProposedEmailUpdates";
 import { hasVendorOrderCompleteApplyConflict } from "./emailApplyConflicts";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
@@ -271,10 +271,26 @@ export function ReadinessEvidencePanel({
   const { delivery, items, materialIssues, purchaseOrder } = details;
   const poNumber = purchaseOrder?.poNumber ?? null;
 
-  const proposals = useMemo(() => {
-    const all = getProposedEmailUpdates();
-    return filterProposalsForDelivery(all, delivery, poNumber);
+  const [emailProposals, setEmailProposals] = useState<ProposedEmailUpdate[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listVendorEmailEventsForDelivery(delivery.id)
+      .then((rows) => {
+        if (!cancelled) {
+          const inbound = inboundVendorEventsToProposals(rows);
+          setEmailProposals(filterProposalsForDelivery(inbound, delivery, poNumber));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setEmailProposals([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [delivery, poNumber]);
+
+  const proposals = emailProposals;
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
