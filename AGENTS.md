@@ -57,3 +57,35 @@ See **`docs/cloud-agent-iphone-setup.md`** for Cursor dashboard steps (environme
 ```bash
 npm run verify:cloud-env
 ```
+
+### Dependency install (two packages)
+
+This repo has **two** npm packages: the root frontend and `functions/` (Cloud Functions). Both need installs. The startup update script / `.cursor/environment.json` install runs `npm ci` in the root **and** `npm ci --prefix functions`, plus `npx playwright install chromium`. `functions/` deps are only needed for `npm run build:functions` and the emulator-backed `test:*` scripts — the Vite dev server (`npm run dev`), `npm run build`, and `npm run lint` do not need them.
+
+### Running the app in dev
+
+`npm run dev` serves the React app at **`http://localhost:5173/stageverify/`** (note the `/stageverify/` base path). The client (`src/firebase.ts`) talks to **live Firebase `stageverify-db`** — there is no emulator wiring in the browser app.
+
+- **Public/demo routes** (`/#/demo/pickup-scan`, `/#/demo/vendor-scan`, `/#/receive`, `/#/pickup`) and dev seeding (`seedFirestore`) require writing `deliveries`/`items` to Firestore, which `firestore.rules` blocks for **unauthenticated** clients. Without a login these demo flows render but show "Invalid or expired pickup link" / "Missing or insufficient permissions" in the console. This is expected, not a build problem.
+- **Dispatcher/settings/protected routes** and the Playwright `verify:*` scripts need a real login. Set `STAGEVERIFY_TEST_EMAIL` / `STAGEVERIFY_TEST_PASSWORD` (see secrets table above) and run `node scripts/playwright-auth-setup.mjs` while `npm run dev` is up.
+
+### Emulator-backed tests (core CF flows, no secrets / no live Firebase)
+
+The `test:*` and `test:firestore-rules` scripts invoke the `firebase` CLI **directly** (not `npx`), so `firebase` must be on `PATH`. Java (for the Firestore emulator) is present on the VM. The CLI is **not** in the update script; install it once per VM if missing:
+
+```bash
+sudo env "PATH=$(dirname "$(command -v node)"):$PATH" "$(command -v npm)" install -g firebase-tools
+```
+
+Then core flows run end-to-end against emulators with no secrets, e.g.:
+
+```bash
+npm run test:pickup-authority     # recordPickupEvent + recalculateDeliveryReadiness via emulated Firestore/Functions
+npm run test:mark-vendor-delivered
+```
+
+Pure-logic tests need neither the CLI nor emulators: `npm run test:readiness`, `npm run test:invoice-parser`, `npm run test:email-parser`.
+
+### Lint state
+
+`npm run lint` runs but the committed codebase currently has pre-existing ESLint errors (unused vars, `preserve-caught-error`, `prefer-const`, react-refresh). These are not caused by environment setup.
