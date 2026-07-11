@@ -71,9 +71,9 @@ Task({
 
 **Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: grok-4.5-fast-xhigh`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
 
-**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — 3rd+ same fingerprint after Grok → Sonnet, not a second stall-advisor.
+**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Repair Verifier on Dan repair intent; Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — 3rd+ same fingerprint after Grok → Sonnet, not a second stall-advisor.
 
-**vs Ship Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
+**vs Ship Verifier / Repair Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; Repair Verifier = Dan repair-intent pre-close (§ Repair loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
 
 ## Security gate
 
@@ -103,6 +103,7 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 0 (free) | Composer 2.5 + scripts | Builder + mechanical checks: build, `away:validate`, `verify:*`, diff-vs-scope paths, mandatory report lines | Always (existing behavior) |
 | 1 (cheap) | Grok 4.5 Fast — **Ship Verifier** | Post-ship scope/correctness + missed-security-gate check | After EVERY substantive ship (§ below) |
 | 1b (cheap) | Grok 4.5 Fast — **Stall Advisor** | Mid-task same-failure pivot — hypotheses + next experiments only | 2nd consecutive same fingerprint on same task (§ Grok stall-advisor) |
+| 1c (cheap) | Grok 4.5 Fast — **Repair Verifier** | Pre-close repair scope/result on Dan repair intent | Dan says repair/fix/debug/try again/correct this (§ Repair loop) |
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 
@@ -110,7 +111,36 @@ Evidence standard (every tier): Task id + model line in the report, else **NOT R
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
-When any verifier/reviewer model (Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+When any verifier/reviewer model (Repair Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+
+### Repair loop (Dan 2026-07-11 — extends § Fix-closure rule)
+
+**Trigger:** Dan expresses explicit **repair intent** on broken behavior — e.g. repair, fix, debug, try again, correct this (or equivalent steering to correct already-broken behavior, not greenfield build).
+
+**Flow:** dispatch routed verifier → FAIL → Composer fix only → **same verifier** re-verify per § Fix-closure rule → repeat until PASS. **Max 3 fix cycles** (initial verify + up to 3 Composer fix→re-verify rounds) then escalate Dan. Composer never self-closes a verifier finding.
+
+| Repair class | Verifier model | Task type |
+|---|---|---|
+| UI / verify script / logic (default) | Grok 4.5 Fast | `generalPurpose`, `readonly`, `model: grok-4.5-fast-xhigh` |
+| 2nd consecutive same failure fingerprint (D-19) | Grok stall-advisor first; Sonnet diagnose-only if still stuck | unchanged § 2-fail / Grok stall-advisor |
+| Security / auth / rules / CF touched in repair | Sonnet 4.6 | `security-review`, `model: claude-4.6-sonnet-medium-thinking` per `security-review-gate.mdc` |
+| Fable-spec phase or architecture ambiguity | Fable 5 | `work-verifier` per § Work Verifier |
+
+**Dispatch (default repair verifier — Grok):**
+
+```text
+Task({
+  subagent_type: "generalPurpose",
+  model: "grok-4.5-fast-xhigh",
+  readonly: true,
+  description: "Repair verifier",
+  prompt: "…repair scope, symptom, files touched, verify evidence… PASS/FAIL + exact fix list if FAIL."
+})
+```
+
+**Evidence (mandatory on repair completion):** `repair-verifier: <task-id>` + `model:` line; `fix-verified: <re-verify task-id>` per closed finding. Missing Task id when trigger fired = **NOT RUN** — repair not done.
+
+**Orthogonal roles:** Repair verifier = mid-task scope/result on Dan repair intent; Ship Verifier = post-ship; stall-advisor = same-failure pivot (D-19). Same Grok slug; dispatch per context — never satisfy repair + ship + stall with one Task unless explicitly same scope.
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 
