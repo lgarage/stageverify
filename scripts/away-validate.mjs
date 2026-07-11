@@ -12,7 +12,6 @@ import {
   deriveLastShippedFromStatus,
   describeExecutionProtocolFreshness,
   firstRunnableItem,
-  normalizeExecutionProtocol,
   parseFirstQueuedFromProjectState,
   parseImmediateNextFromCurrentState,
   parseLastShippedFromCurrentState,
