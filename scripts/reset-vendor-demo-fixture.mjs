@@ -1,5 +1,7 @@
 /**
- * Resets delivery-demo-vendor-1 to pending / zero-received for repeatable E2E.
+ * Resets a vendor delivery to pending / zero-received for repeatable E2E.
+ *
+ * Required env: STAGEVERIFY_RECEIVE_DELIVERY, STAGEVERIFY_TEST_EMAIL, STAGEVERIFY_TEST_PASSWORD
  *
  * Usage: node scripts/reset-vendor-demo-fixture.mjs
  */
@@ -40,8 +42,11 @@ if (!email || !password) {
   process.exit(1);
 }
 
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
+const deliveryId = process.env.STAGEVERIFY_RECEIVE_DELIVERY;
+if (!deliveryId) {
+  console.error("Missing STAGEVERIFY_RECEIVE_DELIVERY (no demo default).");
+  process.exit(1);
+}
 
 const app = initializeApp({
   apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
@@ -60,7 +65,7 @@ await signInWithEmailAndPassword(auth, email, password);
 
 const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
 if (!deliverySnap.exists()) {
-  console.error(`Delivery ${deliveryId} not found — run seed:vendor-demo first.`);
+  console.error(`Delivery ${deliveryId} not found — use a real parsed/approved delivery id in STAGEVERIFY_RECEIVE_DELIVERY.`);
   process.exit(1);
 }
 

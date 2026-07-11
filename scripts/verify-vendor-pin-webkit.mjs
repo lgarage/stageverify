@@ -6,6 +6,18 @@
 import { webkit } from "playwright";
 import { mkdirSync } from "fs";
 import { resolve } from "path";
+import { loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+
+loadEnvLocal();
+
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    console.error(`Missing required env: ${name}`);
+    process.exit(1);
+  }
+  return val;
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -13,9 +25,10 @@ const baseUrl =
   (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
-const correctPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
+const deliveryId = requireEnv("STAGEVERIFY_RECEIVE_DELIVERY");
+const orderNumber = requireEnv("STAGEVERIFY_VENDOR_ORDER");
+const correctPin = requireEnv("STAGEVERIFY_VENDOR_PIN");
+const itemLabel = process.env.STAGEVERIFY_VENDOR_ITEM_LABEL;
 const wrongPin = "0000";
 
 const IPHONE_UA =
@@ -51,12 +64,14 @@ async function enterPin(page, digits) {
 
   const t0 = Date.now();
   await enterPin(page, correctPin);
-  await page.waitForSelector("text=ORD-005", { timeout: 15_000 });
+  await page.waitForSelector(`text=${orderNumber}`, { timeout: 15_000 });
   const elapsed = Date.now() - t0;
   pinToItemsMs.push(elapsed);
-  console.log(`  PIN → ORD-005: ${elapsed}ms`);
+  console.log(`  PIN → ${orderNumber}: ${elapsed}ms`);
 
-  await page.waitForSelector("text=Filter rack", { timeout: 10_000 });
+  if (itemLabel) {
+    await page.waitForSelector(`text=${itemLabel}`, { timeout: 10_000 });
+  }
 
   if (elapsed > 8000) {
     throw new Error(

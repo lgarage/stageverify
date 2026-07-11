@@ -7,6 +7,18 @@
  */
 
 import { webkit } from "playwright";
+import { loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+
+loadEnvLocal();
+
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    console.error(`Missing required env: ${name}`);
+    process.exit(1);
+  }
+  return val;
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -15,8 +27,10 @@ const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
 
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
+const deliveryId = requireEnv("STAGEVERIFY_RECEIVE_DELIVERY");
+const orderNumber = requireEnv("STAGEVERIFY_VENDOR_ORDER");
+const correctPin = requireEnv("STAGEVERIFY_VENDOR_PIN");
+const itemLabel = process.env.STAGEVERIFY_VENDOR_ITEM_LABEL;
 
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
@@ -56,12 +70,14 @@ const IPHONE_UA =
 
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
 
-  for (const digit of "1234") {
+  for (const digit of correctPin) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
 
-  await page.waitForSelector("text=ORD-005", { timeout: 20_000 });
-  await page.waitForSelector("text=Filter rack", { timeout: 10_000 });
+  await page.waitForSelector(`text=${orderNumber}`, { timeout: 20_000 });
+  if (itemLabel) {
+    await page.waitForSelector(`text=${itemLabel}`, { timeout: 10_000 });
+  }
 
   console.log(`  REST calls observed: ${restCalls}`);
   console.log(`  SDK Listen blocked: ${sdkListenBlocked}`);

@@ -1,8 +1,7 @@
 /**
  * Playwright E2E: full vendor delivery workflow validation.
  *
- * Covers: PIN auth, partial/damaged/missing qty, Need More Space, session timeout,
- * check-in submit, dispatcher visibility.
+ * Required env: STAGEVERIFY_RECEIVE_DELIVERY, STAGEVERIFY_VENDOR_ORDER, STAGEVERIFY_VENDOR_PIN
  *
  * Usage:
  *   npm run dev
@@ -20,26 +19,40 @@ import {
   openDeliveryDrawer,
 } from "./dispatcherVerifyHelpers.mjs";
 
+loadEnvLocal();
+
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    console.error(`Missing required env: ${name}`);
+    process.exit(1);
+  }
+  return val;
+}
+
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
 const baseUrl =
   (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
   process.env.STAGEVERIFY_BASE_URL ??
+  process.env.STAGEVERIFY_PROD_BASE ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
-const orderNumber = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
-const correctPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
+const deliveryId = requireEnv("STAGEVERIFY_RECEIVE_DELIVERY");
+const orderNumber = requireEnv("STAGEVERIFY_VENDOR_ORDER");
+const correctPin = requireEnv("STAGEVERIFY_VENDOR_PIN");
 const wrongPin = "0000";
+const primaryItemLabel = process.env.STAGEVERIFY_VENDOR_ITEM_TOGGLE;
+const adjustItemLabel = process.env.STAGEVERIFY_VENDOR_ITEM_ADJUST;
+const vendorId = process.env.STAGEVERIFY_VENDOR_ID ?? "";
+const vendorName = process.env.STAGEVERIFY_VENDOR_NAME ?? "Vendor";
 const SESSION_KEY = `sv-vendor-pin:${deliveryId}`;
 const SESSION_MS = 15 * 60 * 1000;
 
 const outDir = resolve(process.cwd(), "screenshots", "vendor-e2e");
 mkdirSync(outDir, { recursive: true });
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
-loadEnvLocal();
 
 const results = [];
 
@@ -85,41 +98,52 @@ async function runVendorFlow(page) {
   await page.waitForTimeout(800);
   await enterPin(page, correctPin);
   await page.waitForSelector(`text=${orderNumber}`, { timeout: 30_000 });
-  await page.waitForSelector("text=Filter rack", { timeout: 15_000 });
+  if (primaryItemLabel) {
+    await page.waitForSelector(`text=${primaryItemLabel}`, { timeout: 15_000 });
+  }
   record("PIN unlocks delivery", true);
   await shot(page, "03-items-loaded");
 
   // --- Session re-auth (before qty edits so state is not lost) ---
   await page.evaluate(
-    ({ key, ms, id }) => {
+    ({ key, ms, id, vId, vName }) => {
       sessionStorage.removeItem(key);
       sessionStorage.setItem(
         key,
         JSON.stringify({
           deliveryId: id,
-          vendorId: "vendor-1",
-          vendorName: "Johnstone Supply",
+          vendorId: vId,
+          vendorName: vName,
           lastActivityAt: Date.now() - ms - 60_000,
         }),
       );
     },
-    { key: SESSION_KEY, ms: SESSION_MS, id: deliveryId },
+    { key: SESSION_KEY, ms: SESSION_MS, id: deliveryId, vId: vendorId, vName: vendorName },
   );
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
   record("Session timeout re-prompts PIN", true);
   await shot(page, "04-session-expired");
   await unlockWithPin(page);
-  await page.waitForSelector("text=Filter rack", { timeout: 30_000 });
+  if (primaryItemLabel) {
+    await page.waitForSelector(`text=${primaryItemLabel}`, { timeout: 30_000 });
+  }
+
+  if (!primaryItemLabel || !adjustItemLabel) {
+    record(
+      "Item checkoff flow",
+      true,
+      "SKIP — set STAGEVERIFY_VENDOR_ITEM_TOGGLE and STAGEVERIFY_VENDOR_ITEM_ADJUST",
+    );
+    return;
+  }
 
   // --- Check off + partial + damaged + missing ---
-  await page
-    .getByRole("button", { name: "Toggle Air handler 3-ton horizontal" })
-    .click();
+  await page.getByRole("button", { name: `Toggle ${primaryItemLabel}` }).click();
 
   const filterAdjust = page
     .locator("div.rounded-xl.border")
-    .filter({ hasText: "Filter rack 16x25 MERV 11" })
+    .filter({ hasText: adjustItemLabel })
     .getByRole("button", { name: "Adjust" });
   await filterAdjust.scrollIntoViewIfNeeded();
   await filterAdjust.click();
@@ -228,8 +252,8 @@ async function runVendorFlow(page) {
   const bodyAfter = await page.locator("body").innerText();
   record(
     "Missing materials reflected in summary",
-    /2 items received|item.*received/i.test(bodyAfter),
-    "unchecked BAS controller counts as missing on submit",
+    /items received|item.*received/i.test(bodyAfter),
+    "unchecked items count as missing on submit",
   );
 }
 

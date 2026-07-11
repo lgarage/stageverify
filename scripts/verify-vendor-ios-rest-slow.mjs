@@ -4,6 +4,18 @@
  */
 
 import { webkit } from "playwright";
+import { loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+
+loadEnvLocal();
+
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    console.error(`Missing required env: ${name}`);
+    process.exit(1);
+  }
+  return val;
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -12,8 +24,9 @@ const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ??
   "https://lgarage.github.io/stageverify";
 
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
+const deliveryId = requireEnv("STAGEVERIFY_RECEIVE_DELIVERY");
+const orderNumber = requireEnv("STAGEVERIFY_VENDOR_ORDER");
+const correctPin = requireEnv("STAGEVERIFY_VENDOR_PIN");
 
 const LATENCY_MS = 300;
 
@@ -47,13 +60,13 @@ const IPHONE_UA =
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 45_000 });
 
   const t0 = Date.now();
-  for (const digit of "1234") {
+  for (const digit of correctPin) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
 
-  await page.waitForSelector("text=ORD-005", { timeout: 25_000 });
+  await page.waitForSelector(`text=${orderNumber}`, { timeout: 25_000 });
   const elapsed = Date.now() - t0;
-  console.log(`  PIN → ORD-005 (latency sim): ${elapsed}ms`);
+  console.log(`  PIN → ${orderNumber} (latency sim): ${elapsed}ms`);
 
   if (await page.locator("text=Delivery load timed out").isVisible()) {
     throw new Error("Timeout UI visible after PIN under latency simulation");

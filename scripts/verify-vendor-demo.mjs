@@ -1,19 +1,31 @@
 /**
- * LEGACY full_checkin vendor flow — NOT the canonical prod test.
+ * DEPRECATED — legacy full_checkin vendor flow. Use verify-vendor-delivered.mjs instead.
  *
- * Exercises item checkoff, qty adjust, and zone step (vendorDeliveryMode=full_checkin).
- * For exception-only Delivered hub on prod, use verify-vendor-delivered.mjs instead:
- *   npm run verify:vendor-delivered:prod
+ * Required env: STAGEVERIFY_RECEIVE_DELIVERY, STAGEVERIFY_VENDOR_ORDER, STAGEVERIFY_VENDOR_PIN
  *
  * Usage:
- *   npm run dev   (local)
  *   node scripts/verify-vendor-demo.mjs
- *   node scripts/verify-vendor-demo.mjs --base-url=https://lgarage.github.io/stageverify
  */
 
 import { chromium, webkit } from "playwright";
+
+console.error(
+  "DEPRECATED: verify-vendor-demo.mjs — use verify-vendor-delivered.mjs with STAGEVERIFY_* env.",
+);
+process.exit(1);
+
 import { mkdirSync } from "fs";
 import { resolve } from "path";
+
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    console.error(`Missing required env: ${name}`);
+    console.error("verify:vendor-demo is DEPRECATED — use verify:vendor-delivered with real ingest env.");
+    process.exit(1);
+  }
+  return val;
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -27,8 +39,9 @@ const browserName =
   process.env.STAGEVERIFY_BROWSER ??
   "chromium";
 
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
+const deliveryId = requireEnv("STAGEVERIFY_RECEIVE_DELIVERY");
+const orderNumber = requireEnv("STAGEVERIFY_VENDOR_ORDER");
+const correctPin = requireEnv("STAGEVERIFY_VENDOR_PIN");
 
 const outDir = resolve(process.cwd(), "screenshots", "vendor-demo");
 mkdirSync(outDir, { recursive: true });
@@ -59,11 +72,10 @@ async function shot(page, name) {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
-  for (const digit of "1234") {
+  for (const digit of correctPin) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
-  await page.waitForSelector("text=ORD-005", { timeout: 30_000 });
-  await page.waitForSelector("text=ORD-005", { timeout: 30_000 });
+  await page.waitForSelector(`text=${orderNumber}`, { timeout: 30_000 });
   await page.waitForSelector("text=Filter rack", { timeout: 15_000 });
   await shot(page, "01-items-loaded");
 

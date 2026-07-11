@@ -1,14 +1,18 @@
 /**
  * Playwright E2E: exception-only vendor Delivered hub workflow (CANONICAL prod test).
  *
- * Prod path: demo QR page → receive deep link → PIN 1234 → job/PO on hub →
- * Need More Space / Issue / DELIVERED (no item checkoff, no full_checkin UI).
+ * Real parsed/approved ingest only — no demo defaults.
+ *
+ * Required env:
+ *   STAGEVERIFY_RECEIVE_DELIVERY  — Firestore delivery id
+ *   STAGEVERIFY_VENDOR_ORDER      — order number shown on hub
+ *   STAGEVERIFY_VENDOR_PIN        — vendor PIN for this delivery
+ *   STAGEVERIFY_VENDOR_JOB        — job/site name asserted on hub
+ *   STAGEVERIFY_VENDOR_PO         — PO number asserted on hub
  *
  * Usage:
- *   npm run verify:vendor-delivered        (local + fixture reset)
- *   npm run verify:vendor-delivered:prod     (gh-pages + live Firebase/CF)
- *
- * Do NOT use verify:vendor-demo:prod — that is legacy full_checkin.
+ *   npm run verify:vendor-delivered
+ *   npm run verify:vendor-delivered:prod   (gh-pages + live Firebase/CF)
  */
 
 import { chromium } from "playwright";
@@ -30,17 +34,29 @@ const baseUrl =
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
-const orderNumber = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
-const jobName = process.env.STAGEVERIFY_VENDOR_JOB ?? "Riverside Medical Center";
-const poNumber = process.env.STAGEVERIFY_VENDOR_PO ?? "PO-88390";
-const correctPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
+loadEnvLocal();
+
+function requireEnv(name) {
+  const val = process.env[name];
+  if (!val) {
+    console.error(`Missing required env: ${name}`);
+    console.error(
+      "Set STAGEVERIFY_RECEIVE_DELIVERY, STAGEVERIFY_VENDOR_ORDER, STAGEVERIFY_VENDOR_PIN, STAGEVERIFY_VENDOR_JOB, STAGEVERIFY_VENDOR_PO (real parsed ingest only).",
+    );
+    process.exit(1);
+  }
+  return val;
+}
+
+const deliveryId = requireEnv("STAGEVERIFY_RECEIVE_DELIVERY");
+const orderNumber = requireEnv("STAGEVERIFY_VENDOR_ORDER");
+const jobName = requireEnv("STAGEVERIFY_VENDOR_JOB");
+const poNumber = requireEnv("STAGEVERIFY_VENDOR_PO");
+const correctPin = requireEnv("STAGEVERIFY_VENDOR_PIN");
 
 const outDir = resolve(process.cwd(), "screenshots", "vendor-delivered");
 mkdirSync(outDir, { recursive: true });
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
-loadEnvLocal();
 
 const results = [];
 
@@ -71,41 +87,17 @@ async function unlockWithPin(page) {
   record("PO # visible on hub", hubText.includes(poNumber));
 }
 
-/** Demo QR page → extract printed payload → navigate (simulates Camera scan tap). */
-async function enterViaDemoQrScan(page) {
-  const demoUrl = `${appBase}/#/demo/vendor-scan`;
-  console.log(`Opening demo QR page ${demoUrl}`);
-  await page.goto(demoUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
-  await page.waitForSelector("text=Vendor receive demo", { timeout: 15_000 });
-  await shot(page, "00-demo-qr-page");
-  record("Demo QR scan page loads", true);
-
-  const qrUrl = (await page.locator("p.break-all").innerText()).trim();
-  if (!qrUrl.includes("receive") && !/[/]r\?/i.test(qrUrl)) {
-    throw new Error(`QR payload missing receive route: ${qrUrl}`);
-  }
-  if (!qrUrl.includes(deliveryId)) {
-    throw new Error(`QR payload missing delivery id: ${qrUrl}`);
-  }
-  record("QR payload encodes demo delivery", true);
-
-  console.log(`Simulating scan → ${qrUrl}`);
-  const receiveUrl =
-    baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")
-      ? qrUrl.replace(
-          /^https:\/\/lgarage\.github\.io\/stageverify/i,
-          appBase.replace(/\/$/, ""),
-        )
-      : qrUrl;
-  if (receiveUrl !== qrUrl) {
-    console.log(`Rewrote receive URL for local dev → ${receiveUrl}`);
-  }
+/** Receive deep link (real QR payload shape: /#/receive?id=…). */
+async function enterViaReceiveDeepLink(page) {
+  const receiveUrl = `${appBase}/#/receive?id=${deliveryId}`;
+  console.log(`Opening receive deep link ${receiveUrl}`);
   await page.goto(receiveUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
-  record("QR scan opens receive deep link", true);
+  record("Receive deep link loads", true);
+  await shot(page, "00-receive-deep-link");
 }
 
 async function runDeliveredFlow(page) {
-  await enterViaDemoQrScan(page);
+  await enterViaReceiveDeepLink(page);
 
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
   await shot(page, "01-pin-gate");
