@@ -13,7 +13,8 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
 2. Follow rules in `.cursor/rules/` (ship-loop, model-gates, product guardrails).
-3. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
+3. **Repair requests** (fix/debug/try again/correct this) follow `model-gates.mdc` § Repair loop — same verifier routing, evidence lines, and max 3 cycles on cloud/mobile as desktop; Composer never self-closes.
+4. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Ship workflow from cloud
 

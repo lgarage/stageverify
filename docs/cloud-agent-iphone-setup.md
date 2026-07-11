@@ -38,3 +38,7 @@ npm run verify:cloud-env
 ```
 
 Expect PASS on repo config; secrets PASS only after step 3. Then run `node scripts/playwright-auth-setup.mjs` before protected-route Playwright scripts.
+
+## Repair requests (mobile / cloud parity)
+
+When Dan asks to **repair**, **fix**, **debug**, **try again**, or **correct this**, the agent follows `model-gates.mdc` § Repair loop — same as desktop: higher-tier verifier (Grok default) → Composer fix → same verifier re-verify until PASS (max 3 cycles). Completion reports must include `repair-verifier:` and `fix-verified:` lines; Composer never self-closes on iPhone or cloud VM.
