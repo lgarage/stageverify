@@ -5,26 +5,25 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Location-first transition — Phase 4** (`v0.0.31`): release-prompt CF + vendor UI + verify hardening shipped; G1→G2+GL E2E after CF deploy.
-- **Harness V1 Freeze (D-16):** additions need pain tickets (charter: HARNESS_V1_FREEZE.md); deletions always legal.
-- **Vendor PIN (D14):** per-JOB PIN on `jobs.pinCode`/`pinHash`; session scope `job`; cross-job absence enforced server-side in `getJobVendorDeliveries`.
-- **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** — controlled flag-on test only; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan.
-- **Command interface (Phase 0):** `npm run command:slack` before drive — Slack transport over harness state.
-- Stack + Data: React 19 + TS, Vite 8, Firebase 11.x, CF v2 → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
+- Active Phase: **Location-first Phase 4** (`v0.0.31`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
+- **Harness in-flight (D-18):** Auto-gotcha learning plan agreed (Grok `537f0ed9`) — **Phase 0 not built yet** (classifier + `spawn-sync-patch-exit` gotcha + vfl-013/014 cleanup + demos).
+- **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
+- **Verify:** `verify:location-phase4` **10/11 PASS** after `process.exit(0)` on patch child; **1 FAIL** G1 release E2E (NMS "no ground spots" — fixture/occupancy, not CF hang).
+- Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
 1. **Minew ESL creds** — live ESL demo only (Phase 7).
 2. **Shelving decision (Jake Korb)** — shop map / location IDs.
 3. **Physical shop map** — not created (blocks sign printing only).
-4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
+4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Product:** location-first Phase 4 release-prompt **shipped** (`releasePlannedStagingLocation` CF + vendor release prompt + drawer audit). Push ingest **[high-risk]** still awaits Dan approval. **Dan-side:** shop map, shelving (Jake), Gmail topic config.
+- **Harness (D-18):** Implement Phase 0 — `spawn-child-timeout` classifier, `gotcha-map` entry `spawn-sync-patch-exit`, correct vfl-013/014 in `learning-pending.json`, extend `indexer-demo-verify-failure.mjs`; then fix G1 release E2E fixture → 11/11 verify. See `DECISIONS.md` D-18.
+- **Product:** Retry `verify:location-phase4:prod` when gh-pages bundle propagates; push ingest still **[high-risk]** — Dan approval.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
-- Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Ship history: `archives/ship-history.md` | Indexer: `dossier-index.json`, `npm run away:next --packet`
-- Router: `MEMORY.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`
+- Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`
 
 ## Update Protocol
-- Ship: `npm run away:ship` → `estimate-log.md` timing → `npm run away:validate` → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
+- Ship: `npm run away:ship` → `estimate-log.md` → `npm run away:validate` → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
