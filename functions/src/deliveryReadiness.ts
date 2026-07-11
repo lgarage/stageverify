@@ -194,7 +194,7 @@ export function computeDeliveryReadiness(
   const vendorOnly = vendorOrderComplete && !physicalDropoffComplete;
   const physicalOnly = physicalDropoffComplete && !vendorOrderComplete;
 
-  let deliveryStatus: DeliveryStatus = delivery.status;
+  let deliveryStatus: DeliveryStatus;
   if (anyReceived) {
     deliveryStatus = "partial";
   } else if (vendorOnly || physicalOnly) {

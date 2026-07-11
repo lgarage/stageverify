@@ -52,6 +52,7 @@ export async function resolveSyncScanIntent(
   intent: SyncScanIntent,
   _target: ScanHandlerTarget,
 ): Promise<ScanHandleResult> {
+  void _target;
   if (intent.kind === "navigate") {
     return { action: "navigate", path: intent.path };
   }

@@ -95,8 +95,8 @@ export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<PdfExtra
     throw new Error(`pdf exceeds max size (${MAX_PDF_BYTES} bytes)`);
   }
 
-  let rawText = "";
-  let pageCount = 1;
+  let rawText: string;
+  let pageCount: number;
   let extractor: PdfExtractResult["extractor"] = "pdfjs";
 
   try {

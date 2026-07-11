@@ -41,7 +41,9 @@ export function sanitizeDeliveryForPublic(
   deliveryId: string,
   data: admin.firestore.DocumentData,
 ): Record<string, unknown> {
-  const { notes: _notes, vendorPinVerifier: _verifier, ...rest } = data;
+  const rest = { ...data };
+  delete rest.notes;
+  delete rest.vendorPinVerifier;
   return { ...rest, id: String(data.id ?? deliveryId) };
 }
 

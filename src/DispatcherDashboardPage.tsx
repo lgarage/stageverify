@@ -2019,6 +2019,7 @@ function PickupTokenControls({
   refreshKey?: number;
   children: (props: PickupTokenControlsRenderProps) => ReactNode;
 }) {
+  void _font;
   const [statusLoading, setStatusLoading] = useState(true);
   const [tokenBusy, setTokenBusy] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);

@@ -58,7 +58,8 @@ function normalizeDate(raw) {
     const parts = trimmed.split(/[/-]/);
     if (parts.length !== 3)
         return trimmed;
-    let [a, b, c] = parts;
+    const [a, b] = parts;
+    let c = parts[2];
     if (c.length === 2)
         c = `20${c}`;
     const month = a.padStart(2, "0");
@@ -282,7 +283,7 @@ function extractInvoiceMessageBlock(lineSection) {
         return { notes, remainder: lineSection };
     for (const rawLine of match[0].split("\n")) {
         const trimmed = rawLine.trim();
-        if (!trimmed || /^[*=\-]+$/.test(trimmed))
+        if (!trimmed || /^[*=-]+$/.test(trimmed))
             continue;
         if (/^\*{2,}\s*Invoice Message/i.test(trimmed))
             continue;

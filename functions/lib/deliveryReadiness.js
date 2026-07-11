@@ -101,7 +101,7 @@ function computeDeliveryReadiness(delivery, items, now, vendorDeliveryMode) {
     const anyReceived = items.some((item) => item.qtyReceived > 0);
     const vendorOnly = vendorOrderComplete && !physicalDropoffComplete;
     const physicalOnly = physicalDropoffComplete && !vendorOrderComplete;
-    let deliveryStatus = delivery.status;
+    let deliveryStatus;
     if (anyReceived) {
         deliveryStatus = "partial";
     }

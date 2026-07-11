@@ -208,10 +208,10 @@ export function resolveReplyToThread(input: ResolveReplyInput): ResolveReplyResu
     }
   }
 
-  let humanReviewRequired = true;
+  let humanReviewRequired: boolean;
   let applyConflictReason: string | undefined;
-  let confidenceScore = contentMatch.confidenceScore;
-  let confidenceReason = contentMatch.confidenceReason;
+  let confidenceScore: number;
+  let confidenceReason: string;
 
   if (outboundEvent) {
     confidenceScore = matchedBy === "bodyToken" ? 55 : 95;

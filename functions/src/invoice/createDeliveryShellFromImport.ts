@@ -6,7 +6,6 @@ import { deliveryStatusFromImportStatus } from "./deliveryStatusFromImportStatus
 import {
   extractDeliverToSiteLabel,
   jobNameFromInvoiceContext,
-  jobNameFromInvoicePo,
   resolveShellDeliveryStatus,
 } from "./invoiceShellDisplayHelpers";
 import { matchInvoiceToRecords } from "./matchInvoiceToRecords";

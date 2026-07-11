@@ -15,7 +15,9 @@ function publicVendorFromDelivery(delivery) {
 }
 /** Strip notes and vendorPinVerifier from public vendor receive payloads. */
 function sanitizeDeliveryForPublic(deliveryId, data) {
-    const { notes: _notes, vendorPinVerifier: _verifier, ...rest } = data;
+    const rest = { ...data };
+    delete rest.notes;
+    delete rest.vendorPinVerifier;
     return { ...rest, id: String(data.id ?? deliveryId) };
 }
 async function hydratePublicDeliveryDetails(db, deliveryId) {
