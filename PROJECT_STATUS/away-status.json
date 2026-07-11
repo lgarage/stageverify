@@ -159,6 +159,13 @@
         "id": "idx-009",
         "action": "indexer-memory"
       }
+    },
+    {
+      "id": "away-125",
+      "title": "Mechanical ESLint cleanup (safe subset)",
+      "status": "built",
+      "commit": "546e7fc",
+      "note": "mechanical lint 85→59; build+invoice-parser+readiness PASS; skipped auth/react-refresh/renders"
     }
   ],
   "summary": "away-118..121 + away-123 overnight verify batch shipped; queue empty except blocked away-069"

@@ -10,9 +10,7 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Overnight 2026-07-11 cloud: away-124 harness + away-125 lint. Feature branch + PR only — do not push main or deploy.",
-    "sequence": [
-      "away-125"
-    ],
+    "sequence": [],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -29,22 +27,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-125",
-      "title": "Mechanical ESLint cleanup (safe subset)",
-      "status": "queued",
-      "dependsOn": "away-124",
-      "scope": "Fix mechanical ESLint only: prefer-const, unused vars/imports, no-useless-assignment. SKIP auth/session/token client files and structural react-refresh/only-export-components moves. No behavior changes.",
-      "acceptance": "npm run build PASS; eslint error count reduced; no auth/session files touched.",
-      "tier": "T0",
-      "model": "composer-2.5",
-      "riskTier": "fast-safe",
-      "danApproved": true,
-      "budgetMin": 35,
-      "verifyBeforeNext": [
-        "npm run build"
-      ]
     }
   ]
 }

@@ -5,7 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Last shipped: **away-124** — Harness health: fix verify:pickup post-reseed flake + auth for Scenario A
+- Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset)
 - Active Phase: **Location-first Phase 4** (`v0.0.32`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; Phase 1 pending (pending→indexer promotion).
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
@@ -19,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **away-125** — Mechanical ESLint cleanup (safe subset) (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Run `verify:location-phase4:prod` after gh-pages deploy; push ingest still **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 1 — pending→indexer promotion (unchanged). See `DECISIONS.md` D-18.
 
