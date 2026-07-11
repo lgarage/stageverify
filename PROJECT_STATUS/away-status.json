@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-09",
+  "lastRun": "2026-07-11",
   "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
     {
@@ -148,6 +148,17 @@
       "status": "built",
       "commit": "37fb50b",
       "note": "Phase 4 overnight batch away-113..117: Reserved D12, planned-multi+divergence, Zones adjacency, NMS v2 multi-select UI, verify:location-phase4 scaffold — v0.0.29 (fix 37fb50b)"
+    },
+    {
+      "id": "away-124",
+      "title": "Harness health: fix verify:pickup post-reseed flake + auth for Scenario A",
+      "status": "built",
+      "commit": "7639d40",
+      "note": "verify:pickup remount+auth Scenario A PASS; harness readiness/invoice/email/pickup-authority/evidence PASS",
+      "learning": {
+        "id": "idx-009",
+        "action": "indexer-memory"
+      }
     }
   ],
   "summary": "away-118..121 + away-123 overnight verify batch shipped; queue empty except blocked away-069"

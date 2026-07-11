@@ -10,7 +10,9 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "instructions": "Overnight 2026-07-11 cloud: away-124 harness + away-125 lint. Feature branch + PR only — do not push main or deploy.",
-    "sequence": ["away-124", "away-125"],
+    "sequence": [
+      "away-125"
+    ],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -27,26 +29,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-124",
-      "title": "Harness health: fix verify:pickup post-reseed flake + auth for Scenario A",
-      "status": "queued",
-      "scope": "scripts/verify-pickup-portal.mjs (and helpers if needed only). Fix post-Scenario-B reload flake (SPA same-URL goto / wait) and ensure Scenario A completion can succeed under live Firestore rules (authenticate Playwright context so recordPickupEvent client getDoc is allowed). Run representative harness suite and record pass/fail. Do NOT change product src/, functions/, or firestore.rules.",
-      "acceptance": "npm run verify:pickup PASS locally; npm run build PASS; harness report artifact or CURRENT_STATE note of suite results.",
-      "tier": "T1",
-      "model": "composer-2.5",
-      "riskTier": "fast-safe",
-      "danApproved": true,
-      "budgetMin": 35,
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:pickup"
-      ],
-      "files": [
-        "scripts/verify-pickup-portal.mjs",
-        "scripts/dispatcherVerifyHelpers.mjs"
-      ]
     },
     {
       "id": "away-125",

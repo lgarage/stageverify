@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-124** — Harness health: fix verify:pickup post-reseed flake + auth for Scenario A.
+1. **away-125** — Mechanical ESLint cleanup (safe subset).
 2. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 3. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
 4. **ESL integration** ? Phase 7; blocked on Minew credentials.

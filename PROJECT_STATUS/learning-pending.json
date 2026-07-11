@@ -88,9 +88,9 @@
       "stderrTail": "Error: scripts/patch-phase4-release-e2e-fixture.mjs timed out after 120s\n    at runPatchScript (file:///C:/Projects/stageverify/scripts/verify-location-phase4.mjs:53:11)\n    at runPatchSeed (file:///C:/Projects/stageverify/scripts/verify-location-phase4.mjs:65:3)\n    at main (file:///C:/Projects/stageverify/scripts/verify-location-phase4.mjs:289:3)\n    at file:///C:/Projects/stageverify/scripts/verify-location-phase4.mjs:363:1\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:655:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
       "stdoutTail": "\n=== patch phase4 list badge seed ===\nPatched dispatcher demo deliveries ORD-002..ORD-006 (ORD-001 unchanged).\n\n=== patch phase4 release E2E fixture ===\n[patch-phase4-release] signing in…\n[patch-phase4-release] sign-in OK\n[patch-phase4-release] committing batch…\nPhase 4 release E2E fixture: planned G1 only on delivery-demo-vendor-1; pipe-a adjacency on G2+GL.",
       "createdAt": "2026-07-11T02:33:30.756Z",
-      "mergedAt": null,
+      "mergedAt": "2026-07-11T04:56:21.232Z",
       "mergedToId": null,
-      "sourceTask": null
+      "sourceTask": "away-124"
     },
     {
       "id": "vfl-014",
@@ -116,9 +116,9 @@
       "stderrTail": null,
       "stdoutTail": "\n=== patch phase4 list badge seed ===\nPatched dispatcher demo deliveries ORD-002..ORD-006 (ORD-001 unchanged).\n\n=== patch phase4 release E2E fixture ===\n[patch-phase4-release] signing in…\n[patch-phase4-release] sign-in OK\n[patch-phase4-release] committing batch…\nPhase 4 release E2E fixture: planned G1 only on delivery-demo-vendor-1; pipe-a adjacency on G2+GL.\n\n=== playwright bootstrap ===\n[verify] launching chromium…\n[verify] chromium ready\n[verify] ensureAuthenticated…\n[verify] dispatcher auth OK\nPASS: Zones adjacent group field visible\nPASS: Zones size class field visible\n  screenshot: C:\\Projects\\stageverify\\screenshots\\location-phase4\\01-zones-adjacency-fields.png\nDiagnostics: searchTerm=\"4046362\", rowCount=1\nPASS: Drawer planned-staging-assignment visible\nPASS: Drawer save-planned-staging control visible\n  screenshot: C:\\Projects\\stageverify\\screenshots\\location-phase4\\02-drawer-planned-staging.png\nPASS: Planned staging save enabled after toggle\nPASS: Planned staging save readback — Planned: G2, S1-A\n  screenshot: C:\\Projects\\stageverify\\screenshots\\location-phase4\\05-planned-staging-interactive.png\nFAIL: ORD-005 Divergence badge in list — missing\nPASS: ORD-006 Reserved badge in list — visible\n  screenshot: C:\\Projects\\stageverify\\screenshots\\location-phase4\\03-dispatcher-list-badges.png\nPASS: Vendor NMS ground multi-select UI — no spots message\n  screenshot: C:\\Projects\\stageverify\\screenshots\\location-phase4\\04-vendor-nms-ground.png\nPASS: Occupancy conflict negative (scaffold) — deferred — negative path unchanged\nFAIL: G1 release E2E (planned G1, NMS G2+GL, release No) — requires releasePlannedStagingLocation CF when vendor session writes\n\n11 checks, 2 failed",
       "createdAt": "2026-07-11T02:34:13.980Z",
-      "mergedAt": null,
-      "mergedToId": null,
-      "sourceTask": null
+      "mergedAt": "2026-07-11T04:56:21.232Z",
+      "mergedToId": "idx-010",
+      "sourceTask": "away-124"
     }
   ]
 }
