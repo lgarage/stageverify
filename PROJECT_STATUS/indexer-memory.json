@@ -289,29 +289,42 @@
       "id": "idx-009",
       "category": "decision",
       "summary": "verify:pickup post-Scenario-B: HashRouter ignores same-hash goto — remount via about:blank; Scenario A needs auth because recordPickupEvent client getDoc(deliveries) is auth-gated",
-      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "canonicalLocation": "scripts/verify-pickup-portal.mjs",
       "sourceTask": "away-124",
       "sourceCommit": "7639d40",
-      "tags": [],
-      "triggerTerms": [
-        "harness",
-        "health",
-        "verifypickup",
-        "post-reseed",
-        "flake",
-        "auth",
-        "scenario",
-        "post-scenario-b"
+      "tags": [
+        "verify",
+        "pickup",
+        "playwright"
       ],
-      "type": null,
-      "subtype": null,
-      "slice": null,
-      "relatedFiles": [],
+      "triggerTerms": [
+        "verify:pickup",
+        "post-reseed",
+        "HashRouter",
+        "about:blank",
+        "Scenario A",
+        "recordPickupEvent",
+        "permission denied",
+        "pickup completion"
+      ],
+      "type": "verify-only",
+      "subtype": "playwright-route",
+      "slice": {
+        "file": "scripts/verify-pickup-portal.mjs",
+        "startLine": 324,
+        "endLine": 340,
+        "anchor": "remountPickupPortal"
+      },
+      "relatedFiles": [
+        "scripts/verify-pickup-portal.mjs",
+        "scripts/dispatcherVerifyHelpers.mjs",
+        "AGENTS.md"
+      ],
       "confidence": 0.85,
       "injectBeforeWork": true,
       "promotionCandidate": false,
       "gateCandidate": false,
-      "notes": null,
+      "notes": "After Scenario B reseed, remountPickupPortal(authenticate:true) before Scenario A.",
       "createdAt": "2026-07-11T04:56:21.231Z"
     },
     {
@@ -344,7 +357,7 @@
       "injectBeforeWork": true,
       "promotionCandidate": true,
       "gateCandidate": false,
-      "notes": null,
+      "notes": "Merged from learning-pending during away-124 ship; G1 release CF may already be deployed — re-check before treating as open.",
       "createdAt": "2026-07-11T04:56:21.232Z"
     }
   ]
