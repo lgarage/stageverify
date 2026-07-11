@@ -9,12 +9,12 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Overnight batch 2026-07-09 away-118..121 + away-123 shipped. Queue empty.",
-    "sequence": [],
+    "instructions": "Overnight 2026-07-11 cloud: away-124 harness + away-125 lint. Feature branch + PR only — do not push main or deploy.",
+    "sequence": ["away-124", "away-125"],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
-      "updatedAt": "2026-07-10T03:54:28.072Z"
+      "updatedAt": "2026-07-11T04:54:08.000Z"
     }
   },
   "queue": [
@@ -27,6 +27,42 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-124",
+      "title": "Harness health: fix verify:pickup post-reseed flake + auth for Scenario A",
+      "status": "queued",
+      "scope": "scripts/verify-pickup-portal.mjs (and helpers if needed only). Fix post-Scenario-B reload flake (SPA same-URL goto / wait) and ensure Scenario A completion can succeed under live Firestore rules (authenticate Playwright context so recordPickupEvent client getDoc is allowed). Run representative harness suite and record pass/fail. Do NOT change product src/, functions/, or firestore.rules.",
+      "acceptance": "npm run verify:pickup PASS locally; npm run build PASS; harness report artifact or CURRENT_STATE note of suite results.",
+      "tier": "T1",
+      "model": "composer-2.5",
+      "riskTier": "fast-safe",
+      "danApproved": true,
+      "budgetMin": 35,
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:pickup"
+      ],
+      "files": [
+        "scripts/verify-pickup-portal.mjs",
+        "scripts/dispatcherVerifyHelpers.mjs"
+      ]
+    },
+    {
+      "id": "away-125",
+      "title": "Mechanical ESLint cleanup (safe subset)",
+      "status": "queued",
+      "dependsOn": "away-124",
+      "scope": "Fix mechanical ESLint only: prefer-const, unused vars/imports, no-useless-assignment. SKIP auth/session/token client files and structural react-refresh/only-export-components moves. No behavior changes.",
+      "acceptance": "npm run build PASS; eslint error count reduced; no auth/session files touched.",
+      "tier": "T0",
+      "model": "composer-2.5",
+      "riskTier": "fast-safe",
+      "danApproved": true,
+      "budgetMin": 35,
+      "verifyBeforeNext": [
+        "npm run build"
+      ]
     }
   ]
 }

@@ -85,6 +85,7 @@ Finer **Subtype** on each row enables median recalibration per slice (see **Reca
 | 23 | away-097 | 2026-07-04T02:22:00-05:00 | 2026-07-04T02:30:00-05:00 | 35 | 8 | legacy_dan_approval_interval | verify-only | playwright-route | y | verify-invoice-review + :prod PASS; commit=3875f4d |
 | 24 | away-098 | 2026-07-04T02:30:00-05:00 | 2026-07-04T02:38:00-05:00 | 20 | 8 | legacy_dan_approval_interval | docs-update | process | n | gotcha triggers + lessons index hygiene; away:validate PASS |
 | 25 | away-task-timing-protocol | 2026-07-04T08:29:00-05:00 | 2026-07-04T08:33:00-05:00 | 35 | 4 | worker_reported_timestamps | docs-update | process | n | worker-owned timing protocol; away:validate timing checks; legacy row math fixes |
+| 26 | away-124 | 2026-07-11T04:54:08Z | 2026-07-11T04:56:02Z | 35 | 2 | worker_reported_timestamps | verify-only | playwright-route | n | remount+auth Scenario A; verify:pickup PASS; harness readiness/invoice/email/pickup-authority/evidence PASS |
 
 ## Audit every 15 rows (mandatory)
 
