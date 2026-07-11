@@ -803,6 +803,14 @@ export function DispatcherDashboardPage() {
     }
   };
 
+  /* Deep-link drawer for verify harnesses when seed demo rows are hidden on prod. */
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const openId = params.get("openDelivery")?.trim();
+    if (!openId || selectedDeliveryId === openId) return;
+    void selectDelivery(openId);
+  }, [location.search, selectedDeliveryId]);
+
   /* ── Filter / sort helpers ── */
   const toggleStatus = (status: DeliveryOverviewFilterStatus) => {
     setQuery((prev) => ({
