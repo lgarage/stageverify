@@ -7,7 +7,7 @@
 ## Snapshot
 - Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset)
 - Active Phase: **Location-first Phase 4** (`v0.0.32`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
-- **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; Phase 1 pending (pending→indexer promotion).
+- **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
 - **Verify:** `verify:location-phase4` **11/11 PASS** local — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
@@ -21,7 +21,7 @@
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Run `verify:location-phase4:prod` after gh-pages deploy; push ingest still **[high-risk]** — Dan approval.
-- **Harness (D-18):** Phase 1 — pending→indexer promotion (unchanged). See `DECISIONS.md` D-18.
+- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
