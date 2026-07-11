@@ -4,7 +4,7 @@ Charter after adversarial review rounds 1–5. StageVerify MVP takes priority ov
 
 ## Frozen surface (V1 complete)
 
-Two-tier ship model · verification ladder + fix-closure + repair loop + planning verify loop · security gate · away queue + protocol · decision registry + handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · meta-review rounds themselves.
+Two-tier ship model · verification ladder + fix-closure + repair loop + planning verify loop + Q&A verify loop · security gate · away queue + protocol · decision registry + handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · meta-review rounds themselves.
 
 ## Asymmetric rule
 
@@ -27,6 +27,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-11: Dan repair requests — Composer closed fixes without higher-tier verifier on repair scope/result; wanted automatic repair loop with fix-closure (D-20).
 - 2026-07-11: planning questions ("what's next", "what else can be worked on") — Composer presented first-draft ranked options without Grok cross-check against CURRENT_STATE/away:next; omitted recent ships and invented away IDs; wanted mandatory planning verify loop before present (D-21).
 - 2026-07-11: On phone, wanted authoritative mobile-safe next; away-list had stale batch `instructions` on empty `sequence` and no capability filter — queue hygiene Phase 1a (`away:sync`, normalize on ship).
+- 2026-07-11: Dan wanted Grok conferral on all non-trivial Q&A answers (not only planning) on desktop PC and cloud; status/terminology answers needed cross-check — Q&A verify loop (D-22).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

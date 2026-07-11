@@ -2,6 +2,8 @@
 
 Repository for the StageVerify staging/verification app (React + Firebase). Cloud agents and desktop agents share the same codebase; paths and ship workflow differ on Linux VMs.
 
+**Dan's primary dev machine:** Windows PC (`C:\Projects\stageverify`). Cloud VM uses `/workspace`.
+
 ## Cursor Cloud specific instructions
 
 ### Workspace paths
@@ -12,7 +14,7 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20/D-21). No mobile-lite orchestration.
+2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20/D-21/D-22). No mobile-lite orchestration.
 3. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Harness parity exceptions (mobile/cloud only)
@@ -20,12 +22,12 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 Differs from desktop **only** where physically impossible — document here, not in separate rule files:
 
 - **Secrets** — Dan must set `STAGEVERIFY_TEST_EMAIL`, `STAGEVERIFY_TEST_PASSWORD`, and optional `FIREBASE_TOKEN` in Cursor Environments UI (see below).
-- **Ship to main / gh-pages** — prefer feature branch + PR; full ship-loop to `main` + `npm run deploy` usually via Mac Remote Control unless the prompt explicitly allows cloud push/deploy.
+- **Ship to main / gh-pages** — prefer feature branch + PR from cloud; full ship-loop to `main` + `npm run deploy` on Dan's **Windows PC** (desktop Cursor) unless the prompt explicitly allows cloud push/deploy.
 
 ### Ship workflow from cloud
 
 - Prefer a **feature branch + PR**; do **not** push to `main` unless Dan explicitly says so in the prompt.
-- Full local ship-loop (build → Playwright → commit → push → `npm run deploy`) is usually done from Dan's Mac via **Remote Control** when iPhone Cloud Agent is read-only or branch-only.
+- Full local ship-loop (build → Playwright → commit → push → `npm run deploy`) on cloud is branch/PR-only unless Dan explicitly allows main push; **desktop Windows PC** runs the full loop locally by default.
 - **High-risk** changes still need Dan approval **before** implement/deploy: Cloud Functions (`functions/**`), `firestore.rules`, auth/session/route guards, Gmail watch/Pub/Sub, secrets/config, schema migrations.
 
 ### Required secrets (names only — set in Cursor Environments dashboard)

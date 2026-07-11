@@ -27,7 +27,7 @@ After the first successful install completes, **save snapshot** so future agents
 
 Start a **Cloud Agent** on that environment for branch work, reviews, and verifies.
 
-For the full ship-loop (push to `main`, `npm run deploy`, prod `:prod` verifies), use **Remote Control** on your Mac unless the prompt explicitly allows cloud push/deploy.
+For the full ship-loop (push to `main`, `npm run deploy`, prod `:prod` verifies), use Dan's **Windows PC** (desktop Cursor) unless the prompt explicitly allows cloud push/deploy.
 
 ## 6. Verify readiness
 
