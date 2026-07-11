@@ -12,9 +12,15 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. Follow rules in `.cursor/rules/` (ship-loop, model-gates, product guardrails).
-3. **Repair requests** (fix/debug/try again/correct this) follow `model-gates.mdc` § Repair loop — same verifier routing, evidence lines, and max 3 cycles on cloud/mobile as desktop; Composer never self-closes.
-4. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
+2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20). No mobile-lite orchestration.
+3. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
+
+### Harness parity exceptions (mobile/cloud only)
+
+Differs from desktop **only** where physically impossible — document here, not in separate rule files:
+
+- **Secrets** — Dan must set `STAGEVERIFY_TEST_EMAIL`, `STAGEVERIFY_TEST_PASSWORD`, and optional `FIREBASE_TOKEN` in Cursor Environments UI (see below).
+- **Ship to main / gh-pages** — prefer feature branch + PR; full ship-loop to `main` + `npm run deploy` usually via Mac Remote Control unless the prompt explicitly allows cloud push/deploy.
 
 ### Ship workflow from cloud
 

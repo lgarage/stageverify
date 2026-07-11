@@ -39,6 +39,16 @@ npm run verify:cloud-env
 
 Expect PASS on repo config; secrets PASS only after step 3. Then run `node scripts/playwright-auth-setup.mjs` before protected-route Playwright scripts.
 
-## Repair requests (mobile / cloud parity)
+## Harness parity (D-20 — same rules as desktop)
 
-When Dan asks to **repair**, **fix**, **debug**, **try again**, or **correct this**, the agent follows `model-gates.mdc` § Repair loop — same as desktop: higher-tier verifier (Grok default) → Composer fix → same verifier re-verify until PASS (max 3 cycles). Completion reports must include `repair-verifier:` and `fix-verified:` lines; Composer never self-closes on iPhone or cloud VM.
+Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, verification ladder, security gate, stall-advisor, Ship/Critical/Work verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
+
+### Exceptions (physically impossible on mobile/cloud only)
+
+| Exception | Why | Desktop equivalent |
+|-----------|-----|-------------------|
+| Secrets in Environments UI | Agent cannot tap dashboard; Dan sets secrets once (step 3 above) | `.env.local` on Mac |
+| Branch-only / no `main` push | Default cloud workflow unless prompt allows push | Direct push from desktop |
+| Remote Control for prod ship | Full gh-pages deploy + `:prod` verify often from Mac | Local `npm run deploy` |
+
+Repair requests (fix/debug/try again/correct this) follow the same repair loop as desktop — `repair-verifier:` + `fix-verified:` required; Composer never self-closes.

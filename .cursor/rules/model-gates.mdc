@@ -18,6 +18,12 @@ alwaysApply: true
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — Sonnet security gate before push |
 
+## Platform parity (D-20 — all Composer sessions)
+
+`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE, mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
+
+**Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
+
 ## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)
 
 When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis) — **unless** the 2nd fail shares the **same failure fingerprint** as the 1st (then **Grok stall-advisor** runs first; Sonnet when still stuck per sequence below).
@@ -142,7 +148,7 @@ Task({
 
 **Orthogonal roles:** Repair verifier = mid-task scope/result on Dan repair intent; Ship Verifier = post-ship; stall-advisor = same-failure pivot (D-19). Same Grok slug; dispatch per context — never satisfy repair + ship + stall with one Task unless explicitly same scope.
 
-**Platform parity (D-20 — all Composer sessions):** Repair loop binds **every** Composer session — desktop, mobile Cursor app, and cloud VM — with identical behavior. Same verifier routing (Grok / Sonnet / Fable via `Task`), same evidence lines (`repair-verifier:`, `fix-verified:`), same max 3 fix cycles, same fix-closure rule. Cloud and mobile agents dispatch Grok/Sonnet/Fable via `Task` exactly as desktop; Composer never self-closes a repair finding on any platform. Missing Task id on repair completion = **NOT RUN** — repair not done — regardless of client.
+**Platform parity:** Repair loop follows § Platform parity (D-20) — same verifier routing (Grok / Sonnet / Fable via `Task`), same evidence lines (`repair-verifier:`, `fix-verified:`), same max 3 fix cycles, same fix-closure on all clients; Composer never self-closes a repair finding. Missing Task id on repair completion = **NOT RUN** — repair not done — regardless of client.
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 
