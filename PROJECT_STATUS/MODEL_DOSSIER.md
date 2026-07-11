@@ -24,7 +24,8 @@
 | `composer-trace` | 1st fail → self-trace prep; 2nd same fingerprint → Grok stall-advisor; still stuck → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail + § Grok stall-advisor |
 | `stall-advisor` | 2nd consecutive same-failure stall mid-task | **§ Stall Advisor — Grok 4.5 Fast** (tier 1b) — SSOT in `model-gates.mdc` § Grok stall-advisor auto-invoke |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
-| `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
+| `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3) — always followed by Grok **Fable Adversarial** (D-22) |
+| `fable-adversarial` | Every Fable deep spec/architecture answer | **§ Fable Adversarial — Grok 4.5 Fast** — mandatory pairing after Fable (D-22); mobile + PC parity |
 | `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
 
 ## § qr-routing
@@ -145,7 +146,7 @@ Purpose: skeptical outside-party review before major architecture, harness, or w
 
 - Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true`, never edits code
 - Triggers + exclusions (SSOT): `.cursor/rules/model-gates.mdc` § Critical Reviewer auto-invoke
-- Never overrides Fable (architecture), Sonnet 4.6 (security verdict), or Composer (build/ship)
+- Never overrides Sonnet 4.6 (security verdict) or Composer (build/ship). Does not replace **Fable Adversarial** (D-22) — that role may REJECT Fable architecture proposals; Critical Reviewer remains non-authoritative vs Fable on Composer-only drafts without a Fable Task.
 - Required output, exactly five sections: strongest concern · simplification opportunities · hidden risks · alternative approach · final recommendation with confidence
 - Evidence: Task id + model line in the report, else NOT RUN (same standard as security gate)
 - Budget: one run per decision; rerun only if the plan materially changes after review
@@ -156,9 +157,21 @@ Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a pat
 
 - Model: `claude-fable-5-thinking-high` via generalPurpose Task, `readonly: true`
 - **Triggers (only these):** (1) phase boundary of a Fable-authored product/architecture spec with semantic drift tripwires — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, stays authoritative); (2) Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that).
+- **D-22 pairing:** Every Work Verifier run is **immediately** followed by Grok **Fable Adversarial** on the same output — desktop, mobile, cloud; see `model-gates.mdc` § Fable adversarial pairing.
 - **Preconditions:** build + `away:validate` (+ route `verify:*` when UI) green; mechanical `git diff --name-only` vs allowed paths runs first, fail closed.
 - **Fix loop (max 1 cycle):** exact fix list (tripwire id, PASS/FAIL, file:line, required change) → Composer applies → Fable re-verifies ONCE → still failing → Dan.
-- **Evidence:** Task id + `model: claude-fable-5-thinking-high` + invocation evidence, else NOT RUN; spec-phase NOT RUN blocks phase N+1 (`work-verifier:` report line per `model-gates.mdc`).
+- **Evidence:** Task id + `model: claude-fable-5-thinking-high` + invocation evidence, else NOT RUN; spec-phase NOT RUN blocks phase N+1 (`work-verifier:` report line per `model-gates.mdc`); plus `fable-adversarial:` when pairing triggered.
+
+## Fable Adversarial — Grok 4.5 Fast (tag: fable-adversarial)
+
+Purpose: **mandatory adversarial second opinion** on every Fable deep spec, architecture, harness design, or escalation answer (D-22). Fable proposes; Grok attacks (REJECT/KEEP/ACCEPT, freeze D-16, SSOT scan). Not a substitute for Ship Verifier (post-ship) or Planning Verifier (queue/roadmap).
+
+- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true`
+- **Triggers:** always immediately after Fable output when § Work Verifier fired, Dan routes deep spec/architecture to Fable, repair loop routes to Fable, or Ship Verifier escalates to Fable.
+- **Flow:** Fable Task → Grok adversarial → PARTIAL/FAIL → Fable rebuttal or Composer revise → same Grok re-verify (max 3 cycles) → present converged answer on PASS.
+- **Satisfies Critical Reviewer** for the same Fable answer — do not double-dispatch Grok on identical output.
+- **Evidence:** `fable-adversarial: <task-id>` + `model:` line + PASS before present; `fix-verified:` per closed finding. Missing when Fable ran on spec/architecture = NOT RUN.
+- **Platform parity:** identical on mobile Cursor, cloud VM, desktop (D-20).
 
 ## Ship Verifier — Grok 4.5 Fast (tag: ship-verifier)
 
