@@ -20,7 +20,7 @@ alwaysApply: true
 
 ## Platform parity (D-20 — all Composer sessions)
 
-`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE, mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
+`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
 
 **Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
 
@@ -77,9 +77,9 @@ Task({
 
 **Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: grok-4.5-fast-xhigh`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
 
-**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — 3rd+ same fingerprint after Grok → Sonnet, not a second stall-advisor.
+**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — 3rd+ same fingerprint after Grok → Sonnet, not a second stall-advisor.
 
-**vs Ship Verifier / Repair Verifier / Planning Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
+**vs Ship Verifier / Repair Verifier / Planning Verifier / Q&A Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); Q&A Verifier = pre-present Q&A accuracy (§ Q&A verify loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
 
 ## Security gate
 
@@ -111,6 +111,7 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 1b (cheap) | Grok 4.5 Fast — **Stall Advisor** | Mid-task same-failure pivot — hypotheses + next experiments only | 2nd consecutive same fingerprint on same task (§ Grok stall-advisor) |
 | 1c (cheap) | Grok 4.5 Fast — **Repair Verifier** | Pre-close repair scope/result on Dan repair intent | Dan says repair/fix/debug/try again/correct this (§ Repair loop) |
 | 1d (cheap) | Grok 4.5 Fast — **Planning Verifier** | Pre-present accuracy of planning/roadmap/queue answers | Planning question triggers (§ Planning verify loop) |
+| 1e (cheap) | Grok 4.5 Fast — **Q&A Verifier** | Pre-present accuracy of non-trivial Q&A answers | Non-trivial Q&A (§ Q&A verify loop); Dan standing preference |
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 
@@ -118,7 +119,7 @@ Evidence standard (every tier): Task id + model line in the report, else **NOT R
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
-When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
 
 ### Repair loop (Dan 2026-07-11 — extends § Fix-closure rule)
 
@@ -179,7 +180,33 @@ Task({
 
 **Orthogonal roles:** Planning verifier = pre-present planning/roadmap/queue accuracy; Repair verifier = Dan repair intent; Ship Verifier = post-ship; stall-advisor = same-failure pivot (D-19); Critical Reviewer = pre-decision on new gates/architecture. Same Grok slug; dispatch per context — never satisfy planning + repair + ship + stall with one Task unless explicitly same scope.
 
-**Platform parity:** Planning verify loop follows § Platform parity (D-20/D-21) — same verifier routing, evidence lines, max 3 cycles, fix-closure on desktop, mobile Cursor, and cloud VM; Composer never self-closes a planning finding.
+**Platform parity:** Planning verify loop follows § Platform parity (D-20/D-21) — same verifier routing, evidence lines, max 3 cycles, fix-closure on desktop PC, mobile Cursor, and cloud VM; Composer never self-closes a planning finding.
+
+### Q&A verify loop (Dan 2026-07-11 — D-22)
+
+**Trigger:** Dan asks a **non-trivial Q&A question** — how/why/where/explain/recommend/clarify/status/git/state/terminology — on **any client** (desktop Windows PC, mobile Cursor, cloud VM). Dan standing preference: confer with Grok before presenting.
+
+**Skip:** trivial typos; single-fact lookup with one authoritative source; pure code execution with no recommendation; planning triggers already covered by § Planning verify loop (do not double-dispatch).
+
+**Flow:** gather sources → draft privately → dispatch **Q&A Verifier** → FAIL/PARTIAL → Composer revises draft only → same Grok re-verify once → present PASS answer (or `Caveat:` if still uncertain). **Max 2 cycles** (initial + one revise). Composer never self-closes a Q&A finding.
+
+**Verifier:** Grok 4.5 Fast — one Task per cycle:
+
+```text
+Task({
+  subagent_type: "generalPurpose",
+  model: "grok-4.5-fast-xhigh",
+  readonly: true,
+  description: "Q&A verifier",
+  prompt: "…Dan's question, draft answer, sources cited… Cross-check facts vs repo/docs; flag wrong terms (e.g. built=done); missing caveats; contradictions. PASS | PARTIAL | FAIL + exact fix list if not PASS."
+})
+```
+
+**Evidence (mandatory on Q&A answers):** `qa-verifier: <task-id>` + `model: grok-4.5-fast-xhigh`; `fix-verified: <re-verify task-id>` when Grok flagged issues and Composer revised. Use `qa-verifier: N/A (trivial)` or `qa-verifier: N/A (planning-verifier)` when skipped. Missing Task id when trigger fired = **NOT RUN**.
+
+**Orthogonal roles:** Q&A verifier = pre-present factual/explanatory accuracy; Planning verifier = ranked options/roadmap; Repair/Ship/stall/Critical = unchanged. Same Grok slug; one Task per role per event.
+
+**Platform parity:** Q&A verify loop follows § Platform parity (D-20/D-22) — desktop Windows PC, mobile Cursor, and cloud VM identical.
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 

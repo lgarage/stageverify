@@ -13,7 +13,9 @@ Plans, handoffs, recommendations, architecture, away prompts, "what's next", "wh
 
 **Planning questions:** Grok Planning Verifier per `model-gates.mdc` § Planning verify loop is mandatory before present — Composer self-challenge alone does not satisfy this gate.
 
-**Skip:** trivial typos, single-fact read-only answers, pure code execution with no recommendation.
+**Q&A questions (Dan standing preference — all clients, desktop PC + cloud):** Before presenting any non-trivial Q&A answer (how/why/where/explain/recommend/clarify), draft privately then dispatch one read-only **Q&A Verifier** (Grok) per `model-gates.mdc` § Q&A verify loop. Revise once from Grok feedback; present only the verified answer. End reply with `qa-verifier: <task-id>` + `model: grok-4.5-fast-xhigh`, or `qa-verifier: N/A (trivial)` / `qa-verifier: N/A (planning-verifier)` when skipped.
+
+**Skip Q&A Verifier:** trivial typos; single-fact read-only lookups with one authoritative source; pure code execution with no recommendation; planning questions already covered by § Planning verify loop (do not double-dispatch).
 
 ## Mandatory loop
 

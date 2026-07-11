@@ -21,7 +21,7 @@
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Fable work-verifier before Phase 5; queue hygiene Phase 1a **shipped** `93d1613` (`away:sync`); push ingest **[high-risk]** — Dan approval.
-- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18.
+- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** shipped — Grok confer on non-trivial Q&A, all clients.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
