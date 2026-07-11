@@ -226,6 +226,23 @@ assert(
   `auth OK stdout should not classify as auth failure; got: ${authOkClassified.summary}`,
 );
 
+const authFailClassified = classifyVerifyFailure({
+  scriptName: "verify:dispatcher-nav",
+  exitCode: 1,
+  stderrTail: "FirebaseError: auth/user-token-expired",
+  stdoutTail: "[verify] ensureAuthenticated…\n[verify] login required — run playwright-auth-setup.mjs",
+  isProd: false,
+  domain: "dispatcher",
+});
+assert(
+  authFailClassified.category === "lesson",
+  `real auth failure should classify as lesson; got ${authFailClassified.category}`,
+);
+assert(
+  authFailClassified.summary.toLowerCase().includes("auth"),
+  `real auth failure summary should mention auth; got: ${authFailClassified.summary}`,
+);
+
 const spawnPatchCapture = captureVerifyFailure({
   scriptName: "verify:location-phase4",
   exitCode: 1,

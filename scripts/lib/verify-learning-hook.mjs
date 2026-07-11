@@ -227,7 +227,7 @@ export function classifyVerifyFailure(ctx) {
     if (ghPagesProd) gateCandidate = true;
   } else if (
     /auth|storage\.state|login|firebase.*token|expired|STAGEVERIFY_TEST/i.test(combined) &&
-    !/auth\s+ok|sign-in ok|dispatcher auth ok|authenticated/i.test(combined)
+    !/auth\s+ok|sign-in ok|dispatcher auth ok/i.test(combined)
   ) {
     category = "lesson";
     summary = `${ctx.scriptName} auth failure — re-run playwright-auth-setup.mjs (state.json expired ~1h)`;
