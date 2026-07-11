@@ -41,7 +41,9 @@ Expect PASS on repo config; secrets PASS only after step 3. Then run `node scrip
 
 ## Harness parity (D-20 — same rules as desktop)
 
-Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, planning verify loop, verification ladder, security gate, stall-advisor, Ship/Critical/Work/Planning verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
+Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, planning verify loop, **Fable adversarial pairing (D-22)**, verification ladder, security gate, stall-advisor, Ship/Critical/Work/Planning/Fable-adversarial verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
+
+**Fable + Grok (D-22):** When Fable 5 answers deep spec or architecture, Grok 4.5 **always** runs adversarial review next — same on iPhone/cloud as desktop. Evidence: `work-verifier:` + `fable-adversarial:` before Dan sees the design.
 
 ### Exceptions (physically impossible on mobile/cloud only)
 

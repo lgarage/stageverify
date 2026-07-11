@@ -20,7 +20,7 @@ alwaysApply: true
 
 ## Platform parity (D-20 — all Composer sessions)
 
-`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE, mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
+`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE, mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), **Fable adversarial pairing loop (§ Fable adversarial pairing, D-22)**, verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Fable-adversarial verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
 
 **Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
 
@@ -113,12 +113,13 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 1d (cheap) | Grok 4.5 Fast — **Planning Verifier** | Pre-present accuracy of planning/roadmap/queue answers | Planning question triggers (§ Planning verify loop) |
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
+| 3↔1 (pair) | Grok 4.5 Fast — **Fable Adversarial** | Adversarial review of every Fable deep spec/architecture answer | **Always** immediately after Work Verifier or any Fable architecture/spec output (§ Fable adversarial pairing, D-22) |
 
 Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**.
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
-When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, **Fable Adversarial/Grok**, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
 
 ### Repair loop (Dan 2026-07-11 — extends § Fix-closure rule)
 
@@ -199,7 +200,7 @@ Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: 
 - An architecture decision with ≥2 competing options is being put to Dan
 - Dan says "grok review" or "devil's advocate"
 
-Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, or executing an already-reviewed plan. One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`.
+Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, executing an already-reviewed plan, or when § Fable adversarial pairing already ran Grok on the same architecture output (D-22). One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`.
 
 **Freeze check (D-16):** before approving any new gate, role, workflow, or abstraction, verify the proposal against `PROJECT_STATUS/HARNESS_V1_FREEZE.md` reopening criteria and apply the D-14 evidence-pairing and D-15 deletion/80-20 tests.
 
@@ -208,3 +209,45 @@ Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security revie
 Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: § Fix-closure rule (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
 
 **Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. Only Composer 2.5 implements; Fable verifies Composer's work. When Fable finds issues: Composer fixes, Fable re-verifies per § Fix-closure; affected work ships only after Fable confirms correct.
+
+**Pairing (D-22):** Every Work Verifier run **must** be followed immediately by § Fable adversarial pairing on the same Fable output — mobile, desktop, and cloud; missing `fable-adversarial:` = NOT RUN for spec/architecture present.
+
+## Fable adversarial pairing loop (Dan 2026-07-11 — D-22)
+
+**Purpose:** Grok 4.5 Fast is the **mandatory adversarial second opinion** on every Fable 5 deep spec, architecture, or escalation answer — before Dan sees the recommendation or Composer implements harness/product design from it. Fable proposes; Grok attacks. Same pairing on **mobile Cursor, cloud VM, and desktop** (§ Platform parity, D-20).
+
+**Triggers — dispatch Fable first, then Grok adversarial on Fable's return:**
+
+1. **Work Verifier** fired (§ Work Verifier) — spec phase boundary, Ship Verifier architecture escalation, Dan says "fable verify" / "fable check"
+2. Dan asks Fable (or orchestrator routes to Fable) for **deep spec, architecture, harness design, or convergence** — e.g. autonomy lanes, location-first phase gates, away protocol changes
+3. **Repair loop** routes to Fable for spec-phase or architecture ambiguity (§ Repair loop table)
+4. Ship Verifier escalates ambiguity/architecture → Fable answers → Grok adversarial on that answer
+
+**Never pair for:** routine T0/T1/T2 implementation without Fable; planning questions (§ Planning verify loop owns Grok-only); security gate (Sonnet); mechanical checklist phases; away batch per-item code unless Fable was invoked for design.
+
+**Flow (ordered — do not present until Grok PASS or exhausted caveat):**
+
+1. Dispatch **Fable** (`claude-fable-5-thinking-high`, `readonly`) → capture full output (recommendations, schema proposals, gates).
+2. Dispatch **Fable Adversarial** Grok (`grok-4.5-fast-xhigh`, `readonly`) with Fable output + authoritative sources (`HARNESS_V1_FREEZE.md`, `DECISIONS.md`, away SSOT, spec tripwires). Grok must: **REJECT** / **KEEP** / **ACCEPT** list; freeze check (D-16); SSOT corruption scan; converged protocol if applicable.
+3. **PARTIAL/FAIL** → Fable rebuttal or Composer revises synthesis → **same Grok** re-verifies per § Fix-closure. **Max 3 cycles** (initial adversarial + up to 2 convergence rounds); then present with **`Caveat: fable-adversarial exhausted`**.
+4. **PASS** → present converged answer only (single "Composer findings" block when both models agree).
+
+**Dispatch (Fable Adversarial — Grok):**
+
+```text
+Task({
+  subagent_type: "generalPurpose",
+  model: "grok-4.5-fast-xhigh",
+  readonly: true,
+  description: "Fable adversarial",
+  prompt: "…Fable output verbatim, task scope, authoritative sources… Adversarial review: REJECT/KEEP/ACCEPT; freeze D-16; away/built SSOT; hidden schema/gates; converged protocol; verdict PASS|PARTIAL|FAIL + exact fixes if not PASS."
+})
+```
+
+**Grok checks (mandatory):** `HARNESS_V1_FREEZE.md` 2× pain bar; `away-validate` / `built` semantics; no schema-by-stealth; no new gates without pain; contradictions with `DECISIONS.md` and existing alwaysApply rules; D-15 deletion test on Fable additions.
+
+**Evidence (mandatory when pairing triggered):** `work-verifier: <fable-task-id>` — **required real Fable Task id**; paraphrased "Fable said" without Task dispatch = NOT RUN, route to Critical Reviewer instead — plus `fable-adversarial: <grok-task-id>` + `model: grok-4.5-fast-xhigh` + verdict **PASS** required before present/implement design; `fix-verified: <re-verify task-id>` when Grok flagged issues and Fable/Composer revised. Missing `fable-adversarial:` when Fable Task ran on spec/architecture = **NOT RUN** — do not present design or edit rules from Fable alone.
+
+**vs Critical Reviewer:** When this pairing runs on an architecture/harness decision, the Grok adversarial pass **satisfies** § Critical Reviewer for that same Fable answer — do not dispatch a second Grok Critical Reviewer on identical output in the same turn. Critical Reviewer still runs standalone when **no Fable output** exists (new gate proposal from Composer only, ≥3-phase plan from Composer draft, Dan says "grok review").
+
+**Platform parity:** Identical pairing on desktop IDE, mobile Cursor app, and cloud VM; no mobile skip. Composer never self-closes a Fable-adversarial finding.
