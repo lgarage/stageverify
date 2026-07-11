@@ -19,6 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
+- **Cloud/iPhone:** Env bootstrap files on branch `cursor/iphone-cloud-env-setup-d443` (`.cursor/environment.json`, `AGENTS.md`, `verify:cloud-env`) — secrets not configured in dashboard yet.
 - **Product:** Run `verify:location-phase4:prod` after gh-pages deploy; push ingest still **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 1 — pending→indexer promotion (unchanged). See `DECISIONS.md` D-18.
 
