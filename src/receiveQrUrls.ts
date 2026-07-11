@@ -195,7 +195,7 @@ export function buildDeliveryLabelQrUrl(deliveryId: string): string {
 
 /** Fix legacy and compact hashes so HashRouter routes match. */
 export function normalizeReceiveHash(): void {
-  let hash = window.location.hash;
+  const hash = window.location.hash;
 
   if (/^#\/?r(\?|$)/i.test(hash) && !hash.includes("receive")) {
     const qsStart = hash.indexOf("?");

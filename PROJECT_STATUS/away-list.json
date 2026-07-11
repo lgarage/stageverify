@@ -9,12 +9,12 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Overnight batch 2026-07-09 away-118..121 + away-123 shipped. Queue empty.",
+    "instructions": "Overnight 2026-07-11 cloud: away-124 harness + away-125 lint. Feature branch + PR only — do not push main or deploy.",
     "sequence": [],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
-      "updatedAt": "2026-07-10T03:54:28.072Z"
+      "updatedAt": "2026-07-11T04:54:08.000Z"
     }
   },
   "queue": [

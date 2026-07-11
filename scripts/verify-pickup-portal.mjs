@@ -315,6 +315,29 @@ async function waitForPickupCard(page) {
   });
 }
 
+/**
+ * HashRouter ignores goto() to the same #/pickup?… URL (no remount).
+ * Force a blank navigation first so fixture reseeds are visible.
+ * Authenticate when needed: recordPickupEvent does a client getDoc(deliveries)
+ * before the CF call, and live Firestore rules require auth for that read.
+ */
+async function remountPickupPortal(page, pickupToken, { authenticate = false } = {}) {
+  if (authenticate) {
+    console.log(
+      "Auth for Scenario A: live rules require auth for delivery getDoc inside recordPickupEvent…",
+    );
+    await ensureAuthenticated(page, appBase);
+  }
+  await page.goto("about:blank", { waitUntil: "domcontentloaded", timeout: 15_000 });
+  const remountUrl = `${appBase}/#/pickup?t=${pickupToken}&delivery=${deliveryId}`;
+  console.log(`Remounting pickup portal: ${remountUrl}`);
+  await page.goto(remountUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await waitForPickupCard(page);
+}
+
 async function assertLocationDisplayFull(page) {
   const primary = page.getByTestId("pickup-at-primary");
   const primaryText = (await primary.textContent())?.trim() ?? "";
@@ -723,11 +746,9 @@ async function runDashboardBadgeCheck(browser) {
   try {
     await runScenarioB(page);
     await reseedPickupFixtureAfterScenarioB();
-    await page.goto(`${appBase}/#/pickup?t=${pickupToken}&delivery=${deliveryId}`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
-    await waitForPickupCard(page);
+    // Same-hash goto is a HashRouter no-op; remount + auth so Scenario A completion
+    // can pass live Firestore rules (client getDoc in recordPickupEvent).
+    await remountPickupPortal(page, pickupToken, { authenticate: true });
     await runScenarioA(page, pickupToken);
   } catch (err) {
     await page.screenshot({

@@ -388,7 +388,6 @@ export const disconnectGmailOAuth = onCall(
       await secretSnap.ref.delete();
     }
 
-    const now = new Date().toISOString();
     await connectionRef(db).set(defaultConnection());
     await writeAuditEvent(db, "disconnected", request.auth.uid);
 

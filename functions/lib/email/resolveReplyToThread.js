@@ -123,10 +123,10 @@ function resolveReplyToThread(input) {
             }
         }
     }
-    let humanReviewRequired = true;
+    let humanReviewRequired;
     let applyConflictReason;
-    let confidenceScore = contentMatch.confidenceScore;
-    let confidenceReason = contentMatch.confidenceReason;
+    let confidenceScore;
+    let confidenceReason;
     if (outboundEvent) {
         confidenceScore = matchedBy === "bodyToken" ? 55 : 95;
         confidenceReason = `thread_ladder:${matchedBy}`;

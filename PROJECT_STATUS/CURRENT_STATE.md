@@ -5,7 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Last shipped: **G1 release E2E fixture** — `verify:location-phase4` **11/11 PASS** local (`v0.0.32`); peer G2/GL clearance + `parseStagingLocation` adjacency fields.
+- Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset)
 - Active Phase: **Location-first Phase 4** (`v0.0.32`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; Phase 1 pending (pending→indexer promotion).
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
@@ -19,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Cloud/iPhone:** Env bootstrap files on branch `cursor/iphone-cloud-env-setup-d443` (`.cursor/environment.json`, `AGENTS.md`, `verify:cloud-env`) — secrets not configured in dashboard yet.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Run `verify:location-phase4:prod` after gh-pages deploy; push ingest still **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 1 — pending→indexer promotion (unchanged). See `DECISIONS.md` D-18.
 

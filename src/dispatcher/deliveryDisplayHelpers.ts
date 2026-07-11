@@ -1089,6 +1089,7 @@ export function shouldShowPickupSummaryPanel(
   items: Item[],
   _pickupEvents: PickupEvent[],
 ): boolean {
+  void _pickupEvents;
   return sumItemQtyReceived(items) > 0;
 }
 
@@ -1227,6 +1228,7 @@ const {
   installed: _installedOverviewLabel,
   ...deliveryOverviewStatusLabels
 } = DELIVERY_STATUS_LABEL;
+void _installedOverviewLabel;
 
 export const DELIVERY_OVERVIEW_FILTER_LABEL: Record<
   DeliveryOverviewFilterStatus,

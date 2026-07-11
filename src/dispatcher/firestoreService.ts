@@ -1013,6 +1013,7 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     _actorName = "Dispatcher",
   ): Promise<DeliveryDetails | null> {
+    void _actorName;
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const now = new Date().toISOString();
@@ -1601,7 +1602,8 @@ async function hydrateDeliveryDetailsPublic(
 
   const stagingLocation = locSnap ? stagingLocationFromSnap(locSnap) : undefined;
 
-  const { notes: _n, ...publicDelivery } = delivery;
+  const { notes, ...publicDelivery } = delivery;
+  void notes;
 
   return {
     delivery: publicDelivery as DeliveryOrder,
@@ -1634,6 +1636,8 @@ export function prefetchVendorReceiveDelivery(
   _deliveryId: string,
   _options?: { force?: boolean },
 ): void {
+  void _deliveryId;
+  void _options;
   /* intentionally empty */
 }
 

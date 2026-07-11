@@ -284,6 +284,81 @@
       "promotionCandidate": false,
       "notes": "Jul 7 2026 Sonnet/Fable evidence audit persistence; gotcha-map security-gate-evidence owns gate injection.",
       "createdAt": "2026-07-07T10:32:00.000Z"
+    },
+    {
+      "id": "idx-009",
+      "category": "decision",
+      "summary": "verify:pickup post-Scenario-B: HashRouter ignores same-hash goto — remount via about:blank; Scenario A needs auth because recordPickupEvent client getDoc(deliveries) is auth-gated",
+      "canonicalLocation": "scripts/verify-pickup-portal.mjs",
+      "sourceTask": "away-124",
+      "sourceCommit": "7639d40",
+      "tags": [
+        "verify",
+        "pickup",
+        "playwright"
+      ],
+      "triggerTerms": [
+        "verify:pickup",
+        "post-reseed",
+        "HashRouter",
+        "about:blank",
+        "Scenario A",
+        "recordPickupEvent",
+        "permission denied",
+        "pickup completion"
+      ],
+      "type": "verify-only",
+      "subtype": "playwright-route",
+      "slice": {
+        "file": "scripts/verify-pickup-portal.mjs",
+        "startLine": 324,
+        "endLine": 340,
+        "anchor": "remountPickupPortal"
+      },
+      "relatedFiles": [
+        "scripts/verify-pickup-portal.mjs",
+        "scripts/dispatcherVerifyHelpers.mjs",
+        "AGENTS.md"
+      ],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "gateCandidate": false,
+      "notes": "After Scenario B reseed, remountPickupPortal(authenticate:true) before Scenario A.",
+      "createdAt": "2026-07-11T04:56:21.231Z"
+    },
+    {
+      "id": "idx-010",
+      "category": "repeated failure",
+      "summary": "verify:location-phase4 failed — ORD-005 Divergence badge missing; G1 release E2E requires releasePlannedStagingLocation CF when vendor session writes",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": "away-124",
+      "sourceCommit": null,
+      "tags": [
+        "verify",
+        "verify-failure",
+        "verify-auto-capture"
+      ],
+      "triggerTerms": [
+        "location-phase4",
+        "ORD-005",
+        "divergence badge",
+        "G1 release",
+        "release-planned-staging",
+        "verify failure"
+      ],
+      "type": "service-logic",
+      "subtype": "verify",
+      "slice": null,
+      "relatedFiles": [
+        "package.json#verify:location-phase4"
+      ],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": true,
+      "gateCandidate": false,
+      "notes": "Merged from learning-pending during away-124 ship; G1 release CF may already be deployed — re-check before treating as open.",
+      "createdAt": "2026-07-11T04:56:21.232Z"
     }
   ]
 }
