@@ -194,6 +194,11 @@ export function classifyVerifyFailure(ctx) {
     addTerms("prod verify", "gh-pages", "STAGEVERIFY_BASE_URL", ctx.domain);
   }
 
+  const spawnPatchChildTimeout =
+    /timed out after \d+s/i.test(combined) &&
+    (/patch[-/]|scripts\/patch|runpatchscript|spawnsync patch|spawn-sync patch/i.test(combined) ||
+      /\.mjs timed out|patch.*\.mjs/i.test(combined));
+
   if (
     ghPagesProd &&
     (/stale|old bundle|not updated|cache|404|propagation|deploy.*first|redeploy/i.test(combined) ||
@@ -203,12 +208,27 @@ export function classifyVerifyFailure(ctx) {
     gateCandidate = true;
     summary = `${ctx.scriptName} prod verify fail — likely stale gh-pages bundle; redeploy before :prod verify`;
     addTerms("prod verify fail", "stale bundle", "gh-pages stale", "redeploy", "local pass prod fail");
+  } else if (spawnPatchChildTimeout) {
+    category = "gotcha";
+    gateCandidate = true;
+    summary = `${ctx.scriptName} spawnSync patch child timed out — patch script likely missing process.exit(0); Firebase/auth listeners keep Node alive after batch commit`;
+    addTerms(
+      "spawn-child-timeout",
+      "spawn-sync patch",
+      "process.exit",
+      "patch script",
+      "spawnSync",
+      ctx.scriptName.replace(/^verify:/, ""),
+    );
   } else if (/timeout|timed out|waiting for/i.test(combined)) {
     category = "gotcha";
     summary = `${ctx.scriptName} Playwright timeout — check dev server, auth state, or prod propagation lag`;
     addTerms("playwright", "timeout", ctx.domain);
     if (ghPagesProd) gateCandidate = true;
-  } else if (/auth|storage.state|login|firebase.*token|expired|STAGEVERIFY_TEST/i.test(combined)) {
+  } else if (
+    /auth|storage\.state|login|firebase.*token|expired|STAGEVERIFY_TEST/i.test(combined) &&
+    !/auth\s+ok|sign-in ok|dispatcher auth ok|authenticated/i.test(combined)
+  ) {
     category = "lesson";
     summary = `${ctx.scriptName} auth failure — re-run playwright-auth-setup.mjs (state.json expired ~1h)`;
     addTerms("playwright auth", "storage-state", "firebase token");

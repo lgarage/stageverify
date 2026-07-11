@@ -642,6 +642,37 @@
       "warning": "test@stageverify.dev has NO MX — must NOT be used for email ingest tests. Prod Playwright uses STAGEVERIFY_TEST_EMAIL from .env.local (dispatcher auth). Emulator tests use dispatcher-test@stageverify.test. Connected bot inbox: svbotmail@gmail.com (emailProviderConnections/gmail). Do not hardcode new test defaults without Dan confirming CI/secrets."
     },
     {
+      "id": "spawn-sync-patch-exit",
+      "match": [
+        "spawn-child-timeout",
+        "spawn-sync patch",
+        "spawnSync patch",
+        "patch script timed out",
+        "patch script missing process.exit",
+        "process.exit patch",
+        "patch-phase4",
+        "runPatchScript",
+        "firebase listeners keep node alive"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": [
+        "scripts/verify-location-phase4.mjs",
+        "scripts/patch-phase4-release-e2e-fixture.mjs",
+        "scripts/lib/verify-learning-hook.mjs"
+      ],
+      "rules": ["composer-orchestrator.mdc", "ship-loop.mdc"],
+      "commands": ["npm run verify:location-phase4", "npm run indexer:demo-verify-failure -- --assert"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "verify script spawnSync patch child",
+        "patch fixture script hangs after Firestore commit",
+        "Playwright verify timeout on patch seed step"
+      ],
+      "warning": "spawnSync patch children that sign in to Firebase and commit Firestore batches must call process.exit(0) on success — Firebase Auth/Firestore keep the Node event loop alive and the parent verify script hits its patch timeout (120s) even after \"committing batch…\" logs. Symptom: verify-learning misclassified as generic Playwright timeout (vfl-013). Fix: add process.exit(0) at end of scripts/patch-*.mjs; parent runPatchScript already treats ETIMEDOUT as failure."
+    },
+    {
       "id": "subagent-shell-unavailable",
       "match": [
         "shell unavailable",

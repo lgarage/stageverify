@@ -170,6 +170,87 @@ if (captureResult.entry) {
 const { errors: pendingErrors } = validatePendingLearnings();
 assert(pendingErrors.length === 0, `validatePendingLearnings errors: ${pendingErrors.join("; ")}`);
 
+// --- Case 8: spawnSync patch child timeout (D-18 Phase 0 — not generic Playwright timeout) ---
+const spawnPatchStderr = `
+Error: scripts/patch-phase4-release-e2e-fixture.mjs timed out after 120s
+    at runPatchScript (file:///C:/Projects/stageverify/scripts/verify-location-phase4.mjs:53:11)
+`;
+const spawnPatchStdout = `
+=== patch phase4 release E2E fixture ===
+[patch-phase4-release] signing in…
+[patch-phase4-release] sign-in OK
+[patch-phase4-release] committing batch…
+Phase 4 release E2E fixture: planned G1 only on delivery-demo-vendor-1; pipe-a adjacency on G2+GL.
+`;
+const spawnClassified = classifyVerifyFailure({
+  scriptName: "verify:location-phase4",
+  exitCode: 1,
+  stderrTail: spawnPatchStderr,
+  stdoutTail: spawnPatchStdout,
+  isProd: false,
+  domain: "verify",
+});
+assert(
+  spawnClassified.category === "gotcha",
+  `spawn patch timeout should be gotcha; got ${spawnClassified.category}`,
+);
+assert(
+  spawnClassified.gateCandidate === true,
+  "spawn patch timeout should be gateCandidate",
+);
+assert(
+  spawnClassified.summary.toLowerCase().includes("process.exit"),
+  `spawn patch summary should mention process.exit; got: ${spawnClassified.summary}`,
+);
+assert(
+  (spawnClassified.triggerTerms ?? []).some((t) => /spawn-child-timeout|spawn-sync|process\.exit/i.test(t)),
+  "spawn patch should include spawn-child-timeout trigger terms",
+);
+assert(
+  !spawnClassified.summary.toLowerCase().includes("playwright timeout"),
+  "spawn patch should not classify as generic Playwright timeout",
+);
+
+// --- Case 9: auth OK in stdout must not false-positive auth failure (vfl-014 misclass) ---
+const authOkClassified = classifyVerifyFailure({
+  scriptName: "verify:location-phase4",
+  exitCode: 1,
+  stderrTail: null,
+  stdoutTail:
+    "[verify] ensureAuthenticated…\n[verify] dispatcher auth OK\nFAIL: ORD-005 Divergence badge in list — missing",
+  isProd: false,
+  domain: "verify",
+});
+assert(
+  !authOkClassified.summary.toLowerCase().includes("auth failure"),
+  `auth OK stdout should not classify as auth failure; got: ${authOkClassified.summary}`,
+);
+
+const spawnPatchCapture = captureVerifyFailure({
+  scriptName: "verify:location-phase4",
+  exitCode: 1,
+  stderrTail: spawnPatchStderr,
+  stdoutTail: spawnPatchStdout,
+  dryRun: true,
+});
+assert(
+  spawnPatchCapture.entry?.summary?.toLowerCase().includes("process.exit"),
+  "spawn patch capture should record process.exit summary",
+);
+assert(
+  spawnPatchCapture.entry?.gateCandidate === true,
+  "spawn patch capture should set gateCandidate",
+);
+
+const spawnTaskQuery =
+  "verify location phase4 spawnSync patch child timed out process.exit patch-phase4";
+const gotchaMap = loadGotchaMap();
+const spawnMatched = matchTriggers(spawnTaskQuery, gotchaMap.triggers ?? []);
+assert(
+  spawnMatched.some((t) => t.id === "spawn-sync-patch-exit"),
+  "gotcha-map should match spawn-sync-patch-exit for patch timeout task",
+);
+
 const payload = {
   _demo: true,
   capture: {

@@ -5,8 +5,9 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
+- Last shipped: **D-18 auto-gotcha Phase 0** (standalone chore)
 - Active Phase: **Location-first Phase 4** (`v0.0.31`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
-- **Harness in-flight (D-18):** Auto-gotcha learning plan agreed (Grok `537f0ed9`) — **Phase 0 not built yet** (classifier + `spawn-sync-patch-exit` gotcha + vfl-013/014 cleanup + demos).
+- **Harness in-flight (D-18):** Auto-gotcha learning Phase 0 **shipped** — spawn-child-timeout classifier, `spawn-sync-patch-exit` gotcha, vfl-013/014 corrected, demo cases 8–9.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
 - **Verify:** `verify:location-phase4` **10/11 PASS** after `process.exit(0)` on patch child; **1 FAIL** G1 release E2E (NMS "no ground spots" — fixture/occupancy, not CF hang).
 - Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
@@ -18,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Harness (D-18):** Implement Phase 0 — `spawn-child-timeout` classifier, `gotcha-map` entry `spawn-sync-patch-exit`, correct vfl-013/014 in `learning-pending.json`, extend `indexer-demo-verify-failure.mjs`; then fix G1 release E2E fixture → 11/11 verify. See `DECISIONS.md` D-18.
+- **Harness (D-18):** Phase 0 done — next: fix G1 release E2E fixture → 11/11 `verify:location-phase4`; Phase 1 pending (pending→indexer promotion unchanged). See `DECISIONS.md` D-18.
 - **Product:** Retry `verify:location-phase4:prod` when gh-pages bundle propagates; push ingest still **[high-risk]** — Dan approval.
 
 ## Canonical references
