@@ -57,14 +57,32 @@ Planning questions ("what's next", "what else can be worked on", ranked options,
 
 ## 7. Dual-lane mobile autonomy (build on phone, drain on PC)
 
-Converged Fable ↔ Grok protocol — **documentation only**; no new `away-list.json` schema. See `AGENTS.md` § Dual-lane for full text.
+Converged Fable ↔ Grok protocol — **documentation only**; no new `away-list.json` schema. Full protocol also in `AGENTS.md` § Dual-lane.
 
 | Lane | Owns | Never |
 |------|------|-------|
 | **Mobile / cloud** | Feature branch, PR, `npm run build`, local `verify:*`, `npm run verify:pr-loop` | Merge `main`, `npm run deploy`, `:prod`, `away:ship` |
 | **PC / Mac** | Merge, deploy, `:prod`, Ship Verifier, security gate, `away:ship` | — |
 
-**Handoff:** When mobile opens a PR, set the away item to existing **`blocked`** status (not `queued`) with PR number in a free-text note — prevents `away:next` from rebuilding the same item. PC merges and closes via `away:ship` so `built` keeps its sole meaning (shipped on main).
+**Mobile / cloud lane (build only):**
+
+1. Read hot tier (`PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`); follow alwaysApply harness (D-20).
+2. Pick **one** queued away item; hard cap **one open mobile PR**.
+3. Feature branch only (`cursor/…`); commit + push **branch**; open/update PR — do **not** merge or push `main`.
+4. Run `npm run build`, item `verify:*`, and `npm run verify:pr-loop` (honor `verifierRoute`; `autonomy.mergeAllowed` / `deployAllowed` stay **false**).
+5. High-risk paths without recorded Dan approval → **halt**; mark item `blocked` with reason in report; do not open PR.
+6. On PR open: set item **`status: "blocked"`** (existing enum) with note e.g. `PR #N open — awaiting PC merge + prod verify (mobile lane)`; remove from `executionProtocol.sequence` if present; `npm run away:validate` must pass.
+7. Completion report: PR URL, branch, classifier `autonomy` JSON, and **"PC must: merge → deploy → `:prod` → `away:ship`."** `ship-verifier: N/A (branch only)`.
+8. On fail: halt and report — **no** skip-and-continue to the next away item.
+
+**PC lane (Mac / Remote Control):**
+
+1. Surface `blocked` items whose note references an open PR.
+2. Re-run `npm run verify:pr-loop -- --pr N`; Dan reviews; merge on PC only.
+3. On `main`: version bump if bundle ship; `npm run build`; relevant local `verify:*`.
+4. `npm run deploy` when frontend bundle changed; wait GitHub Pages **`built`**.
+5. Run matching `:prod` verifies; **Ship Verifier** on merged range; Sonnet security gate if classifier flagged security paths.
+6. `npm run away:ship -- --id away-NNN --commit <merge hash>` — item becomes **`built`** (shipped on main, awaiting archive). Mobile **never** calls `away:ship`.
 
 **Classifier trial** (paste into PR description after `npm run verify:pr-loop -- --json`):
 
