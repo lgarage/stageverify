@@ -1,56 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getProposedEmailUpdates } from "./getProposedEmailUpdates";
+import {
+  inboundVendorEventsToProposals,
+} from "./getProposedEmailUpdates";
 import {
   filterNeedsReviewEmails,
   formatEmailReviewPreview,
   getEmailReviewHeadlines,
 } from "./emailReviewHelpers";
 import { listPendingInboundVendorEmailEvents } from "../firestoreService";
-import type { VendorEmailEvent } from "../models";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
-function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
-  const originalBody = event.bodyText ?? event.bodyExcerpt ?? "";
-  return {
-    messageId: event.sourceMessageId,
-    subject: event.subject,
-    senderEmail: event.senderEmail,
-    receivedAt: event.receivedAt,
-    classification: (event.emailClassification ??
-      "needs_dispatcher_review") as ProposedEmailUpdate["classification"],
-    poNumber: event.proposedPoNumber ?? null,
-    vendorName: null,
-    confidenceScore: event.confidenceScore ?? 0,
-    confidenceReason: event.confidenceReason ?? event.applyConflictReason ?? "pending_review",
-    reviewStatus: "pending_review",
-    duplicate: false,
-    matchedJobNumber: event.proposedJobNumber ?? null,
-    matchedPoLabel: event.proposedPoNumber ?? null,
-    matchedOrderLabel: event.proposedOrderNumber ?? null,
-    matchedDeliveryLabel: event.deliveryOrderId ?? null,
-    matchedDeliveryOrderId: event.deliveryOrderId ?? null,
-    itemLines: [],
-    bodyExcerpt: event.bodyExcerpt ?? "",
-    originalBody,
-    recipientEmails: event.recipientEmails ?? [],
-    threadId: event.threadId,
-    proposedOperationalMeaning:
-      event.matchedBy && event.matchedBy !== "none"
-        ? "Matched vendor reply — dispatcher confirm required"
-        : "Unmatched inbound reply",
-    affectsCondition1: false,
-    condition1ApprovalNote: "",
-    matchedBy: event.matchedBy,
-    humanReviewRequired: event.humanReviewRequired,
-    applyConflictReason: event.applyConflictReason,
-  };
-}
-
 export function NeedsReviewEmailStrip() {
-  const [liveEvents, setLiveEvents] = useState<VendorEmailEvent[]>([]);
+  const [liveEvents, setLiveEvents] = useState<ProposedEmailUpdate[]>([]);
   const [liveLoaded, setLiveLoaded] = useState(false);
 
   useEffect(() => {
@@ -58,7 +22,7 @@ export function NeedsReviewEmailStrip() {
     void listPendingInboundVendorEmailEvents()
       .then((rows) => {
         if (!cancelled) {
-          setLiveEvents(rows);
+          setLiveEvents(inboundVendorEventsToProposals(rows));
           setLiveLoaded(true);
         }
       })
@@ -71,12 +35,8 @@ export function NeedsReviewEmailStrip() {
   }, []);
 
   const needsReview = useMemo(() => {
-    if (liveEvents.length > 0) {
-      return liveEvents.map(liveEventToProposal);
-    }
     if (!liveLoaded) return [];
-    const all = getProposedEmailUpdates();
-    return filterNeedsReviewEmails(all);
+    return filterNeedsReviewEmails(liveEvents);
   }, [liveEvents, liveLoaded]);
   const [expanded, setExpanded] = useState(false);
   const [openOriginalId, setOpenOriginalId] = useState<string | null>(null);

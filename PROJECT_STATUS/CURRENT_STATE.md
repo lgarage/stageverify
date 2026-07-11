@@ -5,7 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset)
+- Last shipped: **demo removal** — stop auto-seed; hide ORD-001..006 from dispatcher list; UI uses live invoice imports + vendor email events only (`v0.0.33`).
 - Active Phase: **Location-first Phase 4** (`v0.0.32`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
@@ -19,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **Firestore cleanup:** run `npm run cleanup:demo-data` (dry-run) then `npm run cleanup:demo-data:confirm` to delete legacy seed docs from `stageverify-db`.
 - **Product:** Run `verify:location-phase4:prod` after gh-pages deploy; push ingest still **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18.
 

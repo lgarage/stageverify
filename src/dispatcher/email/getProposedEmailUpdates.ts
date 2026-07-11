@@ -1,14 +1,6 @@
-import { EMAIL_FIXTURES, MULTI_VENDOR_MATCH_CONTEXT } from "./emailFixtures";
-import { contentFingerprint } from "./parseVendorEmail";
-import { processInboundEmail } from "./processEmailMessage";
-import {
-  bodyExcerpt,
-  describeCondition1Impact,
-  describeOperationalMeaning,
-  resolveMatchLabels,
-} from "./proposedEmailDetail";
-import type { DeliveryOrder } from "../models";
+import type { DeliveryOrder, VendorEmailEvent } from "../models";
 import type { EmailClassification, EmailProcessingResult } from "./types";
+import { bodyExcerpt } from "./proposedEmailDetail";
 
 export interface ProposedEmailUpdate {
   messageId: string;
@@ -26,11 +18,11 @@ export interface ProposedEmailUpdate {
   matchedPoLabel: string | null;
   matchedOrderLabel: string | null;
   matchedDeliveryLabel: string | null;
-  /** Fixture/offline match target — filter drawer evidence by delivery.id or order+PO. */
+  /** Live match target — filter drawer evidence by delivery.id or order+PO. */
   matchedDeliveryOrderId: string | null;
   itemLines: Array<{ description: string; qty?: number }>;
   bodyExcerpt: string;
-  /** Full original body — shown only after View Original Email (fixtures / future VendorEmailEvent). */
+  /** Full original body — shown only after View Original Email. */
   originalBody: string;
   recipientEmails: string[];
   threadId?: string;
@@ -43,69 +35,61 @@ export interface ProposedEmailUpdate {
   applyConflictReason?: string;
 }
 
-const vendorNameById = new Map(
-  MULTI_VENDOR_MATCH_CONTEXT.vendors.map((v) => [v.id, v.name]),
-);
-
-/** Offline fixture-derived proposals for dispatcher review (read-only — no Firestore writes). */
-export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
-  if (import.meta.env.PROD) {
-    return [];
-  }
-
-  const existing = {
-    byMessageId: new Map<string, string>(),
-    byFingerprint: new Map<string, string>(),
+/** Map live Firestore vendor email events to drawer/readiness proposal rows. */
+export function vendorEmailEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
+  const originalBody = event.bodyText ?? event.bodyExcerpt ?? "";
+  return {
+    messageId: event.sourceMessageId,
+    subject: event.subject,
+    senderEmail: event.senderEmail,
+    receivedAt: event.receivedAt,
+    classification: (event.emailClassification ??
+      "needs_dispatcher_review") as ProposedEmailUpdate["classification"],
+    poNumber: event.proposedPoNumber ?? null,
+    vendorName: null,
+    confidenceScore: event.confidenceScore ?? 0,
+    confidenceReason: event.confidenceReason ?? event.applyConflictReason ?? "pending_review",
+    reviewStatus: "pending_review",
+    duplicate: false,
+    matchedJobNumber: event.proposedJobNumber ?? null,
+    matchedPoLabel: event.proposedPoNumber ?? null,
+    matchedOrderLabel: event.proposedOrderNumber ?? null,
+    matchedDeliveryLabel: event.deliveryOrderId ?? null,
+    matchedDeliveryOrderId: event.deliveryOrderId ?? null,
+    itemLines: [],
+    bodyExcerpt: event.bodyExcerpt ?? bodyExcerpt(originalBody),
+    originalBody,
+    recipientEmails: event.recipientEmails ?? [],
+    threadId: event.threadId,
+    proposedOperationalMeaning:
+      event.matchedBy && event.matchedBy !== "none"
+        ? "Matched vendor reply — dispatcher confirm required"
+        : "Unmatched inbound reply",
+    affectsCondition1: false,
+    condition1ApprovalNote: "",
+    matchedBy: event.matchedBy,
+    humanReviewRequired: event.humanReviewRequired,
+    applyConflictReason: event.applyConflictReason,
   };
-  const proposals: ProposedEmailUpdate[] = [];
+}
 
-  for (const fixture of EMAIL_FIXTURES) {
-    const result = processInboundEmail(fixture, MULTI_VENDOR_MATCH_CONTEXT, existing);
-    if (result.duplicate) continue;
-    existing.byMessageId.set(fixture.sourceMessageId, fixture.sourceMessageId);
-    existing.byFingerprint.set(contentFingerprint(fixture), fixture.sourceMessageId);
+export function inboundVendorEventsToProposals(
+  events: readonly VendorEmailEvent[],
+): ProposedEmailUpdate[] {
+  return events
+    .filter((event) => event.direction === "inbound" || !event.direction)
+    .map(vendorEmailEventToProposal)
+    .sort(
+      (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+    );
+}
 
-    if (result.reviewStatus === "rejected") continue;
-
-    const labels = resolveMatchLabels(result.match, result.parsed, MULTI_VENDOR_MATCH_CONTEXT);
-    const condition1 = describeCondition1Impact(result);
-
-    proposals.push({
-      messageId: fixture.sourceMessageId,
-      subject: fixture.subject,
-      senderEmail: fixture.senderEmail,
-      receivedAt: fixture.receivedAt,
-      classification: result.parsed.classification,
-      poNumber: result.parsed.poNumbers[0] ?? null,
-      vendorName: result.match.vendorId
-        ? (vendorNameById.get(result.match.vendorId) ?? result.match.vendorId)
-        : null,
-      confidenceScore: result.match.confidenceScore,
-      confidenceReason: result.match.confidenceReason,
-      reviewStatus: result.reviewStatus,
-      duplicate: result.duplicate,
-      matchedJobNumber: labels.jobNumber,
-      matchedPoLabel: labels.poLabel,
-      matchedOrderLabel: labels.orderLabel,
-      matchedDeliveryLabel: labels.deliveryLabel,
-      matchedDeliveryOrderId: result.match.deliveryOrderId ?? null,
-      itemLines: result.parsed.itemLines,
-      bodyExcerpt: bodyExcerpt(fixture.bodyText),
-      originalBody: fixture.bodyText,
-      recipientEmails: fixture.recipientEmails,
-      threadId: fixture.threadId,
-      proposedOperationalMeaning: describeOperationalMeaning(
-        result.parsed.classification,
-        result.parsed,
-      ),
-      affectsCondition1: condition1.affectsCondition1,
-      condition1ApprovalNote: condition1.note,
-    });
-  }
-
-  return proposals.sort(
-    (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
-  );
+/**
+ * Offline fixture proposals removed — dispatcher UI uses live VendorEmailEvent
+ * and vendorInvoiceImports (invoice review queue) only.
+ */
+export function getProposedEmailUpdates(): ProposedEmailUpdate[] {
+  return [];
 }
 
 /**

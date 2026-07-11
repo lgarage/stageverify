@@ -179,7 +179,7 @@ async function fetchWhere<T>(
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
 }
 
-/** Seed/demo deliveries from seedFirestore.ts — hidden on prod gh-pages list only. */
+/** Seed/demo deliveries from seedFirestore.ts — hidden from dispatcher list (invoice-import data only). */
 const SEED_DEMO_DELIVERY_IDS = new Set([
   "delivery-1",
   "delivery-2",
@@ -360,11 +360,9 @@ export class FirestoreDataService implements DispatcherDataService {
       materialIssuesByDelivery.set(issue.deliveryOrderId, list);
     }
 
-    const hideSeedDemoRows = import.meta.env.PROD;
-
     const rows: DeliveryListRow[] = [];
     for (const delivery of deliveries) {
-      if (hideSeedDemoRows && isSeedDemoDelivery(delivery)) continue;
+      if (isSeedDemoDelivery(delivery)) continue;
 
       const job = allJobs.find((j) => j.id === delivery.jobId);
       const vendor = allVendors.find((v) => v.id === delivery.vendorId);

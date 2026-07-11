@@ -7,7 +7,6 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
 import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
-import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
 const CheckinToReceiveRedirect = lazy(() =>
@@ -30,13 +29,6 @@ const InvoiceReviewPage = lazy(() =>
 );
 const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
-const VendorDemoScanPage = lazy(() =>
-  import("./VendorDemoScanPage").then((m) => ({ default: m.VendorDemoScanPage })),
-);
-const PickupDemoScanPage = lazy(() =>
-  import("./PickupDemoScanPage").then((m) => ({ default: m.PickupDemoScanPage })),
-);
-
 function CompactRouteSpinner({ label }: { label: string }) {
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
@@ -85,8 +77,14 @@ const renderApp = () => {
               <Route path="/receive" element={<ReceivingPage />} />
               <Route path="/s" element={<LocationScanPage />} />
               <Route path="/r" element={<CompactReceiveRedirect />} />
-              <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
-              <Route path="/demo/pickup-scan" element={<PickupDemoScanPage />} />
+              <Route
+                path="/demo/vendor-scan"
+                element={<Navigate to="/invoice-review" replace />}
+              />
+              <Route
+                path="/demo/pickup-scan"
+                element={<Navigate to="/invoice-review" replace />}
+              />
               <Route path="/display" element={<EntryDisplayPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<DispatcherPortalRouteLayout />}>
@@ -112,8 +110,3 @@ normalizeReceiveHash();
 normalizePickupHash();
 normalizeLocationScanHash();
 renderApp();
-if (import.meta.env.DEV) {
-  seedFirestore().catch((err) => {
-    console.error("Firestore seed failed:", err);
-  });
-}

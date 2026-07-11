@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DeliveryDetails } from "../models";
 import {
   buildDrawerActionBannerContent,
@@ -6,10 +6,12 @@ import {
 } from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
-  getProposedEmailUpdates,
+  inboundVendorEventsToProposals,
 } from "../email/getProposedEmailUpdates";
 import { hasVendorOrderCompleteApplyConflict } from "../email/emailApplyConflicts";
 import { proposalNeedsDrawerReview } from "../email/emailReviewHelpers";
+import { listVendorEmailEventsForDelivery } from "../firestoreService";
+import type { ProposedEmailUpdate } from "../email/getProposedEmailUpdates";
 
 function telDigits(phone: string): string {
   return phone.replace(/\D/g, "");
@@ -52,10 +54,26 @@ export function DrawerActionBanner({
   );
   const readiness = displayState.readiness;
 
-  const proposals = useMemo(() => {
-    const all = getProposedEmailUpdates();
-    return filterProposalsForDelivery(all, delivery, poNumber);
+  const [emailProposals, setEmailProposals] = useState<ProposedEmailUpdate[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listVendorEmailEventsForDelivery(delivery.id)
+      .then((rows) => {
+        if (!cancelled) {
+          const inbound = inboundVendorEventsToProposals(rows);
+          setEmailProposals(filterProposalsForDelivery(inbound, delivery, poNumber));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setEmailProposals([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [delivery, poNumber]);
+
+  const proposals = emailProposals;
 
   const emailAutoApplied =
     delivery.vendorOrderComplete === true &&
