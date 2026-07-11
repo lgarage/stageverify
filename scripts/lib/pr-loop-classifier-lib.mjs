@@ -13,7 +13,10 @@
 
 const HIGH_RISK_RULES = [
   { test: (p) => p === "firestore.rules", reason: "firestore.rules any diff" },
-  { test: (p) => p.startsWith("functions/"), reason: "functions/** (CF deploy surface)" },
+  {
+    test: (p) => p.startsWith("functions/") && !p.startsWith("functions/lib/"),
+    reason: "functions/** CF surface (excludes compiled lib sync)",
+  },
   { test: (p) => p === "firebase.json", reason: "firebase config" },
   { test: (p) => p.startsWith(".github/workflows/"), reason: "CI/workflows secrets" },
 ];
@@ -21,7 +24,10 @@ const HIGH_RISK_RULES = [
 const SECURITY_SURFACE_RULES = [
   { test: (p) => p === "firestore.rules", reason: "firestore.rules" },
   { test: (p) => p.startsWith("functions/src/"), reason: "Cloud Functions writes" },
-  { test: (p) => p.startsWith("functions/"), reason: "functions package" },
+  {
+    test: (p) => p === "functions/package.json",
+    reason: "functions package.json",
+  },
   { test: (p) => /auth|session|token|login|pin/i.test(p) && p.startsWith("src/"), reason: "auth/session/token/login in src/" },
   { test: (p) => /VendorPinGate|verifyTechnicianPin|verifyVendorPin/i.test(p), reason: "PIN/auth surface" },
   { test: (p) => p === "firebase.json", reason: "firebase config" },
@@ -35,8 +41,9 @@ const SHIP_VERIFIER_SUBSTANTIVE = [
   {
     test: (p) =>
       p.startsWith("scripts/") &&
-      /^scripts\/verify-[^/]+\.mjs$/.test(p),
-    reason: "behavior-bearing verify script",
+      (/^scripts\/verify-[^/]+\.mjs$/.test(p) ||
+        /^scripts\/(away|command-interface)-/.test(p)),
+    reason: "behavior-bearing script",
   },
 ];
 
@@ -213,7 +220,10 @@ export function classifyPrDiff(changedFiles, options = {}) {
     (c) =>
       c.category === "security-surface" ||
       (c.category === "high-risk" &&
-        (c.path.startsWith("functions/") || c.path === "firestore.rules")),
+        (c.path.startsWith("functions/") ||
+          c.path === "firestore.rules" ||
+          c.path === "firebase.json" ||
+          c.path.startsWith(".github/workflows/"))),
   );
 
   /** @type {VerifierRoute} */
@@ -338,6 +348,11 @@ export const CLASSIFIER_FIXTURES = [
     files: ["functions/src/pickup.ts"],
     danApproved: true,
     expect: { verifierRoute: "sonnet-then-grok-pr-verifier", blocked: false },
+  },
+  {
+    name: "functions/lib excluded tier0",
+    files: ["functions/lib/index.js"],
+    expect: { verifierRoute: "tier0-only", blocked: false },
   },
   {
     name: "location-phase4 maps verify script",
