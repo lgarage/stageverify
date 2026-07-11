@@ -28,6 +28,32 @@ Differs from desktop **only** where physically impossible — document here, not
 - Full local ship-loop (build → Playwright → commit → push → `npm run deploy`) is usually done from Dan's Mac via **Remote Control** when iPhone Cloud Agent is read-only or branch-only.
 - **High-risk** changes still need Dan approval **before** implement/deploy: Cloud Functions (`functions/**`), `firestore.rules`, auth/session/route guards, Gmail watch/Pub/Sub, secrets/config, schema migrations.
 
+### Dual-lane mobile autonomy (Fable ↔ Grok convergence — docs only, no schema)
+
+Mobile builds; PC drains. **Max one open mobile PR** at a time. No new `away-list.json` fields — use existing `blocked` status when a PR is open so `away:next` cannot re-pick the item as `queued`.
+
+**Mobile / cloud lane (build only — never merge, deploy, `:prod`, or `away:ship`):**
+
+1. Read hot tier (`PROJECT_STATUS/CURRENT_STATE.md`, `PROJECT_STATUS/MEMORY.md`); follow alwaysApply harness (D-20).
+2. Pick **one** queued away item; hard cap **one open mobile PR**.
+3. Feature branch only (`cursor/…`); commit + push **branch**; open/update PR — do **not** merge or push `main`.
+4. Run `npm run build`, item `verify:*`, and `npm run verify:pr-loop` (honor `verifierRoute`; `autonomy.mergeAllowed` / `deployAllowed` stay **false**).
+5. High-risk paths without recorded Dan approval → **halt**; mark item `blocked` with reason in report; do not open PR.
+6. On PR open: set item **`status: "blocked"`** (existing enum) with note e.g. `PR #N open — awaiting PC merge + prod verify (mobile lane)`; remove from `executionProtocol.sequence` if present; `npm run away:validate` must pass.
+7. Completion report: PR URL, branch, classifier `autonomy` JSON, and **"PC must: merge → deploy → `:prod` → `away:ship`."** `ship-verifier: N/A (branch only)`.
+8. On fail: halt and report — **no** skip-and-continue to the next away item.
+
+**PC lane (Mac / Remote Control — drain):**
+
+1. Surface `blocked` items whose note references an open PR.
+2. Re-run `npm run verify:pr-loop -- --pr N`; Dan reviews; merge on PC only.
+3. On `main`: version bump if bundle ship; `npm run build`; relevant local `verify:*`.
+4. `npm run deploy` when frontend bundle changed; wait GitHub Pages **`built`**.
+5. Run matching `:prod` verifies; **Ship Verifier** on merged range; Sonnet security gate if classifier flagged security paths.
+6. `npm run away:ship -- --id away-NNN --commit <merge hash>` — item becomes **`built`** (shipped on main, awaiting archive). Mobile **never** calls `away:ship`.
+
+**Freeze (D-16):** No `lane` / `prUrl` / `readyForPc` JSON fields until **≥2×** dated mobile pain in `HARNESS_V1_FREEZE.md`. First pain line = log only.
+
 ### Required secrets (names only — set in Cursor Environments dashboard)
 
 | Secret | Purpose |

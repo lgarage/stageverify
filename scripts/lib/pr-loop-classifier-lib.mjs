@@ -392,5 +392,17 @@ export function assertFixture(fixture) {
     }
   }
 
+  if (result.autonomy.mergeAllowed !== false) {
+    errors.push(`autonomy.mergeAllowed: got ${result.autonomy.mergeAllowed}, want false`);
+  }
+  if (result.autonomy.deployAllowed !== false) {
+    errors.push(`autonomy.deployAllowed: got ${result.autonomy.deployAllowed}, want false`);
+  }
+  if (result.autonomy.prodVerifyPreMerge !== false) {
+    errors.push(
+      `autonomy.prodVerifyPreMerge: got ${result.autonomy.prodVerifyPreMerge}, want false`,
+    );
+  }
+
   return { pass: errors.length === 0, errors, result };
 }

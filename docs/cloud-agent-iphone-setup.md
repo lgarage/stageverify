@@ -54,3 +54,25 @@ Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo.
 Repair requests (fix/debug/try again/correct this) follow the same repair loop as desktop — `repair-verifier:` + `fix-verified:` required; Composer never self-closes.
 
 Planning questions ("what's next", "what else can be worked on", ranked options, away planning) follow the same planning verify loop as desktop — `planning-verifier:` + verdict PASS required before present; Composer never self-closes.
+
+## 7. Dual-lane mobile autonomy (build on phone, drain on PC)
+
+Converged Fable ↔ Grok protocol — **documentation only**; no new `away-list.json` schema. See `AGENTS.md` § Dual-lane for full text.
+
+| Lane | Owns | Never |
+|------|------|-------|
+| **Mobile / cloud** | Feature branch, PR, `npm run build`, local `verify:*`, `npm run verify:pr-loop` | Merge `main`, `npm run deploy`, `:prod`, `away:ship` |
+| **PC / Mac** | Merge, deploy, `:prod`, Ship Verifier, security gate, `away:ship` | — |
+
+**Handoff:** When mobile opens a PR, set the away item to existing **`blocked`** status (not `queued`) with PR number in a free-text note — prevents `away:next` from rebuilding the same item. PC merges and closes via `away:ship` so `built` keeps its sole meaning (shipped on main).
+
+**Classifier trial** (paste into PR description after `npm run verify:pr-loop -- --json`):
+
+```text
+## PR loop classifier
+npm run verify:pr-loop -- --branch <branch> --json
+autonomy.mergeAllowed / deployAllowed / prodVerifyPreMerge: false / false / false
+PC must: merge → deploy → :prod → away:ship
+```
+
+**Pain log:** If you wanted to ship from the phone and could not, tell the agent **"log pain: …"** — one dated line in `PROJECT_STATUS/HARNESS_V1_FREEZE.md`. Schema increments wait for a **second** dated mobile friction event (D-16).
