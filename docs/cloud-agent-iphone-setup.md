@@ -41,7 +41,7 @@ Expect PASS on repo config; secrets PASS only after step 3. Then run `node scrip
 
 ## Harness parity (D-20 — same rules as desktop)
 
-Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, verification ladder, security gate, stall-advisor, Ship/Critical/Work verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
+Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, planning verify loop, verification ladder, security gate, stall-advisor, Ship/Critical/Work/Planning verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
 
 ### Exceptions (physically impossible on mobile/cloud only)
 
@@ -52,3 +52,5 @@ Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo.
 | Remote Control for prod ship | Full gh-pages deploy + `:prod` verify often from Mac | Local `npm run deploy` |
 
 Repair requests (fix/debug/try again/correct this) follow the same repair loop as desktop — `repair-verifier:` + `fix-verified:` required; Composer never self-closes.
+
+Planning questions ("what's next", "what else can be worked on", ranked options, away planning) follow the same planning verify loop as desktop — `planning-verifier:` + verdict PASS required before present; Composer never self-closes.

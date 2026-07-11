@@ -9,7 +9,9 @@ alwaysApply: true
 
 ## When to run
 
-Plans, handoffs, recommendations, architecture, away prompts, "what's next", rule edits, post-ship **Remaining time options**.
+Plans, handoffs, recommendations, architecture, away prompts, "what's next", "what else can be worked on", "what can we work on", ranked options, away planning, rule edits, post-ship **Remaining time options**.
+
+**Planning questions:** Grok Planning Verifier per `model-gates.mdc` § Planning verify loop is mandatory before present — Composer self-challenge alone does not satisfy this gate.
 
 **Skip:** trivial typos, single-fact read-only answers, pure code execution with no recommendation.
 
