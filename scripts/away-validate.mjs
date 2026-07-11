@@ -10,7 +10,9 @@ import {
   REPO_ROOT,
   ROADMAP_FORBIDDEN,
   deriveLastShippedFromStatus,
+  describeExecutionProtocolFreshness,
   firstRunnableItem,
+  normalizeExecutionProtocol,
   parseFirstQueuedFromProjectState,
   parseImmediateNextFromCurrentState,
   parseLastShippedFromCurrentState,
@@ -124,6 +126,20 @@ function validateAwayList() {
       if (!list.queue.some((q) => q.id === id)) {
         fail(`away-list.json: sequence references ${id} not in active queue`);
       }
+    }
+  }
+
+  const freshness = describeExecutionProtocolFreshness(list);
+  if (!freshness.ok) {
+    if (freshness.instructionsCleared) {
+      fail(
+        "away-list.json: executionProtocol.instructions must be null/omitted when sequence is empty — run npm run away:sync -- --write",
+      );
+    }
+    if (freshness.normalizeWouldChange) {
+      fail(
+        `away-list.json: executionProtocol needs normalize — ${freshness.changes.join("; ")} (run npm run away:sync -- --write)`,
+      );
     }
   }
 

@@ -23,6 +23,7 @@ import { execSync } from "node:child_process";
 import {
   PATHS,
   firstRunnableItem,
+  normalizeExecutionProtocol,
   readJson,
   readText,
   renderNextMd,
@@ -146,6 +147,11 @@ function main() {
   let projectState = readText(PATHS.projectState);
   projectState = updateImmediateNextInProjectState(projectState, nextItem);
   const nextMd = renderNextMd(nextItem);
+
+  const protocolNorm = normalizeExecutionProtocol(list);
+  if (protocolNorm.changed) {
+    console.log(`away-ship: normalized executionProtocol — ${protocolNorm.changes.join("; ")}`);
+  }
 
   if (args.dryRun) {
     console.log(

@@ -9,7 +9,6 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "instructions": "Overnight 2026-07-11 cloud: away-124 harness + away-125 lint. Feature branch + PR only — do not push main or deploy.",
     "sequence": [],
     "commandInterface": {
       "paused": false,
