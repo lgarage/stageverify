@@ -4288,6 +4288,32 @@ function StatusActionPanel({
               </span>
             ) : null}
           </p>
+          {(details.delivery.plannedLocationReleases ?? []).length > 0 ? (
+            <div
+              data-testid="planned-location-releases"
+              style={{
+                margin: "0 0 10px",
+                padding: "8px 10px",
+                borderRadius: 6,
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                fontSize: 11,
+                color: "#475569",
+                fontFamily: font,
+              }}
+            >
+              <p style={{ margin: "0 0 6px", fontWeight: 700, fontSize: 10 }}>
+                Planned-spot releases
+              </p>
+              {(details.delivery.plannedLocationReleases ?? []).map((entry) => (
+                <p key={`${entry.locationId}-${entry.releasedAt}`} style={{ margin: "0 0 4px" }}>
+                  {locById.get(entry.locationId)?.code ?? entry.locationId} released{" "}
+                  {entry.releasedAt.slice(0, 10)}
+                  {entry.reason ? ` — ${entry.reason}` : ""}
+                </p>
+              ))}
+            </div>
+          ) : null}
           <div
             style={{
               display: "flex",

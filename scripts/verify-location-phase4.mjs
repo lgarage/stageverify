@@ -1,7 +1,7 @@
 /**
  * Phase 4 location-first verify — planned-multi, Reserved, NMS v2 UI.
  *
- * Canonical G1→G4/G5/G6 full E2E ships when release-prompt CF lands.
+ * Canonical G1→G2+GL release-prompt E2E (release-prompt CF required when not localhost-only UI).
  *
  * Usage:
  *   npm run verify:location-phase4
@@ -40,15 +40,32 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-function runPatchSeed() {
-  console.log("\n=== patch phase4 list badge seed ===");
-  const result = spawnSync("node", ["scripts/patch-dispatcher-demo-deliveries.mjs"], {
+const PATCH_TIMEOUT_MS = 120_000;
+
+function runPatchScript(label, scriptPath) {
+  console.log(`\n=== ${label} ===`);
+  const result = spawnSync("node", [scriptPath], {
     cwd: process.cwd(),
     stdio: "inherit",
+    timeout: PATCH_TIMEOUT_MS,
   });
-  if (result.status !== 0) {
-    throw new Error("patch-dispatcher-demo-deliveries failed");
+  if (result.error?.code === "ETIMEDOUT") {
+    throw new Error(`${scriptPath} timed out after ${PATCH_TIMEOUT_MS / 1000}s`);
   }
+  if (result.signal) {
+    throw new Error(`${scriptPath} killed: signal ${result.signal}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`${scriptPath} failed (exit ${result.status ?? "unknown"})`);
+  }
+}
+
+function runPatchSeed() {
+  runPatchScript("patch phase4 list badge seed", "scripts/patch-dispatcher-demo-deliveries.mjs");
+  runPatchScript(
+    "patch phase4 release E2E fixture",
+    "scripts/patch-phase4-release-e2e-fixture.mjs",
+  );
 }
 
 async function shot(page, name) {
@@ -113,13 +130,40 @@ async function verifyVendorNmsFlow(browser) {
     );
 
     if (multiVisible) {
-      const firstOption = page.locator('[data-testid^="nms-spot-option-"]').first();
-      if (await firstOption.isVisible().catch(() => false)) {
-        await firstOption.locator('input[type="checkbox"]').check();
+      const g2 = page.getByTestId("nms-spot-option-G2");
+      const gl = page.getByTestId("nms-spot-option-GL");
+      if (await g2.isVisible().catch(() => false)) {
+        await page.locator('[data-testid^="nms-spot-option-"] input[type="checkbox"]').evaluateAll(
+          (nodes) => {
+            for (const node of nodes) {
+              if (node instanceof HTMLInputElement) node.checked = false;
+            }
+          },
+        );
+        await g2.locator('input[type="checkbox"]').check();
+        if (await gl.isVisible().catch(() => false)) {
+          await gl.locator('input[type="checkbox"]').check();
+        }
         record(
-          "Vendor NMS checkbox selection",
+          "Vendor NMS G2+GL selection for release E2E",
           await page.getByTestId("nms-add-selected-spots").isEnabled(),
         );
+        await page.getByTestId("nms-add-selected-spots").click();
+        const releasePrompt = page.getByTestId("release-prompt-G1");
+        await releasePrompt.waitFor({ timeout: 20_000 });
+        record("Release prompt G1 visible", await releasePrompt.isVisible());
+        await page.getByTestId("release-prompt-no").click();
+        await page.waitForSelector("text=Added", { timeout: 25_000 });
+        record("Release prompt No completes flow", true);
+      } else {
+        const firstOption = page.locator('[data-testid^="nms-spot-option-"]').first();
+        if (await firstOption.isVisible().catch(() => false)) {
+          await firstOption.locator('input[type="checkbox"]').check();
+          record(
+            "Vendor NMS checkbox selection",
+            await page.getByTestId("nms-add-selected-spots").isEnabled(),
+          );
+        }
       }
     }
 
@@ -243,13 +287,18 @@ async function main() {
   }
 
   runPatchSeed();
+  console.log("\n=== playwright bootstrap ===");
 
+  console.log("[verify] launching chromium…");
   const browser = await chromium.launch({ headless: true });
+  console.log("[verify] chromium ready");
   const context = await browser.newContext({ storageState: authState });
   const page = await context.newPage();
 
   try {
+    console.log("[verify] ensureAuthenticated…");
     await ensureAuthenticated(page, appBase);
+    console.log("[verify] dispatcher auth OK");
 
     // Zones — adjacent group + size class editors (away-114)
     await page.goto(`${appBase}/#/zones`, {
@@ -293,7 +342,12 @@ async function main() {
     record(
       "Occupancy conflict negative (scaffold)",
       true,
-      "deferred — full G1→G4 CF slice not in this batch",
+      "deferred — negative path unchanged",
+    );
+    record(
+      "G1 release E2E (planned G1, NMS G2+GL, release No)",
+      results.some((r) => r.name === "Release prompt No completes flow" && r.pass),
+      "requires releasePlannedStagingLocation CF when vendor session writes",
     );
   } finally {
     await browser.close();

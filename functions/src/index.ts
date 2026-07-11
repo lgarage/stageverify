@@ -35,6 +35,7 @@ import {
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
 import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
+import { releasePlannedStagingLocation } from "./releasePlannedStagingLocation";
 import { getVendorReceiveDetails } from "./getVendorReceiveDetails";
 import { resolveReceiveZoneLookup } from "./resolveReceiveZoneLookup";
 import { getPickupPortalData } from "./getPickupPortalData";
@@ -173,6 +174,7 @@ export {
   recalculateDeliveryReadiness,
   markVendorDelivered,
   assignVendorStagingLocation,
+  releasePlannedStagingLocation,
   getVendorReceiveDetails,
   resolveReceiveZoneLookup,
   getPickupPortalData,

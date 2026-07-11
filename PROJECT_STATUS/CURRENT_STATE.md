@@ -5,7 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Active Phase: **Location-first transition — Phase 4 verify hardening** (`v0.0.30`): interactive `verify:location-phase4` (NMS + planned-staging + list badges); release-prompt CF + full G1→G4 E2E still pending Dan approval.
+- Active Phase: **Location-first transition — Phase 4** (`v0.0.31`): release-prompt CF + vendor UI + verify hardening shipped; G1→G2+GL E2E after CF deploy.
 - **Harness V1 Freeze (D-16):** additions need pain tickets (charter: HARNESS_V1_FREEZE.md); deletions always legal.
 - **Vendor PIN (D14):** per-JOB PIN on `jobs.pinCode`/`pinHash`; session scope `job`; cross-job absence enforced server-side in `getJobVendorDeliveries`.
 - **Reply ingest pilot (2026-07-07):** `emailReplyIngestEnabled` **ON** — controlled flag-on test only; push ingest broken (poll/manual sync works). Do NOT flip flag without Dan.
@@ -19,7 +19,7 @@
 4. **Inbound Gmail CF + rules deploy** — `triggerInboundGmailSyncCallable` shipped; Dan still configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Product:** finish location-first Phase 4 (release-prompt CF + G1→G4 E2E **[high-risk]** await Dan approval); fix push ingest **[high-risk: Gmail/Pub-Sub CF — approval + Sonnet gate before deploy]** (poll-only since 2026-07-07). **Dan-side:** shop map, shelving decision (Jake), Gmail topic config. **Mobile (only approved work):** 30-min Siri/Slack announce road test on next drive + passive batch notifications — experiment with kill condition.
+- **Product:** location-first Phase 4 release-prompt **shipped** (`releasePlannedStagingLocation` CF + vendor release prompt + drawer audit). Push ingest **[high-risk]** still awaits Dan approval. **Dan-side:** shop map, shelving (Jake), Gmail topic config.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

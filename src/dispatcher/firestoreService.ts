@@ -1508,6 +1508,29 @@ export async function addStagingLocation(
   await batch.commit();
 }
 
+/** Vendor session-gated planned-spot release (location-first D4). */
+export async function releasePlannedStagingLocation(
+  deliveryId: string,
+  locationId: string,
+  placed: boolean,
+): Promise<DeliveryOrder | null> {
+  const sessionToken = getVendorSessionToken(deliveryId);
+  if (!sessionToken) {
+    throw new VendorSessionError("Session expired. Enter your PIN again.");
+  }
+  const callable = httpsCallable(functions, "releasePlannedStagingLocation");
+  try {
+    await callable({ deliveryId, sessionToken, locationId, placed });
+  } catch (err) {
+    throw new VendorSessionError(vendorSessionErrorMessage(err));
+  }
+  const details = await getVendorReceiveDetailsClient({
+    deliveryId,
+    sessionToken,
+  });
+  return details?.delivery ?? null;
+}
+
 export async function loadPickupReadyDeliveriesPublic(
   jobId: string,
   options: { pickupToken: string; includeDeliveryId?: string },

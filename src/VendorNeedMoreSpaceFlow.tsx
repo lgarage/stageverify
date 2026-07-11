@@ -4,6 +4,7 @@ import {
   firestoreDataService,
   listGloballyAssignedStagingLocationIdsForDelivery,
   mapOccupancyByLocationId,
+  releasePlannedStagingLocation,
 } from "./dispatcher/firestoreService";
 import {
   type DeliveryOrder,
@@ -15,10 +16,16 @@ import {
 } from "./dispatcher/stagingOccupancy";
 import { getAllStagingLocationIds } from "./dispatcher/models";
 
-type SpaceTier = "pick" | "shelf" | "ground" | "large";
+type SpaceTier = "pick" | "shelf" | "ground" | "large" | "release";
 
 const DISPATCHER_PHONE = "9203360110";
 const DISPATCHER_PHONE_DISPLAY = "920-336-0110";
+
+interface ReleasePromptSpot {
+  id: string;
+  code: string;
+  label: string;
+}
 
 function formatSizeLine(
   loc: StagingLocation,
@@ -36,6 +43,23 @@ function uniqueSpots(spots: StagingLocation[]): StagingLocation[] {
     seen.add(loc.id);
     return true;
   });
+}
+
+function unresolvedPlannedAfterNms(
+  delivery: DeliveryOrder,
+  selectedSpotIds: Set<string>,
+  locById: Map<string, StagingLocation>,
+): ReleasePromptSpot[] {
+  return (delivery.plannedStagingLocationIds ?? [])
+    .filter((id) => !selectedSpotIds.has(id))
+    .map((id) => {
+      const loc = locById.get(id);
+      return {
+        id,
+        code: loc?.code ?? id,
+        label: loc?.label ?? id,
+      };
+    });
 }
 
 interface VendorNeedMoreSpaceFlowProps {
@@ -59,8 +83,12 @@ export function VendorNeedMoreSpaceFlow({
   const [adding, setAdding] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [releaseQueue, setReleaseQueue] = useState<ReleasePromptSpot[]>([]);
+  const [releaseIndex, setReleaseIndex] = useState(0);
+  const [releaseBusy, setReleaseBusy] = useState(false);
 
   const tierLabel = tier === "shelf" ? "Shelf spot" : "Ground spot";
+  const currentRelease = releaseQueue[releaseIndex];
 
   const loadTierSpot = useCallback(
     async (selectedTier: "shelf" | "ground") => {
@@ -132,6 +160,34 @@ export function VendorNeedMoreSpaceFlow({
     });
   };
 
+  const finishWithConfirm = (updated: DeliveryOrder, labels: string) => {
+    setLocalDelivery(updated);
+    onDeliveryUpdated?.(updated);
+    setConfirmLabel(labels);
+    window.setTimeout(() => {
+      setConfirmLabel(null);
+      onClose();
+    }, 2000);
+  };
+
+  const beginReleasePrompts = async (updated: DeliveryOrder) => {
+    const all = await firestoreDataService.listStagingLocations();
+    const locById = new Map(all.map((loc) => [loc.id, loc]));
+    const queue = unresolvedPlannedAfterNms(updated, selectedSpotIds, locById);
+    if (queue.length === 0) {
+      finishWithConfirm(
+        updated,
+        selectedSpots.map((loc) => loc.label).join(", "),
+      );
+      return;
+    }
+    setLocalDelivery(updated);
+    onDeliveryUpdated?.(updated);
+    setReleaseQueue(queue);
+    setReleaseIndex(0);
+    setTier("release");
+  };
+
   const handleAddSelectedSpots = async () => {
     if (selectedSpots.length === 0) return;
     setAdding(true);
@@ -152,14 +208,7 @@ export function VendorNeedMoreSpaceFlow({
           };
         }
       }
-      setLocalDelivery(updated);
-      onDeliveryUpdated?.(updated);
-      const labels = selectedSpots.map((loc) => loc.label).join(", ");
-      setConfirmLabel(labels);
-      window.setTimeout(() => {
-        setConfirmLabel(null);
-        onClose();
-      }, 2000);
+      await beginReleasePrompts(updated);
     } catch (err) {
       if (isStagingLocationOccupiedError(err)) {
         await refreshAfterOccupiedConflict();
@@ -168,6 +217,54 @@ export function VendorNeedMoreSpaceFlow({
       }
     } finally {
       setAdding(false);
+    }
+  };
+
+  const advanceReleaseQueue = async (
+    refreshed: DeliveryOrder | null,
+    placed: boolean,
+  ) => {
+    const base = refreshed ?? localDelivery;
+    setLocalDelivery(base);
+    onDeliveryUpdated?.(base);
+
+    const nextIndex = releaseIndex + 1;
+    if (nextIndex >= releaseQueue.length) {
+      const labels = selectedSpots.map((loc) => loc.label).join(", ");
+      finishWithConfirm(base, labels);
+      return;
+    }
+    setReleaseIndex(nextIndex);
+    if (!placed && refreshed) {
+      const all = await firestoreDataService.listStagingLocations();
+      const locById = new Map(all.map((loc) => [loc.id, loc]));
+      const remaining = unresolvedPlannedAfterNms(
+        refreshed,
+        selectedSpotIds,
+        locById,
+      );
+      if (remaining.length > 0) {
+        setReleaseQueue(remaining);
+        setReleaseIndex(0);
+      }
+    }
+  };
+
+  const handleReleaseAnswer = async (placed: boolean) => {
+    if (!currentRelease) return;
+    setReleaseBusy(true);
+    setLoadError(null);
+    try {
+      const refreshed = await releasePlannedStagingLocation(
+        localDelivery.id,
+        currentRelease.id,
+        placed,
+      );
+      await advanceReleaseQueue(refreshed, placed);
+    } catch {
+      setLoadError("Could not save your answer. Try again.");
+    } finally {
+      setReleaseBusy(false);
     }
   };
 
@@ -185,6 +282,43 @@ export function VendorNeedMoreSpaceFlow({
           <p className="text-center text-sm font-medium text-accent-green py-8">
             ✓ Added {confirmLabel}
           </p>
+        ) : tier === "release" && currentRelease ? (
+          <>
+            <h2
+              className="text-lg font-bold text-text-primary text-center mb-2"
+              data-testid={`release-prompt-${currentRelease.code}`}
+            >
+              Did you place anything in {currentRelease.code}?
+            </h2>
+            <p className="text-sm text-text-secondary text-center mb-5">
+              {currentRelease.label} was planned, but you picked other spots.
+            </p>
+            {loadError && (
+              <p className="text-sm text-accent-red text-center mb-3">
+                {loadError}
+              </p>
+            )}
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                data-testid="release-prompt-yes"
+                disabled={releaseBusy}
+                onClick={() => void handleReleaseAnswer(true)}
+                className="w-full rounded-xl bg-accent-green py-4 text-base font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
+              >
+                Yes — I placed material there
+              </button>
+              <button
+                type="button"
+                data-testid="release-prompt-no"
+                disabled={releaseBusy}
+                onClick={() => void handleReleaseAnswer(false)}
+                className="w-full rounded-xl bg-bg-secondary py-4 text-base font-semibold text-text-primary hover:bg-bg-surface transition-colors disabled:opacity-50 active:scale-[0.98]"
+              >
+                No — release this spot
+              </button>
+            </div>
+          </>
         ) : tier === "pick" ? (
           <>
             <h2 className="text-lg font-bold text-text-primary text-center">
