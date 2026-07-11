@@ -2,6 +2,7 @@
 /**
  * Regenerate NEXT.md from active away queue.
  * Run: npm run away:sync-next
+ * Queue protocol normalize: npm run away:sync -- --write
  */
 import {
   PATHS,

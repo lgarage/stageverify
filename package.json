@@ -123,6 +123,7 @@
     "away:batch": "node scripts/away-batch.mjs",
     "away:preflight": "node scripts/away-preflight.mjs",
     "away:sync-next": "node scripts/away-sync-next.mjs",
+    "away:sync": "node scripts/away-sync.mjs",
     "away:ship": "node scripts/away-ship.mjs",
     "dossier:slice": "node scripts/dossier-slice.mjs",
     "context:lookup": "node scripts/context-lookup.mjs",

@@ -179,6 +179,59 @@ Run: \`npm run away:next\`
 `;
 }
 
+/**
+ * Normalize executionProtocol so an empty sequence cannot carry stale batch instructions.
+ * Mutates list in place. Safe to call before every away-list write.
+ * @param {{ executionProtocol?: { sequence?: string[], instructions?: string | null } }} list
+ * @returns {{ changed: boolean, changes: string[] }}
+ */
+export function normalizeExecutionProtocol(list) {
+  /** @type {string[]} */
+  const changes = [];
+  if (!list.executionProtocol || typeof list.executionProtocol !== "object") {
+    list.executionProtocol = { sequence: [] };
+    changes.push("created executionProtocol");
+  }
+  const ep = list.executionProtocol;
+  if (!Array.isArray(ep.sequence)) {
+    ep.sequence = [];
+    changes.push("fixed executionProtocol.sequence to array");
+  }
+  if (ep.sequence.length === 0 && ep.instructions != null && ep.instructions !== "") {
+    const preview =
+      typeof ep.instructions === "string" && ep.instructions.length > 72
+        ? `${ep.instructions.slice(0, 72)}…`
+        : String(ep.instructions);
+    changes.push(`cleared stale instructions (${preview})`);
+    delete ep.instructions;
+  }
+  return { changed: changes.length > 0, changes };
+}
+
+/** Effective batch instructions for read paths (never trust stale file when sequence empty). */
+export function effectiveExecutionInstructions(ep) {
+  const sequence = ep?.sequence ?? [];
+  if (sequence.length === 0) return null;
+  return ep?.instructions ?? null;
+}
+
+/** @param {{ executionProtocol?: { sequence?: string[], instructions?: string | null } }} list */
+export function describeExecutionProtocolFreshness(list) {
+  const ep = list.executionProtocol ?? {};
+  const sequenceLength = ep.sequence?.length ?? 0;
+  const staleInstructions =
+    sequenceLength === 0 && ep.instructions != null && ep.instructions !== "";
+  const copy = JSON.parse(JSON.stringify(list));
+  const { changed, changes } = normalizeExecutionProtocol(copy);
+  return {
+    ok: !staleInstructions && !changed,
+    sequenceLength,
+    instructionsCleared: staleInstructions,
+    normalizeWouldChange: changed,
+    changes,
+  };
+}
+
 /** @param {{ executionProtocol?: { sequence?: string[] }, queue: { id: string, status: string }[] }} list */
 export function allQueuedItemsInSequenceOrder(list) {
   const sequence = list.executionProtocol?.sequence ?? [];
@@ -226,8 +279,9 @@ export function buildBatchBrief(list, archive) {
       section: "Away / sleep workflow (4 phases)",
       loop: "Run items in sequence order — one at a time, verify+ship between each, halt on fail.",
       haltOnFailure: ep.haltOnFailure ?? true,
-      instructions: ep.instructions ?? null,
+      instructions: effectiveExecutionInstructions(ep),
     },
+    protocolFreshness: describeExecutionProtocolFreshness(list),
     note:
       "Answer 'what should I build while I'm away/sleep/overnight' from this batch only. Do not widen to unqueued roadmap work. Dan's standing preference: long batch — run all queued items.",
     firstRunnable: firstRunnableItem(list.queue, archive)?.id ?? null,

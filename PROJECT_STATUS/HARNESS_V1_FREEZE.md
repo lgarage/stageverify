@@ -26,6 +26,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-10: consecutive same-failure stall — Composer retried identical verify/build fixes twice without new hypotheses; wanted cheap Grok pivot before Sonnet (D-19).
 - 2026-07-11: Dan repair requests — Composer closed fixes without higher-tier verifier on repair scope/result; wanted automatic repair loop with fix-closure (D-20).
 - 2026-07-11: planning questions ("what's next", "what else can be worked on") — Composer presented first-draft ranked options without Grok cross-check against CURRENT_STATE/away:next; omitted recent ships and invented away IDs; wanted mandatory planning verify loop before present (D-21).
+- 2026-07-11: On phone, wanted authoritative mobile-safe next; away-list had stale batch `instructions` on empty `sequence` and no capability filter — queue hygiene Phase 1a (`away:sync`, normalize on ship).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
