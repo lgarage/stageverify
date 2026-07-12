@@ -13,7 +13,7 @@
 
 ## § Phase Tracker (LIVING SECTION — agents update this)
 
-> **Approved next action: Phase 4** (vendor exception flows + dispatcher planning). Phase 3 completed 2026-07-08 (v0.0.27).
+> **Approved next action: Phase 5** (technician door + pickup v2) — **Fable work-verifier** on Phase 4 boundary before implement. Phase 4 prod verify gate closed 2026-07-11 (`v0.0.33`).
 >
 > **REVISION (Dan 2026-07-08):** Vendor PIN is now **job-scoped**, not vendor/company-scoped — read **§ Job-scoped vendor PIN (D14)** before implementing Phases 2–4. The original vendor-scoped D3 visibility model is REJECTED.
 
@@ -22,12 +22,12 @@
 | 1 | Groundwork: docs, types, clipboard | `complete` | 2026-07-08 | 2026-07-08 | ESL plan amended; additive types; job-level clipboard; URL locked `#/s?loc=` |
 | 2 | Privacy hardening (backend) | `complete` | 2026-07-08 | 2026-07-08 | Rules auth-only reads; session/token CF mediation; vendorPinVerifier removed; verify:privacy |
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
-| 4 | Vendor exception flows + dispatcher planning | `in_progress` | — | — | UI slices (away-113..117) + verify hardening (away-118..121) shipped; release-prompt CF + full G1→G4 E2E pending Dan approval |
-| 5 | Technician door two + pickup verification v2 | `not_started` | — | — | Sonnet-gated; per-tech PINs; two-level verification |
+| 4 | Vendor exception flows + dispatcher planning | `complete` | 2026-07-08 | 2026-07-11 | UI slices (away-113..117); verify hardening (away-118..121); `releasePlannedStagingLocation` CF; `verify:location-phase4` 15/15 local + prod (`v0.0.33`) |
+| 5 | Technician door two + pickup verification v2 | `not_started` | — | — | **Fable work-verifier** gate before implement; Sonnet-gated; per-tech PINs |
 | 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | Sonnet-gated; shared shop PIN; highest-sensitivity surface after Phase 2 |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
-**Current phase: Phase 3 — complete (core software slice). Next action: Phase 4 — vendor exception flows + dispatcher planning.**
+**Current phase: Phase 4 — complete (prod verify gate closed `v0.0.33`). Next action: Phase 5 — dispatch Fable work-verifier, then implement per spec.**
 
 > **Phase-boundary gate:** after each phase ships and before the next phase starts, dispatch the Fable 5 work-verifier (`MODEL_DOSSIER.md` tag `work-verifier`; trigger spec `.cursor/rules/model-gates.mdc`) to verify scope fidelity + semantic tripwires (D14 job-scoping, PIN visibility, legacy-route stability). Phase N+1 is blocked until the verifier returns PASS or Dan waives. *(Phase 3 shipped 2026-07-08, commit `783b703`, with verification run retroactively.)*
 

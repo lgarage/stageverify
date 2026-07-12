@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Normalize away-list executionProtocol (clear stale instructions on empty sequence).
- * Dry-run by default; pass --write to persist.
+ * Normalize away-list executionProtocol + report doc drift vs CURRENT_STATE.
+ * Dry-run by default; pass --write to persist queue protocol fixes.
+ *
+ * Exit 1 when protocol needs --write OR location-first/roadmap doc drift detected.
+ * Full gate: npm run away:validate
  *
  * Run:
  *   npm run away:sync
@@ -13,7 +16,9 @@ import {
   PATHS,
   describeExecutionProtocolFreshness,
   normalizeExecutionProtocol,
+  validateLocationFirstDocConsistency,
   readJson,
+  readText,
   writeJson,
 } from "./lib/away-memory-lib.mjs";
 
@@ -22,6 +27,11 @@ const list = readJson(PATHS.awayList);
 const before = describeExecutionProtocolFreshness(list);
 const { changed, changes } = normalizeExecutionProtocol(list);
 const after = describeExecutionProtocolFreshness(list);
+const docConsistency = validateLocationFirstDocConsistency({
+  currentStateMd: readText(PATHS.currentState),
+  specMd: readText(PATHS.locationFirstSpec),
+  roadmapMd: readText(PATHS.roadmap),
+});
 
 /** @type {Record<string, unknown>} */
 const report = {
@@ -33,6 +43,10 @@ const report = {
     ok: after.ok,
     sequenceLength: after.sequenceLength,
     instructions: list.executionProtocol?.instructions ?? null,
+  },
+  docConsistency: {
+    ok: docConsistency.ok,
+    errors: docConsistency.errors,
   },
 };
 
@@ -50,4 +64,5 @@ if (write) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-process.exit(changed && !write ? 1 : 0);
+const docDrift = !docConsistency.ok;
+process.exit((changed && !write) || docDrift ? 1 : 0);

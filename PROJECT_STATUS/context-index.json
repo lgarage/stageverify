@@ -7,8 +7,8 @@
       "tags": ["roadmap-now", "now"],
       "title": "Roadmap NOW (Phase 5 prototype)",
       "file": "docs/roadmap.md",
-      "startLine": 50,
-      "endLine": 118,
+      "startLine": 63,
+      "endLine": 131,
       "anchor": "## NOW (Phase 5 prototype)"
     },
     {
@@ -16,8 +16,8 @@
       "tags": ["roadmap-next", "next"],
       "title": "Roadmap NEXT",
       "file": "docs/roadmap.md",
-      "startLine": 120,
-      "endLine": 235,
+      "startLine": 133,
+      "endLine": 248,
       "anchor": "## NEXT"
     },
     {
@@ -25,8 +25,8 @@
       "tags": ["roadmap-later", "later"],
       "title": "Roadmap LATER",
       "file": "docs/roadmap.md",
-      "startLine": 237,
-      "endLine": 302,
+      "startLine": 250,
+      "endLine": 315,
       "anchor": "## LATER"
     },
     {
