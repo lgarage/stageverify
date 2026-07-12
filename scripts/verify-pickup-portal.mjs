@@ -639,16 +639,31 @@ async function runDashboardBadgeCheck(browser) {
   });
   const page = await context.newPage();
   await ensureAuthenticated(page, appBase);
-  // Prod hides seed ORD-004 / delivery-3 from list (hideSeedDemoRows).
+
   if (isProd) {
+    // List `open-issue-badge-*` lives on table rows — seed ORD rows are hidden on
+    // gh-pages (hideSeedDemoRows). Prove issue visibility via deep-link drawer.
     console.log(
-      `Prod dashboard badge: deep-link drawer for ${deliveryId} (demo rows hidden).`,
+      `Prod dashboard badge: deep-link drawer for ${deliveryId} (list badge N/A — demos hidden).`,
     );
     await openDeliveryDrawerByDeepLink(page, appBase, deliveryId);
-  } else {
-    await openDeliveryDrawer(page, "ORD-004", deliveryId);
+    const drawerIssue = page
+      .getByTestId("issue-summary-panel")
+      .or(page.getByTestId("drawer-action-banner-heading"))
+      .or(page.getByText(/Running Low|WHAT NEEDS ATTENTION|open issue/i));
+    await drawerIssue.first().waitFor({ state: "visible", timeout: 20_000 });
+    await page.screenshot({
+      path: resolve(outDir, "pickup-verify-dashboard-badge.png"),
+      fullPage: true,
+    });
+    await context.close();
+    console.log(
+      "Dashboard PASS: drawer issue/attention surface visible (prod deep-link).",
+    );
+    return;
   }
 
+  await openDeliveryDrawer(page, "ORD-004", deliveryId);
   const badge = page.getByTestId(`open-issue-badge-${deliveryId}`);
   await badge.waitFor({ state: "visible", timeout: 20_000 });
   await page.screenshot({
