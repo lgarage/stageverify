@@ -13,6 +13,8 @@
 
 ## “What’s next to build?” (narrow — mandatory)
 
+**Planning sync:** before ranked/planning answers (“what else can mobile do”, roadmap, away planning), `git fetch origin main && git pull origin main` — see `parallel-agent-strategy.mdc` § Planning question protocol.
+
 Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT_STATE.md` immediate next + that item’s scope in `away-list.json`.
 
 - **MVP / progress / fastest path questions:** read `PROJECT_STATUS/MVP_PATH.md` first — analyze full gap landscape (not queue alone); return fastest clear path to MVP exit criteria (D-24).
