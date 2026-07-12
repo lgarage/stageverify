@@ -216,7 +216,7 @@ Task({
 
 - **Deliberate, don't dictate:** the drafting agent and the verifier exchange positions as **peers** until genuine agreement on the best answer — verifier findings are proposals; the author adopts or rebuts with reasoning; the verifier's next turn explicitly accepts or rejects each rebuttal (never merely restates its verdict). Existing max cycles unchanged (Q&A 2; Planning 3).
 - **Orchestrator presents:** the final note to Dan is always authored and delivered by the session's orchestrating agent (currently Composer 2.5 by default) in its own words — **never raw verifier output pasted as the answer**. Verifier contribution appears only as evidence lines (`qa-verifier:`, `planning-verifier:`, `fix-verified:`, `findings:`).
-- **Unresolved after max cycles:** Composer presents **both positions** with a `Caveat:` line — never silent compliance, never silent dismissal.
+- **Unresolved after max cycles:** the orchestrator presents **both positions** with a `Caveat:` line — never silent compliance, never silent dismissal.
 - Platform parity automatic per D-32 default (desktop Windows PC, mobile Cursor, cloud VM).
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
