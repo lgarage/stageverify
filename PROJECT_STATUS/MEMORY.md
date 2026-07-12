@@ -9,13 +9,14 @@
 | 1 | `PROJECT_STATUS/CURRENT_STATE.md` | Always first — phase, blockers, last shipped |
 | 2 | `PROJECT_STATUS/MEMORY.md` | Router + narrow "what's next" (this file) |
 
-**On demand (not session start):** `svscope_simple.md` (scope disputes) · **`npm run away:next -- --packet`** (coding sessions — queue brief + dossier slices first) · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
+**On demand (not session start):** `svscope_simple.md` (scope disputes) · **`PROJECT_STATUS/MVP_PATH.md`** (MVP %, fastest path, planning/priority) · **`npm run away:next -- --packet`** (coding sessions — queue brief + dossier slices first) · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
 
 ## “What’s next to build?” (narrow — mandatory)
 
 Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT_STATE.md` immediate next + that item’s scope in `away-list.json`.
 
-- Do **not** infer the next build item from `docs/roadmap.md` LATER/NEXT narrative (`npm run away:preflight` for sizing). Queue empty/blocked → `docs/location-first-transition-spec.md` § Phase Tracker. **Full program status** (Phase 3/4+, LATER) → `roadmap.md` + `project_state.md`.
+- **MVP / progress / fastest path questions:** read `PROJECT_STATUS/MVP_PATH.md` first — analyze full gap landscape (not queue alone); return fastest clear path to MVP exit criteria (D-24).
+- Do **not** infer the next build item from `docs/roadmap.md` LATER/NEXT narrative (`npm run away:preflight` for sizing). Queue empty/blocked → `MVP_PATH.md` fastest-path table, then `docs/location-first-transition-spec.md` § Phase Tracker. **Full program status** (Phase 3/4+, LATER) → `roadmap.md` + `project_state.md`.
 
 ## Away / sleep workflow (mandatory — 4 phases)
 
@@ -36,6 +37,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Phase / deployment | `docs/project_state.md` | Phase gates, what's built |
 | Priorities / gates | `docs/roadmap.md` | NOW/NEXT/LATER, scope § mapping |
 | Hot snapshot | `PROJECT_STATUS/CURRENT_STATE.md` | Blockers, immediate next (~30 lines) |
+| MVP % + fastest path | `PROJECT_STATUS/MVP_PATH.md` | Progress, planning, away planning, priority ranking to MVP done |
 | Why was X decided / decision history | `PROJECT_STATUS/DECISIONS.md` | Harness + product decisions; superseded → `DECISIONS_ARCHIVE.md` |
 
 ## Away queue (work spec + ship log)
