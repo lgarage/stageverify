@@ -7,6 +7,7 @@ import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboun
 import { clampListLimit, requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { recoverStrandedInboundProcessingList } from "./inboundEmail/recoverStrandedProcessing";
 import { sanitizeVendorInvoiceImportForClient } from "./inboundEmail/sanitizeVendorInvoiceImport";
+import { gmailClientId, gmailClientSecret } from "./gmailApi";
 import { downloadGmailAttachment, getGmailAccessTokenForProvider } from "./gmailInbound";
 
 const COLLECTION = "inboundEmailProcessing";
@@ -153,7 +154,11 @@ export const getVendorInvoiceImport = onCall(
 );
 
 export const getVendorInvoicePdf = onCall(
-  { region: "us-central1", timeoutSeconds: 60 },
+  {
+    region: "us-central1",
+    timeoutSeconds: 60,
+    secrets: [gmailClientId, gmailClientSecret],
+  },
   async (request) => {
     await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as { vendorInvoiceImportId?: string };

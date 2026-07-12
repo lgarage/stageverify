@@ -9,6 +9,7 @@ const https_1 = require("firebase-functions/v2/https");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const recoverStrandedProcessing_1 = require("./inboundEmail/recoverStrandedProcessing");
 const sanitizeVendorInvoiceImport_1 = require("./inboundEmail/sanitizeVendorInvoiceImport");
+const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
 const COLLECTION = "inboundEmailProcessing";
 const IMPORTS_COLLECTION = "vendorInvoiceImports";
@@ -114,7 +115,11 @@ exports.getVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, 
     }
     return (0, sanitizeVendorInvoiceImport_1.sanitizeVendorInvoiceImportForClient)(snap.data());
 });
-exports.getVendorInvoicePdf = (0, https_1.onCall)({ region: "us-central1", timeoutSeconds: 60 }, async (request) => {
+exports.getVendorInvoicePdf = (0, https_1.onCall)({
+    region: "us-central1",
+    timeoutSeconds: 60,
+    secrets: [gmailApi_1.gmailClientId, gmailApi_1.gmailClientSecret],
+}, async (request) => {
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const importId = typeof data.vendorInvoiceImportId === "string"
