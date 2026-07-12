@@ -91,6 +91,8 @@ function runStep(label, command, args, extraArgs = []) {
     const child = spawn(command, [...args, ...extraArgs], {
       cwd: root,
       stdio: "inherit",
+      // Windows: npm/npx are .cmd — spawn without shell → ENOENT
+      shell: true,
       env: childEnv(),
     });
     child.on("error", (err) => {

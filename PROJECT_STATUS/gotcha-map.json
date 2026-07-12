@@ -175,15 +175,28 @@
         "ORD-005 not found",
         "demo rows hidden",
         "verify:location-phase4:prod",
-        "openDelivery"
+        "openDelivery",
+        "reset-pickup-verify-fixture",
+        "ORD-004",
+        "button.*View"
       ],
       "orchestratorSteps": [7],
       "dossierTags": ["agent-lessons"],
       "lessonsSection": "ship-verify",
-      "files": ["src/dispatcher/firestoreService.ts", "scripts/verify-location-phase4.mjs"],
+      "files": [
+        "src/dispatcher/firestoreService.ts",
+        "scripts/verify-location-phase4.mjs",
+        "scripts/reset-pickup-verify-fixture.mjs",
+        "scripts/verify-phase14-pickup-readback.mjs"
+      ],
       "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
-      "commands": ["npm run verify:location-phase4", "npm run verify:location-phase4:prod"],
-      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..006) from dispatcher list. Phase 4 prod verify must open drawer via `#/dispatcher?openDelivery=<id>` (shipped v0.0.33+) or assert badges in drawer — list search for ORD-005 fails on live prod until deploy."
+      "commands": [
+        "npm run verify:location-phase4",
+        "npm run verify:location-phase4:prod",
+        "npm run verify:phase14-e2e:prod",
+        "npm run verify:pickup:prod"
+      ],
+      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..006) from dispatcher list. Prod verify (phase4, phase14 reset/readback, pickup reset) must open drawer via `#/dispatcher?openDelivery=<id>` — list search for ORD-004/ORD-005 + View button times out on live prod."
     },
     {
       "id": "gh-pages-deploy-freshness",

@@ -201,6 +201,10 @@ export async function openDeliveryDrawerByDeepLink(page, appBase, deliveryId) {
   await drawerMarker.first().waitFor({ state: "visible", timeout: 25_000 });
 }
 
+/**
+ * Open drawer by list search. Prefer openDeliveryDrawerByDeepLink on prod when
+ * hideSeedDemoRows hides ORD-00x / seed delivery ids from the table.
+ */
 export async function openDeliveryDrawer(page, orderNumber, deliveryId) {
   const drawerOpen = await page
     .getByText("Order Workflow Status", { exact: false })
@@ -220,7 +224,13 @@ export async function openDeliveryDrawer(page, orderNumber, deliveryId) {
   if (await row.isVisible().catch(() => false)) {
     await row.click();
   } else {
-    await page.locator("button").filter({ hasText: /^View$/ }).first().click();
+    const viewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
+    if (!(await viewBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      throw new Error(
+        `openDeliveryDrawer: no View for "${orderNumber}" / ${deliveryId} — on prod use openDeliveryDrawerByDeepLink (hideSeedDemoRows). URL=${page.url()}`,
+      );
+    }
+    await viewBtn.click();
   }
   await page.waitForTimeout(1500);
 }
