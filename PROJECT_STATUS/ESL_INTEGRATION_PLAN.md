@@ -1,7 +1,8 @@
 # stageverify � Zone Management + ESL Integration Plan
 
-> Full context for the Zone Management page + MinewTag e-ink label integration.
-> Read this at the start of any session working on zones or ESL hardware.
+> **Not in MVP scope (D-26, 2026-07-12):** E-tags / ESL / Minew are **excluded from MVP** entirely — not in `MVP_PATH.md` %, exit criteria, or blockers. Revisit as post-MVP product work with requirements restated + verify/tests.
+>
+> Full context for the Zone Management page + MinewTag e-ink label integration (post-MVP).
 
 ## Hardware Inventory
 

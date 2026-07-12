@@ -12,7 +12,7 @@ alwaysApply: true
 Include **`MVP completion: XX.XX%`** in the reply when **all** hold:
 
 1. **Substantive work** shipped or verified (code, config, CF, verify script, docs that close an MVP milestone) — not read-only Q&A.
-2. **Task traces to MVP** — work maps to an exit criterion or fastest-path row in `MVP_PATH.md` (§14 E2E, live email, combo release, e-tag waiver, or band partial credit table).
+2. **Task traces to MVP** — work maps to an exit criterion or fastest-path row in `MVP_PATH.md` (§14 E2E, live email, combo release, or band partial credit table). E-tags/ESL are **not** MVP-scoped (D-26).
 3. **Session is not purely planning** — away Plan phase, ranked-options-only, roadmap brainstorm, or "what's next" with no implementation in that turn.
 
 **Skip the line** when: pure planning (planning answers still **lead with** current % per `MVP_PATH.md` standing directive); trivial typos; read-only lookups; harness/agent-ops-only work with **no** MVP criterion linkage; Dan explicitly says skip.

@@ -32,24 +32,31 @@ function parseArgs(argv) {
   if (scriptIdx < 0 || !args[scriptIdx + 1]) usage();
 
   const scriptName = args[scriptIdx + 1];
-  const rest = [...args.slice(0, scriptIdx), ...args.slice(scriptIdx + 2)];
+  let rest = [...args.slice(0, scriptIdx), ...args.slice(scriptIdx + 2)];
+  const runnerIdx = rest.indexOf("--runner");
+  const runner =
+    runnerIdx >= 0 && rest[runnerIdx + 1] === "tsx" ? "tsx" : "node";
+  if (runnerIdx >= 0) {
+    rest = [...rest.slice(0, runnerIdx), ...rest.slice(runnerIdx + 2)];
+  }
   const scriptPath = rest[0];
   if (!scriptPath) usage();
 
   const forwardArgs = rest.slice(1);
-  return { scriptName, scriptPath, forwardArgs };
+  return { scriptName, scriptPath, forwardArgs, runner };
 }
 
 /**
  * @param {string} scriptPath
  * @param {string[]} forwardArgs
+ * @param {"node" | "tsx"} runner
  */
-function buildSpawnCommand(scriptPath, forwardArgs) {
+function buildSpawnCommand(scriptPath, forwardArgs, runner = "node") {
   const absPath = path.isAbsolute(scriptPath)
     ? scriptPath
     : path.join(REPO_ROOT, scriptPath);
 
-  if (scriptPath.endsWith(".ts") || scriptPath.endsWith(".tsx")) {
+  if (runner === "tsx" || scriptPath.endsWith(".ts") || scriptPath.endsWith(".tsx")) {
     return { cmd: "npx", args: ["tsx", absPath, ...forwardArgs] };
   }
 
@@ -57,8 +64,8 @@ function buildSpawnCommand(scriptPath, forwardArgs) {
 }
 
 function main() {
-  const { scriptName, scriptPath, forwardArgs } = parseArgs(process.argv);
-  const { cmd, args } = buildSpawnCommand(scriptPath, forwardArgs);
+  const { scriptName, scriptPath, forwardArgs, runner } = parseArgs(process.argv);
+  const { cmd, args } = buildSpawnCommand(scriptPath, forwardArgs, runner);
 
   let stdoutBuf = "";
   let stderrBuf = "";

@@ -5,7 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- **MVP: 80.00%** — SSOT + reporting rule: `MVP_PATH.md`, `mvp-completion-report.mdc` (D-24 analyze full landscape; D-25 % in work replies).
+- **MVP: 81.75%** — SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26).
 - Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset); **Phase 4 prod verify** `verify:location-phase4:prod` **15/15 PASS** (`v0.0.33`, gh-pages `2dd401e`) — `openDelivery` deep link PR `cursor/location-phase4-prod-verify-77d5`
 - Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
@@ -14,13 +14,12 @@
 - Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
-1. **Minew ESL creds** — live ESL demo only (Phase 7).
-2. **Shelving decision (Jake Korb)** — shop map / location IDs.
-3. **Physical shop map** — not created (blocks sign printing only).
-4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
+1. **Shelving decision (Jake Korb)** — shop map / location IDs.
+2. **Physical shop map** — not created (blocks sign printing only).
+3. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **MVP path (priority):** (1) §14 E2E gate in-repo, (2) Dan GCP Gmail deploy, (3) combo release/waiver — see `MVP_PATH.md`.
+- **MVP path (priority):** (1) run `verify:phase14-e2e` local+prod PASS, (2) Dan GCP Gmail deploy — see `MVP_PATH.md`.
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Fable work-verifier before location-first Phase 5; push ingest **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** + **doc drift validate (D-23)** on `main`.
