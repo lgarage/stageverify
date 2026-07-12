@@ -9,7 +9,7 @@ alwaysApply: true
 
 **BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc`.
 
-> **Billing:** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
+> **Quota (constraint, not purpose — see § Trust over cost, D-34):** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
 
 | Tier | Archetypes | Model |
 |------|-----------|-------|
@@ -17,6 +17,16 @@ alwaysApply: true
 | T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) |
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — Sonnet security gate before push |
+
+## Trust over cost (D-34 — Dan 2026-07-12, authoritative purpose statement)
+
+**The end goal of model routing is trusted output, not saved money.** A cheap model whose output cannot be trusted is pointless to use; a cheap model **paired with a verifier that reaches genuine agreement** is the product. Cost is the constraint; trust is the goal.
+
+- **Default pattern (every verifier-paired task):** route the task to the cheapest appropriate worker (tier table above) → pair it with its routed verifier lane (§ Verification ladder) → worker and verifier **deliberate as peers until both agree** — proposals + adopt/rebut + explicit accept/reject, same peer stance as § Question deliberation (D-33; also D-30 Peer deliberation once PR #26 merges); existing max cycles per lane unchanged → **only after agreement does the orchestrator (currently Composer 2.5 by default) present the result as done / as the answer** (post-ship lanes like Ship Verifier stay post-push evidence + fix-closure — this governs what is presented as trusted, not mid-ship mechanics). This extends D-33's deliberate→agree→orchestrator-presents pattern from questions to **all** verifier-paired work.
+- **Tier table = trust calibration, not a price list:** escalation (2-fail, stall-advisor, Sonnet diagnose, Fable) exists for when agreement cannot be reached at the cheap tier — not because a costlier model is inherently better for the task.
+- **Trivial-skip carve-outs unchanged** (typos, single-fact lookups, excluded ship paths, pure mechanical checks): those are tasks where Tier-0 mechanical checks alone establish trust — the skip is a trust judgment, not a cost dodge.
+- **No unverified cheap output reaches Dan** on any lane where a verifier trigger fired: missing evidence line = NOT RUN = not trusted = not presented as done.
+- Parity automatic per D-32 (desktop Windows PC, mobile Cursor, cloud VM).
 
 ## Platform parity (D-20 — all Composer sessions)
 

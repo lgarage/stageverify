@@ -39,7 +39,7 @@ Authority order: `AWAY_BUILD_PROTOCOL.md` → `composer-orchestrator.mdc` → do
 
 Deliver **final** copy-paste block on first present. Read `away-list.json` + `away-status.json`; verify npm scripts in `package.json`; self-contained scope + real away-NNN ids (`npm run away:next -- --minimal`); `startedAt` placeholder; execute prompts need **"go build it"**; backend scope → Sonnet gate before push per `security-review-gate.mdc`.
 
-Bias: ship StageVerify faster/cheaper; cost/token efficiency; simple workflow; repo-grounded answers.
+Bias: trusted output first — cost is the constraint, never the goal (D-34); ship StageVerify fast with cheap worker + verifier agreement; simple workflow; repo-grounded answers.
 
 ## Completion report
 
