@@ -6,7 +6,7 @@
 
 ## Current percent (SSOT)
 
-**81.75%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
+**85.17%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
 
 ## Standing directive (all future sessions)
 
@@ -26,8 +26,8 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 |------|--------|-------|-------|
 | Core loop (vendor → stage → pickup) | 65% | 0.98 | **1.30%** |
 | Email / Condition 1 ingest | 20% | 0.60 | **8.00%** |
-| §14 full E2E integration gate | 15% | 0.43 | **8.55%** |
-| **Total remaining** | — | — | **18.25%** → 100.00% |
+| §14 full E2E integration gate | 15% | 0.66 | **5.13%** |
+| **Total remaining** | — | — | **14.83%** → 100.00% |
 
 **Explicitly out of MVP scope (D-26 — not in %, criteria, or path):** e-tags / ESL / Minew / §14 step 26; location-first Phases 5–6; Phases 7–9 AI automation; App Check; harness/agent-ops; physical shop-map/sign printing (Jake Korb). Post-MVP product: `ESL_INTEGRATION_PLAN.md`.
 
@@ -50,7 +50,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 ## MVP done — exit criteria (checklist)
 
-- [ ] **§14 E2E gate PASS** — `npm run verify:phase14-e2e` (local) + `verify:phase14-e2e:prod` — scaffold shipped; full PASS pending
+- [ ] **§14 E2E gate PASS** — `verify:phase14-e2e` **local PASS** (2026-07-12, PR `cursor/mvp-phase14-e2e-gate-b498`); `verify:phase14-e2e:prod` pending after merge/deploy
 - [ ] **Live email ingest operable** — Gmail watch/Pub/Sub configured; one real inbound message links to a delivery without manual workaround
 - [ ] **Core regression green** — pickup, vendor, dispatcher, location Phase 4 release verifies PASS on prod after latest deploy
 - [x] **Combination scope honest** — **MVP waiver (2026-07-12):** atomic multi-location combo assign+release with real Jake Korb shop-map IDs is **explicitly out of MVP done**. Stub (`combinationStagingGroupId` / away-036/037) + emulator coverage (`test:pickup-authority`) remain; production combo signage waits on shelving decision. Placeholder IDs acceptable for demo/dev only.
@@ -61,7 +61,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 | # | Action | Closes | Owner | Blocks daily loop? |
 |---|--------|--------|-------|-------------------|
-| 1 | Build + run **§14 E2E gate** (`npm run verify:phase14-e2e` + `:prod`) | E2E exit criterion | **In-repo** — scaffold shipped; run local+prod PASS to close | No |
+| 1 | Run **§14 E2E gate prod** (`verify:phase14-e2e:prod` after merge) | E2E exit criterion | **Dan** merge PR #17 → prod verify | No |
 | 2 | **Dan GCP Gmail checklist** → deploy inbound CF + rules → reconnect OAuth | Live email criterion | **Dan** (GCP) + deploy | No for manual Condition 1; yes for automated evidence |
 | 3 | ~~Combination release decision~~ **Done** — MVP waiver documented 2026-07-12 | Combination honesty | — | No |
 
@@ -86,7 +86,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 ## Gap reference (ranked)
 
-1. §14 full E2E gate not passed — **high**, in-repo
+1. §14 E2E gate prod verify pending — **high**, Dan merge + `verify:phase14-e2e:prod`
 2. Live Gmail ingest (Pub/Sub + IAM + deploy) — **high**, Dan/external
 3. Combination location release incomplete — **medium**, in-repo (real IDs: Jake Korb; waived for MVP done)
 4. Physical shop map — **medium-low**; sign printing only; not core software loop
@@ -102,6 +102,6 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 2026-07-12 | 80.65 | Composer | Combo honesty waiver documented (+0.65% core-loop band) |
 | 2026-07-12 | 81.75 | Composer | §14 E2E gate scaffold `verify:phase14-e2e` (+1.10% E2E band, pre-redistribution) |
 | 2026-07-12 | — | Dan | ~~86.75% e-tag waiver~~ **superseded** — e-tag removed from MVP model (D-26) |
-| 2026-07-12 | 81.75 | Dan | E-tag band removed; E2E weight 10%→15%; % unchanged at 81.75 |
+| 2026-07-12 | 85.17 | Composer | §14 E2E gate local PASS `verify:phase14-e2e` (+3.42% E2E band); focused pickup readback replaces full delivery-consistency in chain |
 
 Re-assess when any exit criterion closes or a major phase ships. **Do not** bump % without shipped+verified milestone evidence.
