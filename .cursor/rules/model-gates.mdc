@@ -162,7 +162,7 @@ Task({
 - roadmap / priority / queue planning / ranked options
 - away planning (Plan → Approve → Queue — not away **execute**)
 
-**Flow:** scouts per `parallel-agent-strategy.mdc` § Planning question protocol → Composer synthesizes draft → dispatch **Planning Verifier** → PARTIAL/FAIL → Composer revises draft only → **same verifier** re-verify per § Fix-closure rule → repeat until PASS. **Max 3 cycles** (initial verify + up to 2 Composer revise→re-verify rounds); then present with **`Caveat: planning-verifier exhausted`**. **Only present Dan the Grok-PASS answer** (or exhausted caveat). Composer never self-closes a planning finding.
+**Flow:** scouts per `parallel-agent-strategy.mdc` § Planning question protocol → Composer synthesizes draft → dispatch **Planning Verifier** → PARTIAL/FAIL → Composer revises draft only → **same verifier** re-verify per § Fix-closure rule → repeat until PASS. **Max 3 cycles** (initial verify + up to 2 Composer revise→re-verify rounds). Present the Grok-PASS answer when PASS; on max-cycle exhaustion present **both positions** with **`Caveat: planning-verifier exhausted`** per § Question deliberation (D-33). Composer never self-closes a planning finding.
 
 **Verifier:** Grok 4.5 Fast — one Task per revision cycle:
 
@@ -190,7 +190,7 @@ Task({
 
 **Skip:** trivial typos; single-fact lookup with one authoritative source; pure code execution with no recommendation; planning triggers already covered by § Planning verify loop (do not double-dispatch).
 
-**Flow:** gather sources → draft privately → dispatch **Q&A Verifier** → FAIL/PARTIAL → Composer revises draft only → same Grok re-verify once → present PASS answer (or `Caveat:` if still uncertain). **Max 2 cycles** (initial + one revise). Composer never self-closes a Q&A finding.
+**Flow:** gather sources → draft privately → dispatch **Q&A Verifier** → FAIL/PARTIAL → Composer revises draft only → same Grok re-verify once → present PASS answer; if still unresolved, present **both positions** with a `Caveat:` per § Question deliberation (D-33). **Max 2 cycles** (initial + one revise). Composer never self-closes a Q&A finding.
 
 **Verifier:** Grok 4.5 Fast — one Task per cycle:
 
@@ -209,6 +209,15 @@ Task({
 **Orthogonal roles:** Q&A verifier = pre-present factual/explanatory accuracy; Planning verifier = ranked options/roadmap; Repair/Ship/stall/Critical = unchanged. Same Grok slug; one Task per role per event.
 
 **Platform parity:** Q&A verify loop follows § Platform parity (D-20/D-22) — desktop Windows PC, mobile Cursor, and cloud VM identical.
+
+### Question deliberation — orchestrator presents (D-33 — Dan 2026-07-12)
+
+**Trigger:** any Dan question that dispatches a qualifier/verifier model (Q&A Verifier, Planning Verifier, or any verifier/reviewer consulted to shape an answer).
+
+- **Deliberate, don't dictate:** the drafting agent and the verifier exchange positions as **peers** until genuine agreement on the best answer — verifier findings are proposals; the author adopts or rebuts with reasoning; the verifier's next turn explicitly accepts or rejects each rebuttal (never merely restates its verdict). Existing max cycles unchanged (Q&A 2; Planning 3).
+- **Orchestrator presents:** the final note to Dan is always authored and delivered by the session's orchestrating agent (currently Composer 2.5 by default) in its own words — **never raw verifier output pasted as the answer**. Verifier contribution appears only as evidence lines (`qa-verifier:`, `planning-verifier:`, `fix-verified:`, `findings:`).
+- **Unresolved after max cycles:** Composer presents **both positions** with a `Caveat:` line — never silent compliance, never silent dismissal.
+- Platform parity automatic per D-32 default (desktop Windows PC, mobile Cursor, cloud VM).
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 
