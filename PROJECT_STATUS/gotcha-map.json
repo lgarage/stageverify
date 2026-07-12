@@ -177,8 +177,10 @@
         "verify:location-phase4:prod",
         "openDelivery",
         "reset-pickup-verify-fixture",
+        "reset pickup fixture",
         "ORD-004",
-        "button.*View"
+        "hasText: /^View$/",
+        "verify:phase14-e2e:prod"
       ],
       "orchestratorSteps": [7],
       "dossierTags": ["agent-lessons"],
@@ -187,16 +189,24 @@
         "src/dispatcher/firestoreService.ts",
         "scripts/verify-location-phase4.mjs",
         "scripts/reset-pickup-verify-fixture.mjs",
-        "scripts/verify-phase14-pickup-readback.mjs"
+        "scripts/verify-phase14-pickup-readback.mjs",
+        "scripts/verify-phase14-e2e.mjs"
       ],
-      "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
+      "rules": ["composer-orchestrator.mdc § UI Verification Protocol", "ship-loop.mdc"],
       "commands": [
         "npm run verify:location-phase4",
         "npm run verify:location-phase4:prod",
         "npm run verify:phase14-e2e:prod",
-        "npm run verify:pickup:prod"
+        "npm run verify:pickup:prod",
+        "npm run context:gotcha -- --task \"hideSeedDemoRows openDelivery\""
       ],
-      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..006) from dispatcher list. Prod verify (phase4, phase14 reset/readback, pickup reset) must open drawer via `#/dispatcher?openDelivery=<id>` — list search for ORD-004/ORD-005 + View button times out on live prod."
+      "gateCandidate": true,
+      "injectBefore": [
+        "prod Playwright",
+        "verify:phase14-e2e:prod",
+        "reset pickup fixture on gh-pages"
+      ],
+      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..006) from dispatcher list (hideSeedDemoRows). Prod verify (phase4, phase14 reset/readback, pickup reset) must open drawer via `#/dispatcher?openDelivery=<id>` — list search for ORD-004/ORD-005 + View button times out on live prod. Do not classify as stale gh-pages."
     },
     {
       "id": "gh-pages-deploy-freshness",

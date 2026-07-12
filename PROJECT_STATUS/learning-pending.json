@@ -119,6 +119,38 @@
       "mergedAt": "2026-07-11T04:56:21.232Z",
       "mergedToId": "idx-010",
       "sourceTask": "away-124"
+    },
+    {
+      "id": "vfl-015",
+      "scriptName": "verify:phase14-e2e:prod",
+      "fingerprint": "7efa520046319ff9",
+      "exitCode": 1,
+      "category": "gotcha",
+      "summary": "verify:phase14-e2e:prod — prod hideSeedDemoRows hides ORD-001..006; use #/dispatcher?openDelivery=<id> (not list View search)",
+      "triggerTerms": [
+        "phase14",
+        "hideSeedDemoRows",
+        "openDelivery",
+        "prod verify",
+        "gh-pages",
+        "STAGEVERIFY_BASE_URL",
+        "dispatcher",
+        "demo rows hidden",
+        "reset-pickup-verify-fixture",
+        "verify:phase14-e2e:prod"
+      ],
+      "type": "ui-component",
+      "subtype": "layout-style",
+      "gateCandidate": true,
+      "domain": "dispatcher",
+      "source": "verify-auto-capture",
+      "taskHint": "retro-2026-07-12-cloud-agent-phase14-prod",
+      "stderrTail": null,
+      "stdoutTail": "FAIL: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button').filter({ hasText: /^View$/ }).first()\n\nFAIL: reset pickup fixture (exit 1)\nFAIL: §14 legs 3–22 prod core loop (exit 1)",
+      "createdAt": "2026-07-12T03:25:50.923Z",
+      "mergedAt": null,
+      "mergedToId": null,
+      "sourceTask": null
     }
   ]
 }

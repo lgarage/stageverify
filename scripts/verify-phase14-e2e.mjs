@@ -4,17 +4,25 @@
  * Maps to `PROJECT_STATUS/svscope_simple.md` §14 (27-step daily shop loop).
  * SSOT: `PROJECT_STATUS/MVP_PATH.md` exit criterion "§14 E2E gate PASS".
  *
+ * On failure, self-captures to learning-pending (same hook as run-verify-with-learning)
+ * because package.json does not wrap this script (avoids high-risk scripts-section edit).
+ *
  * Usage (local):
  *   npm run dev
  *   node scripts/playwright-auth-setup.mjs   (if token expired)
  *   npm run verify:phase14-e2e
  *
- * Prod (after Dan merge — no deploy from mobile until approved):
+ * Prod:
  *   npm run verify:phase14-e2e:prod
  */
 
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import {
+  captureVerifyFailure,
+  clearPendingForScript,
+  tailLines,
+} from "./lib/verify-learning-hook.mjs";
 
 const root = resolve(process.cwd());
 const baseUrlFlagArg = process.argv.find((a) => a.startsWith("--base-url="));
@@ -26,6 +34,9 @@ const baseUrlOverride =
 const isProd = Boolean(
   baseUrlOverride && /lgarage\.github\.io\/stageverify/i.test(baseUrlOverride),
 );
+
+const scriptName = isProd ? "verify:phase14-e2e:prod" : "verify:phase14-e2e";
+const forwardArgs = baseUrlOverride ? [`--base-url=${baseUrlOverride}`] : [];
 
 /** Local §14 gate uses demo fixtures (steps 1–2); prod uses gh-pages + live Firebase. */
 const DEMO_E2E_ENV = {
@@ -66,6 +77,10 @@ const SECTION14_COVERAGE_PROD = [
   { steps: "27", topic: "Permanent shop-stock reserved", status: "partial", note: "Shop stock labels in pickup; no inventory balances" },
 ];
 
+/** Accumulated child output for learning capture (stdio pipe + tee). */
+let captureStdout = "";
+let captureStderr = "";
+
 function printCoverageManifest() {
   const rows = isProd ? SECTION14_COVERAGE_PROD : SECTION14_COVERAGE_LOCAL;
   console.log("\n--- §14 step coverage manifest ---");
@@ -90,10 +105,20 @@ function runStep(label, command, args, extraArgs = []) {
     console.log(`\n=== ${label} ===`);
     const child = spawn(command, [...args, ...extraArgs], {
       cwd: root,
-      stdio: "inherit",
+      stdio: ["inherit", "pipe", "pipe"],
       // Windows: npm/npx are .cmd — spawn without shell → ENOENT
       shell: true,
       env: childEnv(),
+    });
+    child.stdout?.on("data", (chunk) => {
+      const text = chunk.toString();
+      captureStdout += text;
+      process.stdout.write(text);
+    });
+    child.stderr?.on("data", (chunk) => {
+      const text = chunk.toString();
+      captureStderr += text;
+      process.stderr.write(text);
     });
     child.on("error", (err) => {
       console.error(`FAIL: ${label} — ${err.message}`);
@@ -109,6 +134,25 @@ function runStep(label, command, args, extraArgs = []) {
       resolveStep();
     });
   });
+}
+
+function recordFailure(exitCode) {
+  const result = captureVerifyFailure({
+    scriptName,
+    exitCode,
+    stdoutTail: tailLines(captureStdout, 60),
+    stderrTail: tailLines(captureStderr, 40),
+    forwardArgs,
+    domain: "dispatcher",
+    triggers: ["phase14", "hideSeedDemoRows", "openDelivery"],
+  });
+  if (result.action === "pending-capture" && result.entry) {
+    console.error(
+      `learning: captured pending ${result.entry.id} (${result.entry.category}) — ${result.entry.summary}`,
+    );
+  } else if (result.action?.startsWith("dedup")) {
+    console.error(`learning: dedup ${result.action} fingerprint=${result.fingerprint}`);
+  }
 }
 
 async function main() {
@@ -144,6 +188,7 @@ async function main() {
     "scripts/verify-phase14-pickup-readback.mjs",
   ], baseUrlArgs);
 
+  clearPendingForScript(scriptName);
   console.log("\nverify:phase14-e2e PASS");
   console.log(
     isProd
@@ -153,5 +198,6 @@ async function main() {
 }
 
 main().catch(() => {
+  recordFailure(1);
   process.exit(1);
 });

@@ -116,7 +116,7 @@ export function isGhPagesBundleVerify(scriptName, domain) {
     "email",
   ]);
   if (frontendDomains.has(domain)) return true;
-  return /pickup|receive|vendor-delivered|vendor-pin|invoice|settings|dispatcher|portal|oauth|delivery-consistency|public-network/i.test(
+  return /pickup|receive|vendor-delivered|vendor-pin|invoice|settings|dispatcher|portal|oauth|delivery-consistency|public-network|phase14|e2e-smoke|mvp-core/i.test(
     scriptName,
   );
 }
@@ -141,7 +141,9 @@ function inferDomain(scriptName) {
   if (scriptName.includes("pickup")) return "pickup";
   if (scriptName.includes("receive") || scriptName.includes("vendor")) return "vendor-receive";
   if (scriptName.includes("invoice")) return "invoice-review";
-  if (scriptName.includes("dispatcher")) return "dispatcher";
+  if (scriptName.includes("dispatcher") || scriptName.includes("phase14") || scriptName.includes("e2e-smoke")) {
+    return "dispatcher";
+  }
   if (scriptName.includes("settings")) return "settings";
   if (scriptName.includes("email")) return "email";
   return "verify";
@@ -199,7 +201,30 @@ export function classifyVerifyFailure(ctx) {
     (/patch[-/]|scripts\/patch|runpatchscript|spawnsync patch|spawn-sync patch/i.test(combined) ||
       /\.mjs timed out|patch.*\.mjs/i.test(combined));
 
-  if (
+  // Prod list search for seed ORD rows / View button — hideSeedDemoRows (not stale bundle).
+  const hideSeedDemoListMiss =
+    /hideseeddemorows|demo rows hidden|reset-pickup-verify-fixture|reset pickup fixture|opendelivery/i.test(
+      combined,
+    ) ||
+    (/ord-00[1-6]/i.test(combined) &&
+      /not found|timeout|timed out|waiting for/i.test(combined)) ||
+    (/hastext:\s*\/\^view\$\//i.test(combined) ||
+      /filter\(\{\s*hastext:\s*\/\^view\$\//i.test(combined) ||
+      /button.*\^view\$|waiting for locator\('button'\)\.filter/i.test(combined));
+
+  if (hideSeedDemoListMiss) {
+    category = "gotcha";
+    gateCandidate = true;
+    summary = `${ctx.scriptName} — prod hideSeedDemoRows hides ORD-001..006; use #/dispatcher?openDelivery=<id> (not list View search)`;
+    addTerms(
+      "hideSeedDemoRows",
+      "openDelivery",
+      "demo rows hidden",
+      "reset-pickup-verify-fixture",
+      "verify:phase14-e2e:prod",
+      "prod-verify-hide-seed-demo",
+    );
+  } else if (
     ghPagesProd &&
     (/stale|old bundle|not updated|cache|404|propagation|deploy.*first|redeploy/i.test(combined) ||
       /assert|expected|timeout|not found/i.test(combined))
