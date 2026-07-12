@@ -8,7 +8,7 @@
 
 1. **Verify deployment completed before marking done.** gh-pages branch push ≠ live — always `npm run deploy`, wait for GitHub Pages build status `built`, then prod scripts after UI ship.
 2. **Windows prod verify:** use `cmd /c "set STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify&& npm run verify:…"` — Unix `VAR=… cmd` prefix fails in PowerShell.
-3. **Do not say "fixed" without Playwright.** Build alone is insufficient; interactive flows need verify scripts. Detail: dossier § agent-lessons.
+3. **Do not say "fixed" without Playwright.** Build alone is insufficient; interactive flows need verify scripts. Detail: dossier § agent-lessons. **Prod hideSeedDemoRows:** ORD-001..006 hidden on gh-pages — use `#/dispatcher?openDelivery=<id>` (gotcha `prod-verify-hide-seed-demo`); View timeout ≠ stale bundle. New `verify:*` scripts must use `run-verify-with-learning` **or** self-call `captureVerifyFailure` — bare `node scripts/…` skips pending. Report `gotchas: recorded — prod-verify-hide-seed-demo` when this pattern hits (never `gotchas: none`).
 
 ## Dispatcher UI
 

@@ -243,6 +243,58 @@ assert(
   `real auth failure summary should mention auth; got: ${authFailClassified.summary}`,
 );
 
+// --- Case 10: hideSeedDemoRows View-button timeout (phase14 prod) — not stale bundle ---
+const hideSeedStdout = `FAIL: locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('button').filter({ hasText: /^View$/ }).first()
+
+FAIL: reset pickup fixture (exit 1)
+FAIL: §14 legs 3–22 prod core loop (exit 1)
+`;
+const hideSeedClassified = classifyVerifyFailure({
+  scriptName: "verify:phase14-e2e:prod",
+  exitCode: 1,
+  stderrTail: "",
+  stdoutTail: hideSeedStdout,
+  isProd: true,
+  domain: "dispatcher",
+});
+assert(
+  hideSeedClassified.category === "gotcha",
+  `hideSeed View timeout should be gotcha; got ${hideSeedClassified.category}`,
+);
+assert(
+  hideSeedClassified.gateCandidate === true,
+  "hideSeed View timeout should be gateCandidate",
+);
+assert(
+  /hideseeddemorows|opendelivery/i.test(hideSeedClassified.summary),
+  `hideSeed summary should mention hideSeedDemoRows/openDelivery; got: ${hideSeedClassified.summary}`,
+);
+assert(
+  !hideSeedClassified.summary.toLowerCase().includes("stale gh-pages"),
+  "hideSeed should not classify as stale gh-pages bundle",
+);
+assert(
+  (hideSeedClassified.triggerTerms ?? []).some((t) =>
+    /hideseeddemorows|prod-verify-hide-seed-demo/i.test(t),
+  ),
+  "hideSeed should include hideSeedDemoRows trigger terms",
+);
+
+const hideSeedLocalClassified = classifyVerifyFailure({
+  scriptName: "verify:phase14-e2e",
+  exitCode: 1,
+  stderrTail: "",
+  stdoutTail: hideSeedStdout,
+  isProd: false,
+  domain: "dispatcher",
+});
+assert(
+  !/hideseeddemorows/i.test(hideSeedLocalClassified.summary),
+  `local View timeout must not classify as hideSeedDemoRows; got: ${hideSeedLocalClassified.summary}`,
+);
+
 const spawnPatchCapture = captureVerifyFailure({
   scriptName: "verify:location-phase4",
   exitCode: 1,
