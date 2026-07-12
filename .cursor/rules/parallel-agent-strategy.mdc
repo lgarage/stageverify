@@ -83,6 +83,8 @@ Split multi-domain investigations by domain — one scout per domain, same turn.
 
 **Always run Scout A first (inline or alone)** before fan-out: `npm run away:next -- --minimal`. Expand to B–D scouts only when the minimal brief is empty, blocked, or the question needs roadmap/blockers/code-gaps/verify coverage beyond the queue head.
 
+**Repo sync (mandatory — Dan 2026-07-12, all clients):** Before Scout A or any SSOT read for planning triggers above, run `git fetch origin main && git pull origin main` (fast-forward). Parallel PC/mobile sessions drift quickly — do **not** answer from stale tip. Note `main` tip hash in synthesis when recent ships may have landed on another client. Skip re-pull only if the same turn already fetched and `HEAD` matches `origin/main`.
+
 ### Scout domains (stageverify)
 
 | Scout | Domain | Read / run |
@@ -96,11 +98,12 @@ Use scouts **A + B + C** minimum; add **D** when the answer may involve UI route
 
 ### Orchestrator pipeline (mandatory order)
 
+0. **Repo sync** — `git fetch origin main && git pull origin main` (see **Repo sync** above).
 1. **Dispatch** — 2–4 scouts, one message, scout boilerplate below.
 2. **Synthesize** — merge scout outputs (`### Scout synthesis` block); resolve conflicts; rank 1–3 recommendations.
 3. **Planning verify** — dispatch Grok Planning Verifier per `model-gates.mdc` § Planning verify loop; PARTIAL/FAIL → Composer revises → same Grok re-verifies until PASS (max 3 cycles).
 4. **Answer quality** — run `.cursor/rules/answer-quality.mdc` on the Grok-PASS draft (cross-check sources scouts cited; contradiction scan; time-bound filter when window stated).
-5. **Present** — answer Dan with ranked options + **`Verified against: [sources]`** or **`Caveat: …`**; include `planning-verifier:` evidence line.
+5. **Present** — answer Dan with ranked options + **`Verified against: [sources]`** or **`Caveat: …`**; include `planning-verifier:` evidence line; include **`main` tip hash** when pulled this turn.
 
 Do **not** answer from `docs/roadmap.md` alone — queue/hot state (Scout A) wins on "what's next."
 
