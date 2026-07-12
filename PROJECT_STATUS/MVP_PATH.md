@@ -6,7 +6,7 @@
 
 ## Current percent (SSOT)
 
-**81.75%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
+**86.75%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
 
 ## Standing directive (all future sessions)
 
@@ -26,11 +26,11 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 |------|--------|-------|-------|
 | Core loop (vendor → stage → pickup) | 65% | 0.98 | **1.30%** |
 | Email / Condition 1 ingest | 20% | 0.60 | **8.00%** |
-| E-tag / ESL live (§14 step 26) | 5% | 0.00 | **5.00%** |
+| E-tag / ESL live (§14 step 26) | 5% | 1.00 | **0.00%** |
 | §14 full E2E integration gate | 10% | 0.45 | **5.50%** |
-| **Total remaining** | — | — | **19.80%** → 100.00% |
+| **Total remaining** | — | — | **13.25%** → 100.00% |
 
-**Explicitly out of this %:** location-first Phases 5–6, Phases 7–9 (AI/ESL), App Check, harness/agent-ops, physical shop-map/sign printing (Jake Korb).
+**Explicitly out of this %:** location-first Phases 5–6, Phases 7–9 (AI/ESL automation — **e-tag frozen D-26**), App Check, harness/agent-ops, physical shop-map/sign printing (Jake Korb). Existing **Push to E-Tag** print-label UI and zone `eslTagId` fields remain; live Minew sync is post-MVP.
 
 ## Partial credit (increment math)
 
@@ -56,7 +56,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 - [ ] **Live email ingest operable** — Gmail watch/Pub/Sub configured; one real inbound message links to a delivery without manual workaround
 - [ ] **Core regression green** — pickup, vendor, dispatcher, location Phase 4 release verifies PASS on prod after latest deploy
 - [x] **Combination scope honest** — **MVP waiver (2026-07-12):** atomic multi-location combo assign+release with real Jake Korb shop-map IDs is **explicitly out of MVP done**. Stub (`combinationStagingGroupId` / away-036/037) + emulator coverage (`test:pickup-authority`) remain; production combo signage waits on shelving decision. Placeholder IDs acceptable for demo/dev only.
-- [ ] **E-tag closed or waived** — live Minew demo **or** written Dan waiver that MVP done excludes live e-tags
+- [x] **E-tag closed or waived** — **MVP freeze (D-26, 2026-07-12):** live Minew ESL automation explicitly **out of MVP done**; revisit post-MVP with verify/tests. Manual print-label + zone `eslTagId` assignment unchanged.
 
 ---
 
@@ -67,11 +67,11 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 1 | Build + run **§14 E2E gate** (`npm run verify:phase14-e2e` + `:prod`) | E2E exit criterion | **In-repo** — scaffold shipped; run local+prod PASS to close | No |
 | 2 | **Dan GCP Gmail checklist** → deploy inbound CF + rules → reconnect OAuth | Live email criterion | **Dan** (GCP) + deploy | No for manual Condition 1; yes for automated evidence |
 | 3 | ~~Combination release decision~~ **Done** — MVP waiver documented 2026-07-12 | Combination honesty | — | No |
-| 4 | **E-tag waiver** (recommended for speed) — document MVP excludes live ESL until Minew creds | E-tag criterion | **Dan** decision | No |
+| 4 | ~~E-tag waiver~~ **Done** — D-26 freeze: ESL post-MVP + tests | E-tag criterion | — | No |
 
-**Parallel while blocked on Dan:** run `verify:phase14-e2e` local+prod (item 1) — do not wait on Pub/Sub or Minew.
+**Parallel while blocked on Dan:** run `verify:phase14-e2e` local+prod (item 1) — do not wait on Pub/Sub. **Do not** start e-tag/Minew work (D-26 freeze).
 
-**Defer until after MVP done:** location-first Phases 5–6, Phase 7 ESL automation, Phase 8–9 AI, harness Phase 2 auto-gotcha, ESLint cleanup batches unrelated to exit criteria.
+**Defer until after MVP done:** location-first Phases 5–6, **Phase 7 ESL / e-tag automation (D-26 — revisit with tests)**, Phase 8–9 AI, harness Phase 2 auto-gotcha, ESLint cleanup batches unrelated to exit criteria.
 
 ---
 
@@ -80,7 +80,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 1. §14 full E2E gate not passed — **high**, in-repo
 2. Live Gmail ingest (Pub/Sub + IAM + deploy) — **high**, Dan/external
 3. Combination location release incomplete — **medium**, in-repo (real IDs: Jake Korb)
-4. Live ESL / e-tag (step 26) — **medium** for narrative; **low** for core loop; Minew blocker
+4. Live ESL / e-tag (step 26) — **frozen for MVP (D-26)**; post-MVP + tests
 5. Physical shop map — **medium-low**; sign printing only; not core software loop
 
 ---
@@ -93,5 +93,6 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 2026-07-12 | 80.00 | D-25 rule | Mandatory % reporting in work replies; SSOT 2-decimal updates |
 | 2026-07-12 | 80.65 | Composer | Combo honesty waiver documented (+0.65% core-loop band) |
 | 2026-07-12 | 81.75 | Composer | §14 E2E gate scaffold `verify:phase14-e2e` (+1.10% E2E band) |
+| 2026-07-12 | 86.75 | Dan | E-tag/ESL frozen for MVP — D-26 waiver (+5.00% e-tag band) |
 
 Re-assess when any exit criterion closes or a major phase ships. **Do not** bump % without shipped+verified milestone evidence.
