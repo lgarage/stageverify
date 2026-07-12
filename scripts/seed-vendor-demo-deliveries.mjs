@@ -222,6 +222,7 @@ function historyDoc(entityId, spec) {
       "  ORD-006 (Shipped):  https://lgarage.github.io/stageverify/#/receive?id=delivery-demo-vendor-2",
     );
   }
+  process.exit(0);
 })().catch((err) => {
   console.error("FAIL:", err.message ?? err);
   process.exit(1);
