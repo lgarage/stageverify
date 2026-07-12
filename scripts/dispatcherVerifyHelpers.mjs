@@ -268,17 +268,23 @@ export async function assignStagingIfUnassigned(page) {
   for (let i = 0; i < count; i++) {
     const opt = options.nth(i);
     const value = await opt.getAttribute("value");
-    const disabled = await opt.getAttribute("disabled");
-    if (!value || disabled !== null) continue;
-    await select.selectOption(value);
+    if (!value) continue;
+    if (await opt.isDisabled().catch(() => true)) continue;
+    try {
+      await select.selectOption(value, { timeout: 5_000 });
+    } catch {
+      continue;
+    }
     const assignBtn = section.getByRole("button", { name: /^Assign$/ });
     if (await assignBtn.isEnabled().catch(() => false)) {
       await assignBtn.click();
       await page.waitForTimeout(2000);
       return true;
     }
-    break;
   }
+  console.warn(
+    "assignStagingIfUnassigned: no enabled staging option — leave unassigned.",
+  );
   return false;
 }
 
