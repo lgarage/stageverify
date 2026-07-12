@@ -31,6 +31,16 @@ const PROD_LEGS = [
     args: ["run", "verify:pickup:prod"],
   },
   {
+    label: "dispatcher nav",
+    command: "npm",
+    args: ["run", "verify:dispatcher-nav:prod"],
+  },
+  {
+    label: "location Phase 4",
+    command: "npm",
+    args: ["run", "verify:location-phase4:prod"],
+  },
+  {
     label: "vendor delivered hub",
     command: "npm",
     args: ["run", "verify:vendor-delivered:prod"],
@@ -44,16 +54,6 @@ const PROD_LEGS = [
       ].every((key) => Boolean(process.env[key]?.trim())),
     skipNote:
       "Set STAGEVERIFY_RECEIVE_DELIVERY + vendor env for vendor-delivered:prod",
-  },
-  {
-    label: "dispatcher nav",
-    command: "npm",
-    args: ["run", "verify:dispatcher-nav:prod"],
-  },
-  {
-    label: "location Phase 4",
-    command: "npm",
-    args: ["run", "verify:location-phase4:prod"],
   },
 ];
 

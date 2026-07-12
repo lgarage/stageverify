@@ -23,6 +23,7 @@ import {
   ensureAuthenticated,
   loadEnvLocal,
   openDeliveryDrawer,
+  openDeliveryDrawerByDeepLink,
 } from "./dispatcherVerifyHelpers.mjs";
 
 const args = process.argv.slice(2);
@@ -33,6 +34,7 @@ const baseUrl =
   process.env.STAGEVERIFY_PROD_BASE ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
+const isProd = /lgarage\.github\.io\/stageverify/i.test(baseUrl);
 
 loadEnvLocal();
 
@@ -257,7 +259,11 @@ async function runDispatcherVisibility(browser) {
   const page = await context.newPage();
 
   await ensureAuthenticated(page, appBase);
-  await openDeliveryDrawer(page, orderNumber, deliveryId);
+  if (isProd) {
+    await openDeliveryDrawerByDeepLink(page, appBase, deliveryId);
+  } else {
+    await openDeliveryDrawer(page, orderNumber, deliveryId);
+  }
 
   const body = await page.locator("body").innerText();
   const notPartial = !/Partial/i.test(body) || /Arrived|Delivered/i.test(body);

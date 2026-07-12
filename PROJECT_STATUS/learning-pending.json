@@ -148,9 +148,9 @@
       "stderrTail": null,
       "stdoutTail": "FAIL: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button').filter({ hasText: /^View$/ }).first()\n\nFAIL: reset pickup fixture (exit 1)\nFAIL: §14 legs 3–22 prod core loop (exit 1)",
       "createdAt": "2026-07-12T03:25:50.923Z",
-      "mergedAt": null,
+      "mergedAt": "2026-07-12T04:05:51.662Z",
       "mergedToId": null,
-      "sourceTask": null
+      "sourceTask": "mobile-harness-chore"
     }
   ]
 }
