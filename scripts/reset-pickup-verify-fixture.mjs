@@ -19,6 +19,7 @@ import {
   ensureAuthenticated,
   loadEnvLocal,
   openDeliveryDrawer,
+  openDeliveryDrawerByDeepLink,
 } from "./dispatcherVerifyHelpers.mjs";
 
 const args = process.argv.slice(2);
@@ -28,6 +29,7 @@ const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
+const isProd = /lgarage\.github\.io\/stageverify/i.test(baseUrl);
 const deliveryId = process.env.STAGEVERIFY_PICKUP_DELIVERY ?? "delivery-3";
 const orderNumber = process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-004";
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
@@ -43,7 +45,15 @@ loadEnvLocal();
   const page = await context.newPage();
 
   await ensureAuthenticated(page, appBase);
-  await openDeliveryDrawer(page, orderNumber, deliveryId);
+  // Prod hides seed demo rows (ORD-001..006) — deep-link only (gotcha hideSeedDemoRows).
+  if (isProd) {
+    console.log(
+      `Prod reset: deep-link drawer for ${deliveryId} (demo rows hidden on gh-pages).`,
+    );
+    await openDeliveryDrawerByDeepLink(page, appBase, deliveryId);
+  } else {
+    await openDeliveryDrawer(page, orderNumber, deliveryId);
+  }
 
   let reverted = 0;
   for (let i = 0; i < 8; i++) {
