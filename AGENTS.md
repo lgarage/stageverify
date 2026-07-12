@@ -4,6 +4,18 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 
 **Dan's primary dev machine:** Windows PC (`C:\Projects\stageverify`). Cloud VM uses `/workspace`.
 
+## Desktop Windows PC (Cursor)
+
+Same harness as cloud — `.cursor/rules/` **alwaysApply** on desktop (D-20 platform parity). No separate mobile-lite orchestration.
+
+| Task | Command (from `C:\Projects\stageverify`) |
+|------|----------------------------------------|
+| Hot-tier auto-sync (D-23) | `npm run away:validate` — writes CURRENT_STATE + Phase Tracker + roadmap from `verify:location-phaseN` prod PASS |
+| Quick drift check | `npm run away:sync` (dry-run) · `npm run away:sync -- --write` |
+| Ship one away item | `npm run away:ship -- --id away-NNN --commit <hash> --note "..."` |
+
+Scripts use `path.join` + repo-relative paths — identical on Windows and Linux. `readText()` normalizes CRLF.
+
 ## Cursor Cloud specific instructions
 
 ### Workspace paths
@@ -14,7 +26,7 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20/D-21/D-22). No mobile-lite orchestration.
+2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20–D-23). No mobile-lite orchestration.
 3. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Harness parity exceptions (mobile/cloud only)

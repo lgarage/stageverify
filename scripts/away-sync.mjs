@@ -84,5 +84,12 @@ if (write) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-const docDrift = !docConsistency.ok;
+const docDrift =
+  write && hotSync.changed
+    ? !validateLocationFirstDocConsistency({
+        currentStateMd: hotSync.currentStateMd,
+        specMd: hotSync.specMd,
+        roadmapMd: hotSync.roadmapMd,
+      }).ok
+    : !docConsistency.ok;
 process.exit((changed && !write) || docDrift ? 1 : 0);
