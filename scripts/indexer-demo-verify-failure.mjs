@@ -282,6 +282,19 @@ assert(
   "hideSeed should include hideSeedDemoRows trigger terms",
 );
 
+const hideSeedLocalClassified = classifyVerifyFailure({
+  scriptName: "verify:phase14-e2e",
+  exitCode: 1,
+  stderrTail: "",
+  stdoutTail: hideSeedStdout,
+  isProd: false,
+  domain: "dispatcher",
+});
+assert(
+  !/hideseeddemorows/i.test(hideSeedLocalClassified.summary),
+  `local View timeout must not classify as hideSeedDemoRows; got: ${hideSeedLocalClassified.summary}`,
+);
+
 const spawnPatchCapture = captureVerifyFailure({
   scriptName: "verify:location-phase4",
   exitCode: 1,

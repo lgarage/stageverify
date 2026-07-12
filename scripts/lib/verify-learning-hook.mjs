@@ -202,15 +202,17 @@ export function classifyVerifyFailure(ctx) {
       /\.mjs timed out|patch.*\.mjs/i.test(combined));
 
   // Prod list search for seed ORD rows / View button — hideSeedDemoRows (not stale bundle).
+  // Only when isProd: local list still shows seed ORD rows (firestoreService hideSeedDemoRows).
   const hideSeedDemoListMiss =
-    /hideseeddemorows|demo rows hidden|reset-pickup-verify-fixture|reset pickup fixture|opendelivery/i.test(
+    ctx.isProd &&
+    (/hideseeddemorows|demo rows hidden|reset-pickup-verify-fixture|reset pickup fixture|opendelivery/i.test(
       combined,
     ) ||
-    (/ord-00[1-6]/i.test(combined) &&
-      /not found|timeout|timed out|waiting for/i.test(combined)) ||
-    (/hastext:\s*\/\^view\$\//i.test(combined) ||
+      (/ord-00[1-6]/i.test(combined) &&
+        /not found|timeout|timed out|waiting for/i.test(combined)) ||
+      /hastext:\s*\/\^view\$\//i.test(combined) ||
       /filter\(\{\s*hastext:\s*\/\^view\$\//i.test(combined) ||
-      /button.*\^view\$|waiting for locator\('button'\)\.filter/i.test(combined));
+      /button.*\^view\$/i.test(combined));
 
   if (hideSeedDemoListMiss) {
     category = "gotcha";
