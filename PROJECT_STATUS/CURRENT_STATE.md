@@ -5,11 +5,11 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset); **Phase 4 prod verify** `verify:location-phase4:prod` **15/15 PASS** (`v0.0.33`, gh-pages `2dd401e`) — `openDelivery` deep link PR `cursor/location-phase4-prod-verify-77d5`
-- Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
+- Last shipped: **away-129** — away:plan draft suggestions when queue empty (`v0.0.34`, branch `cursor/away-126-129-batch-2aca`)
+- Active Phase: **Location-first Phase 4 complete** → **Phase 5 implement blocked** (away-126 Fable+Grok AGREE FAIL): D14 — unauth vendor NMS occupancy CF omits other jobs' `plannedStagingLocationIds`; fix `getVendorStagingOccupancy` **[high-risk CF]** before Phase 5 code.
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
-- **Verify:** `verify:location-phase4` **15/15 PASS** local + **prod** — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
+- **Verify:** `verify:location-phase4` **15/15 PASS** local + **prod** (`v0.0.33`) — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -19,9 +19,9 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
-- **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Fable work-verifier before Phase 5; queue hygiene Phase 1a **shipped** `93d1613` (`away:sync`); push ingest **[high-risk]** — Dan approval.
-- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** + **doc drift validate (D-23)** on `main`.
+- **Queue empty** — run `npm run away:plan` for draft away-130+ or queue D14 CF fix + Phase 5 resume.
+- **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Phase 5 implement blocked on D14 CF fix (`getVendorStagingOccupancy` planned-spot exclusion); push ingest **[high-risk]** — Dan approval.
+- **Harness:** D-24 Fable↔Grok conferral universal **shipped** on branch; Phase 2 auto-gotcha (D-18) — Dan approval.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

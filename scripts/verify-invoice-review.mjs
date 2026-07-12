@@ -103,6 +103,9 @@ async function main() {
     await page.getByTestId("invoice-review-panel").waitFor({ timeout: 15_000 });
     console.log("PASS: invoice-review-panel visible");
 
+    await page.getByTestId("invoice-pdf-upload-preview").waitFor({ timeout: 10_000 });
+    console.log("PASS: invoice PDF upload preview section visible");
+
     await page.getByTestId("invoice-review-queue").waitFor({ timeout: 15_000 });
     console.log("PASS: invoice-review-queue visible");
 
@@ -186,6 +189,24 @@ async function main() {
 
       await page.getByTestId("invoice-parsed-inspect-lines").waitFor({ timeout: 5000 });
       console.log("PASS: parsed lines table visible in inspect modal");
+
+      const branchPhoneLink = page.getByTestId("invoice-parsed-inspect-branch-phone-link");
+      if (await branchPhoneLink.count()) {
+        const href = await branchPhoneLink.getAttribute("href");
+        if (!href?.startsWith("tel:")) {
+          throw new Error("Branch phone link must use tel: href");
+        }
+        console.log("PASS: branch phone tel: link in inspect modal");
+      }
+
+      const listBranchLink = page.getByTestId("invoice-review-branch-phone-link");
+      if (await listBranchLink.count()) {
+        const href = await listBranchLink.first().getAttribute("href");
+        if (!href?.startsWith("tel:")) {
+          throw new Error("List branch phone link must use tel: href");
+        }
+        console.log("PASS: branch phone tel: link on queue row");
+      }
 
       await assertViewOriginalPdfButton(page);
 

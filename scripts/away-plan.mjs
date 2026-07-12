@@ -6,11 +6,13 @@
 import {
   PATHS,
   buildBatchBrief,
+  deriveNextAwayId,
   readJson,
 } from "./lib/away-memory-lib.mjs";
 
 const list = readJson(PATHS.awayList);
 const archive = readJson(PATHS.awayArchive);
+const statusDoc = readJson(PATHS.awayStatus);
 const batch = buildBatchBrief(list, archive);
 
 /** @type {{ id: string, title: string, scope: string, tier: string, dependsOn: string, verifyBeforeNext: string[], status: string }[]} */
@@ -30,6 +32,18 @@ if (!queueStocked && batch.batchSize > 0) {
       "One paragraph: files touched, blockers that do/do not apply, explicit out-of-scope (no live inbox, no rules changes unless listed).",
     tier: "T1",
     dependsOn: lastId !== "away-NNN" ? lastId : "away-previous",
+    verifyBeforeNext: ["npm run build"],
+    status: "draft — not queued until Dan approves with 'go build it'",
+  });
+} else if (!queueStocked && batch.batchSize === 0) {
+  const nextId = deriveNextAwayId(list, archive, statusDoc);
+  suggestedAdditions.push({
+    id: nextId,
+    title: "[DRAFT] Queue refill — scoped T0/T1 work (phone-safe)",
+    scope:
+      "One paragraph: verify harness gap, invoice/doc polish, or offline parser fixture — explicit out-of-scope for CF/rules/live inbox unless listed.",
+    tier: "T1",
+    dependsOn: "away-previous",
     verifyBeforeNext: ["npm run build"],
     status: "draft — not queued until Dan approves with 'go build it'",
   });

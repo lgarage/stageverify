@@ -55,7 +55,7 @@
 | **2** Privacy hardening | ✅ Complete 2026-07-08 (`v0.0.26`) | Rules auth-only reads; session/token CF mediation; `verify:privacy` |
 | **3** Permanent location scan v2 | ✅ Core slice 2026-07-08 (`v0.0.27`) | `#/s?loc=`, job-scoped PIN (D14), sign generator (software); sign **printing** blocked on shop map |
 | **4** Vendor exceptions + dispatcher planning | ✅ Complete 2026-07-11 (`v0.0.33`) | `verify:location-phase4` 15/15 local + prod; release CF + G1 E2E |
-| **5** Technician door + pickup v2 | ⬜ Not started | Fable work-verifier gate; per spec tracker |
+| **5** Technician door + pickup v2 | ⬜ Blocked | away-126 Fable+Grok AGREE FAIL — D14 CF fix before implement |
 | **6** Management audit | ⬜ Not started | Sonnet-gated; per spec tracker |
 
 ---

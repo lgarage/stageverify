@@ -12,10 +12,12 @@ import {
   matchInvoiceToRecords,
 } from "../firestoreService";
 import { vendorInvoiceImportDisplayLabelForRow } from "./invoiceDisplayHelpers";
+import { InvoicePdfUploadPreview } from "./InvoicePdfUploadPreview";
 import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import {
   formatInvoiceHeaderField,
+  branchPhoneTelHref,
   matchUnavailableReason,
   queueRowIssueSummary,
   queueRowLineCount,
@@ -189,25 +191,53 @@ function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?
   );
 }
 
-function FieldCell({ label, value }: { label: string; value: string }) {
+function FieldCell({
+  label,
+  value,
+  telHref,
+}: {
+  label: string;
+  value: string;
+  telHref?: string | null;
+}) {
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ color: "#9ca3af", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}>
         {label}
       </div>
-      <div
-        style={{
-          color: NAVY,
-          fontSize: 12,
-          fontWeight: value === "—" ? 400 : 500,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        title={value === "—" ? undefined : value}
-      >
-        {value}
-      </div>
+      {telHref && value !== "—" ? (
+        <a
+          href={telHref}
+          data-testid="invoice-review-branch-phone-link"
+          style={{
+            color: NAVY,
+            fontSize: 12,
+            fontWeight: 500,
+            textDecoration: "underline",
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+          title={value}
+        >
+          {value}
+        </a>
+      ) : (
+        <div
+          style={{
+            color: NAVY,
+            fontSize: 12,
+            fontWeight: value === "—" ? 400 : 500,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+          title={value === "—" ? undefined : value}
+        >
+          {value}
+        </div>
+      )}
     </div>
   );
 }
@@ -521,6 +551,7 @@ export function InvoiceReviewPanel({
         minHeight: 480,
       }}
     >
+      <InvoicePdfUploadPreview />
       <div
         data-testid={listTestId(filter)}
         style={{
@@ -596,6 +627,8 @@ export function InvoiceReviewPanel({
           const rowActionLoading = actionLoadingId === row.id;
           const isFirstPending = row.id === firstPendingRowId;
           const codContext = codPaymentContext(row);
+          const branchPhoneRaw = readInvoiceHeaderField(header, "vendorBranchPhone");
+          const branchPhoneDisplay = formatInvoiceHeaderField(branchPhoneRaw);
 
           return (
             <div
@@ -688,6 +721,11 @@ export function InvoiceReviewPanel({
                       value={formatInvoiceHeaderField(
                         readInvoiceHeaderField(header, "buyerName"),
                       )}
+                    />
+                    <FieldCell
+                      label="Branch phone"
+                      value={branchPhoneDisplay}
+                      telHref={branchPhoneTelHref(branchPhoneRaw)}
                     />
                     {filter === "approved" ? (
                       <>

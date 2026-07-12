@@ -124,7 +124,7 @@ For each id in `executionProtocol.sequence`:
 | Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — see `model-gates.mdc` § 2-fail diagnose-only rule |
 | Acceptance needs out-of-scope schema/rules | Mark `blocked` — do not widen scope |
 | High-risk item without `danApproved: true` | Skip — mark `blocked`, report; never improvise or deploy |
-| Item is a phase of a Fable-authored spec | Phase-boundary **work-verifier** (Fable) before the next phase item starts — spec's own gate note is authoritative (e.g. `docs/location-first-transition-spec.md`); report `work-verifier:` line |
+| Item is a phase of a Fable-authored spec | Phase-boundary **work-verifier** (Fable) + **Fable conferral** (Grok, AGREE required — D-24 universal) before the next phase item starts — spec's own gate note is authoritative (e.g. `docs/location-first-transition-spec.md`); report `fable:` + `fable-confer:` lines |
 
 ## Current queue
 

@@ -24,7 +24,7 @@
 | `composer-trace` | 1st fail → self-trace prep; 2nd same fingerprint → Grok stall-advisor; still stuck → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail + § Grok stall-advisor |
 | `stall-advisor` | 2nd consecutive same-failure stall mid-task | **§ Stall Advisor — Grok 4.5 Fast** (tier 1b) — SSOT in `model-gates.mdc` § Grok stall-advisor auto-invoke |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
-| `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
+| `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** + universal **§ Fable conferral loop (D-24)** in `model-gates.mdc` |
 | `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
 
 ## § qr-routing
@@ -152,13 +152,14 @@ Purpose: skeptical outside-party review before major architecture, harness, or w
 
 ## Work Verifier — Fable 5 (tag: work-verifier)
 
-Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a path check or Ship Verifier cannot judge. Fable never edits code, never ships, never overrides Sonnet security verdicts. Per-ship verification belongs to the Ship Verifier (Grok, tier 1) — not Fable. Verify-only — never edits files; Composer implements, Fable re-verifies, ship gated on Fable pass.
+Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a path check or Ship Verifier cannot judge. Fable never edits code, never ships, never overrides Sonnet security verdicts. Per-ship verification belongs to the Ship Verifier (Grok, tier 1) — not Fable. Verify-only — never edits files; Composer implements, Fable re-verifies, ship gated on **Fable+Grok AGREE PASS** (§ Fable conferral loop, D-24 — **universal for all Fable Tasks**).
 
 - Model: `claude-fable-5-thinking-high` via generalPurpose Task, `readonly: true`
+- **Conferral (mandatory — all Fable):** after **every** Fable Task, Grok 4.5 Fast **Fable conferral** loops until **AGREE** (max 3 cycles) — Fable never closes alone. SSOT: `model-gates.mdc` § Fable conferral loop.
 - **Triggers (only these):** (1) phase boundary of a Fable-authored product/architecture spec with semantic drift tripwires — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, stays authoritative); (2) Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that).
 - **Preconditions:** build + `away:validate` (+ route `verify:*` when UI) green; mechanical `git diff --name-only` vs allowed paths runs first, fail closed.
-- **Fix loop (max 1 cycle):** exact fix list (tripwire id, PASS/FAIL, file:line, required change) → Composer applies → Fable re-verifies ONCE → still failing → Dan.
-- **Evidence:** Task id + `model: claude-fable-5-thinking-high` + invocation evidence, else NOT RUN; spec-phase NOT RUN blocks phase N+1 (`work-verifier:` report line per `model-gates.mdc`).
+- **Fix loop (max 1 cycle):** exact fix list (tripwire id, PASS/FAIL, file:line, required change) → Composer applies → Fable re-verifies ONCE → Grok re-confer until AGREE → still failing → Dan.
+- **Evidence:** `fable:` + `fable-confer:` (AGREE required) + `confer-verified:` when DISAGREE rounds closed; phase work may also cite `work-verifier:` (same id); else NOT RUN; spec-phase NOT RUN blocks phase N+1.
 
 ## Ship Verifier — Grok 4.5 Fast (tag: ship-verifier)
 
