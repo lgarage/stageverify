@@ -9,7 +9,7 @@
  *   node scripts/playwright-auth-setup.mjs   (if token expired)
  *   npm run verify:phase14-e2e
  *
- * Prod:
+ * Prod (after Dan merge — no deploy from mobile until approved):
  *   npm run verify:phase14-e2e:prod
  */
 
@@ -27,7 +27,7 @@ const isProd = Boolean(
   baseUrlOverride && /lgarage\.github\.io\/stageverify/i.test(baseUrlOverride),
 );
 
-/** Local §14 gate uses demo fixtures (steps 1–2); prod requires real ingest env. */
+/** Local §14 gate uses demo fixtures (steps 1–2); prod uses gh-pages + live Firebase. */
 const DEMO_E2E_ENV = {
   STAGEVERIFY_RECEIVE_DELIVERY: "delivery-demo-vendor-1",
   STAGEVERIFY_VENDOR_ORDER: "ORD-005",
@@ -36,8 +36,7 @@ const DEMO_E2E_ENV = {
   STAGEVERIFY_VENDOR_PO: "PO-88390",
 };
 
-/** §14 step coverage manifest (printed in summary). */
-const SECTION14_COVERAGE = [
+const SECTION14_COVERAGE_LOCAL = [
   { steps: "1–2", topic: "Dispatcher creates job + staging", status: "fixture", note: "Demo seed / patch scripts" },
   { steps: "3–7", topic: "Vendor arrival → QR → PIN → DELIVERED", status: "verify", note: "verify-e2e-smoke vendor leg" },
   { steps: "8–9", topic: "Vendor email evidence (Condition 1)", status: "verify", note: "test:email-parser offline gate (live ingest = Dan GCP)" },
@@ -52,9 +51,25 @@ const SECTION14_COVERAGE = [
   { steps: "27", topic: "Permanent shop-stock reserved", status: "partial", note: "Shop stock labels in pickup; no inventory balances" },
 ];
 
+const SECTION14_COVERAGE_PROD = [
+  { steps: "1–2", topic: "Dispatcher creates job + staging", status: "skip", note: "Prod uses live ingest rows — no demo seed" },
+  { steps: "3–7", topic: "Vendor arrival → QR → PIN → DELIVERED", status: "verify", note: "verify-vendor-delivered when STAGEVERIFY_* set; else 4046362 proxy" },
+  { steps: "8–9", topic: "Vendor email evidence (Condition 1)", status: "verify", note: "test:email-parser offline; live ingest = Dan GCP (PC prep)" },
+  { steps: "10", topic: "Two-source readiness gate", status: "implicit", note: "pickup seed CF on delivery-3" },
+  { steps: "11", topic: "Dispatcher sees Ready for Pickup", status: "verify", note: "verify-dispatcher-nav prod" },
+  { steps: "12", topic: "BuildOps technician schedule", status: "skip", note: "External system — not scripted" },
+  { steps: "13–16", topic: "Pickup Scheduled + Copy Pickup Information", status: "verify", note: "dispatcher-nav prod" },
+  { steps: "17–22", topic: "Technician pickup link → checklist → complete", status: "verify", note: "verify-e2e-pickup-leg on gh-pages" },
+  { steps: "23–24", topic: "Dispatcher pickup update + job complete", status: "verify", note: "deep-link readback delivery-3 (demos hidden)" },
+  { steps: "25", topic: "Temporary staging release after pickup", status: "implicit", note: "recordPickupEvent CF in pickup leg" },
+  { steps: "26", topic: "E-tag clears to Available", status: "skip", note: "Out of MVP scope (D-26)" },
+  { steps: "27", topic: "Permanent shop-stock reserved", status: "partial", note: "Shop stock labels in pickup; no inventory balances" },
+];
+
 function printCoverageManifest() {
+  const rows = isProd ? SECTION14_COVERAGE_PROD : SECTION14_COVERAGE_LOCAL;
   console.log("\n--- §14 step coverage manifest ---");
-  for (const row of SECTION14_COVERAGE) {
+  for (const row of rows) {
     console.log(
       `  [${row.status.padEnd(8)}] steps ${row.steps}: ${row.topic} — ${row.note}`,
     );
@@ -101,6 +116,9 @@ async function main() {
   printCoverageManifest();
 
   const baseUrlArgs = baseUrlOverride ? [`--base-url=${baseUrlOverride}`] : [];
+  const smokeScript = isProd
+    ? "scripts/verify-e2e-smoke-prod.mjs"
+    : "scripts/verify-e2e-smoke.mjs";
 
   if (!isProd) {
     await runStep("§14 fixture seed (demo deliveries)", "node", [
@@ -108,9 +126,12 @@ async function main() {
     ]);
   }
 
-  await runStep("§14 legs 3–22 core loop", "node", [
-    "scripts/verify-e2e-smoke.mjs",
-  ], baseUrlArgs);
+  await runStep(
+    isProd ? "§14 legs 3–22 prod core loop" : "§14 legs 3–22 core loop",
+    "node",
+    [smokeScript],
+    baseUrlArgs,
+  );
 
   await runStep("§14 legs 8–9 email parser (offline gate)", "npm", [
     "run",
@@ -124,8 +145,8 @@ async function main() {
   console.log("\nverify:phase14-e2e PASS");
   console.log(
     isProd
-      ? "§14 E2E gate: prod run complete — update MVP_PATH SSOT per partial credit table."
-      : "§14 E2E gate: local run complete — run verify:phase14-e2e:prod for prod gate.",
+      ? "§14 E2E gate: prod run complete — update MVP_PATH SSOT per partial credit table (+3.42%)."
+      : "§14 E2E gate: local run complete — run verify:phase14-e2e:prod after Dan merge (no deploy until approved).",
   );
 }
 

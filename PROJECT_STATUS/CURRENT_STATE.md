@@ -19,7 +19,7 @@
 3. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **MVP path (priority):** (1) merge PR #17 + run `verify:phase14-e2e:prod`, (2) Dan GCP Gmail deploy — see `MVP_PATH.md`.
+- **MVP path (priority):** (1) merge PR #18 + run `verify:phase14-e2e:prod` (prod gate hardened on branch), (2) Dan GCP Gmail prep on PC — **no CF deploy until Dan approves** — see `MVP_PATH.md`.
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Fable work-verifier before location-first Phase 5; push ingest **[high-risk]** — Dan approval.
 - **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** + **doc drift validate (D-23)** on `main`.

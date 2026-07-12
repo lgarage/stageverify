@@ -62,6 +62,8 @@
     "verify:phase4-integration:prod": "node scripts/verify-phase4-integration.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:phase14-e2e": "node scripts/verify-phase14-e2e.mjs",
     "verify:phase14-e2e:prod": "node scripts/verify-phase14-e2e.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:mvp-core-regression": "node scripts/verify-mvp-core-regression.mjs",
+    "verify:mvp-core-regression:prod": "node scripts/verify-mvp-core-regression.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:pickup-issue-report": "node scripts/verify-pickup-issue-report.mjs",
     "verify:pickup-issue-resolution": "node scripts/verify-pickup-issue-resolution-readback.mjs",
     "verify:pickup-issue-resolution:prod": "node scripts/run-verify-with-learning.mjs --script verify:pickup-issue-resolution:prod scripts/verify-pickup-issue-resolution-readback.mjs --base-url=https://lgarage.github.io/stageverify",
