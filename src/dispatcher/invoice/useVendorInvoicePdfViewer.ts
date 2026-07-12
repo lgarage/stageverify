@@ -30,14 +30,27 @@ export function useVendorInvoicePdfViewer() {
       return next;
     });
     try {
-      const payload = await fetchVendorInvoicePdf(importId);
+      const payload = await Promise.race([
+        fetchVendorInvoicePdf(importId),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(
+            () => reject(new Error("PDF fetch timed out — try again or check Gmail connection.")),
+            55_000,
+          );
+        }),
+      ]);
       if (popup.closed) {
         throw new Error("PDF viewer tab was closed before the invoice could load.");
       }
       openVendorInvoicePdfInNewTab(payload, popup);
     } catch (err) {
       if (!popup.closed) {
-        popup.close();
+        try {
+          const message = vendorInvoicePdfUnavailableMessage(err);
+          popup.document.body.innerHTML = `<p style="font-family:Helvetica Neue,Helvetica,Arial,sans-serif;padding:24px;color:#b91c1c;max-width:480px">${message}</p>`;
+        } catch {
+          popup.close();
+        }
       }
       setErrorById((prev) => ({
         ...prev,

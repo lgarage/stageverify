@@ -33,7 +33,7 @@ export function openVendorInvoicePdfInNewTab(
 ): void {
   const url = payloadToBlobUrl(payload);
   if (preOpenedWindow && !preOpenedWindow.closed) {
-    preOpenedWindow.location.href = url;
+    preOpenedWindow.location.assign(url);
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return;
   }
