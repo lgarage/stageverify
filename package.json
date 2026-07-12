@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.33",
+  "version": "0.0.34",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -142,6 +142,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "firebase": "^12.14.0",
     "html5-qrcode": "^2.3.8",
+    "pdfjs-dist": "^4.10.38",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

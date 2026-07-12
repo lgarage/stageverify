@@ -10,6 +10,7 @@ import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
 import { InvoiceDeliveryMatchSection } from "./InvoiceDeliveryMatchSection";
 import {
   buildHeaderDisplayRows,
+  branchPhoneTelHref,
   INVOICE_HEADER_FIELD_LABELS,
   normalizeParsedHeader,
   codPaymentContext,
@@ -355,9 +356,28 @@ export function InvoiceParsedInspectModal({
             {headerRows.map((row) => (
               <div key={row.key}>
                 <div style={{ color: MUTED, fontWeight: 600 }}>{row.label}</div>
-                <div style={{ color: NAVY, fontWeight: row.key === "customerPoOrReference" ? 600 : 500 }}>
-                  {row.value}
-                </div>
+                {row.key === "vendorBranchPhone" && branchPhoneTelHref(row.value) ? (
+                  <a
+                    href={branchPhoneTelHref(row.value) ?? undefined}
+                    data-testid="invoice-parsed-inspect-branch-phone-link"
+                    style={{
+                      color: NAVY,
+                      fontWeight: 500,
+                      textDecoration: "underline",
+                    }}
+                  >
+                    {row.value}
+                  </a>
+                ) : (
+                  <div
+                    style={{
+                      color: NAVY,
+                      fontWeight: row.key === "customerPoOrReference" ? 600 : 500,
+                    }}
+                  >
+                    {row.value}
+                  </div>
+                )}
               </div>
             ))}
           </div>

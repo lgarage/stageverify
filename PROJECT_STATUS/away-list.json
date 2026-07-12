@@ -9,7 +9,11 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": ["away-126", "away-127", "away-128", "away-129"],
+    "sequence": [
+      "away-127",
+      "away-128",
+      "away-129"
+    ],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -26,15 +30,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-126",
-      "title": "Fable work-verifier — location-first Phase 4→5 boundary",
-      "status": "queued",
-      "scope": "Dispatch Fable 5 read-only work-verifier then Grok Fable conferral (D-24 universal); loop until AGREE on tripwires D14 job-scoping, PIN visibility, legacy routes, single pickup data path. Record fable: + fable-confer: Task ids. No Phase 5 implementation.",
-      "acceptance": "fable: + fable-confer: AGREE; Fable PASS or documented FAIL/waiver; away:validate clean.",
-      "tier": "T0",
-      "verifyBeforeNext": ["npm run away:validate"]
     },
     {
       "id": "away-127",
@@ -57,7 +52,10 @@
       "scope": "tel: link for vendorBranchPhone in invoice review UI. Display-only.",
       "acceptance": "verify:invoice-review asserts tel: href on branch phone when present.",
       "tier": "T0",
-      "verifyBeforeNext": ["npm run build", "npm run verify:invoice-review"]
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:invoice-review"
+      ]
     },
     {
       "id": "away-129",

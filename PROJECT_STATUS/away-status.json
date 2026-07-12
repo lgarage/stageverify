@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-11",
+  "lastRun": "2026-07-12",
   "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
     {
@@ -166,6 +166,17 @@
       "status": "built",
       "commit": "546e7fc",
       "note": "mechanical lint 85→59; build+invoice-parser+readiness PASS; skipped auth/react-refresh/renders"
+    },
+    {
+      "id": "away-126",
+      "title": "Fable work-verifier — location-first Phase 4→5 boundary",
+      "status": "built",
+      "commit": "15ae84849df8af01eb8b3e9522013467684148d1",
+      "note": "Fable FAIL + Grok AGREE: D14 planned-spot gap on unauth NMS path; Phase 5 blocked until fix or waiver",
+      "learning": {
+        "id": "idx-011",
+        "action": "indexer-memory"
+      }
     }
   ],
   "summary": "away-118..121 + away-123 overnight verify batch shipped; queue empty except blocked away-069"

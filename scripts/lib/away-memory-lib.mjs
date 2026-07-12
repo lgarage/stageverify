@@ -255,6 +255,30 @@ export function allQueuedItemsInSequenceOrder(list) {
   return ordered;
 }
 
+/** @param {{ queue?: { id: string }[], executionProtocol?: { sequence?: string[] } }} list @param {{ items?: { id: string }[] }} archive @param {{ results?: { id: string }[] }} [statusDoc] */
+export function deriveNextAwayId(list, archive, statusDoc) {
+  /** @type {Set<string>} */
+  const ids = new Set();
+  for (const id of list.executionProtocol?.sequence ?? []) {
+    if (/^away-\d+$/.test(id)) ids.add(id);
+  }
+  for (const item of list.queue ?? []) {
+    if (/^away-\d+$/.test(item.id)) ids.add(item.id);
+  }
+  for (const item of archive.items ?? []) {
+    if (/^away-\d+$/.test(item.id)) ids.add(item.id);
+  }
+  for (const row of statusDoc?.results ?? []) {
+    if (/^away-\d+$/.test(row.id)) ids.add(row.id);
+  }
+  let max = 0;
+  for (const id of ids) {
+    const n = Number.parseInt(id.replace(/^away-/, ""), 10);
+    if (Number.isFinite(n)) max = Math.max(max, n);
+  }
+  return `away-${String(max + 1).padStart(3, "0")}`;
+}
+
 /** @param {{ executionProtocol?: { sequence?: string[], haltOnFailure?: boolean, instructions?: string }, queue: { id: string, status: string }[] }} list @param {{ items?: { id: string, status: string }[] }} archive */
 export function buildBatchBrief(list, archive) {
   const items = allQueuedItemsInSequenceOrder(list).map((item) => buildNextBrief(item));

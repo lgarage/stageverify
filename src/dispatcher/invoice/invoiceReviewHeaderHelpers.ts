@@ -79,6 +79,15 @@ export function formatInvoiceHeaderField(value: string): string {
   return value.trim() ? value.trim() : "—";
 }
 
+/** Clickable tel: href for branch phone (spec — dispatcher call branch UX). */
+export function branchPhoneTelHref(rawPhone: string): string | null {
+  const trimmed = rawPhone.trim();
+  if (!trimmed || trimmed === "—") return null;
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  return `tel:${digits}`;
+}
+
 /** Primary header fields shown in the review detail grid (Confidence excluded). */
 export const INVOICE_REVIEW_DETAIL_FIELDS = [
   "customerPoOrReference",
