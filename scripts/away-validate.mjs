@@ -19,6 +19,7 @@ import {
   readText,
   renderNextMd,
   validateLocationFirstDocConsistency,
+  syncLocationFirstDocsFromCurrentState,
   updateImmediateNextInProjectState,
   writeText,
 } from "./lib/away-memory-lib.mjs";
@@ -217,6 +218,18 @@ function validateNextIdSync(list, archive, statusDoc) {
     fail(
       `CURRENT_STATE last shipped (${lastInState.id}) !== away-status last built (${lastInStatus})`,
     );
+  }
+}
+
+function syncLocationFirstDocsIfNeeded() {
+  const currentStateMd = readText(PATHS.currentState);
+  const specMd = readText(PATHS.locationFirstSpec);
+  const roadmapMd = readText(PATHS.roadmap);
+  const result = syncLocationFirstDocsFromCurrentState({ currentStateMd, specMd, roadmapMd });
+  if (result.changed) {
+    writeText(PATHS.locationFirstSpec, result.specMd);
+    writeText(PATHS.roadmap, result.roadmapMd);
+    warn(`location-first docs auto-synced from CURRENT_STATE — ${result.changes.join("; ")}`);
   }
 }
 
@@ -533,6 +546,7 @@ function main() {
     validateNextIdSync(list, archive, statusDoc);
   }
   validateArchive();
+  syncLocationFirstDocsIfNeeded();
   validateLocationFirstDocs();
   validateRoadmap();
   validateMemoryMd();

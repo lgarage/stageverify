@@ -434,6 +434,100 @@ export function validateLocationFirstDocConsistency({ currentStateMd, specMd, ro
   return { ok: errors.length === 0, errors };
 }
 
+/** @param {string} md @param {number} phase */
+function markPhaseTrackerRowComplete(specMd, phase, completedDate) {
+  const statusRe = new RegExp(
+    `^(\\|\\s*${phase}\\s*\\|[^\\n]+\\|\\s*)\`(?:in_progress|not_started)\`(\\s*\\|)`,
+    "m",
+  );
+  let next = specMd.replace(statusRe, `$1\`complete\`$2`);
+  if (next === specMd) return specMd;
+  const completedRe = new RegExp(
+    `^(\\|\\s*${phase}\\s*\\|[^\\n]+\\|\\s*\`complete\`\\s*\\|[^|]+\\|\\s*)(—)(\\s*\\|)`,
+    "m",
+  );
+  next = next.replace(completedRe, `$1${completedDate}$3`);
+  return next;
+}
+
+/**
+ * Auto-sync location-first Phase Tracker + roadmap from CURRENT_STATE gate closure.
+ * CURRENT_STATE wins — agents never hand-edit tracker/roadmap on phase close.
+ * @param {{ currentStateMd: string, specMd: string, roadmapMd: string }} docs
+ * @returns {{ changed: boolean, changes: string[], specMd: string, roadmapMd: string }}
+ */
+export function syncLocationFirstDocsFromCurrentState({ currentStateMd, specMd, roadmapMd }) {
+  const gate = parseLocationFirstGateFromCurrentState(currentStateMd);
+  if (!gate.closedThroughPhase) {
+    return { changed: false, changes: [], specMd, roadmapMd };
+  }
+
+  const version = gate.version ?? "0.0.0";
+  const closedDate =
+    currentStateMd.match(/20\d{2}-\d{2}-\d{2}/)?.[0] ?? new Date().toISOString().slice(0, 10);
+  /** @type {string[]} */
+  const changes = [];
+  let spec = specMd;
+  let roadmap = roadmapMd;
+  const closed = gate.closedThroughPhase;
+  const nextPhase = closed + 1;
+
+  for (let phase = 1; phase <= closed; phase++) {
+    const before = spec;
+    spec = markPhaseTrackerRowComplete(spec, phase, closedDate);
+    if (spec !== before) changes.push(`spec: Phase ${phase} → complete`);
+  }
+
+  if (closed >= 4 && /Approved next action:\s*Phase\s*4\b/i.test(spec)) {
+    spec = spec.replace(
+      /> \*\*Approved next action:[^\n]+\n/,
+      `> **Approved next action: Phase ${nextPhase}** (technician door + pickup v2) — **Fable work-verifier** on Phase ${closed} boundary before implement. Phase ${closed} prod verify gate closed ${closedDate} (\`v${version}\`).\n`,
+    );
+    changes.push(`spec: Approved next action → Phase ${nextPhase}`);
+  }
+
+  const currentPhaseLine = `**Current phase: Phase ${closed} — complete (prod verify gate closed \`v${version}\`). Next action: Phase ${nextPhase} — dispatch Fable work-verifier, then implement per spec.**`;
+  if (!spec.includes(`Phase ${closed} — complete (prod verify gate closed`)) {
+    spec = spec.replace(/\*\*Current phase:[^\n]+\*\*/, currentPhaseLine);
+    changes.push("spec: Current phase line synced");
+  }
+
+  if (closed >= 4) {
+    if (/\|\s*\*\*4[–-]6\*\*\s*\|\s*⬜\s*Not started/i.test(roadmap)) {
+      roadmap = roadmap.replace(
+        /\|\s*\*\*4[–-]6\*\*\s*\|\s*⬜\s*Not started[^\n]*\n/,
+        `| **4** Vendor exceptions + dispatcher planning | ✅ Complete ${closedDate} (\`v${version}\`) | \`verify:location-phase4\` 15/15 local + prod; release CF + G1 E2E |\n| **5** Technician door + pickup v2 | ⬜ Not started | Fable work-verifier gate; per spec tracker |\n| **6** Management audit | ⬜ Not started | Sonnet-gated; per spec tracker |\n`,
+      );
+      changes.push("roadmap: split 4–6 → Phase 4 complete");
+    } else if (
+      !new RegExp(
+        `\\|\\s*\\*\\*${closed}\\*\\*[^\\n]+Complete[^\\n]+v${version.replace(/\./g, "\\.")}`,
+        "i",
+      ).test(roadmap)
+    ) {
+      const rowRe = new RegExp(
+        `(\\|\\s*\\*\\*${closed}\\*\\*[^|]+\\|\\s*)(⬜[^|]+|🔵[^|]*)(\\s*\\|)`,
+        "i",
+      );
+      if (rowRe.test(roadmap)) {
+        roadmap = roadmap.replace(
+          rowRe,
+          `$1✅ Complete ${closedDate} (\`v${version}\`) | \`verify:location-phase4\` 15/15 local + prod$3`,
+        );
+        changes.push(`roadmap: Phase ${closed} row → Complete`);
+      }
+    }
+  }
+
+  const lastUpdated = `> **Last updated:** ${closedDate} (Location-first Phase ${closed} gate closed — \`v${version}\`)`;
+  if (!roadmap.includes(`Phase ${closed} gate closed`)) {
+    roadmap = roadmap.replace(/> \*\*Last updated:\*\*[^\n]+/, lastUpdated);
+    changes.push("roadmap: last-updated synced");
+  }
+
+  return { changed: changes.length > 0, changes, specMd: spec, roadmapMd: roadmap };
+}
+
 /** Roadmap patterns that must not regress (Verifier). */
 export const ROADMAP_FORBIDDEN = [
   {

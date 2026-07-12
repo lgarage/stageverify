@@ -27,6 +27,7 @@ import {
   readJson,
   readText,
   renderNextMd,
+  syncLocationFirstDocsFromCurrentState,
   updateImmediateNextInCurrentState,
   updateImmediateNextInProjectState,
   updateLastShippedInCurrentState,
@@ -148,6 +149,15 @@ function main() {
   projectState = updateImmediateNextInProjectState(projectState, nextItem);
   const nextMd = renderNextMd(nextItem);
 
+  const docSync = syncLocationFirstDocsFromCurrentState({
+    currentStateMd: currentState,
+    specMd: readText(PATHS.locationFirstSpec),
+    roadmapMd: readText(PATHS.roadmap),
+  });
+  if (docSync.changed) {
+    console.log(`away-ship: location-first docs auto-synced — ${docSync.changes.join("; ")}`);
+  }
+
   const protocolNorm = normalizeExecutionProtocol(list);
   if (protocolNorm.changed) {
     console.log(`away-ship: normalized executionProtocol — ${protocolNorm.changes.join("; ")}`);
@@ -177,6 +187,10 @@ function main() {
   writeText(PATHS.currentState, currentState);
   writeText(PATHS.projectState, projectState);
   writeText(PATHS.nextMd, nextMd);
+  if (docSync.changed) {
+    writeText(PATHS.locationFirstSpec, docSync.specMd);
+    writeText(PATHS.roadmap, docSync.roadmapMd);
+  }
 
   console.log(`away-ship: ${args.id} → shipped (${args.status}, ${args.commit})`);
   if (learningMeta) {

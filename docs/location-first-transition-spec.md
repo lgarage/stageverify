@@ -7,7 +7,7 @@
 | **Status** | Approved — **Phase 1 complete** (2026-07-08) · **Vendor PIN scope REVISED to job-scoped** (Dan 2026-07-08 — see § Job-scoped vendor PIN) |
 | **Authors** | War-game/spec: Fable 5 (planner) · Implementation: Composer 2.5 (one phase at a time) · Security review: Sonnet 4.6 (`claude-4.6-sonnet-medium-thinking`) for Phases 2, 5, 6 |
 
-> **How to use this file (agents):** Read **§ Phase Tracker** first — it is the living source of truth for current state. Implement **exactly one phase** at a time, precisely as specified in that phase's section. **Never start a later phase until the prior phase's drift review passes.** When a phase completes, update the Phase Tracker table **and** `PROJECT_STATUS/CURRENT_STATE.md` in the **same commit** as phase completion. Do not invent design decisions — everything binding is in § Locked design decisions; anything ambiguous is in § Open questions and needs Dan.
+> **How to use this file (agents):** Read **§ Phase Tracker** after `CURRENT_STATE.md`. **`npm run away:validate` auto-syncs** this section from CURRENT_STATE prod-verify gate closure — do not hand-edit tracker/roadmap on phase close. Implement **exactly one phase** at a time.
 
 ---
 

@@ -17,9 +17,11 @@ import {
   describeExecutionProtocolFreshness,
   normalizeExecutionProtocol,
   validateLocationFirstDocConsistency,
+  syncLocationFirstDocsFromCurrentState,
   readJson,
   readText,
   writeJson,
+  writeText,
 } from "./lib/away-memory-lib.mjs";
 
 const write = process.argv.includes("--write");
@@ -28,6 +30,11 @@ const before = describeExecutionProtocolFreshness(list);
 const { changed, changes } = normalizeExecutionProtocol(list);
 const after = describeExecutionProtocolFreshness(list);
 const docConsistency = validateLocationFirstDocConsistency({
+  currentStateMd: readText(PATHS.currentState),
+  specMd: readText(PATHS.locationFirstSpec),
+  roadmapMd: readText(PATHS.roadmap),
+});
+const docSync = syncLocationFirstDocsFromCurrentState({
   currentStateMd: readText(PATHS.currentState),
   specMd: readText(PATHS.locationFirstSpec),
   roadmapMd: readText(PATHS.roadmap),
@@ -48,6 +55,8 @@ const report = {
     ok: docConsistency.ok,
     errors: docConsistency.errors,
   },
+  docSyncWouldChange: docSync.changed,
+  docSyncChanges: docSync.changes,
 };
 
 if (write) {
@@ -58,6 +67,12 @@ if (write) {
   } else {
     report.wrote = false;
     console.log("away:sync: already fresh — no write");
+  }
+  if (docSync.changed) {
+    writeText(PATHS.locationFirstSpec, docSync.specMd);
+    writeText(PATHS.roadmap, docSync.roadmapMd);
+    report.docSyncWrote = [PATHS.locationFirstSpec, PATHS.roadmap];
+    console.log(`away:sync: wrote location-first docs — ${docSync.changes.join("; ")}`);
   }
 } else if (changed) {
   report.hint = "Re-run with --write to apply normalization";

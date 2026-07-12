@@ -55,7 +55,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | Merged next + packet | `npm run away:next -- --packet [--tags …]` | Queue brief + blockers + optional § slices |
 | Plan (suggest only) | `npm run away:plan` | Away/sleep first question — no queue writes |
 | Ship one item | `npm run away:ship -- --id … --note "…"` | After verify; `--note` = summary; timing → `estimate-log.md` |
-| Consistency check | `npm run away:validate` · `npm run away:sync` (queue protocol + doc drift report; `--write` for protocol) | Before commit; fails if location-first tracker/roadmap lag CURRENT_STATE |
+| Consistency check | `npm run away:validate` · `npm run away:sync` (`--write`) | Auto-syncs Phase Tracker + roadmap from CURRENT_STATE gate closure; queue protocol normalize |
 
 ## Blockers & on-demand routes
 
