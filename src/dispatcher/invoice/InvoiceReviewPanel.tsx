@@ -26,7 +26,6 @@ import {
 import type { VendorInvoiceImportStatus } from "./types";
 
 const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function reviewStatusLabel(status: VendorInvoiceImportReview["reviewStatus"]): string {
@@ -442,11 +441,6 @@ export function InvoiceReviewPanel({
     }
   };
 
-  const handleApprove = async (row: VendorInvoiceImportReview) => {
-    if (row.importStatus === "issue") return;
-    await submitApprove(row, deliveryById[row.id]);
-  };
-
   const handleReject = async (row: VendorInvoiceImportReview) => {
     setActionLoadingId(row.id);
     setError(null);
@@ -505,10 +499,6 @@ export function InvoiceReviewPanel({
       setActionLoadingId(null);
     }
   };
-
-  const firstPendingRowId = filteredImports.find(
-    (r) => r.reviewStatus === "pending_review",
-  )?.id;
 
   const inspectRowId = inspectImport?.id ?? null;
   const inspectSelectedDeliveryId = inspectRowId ? (deliveryById[inspectRowId] ?? "") : "";
@@ -590,11 +580,9 @@ export function InvoiceReviewPanel({
 
         {filteredImports.map((row) => {
           const header = row.parsedHeader;
-          const approveBlocked = row.importStatus === "issue";
           const issueSummary = queueRowIssueSummary(row);
           const lineCount = queueRowLineCount(row);
           const rowActionLoading = actionLoadingId === row.id;
-          const isFirstPending = row.id === firstPendingRowId;
           const codContext = codPaymentContext(row);
 
           return (
@@ -755,164 +743,41 @@ export function InvoiceReviewPanel({
                   )}
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-end",
-                    gap: 4,
-                    flexShrink: 0,
-                  }}
-                >
-                  {row.reviewStatus === "pending_review" && (
-                    <div
+                {filter === "rejected" && row.reviewStatus === "rejected" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 4,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-testid={`invoice-review-reopen-${row.id}`}
+                      disabled={rowActionLoading}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleReopen(row);
+                      }}
                       style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
+                        backgroundColor: "#fff",
+                        color: NAVY,
+                        border: `1px solid ${NAVY}`,
+                        borderRadius: 4,
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: rowActionLoading ? "not-allowed" : "pointer",
+                        opacity: rowActionLoading ? 0.6 : 1,
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <button
-                        type="button"
-                        data-testid={
-                          isFirstPending
-                            ? "invoice-review-approve"
-                            : `invoice-review-approve-${row.id}`
-                        }
-                        disabled={rowActionLoading || approveBlocked}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleApprove(row);
-                        }}
-                        title={
-                          approveBlocked ? "Approve blocked for issue imports" : undefined
-                        }
-                        style={{
-                          backgroundColor: NAVY,
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 4,
-                          padding: "6px 10px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor:
-                            rowActionLoading || approveBlocked
-                              ? "not-allowed"
-                              : "pointer",
-                          opacity:
-                            rowActionLoading || approveBlocked
-                              ? 0.55
-                              : 1,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        data-testid={
-                          isFirstPending
-                            ? "invoice-review-reject"
-                            : `invoice-review-reject-${row.id}`
-                        }
-                        disabled={rowActionLoading}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleReject(row);
-                        }}
-                        style={{
-                          backgroundColor: "#fff",
-                          color: RED,
-                          border: `1px solid ${RED}`,
-                          borderRadius: 4,
-                          padding: "6px 10px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: rowActionLoading ? "not-allowed" : "pointer",
-                          opacity: rowActionLoading ? 0.6 : 1,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                  {row.reviewStatus === "rejected" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        data-testid={`invoice-review-reopen-${row.id}`}
-                        disabled={rowActionLoading}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleReopen(row);
-                        }}
-                        style={{
-                          backgroundColor: "#fff",
-                          color: NAVY,
-                          border: `1px solid ${NAVY}`,
-                          borderRadius: 4,
-                          padding: "6px 10px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: rowActionLoading ? "not-allowed" : "pointer",
-                          opacity: rowActionLoading ? 0.6 : 1,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Re-open
-                      </button>
-                      <button
-                        type="button"
-                        data-testid={`invoice-review-approve-rejected-${row.id}`}
-                        disabled={rowActionLoading || approveBlocked}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleApprove(row);
-                        }}
-                        title={
-                          approveBlocked ? "Approve blocked for issue imports" : undefined
-                        }
-                        style={{
-                          backgroundColor: NAVY,
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 4,
-                          padding: "6px 10px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor:
-                            rowActionLoading || approveBlocked
-                              ? "not-allowed"
-                              : "pointer",
-                          opacity:
-                            rowActionLoading || approveBlocked
-                              ? 0.55
-                              : 1,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Approve
-                      </button>
-                    </div>
-                  )}
-                  {approveBlocked && row.reviewStatus === "pending_review" && (
-                    <span
-                      data-testid="invoice-review-approve-blocked-copy"
-                      style={{ fontSize: 10, color: "#9a3412", lineHeight: 1.3 }}
-                    >
-                      Approve blocked — issue import
-                    </span>
-                  )}
-                </div>
+                      Re-open
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );
