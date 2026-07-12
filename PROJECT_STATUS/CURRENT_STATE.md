@@ -8,7 +8,7 @@
 - **MVP: 89.89%** — SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). §14 E2E **local + prod PASS**; **core regression prod PASS** (`verify:mvp-core-regression:prod` 2026-07-12, full vendor leg).
 - Last shipped: **Invoice Review → Delivery Overview Needs Review** (`v0.0.34`) — full `InvoiceReviewPanel` on dashboard; sidebar Invoice Review removed; `#/invoice-review` redirects to `?focus=needs-review`.
 - Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
-- **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; phase14 learning capture on main `2017613`; `vfl-015` merged to indexer-memory 2026-07-12; Phase 2 auto-gotcha needs Dan approval.
+- **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; phase14 learning capture on main `2017613`; `vfl-015` learning-pending cleared 2026-07-12 (gotcha-proposal; covered by `prod-verify-hide-seed-demo` in gotcha-map); Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-12 (pickup + vendor-delivered + dispatcher-nav + location Phase 4 **15/15**); `test:pickup-authority` **17/17** emulators; `verify:phase14-e2e:prod` PASS.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x → https://lgarage.github.io/stageverify · Firestore `stageverify-db`
