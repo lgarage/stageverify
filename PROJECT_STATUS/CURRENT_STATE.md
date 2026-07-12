@@ -6,7 +6,7 @@
 
 ## Snapshot
 - Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset); **Phase 4 prod verify** `verify:location-phase4:prod` **15/15 PASS** (`v0.0.33`, gh-pages `2dd401e`) — `openDelivery` deep link PR `cursor/location-phase4-prod-verify-77d5`
-- Active Phase: **Location-first Phase 4** (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
+- Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
 - **Verify:** `verify:location-phase4` **15/15 PASS** local + **prod** — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
@@ -21,11 +21,11 @@
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
 - **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Fable work-verifier before Phase 5; queue hygiene Phase 1a **shipped** `93d1613` (`away:sync`); push ingest **[high-risk]** — Dan approval.
-- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** shipped — Grok confer on non-trivial Q&A, all clients.
+- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** + **doc drift validate (D-23)** on `main`.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
 - Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`
 
 ## Update Protocol
-- Ship: `npm run away:ship` → `estimate-log.md` → `npm run away:validate` → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
+- Ship: `npm run away:ship` → `estimate-log.md` → `npm run away:validate` (auto-syncs CURRENT_STATE + Phase Tracker + roadmap from verify PASS) → commit.

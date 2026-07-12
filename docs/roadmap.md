@@ -3,7 +3,7 @@
 > **Format:** NOW / NEXT / LATER / MAYBE — aggressive prioritization for Composer and technical leads  
 > **Authority chain:** **`PROJECT_STATUS/svscope_simple.md`** = product vision (everything hinges on this; scope § wins on conflict) → `docs/project_state.md` = canonical phase truth (features, deployment, known issues, current phase) → **`docs/roadmap.md` (this file)** = V2 phase prioritization and gates for agents; maps every scope § to a phase → `PROJECT_STATUS/CURRENT_STATE.md` = hot-tier snapshot (~30 lines; pointers only); `docs/archives/stageverify_implementation_plan.md` = **historical reference only** — not active agent guidance. Memory-system audit (archived): `PROJECT_STATUS/archives/MEMORY_ARCHITECTURE_ASSESSMENT.md`.  
 > **Scope:** This file summarizes priorities and gates — it is not a detailed implementation plan and must not drift into one.  
-> **Last updated:** 2026-07-09 (Phase 4 verify hardening — `v0.0.30` away-118..121 + away-123)
+> **Last updated:** 2026-07-11 (Location-first Phase 4 gate closed — `v0.0.33` away-118..121 + away-123 + prod verify)
 
 > **BuildOps boundary:** StageVerify does not replicate BuildOps. BuildOps owns: inventory counts, stock levels, reorder points, purchasing. StageVerify owns: material readiness, material location, pickup verification, material issues, vendor accountability.
 
@@ -54,7 +54,9 @@
 | **1** Groundwork | ✅ Complete 2026-07-08 (`v0.0.25`) | ESL plan rejects occupancy-dynamic QR-flip; additive types; job-level pickup clipboard; permanent URL locked `#/s?loc={code}` |
 | **2** Privacy hardening | ✅ Complete 2026-07-08 (`v0.0.26`) | Rules auth-only reads; session/token CF mediation; `verify:privacy` |
 | **3** Permanent location scan v2 | ✅ Core slice 2026-07-08 (`v0.0.27`) | `#/s?loc=`, job-scoped PIN (D14), sign generator (software); sign **printing** blocked on shop map |
-| **4–6** | ⬜ Not started | Vendor exceptions, technician door, management audit — per spec tracker |
+| **4** Vendor exceptions + dispatcher planning | ✅ Complete 2026-07-11 (`v0.0.33`) | `verify:location-phase4` 15/15 local + prod; release CF + G1 E2E |
+| **5** Technician door + pickup v2 | ⬜ Not started | Fable work-verifier gate; per spec tracker |
+| **6** Management audit | ⬜ Not started | Sonnet-gated; per spec tracker |
 
 ---
 

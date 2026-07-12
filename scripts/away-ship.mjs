@@ -20,13 +20,16 @@
  *   --note "prod verify failed — stale gh-pages" --learned "Redeploy before :prod verify"
  */
 import { execSync } from "node:child_process";
+import path from "node:path";
 import {
   PATHS,
+  REPO_ROOT,
   firstRunnableItem,
   normalizeExecutionProtocol,
   readJson,
   readText,
   renderNextMd,
+  syncLocationFirstHotTier,
   updateImmediateNextInCurrentState,
   updateImmediateNextInProjectState,
   updateLastShippedInCurrentState,
@@ -147,6 +150,19 @@ function main() {
   let projectState = readText(PATHS.projectState);
   projectState = updateImmediateNextInProjectState(projectState, nextItem);
   const nextMd = renderNextMd(nextItem);
+  const pkg = readJson(path.join(REPO_ROOT, "package.json"));
+
+  const hotSync = syncLocationFirstHotTier({
+    currentStateMd: currentState,
+    specMd: readText(PATHS.locationFirstSpec),
+    roadmapMd: readText(PATHS.roadmap),
+    packageVersion: pkg.version ?? null,
+    shipNote: args.note,
+  });
+  if (hotSync.changed) {
+    currentState = hotSync.currentStateMd;
+    console.log(`away-ship: location-first hot tier auto-synced — ${hotSync.changes.join("; ")}`);
+  }
 
   const protocolNorm = normalizeExecutionProtocol(list);
   if (protocolNorm.changed) {
@@ -177,6 +193,10 @@ function main() {
   writeText(PATHS.currentState, currentState);
   writeText(PATHS.projectState, projectState);
   writeText(PATHS.nextMd, nextMd);
+  if (hotSync.changed) {
+    writeText(PATHS.locationFirstSpec, hotSync.specMd);
+    writeText(PATHS.roadmap, hotSync.roadmapMd);
+  }
 
   console.log(`away-ship: ${args.id} → shipped (${args.status}, ${args.commit})`);
   if (learningMeta) {

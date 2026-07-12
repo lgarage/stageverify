@@ -17,6 +17,7 @@ export const PATHS = {
   memoryMd: path.join(REPO_ROOT, "PROJECT_STATUS/MEMORY.md"),
   roadmap: path.join(REPO_ROOT, "docs/roadmap.md"),
   projectState: path.join(REPO_ROOT, "docs/project_state.md"),
+  locationFirstSpec: path.join(REPO_ROOT, "docs/location-first-transition-spec.md"),
 };
 
 /** @param {string} filePath */
@@ -353,10 +354,278 @@ export function renderImmediateNextLineInProjectState(nextItem) {
   return `1. **Post-queue:** see \`docs/roadmap.md\` NOW bucket and \`PROJECT_STATUS/CURRENT_STATE.md\` — refill queue via \`away-list.json\` when ready.`;
 }
 
-/** @param {string} md @param {{ id: string, title: string } | null} nextItem */
+/** @param {string} md */
 export function updateImmediateNextInProjectState(md, nextItem) {
   const line = renderImmediateNextLineInProjectState(nextItem);
   return md.replace(/(## Immediate Next Steps\n\n)1\. .+\n/m, `$1${line}\n`);
+}
+
+/**
+ * Parse location-first prod-verify gate closure from CURRENT_STATE (hot tier wins).
+ * @param {string} md
+ * @returns {{ closedThroughPhase: number | null, version: string | null }}
+ */
+export function parseLocationFirstGateFromCurrentState(md) {
+  const closedMatch = md.match(/Phase\s+(\d+)\s+prod\s+verify\s+gate\s+\*\*closed\*\*/i);
+  if (!closedMatch) return { closedThroughPhase: null, version: null };
+  const versionMatch = md.match(/Phase\s+\d+\s+prod\s+verify\s+gate\s+\*\*closed\*\*\s*\(v([\d.]+)\)/i);
+  return {
+    closedThroughPhase: Number(closedMatch[1]),
+    version: versionMatch?.[1] ?? null,
+  };
+}
+
+/**
+ * Infer location-first phase prod-verify PASS from Snapshot / Verify lines.
+ * @param {string} md
+ * @returns {{ phase: number, version: string | null } | null}
+ */
+export function parseLocationFirstVerifyPassFromCurrentState(md) {
+  const snapshotBlock = md.match(/## Snapshot[\s\S]*?(?=\n## )/)?.[0] ?? "";
+  const verifyLine = md.match(/^- \*\*Verify:\*\*\s*(.+)$/m)?.[1] ?? "";
+  const combined = `${snapshotBlock}\n${verifyLine}`;
+  const phaseMatch = combined.match(/verify:location-phase(\d+)/i);
+  if (!phaseMatch) return null;
+  if (!/15\/15\s+PASS/i.test(combined) || !/\bprod\b/i.test(combined)) return null;
+  const versionMatch = combined.match(/\(v([\d.]+)\)/);
+  return { phase: Number(phaseMatch[1]), version: versionMatch?.[1] ?? null };
+}
+
+/** @param {string} [note] */
+export function parseLocationFirstVerifyPassFromShipNote(note) {
+  if (!note || !/verify:location-phase(\d+)/i.test(note)) return null;
+  if (!/15\/15\s+PASS/i.test(note) && !/:\s*prod\s+.*PASS/i.test(note)) return null;
+  const phaseMatch = note.match(/verify:location-phase(\d+)/i);
+  return phaseMatch ? { phase: Number(phaseMatch[1]), version: null } : null;
+}
+
+/**
+ * Write Phase N prod-verify gate closure lines into CURRENT_STATE.
+ * @param {string} md
+ * @param {number} phase
+ * @param {string | null} version
+ */
+export function applyLocationFirstGateToCurrentState(md, phase, version) {
+  const nextPhase = phase + 1;
+  const v = version ?? "0.0.0";
+  let next = md;
+  const gateSnippet = `Phase ${phase} prod verify gate **closed** (\`v${v}\`); Fable work-verifier before Phase ${nextPhase}`;
+
+  if (!new RegExp(`Phase ${phase} complete`, "i").test(next)) {
+    next = next.replace(
+      /^- Active Phase:\s*\*\*Location-first Phase \d+[^*]*\*\*[^:\n]*/m,
+      `- Active Phase: **Location-first Phase ${phase} complete** → Phase ${nextPhase} gate (\`v${v}\`)`,
+    );
+  }
+
+  if (!new RegExp(`Phase ${phase} prod verify gate \\*\\*closed\\*\\*`, "i").test(next)) {
+    if (/- \*\*Product:\*\*/m.test(next)) {
+      next = next.replace(/(- \*\*Product:\*\*)\s*/, `$1 ${gateSnippet}; `);
+    } else {
+      next = next.replace(
+        /(## Immediate Next Step\n(?:- [^\n]+\n)*)/,
+        `$1- **Product:** ${gateSnippet}; see \`docs/project_state.md\`.\n`,
+      );
+    }
+  }
+
+  return next;
+}
+
+/**
+ * Full hot-tier sync: infer gate from verify PASS → update CURRENT_STATE → tracker + roadmap.
+ * @param {{ currentStateMd: string, specMd: string, roadmapMd: string, packageVersion?: string | null, shipNote?: string }} input
+ * @returns {{ changed: boolean, changes: string[], currentStateMd: string, specMd: string, roadmapMd: string }}
+ */
+export function syncLocationFirstHotTier({
+  currentStateMd,
+  specMd,
+  roadmapMd,
+  packageVersion = null,
+  shipNote,
+}) {
+  /** @type {string[]} */
+  const changes = [];
+  let cs = currentStateMd;
+  const fromVerify = parseLocationFirstVerifyPassFromCurrentState(cs);
+  const fromShip = shipNote ? parseLocationFirstVerifyPassFromShipNote(shipNote) : null;
+  const inferred = fromShip ?? fromVerify;
+  const existingGate = parseLocationFirstGateFromCurrentState(cs);
+
+  const shouldApply =
+    inferred &&
+    (!existingGate.closedThroughPhase || inferred.phase >= existingGate.closedThroughPhase);
+  const version = inferred?.version ?? existingGate.version ?? packageVersion ?? null;
+
+  if (shouldApply && inferred) {
+    const updated = applyLocationFirstGateToCurrentState(cs, inferred.phase, version);
+    if (updated !== cs) {
+      cs = updated;
+      changes.push(`CURRENT_STATE: Phase ${inferred.phase} prod verify gate closed`);
+    }
+  }
+
+  const docSync = syncLocationFirstDocsFromCurrentState({ currentStateMd: cs, specMd, roadmapMd });
+  return {
+    changed: changes.length > 0 || docSync.changed,
+    changes: [...changes, ...docSync.changes],
+    currentStateMd: cs,
+    specMd: docSync.specMd,
+    roadmapMd: docSync.roadmapMd,
+  };
+}
+
+/**
+ * Parse § Phase Tracker status column from location-first spec.
+ * @param {string} specMd
+ * @returns {Map<number, string>}
+ */
+export function parseLocationFirstPhaseTracker(specMd) {
+  /** @type {Map<number, string>} */
+  const map = new Map();
+  const rowRe = /^\|\s*(\d+)\s*\|[^|\n]+\|\s*`([^`]+)`\s*\|/gm;
+  let match = rowRe.exec(specMd);
+  while (match) {
+    map.set(Number(match[1]), match[2].trim());
+    match = rowRe.exec(specMd);
+  }
+  return map;
+}
+
+/**
+ * Cross-check location-first living docs vs CURRENT_STATE hot tier.
+ * @param {{ currentStateMd: string, specMd: string, roadmapMd: string }} docs
+ * @returns {{ ok: boolean, errors: string[] }}
+ */
+export function validateLocationFirstDocConsistency({ currentStateMd, specMd, roadmapMd }) {
+  /** @type {string[]} */
+  const errors = [];
+  const gate = parseLocationFirstGateFromCurrentState(currentStateMd);
+  if (!gate.closedThroughPhase) return { ok: true, errors };
+
+  const tracker = parseLocationFirstPhaseTracker(specMd);
+  for (let phase = 1; phase <= gate.closedThroughPhase; phase++) {
+    const status = tracker.get(phase);
+    if (!status) {
+      errors.push(
+        `location-first-transition-spec.md: Phase Tracker missing phase ${phase} while CURRENT_STATE declares Phase ${gate.closedThroughPhase} prod verify gate closed`,
+      );
+      continue;
+    }
+    if (status !== "complete") {
+      errors.push(
+        `location-first-transition-spec.md: Phase ${phase} status is \`${status}\` but CURRENT_STATE declares Phase ${gate.closedThroughPhase} prod verify gate closed — set \`complete\` in Phase Tracker`,
+      );
+    }
+  }
+
+  if (gate.closedThroughPhase >= 4 && /Approved next action:\s*Phase\s*4\b/i.test(specMd)) {
+    errors.push(
+      "location-first-transition-spec.md: Approved next action still Phase 4 while CURRENT_STATE Phase 4 prod verify gate closed — update to Phase 5 (Fable gate)",
+    );
+  }
+
+  if (gate.closedThroughPhase >= 4 && /\|\s*\*\*4[–-]6\*\*\s*\|\s*⬜\s*Not started/i.test(roadmapMd)) {
+    errors.push(
+      "docs/roadmap.md: location-first table still shows 4–6 Not started while CURRENT_STATE Phase 4 gate closed — split Phase 4 complete vs 5–6",
+    );
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+/** @param {string} md @param {number} phase */
+function markPhaseTrackerRowComplete(specMd, phase, completedDate) {
+  const statusRe = new RegExp(
+    `^(\\|\\s*${phase}\\s*\\|[^\\n]+\\|\\s*)\`(?:in_progress|not_started)\`(\\s*\\|)`,
+    "m",
+  );
+  let next = specMd.replace(statusRe, `$1\`complete\`$2`);
+  if (next === specMd) return specMd;
+  const completedRe = new RegExp(
+    `^(\\|\\s*${phase}\\s*\\|[^\\n]+\\|\\s*\`complete\`\\s*\\|[^|]+\\|\\s*)(—)(\\s*\\|)`,
+    "m",
+  );
+  next = next.replace(completedRe, `$1${completedDate}$3`);
+  return next;
+}
+
+/**
+ * Auto-sync location-first Phase Tracker + roadmap from CURRENT_STATE gate closure.
+ * CURRENT_STATE wins — agents never hand-edit tracker/roadmap on phase close.
+ * @param {{ currentStateMd: string, specMd: string, roadmapMd: string }} docs
+ * @returns {{ changed: boolean, changes: string[], specMd: string, roadmapMd: string }}
+ */
+export function syncLocationFirstDocsFromCurrentState({ currentStateMd, specMd, roadmapMd }) {
+  const gate = parseLocationFirstGateFromCurrentState(currentStateMd);
+  if (!gate.closedThroughPhase) {
+    return { changed: false, changes: [], specMd, roadmapMd };
+  }
+
+  const version = gate.version ?? "0.0.0";
+  const closedDate =
+    currentStateMd.match(/20\d{2}-\d{2}-\d{2}/)?.[0] ?? new Date().toISOString().slice(0, 10);
+  /** @type {string[]} */
+  const changes = [];
+  let spec = specMd;
+  let roadmap = roadmapMd;
+  const closed = gate.closedThroughPhase;
+  const nextPhase = closed + 1;
+
+  for (let phase = 1; phase <= closed; phase++) {
+    const before = spec;
+    spec = markPhaseTrackerRowComplete(spec, phase, closedDate);
+    if (spec !== before) changes.push(`spec: Phase ${phase} → complete`);
+  }
+
+  if (closed >= 4 && /Approved next action:\s*Phase\s*4\b/i.test(spec)) {
+    spec = spec.replace(
+      /> \*\*Approved next action:[^\n]+\n/,
+      `> **Approved next action: Phase ${nextPhase}** (technician door + pickup v2) — **Fable work-verifier** on Phase ${closed} boundary before implement. Phase ${closed} prod verify gate closed ${closedDate} (\`v${version}\`).\n`,
+    );
+    changes.push(`spec: Approved next action → Phase ${nextPhase}`);
+  }
+
+  const currentPhaseLine = `**Current phase: Phase ${closed} — complete (prod verify gate closed \`v${version}\`). Next action: Phase ${nextPhase} — dispatch Fable work-verifier, then implement per spec.**`;
+  if (!spec.includes(`Phase ${closed} — complete (prod verify gate closed`)) {
+    spec = spec.replace(/\*\*Current phase:[^\n]+\*\*/, currentPhaseLine);
+    changes.push("spec: Current phase line synced");
+  }
+
+  if (closed >= 4) {
+    if (/\|\s*\*\*4[–-]6\*\*\s*\|\s*⬜\s*Not started/i.test(roadmap)) {
+      roadmap = roadmap.replace(
+        /\|\s*\*\*4[–-]6\*\*\s*\|\s*⬜\s*Not started[^\n]*\n/,
+        `| **4** Vendor exceptions + dispatcher planning | ✅ Complete ${closedDate} (\`v${version}\`) | \`verify:location-phase4\` 15/15 local + prod; release CF + G1 E2E |\n| **5** Technician door + pickup v2 | ⬜ Not started | Fable work-verifier gate; per spec tracker |\n| **6** Management audit | ⬜ Not started | Sonnet-gated; per spec tracker |\n`,
+      );
+      changes.push("roadmap: split 4–6 → Phase 4 complete");
+    } else if (
+      !new RegExp(
+        `\\|\\s*\\*\\*${closed}\\*\\*[^\\n]+Complete[^\\n]+v${version.replace(/\./g, "\\.")}`,
+        "i",
+      ).test(roadmap)
+    ) {
+      const rowRe = new RegExp(
+        `(\\|\\s*\\*\\*${closed}\\*\\*[^|]+\\|\\s*)(⬜[^|]+|🔵[^|]*)(\\s*\\|)`,
+        "i",
+      );
+      if (rowRe.test(roadmap)) {
+        roadmap = roadmap.replace(
+          rowRe,
+          `$1✅ Complete ${closedDate} (\`v${version}\`) | \`verify:location-phase4\` 15/15 local + prod$3`,
+        );
+        changes.push(`roadmap: Phase ${closed} row → Complete`);
+      }
+    }
+  }
+
+  const lastUpdated = `> **Last updated:** ${closedDate} (Location-first Phase ${closed} gate closed — \`v${version}\`)`;
+  if (!roadmap.includes(`Phase ${closed} gate closed`)) {
+    roadmap = roadmap.replace(/> \*\*Last updated:\*\*[^\n]+/, lastUpdated);
+    changes.push("roadmap: last-updated synced");
+  }
+
+  return { changed: changes.length > 0, changes, specMd: spec, roadmapMd: roadmap };
 }
 
 /** Roadmap patterns that must not regress (Verifier). */
@@ -400,5 +669,9 @@ export const ROADMAP_FORBIDDEN = [
   {
     label: "Slice 5 section not started",
     pattern: /### Phase 3 Slice 5 — Pickup link security \(not started\)/,
+  },
+  {
+    label: "location-first 4-6 not started when Phase 4 closed",
+    pattern: /\|\s*\*\*4[–-]6\*\*\s*\|\s*⬜\s*Not started \| Vendor exceptions/,
   },
 ];
