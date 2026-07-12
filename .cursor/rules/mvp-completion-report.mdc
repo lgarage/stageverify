@@ -1,0 +1,56 @@
+---
+description: Mandatory MVP completion % in work replies — all agents, all clients (desktop PC, mobile, cloud).
+alwaysApply: true
+---
+
+# MVP Completion Report (mandatory)
+
+**Authority:** `PROJECT_STATUS/MVP_PATH.md` (SSOT for %, exit criteria, increments). **Platform parity (D-20, D-25):** desktop PC, mobile Cursor, and cloud VM — identical behavior.
+
+## When to report
+
+Include **`MVP completion: XX.XX%`** in the reply when **all** hold:
+
+1. **Substantive work** shipped or verified (code, config, CF, verify script, docs that close an MVP milestone) — not read-only Q&A.
+2. **Task traces to MVP** — work maps to an exit criterion or fastest-path row in `MVP_PATH.md` (§14 E2E, live email, combo release, e-tag waiver, or band partial credit table).
+3. **Session is not purely planning** — away Plan phase, ranked-options-only, roadmap brainstorm, or "what's next" with no implementation in that turn.
+
+**Skip the line** when: pure planning (planning answers still **lead with** current % per `MVP_PATH.md` standing directive); trivial typos; read-only lookups; harness/agent-ops-only work with **no** MVP criterion linkage; Dan explicitly says skip.
+
+**Unchanged %:** if MVP-scoped work shipped but no milestone closed yet (WIP), report `MVP completion: XX.XX% (unchanged — milestone not closed)`.
+
+## When to update the SSOT
+
+On the **same commit** that closes or partially closes an MVP milestone:
+
+1. Update **`PROJECT_STATUS/MVP_PATH.md`** → `## Current percent (SSOT)` and assessment history row.
+2. Update **`PROJECT_STATUS/CURRENT_STATE.md`** snapshot MVP line to match (2 decimal places).
+3. Use increment math in `MVP_PATH.md` § **Partial credit** — do not round to whole percents.
+
+If % did not change, do not edit SSOT files for % alone.
+
+## Reply format (work sessions)
+
+After **What we did** (or equivalent done summary), include one line:
+
+```
+MVP completion: 80.33% (+0.33% — <which milestone>)
+```
+
+- **2 decimal places** always (`80.00%`, not `80%`).
+- Parenthetical **optional** when unchanged or when delta is obvious from context.
+- **Do not** bury % in tables only — dedicated line required.
+
+## Planning sessions (exempt from dedicated line)
+
+Pure planning: no mandatory `MVP completion:` footer line, but the answer **must still state current %** near the top (from `MVP_PATH.md` SSOT) per D-24.
+
+## PC / cloud rule sync
+
+Rule and SSOT live in the **repo** (`.cursor/rules/`, `PROJECT_STATUS/`). Any rule update from any client **commits and pushes** so Dan's Windows PC picks up the same `alwaysApply` rules on pull — do not maintain a separate PC-only copy.
+
+## Relation
+
+- D-24 — MVP path + fastest-path analysis
+- `composer-orchestrator.mdc` § Completion report — adds this line after What we did
+- `answer-quality.mdc` — planning still leads with %; work sessions add footer line

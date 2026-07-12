@@ -6,7 +6,7 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 
 ## Desktop Windows PC (Cursor)
 
-Same harness as cloud — `.cursor/rules/` **alwaysApply** on desktop (D-20 platform parity). No separate mobile-lite orchestration.
+Same harness as cloud — `.cursor/rules/` **alwaysApply** on desktop (D-20 platform parity). No separate mobile-lite orchestration. **Rule updates:** commit `.cursor/rules/` to the repo; desktop and cloud share the same files on pull — including `mvp-completion-report.mdc` (D-25 MVP % in work replies).
 
 | Task | Command (from `C:\Projects\stageverify`) |
 |------|----------------------------------------|
@@ -26,7 +26,7 @@ Scripts use `path.join` + repo-relative paths — identical on Windows and Linux
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20–D-23). No mobile-lite orchestration.
+2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, **MVP completion % reporting** (`mvp-completion-report.mdc`, D-25), and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20–D-25). No mobile-lite orchestration.
 3. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Harness parity exceptions (mobile/cloud only)
