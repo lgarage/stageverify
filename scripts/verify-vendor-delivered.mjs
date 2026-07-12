@@ -230,8 +230,11 @@ async function runDeliveredFlow(page) {
 
   // --- Mark Delivered ---
   await page.getByRole("button", { name: "Mark Delivered", exact: true }).click();
-  await page.waitForSelector("text=Delivery Confirmed", { timeout: 30_000 });
-  record("Mark Delivered confirms without item checkoff", true);
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('[data-testid="vendor-mark-delivered"]');
+    return btn && /Delivered/i.test(btn.textContent ?? "");
+  }, { timeout: 30_000 });
+  record("Mark Delivered stays on hub with Delivered label", true);
   await shot(page, "08-delivery-confirmed");
 
   const body = await page.locator("body").innerText();
@@ -239,6 +242,7 @@ async function runDeliveredFlow(page) {
     "Status stays arrived (not ready_for_pickup UI)",
     !/ready for pickup/i.test(body) && !/Check-in Complete/i.test(body),
   );
+  record("No Deliver Another on delivered hub", !(await page.getByRole("button", { name: "Deliver Another" }).isVisible().catch(() => false)));
 
   return page;
 }
@@ -300,11 +304,19 @@ async function runDispatcherVisibility(browser) {
   }
 
   if (vendorPageAfterDelivered) {
-    try {
-      await runRevertFlow(vendorPageAfterDelivered);
-    } catch (err) {
-      record("Revert flow", false, err.message ?? String(err));
-      await shot(vendorPageAfterDelivered, "error-revert-flow");
+    const undoVisible = await vendorPageAfterDelivered
+      .getByRole("button", { name: "Undo Delivery" })
+      .isVisible()
+      .catch(() => false);
+    if (undoVisible) {
+      try {
+        await runRevertFlow(vendorPageAfterDelivered);
+      } catch (err) {
+        record("Revert flow", false, err.message ?? String(err));
+        await shot(vendorPageAfterDelivered, "error-revert-flow");
+      }
+    } else {
+      record("Revert flow", true, "skipped — Undo not on delivered hub (scan new QR for next delivery)");
     }
   }
 

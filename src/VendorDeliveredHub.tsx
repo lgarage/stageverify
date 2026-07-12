@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type DeliveryDetails, type DeliveryOrder } from "./dispatcher/models";
 import { VendorNeedMoreSpaceFlow } from "./VendorNeedMoreSpaceFlow";
 import { VendorIssueModal } from "./VendorIssueModal";
@@ -13,7 +13,6 @@ interface VendorDeliveredHubProps {
   geofenceEnforce?: boolean;
   onDeliveryUpdated: (delivery: DeliveryOrder) => void;
   onDelivered: () => Promise<boolean>;
-  onDeliveredConfirmed: () => void;
   onBack: () => void;
 }
 
@@ -35,6 +34,13 @@ function DeliverCheckmark({ size = 22 }: { size?: number }) {
   );
 }
 
+function isVendorDeliveryConfirmed(delivery: DeliveryOrder): boolean {
+  return (
+    delivery.vendorPhysicalDropoffConfirmed === true ||
+    Boolean(delivery.vendorPhysicalDropoffConfirmedAt)
+  );
+}
+
 export function VendorDeliveredHub({
   deliveryDetails,
   loading,
@@ -43,13 +49,14 @@ export function VendorDeliveredHub({
   geofenceEnforce = false,
   onDeliveryUpdated,
   onDelivered,
-  onDeliveredConfirmed,
   onBack,
 }: VendorDeliveredHubProps) {
   const [showSpaceFlow, setShowSpaceFlow] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueToast, setIssueToast] = useState<string | null>(null);
-  const [ctaPhase, setCtaPhase] = useState<DeliverCtaPhase>("idle");
+  const [ctaPhase, setCtaPhase] = useState<DeliverCtaPhase>(() =>
+    isVendorDeliveryConfirmed(deliveryDetails.delivery) ? "delivered" : "idle",
+  );
 
   const { delivery, vendor, job, purchaseOrder, stagingLocation, items } =
     deliveryDetails;
@@ -57,8 +64,19 @@ export function VendorDeliveredHub({
   const locationLabel =
     stagingLocation?.label ?? "Not assigned — dispatcher will stage";
 
-  const confirming = ctaPhase !== "idle";
+  useEffect(() => {
+    if (isVendorDeliveryConfirmed(deliveryDetails.delivery)) {
+      setCtaPhase("delivered");
+    }
+  }, [
+    deliveryDetails.delivery.vendorPhysicalDropoffConfirmed,
+    deliveryDetails.delivery.vendorPhysicalDropoffConfirmedAt,
+  ]);
+
+  const isDelivered = ctaPhase === "delivered";
+  const confirming = ctaPhase === "checkmark";
   const deliverDisabled =
+    isDelivered ||
     loading ||
     confirming ||
     (geofenceEnforce && geofenceOutside);
@@ -74,8 +92,6 @@ export function VendorDeliveredHub({
     const ok = await onDelivered();
     if (ok) {
       setCtaPhase("delivered");
-      await new Promise((resolve) => window.setTimeout(resolve, 600));
-      onDeliveredConfirmed();
     } else {
       setCtaPhase("idle");
     }
@@ -168,7 +184,7 @@ export function VendorDeliveredHub({
       </div>
 
       <div className="shrink-0 sticky bottom-0 z-10 px-4 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-3 border-t border-border bg-bg-primary space-y-2">
-        {geofenceOutside && (
+        {geofenceOutside && !isDelivered && (
           <p
             className="text-xs text-accent-amber text-center rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2"
             role="status"
@@ -179,7 +195,7 @@ export function VendorDeliveredHub({
               : "You appear to be outside the shop area."}
           </p>
         )}
-        {error && (
+        {error && !isDelivered && (
           <p className="text-xs text-accent-red text-center" role="alert">
             {error}
           </p>
@@ -190,8 +206,8 @@ export function VendorDeliveredHub({
           onClick={() => void handleDeliverClick()}
           aria-label={deliverLabel}
           data-testid="vendor-mark-delivered"
-          className={`action-btn action-btn-delivered w-full text-lg font-bold tracking-wide disabled:opacity-50 transition-all ${
-            ctaPhase === "delivered" ? "bg-accent-green" : ""
+          className={`action-btn action-btn-delivered w-full text-lg font-bold tracking-wide transition-all ${
+            isDelivered ? "opacity-100 cursor-default" : "disabled:opacity-50"
           }`}
         >
           {ctaPhase === "checkmark" && (
@@ -207,13 +223,15 @@ export function VendorDeliveredHub({
           )}
           {ctaPhase === "idle" && "Mark Delivered"}
         </button>
-        <button
-          type="button"
-          onClick={onBack}
-          className="action-btn action-btn-secondary w-full"
-        >
-          ← Back
-        </button>
+        {!isDelivered && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="action-btn action-btn-secondary w-full"
+          >
+            ← Back
+          </button>
+        )}
       </div>
 
       {showSpaceFlow && (

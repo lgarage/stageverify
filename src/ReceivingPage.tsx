@@ -772,7 +772,6 @@ export function ReceivingPage() {
               );
             }}
             onDelivered={() => handleMarkDelivered()}
-            onDeliveredConfirmed={() => setStep("done")}
             onBack={resetFlow}
           />
         )}
@@ -1246,21 +1245,23 @@ export function ReceivingPage() {
                   {reverting ? "Reverting…" : "Undo Delivery"}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={resetFlow}
-                className="action-btn action-btn-delivered w-full"
-              >
-                {isExceptionOnly
-                  ? "Deliver Another"
-                  : "Check In Another Delivery"}
-              </button>
-              <Link
-                to="/dispatcher"
-                className="action-btn action-btn-secondary w-full text-center block leading-[44px]"
-              >
-                View in Dispatcher
-              </Link>
+              {!isExceptionOnly && (
+                <button
+                  type="button"
+                  onClick={resetFlow}
+                  className="action-btn action-btn-delivered w-full"
+                >
+                  Check In Another Delivery
+                </button>
+              )}
+              {!isExceptionOnly && (
+                <Link
+                  to="/dispatcher"
+                  className="action-btn action-btn-secondary w-full text-center block leading-[44px]"
+                >
+                  View in Dispatcher
+                </Link>
+              )}
             </div>
           </div>
         )}

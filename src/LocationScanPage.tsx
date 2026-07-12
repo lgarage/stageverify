@@ -404,7 +404,6 @@ export function LocationScanPage() {
             );
           }}
           onDelivered={() => handleMarkDelivered()}
-          onDeliveredConfirmed={() => setStep("done")}
           onBack={() => {
             if (deliveries.length > 1) setStep("list");
             else resetFlow();

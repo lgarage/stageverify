@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 97.89%** ? SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). �14 E2E **local + prod PASS**; **live email ingest prod proof** away-129 (**2** inbound in Needs Review; Gmail connected).
-- Last shipped: **vendor Mark Delivered CTA** — checkmark → Delivered feedback on vendor hub (`d9922d3`, v0.0.40)
+- Last shipped: **vendor delivered hub UX** — stay on hub with ✓ Delivered; no Deliver Another (`v0.0.41`)
 - Active Phase: **Location-first Phase 4 complete** ? MVP email band closed; **2.11%** remaining (�14 E2E residual **1.71%**).
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-12; `audit:needs-review-ui:prod` PASS; `verify:email-oauth-connect:prod` PASS; `verify:inbound-email-ingest` PASS.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x ? https://lgarage.github.io/stageverify � Firestore `stageverify-db`

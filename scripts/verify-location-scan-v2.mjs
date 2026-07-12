@@ -203,7 +203,10 @@ async function assertPermanentSignUrl(browser) {
   record("Wrong-spot shows job spot context", /G1|S1|Spot|location/i.test(body));
 
   await page.getByRole("button", { name: "Mark Delivered", exact: true }).click();
-  await page.waitForSelector("text=Delivery Confirmed", { timeout: 30_000 });
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('[data-testid="vendor-mark-delivered"]');
+    return btn && /Delivered/i.test(btn.textContent ?? "");
+  }, { timeout: 30_000 });
   record("Confirm delivered updates status", true);
   await shot(page, "03-confirmed");
 
