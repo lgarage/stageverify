@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 88.59%** — SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). §14 E2E **local + prod PASS** (`verify:phase14-e2e:prod` 2026-07-12).
-- Last shipped: **hideSeedDemoRows gotcha autolog** — PR #20 merged `2017613` (phase14 self-capture + pickup:prod deep-link badge + staging assign helper); §14 E2E prod still PASS.
+- Last shipped: **Invoice Review → Delivery Overview Needs Review** (`v0.0.34`) — full `InvoiceReviewPanel` on dashboard; sidebar Invoice Review removed; `#/invoice-review` redirects to `?focus=needs-review`.
 - Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; phase14 learning capture on main `2017613`; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.

@@ -75,7 +75,7 @@ export function formatGmailSyncMessage(result: InboundGmailSyncResult): string {
   }
 
   if ((result.invoicesQueued ?? 0) === 0 && result.processed === 0 && result.skipped > 0) {
-    return `Mailbox sync complete — ${parts.join(", ")}. Check Invoice Review (All imports) or Settings → Gmail.`;
+    return `Mailbox sync complete — ${parts.join(", ")}. Check Needs Review → Invoice imports (All imports) or Settings → Gmail.`;
   }
 
   return `Mailbox sync complete — ${parts.join(", ")}.`;

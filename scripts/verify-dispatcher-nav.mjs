@@ -395,6 +395,13 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   ) {
     throw new Error("Deliveries sidebar link should be removed");
   }
+  if (
+    (await nav.getByRole("link", { name: "Invoice Review", exact: true }).count()) >
+    0
+  ) {
+    throw new Error("Invoice Review sidebar link should be removed (Needs Review on Delivery Overview)");
+  }
+  console.log("PASS: Invoice Review sidebar link absent.");
 
   console.log("Sidebar: Staging Map…");
   await nav.getByRole("link", { name: "Staging Map", exact: true }).click();
@@ -928,6 +935,11 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     throw new Error("Proposed Email Updates panel must be retired");
   }
   console.log("Phase 5 PASS: needs-review-email-strip visible; legacy panel absent.");
+
+  await page.getByTestId("needs-review-section").waitFor({ timeout: 10_000 });
+  await page.getByTestId("needs-review-invoice-block").waitFor({ timeout: 10_000 });
+  await page.getByTestId("invoice-review-panel").waitFor({ timeout: 15_000 });
+  console.log("PASS: Needs Review includes invoice-review-panel on Delivery Overview.");
 
   const needsReviewToggle = page.getByTestId("needs-review-email-toggle");
   if (await needsReviewToggle.count()) {

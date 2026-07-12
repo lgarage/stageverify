@@ -55,7 +55,8 @@ import {
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
-import { NeedsReviewEmailStrip } from "./dispatcher/email/NeedsReviewEmailStrip";
+import { NeedsReviewSection } from "./dispatcher/email/NeedsReviewSection";
+import { portalNavFocus } from "./dispatcherPortalNav";
 import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
@@ -338,7 +339,12 @@ export function DispatcherDashboardPage() {
     setLastUpdated,
     handleRefreshNow,
     refreshGeneration,
+    invoiceImports,
+    invoiceShellBackfillErrors,
+    refreshPortalData,
   } = useDispatcherPortal();
+
+  const focusNeedsReview = portalNavFocus(location.search) === "needs-review";
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
@@ -897,7 +903,13 @@ export function DispatcherDashboardPage() {
             </p>
           </div>
 
-          <NeedsReviewEmailStrip />
+          <NeedsReviewSection
+            syncedImports={invoiceImports}
+            refreshGeneration={refreshGeneration}
+            backfillErrors={invoiceShellBackfillErrors}
+            onApproveSuccess={refreshPortalData}
+            focusOnMount={focusNeedsReview}
+          />
 
           {/* ── Summary tiles ── */}
           {allRows.length > 0 && (

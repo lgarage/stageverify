@@ -1,5 +1,6 @@
 /**
- * Playwright: dispatcher invoice review UI (/invoice-review).
+ * Playwright: invoice import review on Delivery Overview Needs Review.
+ * Deep link `#/invoice-review` redirects to `/dispatcher?focus=needs-review`.
  *
  * Usage:
  *   npm run dev
@@ -58,12 +59,11 @@ async function ensureAuthenticated(page) {
     timeout: 20_000,
   });
 
-  if (!page.url().includes("/invoice-review")) {
-    await page.goto(`${appBase}/#/invoice-review`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
-  }
+  // Always re-hit deep link so redirect lands on Needs Review focus.
+  await page.goto(`${appBase}/#/invoice-review`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
 }
 
 async function assertViewOriginalPdfButton(page) {
@@ -93,12 +93,24 @@ async function main() {
   const page = await context.newPage();
 
   try {
-    console.log(`verify-invoice-review @ ${appBase}/#/invoice-review`);
+    console.log(`verify-invoice-review @ ${appBase}/#/invoice-review → Needs Review`);
 
     await ensureAuthenticated(page);
 
-    await page.getByTestId("invoice-review-page").waitFor({ timeout: 20_000 });
-    console.log("PASS: invoice-review-page visible");
+    await page.waitForURL(/\/#\/dispatcher/, { timeout: 20_000 });
+    if (!page.url().includes("focus=needs-review")) {
+      throw new Error(
+        `Expected redirect to dispatcher?focus=needs-review, got ${page.url()}`,
+      );
+    }
+    console.log("PASS: #/invoice-review redirects to dispatcher Needs Review");
+
+    await page.getByTestId("needs-review-section").waitFor({ timeout: 20_000 });
+    console.log("PASS: needs-review-section visible on Delivery Overview");
+
+    await page.getByTestId("needs-review-invoice-block").waitFor({ timeout: 10_000 });
+    await page.getByTestId("needs-review-invoice-heading").waitFor({ timeout: 10_000 });
+    console.log("PASS: invoice imports block in Needs Review");
 
     await page.getByTestId("invoice-review-panel").waitFor({ timeout: 15_000 });
     console.log("PASS: invoice-review-panel visible");
@@ -108,14 +120,17 @@ async function main() {
 
     const sidebarLink = page.getByRole("link", { name: "Invoice Review" });
     if (await sidebarLink.isVisible().catch(() => false)) {
-      console.log("PASS: Invoice Review sidebar nav link visible");
-    } else {
-      throw new Error("Invoice Review sidebar link not visible");
+      throw new Error("Invoice Review sidebar link should be removed");
     }
+    console.log("PASS: Invoice Review sidebar nav link absent");
 
-    const heading = page.getByRole("heading", { name: "Invoice import review" });
+    const heading = page.getByTestId("needs-review-invoice-heading");
     await heading.waitFor({ timeout: 10_000 });
-    console.log("PASS: page heading visible");
+    const headingText = (await heading.innerText()).trim();
+    if (headingText !== "Invoice imports") {
+      throw new Error(`Unexpected invoice heading: ${headingText}`);
+    }
+    console.log("PASS: Invoice imports heading visible");
 
     const detailPane = page.getByTestId("invoice-review-detail");
     if (await detailPane.count()) {
@@ -162,10 +177,10 @@ async function main() {
     console.log("PASS: Confidence column not shown");
 
     await page.getByTestId("dispatcher-refresh-now").waitFor({ timeout: 10_000 });
-    console.log("PASS: shared dispatcher Refresh Now visible on Invoice Review");
+    console.log("PASS: shared dispatcher Refresh Now visible on Delivery Overview");
 
     await page.getByRole("button", { name: "+ New Delivery" }).waitFor({ timeout: 10_000 });
-    console.log("PASS: shared dispatcher + New Delivery visible on Invoice Review");
+    console.log("PASS: shared dispatcher + New Delivery visible on Delivery Overview");
 
     const rowContent = page.locator('[data-testid^="invoice-review-row-content-"]').first();
     if (await rowContent.isVisible().catch(() => false)) {
