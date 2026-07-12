@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { fetchVendorInvoicePdf } from "../firestoreService";
 import {
+  openBlankPdfViewerTab,
   openVendorInvoicePdfInNewTab,
   vendorInvoicePdfUnavailableMessage,
 } from "./invoicePdfClient";
@@ -11,6 +12,16 @@ export function useVendorInvoicePdfViewer() {
   const [errorById, setErrorById] = useState<Record<string, string>>({});
 
   const viewPdf = useCallback(async (importId: string) => {
+    const popup = openBlankPdfViewerTab();
+    if (!popup) {
+      setErrorById((prev) => ({
+        ...prev,
+        [importId]:
+          "Pop-up blocked — allow pop-ups for StageVerify to view the invoice PDF.",
+      }));
+      return;
+    }
+
     setLoadingId(importId);
     setErrorById((prev) => {
       if (!prev[importId]) return prev;
@@ -20,8 +31,14 @@ export function useVendorInvoicePdfViewer() {
     });
     try {
       const payload = await fetchVendorInvoicePdf(importId);
-      openVendorInvoicePdfInNewTab(payload);
+      if (popup.closed) {
+        throw new Error("PDF viewer tab was closed before the invoice could load.");
+      }
+      openVendorInvoicePdfInNewTab(payload, popup);
     } catch (err) {
+      if (!popup.closed) {
+        popup.close();
+      }
       setErrorById((prev) => ({
         ...prev,
         [importId]: vendorInvoicePdfUnavailableMessage(err),

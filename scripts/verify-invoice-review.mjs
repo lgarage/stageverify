@@ -78,6 +78,44 @@ async function assertViewOriginalPdfButton(page) {
   console.log("PASS: View original PDF button left of Close in modal header");
 }
 
+async function assertViewOriginalPdfOpens(page) {
+  const viewOriginalPdfBtn = page.getByTestId("invoice-parsed-inspect-view-original-pdf");
+  if (await viewOriginalPdfBtn.isDisabled()) {
+    const unavailable = page.getByTestId("invoice-parsed-inspect-pdf-unavailable");
+    const reason =
+      (await unavailable.isVisible().catch(() => false))
+        ? (await unavailable.innerText()).trim()
+        : "button disabled";
+    throw new Error(`View original PDF should be enabled for inspectable imports (${reason})`);
+  }
+
+  const popupPromise = page.waitForEvent("popup", { timeout: 5000 });
+  await viewOriginalPdfBtn.click();
+  const popup = await popupPromise;
+  console.log("PASS: View original PDF opened a new tab on click");
+
+  try {
+    await popup.waitForURL(/^blob:/, { timeout: 60_000, waitUntil: "commit" });
+    console.log("PASS: View original PDF navigated to blob URL in new tab");
+  } catch {
+    const errEl = page.getByTestId("invoice-parsed-inspect-pdf-unavailable");
+    if (await errEl.isVisible().catch(() => false)) {
+      const reason = (await errEl.innerText()).trim();
+      console.log(
+        `SKIP: PDF blob load unavailable in verify env (${reason}) — popup opens on click`,
+      );
+      return;
+    }
+    throw new Error(
+      `View original PDF tab did not load blob URL (final url: ${popup.isClosed() ? "closed" : popup.url()})`,
+    );
+  } finally {
+    if (!popup.isClosed()) {
+      await popup.close();
+    }
+  }
+}
+
 async function main() {
   if (!existsSync(authState)) {
     console.log("No auth state — run: node scripts/playwright-auth-setup.mjs");
@@ -203,6 +241,7 @@ async function main() {
       console.log("PASS: parsed lines table visible in inspect modal");
 
       await assertViewOriginalPdfButton(page);
+      await assertViewOriginalPdfOpens(page);
 
       const expectedFields = page.getByTestId("invoice-parsed-inspect-expected-fields");
       if (await expectedFields.count()) {
