@@ -22,6 +22,8 @@ alwaysApply: true
 
 `.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
 
+Mechanical evidence gate identical across clients — CI gate-check on PRs; local pre-push hook auto-installed by npm `prepare` blocks high-risk direct-to-main pushes without commit-message evidence (D-28/D-29).
+
 **Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
 
 ## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)

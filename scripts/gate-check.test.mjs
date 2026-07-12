@@ -11,6 +11,7 @@ import {
   classifyPath,
   packageJsonHighRisk,
   checkEvidence,
+  resolveEvidence,
 } from "./gate-check.mjs";
 
 describe("classifyPath", () => {
@@ -152,5 +153,65 @@ describe("checkEvidence", () => {
     const result = checkEvidence(validBody, true);
     assert.equal(result.pass, true);
     assert.deepEqual(result.missing, []);
+  });
+});
+
+describe("resolveEvidence", () => {
+  const readFile = () => "file-body";
+  const gitLog = () => "commit-body";
+
+  it("env body wins over everything", () => {
+    const out = resolveEvidence({
+      envBody: "env-body",
+      prBodyFile: "pr.md",
+      evidenceFromCommits: true,
+      readFile,
+      gitLog,
+    });
+    assert.equal(out, "env-body");
+  });
+
+  it("empty-string env body still wins (set beats unset)", () => {
+    const out = resolveEvidence({
+      envBody: "",
+      prBodyFile: "pr.md",
+      evidenceFromCommits: true,
+      readFile,
+      gitLog,
+    });
+    assert.equal(out, "");
+  });
+
+  it("pr body file next when env unset", () => {
+    const out = resolveEvidence({
+      envBody: null,
+      prBodyFile: "pr.md",
+      evidenceFromCommits: true,
+      readFile,
+      gitLog,
+    });
+    assert.equal(out, "file-body");
+  });
+
+  it("commit messages next when env and file unset", () => {
+    const out = resolveEvidence({
+      envBody: null,
+      prBodyFile: null,
+      evidenceFromCommits: true,
+      readFile,
+      gitLog,
+    });
+    assert.equal(out, "commit-body");
+  });
+
+  it("defaults to empty string", () => {
+    const out = resolveEvidence({
+      envBody: null,
+      prBodyFile: null,
+      evidenceFromCommits: false,
+      readFile,
+      gitLog,
+    });
+    assert.equal(out, "");
   });
 });

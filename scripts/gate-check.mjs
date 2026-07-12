@@ -19,8 +19,11 @@
  * the merge ref — this gate is advisory-vs-malice, protective-vs-honest-mistakes; branch
  * protection + human review remain the backstop for hostile PRs.
  *
- * Run: npm run gate:check [-- --base <ref> --head <ref> --pr-body-file <path>]
- * PR body: env GATE_PR_BODY, else --pr-body-file, else empty.
+ * Run: npm run gate:check [-- --base <ref> --head <ref> --pr-body-file <path> | --evidence-from-commits]
+ * Evidence priority: env GATE_PR_BODY > --pr-body-file > --evidence-from-commits > empty.
+ * --evidence-from-commits reads `git log --format=%B base..head` — direct pushes to main
+ * (desktop, pre-push hook) carry the evidence block in commit messages; same presence-only
+ * contract as PR bodies.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -182,13 +185,26 @@ function readPackageJsonAtRef(ref) {
 /**
  * @param {string} base
  * @param {string} head
- * @returns {string[]}
+ * @returns {string[] | null} null when no diff range can be resolved (fail-up in caller)
  */
 function getChangedFiles(base, head) {
-  const out = execFileSync("git", ["diff", "--name-only", `${base}...${head}`], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  /** @param {string} range */
+  const diff = (range) =>
+    execFileSync("git", ["diff", "--name-only", range], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  let out;
+  try {
+    out = diff(`${base}...${head}`);
+  } catch {
+    console.log(`WARN: diff ${base}...${head} failed — falling back to origin/main...${head}`);
+    try {
+      out = diff(`origin/main...${head}`);
+    } catch {
+      return null;
+    }
+  }
   return out
     .split("\n")
     .map((line) => line.trim())
@@ -197,13 +213,14 @@ function getChangedFiles(base, head) {
 
 /**
  * @param {string[]} args
- * @returns {{ base: string, head: string, prBodyFile: string | null }}
+ * @returns {{ base: string, head: string, prBodyFile: string | null, evidenceFromCommits: boolean }}
  */
 function parseArgs(args) {
   let base = "origin/main";
   let head = "HEAD";
   /** @type {string | null} */
   let prBodyFile = null;
+  let evidenceFromCommits = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -213,24 +230,64 @@ function parseArgs(args) {
       head = args[++i];
     } else if (arg === "--pr-body-file" && args[i + 1]) {
       prBodyFile = args[++i];
+    } else if (arg === "--evidence-from-commits") {
+      evidenceFromCommits = true;
     }
   }
 
-  return { base, head, prBodyFile };
+  return { base, head, prBodyFile, evidenceFromCommits };
 }
 
 /**
- * @param {string | null} prBodyFile
+ * Pure evidence resolver — priority: env body > PR body file > commit messages > empty.
+ * @param {{
+ *   envBody: string | null | undefined,
+ *   prBodyFile: string | null,
+ *   evidenceFromCommits: boolean,
+ *   readFile: (path: string) => string,
+ *   gitLog: () => string,
+ * }} deps
  * @returns {string}
  */
-function resolvePrBody(prBodyFile) {
-  if (process.env.GATE_PR_BODY != null) {
-    return process.env.GATE_PR_BODY;
+export function resolveEvidence({ envBody, prBodyFile, evidenceFromCommits, readFile, gitLog }) {
+  if (envBody != null) {
+    return envBody;
   }
   if (prBodyFile) {
-    return readFileSync(prBodyFile, "utf8");
+    return readFile(prBodyFile);
+  }
+  if (evidenceFromCommits) {
+    return gitLog();
   }
   return "";
+}
+
+/**
+ * Commit-message evidence with force-push safety: `base..head` (two-dot) for evidence
+ * gathering; on failure (base not ancestor / unknown ref) WARN and fall back to
+ * `origin/main..head`; never crash.
+ * @param {string} base
+ * @param {string} head
+ * @returns {string}
+ */
+function getCommitEvidence(base, head) {
+  /** @param {string} range */
+  const log = (range) =>
+    execFileSync("git", ["log", "--format=%B", range], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  try {
+    return log(`${base}..${head}`);
+  } catch {
+    console.log(`WARN: git log ${base}..${head} failed — falling back to origin/main..${head}`);
+    try {
+      return log(`origin/main..${head}`);
+    } catch {
+      console.log(`WARN: git log origin/main..${head} also failed — evidence empty`);
+      return "";
+    }
+  }
 }
 
 /**
@@ -240,6 +297,10 @@ function resolvePrBody(prBodyFile) {
  */
 export function runGateCheck(base, head, prBody) {
   const changedFiles = getChangedFiles(base, head);
+  if (changedFiles === null) {
+    console.log("gate-check: FAIL — cannot resolve diff range (fail-up)");
+    return 1;
+  }
   /** @type {Map<string, string[]>} */
   const classification = new Map();
 
@@ -315,8 +376,14 @@ export function runGateCheck(base, head, prBody) {
 }
 
 function main() {
-  const { base, head, prBodyFile } = parseArgs(process.argv.slice(2));
-  const prBody = resolvePrBody(prBodyFile);
+  const { base, head, prBodyFile, evidenceFromCommits } = parseArgs(process.argv.slice(2));
+  const prBody = resolveEvidence({
+    envBody: process.env.GATE_PR_BODY ?? null,
+    prBodyFile,
+    evidenceFromCommits,
+    readFile: (path) => readFileSync(path, "utf8"),
+    gitLog: () => getCommitEvidence(base, head),
+  });
   const code = runGateCheck(base, head, prBody);
   process.exit(code);
 }

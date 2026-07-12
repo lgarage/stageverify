@@ -16,6 +16,9 @@ Same harness as cloud — `.cursor/rules/` **alwaysApply** on desktop (D-20 plat
 
 Scripts use `path.join` + repo-relative paths — identical on Windows and Linux. `readText()` normalizes CRLF.
 
+`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); high-risk direct-to-main commits must carry the security-gate evidence block (`security-gate-id` + model line) in the commit message (D-28/D-29).
+`GATE_SKIP=1 git push` (or `--no-verify`) bypass exists — advisory-vs-malice; use only when Dan approves.
+
 ## Cursor Cloud specific instructions
 
 ### Workspace paths

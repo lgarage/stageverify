@@ -23,4 +23,4 @@ jobs:
           GATE_PR_BODY: ${{ github.event.pull_request.body }}
         run: node scripts/gate-check.mjs --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
       - name: Run gate-check unit tests
-        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs
+        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs
