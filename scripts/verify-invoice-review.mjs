@@ -222,6 +222,14 @@ async function main() {
 
     const rowContent = page.locator('[data-testid^="invoice-review-row-content-"]').first();
     if (await rowContent.isVisible().catch(() => false)) {
+      if (await page.getByTestId("invoice-review-approve").isVisible().catch(() => false)) {
+        throw new Error("Row Approve should be removed from queue card — use inspect modal");
+      }
+      if (await page.getByTestId("invoice-review-reject").isVisible().catch(() => false)) {
+        throw new Error("Row Reject should be removed from queue card — use inspect modal");
+      }
+      console.log("PASS: row Approve/Reject removed from queue card");
+
       await rowContent.click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
       await page.getByTestId("invoice-parsed-inspect-summary").waitFor({ timeout: 10_000 });
@@ -284,25 +292,6 @@ async function main() {
         throw new Error("Row-level Match to delivery toggle should be removed");
       }
       console.log("PASS: row-level match toggle removed");
-
-      const approveBtn = page.getByTestId("invoice-review-approve");
-      if (await approveBtn.isVisible().catch(() => false)) {
-        const disabled = await approveBtn.isDisabled();
-        const approvalEligibleText = (
-          await page.getByTestId("invoice-parsed-inspect-approval").innerText()
-        ).trim();
-        if (/^no$/i.test(approvalEligibleText) && disabled) {
-          console.log("PASS: row Approve disabled when approval eligibility is No");
-        } else if (/^yes$/i.test(approvalEligibleText) && !disabled) {
-          console.log("PASS: row Approve enabled without delivery ID or auto-match");
-        } else if (/^yes$/i.test(approvalEligibleText) && disabled) {
-          throw new Error(
-            "Row Approve should be enabled when approval eligibility is Yes (without delivery ID)",
-          );
-        } else {
-          console.log(`SKIP: row Approve state (eligible=${approvalEligibleText}, disabled=${disabled})`);
-        }
-      }
 
       await page.getByTestId("invoice-parsed-inspect-close").click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
