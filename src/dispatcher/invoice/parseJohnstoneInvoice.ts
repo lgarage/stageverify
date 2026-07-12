@@ -92,13 +92,31 @@ function trimBuyerValue(raw: string): string {
     .trim();
 }
 
+/** Johnstone header-grid salesman codes — never part of Customer P/O (spec §5 ignore list). */
+const JOHNSTONE_SALESMAN_CODE = /\s+(?:SAD|BBTO|RML|DDJ|CM|BB)\s*$/i;
+
 function trimPoValue(raw: string): string {
   return raw
     .replace(/\s+Order\s+Date\b.*$/i, "")
     .replace(/\s+Buyer\b.*$/i, "")
     .replace(/\s+Ship\s+Via\b.*$/i, "")
     .replace(/\s+Invoice\s+Date\b.*$/i, "")
+    .replace(JOHNSTONE_SALESMAN_CODE, "")
     .trim();
+}
+
+/** When wide header grid bleeds Ship Via / Salesman into P/O, strip only with bleed evidence. */
+function sanitizePoFromGridBleed(po: string, shipVia?: string): string {
+  const hadSalesmanBleed = JOHNSTONE_SALESMAN_CODE.test(po);
+  let value = trimPoValue(po);
+  if (
+    hadSalesmanBleed &&
+    shipVia &&
+    /^(?:PICKUP|WILL\s*[- ]?\s*CALL)$/i.test(shipVia.trim())
+  ) {
+    value = value.replace(/\s+PICKUP\s*$/i, "").trim();
+  }
+  return value;
 }
 
 function isPlausiblePoValue(raw: string | undefined): boolean {
@@ -131,6 +149,8 @@ function parseShipViaToken(raw: string): string | undefined {
 function parseWideRowShipVia(middle: string): string | undefined {
   const truck = middle.match(/\s+(TRUCK\s+DELIVE\w*)\s*$/i);
   if (truck) return parseShipViaToken(truck[1]!);
+  const pickup = middle.match(/\s+(PICKUP)\s*$/i);
+  if (pickup) return parseShipViaToken(pickup[1]!);
   const willCall = middle.match(/\s+(WILL\s*[- ]?\s*CALL\b.*)\s*$/i);
   if (willCall) return parseShipViaToken(willCall[1]!);
   const tokens = middle.trim().split(/\s+/);
@@ -210,7 +230,7 @@ function parseTabularHeaderBlock(text: string): Partial<ParsedInvoiceHeader> {
       )
     ) {
       const wide = valueLine.match(
-        /^(\d{3,10})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{3,10})\s+(.+)\s+(\d+)\s*$/,
+        /^(\d{3,10})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{3,10})\s+(.+)\s+(\d+|[A-Z]{2,5})\s*$/,
       );
       if (wide) {
         partial.customerAccountNumber = wide[1];
@@ -323,12 +343,29 @@ function isLineTableNoise(trimmed: string): boolean {
   return false;
 }
 
+const INVOICE_FOOTER_INLINE = /Signature\s+Proof\s+of\s+Delivery/i;
+
+function isInvoiceFooterLine(trimmed: string): boolean {
+  return (
+    INVOICE_FOOTER_INLINE.test(trimmed) ||
+    /^(?:Remit\s+To|Taxable\b|POS\s+Copy|Merchandise\b|Freight\b|Sub\s+Total|TOTAL\b|Suspended|Equipment|of damage|Misc Charges)/i.test(
+      trimmed,
+    )
+  );
+}
+
+function truncateAtInvoiceFooter(text: string): string {
+  const idx = text.search(INVOICE_FOOTER_INLINE);
+  if (idx >= 0) return text.slice(0, idx).trim();
+  return text;
+}
+
 function isDescriptionContinuation(trimmed: string): boolean {
   if (isLineTableNoise(trimmed)) return false;
+  if (isInvoiceFooterLine(trimmed)) return false;
   if (LINE_ROW.test(trimmed) || LINE_ROW_EXTENDED.test(trimmed)) return false;
   if (/REPAIR/i.test(trimmed)) return false;
   if (/2 DAY LEAD|NON STOCK|RESTOCK FEE/i.test(trimmed)) return false;
-  if (/^(Suspended|Equipment|of damage|Misc Charges|Taxable|POS Copy)/i.test(trimmed)) return false;
   return true;
 }
 
@@ -370,13 +407,15 @@ function pushParsedLine(
     lineExtension?: string;
   },
 ): void {
+  const description = truncateAtInvoiceFooter(parsed.description);
   const { lineType, excludeFromExpectedItems } = classifyLine(
     parsed.vendorProductNumber,
     parsed.quantityShipped,
-    parsed.description,
+    description,
   );
   lines.push({
     ...parsed,
+    description,
     filteredNotes: [],
     lineType,
     excludeFromExpectedItems,
@@ -435,7 +474,9 @@ function parseLineTableRows(lineSection: string, orderNotes: string[]): ParsedIn
       }
     } else if (lines.length > 0 && isDescriptionContinuation(trimmed)) {
       const prev = lines[lines.length - 1]!;
-      prev.description = [prev.description, trimmed].filter(Boolean).join(" ").trim();
+      prev.description = truncateAtInvoiceFooter(
+        [prev.description, trimmed].filter(Boolean).join(" ").trim(),
+      );
     }
   }
 
@@ -510,7 +551,7 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     capture(/S\/O\s*(?:#|Number)?\s*:?\s*(\d{3,10})/i, text),
   );
   const vendorInvoiceNumber = extractVendorInvoiceNumber(text, tabular, stacked);
-  const customerPoOrReference = pickPoValue(
+  const customerPoRaw = pickPoValue(
     capture(/Customer P\/O\s*#\s*:\s*(.+)/i, text),
     tabular.customerPoOrReference,
     stacked.customerPoOrReference,
@@ -546,6 +587,7 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     tabular.shipViaRaw,
     parseShipViaToken(buyerRaw ?? ""),
   ) || undefined;
+  const customerPoOrReference = sanitizePoFromGridBleed(customerPoRaw, shipViaRaw);
   const jobNumberRaw = capture(/Job Number\s*:\s*(.*)/i, text)?.trim();
 
   const vendorBranchName = capture(/Remit To\s*:\s*(.+)/i, text)

@@ -167,6 +167,22 @@ function evaluateFixture(pageId, result, expected) {
       detail: result.reviewStatus,
     });
   }
+  if (expected.lineDescriptionIncludes) {
+    const desc = result.parsed.lines[0]?.description ?? "";
+    checks.push({
+      label: "lineDescriptionIncludes",
+      pass: expected.lineDescriptionIncludes.every((s) => desc.includes(s)),
+      detail: desc,
+    });
+  }
+  if (expected.lineDescriptionExcludes) {
+    const desc = result.parsed.lines[0]?.description ?? "";
+    checks.push({
+      label: "lineDescriptionExcludes",
+      pass: expected.lineDescriptionExcludes.every((s) => !desc.includes(s)),
+      detail: desc,
+    });
+  }
 
   return checks;
 }
@@ -324,6 +340,21 @@ const FIXTURE_EXPECTATIONS = {
     displayLabel: "Pending Delivery",
     expectedLineCount: 5,
     notAutoProcessed: true,
+  },
+  "inv-6166261": {
+    vendorInvoiceNumber: "6166261",
+    vendorOrderNumber: "6166261",
+    customerAccountNumber: "0018114",
+    customerPoOrReference: "NTI BOILER",
+    buyerName: "CONNOR SMITH",
+    shipViaRaw: "PICKUP",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    displayLabel: "Will-Call / Pickup.",
+    expectedLineCount: 1,
+    autoProcessed: true,
+    lineDescriptionIncludes: ["CONTROLLER 210MN", "TX MODELS REQUIRE EXTERNAL SPARK"],
+    lineDescriptionExcludes: ["Signature Proof of Delivery", "Remit To"],
   },
 };
 

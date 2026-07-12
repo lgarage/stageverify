@@ -524,4 +524,37 @@ PLEATED EXTENDED SURFACE
 5 4 4 0 P34-544 2351419 BELT COGGED BX44 EA 65.00 29.90 $119.60
 `.trim(),
   },
+  {
+    pageId: "inv-6166261",
+    importBatchId: "batch-email-191546290875-1554b1",
+    pageIndexInBatch: 0,
+    extractedText: `
+Johnstone Supply
+Page 1/1
+Sold To Ship To
+TWIN PILLAR HEATING & COOLING TWIN PILLAR HEATING & COOLING
+Customer # Order Date Sales Order # Buyer Customer P/O # Ship Via Salesman
+0018114 06/23/2026 6166261 CONNOR SMITH NTI BOILER PICKUP SAD
+Customer #
+0018114
+Sales Order #
+6166261
+Customer P/O #
+NTI BOILER PICKUP SAD
+Order Date
+06/23/2026
+Buyer
+CONNOR SMITH
+Invoice # Invoice Date Ship Date Freight Terms Job Number Terms
+6166261 06/23/2026 06/23/2026 PREPAID& ADD
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT UOM LIST NET EXTENSION
+ORD SHI B/O NUMBER DESCRIPTION PRICE PRICE
+1 1 1 0 L51-417 210MN CONTROLLER 210MN EA 0.00 0.00 $0.00
+*NOTE TX MODELS REQUIRE EXTERNAL SPARK
+Signature Proof of Delivery: _______________
+Remit To: Taxable 0.00 Johnstone Supply
+335 N Weber Ave Sioux Falls SD 57103
+please call 605-338-2652
+`.trim(),
+  },
 ];

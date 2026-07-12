@@ -441,6 +441,44 @@
       "warning": "Source on main + local/emulator tests PASS ≠ prod live. Before claiming shipped/live: (1) gh-pages — Pages status=built (not errored/stuck building) and live index.html main JS + portal-sidebar-version match expected package.json version; (2) Cloud Functions — firebase deploy succeeded AND affected functions show post-ship revision (functions:log DEPLOYMENT_ROLLOUT after intended commit, not pre-ship date); (3) combined UI+CF ships verify BOTH. Dark-shipped: keep emailReplyIngestEnabled off until runtime deps verified. Do NOT enable reply ingest until: Stage 1+ functions deployed, GMAIL_PUBSUB_TOPIC secret set, Pub/Sub topic exists, Gmail publisher IAM, Gmail watch registered, controlled ingest test passes. Frontend-only ships: gh-pages freshness only. Backend-only CF: functions revision only. Docs-only: no deploy warning."
     },
     {
+      "id": "johnstone-invoice-parser",
+      "match": [
+        "johnstone invoice parser",
+        "parse johnstone invoice",
+        "customer po bleed",
+        "NTI BOILER",
+        "invoice footer description",
+        "Signature Proof of Delivery",
+        "johnstone header grid",
+        "ship via pickup salesman",
+        "invoice 6166261",
+        "johnstone invoice 6166261"
+      ],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["backend-critical", "agent-lessons"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "functions/src/invoice/parseJohnstoneInvoice.ts",
+        "functions/src/invoice/inferImportStatus.ts",
+        "src/dispatcher/invoice/parseJohnstoneInvoice.ts",
+        "src/dispatcher/invoice/invoiceFixtures.ts",
+        "scripts/test-invoice-parser.mjs"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [
+        "npm run test:invoice-parser",
+        "npm run test:pdf-text-normalize"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "parsing Johnstone PDF",
+        "invoice parser fix",
+        "customer P/O field",
+        "line description footer"
+      ],
+      "warning": "Johnstone pdf.js header grid: Customer # | Order Date | Sales Order # | Buyer | Customer P/O # | Ship Via | Salesman — separate columns. Customer P/O must NOT include Ship Via (e.g. PICKUP) or Salesman (SAD, BBTO, RML, DDJ, CM, BB). Wide value row ends with numeric or alpha salesman code. Fulfillment: infer from shipViaRaw when P/O no longer contains PICKUP. Line table descriptions truncate before invoice footer (Signature Proof of Delivery, Remit To, Taxable, totals) — footer is AP noise not product text. Fixture: inv-6166261 (invoice 6166261). Gate: npm run test:invoice-parser."
+    },
+    {
       "id": "invoice-import",
       "match": [
         "invoice import",

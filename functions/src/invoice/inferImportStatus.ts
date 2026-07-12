@@ -19,6 +19,9 @@ export function inferFulfillmentMethod(
   if (/\bWILL\s*CALL\b/i.test(text)) return "will_call_pickup";
   if (/\bCUSTOMER\s+PICKUP\b/i.test(text)) return "will_call_pickup";
 
+  if (shipVia && /\bPICKUP\b/i.test(shipVia)) return "will_call_pickup";
+  if (shipVia && /\bWILL\s*[- ]?\s*CALL\b/i.test(shipVia)) return "will_call_pickup";
+
   if (shipVia && /TRUCK\s+DELIVE/i.test(shipVia)) return "delivery";
   if (/DELIVERY\s+ROUTE/i.test(text)) return "delivery";
   if (/DELIVERED\s+BY\s+JOHNSTONE/i.test(text)) return "delivery";

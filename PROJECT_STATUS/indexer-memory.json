@@ -156,8 +156,8 @@
       "subtype": "cf-ingest",
       "slice": {
         "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
-        "startLine": 37,
-        "endLine": 37,
+        "startLine": 38,
+        "endLine": 38,
         "anchor": "20. **Inbound CF writes:**"
       },
       "relatedFiles": [],
@@ -227,8 +227,8 @@
       "subtype": "reply-ingest",
       "slice": {
         "file": "PROJECT_STATUS/LIBRARIAN_LESSONS.md",
-        "startLine": 40,
-        "endLine": 45,
+        "startLine": 41,
+        "endLine": 46,
         "anchor": "## Vendor email / reply ingest"
       },
       "relatedFiles": [
