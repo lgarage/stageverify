@@ -24,6 +24,8 @@ alwaysApply: true
 
 **Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
 
+**Parity by default (D-32 — Dan 2026-07-12):** every **new** rule, gate, loop, script, or workflow is platform-parity **by default** — it binds desktop Windows PC, mobile Cursor, and cloud VM identically the moment it is created. New rules do NOT need a per-rule "Platform parity" clause (existing clauses stay as documentation, not opt-ins); enforcement mechanics must be client-neutral (node scripts via `path.join` + `readText()` CRLF-normalize; hooks via npm `prepare`; CI on PRs). Mobile parity means alwaysApply rules + cloud-VM execution mechanics — the phone itself runs no local git or hooks. The only thing a new rule may declare is an **exception**, and only when physically impossible on a client — documented in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, never silently assumed. A rule that works on one client and not the others is a bug, not a variant.
+
 ## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)
 
 When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis) — **unless** the 2nd fail shares the **same failure fingerprint** as the 1st (then **Grok stall-advisor** runs first; Sonnet when still stuck per sequence below).
