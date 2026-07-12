@@ -156,6 +156,8 @@ If screenshots or an interactive verify script fails, do NOT commit or say the t
 ### Fast UI task template
 For small StageVerify frontend/UI/layout/copy tasks, **automatically apply** `PROJECT_STATUS/FAST_UI_PROMPT.md` as the standard Fast UI workflow — **do not wait for Dan to explicitly mention the template.** Use it for routine drawer polish, spacing, labels, visual balance, button layout, copy, and other frontend-only UI refinements. **Do not use it for** readiness/status logic, Firestore, Cloud Functions, Gmail sync, pickup token behavior, vendor check-in behavior, data model changes, parser/import work, or security-sensitive changes.
 
+**Mobile UI (D-27):** When Dan asks for a phone-first UI change (vendor check-in, pickup portal, public mobile routes), follow `.cursor/rules/mobile-ui-ship.mdc` — **always merge to `main` and `npm run deploy`** after build + Playwright pass; include live URL + vendor demo QR in the reply. Do not stop at PR-only on cloud.
+
 ## TypeScript Discipline
 - Never use `any` type — find the correct type or add it to `src/dispatcher/models.ts`.
 - New shared interfaces and types belong in `src/dispatcher/models.ts`, following existing patterns.

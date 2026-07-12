@@ -1,0 +1,43 @@
+---
+description: Dan standing preference — mobile UI requests ship merge+deploy to gh-pages for phone testing.
+alwaysApply: true
+---
+
+# Mobile UI — merge and deploy (Dan standing preference)
+
+**Authority:** D-27. Overrides cloud branch-only default (`AGENTS.md`) and generic “wait for merge/deploy ask” for this class only. `ship-loop.mdc` still governs build, verify, tiers, and deploy gates.
+
+## When this applies
+
+Dan asks for a **mobile UI change** — layout, copy, buttons, colors, visibility, or interaction on phone-first surfaces. Includes explicit (“mobile UI”, “on my phone”, “iPhone”, “vendor check-in screen”) or implicit when the task clearly targets:
+
+| Surface | Typical routes / files |
+|---------|-------------------------|
+| Vendor check-in | `ReceivingPage`, `VendorDeliveredHub`, `VendorPinGate`, `/#/receive`, `/#/demo/vendor-scan` |
+| Pickup portal | `PickupPortalPage`, `/#/pickup`, `/#/demo/pickup-scan` |
+| Location / scan | `LocationScanPage`, `EntryDisplayPage`, `MobileHubPage` |
+| Public mobile flows | Other public routes exercised on phone (not dispatcher desktop dashboard unless Dan says mobile) |
+
+**Not in scope:** backend-only, Firestore/CF, auth rules, data model — follow normal tier/approval; no auto-deploy if high-risk gate blocks.
+
+## Mandatory completion (all clients — desktop, mobile Cursor, cloud VM)
+
+When implementation is **fast-safe** and validation passes, finish with **merge + deploy** without Dan saying “merge”, “deploy”, or “ship it”:
+
+1. **Build** — `npm run build` clean.
+2. **Verify** — Playwright on the affected mobile route (`verify:pickup`, `verify:vendor-delivered`, demo flow, or route script). UI change without passing verify = not done.
+3. **Merge** — if work is on a feature branch, merge to `main` and push (cloud agents: **do not** stop at draft PR).
+4. **Deploy** — `npm run deploy`; confirm live bundle matches `dist/` (retry after 15s if gh-pages propagation lag).
+5. **Reply** — live URL `https://lgarage.github.io/stageverify` + phone test link (vendor: `product-guardrails.mdc` § Vendor phone test).
+
+## Hard stops (unchanged)
+
+- **High-risk** paths — STOP before implement per `ship-loop.mdc`; merge/deploy only after Dan approval + security gate when triggered.
+- **Build or Playwright fail** — no merge, no deploy.
+- **Security gate HIGH / NOT RUN** when required — blocks push/deploy.
+
+## Relation
+
+- `composer-orchestrator.mdc` § UI Verification Protocol — verify before commit; this rule adds **always merge+deploy** for mobile UI class.
+- `product-guardrails.mdc` — vendor phone test QR in completion reply.
+- `AGENTS.md` — cloud exception documented under harness parity.

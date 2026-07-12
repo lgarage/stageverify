@@ -27,7 +27,7 @@ After the first successful install completes, **save snapshot** so future agents
 
 Start a **Cloud Agent** on that environment for branch work, reviews, and verifies.
 
-For the full ship-loop (push to `main`, `npm run deploy`, prod `:prod` verifies), use Dan's **Windows PC** (desktop Cursor) unless the prompt explicitly allows cloud push/deploy.
+For the full ship-loop (push to `main`, `npm run deploy`, prod `:prod` verifies), use Dan's **Windows PC** (desktop Cursor) for non-mobile work. **Mobile UI changes (D-27):** cloud agents merge + deploy to gh-pages after verify — Dan tests on device at https://lgarage.github.io/stageverify.
 
 ## 6. Verify readiness
 
@@ -48,7 +48,8 @@ Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo.
 | Exception | Why | Desktop equivalent |
 |-----------|-----|-------------------|
 | Secrets in Environments UI | Agent cannot tap dashboard; Dan sets secrets once (step 3 above) | `.env.local` on Mac |
-| Branch-only / no `main` push | Default cloud workflow unless prompt allows push | Direct push from desktop |
+| Branch-only / no `main` push | Default cloud workflow unless **mobile UI (D-27)** or prompt allows push | Direct push from desktop |
+| **Mobile UI merge+deploy (D-27)** | Auto merge + `npm run deploy` after verify when Dan asks for phone-first UI changes | Same rule — all clients |
 | Remote Control for prod ship | Full gh-pages deploy + `:prod` verify often from Mac | Local `npm run deploy` |
 
 Repair requests (fix/debug/try again/correct this) follow the same repair loop as desktop — `repair-verifier:` + `fix-verified:` required; Composer never self-closes.

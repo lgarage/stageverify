@@ -35,12 +35,13 @@ Scripts use `path.join` + repo-relative paths — identical on Windows and Linux
 Differs from desktop **only** where physically impossible — document here, not in separate rule files:
 
 - **Secrets** — Dan must set `STAGEVERIFY_TEST_EMAIL`, `STAGEVERIFY_TEST_PASSWORD`, and optional `FIREBASE_TOKEN` in Cursor Environments UI (see below).
-- **Ship to main / gh-pages** — prefer feature branch + PR from cloud; full ship-loop to `main` + `npm run deploy` on Dan's **Windows PC** (desktop Cursor) unless the prompt explicitly allows cloud push/deploy.
+- **Ship to main / gh-pages** — default: feature branch + PR from cloud. **Exception (D-27):** **mobile UI changes** → always merge to `main` + `npm run deploy` after verify (see `.cursor/rules/mobile-ui-ship.mdc`). Dan may still say “PR only” or “hold deploy” to override.
 
 ### Ship workflow from cloud
 
-- Prefer a **feature branch + PR**; do **not** push to `main` unless Dan explicitly says so in the prompt.
-- Full local ship-loop (build → Playwright → commit → push → `npm run deploy`) on cloud is branch/PR-only unless Dan explicitly allows main push; **desktop Windows PC** runs the full loop locally by default.
+- Prefer a **feature branch + PR** for non-mobile UI work; do **not** push to `main` unless Dan explicitly says so or **mobile-ui-ship.mdc** applies.
+- **Mobile UI (D-27):** merge to `main`, push, `npm run deploy` — Dan tests on iPhone at https://lgarage.github.io/stageverify.
+- Full local ship-loop (build → Playwright → commit → push → `npm run deploy`) on cloud is branch/PR-only unless mobile UI rule or explicit prompt allows main push; **desktop Windows PC** runs the full loop locally by default.
 - **High-risk** changes still need Dan approval **before** implement/deploy: Cloud Functions (`functions/**`), `firestore.rules`, auth/session/route guards, Gmail watch/Pub/Sub, secrets/config, schema migrations.
 
 ### Required secrets (names only — set in Cursor Environments dashboard)
