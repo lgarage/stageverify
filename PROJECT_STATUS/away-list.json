@@ -9,11 +9,11 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": [],
+    "sequence": ["away-126", "away-127", "away-128", "away-129"],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
-      "updatedAt": "2026-07-11T04:54:08.000Z"
+      "updatedAt": "2026-07-12T00:26:00.000Z"
     }
   },
   "queue": [
@@ -26,6 +26,51 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-126",
+      "title": "Fable work-verifier — location-first Phase 4→5 boundary",
+      "status": "queued",
+      "scope": "Dispatch Fable 5 read-only work-verifier then Grok work-verifier conferral (D-24); loop until AGREE on tripwires D14 job-scoping, PIN visibility, legacy routes, single pickup data path. Record work-verifier + work-verifier-confer Task ids. No Phase 5 implementation.",
+      "acceptance": "work-verifier: + work-verifier-confer: AGREE; Fable PASS or documented FAIL/waiver; away:validate clean.",
+      "tier": "T0",
+      "verifyBeforeNext": ["npm run away:validate"]
+    },
+    {
+      "id": "away-127",
+      "title": "Invoice Slice 3: PDF upload + client parse preview",
+      "status": "queued",
+      "scope": "PDF picker on /invoice-review; client-side processInvoiceBatch preview only. No Firestore writes, no CF.",
+      "acceptance": "Upload fixture PDF → preview shows batch outcomes; test:invoice-batch + verify:invoice-review PASS.",
+      "tier": "T1",
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run test:invoice-batch",
+        "npm run verify:invoice-review"
+      ]
+    },
+    {
+      "id": "away-128",
+      "title": "Invoice review: clickable branch phone (tel:)",
+      "status": "queued",
+      "dependsOn": "away-127",
+      "scope": "tel: link for vendorBranchPhone in invoice review UI. Display-only.",
+      "acceptance": "verify:invoice-review asserts tel: href on branch phone when present.",
+      "tier": "T0",
+      "verifyBeforeNext": ["npm run build", "npm run verify:invoice-review"]
+    },
+    {
+      "id": "away-129",
+      "title": "away:plan draft suggestions when queue empty",
+      "status": "queued",
+      "scope": "away:plan emits suggestedAdditions when batchSize=0 using next id from archive.",
+      "acceptance": "npm run away:plan returns ≥1 draft when sequence empty; away:validate PASS.",
+      "tier": "T1",
+      "verifyBeforeNext": [
+        "npm run away:plan",
+        "npm run away:validate",
+        "npm run build"
+      ]
     }
   ]
 }

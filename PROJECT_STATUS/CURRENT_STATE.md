@@ -19,9 +19,9 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
-- **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); Fable work-verifier before Phase 5; queue hygiene Phase 1a **shipped** `93d1613` (`away:sync`); push ingest **[high-risk]** — Dan approval.
-- **Harness (D-18):** Phase 2 auto-gotcha (`--apply-gotcha`, packet injection) — Dan approval. See `DECISIONS.md` D-18. **Q&A verify loop (D-22)** + **doc drift validate (D-23)** on `main`.
+- **away-126** — Fable work-verifier + Grok conferral (D-24) on Phase 4→5 boundary (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); location-first Phase 5 blocked until away-126 AGREE PASS; push ingest **[high-risk]** — Dan approval.
+- **Harness:** Phase 2 auto-gotcha (D-18) — Dan approval. **Work verify conferral loop (D-24)** on this branch.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready.
+1. **away-126** — Fable work-verifier — location-first Phase 4→5 boundary.
 2. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 3. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
 4. **ESL integration** ? Phase 7; blocked on Minew credentials.

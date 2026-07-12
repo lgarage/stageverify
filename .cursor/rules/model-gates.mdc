@@ -114,12 +114,13 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 1e (cheap) | Grok 4.5 Fast — **Q&A Verifier** | Pre-present accuracy of non-trivial Q&A answers | Non-trivial Q&A (§ Q&A verify loop); Dan standing preference |
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
+| 3b (cheap confer) | Grok 4.5 Fast — **Work Verifier Conferral** | Cross-check Fable work-verifier verdict vs authoritative sources + tripwires; loop until AGREE | Every Work Verifier invocation (§ Work verify conferral loop) |
 
 Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**.
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
-When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Work Verifier Conferral/Grok, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
 
 ### Repair loop (Dan 2026-07-11 — extends § Fix-closure rule)
 
@@ -232,6 +233,39 @@ Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security revie
 
 ## Work Verifier auto-invoke (Fable 5 — tier 3 only, Dan 2026-07-08)
 
-Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: § Fix-closure rule (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
+Dispatch exactly ONE read-only Fable Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). **Every Fable Work Verifier MUST run § Work verify conferral loop (Grok) before closure** — Fable alone never closes. Composer fix loop after Fable+Grok AGREE on FAIL: § Fix-closure (Fable re-verifies, then Grok re-confer). Spec-phase completion reports MUST include `work-verifier:` + `work-verifier-confer:` lines — missing = NOT RUN — phase N+1 blocked until AGREE PASS or Dan waives. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
 
-**Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. Only Composer 2.5 implements; Fable verifies Composer's work. When Fable finds issues: Composer fixes, Fable re-verifies per § Fix-closure; affected work ships only after Fable confirms correct.
+**Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. Only Composer 2.5 implements; Fable verifies Composer's work. When Fable finds issues: Composer fixes, Fable re-verifies per § Fix-closure, then Grok re-confer per § Work verify conferral loop; affected work ships only after Fable+Grok AGREE PASS.
+
+### Work verify conferral loop (Dan 2026-07-12 — D-24)
+
+**Trigger:** every Work Verifier invocation (§ above) — Fable never self-closes; Grok conferral is mandatory before present/phase advance.
+
+**Flow:**
+
+1. Dispatch **Fable** work-verifier (initial) — PASS | FAIL + tripwire findings.
+2. Dispatch **Grok work-verifier conferral** with Fable verdict, tripwire list, and cited sources (spec §, `CURRENT_STATE.md`, diff summary).
+3. Grok returns **AGREE** | **DISAGREE** (+ exact fix list if DISAGREE).
+4. **DISAGREE** → re-dispatch **Fable** with Grok concerns → **Grok re-confer** on revised Fable output.
+5. Repeat until **AGREE** on the same PASS/FAIL verdict, or **max 3 confer cycles** (initial Fable + Grok + up to 2 Fable→Grok rounds).
+6. Exhausted without AGREE → escalate Dan; spec phase N+1 stays blocked.
+
+**Agreement definition:** **AGREE** = Grok accepts Fable's PASS or FAIL verdict and material tripwire coverage (non-blocking caveats OK). **DISAGREE** = conflicting verdict, missed spec tripwire, contradiction with authoritative docs, or invented scope.
+
+**Dispatch (Grok conferral — one Task per confer round):**
+
+```text
+Task({
+  subagent_type: "generalPurpose",
+  model: "grok-4.5-fast-xhigh",
+  readonly: true,
+  description: "Work verifier conferral",
+  prompt: "…Fable work-verifier Task id, Fable verdict PASS/FAIL, tripwire findings, sources… Cross-check vs spec phase tracker, CURRENT_STATE, D14/D10 tripwires. AGREE | DISAGREE + exact fix list if DISAGREE."
+})
+```
+
+**Evidence (mandatory on work-verify completion):** `work-verifier: <fable-task-id>` + `model: claude-fable-5-thinking-high`; `work-verifier-confer: <grok-task-id>` + `model: grok-4.5-fast-xhigh` + verdict **AGREE** required before closure; `confer-verified: <re-confer-grok-task-id>` when a DISAGREE round closed with AGREE. Missing confer Task id when Work Verifier ran = **NOT RUN**.
+
+**Orthogonal roles:** Work verifier conferral = Fable verdict cross-check only; Planning/Q&A/Repair/Ship/stall/Critical = unchanged. Never satisfy work-verify + planning + ship with one Grok Task unless explicitly same scope.
+
+**Platform parity:** Work verify conferral loop follows § Platform parity (D-20/D-24) — desktop Windows PC, mobile Cursor, and cloud VM identical; Composer never self-closes a work-verify finding.
