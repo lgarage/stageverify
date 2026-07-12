@@ -123,6 +123,17 @@ Evidence standard (every tier): Task id + model line in the report, else **NOT R
 
 When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
 
+### Peer deliberation (D-30 — Dan 2026-07-12)
+
+Verifier findings are proposals, not orders — the verifier is a peer, never the boss. On receiving findings, the authoring/orchestrating agent MUST evaluate each on its merits: adopt what it agrees with; push back with explicit reasoning where it disagrees. Verifier and author exchange positions until genuine agreement (within the loop's existing max cycles), and only the AGREED change list goes to the implementer. Unresolved disagreement after max cycles → present BOTH positions to Dan — never silent compliance, never silent dismissal.
+
+- **Operational test:** each finding closes as exactly one of `adopted` | `rebutted (verifier agreed)` | `escalated to Dan`; the verifier's next turn must explicitly accept or reject each rebuttal (not merely restate FAIL).
+- **Security HIGH:** the author may rebut with reasoning, but an unresolved HIGH still blocks push (hard stop unchanged).
+- **Planning/Q&A loops:** "present only the verifier-PASS answer" does not override this — after max cycles with unresolved items, present both positions (existing exhausted-caveat path).
+- **Advisory lanes** (stall-advisor hypotheses, non-blocking Critical Reviewer notes): dispositions required only when a finding would change the artifact.
+- **Fix-closure unchanged:** the reporter re-verifies the AGREED fixes before closure.
+- **Evidence:** when findings ≥ 1, completion reports include a disposition line, e.g. `findings: 6 adopted, 2 rebutted (verifier agreed), 1 escalated to Dan`; omit or use `findings: none` when zero.
+
 ### Repair loop (Dan 2026-07-11 — extends § Fix-closure rule)
 
 **Trigger:** Dan expresses explicit **repair intent** on broken behavior — e.g. repair, fix, debug, try again, correct this (or equivalent steering to correct already-broken behavior, not greenfield build).
