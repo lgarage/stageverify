@@ -29,7 +29,7 @@ export function VendorDemoScanPage() {
           <dt className="font-semibold text-text-secondary">PIN</dt>
           <dd className="text-accent-red font-bold tracking-widest">{DEMO_PIN}</dd>
           <dt className="font-semibold text-text-secondary">After scan</dt>
-          <dd>Enter PIN → confirm job &amp; PO → tap DELIVERED</dd>
+          <dd>Enter PIN → confirm job &amp; PO → tap Mark Delivered</dd>
         </dl>
         <ol className="text-left text-sm text-text-secondary space-y-2 list-decimal list-inside">
           <li>Open iPhone Camera and point at this QR.</li>
@@ -40,7 +40,7 @@ export function VendorDemoScanPage() {
           </li>
           <li>
             Confirm the correct job and PO, then tap{" "}
-            <strong className="text-text-primary">DELIVERED</strong>. Use Need More
+            <strong className="text-text-primary">Mark Delivered</strong>. Use Need More
             Space? or Issue only if something is wrong.
           </li>
         </ol>

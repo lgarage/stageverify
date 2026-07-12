@@ -226,11 +226,11 @@ export function LocationScanPage() {
     handlePinSessionExpired,
   );
 
-  const handleMarkDelivered = async () => {
-    if (!deliveryDetails) return;
+  const handleMarkDelivered = async (): Promise<boolean> => {
+    if (!deliveryDetails) return false;
     if (vendorGeofenceEnforce && outsideGeofence) {
       setError("You must be at the shop to confirm delivery.");
-      return;
+      return false;
     }
     setLoading(true);
     setError(null);
@@ -238,14 +238,18 @@ export function LocationScanPage() {
       const updated = await firestoreDataService.markVendorDelivered(
         deliveryDetails.delivery.id,
       );
-      if (updated) setDeliveryDetails(updated);
-      setStep("done");
+      if (updated) {
+        setDeliveryDetails(updated);
+        return true;
+      }
+      return false;
     } catch (err) {
       if (isVendorSessionError(err)) {
         handlePinSessionExpired();
-        return;
+        return false;
       }
       setError("Failed to confirm delivery");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -399,7 +403,8 @@ export function LocationScanPage() {
               prev ? { ...prev, delivery: updated } : prev,
             );
           }}
-          onDelivered={() => void handleMarkDelivered()}
+          onDelivered={() => handleMarkDelivered()}
+          onDeliveredConfirmed={() => setStep("done")}
           onBack={() => {
             if (deliveries.length > 1) setStep("list");
             else resetFlow();

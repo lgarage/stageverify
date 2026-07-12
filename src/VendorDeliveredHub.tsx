@@ -3,6 +3,8 @@ import { type DeliveryDetails, type DeliveryOrder } from "./dispatcher/models";
 import { VendorNeedMoreSpaceFlow } from "./VendorNeedMoreSpaceFlow";
 import { VendorIssueModal } from "./VendorIssueModal";
 
+type DeliverCtaPhase = "idle" | "checkmark" | "delivered";
+
 interface VendorDeliveredHubProps {
   deliveryDetails: DeliveryDetails;
   loading: boolean;
@@ -10,8 +12,27 @@ interface VendorDeliveredHubProps {
   geofenceOutside?: boolean;
   geofenceEnforce?: boolean;
   onDeliveryUpdated: (delivery: DeliveryOrder) => void;
-  onDelivered: () => void;
+  onDelivered: () => Promise<boolean>;
+  onDeliveredConfirmed: () => void;
   onBack: () => void;
+}
+
+function DeliverCheckmark({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
 }
 
 export function VendorDeliveredHub({
@@ -22,11 +43,13 @@ export function VendorDeliveredHub({
   geofenceEnforce = false,
   onDeliveryUpdated,
   onDelivered,
+  onDeliveredConfirmed,
   onBack,
 }: VendorDeliveredHubProps) {
   const [showSpaceFlow, setShowSpaceFlow] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueToast, setIssueToast] = useState<string | null>(null);
+  const [ctaPhase, setCtaPhase] = useState<DeliverCtaPhase>("idle");
 
   const { delivery, vendor, job, purchaseOrder, stagingLocation, items } =
     deliveryDetails;
@@ -34,10 +57,36 @@ export function VendorDeliveredHub({
   const locationLabel =
     stagingLocation?.label ?? "Not assigned — dispatcher will stage";
 
+  const confirming = ctaPhase !== "idle";
+  const deliverDisabled =
+    loading ||
+    confirming ||
+    (geofenceEnforce && geofenceOutside);
+
   const showIssueSubmitted = () => {
     setIssueToast("Issue reported — dispatcher notified.");
     window.setTimeout(() => setIssueToast(null), 3500);
   };
+
+  const handleDeliverClick = async () => {
+    if (deliverDisabled) return;
+    setCtaPhase("checkmark");
+    const ok = await onDelivered();
+    if (ok) {
+      setCtaPhase("delivered");
+      await new Promise((resolve) => window.setTimeout(resolve, 600));
+      onDeliveredConfirmed();
+    } else {
+      setCtaPhase("idle");
+    }
+  };
+
+  const deliverLabel =
+    ctaPhase === "delivered"
+      ? "Delivered"
+      : ctaPhase === "checkmark"
+        ? "Confirming delivery"
+        : "Mark Delivered";
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-h-0">
@@ -137,11 +186,26 @@ export function VendorDeliveredHub({
         )}
         <button
           type="button"
-          disabled={loading || (geofenceEnforce && geofenceOutside)}
-          onClick={onDelivered}
-          className="action-btn action-btn-delivered w-full text-lg font-bold tracking-wide disabled:opacity-50"
+          disabled={deliverDisabled}
+          onClick={() => void handleDeliverClick()}
+          aria-label={deliverLabel}
+          data-testid="vendor-mark-delivered"
+          className={`action-btn action-btn-delivered w-full text-lg font-bold tracking-wide disabled:opacity-50 transition-all ${
+            ctaPhase === "delivered" ? "bg-accent-green" : ""
+          }`}
         >
-          {loading ? "Confirming…" : "DELIVERED"}
+          {ctaPhase === "checkmark" && (
+            <span className="inline-flex items-center justify-center">
+              <DeliverCheckmark />
+            </span>
+          )}
+          {ctaPhase === "delivered" && (
+            <span className="inline-flex items-center justify-center gap-2">
+              <DeliverCheckmark />
+              Delivered
+            </span>
+          )}
+          {ctaPhase === "idle" && "Mark Delivered"}
         </button>
         <button
           type="button"

@@ -180,7 +180,7 @@ async function assertPermanentSignUrl(browser) {
   }
 
   try {
-    await page.waitForSelector("text=DELIVERED", { timeout: 45_000 });
+    await page.waitForSelector("text=Mark Delivered", { timeout: 45_000 });
   } catch (err) {
     const debugBody = await page.locator("body").innerText();
     console.error("Body after PIN (truncated):", debugBody.slice(0, 1200));
@@ -202,7 +202,7 @@ async function assertPermanentSignUrl(browser) {
   );
   record("Wrong-spot shows job spot context", /G1|S1|Spot|location/i.test(body));
 
-  await page.getByRole("button", { name: "DELIVERED", exact: true }).click();
+  await page.getByRole("button", { name: "Mark Delivered", exact: true }).click();
   await page.waitForSelector("text=Delivery Confirmed", { timeout: 30_000 });
   record("Confirm delivered updates status", true);
   await shot(page, "03-confirmed");

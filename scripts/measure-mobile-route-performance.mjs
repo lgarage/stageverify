@@ -34,7 +34,7 @@ const routes = [
     shellSelector: "text=Loading",
     identifySelector: "text=ORD-004",
     actionSelector:
-      'button:has-text("DELIVERED"), button:has-text("Need More Space")',
+      'button:has-text("Mark Delivered"), button:has-text("Need More Space")',
   },
   {
     name: "technician-pickup",

@@ -105,7 +105,7 @@ async function verifyVendorNmsFlow(browser) {
     await page.goto(receiveUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
     await enterPin(page, vendorPin);
-    await page.waitForSelector("text=DELIVERED", { timeout: 30_000 });
+    await page.waitForSelector("text=Mark Delivered", { timeout: 30_000 });
 
     await page.getByRole("button", { name: "📦 Need More Space?" }).click();
     await page.waitForSelector("text=Where do you need additional space?", {

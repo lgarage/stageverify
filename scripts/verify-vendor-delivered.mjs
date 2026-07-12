@@ -82,7 +82,7 @@ async function enterPin(page, digits) {
 async function unlockWithPin(page) {
   await page.waitForSelector("text=Enter Vendor PIN", { timeout: 30_000 });
   await enterPin(page, correctPin);
-  await page.waitForSelector("text=DELIVERED", { timeout: 30_000 });
+  await page.waitForSelector("text=Mark Delivered", { timeout: 30_000 });
   const hubText = await page.locator("body").innerText();
   record("Job / Site visible on hub", hubText.includes(jobName));
   record("Order # visible on hub", hubText.includes(orderNumber));
@@ -109,7 +109,7 @@ async function runDeliveredFlow(page) {
 
   record(
     "Exception-only Delivered hub",
-    await page.getByRole("button", { name: "DELIVERED", exact: true }).isVisible(),
+    await page.getByRole("button", { name: "Mark Delivered", exact: true }).isVisible(),
   );
 
   const hasLegacyUi =
@@ -228,10 +228,10 @@ async function runDeliveredFlow(page) {
   record("Issue submit succeeds", true);
   await shot(page, "07-issue-submitted");
 
-  // --- DELIVERED ---
-  await page.getByRole("button", { name: "DELIVERED", exact: true }).click();
+  // --- Mark Delivered ---
+  await page.getByRole("button", { name: "Mark Delivered", exact: true }).click();
   await page.waitForSelector("text=Delivery Confirmed", { timeout: 30_000 });
-  record("DELIVERED confirms without item checkoff", true);
+  record("Mark Delivered confirms without item checkoff", true);
   await shot(page, "08-delivery-confirmed");
 
   const body = await page.locator("body").innerText();
@@ -246,7 +246,7 @@ async function runDeliveredFlow(page) {
 async function runRevertFlow(page) {
   // --- Revert ---
   await page.getByRole("button", { name: "Undo Delivery" }).click();
-  await page.waitForSelector("text=DELIVERED", { timeout: 30_000 });
+  await page.waitForSelector("text=Mark Delivered", { timeout: 30_000 });
   record("Revert returns to Delivered hub", true);
   await shot(page, "09-reverted-to-hub");
 }
