@@ -48,7 +48,7 @@ const SECTION14_COVERAGE = [
   { steps: "17–22", topic: "Technician pickup link → checklist → complete", status: "verify", note: "verify-e2e-pickup-leg" },
   { steps: "23–24", topic: "Dispatcher pickup update + job complete", status: "verify", note: "delivery-list-drawer-consistency" },
   { steps: "25", topic: "Temporary staging release after pickup", status: "implicit", note: "recordPickupEvent CF in pickup leg" },
-  { steps: "26", topic: "E-tag clears to Available", status: "skip", note: "MVP waiver — Minew creds blocked (MVP_PATH §4)" },
+  { steps: "26", topic: "E-tag clears to Available", status: "skip", note: "Out of MVP scope (D-26) — not gated for MVP done" },
   { steps: "27", topic: "Permanent shop-stock reserved", status: "partial", note: "Shop stock labels in pickup; no inventory balances" },
 ];
 

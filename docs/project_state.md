@@ -183,11 +183,11 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **86.75%** complete (SSOT); priority: (a) run `verify:phase14-e2e` local+prod PASS, (b) Dan GCP Gmail deploy. E-tag/ESL frozen for MVP (D-26).
+1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **81.75%** complete (SSOT); priority: (a) run `verify:phase14-e2e` local+prod PASS, (b) Dan GCP Gmail deploy.
 2. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready; queue items should trace to an MVP exit criterion when possible.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
-5. **ESL integration** — Phase 7; **frozen for MVP (D-26)** — revisit post-MVP with tests; Minew creds not blocking MVP done.
+5. **ESL integration** — Phase 7; **not in MVP scope (D-26)** — see `ESL_INTEGRATION_PLAN.md` post-MVP.
 6. **Shop map / Jake Korb shelving** ? blocks real combination location IDs in production.
 
 ### Gmail push ingest ? Dan GCP checklist

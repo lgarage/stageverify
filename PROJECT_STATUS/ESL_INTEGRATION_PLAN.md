@@ -1,9 +1,8 @@
 # stageverify � Zone Management + ESL Integration Plan
 
-> **MVP freeze (D-26, 2026-07-12):** Live Minew ESL / **e-tag workflow** is **frozen until MVP is operational**. No new Minew API integration, ESL Cloud Functions, or live tag-sync work during MVP. **Revisit post-MVP** with requirements restated + dedicated verify/tests. Manual **Push to E-Tag** print labels and zone `eslTagId` fields remain in scope.
+> **Not in MVP scope (D-26, 2026-07-12):** E-tags / ESL / Minew are **excluded from MVP** entirely — not in `MVP_PATH.md` %, exit criteria, or blockers. Revisit as post-MVP product work with requirements restated + verify/tests.
 >
-> Full context for the Zone Management page + MinewTag e-ink label integration.
-> Read this at the start of any session working on zones or ESL hardware **after MVP**.
+> Full context for the Zone Management page + MinewTag e-ink label integration (post-MVP).
 
 ## Hardware Inventory
 
