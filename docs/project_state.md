@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **81.75%** complete (SSOT); priority: (a) run `verify:phase14-e2e` local+prod PASS, (b) Dan GCP Gmail deploy.
+1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **88.59%** complete (SSOT); §14 E2E local+prod PASS; priority: Dan GCP Gmail deploy (high-risk).
 2. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready; queue items should trace to an MVP exit criterion when possible.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.

@@ -87,6 +87,7 @@ Finer **Subtype** on each row enables median recalibration per slice (see **Reca
 | 25 | away-task-timing-protocol | 2026-07-04T08:29:00-05:00 | 2026-07-04T08:33:00-05:00 | 35 | 4 | worker_reported_timestamps | docs-update | process | n | worker-owned timing protocol; away:validate timing checks; legacy row math fixes |
 | 26 | away-124 | 2026-07-11T04:54:08Z | 2026-07-11T04:56:02Z | 35 | 2 | worker_reported_timestamps | verify-only | playwright-route | n | remount+auth Scenario A; verify:pickup PASS; harness readiness/invoice/email/pickup-authority/evidence PASS |
 | 27 | away-125 | 2026-07-11T04:57:45Z | 2026-07-11T04:58:56Z | 35 | 1 | worker_reported_timestamps | docs-update | status-sync | n | mechanical lint 85→59; skip auth/react-refresh/renders; build+invoice+readiness PASS |
+| 28 | phase14-e2e-prod-gate | 2026-07-12T03:16:14Z | 2026-07-12T03:22:12Z | 35 | 6 | worker_reported_timestamps | verify-only | prod-deploy | n | local+prod PASS; reset deep-link fix; MVP 85.17→88.59; PR #19 |
 
 ## Audit every 15 rows (mandatory)
 
