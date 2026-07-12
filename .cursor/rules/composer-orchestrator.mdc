@@ -195,6 +195,8 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 ### Completion report (mandatory)
 After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
 
+**MVP completion line (D-25):** when the task traces to `PROJECT_STATUS/MVP_PATH.md`, add `MVP completion: XX.XX%` per `.cursor/rules/mvp-completion-report.mdc` immediately after What we did. Skip for pure planning sessions; skip when work is not MVP-scoped.
+
 **Timing (worker-owned):** Worker posts **`task-start`** before implementation and **`task-finish`** before this report. Librarian records timestamps into `estimate-log.md` — never invents elapsed time. `actualElapsedMin` = timestamp math only (`round((finishedAt − startedAt) / 60s)`). Missing either timestamp → `unknown`. Append estimate-log row at declare-done. At **15, 30, 45…** log rows, run **`npm run estimate:audit`**.
 
 **Then** a **timing table** from worker timestamps (and `estimate-log.md` when shipped):

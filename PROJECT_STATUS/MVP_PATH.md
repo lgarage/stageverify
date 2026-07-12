@@ -2,7 +2,11 @@
 
 > **Read for:** MVP %, gap analysis, planning/priority, away planning, "what's next to reach MVP."
 > **MVP bar:** `PROJECT_STATUS/svscope_simple.md` §14 (27-step daily shop loop).
-> **Last assessed:** 2026-07-12 — Fable + Grok confer → **80%** complete (joint confidence 82).
+> **Last assessed:** 2026-07-12 — Fable + Grok confer → baseline **80.00%** (joint confidence 82).
+
+## Current percent (SSOT)
+
+**80.00%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
 
 ## Standing directive (all future sessions)
 
@@ -16,16 +20,33 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 
 ---
 
-## Completion: 80%
+## Completion bands (baseline 2026-07-12)
 
-| Band | Weight | Score | Notes |
+| Band | Weight | Score | Remaining to 100% |
 |------|--------|-------|-------|
-| Core loop (vendor → stage → pickup) | 65% | 0.98 | V2 Phases 1–4 + location-first Phases 1–4 shipped; prod verifies green |
-| Email / Condition 1 ingest | 20% | 0.60 | Offline prototype + `processInboundVendorEmail`; live Pub/Sub not deployed |
-| E-tag / ESL live (§14 step 26) | 5% | 0.00 | Phase 7; Minew creds blocker |
-| §14 full E2E integration gate | 10% | 0.45 | Leg verifies exist; no single 27-step gate passed |
+| Core loop (vendor → stage → pickup) | 65% | 0.98 | **1.30%** |
+| Email / Condition 1 ingest | 20% | 0.60 | **8.00%** |
+| E-tag / ESL live (§14 step 26) | 5% | 0.00 | **5.00%** |
+| §14 full E2E integration gate | 10% | 0.45 | **5.50%** |
+| **Total remaining** | — | — | **19.80%** → 100.00% |
 
 **Explicitly out of this %:** location-first Phases 5–6, Phases 7–9 (AI/ESL), App Check, harness/agent-ops, physical shop-map/sign printing (Jake Korb).
+
+## Partial credit (increment math)
+
+When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` (round **2 decimals**, sum onto SSOT).
+
+| Exit criterion / band | Budget left | Example milestones → delta |
+|-----------------------|-------------|----------------------------|
+| §14 E2E gate | 5.50% | script scaffold +1.10%; local PASS +2.20%; prod PASS +2.20% |
+| Live email ingest | 8.00% | Pub/Sub + deploy +4.00%; first live message linked +4.00% |
+| Combination honesty | 1.30%* | waive doc +0.65%; atomic release shipped +0.65% |
+| E-tag waiver or live demo | 5.00% | Dan waiver recorded +5.00%; live demo +5.00% |
+| Core regression re-verify | 1.30% | prod verify bundle green after MVP-touching ship +1.30% |
+
+\*Combo work draws from core-loop remainder unless full criterion closure is recorded in checklist.
+
+**Example:** E2E harness scaffold ships, no verify yet → `80.00%` + `1.10%` = **`81.10%`**. Small step (e.g. **80.33%**) = proportional fraction of the relevant budget (here ~6% of E2E band gap).
 
 ---
 
@@ -68,6 +89,7 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 
 | Date | % | Models | Notes |
 |------|---|--------|-------|
-| 2026-07-12 | 80 | Fable 82 + Grok 79 → confer | `work-verifier: f8d92887`; `confer: cc0c25e0` |
+| 2026-07-12 | 80.00 | Fable 82 + Grok 79 → confer | Baseline; `work-verifier: f8d92887`; `confer: cc0c25e0` |
+| 2026-07-12 | 80.00 | D-25 rule | Mandatory % reporting in work replies; SSOT 2-decimal updates |
 
-Re-assess when any exit criterion closes or a major phase ships.
+Re-assess when any exit criterion closes or a major phase ships. **Do not** bump % without shipped+verified milestone evidence.

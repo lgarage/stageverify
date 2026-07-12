@@ -5,7 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- **MVP: 80%** — fastest path + exit criteria: `PROJECT_STATUS/MVP_PATH.md` (D-24: future convs analyze full landscape, not queue alone).
+- **MVP: 80.00%** — SSOT + reporting rule: `MVP_PATH.md`, `mvp-completion-report.mdc` (D-24 analyze full landscape; D-25 % in work replies).
 - Last shipped: **away-125** — Mechanical ESLint cleanup (safe subset); **Phase 4 prod verify** `verify:location-phase4:prod` **15/15 PASS** (`v0.0.33`, gh-pages `2dd401e`) — `openDelivery` deep link PR `cursor/location-phase4-prod-verify-77d5`
 - Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
