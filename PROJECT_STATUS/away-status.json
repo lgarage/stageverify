@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-11",
+  "lastRun": "2026-07-12",
   "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
     {
@@ -166,6 +166,20 @@
       "status": "built",
       "commit": "546e7fc",
       "note": "mechanical lint 85→59; build+invoice-parser+readiness PASS; skipped auth/react-refresh/renders"
+    },
+    {
+      "id": "away-126",
+      "title": "Doc drift sync — project_state active phase + last reviewed",
+      "status": "built",
+      "commit": "82cc6f4",
+      "note": "Doc drift sync: project_state active phase + last reviewed 2026-07-12; indexer idx-002 slice fix"
+    },
+    {
+      "id": "away-127",
+      "title": "Needs Review audit scripts — wire npm + prod audit",
+      "status": "built",
+      "commit": "82cc6f4",
+      "note": "Needs Review audit scripts wired; prod audit PASS; dispatcher-nav:prod PASS"
     }
   ],
   "summary": "away-118..121 + away-123 overnight verify batch shipped; queue empty except blocked away-069"

@@ -4,7 +4,7 @@
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
 > **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` ? end-to-end product design; all features and agent work must align with scope � there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
 > **Maintained by:** Composer 2.5 (update after major milestones)
-> **Last reviewed:** 2026-06-23
+> **Last reviewed:** 2026-07-12
 
 ---
 
@@ -56,7 +56,7 @@ The platform is deployed and functional on GitHub Pages.
 
 V2 optional fields and forward-compatible stub types live in `src/dispatcher/models.ts`. V1 workflows unchanged. No new Firestore collections or rules in Phase 2.
 
-**Active phase:** Phase 5 ? Vendor Email Parsing Prototype ?? (Phase 3 gate closed 2026-06-20; Phase 4 gate closed 2026-06-20)
+**Active phase:** **MVP email ingest path** — live Gmail Pub/Sub + deploy (see Immediate Next Steps). **Location-first Phase 4** ✅ complete (`v0.0.33`, 2026-07-11). V2 Phase 5 email prototype largely shipped offline; remaining MVP gap = live ingest band (**8.00%** per `MVP_PATH.md`). Location-first Phases 5–6 deferred post-MVP (Fable gate).
 
 **Phase 5 design (docs):** Johnstone branch invoice PDF import spec ? `docs/vendor-import/johnstone-invoice-import-spec.md` (expected vendor orders; Will-Call / Pickup. labels; not shop receipt).
 
@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **89.89%** complete (SSOT); priority: Dan GCP Gmail deploy (Pub/Sub + IAM); §14 E2E + core regression prod PASS done.
+1. **away-128** — Deploy inbound Gmail CF + firestore rules.
 2. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready; queue items should trace to an MVP exit criterion when possible.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.38",
+  "version": "0.0.39",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -77,6 +77,9 @@
     "verify:typography": "node scripts/verify-typography.mjs",
     "verify:settings-staging:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-staging:prod scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",
     "audit:watch-clickthrough": "node scripts/audit-watch-clickthrough.mjs",
+    "audit:needs-review-ui": "node scripts/audit-needs-review-ui.mjs",
+    "audit:needs-review-ui:prod": "node scripts/run-verify-with-learning.mjs --script audit:needs-review-ui:prod scripts/audit-needs-review-ui.mjs --base-url=https://lgarage.github.io/stageverify",
+    "audit:needs-review-firestore": "node scripts/audit-needs-review-firestore.mjs",
     "clean:verify-artifacts": "node scripts/clean-verify-artifacts.mjs",
     "measure:routes": "node scripts/measure-mobile-route-performance.mjs",
     "measure:vendor-submit-latency": "node scripts/measure-vendor-submit-latency.mjs",
