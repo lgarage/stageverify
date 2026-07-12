@@ -190,7 +190,8 @@
         "scripts/verify-location-phase4.mjs",
         "scripts/reset-pickup-verify-fixture.mjs",
         "scripts/verify-phase14-pickup-readback.mjs",
-        "scripts/verify-phase14-e2e.mjs"
+        "scripts/verify-phase14-e2e.mjs",
+        "scripts/verify-pickup-portal.mjs"
       ],
       "rules": ["composer-orchestrator.mdc § UI Verification Protocol", "ship-loop.mdc"],
       "commands": [
