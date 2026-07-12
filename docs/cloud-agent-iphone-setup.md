@@ -41,7 +41,7 @@ Expect PASS on repo config; secrets PASS only after step 3. Then run `node scrip
 
 ## Harness parity (D-20 — same rules as desktop)
 
-Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, planning verify loop, verification ladder, security gate, stall-advisor, Ship/Critical/Work/Planning verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
+Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo. **No mobile-lite orchestration** — ship-loop tiers, repair loop, planning verify loop, **Fable conferral loop (universal, D-24)**, verification ladder, security gate, stall-advisor, Ship/Critical/Work/Planning verifiers, evidence lines, and fix-closure bind all clients identically (`model-gates.mdc` § Platform parity).
 
 ### Exceptions (physically impossible on mobile/cloud only)
 

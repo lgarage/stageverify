@@ -29,7 +29,7 @@
 
 **Current phase: Phase 4 — complete (prod verify gate closed `v0.0.33`). Next action: Phase 5 — dispatch Fable work-verifier, then implement per spec.**
 
-> **Phase-boundary gate:** after each phase ships and before the next phase starts, dispatch the Fable 5 work-verifier (`MODEL_DOSSIER.md` tag `work-verifier`; trigger spec `.cursor/rules/model-gates.mdc`) then **Grok work-verifier conferral** — loop until **AGREE** (D-24) — to verify scope fidelity + semantic tripwires (D14 job-scoping, PIN visibility, legacy-route stability). Phase N+1 is blocked until Fable+Grok AGREE PASS or Dan waives. *(Phase 3 shipped 2026-07-08, commit `783b703`, with verification run retroactively.)*
+> **Phase-boundary gate:** after each phase ships and before the next phase starts, dispatch the Fable 5 work-verifier (`MODEL_DOSSIER.md` tag `work-verifier`; trigger spec `.cursor/rules/model-gates.mdc`) then **Grok Fable conferral** — loop until **AGREE** (D-24 universal standing rule) — to verify scope fidelity + semantic tripwires (D14 job-scoping, PIN visibility, legacy-route stability). Phase N+1 is blocked until Fable+Grok AGREE PASS or Dan waives. *(Phase 3 shipped 2026-07-08, commit `783b703`, with verification run retroactively.)*
 
 **Phase 1 drift review:** ESL plan rejects occupancy-dynamic QR-flip; types additive only; clipboard job-level format shipped; permanent URL **`#/s?loc={code}`** locked (see § Permanent URL scheme).
 

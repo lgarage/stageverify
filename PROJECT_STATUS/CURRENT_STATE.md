@@ -21,7 +21,7 @@
 ## Immediate Next Step
 - **away-126** — Fable work-verifier + Grok conferral (D-24) on Phase 4→5 boundary (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 - **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); location-first Phase 5 blocked until away-126 AGREE PASS; push ingest **[high-risk]** — Dan approval.
-- **Harness:** Phase 2 auto-gotcha (D-18) — Dan approval. **Work verify conferral loop (D-24)** on this branch.
+- **Harness:** Phase 2 auto-gotcha (D-18) — Dan approval. **Fable conferral loop universal (D-24)** on this branch.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

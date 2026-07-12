@@ -26,7 +26,7 @@ Scripts use `path.join` + repo-relative paths — identical on Windows and Linux
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, work verify conferral loop (D-24), hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20–D-24). No mobile-lite orchestration.
+2. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, **Fable conferral loop (universal, D-24)**, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20–D-24). No mobile-lite orchestration.
 3. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Harness parity exceptions (mobile/cloud only)

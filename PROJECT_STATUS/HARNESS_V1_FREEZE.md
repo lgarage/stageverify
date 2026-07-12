@@ -4,7 +4,7 @@ Charter after adversarial review rounds 1–5. StageVerify MVP takes priority ov
 
 ## Frozen surface (V1 complete)
 
-Two-tier ship model · verification ladder + fix-closure + repair loop + planning verify loop + Q&A verify loop + work verify conferral loop + doc drift validate · security gate · away queue + protocol · decision registry + handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · meta-review rounds themselves.
+Two-tier ship model · verification ladder + fix-closure + repair loop + planning verify loop + Q&A verify loop + **Fable conferral loop (universal)** + doc drift validate · security gate · away queue + protocol · decision registry + handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · meta-review rounds themselves.
 
 ## Asymmetric rule
 
@@ -30,6 +30,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-11: Dan wanted Grok conferral on all non-trivial Q&A answers (not only planning) on desktop PC and cloud; status/terminology answers needed cross-check — Q&A verify loop (D-22).
 - 2026-07-11: Planning agents cited stale location-first Phase Tracker + roadmap vs CURRENT_STATE after Phase 4 prod verify closed — doc drift validate in `away:validate` / `away:sync` (D-23).
 - 2026-07-12: Dan wanted Fable work-verifier to consult Grok and loop until agreement before phase-boundary closure — work verify conferral loop (D-24).
+- 2026-07-12: Dan clarified — **any** Fable invocation must consult Grok until agreement (universal standing rule; D-24 amended).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

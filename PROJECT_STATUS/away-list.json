@@ -31,8 +31,8 @@
       "id": "away-126",
       "title": "Fable work-verifier — location-first Phase 4→5 boundary",
       "status": "queued",
-      "scope": "Dispatch Fable 5 read-only work-verifier then Grok work-verifier conferral (D-24); loop until AGREE on tripwires D14 job-scoping, PIN visibility, legacy routes, single pickup data path. Record work-verifier + work-verifier-confer Task ids. No Phase 5 implementation.",
-      "acceptance": "work-verifier: + work-verifier-confer: AGREE; Fable PASS or documented FAIL/waiver; away:validate clean.",
+      "scope": "Dispatch Fable 5 read-only work-verifier then Grok Fable conferral (D-24 universal); loop until AGREE on tripwires D14 job-scoping, PIN visibility, legacy routes, single pickup data path. Record fable: + fable-confer: Task ids. No Phase 5 implementation.",
+      "acceptance": "fable: + fable-confer: AGREE; Fable PASS or documented FAIL/waiver; away:validate clean.",
       "tier": "T0",
       "verifyBeforeNext": ["npm run away:validate"]
     },
