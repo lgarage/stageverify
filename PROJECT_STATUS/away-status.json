@@ -185,14 +185,14 @@
       "id": "away-128",
       "title": "Deploy inbound Gmail CF + firestore rules",
       "status": "built",
-      "commit": "PENDING",
+      "commit": "377f248",
       "note": "Inbound Gmail CF+rules deploy confirm (unchanged CF already live); verify:inbound-email-ingest + email-oauth-connect:prod PASS"
     },
     {
       "id": "away-129",
       "title": "Live ingest prod proof — first message in Needs Review",
       "status": "built",
-      "commit": "PENDING",
+      "commit": "377f248",
       "note": "Live ingest prod proof: 2 inbound vendorEmailEvents in Needs Review; Gmail connected; audit+oauth verify PASS"
     }
   ],
