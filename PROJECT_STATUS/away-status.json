@@ -177,6 +177,27 @@
         "id": "idx-011",
         "action": "indexer-memory"
       }
+    },
+    {
+      "id": "away-127",
+      "title": "Invoice Slice 3: PDF upload + client parse preview",
+      "status": "built",
+      "commit": "d2939b9",
+      "note": "Invoice Slice 3: PDF upload + client parse preview on /invoice-review; test:invoice-batch + verify:invoice-review PASS"
+    },
+    {
+      "id": "away-128",
+      "title": "Invoice review: clickable branch phone (tel:)",
+      "status": "built",
+      "commit": "d2939b9",
+      "note": "tel: vendorBranchPhone in review list + inspect modal; verify:invoice-review PASS"
+    },
+    {
+      "id": "away-129",
+      "title": "away:plan draft suggestions when queue empty",
+      "status": "built",
+      "commit": "d2939b9",
+      "note": "away:plan drafts when batchSize=0 via deriveNextAwayId"
     }
   ],
   "summary": "away-118..121 + away-123 overnight verify batch shipped; queue empty except blocked away-069"

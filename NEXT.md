@@ -1,12 +1,5 @@
 # Next
 
-**ID:** `away-127`  
-**Title:** Invoice Slice 3: PDF upload + client parse preview
-
-1. Read `PROJECT_STATUS/MEMORY.md` → hot-tier router  
-2. Read `PROJECT_STATUS/svscope_simple.md` only on scope dispute — align to scope §  
-3. `npm run away:next` — confirm dependsOn satisfied  
-4. `npm run away:preflight` — optional before coding (runs verifyBeforeNext)  
-5. Implement → verify → append timing to `PROJECT_STATUS/estimate-log.md` → `npm run away:ship -- --id away-127 --note "<summary>"`
+No queued away items. Add work to `PROJECT_STATUS/away-list.json` or read `PROJECT_STATUS/CURRENT_STATE.md` for product next steps.
 
 Run: `npm run away:next`

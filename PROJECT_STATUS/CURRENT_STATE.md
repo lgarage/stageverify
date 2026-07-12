@@ -5,8 +5,8 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- Last shipped: **away-126** — Fable work-verifier — location-first Phase 4→5 boundary
-- Active Phase: **Location-first Phase 4 complete** → Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
+- Last shipped: **away-129** — away:plan draft suggestions when queue empty (`v0.0.34`, branch `cursor/away-126-129-batch-2aca`)
+- Active Phase: **Location-first Phase 4 complete** → **Phase 5 implement blocked** (away-126 Fable+Grok AGREE): unauth vendor NMS uses occupancy-only CF — needs planned-spot exclusion fix in `getVendorStagingOccupancy` **[high-risk CF]** before Phase 5 code.
 - **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; pending→indexer-on-ship works; Phase 2 auto-gotcha needs Dan approval.
 - **Command interface (Phase 0):** `npm run command:slack` before drive — shipped `ad28000`.
 - **Verify:** `verify:location-phase4` **15/15 PASS** local + **prod** — G1 release E2E (NMS G2+GL, release No) + list badges + interactive planned staging.
@@ -19,9 +19,9 @@
 4. **Inbound Gmail CF + rules deploy** — Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM.
 
 ## Immediate Next Step
-- **away-127** — Invoice Slice 3: PDF upload + client parse preview (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
-- **Product:** Phase 4 prod verify gate **closed** (`v0.0.33`); location-first Phase 5 blocked until away-126 AGREE PASS; push ingest **[high-risk]** — Dan approval.
-- **Harness:** Phase 2 auto-gotcha (D-18) — Dan approval. **Fable conferral loop universal (D-24)** on this branch.
+- **Queue empty** — run `npm run away:plan` for draft away-130+ or queue D14 CF fix + Phase 5 resume.
+- **Product:** Phase 4 prod verify gate **closed** (`v0.0.34`); Fable work-verifier before Phase 5; Phase 5 blocked on **D14 CF fix** (`getVendorStagingOccupancy` planned-spot exclusion); push ingest **[high-risk]** — Dan approval.
+- **Harness:** D-24 Fable↔Grok conferral universal **shipped** on branch; Phase 2 auto-gotcha (D-18) — Dan approval.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

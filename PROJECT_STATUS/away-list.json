@@ -9,11 +9,7 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": [
-      "away-127",
-      "away-128",
-      "away-129"
-    ],
+    "sequence": [],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -30,45 +26,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-127",
-      "title": "Invoice Slice 3: PDF upload + client parse preview",
-      "status": "queued",
-      "scope": "PDF picker on /invoice-review; client-side processInvoiceBatch preview only. No Firestore writes, no CF.",
-      "acceptance": "Upload fixture PDF → preview shows batch outcomes; test:invoice-batch + verify:invoice-review PASS.",
-      "tier": "T1",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run test:invoice-batch",
-        "npm run verify:invoice-review"
-      ]
-    },
-    {
-      "id": "away-128",
-      "title": "Invoice review: clickable branch phone (tel:)",
-      "status": "queued",
-      "dependsOn": "away-127",
-      "scope": "tel: link for vendorBranchPhone in invoice review UI. Display-only.",
-      "acceptance": "verify:invoice-review asserts tel: href on branch phone when present.",
-      "tier": "T0",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:invoice-review"
-      ]
-    },
-    {
-      "id": "away-129",
-      "title": "away:plan draft suggestions when queue empty",
-      "status": "queued",
-      "scope": "away:plan emits suggestedAdditions when batchSize=0 using next id from archive.",
-      "acceptance": "npm run away:plan returns ≥1 draft when sequence empty; away:validate PASS.",
-      "tier": "T1",
-      "verifyBeforeNext": [
-        "npm run away:plan",
-        "npm run away:validate",
-        "npm run build"
-      ]
     }
   ]
 }

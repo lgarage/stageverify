@@ -359,6 +359,40 @@
       "gateCandidate": false,
       "notes": "Merged from learning-pending during away-124 ship; G1 release CF may already be deployed — re-check before treating as open.",
       "createdAt": "2026-07-11T04:56:21.232Z"
+    },
+    {
+      "id": "idx-011",
+      "category": "decision",
+      "summary": "Unauth vendor NMS uses occupancy-only CF — must include other jobs plannedStagingLocationIds (D14)",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": "away-126",
+      "sourceCommit": "15ae84849df8af01eb8b3e9522013467684148d1",
+      "tags": [],
+      "triggerTerms": [
+        "fable",
+        "work-verifier",
+        "location-first",
+        "phase",
+        "boundary",
+        "unauth",
+        "vendor",
+        "uses"
+      ],
+      "type": "service-logic",
+      "subtype": "location-first-vendor",
+      "slice": {
+        "file": "functions/src/getVendorStagingOccupancy.ts",
+        "startLine": 38,
+        "endLine": 110,
+        "anchor": "export const getVendorStagingOccupancy"
+      },
+      "relatedFiles": [],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": false,
+      "gateCandidate": false,
+      "notes": null,
+      "createdAt": "2026-07-12T00:42:12.888Z"
     }
   ]
 }
