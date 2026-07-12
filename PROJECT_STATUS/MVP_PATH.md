@@ -56,7 +56,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 - [ ] **Live email ingest operable** — Gmail watch/Pub/Sub configured; one real inbound message links to a delivery without manual workaround
 - [ ] **Core regression green** — pickup, vendor, dispatcher, location Phase 4 release verifies PASS on prod after latest deploy
 - [x] **Combination scope honest** — **MVP waiver (2026-07-12):** atomic multi-location combo assign+release with real Jake Korb shop-map IDs is **explicitly out of MVP done**. Stub (`combinationStagingGroupId` / away-036/037) + emulator coverage (`test:pickup-authority`) remain; production combo signage waits on shelving decision. Placeholder IDs acceptable for demo/dev only.
-- [x] **E-tag closed or waived** — **MVP freeze (D-26, 2026-07-12):** live Minew ESL automation explicitly **out of MVP done**; revisit post-MVP with verify/tests. Manual print-label + zone `eslTagId` assignment unchanged.
+- [x] **E-tag closed or waived** — **MVP freeze (D-26, 2026-07-12):** live Minew ESL / **e-tag workflow** explicitly **out of MVP done**; revisit post-MVP with **requirements restated** + verify/tests. Manual print-label + zone `eslTagId` assignment unchanged. See `MVP_PATH.md` § MVP workflow freezes.
 
 ---
 
@@ -71,7 +71,22 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 **Parallel while blocked on Dan:** run `verify:phase14-e2e` local+prod (item 1) — do not wait on Pub/Sub. **Do not** start e-tag/Minew work (D-26 freeze).
 
-**Defer until after MVP done:** location-first Phases 5–6, **Phase 7 ESL / e-tag automation (D-26 — revisit with tests)**, Phase 8–9 AI, harness Phase 2 auto-gotcha, ESLint cleanup batches unrelated to exit criteria.
+**Defer until after MVP done:** location-first Phases 5–6, **Phase 7 ESL / e-tag automation (D-26 — revisit with requirements restated + tests)**, Phase 8–9 AI, harness Phase 2 auto-gotcha, ESLint cleanup batches unrelated to exit criteria.
+
+---
+
+## MVP workflow freezes (post-MVP revisit)
+
+> **Dan 2026-07-12:** Freeze non-MVP workflows now; revisit after MVP is operational with **requirements restated** and verify/tests added. Agents must not queue or implement frozen items unless Dan explicitly unfreezes.
+
+| Workflow | Frozen scope | SSOT | Post-MVP |
+|----------|--------------|------|----------|
+| **E-tag / ESL** | Live Minew sync, ESL CFs, API integration, §14 step 26 automation | **D-26**, `ESL_INTEGRATION_PLAN.md` | Restate requirements + add verify/tests |
+| **Location-first Phases 5–6** | Technician door + pickup v2; management audit walk | `location-first-transition-spec.md` § Phase Tracker | Fable work-verifier then implement |
+| **Combination atomic release** | Real Jake Korb shop-map IDs + production combo signage | `MVP_PATH.md` combo waiver | Shelving decision + tests |
+| **Physical shop-map / sign printing** | Production location sign batch | Jake Korb blocker | Map asset + print run |
+
+**Still allowed during MVP:** manual **Push to E-Tag** print labels, zone `eslTagId` fields, location-first Phases 1–4 (shipped), core §14 vendor→dispatcher→pickup loop.
 
 ---
 
