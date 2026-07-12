@@ -376,6 +376,106 @@ export function parseLocationFirstGateFromCurrentState(md) {
 }
 
 /**
+ * Infer location-first phase prod-verify PASS from Snapshot / Verify lines.
+ * @param {string} md
+ * @returns {{ phase: number, version: string | null } | null}
+ */
+export function parseLocationFirstVerifyPassFromCurrentState(md) {
+  const snapshotBlock = md.match(/## Snapshot[\s\S]*?(?=\n## )/)?.[0] ?? "";
+  const verifyLine = md.match(/^- \*\*Verify:\*\*\s*(.+)$/m)?.[1] ?? "";
+  const combined = `${snapshotBlock}\n${verifyLine}`;
+  const phaseMatch = combined.match(/verify:location-phase(\d+)/i);
+  if (!phaseMatch) return null;
+  if (!/15\/15\s+PASS/i.test(combined) || !/\bprod\b/i.test(combined)) return null;
+  const versionMatch = combined.match(/\(v([\d.]+)\)/);
+  return { phase: Number(phaseMatch[1]), version: versionMatch?.[1] ?? null };
+}
+
+/** @param {string} [note] */
+export function parseLocationFirstVerifyPassFromShipNote(note) {
+  if (!note || !/verify:location-phase(\d+)/i.test(note)) return null;
+  if (!/15\/15\s+PASS/i.test(note) && !/:\s*prod\s+.*PASS/i.test(note)) return null;
+  const phaseMatch = note.match(/verify:location-phase(\d+)/i);
+  return phaseMatch ? { phase: Number(phaseMatch[1]), version: null } : null;
+}
+
+/**
+ * Write Phase N prod-verify gate closure lines into CURRENT_STATE.
+ * @param {string} md
+ * @param {number} phase
+ * @param {string | null} version
+ */
+export function applyLocationFirstGateToCurrentState(md, phase, version) {
+  const nextPhase = phase + 1;
+  const v = version ?? "0.0.0";
+  let next = md;
+  const gateSnippet = `Phase ${phase} prod verify gate **closed** (\`v${v}\`); Fable work-verifier before Phase ${nextPhase}`;
+
+  if (!new RegExp(`Phase ${phase} complete`, "i").test(next)) {
+    next = next.replace(
+      /^- Active Phase:\s*\*\*Location-first Phase \d+[^*]*\*\*[^:\n]*/m,
+      `- Active Phase: **Location-first Phase ${phase} complete** → Phase ${nextPhase} gate (\`v${v}\`)`,
+    );
+  }
+
+  if (!new RegExp(`Phase ${phase} prod verify gate \\*\\*closed\\*\\*`, "i").test(next)) {
+    if (/- \*\*Product:\*\*/m.test(next)) {
+      next = next.replace(/(- \*\*Product:\*\*)\s*/, `$1 ${gateSnippet}; `);
+    } else {
+      next = next.replace(
+        /(## Immediate Next Step\n(?:- [^\n]+\n)*)/,
+        `$1- **Product:** ${gateSnippet}; see \`docs/project_state.md\`.\n`,
+      );
+    }
+  }
+
+  return next;
+}
+
+/**
+ * Full hot-tier sync: infer gate from verify PASS → update CURRENT_STATE → tracker + roadmap.
+ * @param {{ currentStateMd: string, specMd: string, roadmapMd: string, packageVersion?: string | null, shipNote?: string }} input
+ * @returns {{ changed: boolean, changes: string[], currentStateMd: string, specMd: string, roadmapMd: string }}
+ */
+export function syncLocationFirstHotTier({
+  currentStateMd,
+  specMd,
+  roadmapMd,
+  packageVersion = null,
+  shipNote,
+}) {
+  /** @type {string[]} */
+  const changes = [];
+  let cs = currentStateMd;
+  const fromVerify = parseLocationFirstVerifyPassFromCurrentState(cs);
+  const fromShip = shipNote ? parseLocationFirstVerifyPassFromShipNote(shipNote) : null;
+  const inferred = fromShip ?? fromVerify;
+  const existingGate = parseLocationFirstGateFromCurrentState(cs);
+
+  const shouldApply =
+    inferred &&
+    (!existingGate.closedThroughPhase || inferred.phase >= existingGate.closedThroughPhase);
+  const version = inferred?.version ?? existingGate.version ?? packageVersion ?? null;
+
+  if (shouldApply && inferred) {
+    const updated = applyLocationFirstGateToCurrentState(cs, inferred.phase, version);
+    if (updated !== cs) {
+      cs = updated;
+      changes.push(`CURRENT_STATE: Phase ${inferred.phase} prod verify gate closed`);
+    }
+  }
+
+  const docSync = syncLocationFirstDocsFromCurrentState({ currentStateMd: cs, specMd, roadmapMd });
+  return {
+    changed: changes.length > 0 || docSync.changed,
+    changes: [...changes, ...docSync.changes],
+    currentStateMd: cs,
+    specMd: docSync.specMd,
+    roadmapMd: docSync.roadmapMd,
+  };
+}
+
+/**
  * Parse § Phase Tracker status column from location-first spec.
  * @param {string} specMd
  * @returns {Map<number, string>}

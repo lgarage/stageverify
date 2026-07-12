@@ -19,7 +19,7 @@ import {
   readText,
   renderNextMd,
   validateLocationFirstDocConsistency,
-  syncLocationFirstDocsFromCurrentState,
+  syncLocationFirstHotTier,
   updateImmediateNextInProjectState,
   writeText,
 } from "./lib/away-memory-lib.mjs";
@@ -221,15 +221,19 @@ function validateNextIdSync(list, archive, statusDoc) {
   }
 }
 
-function syncLocationFirstDocsIfNeeded() {
-  const currentStateMd = readText(PATHS.currentState);
-  const specMd = readText(PATHS.locationFirstSpec);
-  const roadmapMd = readText(PATHS.roadmap);
-  const result = syncLocationFirstDocsFromCurrentState({ currentStateMd, specMd, roadmapMd });
+function syncLocationFirstHotTierIfNeeded() {
+  const pkg = readJson(path.join(REPO_ROOT, "package.json"));
+  const result = syncLocationFirstHotTier({
+    currentStateMd: readText(PATHS.currentState),
+    specMd: readText(PATHS.locationFirstSpec),
+    roadmapMd: readText(PATHS.roadmap),
+    packageVersion: pkg.version ?? null,
+  });
   if (result.changed) {
+    writeText(PATHS.currentState, result.currentStateMd);
     writeText(PATHS.locationFirstSpec, result.specMd);
     writeText(PATHS.roadmap, result.roadmapMd);
-    warn(`location-first docs auto-synced from CURRENT_STATE — ${result.changes.join("; ")}`);
+    warn(`location-first hot tier auto-synced — ${result.changes.join("; ")}`);
   }
 }
 
@@ -546,7 +550,7 @@ function main() {
     validateNextIdSync(list, archive, statusDoc);
   }
   validateArchive();
-  syncLocationFirstDocsIfNeeded();
+  syncLocationFirstHotTierIfNeeded();
   validateLocationFirstDocs();
   validateRoadmap();
   validateMemoryMd();

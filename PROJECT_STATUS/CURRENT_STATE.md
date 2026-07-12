@@ -28,4 +28,4 @@
 - Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`
 
 ## Update Protocol
-- Ship: `npm run away:ship` → `estimate-log.md` → `npm run away:validate` (auto-syncs Phase Tracker + roadmap from gate closure) → commit. Phase ships: sync `project_state.md` + `roadmap.md`.
+- Ship: `npm run away:ship` → `estimate-log.md` → `npm run away:validate` (auto-syncs CURRENT_STATE + Phase Tracker + roadmap from verify PASS) → commit.
