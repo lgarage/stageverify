@@ -167,6 +167,55 @@ function evaluateFixture(pageId, result, expected) {
       detail: result.reviewStatus,
     });
   }
+  if (expected.vendorBranchName) {
+    checks.push({
+      label: "vendorBranchName",
+      pass: result.parsed.header.vendorBranchName === expected.vendorBranchName,
+      detail: result.parsed.header.vendorBranchName,
+    });
+  }
+  if (expected.vendorBranchAddress) {
+    checks.push({
+      label: "vendorBranchAddress",
+      pass: result.parsed.header.vendorBranchAddress === expected.vendorBranchAddress,
+      detail: result.parsed.header.vendorBranchAddress,
+    });
+  }
+  if (expected.vendorBranchPhone) {
+    checks.push({
+      label: "vendorBranchPhone",
+      pass: result.parsed.header.vendorBranchPhone === expected.vendorBranchPhone,
+      detail: result.parsed.header.vendorBranchPhone,
+    });
+  }
+  if (expected.soldToName) {
+    checks.push({
+      label: "soldToName",
+      pass: result.parsed.header.soldToName === expected.soldToName,
+      detail: result.parsed.header.soldToName,
+    });
+  }
+  if (expected.shipToName) {
+    checks.push({
+      label: "shipToName",
+      pass: result.parsed.header.shipToName === expected.shipToName,
+      detail: result.parsed.header.shipToName,
+    });
+  }
+  if (expected.shipToAddress) {
+    checks.push({
+      label: "shipToAddress",
+      pass: result.parsed.header.shipToAddress === expected.shipToAddress,
+      detail: result.parsed.header.shipToAddress,
+    });
+  }
+  if (expected.shipDate) {
+    checks.push({
+      label: "shipDate",
+      pass: result.parsed.header.shipDate === expected.shipDate,
+      detail: result.parsed.header.shipDate,
+    });
+  }
   if (expected.lineDescriptionIncludes) {
     const desc = result.parsed.lines[0]?.description ?? "";
     checks.push({
@@ -348,13 +397,25 @@ const FIXTURE_EXPECTATIONS = {
     customerPoOrReference: "NTI BOILER",
     buyerName: "CONNOR SMITH",
     shipViaRaw: "PICKUP",
+    shipDate: "2026-06-23",
+    soldToName: "TWIN PILLAR HEATING & COOLING",
+    shipToName: "TWIN PILLAR HEATING & COOLING",
+    shipToAddress: "2944 HOLMGREN WAY GREEN BAY WI 54304",
+    vendorBranchName: "Johnstone Supply",
+    vendorBranchAddress: "335 N Weber Ave Sioux Falls SD 57103",
+    vendorBranchPhone: "605-338-2652",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "pickup_at_vendor",
     displayLabel: "Will-Call / Pickup.",
     expectedLineCount: 1,
     autoProcessed: true,
     lineDescriptionIncludes: ["CONTROLLER 210MN", "TX MODELS REQUIRE EXTERNAL SPARK"],
-    lineDescriptionExcludes: ["Signature Proof of Delivery", "Remit To"],
+    lineDescriptionExcludes: [
+      "Signature Proof of Delivery",
+      "Remit To",
+      "335 N Weber Ave",
+      "GREEN BAY WI 54304",
+    ],
   },
 };
 

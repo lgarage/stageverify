@@ -476,7 +476,7 @@
         "customer P/O field",
         "line description footer"
       ],
-      "warning": "Johnstone pdf.js header grid: Customer # | Order Date | Sales Order # | Buyer | Customer P/O # | Ship Via | Salesman — separate columns. Customer P/O must NOT include Ship Via (e.g. PICKUP) or Salesman (SAD, BBTO, RML, DDJ, CM, BB). Wide value row ends with numeric or alpha salesman code. Fulfillment: infer from shipViaRaw when P/O no longer contains PICKUP. Line table descriptions truncate before invoice footer (Signature Proof of Delivery, Remit To, Taxable, totals) — footer is AP noise not product text. Fixture: inv-6166261 (invoice 6166261). Gate: npm run test:invoice-parser."
+      "warning": "Johnstone pdf.js header grid: Customer # | Order Date | Sales Order # | Buyer | Customer P/O # | Ship Via | Salesman — separate columns. Customer P/O must NOT include Ship Via (e.g. PICKUP) or Salesman (SAD, BBTO, RML, DDJ, CM, BB). Wide value row ends with numeric or alpha salesman code. Fulfillment: infer from shipViaRaw when P/O no longer contains PICKUP. Branch fields: vendorBranchName + vendorBranchAddress + vendorBranchPhone come ONLY from Remit To footer block — strip totals bleed (Taxable 0.00, Merchandise, etc.) from the Remit To line; never use ship-to (GREEN BAY WI 54304) or global zip regex fallbacks for branch. Sold/Ship To are customer context (wide grid: duplicated name row + address line). Line table descriptions truncate at invoice footer (Signature Proof of Delivery, Remit To, Taxable, totals) — stop all continuation after footer; footer address is AP noise not product text. Fixture: inv-6166261 (invoice 6166261). Gate: npm run test:invoice-parser."
     },
     {
       "id": "invoice-import",

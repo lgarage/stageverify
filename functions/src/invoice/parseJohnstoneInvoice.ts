@@ -216,11 +216,12 @@ function parseTabularHeaderBlock(text: string): Partial<ParsedInvoiceHeader> {
 
     if (/^Invoice\s*#\s+Invoice\s+Date/i.test(labelLine)) {
       const invRow = valueLine.match(
-        /^([A-Z]?\d{5,})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/,
+        /^([A-Z]?\d{5,})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})(?:\s+(\d{1,2}\/\d{1,2}\/\d{2,4}))?/,
       );
       if (invRow) {
         partial.vendorInvoiceNumber = invRow[1];
         partial.invoiceDate = invRow[2];
+        if (invRow[3]) partial.shipDate = invRow[3];
       }
     }
 
@@ -427,8 +428,14 @@ function parseLineTableRows(lineSection: string, orderNotes: string[]): ParsedIn
   orderNotes.push(...messageNotes);
 
   const lines: ParsedInvoiceLine[] = [];
+  let pastInvoiceFooter = false;
   for (const rawLine of remainder.split("\n")) {
     const trimmed = rawLine.trim();
+    if (pastInvoiceFooter) continue;
+    if (isInvoiceFooterLine(trimmed)) {
+      pastInvoiceFooter = true;
+      continue;
+    }
     if (isLineTableNoise(trimmed)) continue;
 
     const extended = trimmed.match(LINE_ROW_EXTENDED);
@@ -481,6 +488,120 @@ function parseLineTableRows(lineSection: string, orderNotes: string[]): ParsedIn
   }
 
   return lines;
+}
+
+/** Totals-column tokens that bleed onto the Remit To line in pdf.js extraction. */
+const REMIT_TO_LINE_BLEED =
+  /^(?:Taxable|Merchandise|Freight|Sub\s+Total|TOTAL|Misc\s+Charges)\b[\s\d.$-]*/i;
+
+function stripRemitToLineBleed(line: string): string {
+  return line.replace(REMIT_TO_LINE_BLEED, "").trim();
+}
+
+/** Branch identity comes from the Remit To footer block — never ship-to or totals columns. */
+function parseRemitToBlock(text: string): {
+  vendorBranchName: string;
+  vendorBranchAddress: string;
+  vendorBranchPhone: string;
+} {
+  const defaultName = "Johnstone Supply";
+  const vendorBranchPhone =
+    capture(/please call\s*([\d-]+)/i, text) ?? capture(/(\d{3}-\d{3}-\d{4})/i, text) ?? "";
+
+  const remitIdx = text.search(/Remit\s+To\s*:/i);
+  if (remitIdx < 0) {
+    const topName = capture(/^([^\n]*Johnstone Supply)/im, text);
+    return {
+      vendorBranchName: topName?.trim() || defaultName,
+      vendorBranchAddress: "",
+      vendorBranchPhone: vendorBranchPhone.trim(),
+    };
+  }
+
+  const afterLabel = text.slice(remitIdx).replace(/^Remit\s+To\s*:\s*/i, "");
+  const blockLines = afterLabel
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const firstLine = stripRemitToLineBleed(blockLines[0] ?? "");
+  const johnstoneInLine = firstLine.match(/(Johnstone Supply)/i);
+  const vendorBranchName = johnstoneInLine?.[1] ?? (firstLine || defaultName);
+
+  const addressLines: string[] = [];
+  for (const line of blockLines.slice(1)) {
+    if (/^please call/i.test(line)) break;
+    if (REMIT_TO_LINE_BLEED.test(line)) continue;
+    if (/^(?:POS\s+Copy|Suspended|Equipment|of damage)/i.test(line)) break;
+    addressLines.push(line);
+    if (/\b(?:SD|WI|MN|IA)\s+\d{5}\b/i.test(line)) break;
+  }
+
+  const vendorBranchAddress = addressLines.join(" ").trim();
+
+  return {
+    vendorBranchName: vendorBranchName.trim(),
+    vendorBranchAddress,
+    vendorBranchPhone: vendorBranchPhone.trim(),
+  };
+}
+
+function splitDuplicatedWideNames(line: string): { soldToName: string; shipToName: string } {
+  const trimmed = line.trim();
+  for (let splitAt = 1; splitAt < trimmed.length; splitAt += 1) {
+    const left = trimmed.slice(0, splitAt).trimEnd();
+    const right = trimmed.slice(splitAt).trimStart();
+    if (left.length > 3 && left === right) {
+      return { soldToName: left, shipToName: right };
+    }
+  }
+  const mid = Math.floor(trimmed.length / 2);
+  const spaceIdx = trimmed.lastIndexOf(" ", mid + 40);
+  if (spaceIdx > 0) {
+    return {
+      soldToName: trimmed.slice(0, spaceIdx).trim(),
+      shipToName: trimmed.slice(spaceIdx).trim(),
+    };
+  }
+  return { soldToName: trimmed, shipToName: trimmed };
+}
+
+/** Sold/Ship To are customer context — must not feed branch fields. */
+function parseSoldShipToBlock(text: string): {
+  soldToName: string;
+  shipToName: string;
+  shipToAddress: string;
+} {
+  const labeledSold = capture(/Sold To\s*:\s*(.+)/i, text)?.trim() ?? "";
+  const labeledShip = capture(/Ship To\s*:\s*(.+)/i, text)?.trim() ?? "";
+  if (labeledSold) {
+    const labeledAddr =
+      capture(/Ship To\s*:\s*[^\n]+\n([^\n]+)/i, text)?.trim()
+      ?? capture(
+        /(?:Sold To|Ship To)\s*:[^\n]*\n[^\n]+\n(\d{2,}[^\n]+(?:WI|MN|IA|SD)\s+\d{5})/i,
+        text,
+      )?.trim()
+      ?? "";
+    return {
+      soldToName: labeledSold,
+      shipToName: labeledShip || labeledSold,
+      shipToAddress: labeledAddr,
+    };
+  }
+
+  const wideMatch = text.match(/Sold\s+To\s+Ship\s+To\s*\n([^\n]+)/i);
+  if (!wideMatch) {
+    return { soldToName: "", shipToName: "", shipToAddress: "" };
+  }
+
+  const { soldToName, shipToName } = splitDuplicatedWideNames(wideMatch[1]!);
+  const afterNames = text.slice((wideMatch.index ?? 0) + wideMatch[0].length);
+  const addrMatch = afterNames.match(
+    /^\s*\n\s*(\d{2,}[^\n]+(?:WI|MN|IA|SD)\s+\d{5}[^\n]*)/im,
+  );
+  const shipToAddress = addrMatch?.[1]?.trim() ?? "";
+
+  return { soldToName, shipToName, shipToAddress };
 }
 
 /** Extract payment/freight terms — informational for dispatcher review only. */
@@ -574,6 +695,7 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
   );
   const shipDateRaw = firstNonEmpty(
     capture(/Ship Date\s*:\s*([\d/-]+)/i, text),
+    tabular.shipDate,
     captureLabeledField("Ship Date", "[\\d/-]+", text),
   );
   const buyerRaw = firstNonEmpty(
@@ -590,23 +712,8 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
   const customerPoOrReference = sanitizePoFromGridBleed(customerPoRaw, shipViaRaw);
   const jobNumberRaw = capture(/Job Number\s*:\s*(.*)/i, text)?.trim();
 
-  const vendorBranchName = capture(/Remit To\s*:\s*(.+)/i, text)
-    ?? capture(/^([^\n]+Johnstone Supply)/im, text)
-    ?? "Johnstone Supply";
-  const vendorBranchAddress = capture(
-    /Remit To\s*:\s*[^\n]+\n([^\n]+(?:SD|WI|MN|IA)\s+\d{5})/i,
-    text,
-  ) ?? capture(/(\d+[^\n]+(?:SD|WI|MN|IA)\s+\d{5})/i, text)
-    ?? "";
-  const vendorBranchPhone = capture(/please call\s*([\d-]+)/i, text)
-    ?? capture(/(\d{3}-\d{3}-\d{4})/i, text)
-    ?? "";
-
-  const soldToName = capture(/Sold To\s*:\s*(.+)/i, text) ?? "";
-  const shipToName = capture(/Ship To\s*:\s*(.+)/i, text) ?? soldToName;
-  const shipToAddress = capture(/Ship To\s*:\s*[^\n]+\n([^\n]+)/i, text)
-    ?? capture(/(\d{4}[^\n]+(?:WI|MN|IA|SD)\s+\d{5})/i, text)
-    ?? "";
+  const remitTo = parseRemitToBlock(text);
+  const soldShipTo = parseSoldShipToBlock(text);
 
   if (!customerAccountNumber) parseWarnings.push("missing customerAccountNumber");
   if (!vendorOrderNumber) parseWarnings.push("missing vendorOrderNumber");
@@ -632,12 +739,12 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     buyerName: buyerName || undefined,
     shipViaRaw: shipViaRaw || undefined,
     jobNumberRaw: jobNumberRaw || undefined,
-    vendorBranchName: vendorBranchName.trim(),
-    vendorBranchAddress: vendorBranchAddress.trim(),
-    vendorBranchPhone: vendorBranchPhone.trim(),
-    soldToName: soldToName.trim(),
-    shipToName: shipToName.trim(),
-    shipToAddress: shipToAddress.trim(),
+    vendorBranchName: remitTo.vendorBranchName,
+    vendorBranchAddress: remitTo.vendorBranchAddress,
+    vendorBranchPhone: remitTo.vendorBranchPhone,
+    soldToName: soldShipTo.soldToName,
+    shipToName: soldShipTo.shipToName,
+    shipToAddress: soldShipTo.shipToAddress,
     fulfillmentMethod,
     shipCompletePolicy,
     paymentTermsRaw: paymentTerms.paymentTermsRaw,
