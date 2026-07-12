@@ -59,8 +59,8 @@
       "subtype": "cf-ingest",
       "slice": {
         "file": "PROJECT_STATUS/MEMORY.md",
-        "startLine": 64,
-        "endLine": 64,
+        "startLine": 67,
+        "endLine": 67,
         "anchor": "| **Security gate (CF/auth/rules)** |"
       },
       "relatedFiles": [
@@ -311,9 +311,9 @@
       "subtype": "playwright-route",
       "slice": {
         "file": "scripts/verify-pickup-portal.mjs",
-        "startLine": 324,
+        "startLine": 326,
         "endLine": 340,
-        "anchor": "remountPickupPortal"
+        "anchor": "async function remountPickupPortal"
       },
       "relatedFiles": [
         "scripts/verify-pickup-portal.mjs",

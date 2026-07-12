@@ -503,7 +503,13 @@
         "needs review strip",
         "vendor email triage",
         "PDF invoice queue",
-        "already processed invoice"
+        "already processed invoice",
+        "vendorInvoiceImports needs review",
+        "pdf invoice not in needs review",
+        "invoice review vs needs review",
+        "two queue routing",
+        "vendor email events vs invoice",
+        "invoice not in dispatcher"
       ],
       "orchestratorSteps": [6, 7],
       "dossierTags": ["backend-critical", "agent-lessons"],
@@ -512,10 +518,59 @@
         "src/dispatcher/email/NeedsReviewEmailStrip.tsx",
         "src/dispatcher/invoice/InvoiceReviewPanel.tsx",
         "src/dispatcher/email/emailFixtures.ts",
-        "src/dispatcher/email/getProposedEmailUpdates.ts"
+        "src/dispatcher/email/getProposedEmailUpdates.ts",
+        "src/DispatcherDashboardPage.tsx"
       ],
-      "rules": [],
-      "commands": ["npm run verify:invoice-review"]
+      "rules": ["ship-loop.mdc"],
+      "commands": ["npm run verify:invoice-review"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "debugging missing PDF invoice",
+        "invoice not in needs review strip",
+        "empty needs review after gmail sync"
+      ],
+      "warning": "Two ingest surfaces — do not conflate: (1) PDF vendor invoices → vendorInvoiceImports; (2) vendor email replies → vendorEmailEvents (reply-ingest pilot). Pre-v0.0.34 trap: PDF invoices were on /invoice-review only, NOT the offline-email Needs Review strip (emailFixtures.ts / getProposedEmailUpdates). Post-841ced5 (v0.0.34): InvoiceReviewPanel merged into dispatcher Needs Review (?focus=needs-review); /invoice-review redirects there. Forwarded PDF attachments ingest via Refresh Now once Gmail token is valid (see gmail-connected-dead-token). Do NOT expect PDF rows in the old fixture-only strip."
+    },
+    {
+      "id": "gmail-connected-dead-token",
+      "match": [
+        "token refresh failed",
+        "token refresh failed: 400",
+        "dead refresh token",
+        "gmail connected but sync",
+        "connected but no invoices",
+        "gmail sync returns zero",
+        "oauth refresh dead",
+        "disconnect reconnect gmail",
+        "settings shows connected",
+        "sync failed token",
+        "gmail connected dead token",
+        "mailbox connected sync broken"
+      ],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["backend-critical", "agent-lessons"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "functions/src/gmailApi.ts",
+        "functions/src/syncInboundGmail.ts",
+        "functions/src/sendVendorEmail.ts",
+        "src/SettingsPage.tsx",
+        "functions/src/gmailOAuth.ts"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [
+        "firebase functions:log --project stageverify-db",
+        "npm run verify:inbound-email-ingest",
+        "npm run verify:email-oauth-connect"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "debugging empty invoice review",
+        "gmail ingest not working",
+        "inbound sync returns 0",
+        "PDF invoice not appearing after forward"
+      ],
+      "warning": "Settings can show Gmail Connected while the stored OAuth refresh token is dead or revoked — Cloud Functions logs token refresh failed: 400 (gmailApi.ts). syncInboundGmail does NOT update emailProviderConnections status to token_expired on refresh failure (sendVendorEmail does). Symptom: Connected UI + Refresh Now → 0 invoices / sync errors. Fix: Settings Disconnect → Reconnect OAuth. Do NOT debug parser, Pub/Sub, or push ingest until token refresh succeeds."
     },
     {
       "id": "gmail-sync-banner",

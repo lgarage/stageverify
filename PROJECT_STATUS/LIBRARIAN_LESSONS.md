@@ -19,8 +19,8 @@
 ## Invoice / parser
 
 7. **Johnstone parser:** backorder-safe fulfillment/status; gate with `test:invoice-parser` and batch fixtures before ship.
-8. **Invoice review UX:** Delivery Overview "Needs Review" = offline email fixtures (`emailFixtures.ts` / `getProposedEmailUpdates`), NOT `vendorInvoiceImports`. Johnstone PDF invoices → `/#/invoice-review` only; approve/reject there only. Needs Review has no Approve button by design.
-9. **Gmail sync banner:** Sync processed/skipped counts = `inboundEmailProcessing` docs, NOT `vendorInvoiceImports` rows. Banner distinguishes scanned vs queued (`invoicesQueued`, `skippedByStatus`). Empty Invoice Review after sync → check `no_pdf`, parse fail, pending filter, GCP Pub/Sub blocker #4.
+8. **Invoice two-queue routing:** PDF vendor invoices → `vendorInvoiceImports`; vendor email *replies* → `vendorEmailEvents` (reply-ingest pilot) — never the old offline-email fixture strip (`emailFixtures.ts`). **Pre-v0.0.34 trap:** PDFs were on `/#/invoice-review` only, not dispatcher Needs Review. **v0.0.34+ (841ced5):** `InvoiceReviewPanel` merged into dispatcher Needs Review (`?focus=needs-review`); `/#/invoice-review` redirects there. Forwarded PDF attachments ingest after valid Gmail token + Refresh Now.
+9. **Gmail sync banner:** Sync processed/skipped counts = `inboundEmailProcessing` docs, NOT `vendorInvoiceImports` rows. Banner distinguishes scanned vs queued (`invoicesQueued`, `skippedByStatus`). Empty Invoice Review after sync → check `no_pdf`, parse fail, pending filter, GCP Pub/Sub blocker #4, **and dead OAuth token** (Settings Connected but CF `token refresh failed: 400` — Disconnect/Reconnect; gotcha `gmail-connected-dead-token`).
 
 ## Process / agents
 
