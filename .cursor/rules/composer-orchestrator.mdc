@@ -12,6 +12,21 @@ You are the default orchestrator and worker for this project. Follow these proto
 ## Parallel execution (default when safe)
 Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel** — scouts parallel by default; implementers serial unless disjoint domains within one item). Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
 
+## Parallel client mode (phone + PC — Dan declares)
+
+When Dan declares parallel work across phone and PC (`parallel`, `phone and PC`, `working on both`, etc.) in the **current conversation**, treat it as **sticky for the remainder of that session** — not session-start only.
+
+**Before every substantive action** (file edit, `away:batch`/`away:ship`, commit, push, deploy) — skip for pure Q&A / read-only replies — run:
+
+```bash
+npm run session:sync-main
+```
+
+Role split: see `AGENTS.md` § Client ownership modes (default: PC ships `main`, phone plan+branch). Sync does not replace role split — it only refreshes against `origin/main` before work.
+
+On script FAIL (dirty tree, pull conflict): stop and report; do not proceed with edits until resolved.
+
+
 ## Mini librarian (stageverify — until full ACES)
 - **Router:** `PROJECT_STATUS/MEMORY.md` — concern → file → when to read
 - **Execution packet:** `npm run away:next` / `PROJECT_STATUS/away-list.json`

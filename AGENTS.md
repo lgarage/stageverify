@@ -52,6 +52,31 @@ Differs from desktop **only** where physically impossible — document here, not
 
 Never commit credentials. Do not invent passwords or tokens in the repo.
 
+## Client ownership modes (Dan declares per session)
+
+Orthogonal to time-awareness **A) Active now / B) Away planning**. Say device + mode in the opener (or when it changes).
+
+| Mode | When | Phone / cloud | PC |
+|------|------|---------------|-----|
+| **Parallel** | Both active | Plan + branch only (no `main` push/deploy/`away:ship` unless override) | Ship + execute on `main` |
+| **Solo phone** | Driving, PC off | Full execute when prompt allows push `main` + deploy | — |
+| **Solo PC** | At desk (default) | — | Everything |
+
+**Parallel mode — git sync (mandatory, same conversation):** When Dan declares parallel (`parallel`, `phone and PC`, `working on both`, etc.), treat it as **sticky for the rest of that conversation**. Before **every substantive action** (file edit, `away:batch`/`away:ship`, commit, push, deploy) — not before pure Q&A/read-only — run:
+
+```bash
+npm run session:sync-main
+```
+
+- On `main`: fast-forward pull from `origin/main`.
+- On a feature branch: `git fetch origin main` only (no auto-merge).
+- Exit 1 on dirty tree — report blocker; do not edit until clean.
+
+This keeps each client current with what the other device shipped to `main` mid-session.
+
+After phone solo ship, PC must start with parallel/sync before continuing.
+
+
 After secrets exist in the environment, run once (or when Firebase token expires ~1h):
 
 ```bash
