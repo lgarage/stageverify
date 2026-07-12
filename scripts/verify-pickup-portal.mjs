@@ -18,6 +18,7 @@ import {
   ensureAuthenticated,
   loadEnvLocal,
   openDeliveryDrawer,
+  openDeliveryDrawerByDeepLink,
 } from "./dispatcherVerifyHelpers.mjs";
 import {
   applyFullLocationDisplay,
@@ -95,6 +96,7 @@ const baseUrl =
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
+const isProd = /lgarage\.github\.io\/stageverify/i.test(baseUrl);
 
 const jobId = process.env.STAGEVERIFY_PICKUP_JOB ?? "job-3";
 const deliveryId = process.env.STAGEVERIFY_PICKUP_DELIVERY ?? "delivery-3";
@@ -637,7 +639,15 @@ async function runDashboardBadgeCheck(browser) {
   });
   const page = await context.newPage();
   await ensureAuthenticated(page, appBase);
-  await openDeliveryDrawer(page, "ORD-004", deliveryId);
+  // Prod hides seed ORD-004 / delivery-3 from list (hideSeedDemoRows).
+  if (isProd) {
+    console.log(
+      `Prod dashboard badge: deep-link drawer for ${deliveryId} (demo rows hidden).`,
+    );
+    await openDeliveryDrawerByDeepLink(page, appBase, deliveryId);
+  } else {
+    await openDeliveryDrawer(page, "ORD-004", deliveryId);
+  }
 
   const badge = page.getByTestId(`open-issue-badge-${deliveryId}`);
   await badge.waitFor({ state: "visible", timeout: 20_000 });
