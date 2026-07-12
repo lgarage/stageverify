@@ -5,21 +5,19 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` ? scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- **MVP: 89.89%** ? SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). ?14 E2E **local + prod PASS**; **core regression prod PASS** (`verify:mvp-core-regression:prod` 2026-07-12, full vendor leg).
-- Last shipped: **away-127** — Needs Review audit scripts — wire npm + prod audit
-- Active Phase: **Location-first Phase 4 complete** ? Phase 5 gate (`v0.0.33`): `releasePlannedStagingLocation` CF deployed; vendor release prompt + drawer audit shipped **`5e935fe`** (Sonnet gate PASS `57701217`).
-- **Harness (D-18):** Auto-gotcha Phase 0 **shipped** `c2109a8`; phase14 learning capture on main `2017613`; `vfl-015` learning-pending cleared 2026-07-12 (gotcha-proposal; covered by `prod-verify-hide-seed-demo` in gotcha-map); Phase 2 auto-gotcha needs Dan approval.
-- **Command interface (Phase 0):** `npm run command:slack` before drive ? shipped `ad28000`.
-- **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-12 (pickup + vendor-delivered + dispatcher-nav + location Phase 4 **15/15**); `test:pickup-authority` **17/17** emulators; `verify:phase14-e2e:prod` PASS.
-- Stack: React 19 + TS, Vite 8, Firebase 11.x ? https://lgarage.github.io/stageverify ? Firestore `stageverify-db`
+- **MVP: 97.89%** ? SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). �14 E2E **local + prod PASS**; **live email ingest prod proof** away-129 (**2** inbound in Needs Review; Gmail connected).
+- Last shipped: **away-129** — Live ingest prod proof — first message in Needs Review
+- Active Phase: **Location-first Phase 4 complete** ? MVP email band closed; **2.11%** remaining (�14 E2E residual **1.71%**).
+- **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-12; `audit:needs-review-ui:prod` PASS; `verify:email-oauth-connect:prod` PASS; `verify:inbound-email-ingest` PASS.
+- Stack: React 19 + TS, Vite 8, Firebase 11.x ? https://lgarage.github.io/stageverify � Firestore `stageverify-db`
 
 ## Active Blockers
 1. **Shelving decision (Jake Korb)** ? shop map / location IDs.
 2. **Physical shop map** ? not created (blocks sign printing only).
-3. **Inbound Gmail CF + rules deploy** ? Dan configures `GMAIL_PUBSUB_TOPIC` + GCP topic IAM (do not claim email MVP % until live ingest proven).
+3. **GCP Pub/Sub push path** ? optional for automated push; poll/Refresh Now path proven; configure Pub/Sub per `project_state.md` for push-primary ingest.
 
 ## Immediate Next Step
-- **away-128** — Deploy inbound Gmail CF + firestore rules (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
@@ -27,3 +25,4 @@
 
 ## Update Protocol
 - Ship: `npm run away:ship` ? `estimate-log.md` ? `npm run away:validate` (auto-syncs CURRENT_STATE + Phase Tracker + roadmap from verify PASS) ? commit.
+

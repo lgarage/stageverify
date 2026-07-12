@@ -9,10 +9,7 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": [
-      "away-128",
-      "away-129"
-    ],
+    "sequence": [],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -29,34 +26,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-128",
-      "title": "Deploy inbound Gmail CF + firestore rules",
-      "status": "queued",
-      "dependsOn": "away-127",
-      "scope": "firebase deploy --only functions,firestore:rules --project stageverify-db for inbound Gmail ingest (gmailInboxPushIngest, syncInboundGmail, registerGmailWatchCallable, renewGmailWatch, inbound invoice CFs). Sonnet security gate before push. Assumes Dan completed GCP Pub/Sub checklist.",
-      "acceptance": "CF + rules deployed; verify:inbound-email-ingest PASS; verify:email-oauth-connect:prod PASS.",
-      "tier": "T3",
-      "riskTier": "high-risk",
-      "danApproved": true,
-      "verifyBeforeNext": [
-        "npm run verify:inbound-email-ingest",
-        "npm run verify:email-oauth-connect:prod"
-      ]
-    },
-    {
-      "id": "away-129",
-      "title": "Live ingest prod proof — first message in Needs Review",
-      "status": "queued",
-      "dependsOn": "away-128",
-      "scope": "After deploy: reconnect Gmail if needed; trigger Refresh Now / syncInboundGmail; document prod PASS for first live inbound message visible in Needs Review strip (poll path — not push-only per gotcha gmail-push-payload).",
-      "acceptance": "Prod evidence: inbound message in Needs Review OR documented blocker with Dan action item; verify scripts PASS.",
-      "tier": "T1",
-      "verifyBeforeNext": [
-        "npm run audit:needs-review-ui:prod",
-        "npm run verify:email-oauth-connect:prod"
-      ]
     }
   ]
 }

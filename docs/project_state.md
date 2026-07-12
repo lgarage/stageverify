@@ -183,8 +183,8 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-128** — Deploy inbound Gmail CF + firestore rules.
-2. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready; queue items should trace to an MVP exit criterion when possible.
+1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **97.89%** complete (SSOT); live email band closed away-128/129; §14 E2E residual **1.71%** remains.
+2. **Post-queue:** refill via `npm run away:plan` when ready.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.
 5. **ESL integration** — Phase 7; **not in MVP scope (D-26)** — see `ESL_INTEGRATION_PLAN.md` post-MVP.
