@@ -29,6 +29,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-11: On phone, wanted authoritative mobile-safe next; away-list had stale batch `instructions` on empty `sequence` and no capability filter — queue hygiene Phase 1a (`away:sync`, normalize on ship).
 - 2026-07-11: Dan wanted Grok conferral on all non-trivial Q&A answers (not only planning) on desktop PC and cloud; status/terminology answers needed cross-check — Q&A verify loop (D-22).
 - 2026-07-11: Planning agents cited stale location-first Phase Tracker + roadmap vs CURRENT_STATE after Phase 4 prod verify closed — doc drift validate in `away:validate` / `away:sync` (D-23).
+- 2026-07-12: Dan-directed reopen (owner authority, not 2× measured pain): mechanize evidence gates (CI gate-check) + verifier calibration log (D-28) — verifier-log exists to produce future freeze measurements.
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
