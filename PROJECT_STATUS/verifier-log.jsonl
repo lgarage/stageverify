@@ -11,3 +11,4 @@
 {"date":"2026-07-12","role":"ship","verdict":"PASS","taskId":"9fd1a04d-6770-4437-a803-c66f6b29e427","model":"grok-4.5-fast-xhigh","real":"na","note":"PR26 c14914a D-28 + 232bd82 D-29 — both ships scope/gate PASS"}
 {"date":"2026-07-12","role":"critical","verdict":"PASS","taskId":"ae8b25bb-245a-418a-8626-eb51584c2b53","model":"grok-4.5-fast-xhigh","real":"na","note":"D-30 peer deliberation — true peer exchange: Grok 3 inserts adopted, Fable positions accepted, agreed text landed, drift-checked"}
 {"date":"2026-07-13","role":"ship","verdict":"PASS","taskId":"b4d152bd-dbbb-42cf-bca0-02c67f612a16","model":"grok-4.5-fast-xhigh","real":"na","note":"merge abdc5de..aed3b56 D-28..D-34 to main"}
+{"date":"2026-07-13","role":"qa","verdict":"PASS","taskId":"0725759b-a179-4f45-a92a-6ecb563926c8","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-35 environment auto-detection rule sweep"}
