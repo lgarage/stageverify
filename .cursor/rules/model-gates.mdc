@@ -22,6 +22,8 @@ alwaysApply: true
 
 `.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
 
+Mechanical evidence gate identical across clients — CI gate-check on PRs; local pre-push hook auto-installed by npm `prepare` blocks high-risk direct-to-main pushes without commit-message evidence (D-28/D-29).
+
 **Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
 
 ## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)
@@ -115,11 +117,22 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 
-Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**.
+Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**. After each verifier/gate verdict, log via `npm run verifier:log -- --role <role> --verdict <verdict> --task-id <id> --model <slug>`; `--real yes|no` labels non-PASS findings only (real vs noise; PASS rows stay `na`); `npm run verifier:stats` finding-precision output is admissible evidence for Harness V1 Freeze (D-16) decisions.
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
 When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+
+### Peer deliberation (D-30 — Dan 2026-07-12)
+
+Verifier findings are proposals, not orders — the verifier is a peer, never the boss. On receiving findings, the authoring/orchestrating agent MUST evaluate each on its merits: adopt what it agrees with; push back with explicit reasoning where it disagrees. Verifier and author exchange positions until genuine agreement (within the loop's existing max cycles), and only the AGREED change list goes to the implementer. Unresolved disagreement after max cycles → present BOTH positions to Dan — never silent compliance, never silent dismissal.
+
+- **Operational test:** each finding closes as exactly one of `adopted` | `rebutted (verifier agreed)` | `escalated to Dan`; the verifier's next turn must explicitly accept or reject each rebuttal (not merely restate FAIL).
+- **Security HIGH:** the author may rebut with reasoning, but an unresolved HIGH still blocks push (hard stop unchanged).
+- **Planning/Q&A loops:** "present only the verifier-PASS answer" does not override this — after max cycles with unresolved items, present both positions (existing exhausted-caveat path).
+- **Advisory lanes** (stall-advisor hypotheses, non-blocking Critical Reviewer notes): dispositions required only when a finding would change the artifact.
+- **Fix-closure unchanged:** the reporter re-verifies the AGREED fixes before closure.
+- **Evidence:** when findings ≥ 1, completion reports include a disposition line, e.g. `findings: 6 adopted, 2 rebutted (verifier agreed), 1 escalated to Dan`; omit or use `findings: none` when zero.
 
 ### Repair loop (Dan 2026-07-11 — extends § Fix-closure rule)
 

@@ -1,0 +1,26 @@
+# Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
+# the merge ref — this gate is advisory-vs-malice, protective-vs-honest-mistakes; branch
+# protection + human review remain the backstop for hostile PRs.
+name: gate-check
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  gate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+      - name: Run gate-check
+        env:
+          GATE_PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/gate-check.mjs --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
+      - name: Run gate-check unit tests
+        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs

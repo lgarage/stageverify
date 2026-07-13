@@ -143,7 +143,13 @@
     "indexer:demo-verify-failure": "node scripts/indexer-demo-verify-failure.mjs",
     "indexer:demo-deploy-failure": "node scripts/indexer-demo-deploy-failure.mjs",
     "demo:deploy-gh-pages-poll": "node scripts/demo-deploy-gh-pages-poll.mjs --assert",
-    "run-verify-with-learning": "node scripts/run-verify-with-learning.mjs"
+    "run-verify-with-learning": "node scripts/run-verify-with-learning.mjs",
+    "gate:check": "node scripts/gate-check.mjs",
+    "gate:check:test": "node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "verifier:log": "node scripts/verifier-log.mjs",
+    "verifier:stats": "node scripts/verifier-log.mjs --stats"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

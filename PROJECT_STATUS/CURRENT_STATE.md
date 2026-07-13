@@ -7,6 +7,7 @@
 ## Snapshot
 - **MVP: 97.89%** ? SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). �14 E2E **local + prod PASS**; **live email ingest prod proof** away-129 (**2** inbound in Needs Review; Gmail connected).
 - Last shipped: **vendor delivered hub UX** — stay on hub with ✓ Delivered; no Deliver Another (`v0.0.41`)
+- In progress: **D-28/D-29 harness gate-check + verifier-log** on `cursor/harness-gate-evidence-6544` (PR pending) — CI `gate-check` workflow + `verifier:log`/`verifier:stats`; ecosystem-wide (PR CI + desktop pre-push hook auto-installed via npm `prepare`, commit-message evidence via `--evidence-from-commits`); push-on-main CI trigger deferred until merge-commit PR-lookup exists; plus **D-30 peer deliberation** (verifier findings = proposals; adopted/rebutted/escalated dispositions in model-gates.mdc).
 - Active Phase: **Location-first Phase 4 complete** ? MVP email band closed; **2.11%** remaining (�14 E2E residual **1.71%**).
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-12; `audit:needs-review-ui:prod` PASS; `verify:email-oauth-connect:prod` PASS; `verify:inbound-email-ingest` PASS.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x ? https://lgarage.github.io/stageverify � Firestore `stageverify-db`
