@@ -65,9 +65,12 @@ export function VendorDeliveredHub({
     stagingLocation?.label ?? "Not assigned — dispatcher will stage";
 
   useEffect(() => {
-    if (isVendorDeliveryConfirmed(deliveryDetails.delivery)) {
-      setCtaPhase("delivered");
-    }
+    setCtaPhase((prev) => {
+      if (prev === "checkmark") return prev;
+      return isVendorDeliveryConfirmed(deliveryDetails.delivery)
+        ? "delivered"
+        : "idle";
+    });
   }, [
     deliveryDetails.delivery.vendorPhysicalDropoffConfirmed,
     deliveryDetails.delivery.vendorPhysicalDropoffConfirmedAt,
