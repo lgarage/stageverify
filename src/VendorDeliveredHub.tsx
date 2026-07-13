@@ -11,8 +11,10 @@ interface VendorDeliveredHubProps {
   error: string | null;
   geofenceOutside?: boolean;
   geofenceEnforce?: boolean;
+  reverting?: boolean;
   onDeliveryUpdated: (delivery: DeliveryOrder) => void;
   onDelivered: () => Promise<boolean>;
+  onUndoDelivered?: () => Promise<boolean>;
   onBack: () => void;
 }
 
@@ -47,8 +49,10 @@ export function VendorDeliveredHub({
   error,
   geofenceOutside = false,
   geofenceEnforce = false,
+  reverting = false,
   onDeliveryUpdated,
   onDelivered,
+  onUndoDelivered,
   onBack,
 }: VendorDeliveredHubProps) {
   const [showSpaceFlow, setShowSpaceFlow] = useState(false);
@@ -100,6 +104,11 @@ export function VendorDeliveredHub({
     }
   };
 
+  const handleUndoClick = async () => {
+    if (!onUndoDelivered || reverting || !isDelivered) return;
+    await onUndoDelivered();
+  };
+
   const deliverLabel =
     ctaPhase === "delivered"
       ? "Delivered"
@@ -108,51 +117,51 @@ export function VendorDeliveredHub({
         : "Mark Delivered";
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       {issueToast && (
         <div className="fixed top-4 left-4 right-4 z-40 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm text-text-primary shadow-lg">
           {issueToast}
         </div>
       )}
 
-      <div className="shrink-0 sticky top-0 z-10 grid grid-cols-2 gap-2.5 px-4 py-3 border-b border-border bg-bg-primary">
+      <div className="shrink-0 grid grid-cols-2 gap-2 px-4 py-2.5 border-b border-border bg-bg-primary">
         <button
           type="button"
           onClick={() => setShowSpaceFlow(true)}
-          className="rounded-xl bg-accent py-3.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity active:scale-[0.98]"
+          className="rounded-xl bg-accent py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity active:scale-[0.98]"
         >
           📦 Need More Space?
         </button>
         <button
           type="button"
           onClick={() => setShowIssueModal(true)}
-          className="rounded-xl bg-accent-amber py-3.5 text-sm font-semibold text-bg-primary hover:opacity-90 transition-opacity active:scale-[0.98]"
+          className="rounded-xl bg-accent-amber py-3 text-sm font-semibold text-bg-primary hover:opacity-90 transition-opacity active:scale-[0.98]"
         >
           ⚠️ Issue
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 pb-4">
-        <p className="text-center text-text-secondary text-sm mb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
+        <p className="text-center text-text-secondary text-sm mb-3">
           {job?.jobName ?? "Delivery"}
         </p>
 
         <div className="w-full bg-bg-surface rounded-2xl border border-border overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center gap-3.5">
-            <div className="size-16 shrink-0 rounded-xl bg-accent/15 text-accent font-mono text-2xl font-light flex items-center justify-center">
+          <div className="p-3 border-b border-border flex items-center gap-3">
+            <div className="size-12 shrink-0 rounded-xl bg-accent/15 text-accent font-mono text-xl font-light flex items-center justify-center">
               {locationCode}
             </div>
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-widest text-text-secondary">
                 Assigned location
               </p>
-              <p className="text-lg font-medium text-text-primary truncate">
+              <p className="text-base font-medium text-text-primary truncate">
                 {locationLabel}
               </p>
             </div>
           </div>
 
-          <div className="p-4 space-y-2">
+          <div className="p-3 space-y-1.5">
             {[
               ["Job / Site", job?.jobName ?? "—"],
               ["Vendor", vendor.name],
@@ -179,14 +188,16 @@ export function VendorDeliveredHub({
           </div>
         </div>
 
-        <p className="mt-5 text-center text-[13px] text-text-secondary leading-relaxed">
-          Confirm this is the correct delivery.
-          <br />
-          Inventory is verified by shop staff later.
+        <p className="mt-3 text-center text-xs text-text-secondary leading-snug">
+          Confirm this is the correct delivery. Inventory is verified by shop
+          staff later.
         </p>
       </div>
 
-      <div className="shrink-0 sticky bottom-0 z-10 px-4 pb-[calc(env(safe-area-inset-bottom,16px)+16px)] pt-3 border-t border-border bg-bg-primary space-y-2">
+      <div
+        className="shrink-0 px-4 pt-2 pb-[max(env(safe-area-inset-bottom,12px),12px)] border-t border-border bg-bg-primary space-y-2"
+        data-testid="vendor-hub-footer"
+      >
         {geofenceOutside && !isDelivered && (
           <p
             className="text-xs text-accent-amber text-center rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2"
@@ -198,7 +209,7 @@ export function VendorDeliveredHub({
               : "You appear to be outside the shop area."}
           </p>
         )}
-        {error && !isDelivered && (
+        {error && (
           <p className="text-xs text-accent-red text-center" role="alert">
             {error}
           </p>
@@ -209,7 +220,7 @@ export function VendorDeliveredHub({
           onClick={() => void handleDeliverClick()}
           aria-label={deliverLabel}
           data-testid="vendor-mark-delivered"
-          className={`action-btn action-btn-delivered w-full text-lg font-bold tracking-wide transition-all ${
+          className={`action-btn action-btn-delivered w-full text-base font-bold tracking-wide transition-all ${
             isDelivered ? "opacity-100 cursor-default" : "disabled:opacity-50"
           }`}
         >
@@ -226,6 +237,17 @@ export function VendorDeliveredHub({
           )}
           {ctaPhase === "idle" && "Mark Delivered"}
         </button>
+        {isDelivered && onUndoDelivered && (
+          <button
+            type="button"
+            disabled={reverting}
+            onClick={() => void handleUndoClick()}
+            data-testid="vendor-undo-delivery"
+            className="action-btn action-btn-secondary w-full"
+          >
+            {reverting ? "Reverting…" : "Undo Delivery"}
+          </button>
+        )}
         {!isDelivered && (
           <button
             type="button"
