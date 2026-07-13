@@ -294,11 +294,7 @@ export function ReceivingPage() {
 
       setDeliveryDetails(resolved);
       if (exceptionOnly) {
-        if (resolved.delivery.submittedAt) {
-          setStep("done");
-        } else {
-          setStep("hub");
-        }
+        setStep("hub");
       } else {
         setStep("items");
       }
@@ -563,9 +559,10 @@ export function ReceivingPage() {
     }
   };
 
-  const handleRevertDelivered = async () => {
-    if (!deliveryDetails) return;
+  const handleRevertDelivered = async (): Promise<boolean> => {
+    if (!deliveryDetails) return false;
     setReverting(true);
+    setError(null);
     try {
       const updated = await firestoreDataService.revertDeliveryStatus(
         deliveryDetails.delivery.id,
@@ -574,8 +571,17 @@ export function ReceivingPage() {
       );
       if (updated) {
         setDeliveryDetails(updated);
-        setStep("hub");
+        return true;
       }
+      return false;
+    } catch (err) {
+      if (isVendorSessionError(err)) {
+        setError(err.message);
+        handlePinSessionExpired();
+        return false;
+      }
+      setError("Failed to undo delivery");
+      return false;
     } finally {
       setReverting(false);
     }
@@ -760,20 +766,24 @@ export function ReceivingPage() {
         )}
 
         {step === "hub" && deliveryDetails && isExceptionOnly && (
-          <VendorDeliveredHub
-            deliveryDetails={deliveryDetails}
-            loading={loading}
-            error={error}
-            geofenceOutside={outsideGeofence === true}
-            geofenceEnforce={vendorGeofenceEnforce}
-            onDeliveryUpdated={(updated) => {
-              setDeliveryDetails((prev) =>
-                prev ? { ...prev, delivery: updated } : prev,
-              );
-            }}
-            onDelivered={() => handleMarkDelivered()}
-            onBack={resetFlow}
-          />
+          <div className="flex flex-1 min-h-0 flex-col">
+            <VendorDeliveredHub
+              deliveryDetails={deliveryDetails}
+              loading={loading}
+              error={error}
+              reverting={reverting}
+              geofenceOutside={outsideGeofence === true}
+              geofenceEnforce={vendorGeofenceEnforce}
+              onDeliveryUpdated={(updated) => {
+                setDeliveryDetails((prev) =>
+                  prev ? { ...prev, delivery: updated } : prev,
+                );
+              }}
+              onDelivered={() => handleMarkDelivered()}
+              onUndoDelivered={() => handleRevertDelivered()}
+              onBack={resetFlow}
+            />
+          </div>
         )}
 
         {step === "items" && deliveryDetails && !isExceptionOnly && (

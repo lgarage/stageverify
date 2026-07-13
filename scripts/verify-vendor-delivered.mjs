@@ -73,6 +73,18 @@ async function shot(page, name) {
   console.log(`  screenshot: ${path}`);
 }
 
+async function assertFooterInViewport(page, label) {
+  const footer = page.locator('[data-testid="vendor-hub-footer"]');
+  await footer.waitFor({ state: "visible", timeout: 15_000 });
+  const box = await footer.boundingBox();
+  const viewport = page.viewportSize();
+  const inView =
+    Boolean(box && viewport) &&
+    box.y >= 0 &&
+    box.y + box.height <= viewport.height + 2;
+  record(`${label} footer in viewport`, inView, inView ? "" : `y=${box?.y} h=${box?.height}`);
+}
+
 async function enterPin(page, digits) {
   for (const digit of digits) {
     await page.getByRole("button", { name: digit, exact: true }).click();
@@ -105,6 +117,7 @@ async function runDeliveredFlow(page) {
   await shot(page, "01-pin-gate");
   await unlockWithPin(page);
   record("PIN unlocks Delivered hub", true);
+  await assertFooterInViewport(page, "Hub after PIN");
   await shot(page, "02-delivered-hub");
 
   record(
@@ -133,6 +146,7 @@ async function runDeliveredFlow(page) {
 
   await page.waitForSelector("text=Expected items", { timeout: 10_000 });
   record("Delivery context card visible", true);
+  await assertFooterInViewport(page, "Pre-deliver");
 
   const spaceSheet = () => page.locator(".fixed.inset-0.z-50").last();
 
@@ -235,6 +249,14 @@ async function runDeliveredFlow(page) {
     return btn && /Delivered/i.test(btn.textContent ?? "");
   }, { timeout: 30_000 });
   record("Mark Delivered stays on hub with Delivered label", true);
+  await assertFooterInViewport(page, "Post-deliver");
+  record(
+    "Undo Delivery on delivered hub",
+    await page
+      .getByRole("button", { name: "Undo Delivery" })
+      .isVisible()
+      .catch(() => false),
+  );
   await shot(page, "08-delivery-confirmed");
 
   const body = await page.locator("body").innerText();
@@ -248,10 +270,15 @@ async function runDeliveredFlow(page) {
 }
 
 async function runRevertFlow(page) {
-  // --- Revert ---
+  // --- Revert on same hub screen ---
   await page.getByRole("button", { name: "Undo Delivery" }).click();
   await page.waitForSelector("text=Mark Delivered", { timeout: 30_000 });
-  record("Revert returns to Delivered hub", true);
+  record("Undo stays on hub with Mark Delivered CTA", true);
+  await assertFooterInViewport(page, "Post-undo");
+  record(
+    "No Delivery Confirmed screen after undo",
+    !(await page.getByText("Delivery Confirmed").isVisible().catch(() => false)),
+  );
   await shot(page, "09-reverted-to-hub");
 }
 
@@ -304,19 +331,11 @@ async function runDispatcherVisibility(browser) {
   }
 
   if (vendorPageAfterDelivered) {
-    const undoVisible = await vendorPageAfterDelivered
-      .getByRole("button", { name: "Undo Delivery" })
-      .isVisible()
-      .catch(() => false);
-    if (undoVisible) {
-      try {
-        await runRevertFlow(vendorPageAfterDelivered);
-      } catch (err) {
-        record("Revert flow", false, err.message ?? String(err));
-        await shot(vendorPageAfterDelivered, "error-revert-flow");
-      }
-    } else {
-      record("Revert flow", true, "skipped — Undo not on delivered hub (scan new QR for next delivery)");
+    try {
+      await runRevertFlow(vendorPageAfterDelivered);
+    } catch (err) {
+      record("Revert flow", false, err.message ?? String(err));
+      await shot(vendorPageAfterDelivered, "error-revert-flow");
     }
   }
 

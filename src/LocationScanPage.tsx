@@ -61,6 +61,8 @@ export function LocationScanPage() {
   const [error, setError] = useState<string | null>(null);
   const [outsideGeofence, setOutsideGeofence] = useState<boolean | null>(null);
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
+  const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
+  const [reverting, setReverting] = useState(false);
 
   const loadBranding = useCallback(async () => {
     if (!locationCode) {
@@ -93,6 +95,7 @@ export function LocationScanPage() {
   useEffect(() => {
     void getAppSettings().then((settings) => {
       setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
+      setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
       const lat = settings.shopLatitude;
       const lng = settings.shopLongitude;
       const radius = settings.shopGeofenceRadiusMeters;
@@ -255,6 +258,33 @@ export function LocationScanPage() {
     }
   };
 
+  const handleRevertDelivered = async (): Promise<boolean> => {
+    if (!deliveryDetails) return false;
+    setReverting(true);
+    setError(null);
+    try {
+      const updated = await firestoreDataService.revertDeliveryStatus(
+        deliveryDetails.delivery.id,
+        "vendor",
+        revertWindowMinutes,
+      );
+      if (updated) {
+        setDeliveryDetails(updated);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      if (isVendorSessionError(err)) {
+        handlePinSessionExpired();
+        return false;
+      }
+      setError("Failed to undo delivery");
+      return false;
+    } finally {
+      setReverting(false);
+    }
+  };
+
   const resetFlow = () => {
     if (jobId) clearJobPinSession(jobId);
     setJobId(null);
@@ -392,23 +422,27 @@ export function LocationScanPage() {
             </p>
           </div>
         )}
-        <VendorDeliveredHub
-          deliveryDetails={deliveryDetails}
-          loading={loading}
-          error={error}
-          geofenceOutside={outsideGeofence === true}
-          geofenceEnforce={vendorGeofenceEnforce}
-          onDeliveryUpdated={(updated) => {
-            setDeliveryDetails((prev) =>
-              prev ? { ...prev, delivery: updated } : prev,
-            );
-          }}
-          onDelivered={() => handleMarkDelivered()}
-          onBack={() => {
-            if (deliveries.length > 1) setStep("list");
-            else resetFlow();
-          }}
-        />
+        <div className="flex flex-1 min-h-0 flex-col">
+          <VendorDeliveredHub
+            deliveryDetails={deliveryDetails}
+            loading={loading}
+            error={error}
+            reverting={reverting}
+            geofenceOutside={outsideGeofence === true}
+            geofenceEnforce={vendorGeofenceEnforce}
+            onDeliveryUpdated={(updated) => {
+              setDeliveryDetails((prev) =>
+                prev ? { ...prev, delivery: updated } : prev,
+              );
+            }}
+            onDelivered={() => handleMarkDelivered()}
+            onUndoDelivered={() => handleRevertDelivered()}
+            onBack={() => {
+              if (deliveries.length > 1) setStep("list");
+              else resetFlow();
+            }}
+          />
+        </div>
       </div>
     );
   }
