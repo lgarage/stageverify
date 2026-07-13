@@ -35,6 +35,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-12: new rules kept opting into platform parity one by one (per-rule D-20 clauses in D-21/D-22/D-23) — Dan wanted parity **assumed** for every new rule across desktop PC, mobile Cursor, and cloud VM, with only physically-impossible exceptions declared (D-32).
 - 2026-07-12: question-triggered verifier loops risked one-way verdicts and verifier-authored text reaching Dan — wanted mandatory peer deliberation on every qualifier/verifier call with the orchestrating agent (Composer) authoring the final note in one consistent voice (D-33).
 - 2026-07-12: routing rules read as cost-minimization ("Billing:" framing) — Dan restated the purpose: trust is the goal, cost is the constraint; cheap output without verifier agreement is pointless; worker+verifier must agree before the orchestrator replies, on every client (D-34).
+- 2026-07-13: Dan had to declare "I'm on my phone/mobile" for the system to behave, and D-27 trigger phrases treated device mentions as routing signals — wanted mechanical environment detection (PC vs cloud VM) with device statements as ergonomic context only (D-35).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

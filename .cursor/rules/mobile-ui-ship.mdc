@@ -9,14 +9,14 @@ alwaysApply: true
 
 ## When this applies
 
-Dan asks for a **mobile UI change** — layout, copy, buttons, colors, visibility, or interaction on phone-first surfaces. Includes explicit (“mobile UI”, “on my phone”, “iPhone”, “vendor check-in screen”) or implicit when the task clearly targets:
+Dan asks for a **mobile UI change** — layout, copy, buttons, colors, visibility, or interaction on **phone-first product surfaces**. The trigger is the task's target surface — explicit ("mobile UI", "vendor check-in screen") or implicit when the task clearly targets the surfaces below. **Never keyed to which device Dan is using** — "on my phone" / "iPhone" as statements about Dan's device are ergonomic context, not routing signals (D-35); the device phrase alone never fires this rule, but implicit task context (thread/open files already targeting a listed surface) does count:
 
 | Surface | Typical routes / files |
 |---------|-------------------------|
 | Vendor check-in | `ReceivingPage`, `VendorDeliveredHub`, `VendorPinGate`, `/#/receive`, `/#/demo/vendor-scan` |
 | Pickup portal | `PickupPortalPage`, `/#/pickup`, `/#/demo/pickup-scan` |
 | Location / scan | `LocationScanPage`, `EntryDisplayPage`, `MobileHubPage` |
-| Public mobile flows | Other public routes exercised on phone (not dispatcher desktop dashboard unless Dan says mobile) |
+| Public mobile flows | Other public routes exercised on phone (not dispatcher desktop dashboard unless the task explicitly targets its phone-first rendering) |
 
 **Not in scope:** backend-only, Firestore/CF, auth rules, data model — follow normal tier/approval; no auto-deploy if high-risk gate blocks.
 
