@@ -59,8 +59,8 @@
       "subtype": "cf-ingest",
       "slice": {
         "file": "PROJECT_STATUS/MEMORY.md",
-        "startLine": 69,
-        "endLine": 69,
+        "startLine": 57,
+        "endLine": 57,
         "anchor": "| **Security gate (CF/auth/rules)** |"
       },
       "relatedFiles": [

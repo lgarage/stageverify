@@ -9,7 +9,7 @@ alwaysApply: true
 
 **BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc`.
 
-> **Billing:** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
+> **Quota (constraint, not purpose — see § Trust over cost, D-34):** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
 
 | Tier | Archetypes | Model |
 |------|-----------|-------|
@@ -18,6 +18,16 @@ alwaysApply: true
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — Sonnet security gate before push |
 
+## Trust over cost (D-34 — Dan 2026-07-12, authoritative purpose statement)
+
+**The end goal of model routing is trusted output, not saved money.** A cheap model whose output cannot be trusted is pointless to use; a cheap model **paired with a verifier that reaches genuine agreement** is the product. Cost is the constraint; trust is the goal.
+
+- **Default pattern (every verifier-paired task):** route the task to the cheapest appropriate worker (tier table above) → pair it with its routed verifier lane (§ Verification ladder) → worker and verifier **deliberate as peers until both agree** — proposals + adopt/rebut + explicit accept/reject, per § Peer deliberation (D-30) and § Question deliberation (D-33); existing max cycles per lane unchanged → **only after agreement does the orchestrator (currently Composer 2.5 by default) present the result as done / as the answer** (post-ship lanes like Ship Verifier stay post-push evidence + fix-closure — this governs what is presented as trusted, not mid-ship mechanics). This extends D-33's deliberate→agree→orchestrator-presents pattern from questions to **all** verifier-paired work.
+- **Tier table = trust calibration, not a price list:** escalation (2-fail, stall-advisor, Sonnet diagnose, Fable) exists for when agreement cannot be reached at the cheap tier — not because a costlier model is inherently better for the task.
+- **Trivial-skip carve-outs unchanged** (typos, single-fact lookups, excluded ship paths, pure mechanical checks): those are tasks where Tier-0 mechanical checks alone establish trust — the skip is a trust judgment, not a cost dodge.
+- **No unverified cheap output reaches Dan** on any lane where a verifier trigger fired: missing evidence line = NOT RUN = not trusted = not presented as done.
+- Parity automatic per D-32 (desktop Windows PC, mobile Cursor, cloud VM).
+
 ## Platform parity (D-20 — all Composer sessions)
 
 `.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A verifiers, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
@@ -25,6 +35,8 @@ alwaysApply: true
 Mechanical evidence gate identical across clients — CI gate-check on PRs; local pre-push hook auto-installed by npm `prepare` blocks high-risk direct-to-main pushes without commit-message evidence (D-28/D-29).
 
 **Exceptions** — mobile/cloud differ **only** where physically impossible (e.g. Dan must tap secrets in Cursor Environments UI; branch-only ship when the prompt forbids `main` push). Document exceptions in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, not in separate rule files.
+
+**Parity by default (D-32 — Dan 2026-07-12):** every **new** rule, gate, loop, script, or workflow is platform-parity **by default** — it binds desktop Windows PC, mobile Cursor, and cloud VM identically the moment it is created. New rules do NOT need a per-rule "Platform parity" clause (existing clauses stay as documentation, not opt-ins); enforcement mechanics must be client-neutral (node scripts via `path.join` + `readText()` CRLF-normalize; hooks via npm `prepare`; CI on PRs). Mobile parity means alwaysApply rules + cloud-VM execution mechanics — the phone itself runs no local git or hooks. The only thing a new rule may declare is an **exception**, and only when physically impossible on a client — documented in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, never silently assumed. A rule that works on one client and not the others is a bug, not a variant.
 
 ## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)
 
@@ -173,7 +185,7 @@ Task({
 - roadmap / priority / queue planning / ranked options
 - away planning (Plan → Approve → Queue — not away **execute**)
 
-**Flow:** scouts per `parallel-agent-strategy.mdc` § Planning question protocol → Composer synthesizes draft → dispatch **Planning Verifier** → PARTIAL/FAIL → Composer revises draft only → **same verifier** re-verify per § Fix-closure rule → repeat until PASS. **Max 3 cycles** (initial verify + up to 2 Composer revise→re-verify rounds); then present with **`Caveat: planning-verifier exhausted`**. **Only present Dan the Grok-PASS answer** (or exhausted caveat). Composer never self-closes a planning finding.
+**Flow:** scouts per `parallel-agent-strategy.mdc` § Planning question protocol → Composer synthesizes draft → dispatch **Planning Verifier** → PARTIAL/FAIL → Composer revises draft only → **same verifier** re-verify per § Fix-closure rule → repeat until PASS. **Max 3 cycles** (initial verify + up to 2 Composer revise→re-verify rounds). Present the Grok-PASS answer when PASS; on max-cycle exhaustion present **both positions** with **`Caveat: planning-verifier exhausted`** per § Question deliberation (D-33). Composer never self-closes a planning finding.
 
 **Verifier:** Grok 4.5 Fast — one Task per revision cycle:
 
@@ -201,7 +213,7 @@ Task({
 
 **Skip:** trivial typos; single-fact lookup with one authoritative source; pure code execution with no recommendation; planning triggers already covered by § Planning verify loop (do not double-dispatch).
 
-**Flow:** gather sources → draft privately → dispatch **Q&A Verifier** → FAIL/PARTIAL → Composer revises draft only → same Grok re-verify once → present PASS answer (or `Caveat:` if still uncertain). **Max 2 cycles** (initial + one revise). Composer never self-closes a Q&A finding.
+**Flow:** gather sources → draft privately → dispatch **Q&A Verifier** → FAIL/PARTIAL → Composer revises draft only → same Grok re-verify once → present PASS answer; if still unresolved, present **both positions** with a `Caveat:` per § Question deliberation (D-33). **Max 2 cycles** (initial + one revise). Composer never self-closes a Q&A finding.
 
 **Verifier:** Grok 4.5 Fast — one Task per cycle:
 
@@ -220,6 +232,15 @@ Task({
 **Orthogonal roles:** Q&A verifier = pre-present factual/explanatory accuracy; Planning verifier = ranked options/roadmap; Repair/Ship/stall/Critical = unchanged. Same Grok slug; one Task per role per event.
 
 **Platform parity:** Q&A verify loop follows § Platform parity (D-20/D-22) — desktop Windows PC, mobile Cursor, and cloud VM identical.
+
+### Question deliberation — orchestrator presents (D-33 — Dan 2026-07-12)
+
+**Trigger:** any Dan question that dispatches a qualifier/verifier model (Q&A Verifier, Planning Verifier, or any verifier/reviewer consulted to shape an answer).
+
+- **Deliberate, don't dictate:** the drafting agent and the verifier exchange positions as **peers** until genuine agreement on the best answer — verifier findings are proposals; the author adopts or rebuts with reasoning; the verifier's next turn explicitly accepts or rejects each rebuttal (never merely restates its verdict). Existing max cycles unchanged (Q&A 2; Planning 3).
+- **Orchestrator presents:** the final note to Dan is always authored and delivered by the session's orchestrating agent (currently Composer 2.5 by default) in its own words — **never raw verifier output pasted as the answer**. Verifier contribution appears only as evidence lines (`qa-verifier:`, `planning-verifier:`, `fix-verified:`, `findings:`).
+- **Unresolved after max cycles:** the orchestrator presents **both positions** with a `Caveat:` line — never silent compliance, never silent dismissal.
+- Platform parity automatic per D-32 default (desktop Windows PC, mobile Cursor, cloud VM).
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 

@@ -261,7 +261,9 @@ function validateMemoryMd() {
   const md = readText(PATHS.memoryMd);
   const lineCount = md.split("\n").length;
   if (lineCount > 70) {
-    warn(`MEMORY.md: ${lineCount} lines (target ≤70)`);
+    fail(
+      `MEMORY.md: ${lineCount} lines (hard cap ≤70) — compress in-session (deletions/compressions are always freeze-legal, D-15/D-17); do NOT raise the cap (D-31)`,
+    );
   }
   for (const pointer of [
     "CURRENT_STATE.md",

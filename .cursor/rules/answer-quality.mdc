@@ -13,7 +13,7 @@ Plans, handoffs, recommendations, architecture, away prompts, "what's next", "wh
 
 **Planning questions:** Grok Planning Verifier per `model-gates.mdc` § Planning verify loop is mandatory before present — Composer self-challenge alone does not satisfy this gate.
 
-**Q&A questions (Dan standing preference — all clients, desktop PC + cloud):** Before presenting any non-trivial Q&A answer (how/why/where/explain/recommend/clarify), draft privately then dispatch one read-only **Q&A Verifier** (Grok) per `model-gates.mdc` § Q&A verify loop. Revise once from Grok feedback; present only the verified answer. End reply with `qa-verifier: <task-id>` + `model: grok-4.5-fast-xhigh`, or `qa-verifier: N/A (trivial)` / `qa-verifier: N/A (planning-verifier)` when skipped.
+**Q&A questions (Dan standing preference — all clients, desktop PC + cloud):** Before presenting any non-trivial Q&A answer (how/why/where/explain/recommend/clarify), draft privately then dispatch one read-only **Q&A Verifier** (Grok) per `model-gates.mdc` § Q&A verify loop. Deliberate as peers per `model-gates.mdc` § Question deliberation (D-33) — findings are proposals, adopt or rebut with reasoning; the orchestrating agent (currently Composer 2.5) authors the final note, never raw verifier output. End reply with `qa-verifier: <task-id>` + `model: grok-4.5-fast-xhigh`, or `qa-verifier: N/A (trivial)` / `qa-verifier: N/A (planning-verifier)` when skipped.
 
 **Skip Q&A Verifier:** trivial typos; single-fact read-only lookups with one authoritative source; pure code execution with no recommendation; planning questions already covered by § Planning verify loop (do not double-dispatch).
 
@@ -39,7 +39,7 @@ Authority order: `AWAY_BUILD_PROTOCOL.md` → `composer-orchestrator.mdc` → do
 
 Deliver **final** copy-paste block on first present. Read `away-list.json` + `away-status.json`; verify npm scripts in `package.json`; self-contained scope + real away-NNN ids (`npm run away:next -- --minimal`); `startedAt` placeholder; execute prompts need **"go build it"**; backend scope → Sonnet gate before push per `security-review-gate.mdc`.
 
-Bias: ship StageVerify faster/cheaper; cost/token efficiency; simple workflow; repo-grounded answers.
+Bias: trusted output first — cost is the constraint, never the goal (D-34); ship StageVerify fast with cheap worker + verifier agreement; simple workflow; repo-grounded answers.
 
 ## Completion report
 
