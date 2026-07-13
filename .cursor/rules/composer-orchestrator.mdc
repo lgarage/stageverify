@@ -239,7 +239,7 @@ After every substantive **code or config** change, run the **model audit** proto
 When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § **Time-bound suggestions** + **Remaining time options**. Filter before present: only in-budget items under **Fits now** / **To continue**; out-of-budget → **Save for later** with no CTA. Queue via `away:next` / `away-list.json`; verify per `answer-quality.mdc` (time-bound filter step).
 
 ### Pre-edit gate
-**Announce-and-go.** State archetype + tier + model per `model-gates.mdc`, then run `npm run context:lessons -- --type <type>/<subtype>` when Type/Subtype are known (slice only — not full `LIBRARIAN_LESSONS.md`), then immediately start editing. Do not wait for a "go ahead" reply.
+**Announce-and-go (Dan-nonblocking).** State archetype + tier + model per `model-gates.mdc`, then run `npm run context:lessons -- --type <type>/<subtype>` when Type/Subtype are known (slice only — not full `LIBRARIAN_LESSONS.md`). Never wait for a "go ahead" reply from Dan — but for **substantive work directives** (Ship Verifier path class), draft a solution proposal and reach Grok agreement per `model-gates.mdc` § Solution deliberation (D-36) **before the first edit**; skips (T0 single-file unambiguous, repair/planning/Q&A-owned, approved away specs, Critical-subsumed) start editing immediately.
 
 ### Git commits + push (mandatory — user standing preference)
 **Always commit and push** after any code or project-status changes in this repo. Do not wait to be asked. This overrides generic "commit only when requested" guidance for stageverify.
