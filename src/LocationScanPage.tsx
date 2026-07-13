@@ -414,7 +414,7 @@ export function LocationScanPage() {
 
   if (step === "hub" && deliveryDetails) {
     return (
-      <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
+      <div className="app-container vendor-mobile-shell bg-bg-primary">
         {branding && (
           <div className="shrink-0 px-6 py-3 border-b border-border bg-bg-surface text-center">
             <p className="text-xs text-text-secondary">

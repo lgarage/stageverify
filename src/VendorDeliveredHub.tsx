@@ -117,14 +117,14 @@ export function VendorDeliveredHub({
         : "Mark Delivered";
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="vendor-hub-layout h-full min-h-0">
       {issueToast && (
         <div className="fixed top-4 left-4 right-4 z-40 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm text-text-primary shadow-lg">
           {issueToast}
         </div>
       )}
 
-      <div className="shrink-0 grid grid-cols-2 gap-2 px-4 py-2.5 border-b border-border bg-bg-primary">
+      <header className="vendor-hub-header grid grid-cols-2 gap-2 px-4 py-2.5 border-b border-border bg-bg-primary">
         <button
           type="button"
           onClick={() => setShowSpaceFlow(true)}
@@ -139,9 +139,9 @@ export function VendorDeliveredHub({
         >
           ⚠️ Issue
         </button>
-      </div>
+      </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
+      <main className="vendor-hub-scroll px-4 py-3">
         <p className="text-center text-text-secondary text-sm mb-3">
           {job?.jobName ?? "Delivery"}
         </p>
@@ -192,10 +192,10 @@ export function VendorDeliveredHub({
           Confirm this is the correct delivery. Inventory is verified by shop
           staff later.
         </p>
-      </div>
+      </main>
 
-      <div
-        className="shrink-0 px-4 pt-2 pb-[max(env(safe-area-inset-bottom,12px),12px)] border-t border-border bg-bg-primary space-y-2"
+      <footer
+        className="vendor-hub-footer px-4 pt-2 border-t border-border bg-bg-primary space-y-2"
         data-testid="vendor-hub-footer"
       >
         {geofenceOutside && !isDelivered && (
@@ -257,7 +257,7 @@ export function VendorDeliveredHub({
             ← Back
           </button>
         )}
-      </div>
+      </footer>
 
       {showSpaceFlow && (
         <VendorNeedMoreSpaceFlow

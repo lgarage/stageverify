@@ -76,13 +76,32 @@ async function shot(page, name) {
 async function assertFooterInViewport(page, label) {
   const footer = page.locator('[data-testid="vendor-hub-footer"]');
   await footer.waitFor({ state: "visible", timeout: 15_000 });
-  const box = await footer.boundingBox();
+  const deliverBtn = page.locator('[data-testid="vendor-mark-delivered"]');
   const viewport = page.viewportSize();
-  const inView =
-    Boolean(box && viewport) &&
-    box.y >= 0 &&
-    box.y + box.height <= viewport.height + 2;
-  record(`${label} footer in viewport`, inView, inView ? "" : `y=${box?.y} h=${box?.height}`);
+  const deliverBox = await deliverBtn.boundingBox();
+  const deliverInView =
+    Boolean(deliverBox && viewport) &&
+    deliverBox.y >= 0 &&
+    deliverBox.y + deliverBox.height <= viewport.height + 2;
+  record(`${label} deliver CTA in viewport`, deliverInView, deliverInView ? "" : `y=${deliverBox?.y}`);
+  const undoBtn = page.locator('[data-testid="vendor-undo-delivery"]');
+  if (await undoBtn.isVisible().catch(() => false)) {
+    const undoBox = await undoBtn.boundingBox();
+    const undoInView =
+      Boolean(undoBox && viewport) &&
+      undoBox.y >= 0 &&
+      undoBox.y + undoBox.height <= viewport.height + 2;
+    record(`${label} undo CTA in viewport`, undoInView, undoInView ? "" : `y=${undoBox?.y}`);
+  }
+  const header = page.locator(".vendor-hub-header");
+  if (await header.isVisible().catch(() => false)) {
+    const headerBox = await header.boundingBox();
+    const headerInView =
+      Boolean(headerBox && viewport) &&
+      headerBox.y >= 0 &&
+      headerBox.y + headerBox.height <= viewport.height + 2;
+    record(`${label} header actions in viewport`, headerInView);
+  }
 }
 
 async function enterPin(page, digits) {

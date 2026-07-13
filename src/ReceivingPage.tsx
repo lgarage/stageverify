@@ -130,6 +130,14 @@ export function ReceivingPage() {
   }, []);
 
   useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!deliveryDetails) return;
     const deliveryId = deliveryDetails.delivery.id;
     if (itemQtyInitDeliveryIdRef.current === deliveryId) return;
@@ -684,7 +692,7 @@ export function ReceivingPage() {
   if (step === "pin" && pendingDeliveryId) {
     if (pinUnlocking || pinLoadError) {
       return (
-        <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
+        <div className="app-container vendor-mobile-shell bg-bg-primary">
           <div className="flex flex-1 flex-col items-center justify-center px-6 py-8">
             <p className="text-center text-text-secondary text-sm mb-4">
               Vendor Portal
@@ -719,7 +727,7 @@ export function ReceivingPage() {
   }
 
   return (
-    <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
+        <div className="app-container vendor-mobile-shell bg-bg-primary">
       <div className="flex flex-1 flex-col overflow-hidden min-h-0">
         {toast && <Toast message={toast} />}
 
