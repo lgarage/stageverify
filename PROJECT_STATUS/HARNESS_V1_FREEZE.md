@@ -37,6 +37,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-12: routing rules read as cost-minimization ("Billing:" framing) — Dan restated the purpose: trust is the goal, cost is the constraint; cheap output without verifier agreement is pointless; worker+verifier must agree before the orchestrator replies, on every client (D-34).
 - 2026-07-13: Dan had to declare "I'm on my phone/mobile" for the system to behave, and D-27 trigger phrases treated device mentions as routing signals — wanted mechanical environment detection (PC vs cloud VM) with device statements as ergonomic context only (D-35).
 - 2026-07-13: direct work directives to Composer went straight to implementation (announce-and-go) with solution-level Grok review only post-ship — Dan wanted propose → deliberate → agree BEFORE building, not verification after the fact (D-36; Dan-directed reopen).
+- 2026-07-17: orchestrating agent (Fable) edited rule files directly during the 2026-07-12/13 governance sessions instead of dispatching Composer — Dan directed: work is Composer's; the dispatching agent verifies the returned work (D-37, additive only).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
