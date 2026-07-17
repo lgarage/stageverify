@@ -34,12 +34,11 @@
       "title": "§14 E2E residual — prod verify bundle after vendor hub v0.0.44",
       "status": "queued",
       "dependsOn": "away-129",
-      "scope": "After vendor hub iPhone/Safari ship (v0.0.44): re-run MVP prod verify bundle — verify:mvp-core-regression:prod, verify:vendor-delivered:prod, verify:phase14-e2e:prod. Fix any regressions from ReceivingPage/VendorDeliveredHub layout changes. If all PASS, update MVP_PATH §14 exit checklist and SSOT % for residual band (1.71%). Windows prod: cmd /c env prefix per gotcha-map.",
-      "acceptance": "All three :prod scripts exit 0; MVP_PATH + CURRENT_STATE updated if §14 residual closes; away:validate passes.",
+      "scope": "After vendor hub iPhone/Safari ship (v0.0.44): re-run MVP prod verify bundle — verify:mvp-core-regression:prod, verify:phase14-e2e:prod (includes vendor-delivered leg). Fix any regressions from ReceivingPage/VendorDeliveredHub layout changes. If all PASS, update MVP_PATH SSOT % for §14 residual band (1.71%). Windows prod: cmd /c env prefix per gotcha-map.",
+      "acceptance": "Both :prod scripts exit 0; MVP_PATH + CURRENT_STATE updated if §14 residual closes; away:validate passes.",
       "tier": "T1",
       "verifyBeforeNext": [
         "npm run build",
-        "npm run verify:vendor-delivered:prod",
         "npm run verify:mvp-core-regression:prod",
         "npm run verify:phase14-e2e:prod"
       ]

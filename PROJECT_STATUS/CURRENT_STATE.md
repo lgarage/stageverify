@@ -7,10 +7,10 @@
 ## Snapshot
 - **MVP: 97.89%** — SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). §14 E2E local + prod PASS (2026-07-12); **residual band 1.71%** pending post–vendor-hub re-verify.
 - Last shipped: **vendor hub fixed chrome** — top/bottom pinned, middle scrolls, svh above Safari URL bar (`v0.0.44`, `1b808e3`).
-- **Harness:** D-28–D-36 **on main** (`10eb4d5`) — gate-check CI, verifier-log, solution deliberation; stale “PR pending” lines removed 2026-07-16.
+- **Harness:** D-28–D-36 **on main** — gate-check CI, verifier-log, solution deliberation (shipped pre–Jul 16 pull).
 - Active Phase: **Location-first Phase 4 complete** — MVP email band closed (away-128/129); **2.11%** to done.
 - **Verify (2026-07-12):** mvp-core-regression, phase14-e2e, inbound-email — **re-run needed** after v0.0.44 vendor hub.
-- Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db` · **main `10eb4d5`**
+- Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
 1. **Shelving decision (Jake Korb)** — shop map / location IDs.
@@ -18,7 +18,7 @@
 3. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven; see `project_state.md` for push-primary.
 
 ## Immediate Next Step
-- **away-130** — §14 E2E residual prod verify bundle after vendor hub v0.0.44 (`verify:mvp-core-regression:prod` + vendor-delivered + phase14-e2e).
+- **away-130** — §14 E2E residual prod verify bundle after vendor hub v0.0.44 (`verify:mvp-core-regression:prod` + `verify:phase14-e2e:prod`).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
