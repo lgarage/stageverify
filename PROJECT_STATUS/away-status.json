@@ -199,7 +199,7 @@
       "id": "away-130",
       "title": "§14 E2E residual — prod verify bundle after vendor hub v0.0.44",
       "status": "built",
-      "commit": "16dad75",
+      "commit": "6c08ad8",
       "note": "§14 E2E residual prod PASS post v0.0.44; Windows verify:dispatcher-nav:prod --base-url fix; MVP 99.60%"
     }
   ],
