@@ -6,7 +6,7 @@
 
 ## Current percent (SSOT)
 
-**99.60%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
+**100.00%** — MVP done; SSOT reconciled 2026-07-16 (explicit docs-only decision). Update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
 
 ## Standing directive (all future sessions)
 
@@ -27,9 +27,9 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 | Core loop (vendor → stage → pickup) | 65% | 1.00 | **0.00%** |
 | Email / Condition 1 ingest | 20% | 1.00 | **0.00%** |
 | §14 full E2E integration gate | 15% | 1.00 | **0.00%** |
-| **Total remaining** | — | — | **0.40%** → 100.00% |
+| **Total remaining** | — | — | **0.00%** |
 
-\*Band scores reflect exit-criteria closure (all four checklist items done). **0.40%** is **2-decimal rounding residue** from partial-credit increments (`100.00 − 99.60`); not open MVP work. Reconcile to **100.00%** only via explicit SSOT decision — do not auto-bump on band table alone.
+\*Band scores reflect exit-criteria closure (all four checklist items done). **0.40%** rounding residue from partial-credit increments (`100.00 − 99.60`) was **reconciled to 100.00%** via explicit SSOT decision on **2026-07-16** (docs-only; no product code shipped). All four exit criteria were already done; remainder was SSOT math only.
 
 **Explicitly out of MVP scope (D-26 — not in %, criteria, or path):** e-tags / ESL / Minew / §14 step 26; location-first Phases 5–6; Phases 7–9 AI automation; App Check; harness/agent-ops; physical shop-map/sign printing (Jake Korb). Post-MVP product: `ESL_INTEGRATION_PLAN.md`.
 
@@ -60,6 +60,8 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 ---
 
 ## Fastest path to MVP (priority order)
+
+**MVP done at 100.00%** (2026-07-16 SSOT reconcile). Table below is historical closure record only.
 
 | # | Action | Closes | Owner | Blocks daily loop? |
 |---|--------|--------|-------|-------------------|
@@ -115,5 +117,6 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 2026-07-12 | 93.89 | Composer | Live email deploy confirm away-128 (+4.00% email band); CF+rules prod |
 | 2026-07-12 | 97.89 | Composer | Live ingest prod proof away-129 (+4.00% email band); 2 inbound in Needs Review; Gmail connected |
 | 2026-07-17 | 99.60 | Composer | away-130 §14 E2E residual prod re-verify (+1.71% §14 band); post–vendor hub v0.0.44 |
+| 2026-07-16 | 100.00 | Composer | Explicit SSOT reconcile (docs-only); 0.40% rounding residue closed; all four exit criteria already done; no product code shipped |
 
 Re-assess when any exit criterion closes or a major phase ships. **Do not** bump % without shipped+verified milestone evidence.
