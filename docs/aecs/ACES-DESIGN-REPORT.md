@@ -1,6 +1,7 @@
 # ACES Design Report — Agent Control Engineering System
 
-> **Status:** Living design document (2026-07-12) — Grok-verified PASS (93/100)  
+> **Status:** Living design document (2026-07-17) — Grok-verified PASS (93/100)  
+> **Updated through D-37** (deliberation era: D-28–D-37)  
 > **Audience:** Dan, future agents, and anyone adopting or extending the harness  
 > **Authority:** Meta/planning — describes the system; live behavior is enforced by `.cursor/rules/` + `agent-ops` skill until an installer target adopts ACES outputs  
 > **Naming:** **ACES** is the product name. Code paths and npm scripts still use **`aecs/`** (legacy AECS prefix) until a dedicated rename release.
@@ -61,7 +62,7 @@ Health snapshot (from Phase 1 audit, updated by later phases):
 
 - A **rules + gates + scripts + memory** system that constrains agent behavior
 - An **orchestration profile** (StageVerify uses `composer-default`: Composer 2.5 Fast orchestrates inline; Sonnet/Fable/Grok for verification roles)
-- A **verification ladder** — mechanical checks (build, Playwright, npm verify scripts) plus cheap model verifiers (Grok) and expensive gates (Sonnet security, Fable work verifier)
+- A **verification ladder** — mechanical checks (build, Playwright, npm verify scripts) plus cheap model verifiers (Grok, including Solution Verifier pre-implementation) and expensive gates (Sonnet security, Fable work verifier); peer deliberation (D-30) governs how verifier findings are treated
 - A **memory architecture** — hot/warm/cold tiers, away queue, decision registry, lessons learned, gotcha map, estimate log
 - A **learning loop** — outcomes in `cursor-agent-brain`, indexer overflow, auto-capture from verify/deploy failures, promotion to gotcha-map and lessons
 - A **portability program** — manifest, templates, installer, updater, rollback, export (Phases 2–5)
@@ -69,7 +70,7 @@ Health snapshot (from Phase 1 audit, updated by later phases):
 ### ACES **is not**
 
 - The StageVerify product (`src/`, `functions/`, Firestore rules for product behavior)
-- A replacement for Composer as the default implementer (Composer implements; verifiers verify)
+- A replacement for Composer as the default implementer (Composer implements; verifiers verify; non-Composer orchestrators dispatch Composer and verify returned work per D-37)
 - The full ACES Librarian agent (that role does not orchestrate software development — see §11)
 - Fully autonomous self-modification of portable core without human approval
 - A signed, remote-downloadable package (Phase 5 is local-only)
@@ -149,7 +150,7 @@ Cursor system prompt
 | Profile | Orchestrator | Gate style | Default for |
 |---------|-------------|------------|-------------|
 | `sonnet-default` | Sonnet 4.6 | Wait for proceed | New ACES targets (manifest default) |
-| `composer-default` | Composer 2.5 Fast | Announce-and-go | **StageVerify** (billing-optimized) |
+| `composer-default` | Composer 2.5 Fast | Announce-and-go (Dan-nonblocking — never Grok-skip) | **StageVerify** (billing-optimized) |
 
 StageVerify intentionally overrides the global `agent-ops` SKILL §10 Sonnet-default via `agent-ops.mdc` — documented as an orchestration profile, not an accident.
 
@@ -161,14 +162,14 @@ StageVerify intentionally overrides the global `agent-ops` SKILL §10 Sonnet-def
 | **Scout** | `explore` or readonly Task subagent | No | No |
 | **Domain executor** | Composer inline or Task (disjoint paths only) | Yes (scoped paths) | No — coordinator merges and ships |
 | **Security verifier** | Sonnet 4.6 Task (`security-review`) | No | No — verdict only |
-| **Ship / Repair / Planning / Q&A verifier** | Grok 4.5 Fast Task (readonly) | No | No |
+| **Ship / Repair / Planning / Q&A / Solution verifier** | Grok 4.5 Fast Task (readonly) | No | No |
 | **Stall advisor** | Grok 4.5 Fast (readonly) | No | No |
 | **Work verifier** | Fable 5 Task (readonly) | No | No |
 | **Diagnose-only escalation** | Sonnet 4.6 after 2-fail rule | No | No — Composer implements after |
 
-**Hard rule:** Subagents do not commit, push, deploy, or mark away items done. Fable and Sonnet on diagnosis/verify paths never implement.
+**Hard rule:** Subagents do not commit, push, deploy, or mark away items done. Fable and Sonnet on diagnosis/verify paths never implement. **Dispatcher verifies (D-37):** when a non-Composer orchestrator (Fable, Sonnet, etc.) dispatches Composer to implement, that dispatching agent never edits files itself — it MUST verify the returned diff (scope read, build / `away:validate` / `verify:*`, normal verifier lanes) before ship or present.
 
-### Pre-edit gate (announce-and-go)
+### Pre-edit gate (announce-and-go — Dan-nonblocking, not Grok-skip)
 
 Before any file edit, the orchestrator states:
 
@@ -177,6 +178,8 @@ Before any file edit, the orchestrator states:
 3. **Dispatch** — inline Composer vs escalate
 4. **Parallel plan** — scouts if applicable
 
+"Announce-and-go" means **never wait for Dan's go-ahead** — it does **not** skip verifier gates. Substantive work directives (Ship Verifier path class, real solution choice) require **Solution deliberation (D-36)** BEFORE the first edit: Composer drafts a solution proposal → Grok Solution Verifier agrees via peer deliberation (D-30/D-33 mechanics, max 2 cycles) → implement only the agreed solution; unresolved → stop and present both positions to Dan.
+
 Then loads lesson slice if type/subtype known: `npm run context:lessons -- --type <type>/<subtype>`
 
 ---
@@ -184,6 +187,15 @@ Then loads lesson slice if type/subtype known: `npm run context:lessons -- --typ
 ## 6. Model routing and tiers
 
 From `model-gates.mdc`:
+
+### Trust over cost (D-34 — authoritative purpose statement)
+
+**The end goal of model routing is trusted output, not saved money.** A cheap model whose output cannot be trusted is pointless; the product is cheap worker + paired verifier reaching genuine agreement. **Cost is the constraint; trust is the goal.** Composer 2.5 Fast quota is a billing constraint, not the routing purpose.
+
+- **Default pattern:** cheapest appropriate worker → routed verifier lane → deliberate as peers until both agree (D-30/D-33) → only then the orchestrator presents as done / as the answer.
+- **Tier table = trust calibration, not a price list** — escalation exists when cheap-tier agreement fails, not because a costlier model is inherently better.
+- **Trivial-skip carve-outs** are trust judgments, not cost dodges.
+- **No unverified cheap output** where a verifier trigger fired — missing evidence line = NOT RUN.
 
 | Tier | Archetypes | Default worker |
 |------|------------|----------------|
@@ -221,18 +233,28 @@ The verification ladder assigns each check to the cheapest capable actor. **D-02
 | **1c** | Grok — **Repair Verifier** (D-20) | Pre-close on Dan repair intent | repair/fix/debug/try again |
 | **1d** | Grok — **Planning Verifier** (D-21) | Planning/roadmap/queue accuracy | "what's next", away planning, ranked options |
 | **1e** | Grok — **Q&A Verifier** (D-22) | Non-trivial Q&A accuracy | how/why/where/explain/recommend |
+| **1f** | Grok — **Solution Verifier** (D-36) | Pre-implementation solution/approach agreement on Dan work directives | Substantive work directive with real solution choice |
 | **2** | Sonnet 4.6 | Security gate | CF/auth/rules/T3; also if Ship Verifier flags missing gate |
 | **3** | Fable 5 — **Work Verifier** | Spec phase boundaries, architecture ambiguity | Fable-spec phases, "fable verify", Ship Verifier escalation |
 
-### Evidence standard (D-03)
+### Philosophy shift (deliberation era — D-28–D-37)
+
+- **Peer deliberation (D-30):** verifier findings are **proposals, not orders** — author and verifier deliberate until genuine agreement; only the agreed change list is implemented; disposition line mandatory when findings ≥ 1.
+- **Question deliberation (D-33):** question-triggered verifiers (Planning, Q&A) deliberate with the orchestrator; the orchestrator presents in its own words — never raw verifier output pasted through.
+- **Solution deliberation (D-36):** substantive work directives deliberate **before** the first edit; post-ship Ship Verifier verifies execution matched the agreed solution.
+- **Dispatcher verifies (D-37):** whichever agent dispatches Composer must verify returned work before ship/present — additive on top of all lanes above.
+
+### Evidence standard (D-03, extended D-28)
 
 Every verifier claim requires **Task id + model line** in the completion report. Missing id = **NOT RUN** — not PASS.
 
-Mandatory report lines include: `ship-verifier:`, `repair-verifier:`, `planning-verifier:`, `qa-verifier:`, `stall-advisor:`, `security-gate-id:`, `work-verifier:`, `fix-verified:` (per closed finding).
+After each verifier/gate verdict, log via `npm run verifier:log -- --role <role> --verdict <verdict> --task-id <id> --model <slug>`; `npm run verifier:stats` finding-precision output is admissible evidence for Harness V1 Freeze (D-16) decisions. Verdict log SSOT: `PROJECT_STATUS/verifier-log.jsonl`.
+
+Mandatory report lines include: `ship-verifier:`, `repair-verifier:`, `planning-verifier:`, `qa-verifier:`, `solution-verifier:`, `stall-advisor:`, `security-gate-id:`, `work-verifier:`, `fix-verified:` (per closed finding).
 
 ### Fix-closure rule (D-04)
 
-Whichever model reported an issue **re-verifies** the fix before closure. Composer self-attesting "fixed" never closes a finding. Max cycles vary by loop (repair: 3; planning: 3; Q&A: 2).
+Whichever model reported an issue **re-verifies** the fix before closure — including **Solution Verifier/Grok** when it flagged pre-implementation objections. Composer self-attesting "fixed" never closes a finding. Max cycles vary by loop (repair: 3; planning: 3; Q&A: 2; solution: 2).
 
 ### Critical Reviewer (Grok)
 
@@ -278,6 +300,16 @@ Build alone is insufficient. Interactive flows need `scripts/verify-*.mjs`. Layo
 
 Stop dev servers, kill background shells, delete ephemeral PNGs, confirm ports clear, clean git status before declaring done.
 
+### Mechanical evidence gates (D-28, D-29)
+
+| Gate | Mechanism | Scope |
+|------|-----------|-------|
+| **CI gate-check (D-28)** | `.github/workflows/gate-check.yml` + `scripts/gate-check.mjs` | PRs touching high-risk paths must carry `security-gate-id` + Sonnet model line in commit messages (presence-only) |
+| **Pre-push hook (D-29)** | `scripts/install-git-hooks.mjs`, auto-installed via npm `prepare` | Blocks direct high-risk pushes to `main` without security-gate evidence block |
+| **Bypass** | `GATE_SKIP=1` / `git push --no-verify` | Documented advisory-vs-malice — use only when Dan approves |
+
+Mechanical evidence gate identical across clients per D-32 platform parity.
+
 ---
 
 ## 9. Parallel agent strategy
@@ -317,7 +349,9 @@ When one item touches ≥2 disjoint domains (e.g. pickup UI + receive UI), coord
 | File | Cap | Purpose |
 |------|-----|---------|
 | `PROJECT_STATUS/CURRENT_STATE.md` | ~30 lines | Phase, blockers, last shipped, immediate next |
-| `PROJECT_STATUS/MEMORY.md` | ~70 lines | Router — concern → file → when to read |
+| `PROJECT_STATUS/MEMORY.md` | ≤70 lines (hard cap — D-31) | Router — concern → file → when to read |
+
+**D-31 enforcement:** `away:validate` **FAILs** (not WARN) when MEMORY.md exceeds 70 lines, including inside `away:batch`. The tripping agent compresses in-session (deletions/compressions always freeze-legal per D-15/D-17). No standing condenser agent — Archivist role stays in the deferred Librarian plan.
 
 Do **not** load full `MODEL_DOSSIER.md` or `svscope_simple.md` at session start unless scope dispute.
 
@@ -503,7 +537,7 @@ Canonical spec: `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md`
 2. MVP completion line if MVP-scoped (D-25)
 3. Timing table from worker timestamps
 4. Model audit table
-5. Verifier evidence lines
+5. Verifier evidence lines (`ship-verifier:`, `solution-verifier:`, etc.)
 6. `gotchas:` line
 7. `decisions:` line
 8. Brain outcome JSONL row (desktop)
@@ -601,7 +635,7 @@ Separate git repo: `https://github.com/lgarage/cursor-agent-brain`
 
 ### Frozen surface (complete — do not add without pain ticket)
 
-Two-tier ship · verification ladder + fix-closure · repair/planning/Q&A verify loops · security gate · away queue · decision registry · handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · doc drift validate (D-23).
+Two-tier ship · verification ladder + fix-closure · repair/planning/Q&A/solution verify loops · security gate · away queue · decision registry · handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · doc drift validate (D-23) · mechanical evidence gates (D-28/D-29) · peer deliberation (D-30) · dispatcher verifies (D-37).
 
 ### Asymmetric rule (D-15, D-16)
 
@@ -612,7 +646,7 @@ Two-tier ship · verification ladder + fix-closure · repair/planning/Q&A verify
 
 Voice-cheap: `"log pain: <what you wanted and couldn't do>"` → dated line in HARNESS_V1_FREEZE.md.
 
-Recent pain events drove: stall-advisor (D-19), platform parity + repair loop (D-20), planning verify (D-21), Q&A verify (D-22), doc drift validate (D-23), MVP reporting (D-25), mobile UI merge+deploy (D-27).
+Recent pain events drove: stall-advisor (D-19), platform parity + repair loop (D-20), planning verify (D-21), Q&A verify (D-22), doc drift validate (D-23), MVP reporting (D-25), mobile UI merge+deploy (D-27), mechanical evidence gates (D-28/D-29), peer deliberation (D-30), MEMORY hard cap (D-31), platform parity by default (D-32), question deliberation (D-33), trust over cost (D-34), environment auto-detection (D-35), solution deliberation (D-36), dispatcher verifies (D-37).
 
 ### Fable as harness gate (D-17)
 
@@ -623,6 +657,17 @@ Fable 5 role includes rejecting speculative harness work that delays StageVerify
 ## 19. Platform parity (desktop, mobile, cloud)
 
 **D-20:** Identical harness on desktop Windows PC, mobile Cursor, and cloud VM.
+
+**D-32 (parity by default):** every **new** rule, gate, loop, script, or workflow binds all clients identically from creation — no per-rule opt-in needed. Enforcement mechanics must be client-neutral (node scripts `path.join` + CRLF-normalized `readText()`, npm `prepare` hooks, PR CI). Only physically-impossible exceptions may be declared in `AGENTS.md` + `docs/cloud-agent-iphone-setup.md`.
+
+**D-35 (environment auto-detection):** agents determine execution environment **mechanically, never from Dan's words** — two environment **classes**:
+
+| Class | Detection | Notes |
+|-------|-----------|-------|
+| **Local checkout** | win32 / non-`/workspace` path (e.g. `C:\Projects\stageverify`) | Full local ship loop, local secrets, pre-push hook |
+| **Cloud VM** | `/workspace`, linux | Branch+PR default, Environments-UI secrets |
+
+The **phone is a viewport** onto cloud agents — not a third environment class. Dan never needs to say "I'm on my phone/mobile"; device statements are ergonomic context only and MUST NOT act as routing, tier, ship-workflow, or rule triggers. Task-class triggers (e.g. D-27 phone-first product surfaces) key off what is being built, never which device Dan is holding.
 
 Same rules files in repo — commit rule updates so all clients pull the same `alwaysApply` behavior.
 
@@ -652,6 +697,15 @@ Same rules files in repo — commit rule updates so all clients pull the same `a
 
 **composer-orchestrator split:** Deferred to Phase 3+ per `docs/aecs/phase-2-plan.md` — do not split until orchestration profiles stable.
 
+**Harness maturity (D-28–D-37, 2026-07-17):** deliberation-era gates now include mechanical evidence enforcement and verifier calibration:
+
+| Script / artifact | Purpose |
+|-------------------|---------|
+| `scripts/gate-check.mjs` + `.github/workflows/gate-check.yml` | CI PR gate-check for high-risk paths (D-28) |
+| `scripts/install-git-hooks.mjs` | Pre-push hook auto-installed via npm `prepare` (D-29) |
+| `scripts/verifier-log.mjs` | `verifier:log` / `verifier:stats` — verdict calibration (D-28) |
+| `PROJECT_STATUS/verifier-log.jsonl` | Verifier verdict SSOT for D-16 freeze decisions |
+
 ---
 
 ## 21. Glossary
@@ -672,6 +726,9 @@ Same rules files in repo — commit rule updates so all clients pull the same `a
 | **Away item** | Queued work unit in `away-list.json` (e.g. `away-129`) |
 | **Evidence line** | Report footer with Task id proving verifier ran |
 | **NOT RUN** | Verifier required but no Task id — blocks next ship |
+| **Peer deliberation** | D-30 — verifier findings are proposals; author and verifier agree before implement |
+| **Solution Verifier** | D-36 Grok lane — pre-implementation solution agreement |
+| **Dispatcher verifies** | D-37 — caller of Composer verifies returned work before ship/present |
 | **Pain ticket** | Dated entry in HARNESS_V1_FREEZE justifying harness addition |
 | **composer-default** | StageVerify orchestration profile |
 | **Brain repo** | `cursor-agent-brain` — global learning |
@@ -702,6 +759,10 @@ Same rules files in repo — commit rule updates so all clients pull the same `a
 | Cloud parity | `AGENTS.md` |
 | Operator guide | `aecs/release/OPERATOR-GUIDE.md` |
 | Manifest | `aecs/manifest.json` |
+| CI gate-check | `.github/workflows/gate-check.yml`, `scripts/gate-check.mjs` |
+| Pre-push hook | `scripts/install-git-hooks.mjs` (npm `prepare`) |
+| Verifier log | `PROJECT_STATUS/verifier-log.jsonl`, `scripts/verifier-log.mjs` (`verifier:log`, `verifier:stats`) |
+| ACES design report | `docs/aecs/ACES-DESIGN-REPORT.md` (this document) |
 
 ---
 
