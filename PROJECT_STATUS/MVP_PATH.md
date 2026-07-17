@@ -6,7 +6,7 @@
 
 ## Current percent (SSOT)
 
-**97.89%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
+**99.60%** — update here + `CURRENT_STATE.md` snapshot on every MVP milestone ship (2 decimal places). Rule: `.cursor/rules/mvp-completion-report.mdc` (D-25).
 
 ## Standing directive (all future sessions)
 
@@ -26,8 +26,8 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 |------|--------|-------|-------|
 | Core loop (vendor → stage → pickup) | 65% | 1.00 | **0.00%** |
 | Email / Condition 1 ingest | 20% | 1.00 | **0.00%** |
-| §14 full E2E integration gate | 15% | 0.89 | **1.71%** |
-| **Total remaining** | — | — | **2.11%** → 100.00% |
+| §14 full E2E integration gate | 15% | 1.00 | **0.00%** |
+| **Total remaining** | — | — | **0.40%** → 100.00% |
 
 **Explicitly out of MVP scope (D-26 — not in %, criteria, or path):** e-tags / ESL / Minew / §14 step 26; location-first Phases 5–6; Phases 7–9 AI automation; App Check; harness/agent-ops; physical shop-map/sign printing (Jake Korb). Post-MVP product: `ESL_INTEGRATION_PLAN.md`.
 
@@ -52,7 +52,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 - [x] **§14 E2E gate PASS** — `verify:phase14-e2e` local PASS (2026-07-12); `verify:phase14-e2e:prod` **PASS** (2026-07-12, main post-PR#18; deep-link reset for hideSeedDemoRows)
 - [x] **Live email ingest operable** — poll/Refresh Now + Needs Review prod proof (away-128/129, 2026-07-12); **2** inbound visible; Gmail connected. Push-primary Pub/Sub is **optional** (not MVP-blocking) — see `CURRENT_STATE` blocker #3.
-- [x] **Core regression green** — `verify:mvp-core-regression:prod` **PASS** 2026-07-12 (pickup, vendor-delivered, dispatcher-nav, location Phase 4 **15/15**; demo vendor env; vendor deep-link drawer fix)
+- [x] **Core regression green** — `verify:mvp-core-regression:prod` **PASS** 2026-07-17 post–vendor hub v0.0.44 (pickup, dispatcher-nav, location Phase 4 **15/15**; vendor leg skipped without STAGEVERIFY_* env — same as 2026-07-12)
 - [x] **Combination scope honest** — **MVP waiver (2026-07-12):** atomic multi-location combo assign+release with real Jake Korb shop-map IDs is **explicitly out of MVP done**. Stub (`combinationStagingGroupId` / away-036/037) + emulator coverage (`test:pickup-authority`) remain; production combo signage waits on shelving decision. Placeholder IDs acceptable for demo/dev only.
 
 ---
@@ -66,7 +66,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 3 | ~~§14 E2E gate prod~~ **Done** — `verify:phase14-e2e:prod` PASS 2026-07-12 | E2E exit criterion | — | No |
 | 4 | ~~Combination release decision~~ **Done** — MVP waiver documented 2026-07-12 | Combination honesty | — | No |
 
-| 5 | **§14 E2E residual prod re-verify** — after vendor hub v0.0.44 | Residual §14 band (**1.71%**) | **Agent** (away-130 queued) | No |
+| 5 | ~~§14 E2E residual prod re-verify~~ **Done** — away-130 PASS 2026-07-17 post–vendor hub v0.0.44 | Residual §14 band | — | No |
 
 **Optional (not MVP-blocking):** GCP Pub/Sub push-primary ingest — Dan configures per `project_state.md`; poll/Refresh Now path proven (away-129).
 
@@ -89,7 +89,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 ## Gap reference (ranked)
 
-1. §14 E2E residual prod re-verify (away-130) — **high**, in-repo
+1. ~~§14 E2E residual prod re-verify~~ **Done** 2026-07-17 (away-130)
 2. ~~Live Gmail ingest~~ **Done** 2026-07-12 (away-128/129); optional push-primary Pub/Sub — Dan/external
 3. ~~Core regression prod re-verify~~ **Done** 2026-07-12 (re-run after v0.0.44 = away-130)
 4. Combination location release incomplete — **medium**, in-repo (real IDs: Jake Korb; waived for MVP done)
@@ -111,6 +111,6 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 2026-07-12 | 88.59 | Composer | §14 E2E gate prod PASS `verify:phase14-e2e:prod` (+3.42%); reset deep-link for hideSeedDemoRows |
 | 2026-07-12 | 89.89 | Composer | Core regression prod PASS `verify:mvp-core-regression:prod` (+1.30%); vendor deep-link + leg order fix |
 | 2026-07-12 | 93.89 | Composer | Live email deploy confirm away-128 (+4.00% email band); CF+rules prod |
-| 2026-07-12 | 97.89 | Composer | Live ingest prod proof away-129 (+4.00% email band); 2 inbound in Needs Review; Gmail connected |
+| 2026-07-17 | 99.60 | Composer | away-130 §14 E2E residual prod re-verify (+1.71% §14 band); post–vendor hub v0.0.44 |
 
 Re-assess when any exit criterion closes or a major phase ships. **Do not** bump % without shipped+verified milestone evidence.

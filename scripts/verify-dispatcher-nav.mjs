@@ -34,7 +34,11 @@ import {
 } from "./dispatcherVerifyHelpers.mjs";
 
 const baseUrl =
-  process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
+  process.argv.includes("--base-url")
+    ? process.argv[process.argv.indexOf("--base-url") + 1]
+    : process.argv.find((a) => a.startsWith("--base-url="))?.split("=")[1] ??
+      process.env.STAGEVERIFY_BASE_URL ??
+      "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 const pkgVersion = JSON.parse(
   readFileSync(resolve(process.cwd(), "package.json"), "utf-8"),

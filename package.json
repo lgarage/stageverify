@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.44",
+  "version": "0.0.45",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -47,7 +47,7 @@
     "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
     "verify:portal-layout": "node scripts/verify-portal-layout.mjs",
     "verify:dispatcher-nav": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav --runner tsx scripts/verify-dispatcher-nav.mjs",
-    "verify:dispatcher-nav:prod": "STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav:prod --runner tsx scripts/verify-dispatcher-nav.mjs",
+    "verify:dispatcher-nav:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav:prod --runner tsx scripts/verify-dispatcher-nav.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:delivery-consistency": "npx tsx scripts/verify-delivery-list-drawer-consistency.mjs",
@@ -72,7 +72,7 @@
     "verify:location-scan": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs",
     "verify:location-scan:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:location-phase4": "node scripts/run-verify-with-learning.mjs --script verify:location-phase4 scripts/verify-location-phase4.mjs",
-    "verify:location-phase4:prod": "STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify node scripts/run-verify-with-learning.mjs --script verify:location-phase4:prod scripts/verify-location-phase4.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:location-phase4:prod": "node scripts/run-verify-with-learning.mjs --script verify:location-phase4:prod scripts/verify-location-phase4.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:public-network-error": "node scripts/verify-public-network-error.mjs",
     "verify:typography": "node scripts/verify-typography.mjs",
     "verify:settings-staging:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-staging:prod scripts/verify-settings-staging.mjs --base-url=https://lgarage.github.io/stageverify",

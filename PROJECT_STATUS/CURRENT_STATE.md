@@ -5,20 +5,19 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- **MVP: 97.89%** — SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). §14 E2E local + prod PASS (2026-07-12); **residual band 1.71%** pending post–vendor-hub re-verify.
-- Last shipped: **vendor hub fixed chrome** — top/bottom pinned, middle scrolls, svh above Safari URL bar (`v0.0.44`, `1b808e3`).
-- **Harness:** D-28–D-36 **on main** — gate-check CI, verifier-log, solution deliberation (shipped pre–Jul 16 pull).
-- Active Phase: **Location-first Phase 4 complete** — MVP email band closed (away-128/129); **2.11%** to done.
-- **Verify (2026-07-12):** mvp-core-regression, phase14-e2e, inbound-email — **re-run needed** after v0.0.44 vendor hub.
+- **MVP: 99.60%** — SSOT: `MVP_PATH.md`. §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44). **0.40%** SSOT remainder to reconcile.
+- Last shipped: **away-130** — §14 E2E residual — prod verify bundle after vendor hub v0.0.44
+- Active Phase: **Location-first Phase 4 complete** — MVP finish line; queue empty except blocked away-069.
+- **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
 1. **Shelving decision (Jake Korb)** — shop map / location IDs.
 2. **Physical shop map** — not created (blocks sign printing only).
-3. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven; see `project_state.md` for push-primary.
+3. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **away-130** — §14 E2E residual prod verify bundle after vendor hub v0.0.44 (`verify:mvp-core-regression:prod` + `verify:phase14-e2e:prod`).
+- **Post-queue:** see `docs/project_state.md` immediate next steps.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

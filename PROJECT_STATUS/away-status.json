@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-12",
+  "lastRun": "2026-07-17",
   "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
     {
@@ -194,7 +194,14 @@
       "status": "built",
       "commit": "377f248",
       "note": "Live ingest prod proof: 2 inbound vendorEmailEvents in Needs Review; Gmail connected; audit+oauth verify PASS"
+    },
+    {
+      "id": "away-130",
+      "title": "§14 E2E residual — prod verify bundle after vendor hub v0.0.44",
+      "status": "built",
+      "commit": "16dad75",
+      "note": "§14 E2E residual prod PASS post v0.0.44; Windows verify:dispatcher-nav:prod --base-url fix; MVP 99.60%"
     }
   ],
-  "summary": "away-126..129 batch complete 2026-07-12; queue empty except blocked away-069; MVP 97.89%"
+  "summary": "away-130 shipped 2026-07-17; queue empty except blocked away-069; MVP 99.60%"
 }
