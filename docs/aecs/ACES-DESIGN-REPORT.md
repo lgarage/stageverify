@@ -150,7 +150,7 @@ Cursor system prompt
 | Profile | Orchestrator | Gate style | Default for |
 |---------|-------------|------------|-------------|
 | `sonnet-default` | Sonnet 4.6 | Wait for proceed | New ACES targets (manifest default) |
-| `composer-default` | Composer 2.5 Fast | Announce-and-go (Dan-nonblocking — never Grok-skip) | **StageVerify** (billing-optimized) |
+| `composer-default` | Composer 2.5 Fast | Announce-and-go (Dan-nonblocking — never Grok-skip) | **StageVerify** (trust-first; quota as constraint per D-34) |
 
 StageVerify intentionally overrides the global `agent-ops` SKILL §10 Sonnet-default via `agent-ops.mdc` — documented as an orchestration profile, not an accident.
 
@@ -237,12 +237,18 @@ The verification ladder assigns each check to the cheapest capable actor. **D-02
 | **2** | Sonnet 4.6 | Security gate | CF/auth/rules/T3; also if Ship Verifier flags missing gate |
 | **3** | Fable 5 — **Work Verifier** | Spec phase boundaries, architecture ambiguity | Fable-spec phases, "fable verify", Ship Verifier escalation |
 
-### Philosophy shift (deliberation era — D-28–D-37)
+### Deliberation philosophy (D-30/D-33/D-34/D-36/D-37)
 
 - **Peer deliberation (D-30):** verifier findings are **proposals, not orders** — author and verifier deliberate until genuine agreement; only the agreed change list is implemented; disposition line mandatory when findings ≥ 1.
 - **Question deliberation (D-33):** question-triggered verifiers (Planning, Q&A) deliberate with the orchestrator; the orchestrator presents in its own words — never raw verifier output pasted through.
+- **Trust over cost (D-34):** routing purpose is trusted output, not saved money — tier table = trust calibration; quota is the constraint.
 - **Solution deliberation (D-36):** substantive work directives deliberate **before** the first edit; post-ship Ship Verifier verifies execution matched the agreed solution.
 - **Dispatcher verifies (D-37):** whichever agent dispatches Composer must verify returned work before ship/present — additive on top of all lanes above.
+
+### Mechanical enforcement (D-28/D-29 — not deliberation philosophy)
+
+- **CI gate-check (D-28):** PRs touching high-risk paths must carry security-gate evidence in commit messages; verifier verdicts logged to `verifier-log.jsonl`.
+- **Pre-push hook (D-29):** local direct-to-main high-risk pushes blocked without commit-message evidence; `GATE_SKIP` / `--no-verify` bypass documented advisory-vs-malice.
 
 ### Evidence standard (D-03, extended D-28)
 
@@ -333,7 +339,7 @@ Triggers: "what's next", roadmap, away planning, ranked options.
 2. Scout A: `npm run away:next -- --minimal` first
 3. Expand to B–D scouts if needed (roadmap, code gaps, verify coverage)
 4. Synthesize before any edit
-5. Grok Planning Verifier → PASS before present
+5. Grok Planning Verifier → present when PASS and agreed; on max-cycle exhaustion present **both positions** + `Caveat: planning-verifier exhausted` (D-33)
 6. Answer quality cross-check
 
 ### File-ownership parallel batches
@@ -635,7 +641,9 @@ Separate git repo: `https://github.com/lgarage/cursor-agent-brain`
 
 ### Frozen surface (complete — do not add without pain ticket)
 
-Two-tier ship · verification ladder + fix-closure · repair/planning/Q&A/solution verify loops · security gate · away queue · decision registry · handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · doc drift validate (D-23) · mechanical evidence gates (D-28/D-29) · peer deliberation (D-30) · dispatcher verifies (D-37).
+Two-tier ship model · verification ladder + fix-closure + repair loop + planning verify loop + Q&A verify loop + doc drift validate · security gate · away queue + protocol · decision registry + handoff · evidence standard · scope discipline · product guardrails · parallel-agent strategy · completion-report contract · meta-review rounds themselves.
+
+Effective surface after Dan-directed reopenings (see pain log): + mechanical evidence gates (D-28/D-29), peer/question/solution deliberation (D-30/D-33/D-36), memory cap (D-31), parity default (D-32), trust-over-cost (D-34), environment auto-detection (D-35), dispatcher verifies (D-37).
 
 ### Asymmetric rule (D-15, D-16)
 
@@ -715,7 +723,7 @@ Same rules files in repo — commit rule updates so all clients pull the same `a
 | **ACES** | Agent Control Engineering System — the harness product name |
 | **AECS** | Legacy acronym; directory prefix `aecs/` unchanged |
 | **Harness** | Synonym for ACES live rules + scripts + memory |
-| **Orchestrator** | Parent Composer session that owns ship loop |
+| **Orchestrator** | Session orchestrator — default Composer 2.5; a non-Composer orchestrator (e.g. Fable) dispatches Composer for implementation and verifies the returned work (D-37) |
 | **Scout** | Read-only subagent for exploration/planning |
 | **Archetype** | Task classification slug (e.g. `ui-component`, `backend-write-critical`) |
 | **Tier** | Risk/complexity band T0–T3 |
