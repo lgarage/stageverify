@@ -29,6 +29,8 @@ Planning answers must lead with: current % → top gaps → fastest path (ordere
 | §14 full E2E integration gate | 15% | 1.00 | **0.00%** |
 | **Total remaining** | — | — | **0.40%** → 100.00% |
 
+\*Band scores reflect exit-criteria closure (all four checklist items done). **0.40%** is **2-decimal rounding residue** from partial-credit increments (`100.00 − 99.60`); not open MVP work. Reconcile to **100.00%** only via explicit SSOT decision — do not auto-bump on band table alone.
+
 **Explicitly out of MVP scope (D-26 — not in %, criteria, or path):** e-tags / ESL / Minew / §14 step 26; location-first Phases 5–6; Phases 7–9 AI automation; App Check; harness/agent-ops; physical shop-map/sign printing (Jake Korb). Post-MVP product: `ESL_INTEGRATION_PLAN.md`.
 
 ## Partial credit (increment math)
@@ -52,7 +54,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 
 - [x] **§14 E2E gate PASS** — `verify:phase14-e2e` local PASS (2026-07-12); `verify:phase14-e2e:prod` **PASS** (2026-07-12, main post-PR#18; deep-link reset for hideSeedDemoRows)
 - [x] **Live email ingest operable** — poll/Refresh Now + Needs Review prod proof (away-128/129, 2026-07-12); **2** inbound visible; Gmail connected. Push-primary Pub/Sub is **optional** (not MVP-blocking) — see `CURRENT_STATE` blocker #3.
-- [x] **Core regression green** — `verify:mvp-core-regression:prod` **PASS** 2026-07-17 post–vendor hub v0.0.44 (pickup, dispatcher-nav, location Phase 4 **15/15**; vendor leg skipped without STAGEVERIFY_* env — same as 2026-07-12)
+- [x] **Core regression green** — `verify:mvp-core-regression:prod` **PASS** 2026-07-17 post–vendor hub v0.0.44 (pickup, dispatcher-nav, location Phase 4 **15/15**; vendor leg skipped without STAGEVERIFY_* env — rely on **2026-07-12 full vendor green** for vendor coverage)
 - [x] **Combination scope honest** — **MVP waiver (2026-07-12):** atomic multi-location combo assign+release with real Jake Korb shop-map IDs is **explicitly out of MVP done**. Stub (`combinationStagingGroupId` / away-036/037) + emulator coverage (`test:pickup-authority`) remain; production combo signage waits on shelving decision. Placeholder IDs acceptable for demo/dev only.
 
 ---
@@ -111,6 +113,7 @@ When MVP-scoped work ships, add: `delta = band_remaining × milestone_fraction` 
 | 2026-07-12 | 88.59 | Composer | §14 E2E gate prod PASS `verify:phase14-e2e:prod` (+3.42%); reset deep-link for hideSeedDemoRows |
 | 2026-07-12 | 89.89 | Composer | Core regression prod PASS `verify:mvp-core-regression:prod` (+1.30%); vendor deep-link + leg order fix |
 | 2026-07-12 | 93.89 | Composer | Live email deploy confirm away-128 (+4.00% email band); CF+rules prod |
+| 2026-07-12 | 97.89 | Composer | Live ingest prod proof away-129 (+4.00% email band); 2 inbound in Needs Review; Gmail connected |
 | 2026-07-17 | 99.60 | Composer | away-130 §14 E2E residual prod re-verify (+1.71% §14 band); post–vendor hub v0.0.44 |
 
 Re-assess when any exit criterion closes or a major phase ships. **Do not** bump % without shipped+verified milestone evidence.
