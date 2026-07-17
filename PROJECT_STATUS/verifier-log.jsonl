@@ -13,3 +13,4 @@
 {"date":"2026-07-13","role":"ship","verdict":"PASS","taskId":"b4d152bd-dbbb-42cf-bca0-02c67f612a16","model":"grok-4.5-fast-xhigh","real":"na","note":"merge abdc5de..aed3b56 D-28..D-34 to main"}
 {"date":"2026-07-13","role":"qa","verdict":"PASS","taskId":"0725759b-a179-4f45-a92a-6ecb563926c8","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-35 environment auto-detection rule sweep"}
 {"date":"2026-07-13","role":"critical","verdict":"PASS","taskId":"b2166711-46a0-47ff-8fad-ede68184fa8c","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-36 solution deliberation lane approved after 4 adopted changes"}
+{"date":"2026-07-17","role":"qa","verdict":"PASS","taskId":"a9e5f8a9-f8c6-4775-83ed-0dcd5e7163cc","model":"cursor-grok-4.5-high-fast","real":"yes","note":"ACES report accuracy verify - 5 real findings fixed and closed"}
