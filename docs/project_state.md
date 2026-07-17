@@ -56,7 +56,7 @@ The platform is deployed and functional on GitHub Pages.
 
 V2 optional fields and forward-compatible stub types live in `src/dispatcher/models.ts`. V1 workflows unchanged. No new Firestore collections or rules in Phase 2.
 
-**Active phase:** **MVP email ingest path** — live Gmail Pub/Sub + deploy (see Immediate Next Steps). **Location-first Phase 4** ✅ complete (`v0.0.33`, 2026-07-11). V2 Phase 5 email prototype largely shipped offline; remaining MVP gap = live ingest band (**8.00%** per `MVP_PATH.md`). Location-first Phases 5–6 deferred post-MVP (Fable gate).
+**Active phase:** **MVP finish line** — **97.89%** (`MVP_PATH.md`); live email band closed (away-128/129). **Location-first Phase 4** ✅ (`v0.0.33`). Remaining: §14 E2E residual **1.71%**. Location-first Phases 5–6 deferred post-MVP.
 
 **Phase 5 design (docs):** Johnstone branch invoice PDF import spec ? `docs/vendor-import/johnstone-invoice-import-spec.md` (expected vendor orders; Will-Call / Pickup. labels; not shop receipt).
 
@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **MVP fastest path (D-24):** see `PROJECT_STATUS/MVP_PATH.md` — **97.89%** complete (SSOT); live email band closed away-128/129; §14 E2E residual **1.71%** remains.
+1. **away-130** — §14 E2E residual prod verify bundle after vendor hub v0.0.44 (see `MVP_PATH.md` — **97.89%**, **1.71%** residual).
 2. **Post-queue:** refill via `npm run away:plan` when ready.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.

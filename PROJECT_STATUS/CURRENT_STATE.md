@@ -1,29 +1,28 @@
 # stageverify | Current State
 
-> READ THIS FILE FIRST every session. Hot-tier ? hard cap ~30 lines.
-> **Memory router:** `PROJECT_STATUS/MEMORY.md` ? concern ? file ? when to read.
-> **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` ? scope wins on conflict; load only for scope disputes.
+> READ THIS FILE FIRST every session. Hot-tier — hard cap ~30 lines.
+> **Memory router:** `PROJECT_STATUS/MEMORY.md` — concern → file → when to read.
+> **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- **MVP: 97.89%** ? SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). �14 E2E **local + prod PASS**; **live email ingest prod proof** away-129 (**2** inbound in Needs Review; Gmail connected).
-- Last shipped: **vendor hub fixed chrome** — top/bottom buttons pinned; only middle scrolls; svh fits above Safari URL bar (`v0.0.44`)
-- In progress: **D-28/D-29 harness gate-check + verifier-log** on `cursor/harness-gate-evidence-6544` (PR pending) — CI `gate-check` workflow + `verifier:log`/`verifier:stats`; ecosystem-wide (PR CI + desktop pre-push hook auto-installed via npm `prepare`, commit-message evidence via `--evidence-from-commits`); push-on-main CI trigger deferred until merge-commit PR-lookup exists; plus **D-30 peer deliberation** (verifier findings = proposals; adopted/rebutted/escalated dispositions in model-gates.mdc).
-- Active Phase: **Location-first Phase 4 complete** ? MVP email band closed; **2.11%** remaining (�14 E2E residual **1.71%**).
-- **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-12; `audit:needs-review-ui:prod` PASS; `verify:email-oauth-connect:prod` PASS; `verify:inbound-email-ingest` PASS.
-- Stack: React 19 + TS, Vite 8, Firebase 11.x ? https://lgarage.github.io/stageverify � Firestore `stageverify-db`
+- **MVP: 97.89%** — SSOT: `MVP_PATH.md`. E-tags/ESL **not in MVP scope** (D-26). §14 E2E local + prod PASS (2026-07-12); **residual band 1.71%** pending post–vendor-hub re-verify.
+- Last shipped: **vendor hub fixed chrome** — top/bottom pinned, middle scrolls, svh above Safari URL bar (`v0.0.44`, `1b808e3`).
+- **Harness:** D-28–D-36 **on main** (`10eb4d5`) — gate-check CI, verifier-log, solution deliberation; stale “PR pending” lines removed 2026-07-16.
+- Active Phase: **Location-first Phase 4 complete** — MVP email band closed (away-128/129); **2.11%** to done.
+- **Verify (2026-07-12):** mvp-core-regression, phase14-e2e, inbound-email — **re-run needed** after v0.0.44 vendor hub.
+- Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db` · **main `10eb4d5`**
 
 ## Active Blockers
-1. **Shelving decision (Jake Korb)** ? shop map / location IDs.
-2. **Physical shop map** ? not created (blocks sign printing only).
-3. **GCP Pub/Sub push path** ? optional for automated push; poll/Refresh Now path proven; configure Pub/Sub per `project_state.md` for push-primary ingest.
+1. **Shelving decision (Jake Korb)** — shop map / location IDs.
+2. **Physical shop map** — not created (blocks sign printing only).
+3. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven; see `project_state.md` for push-primary.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **away-130** — §14 E2E residual prod verify bundle after vendor hub v0.0.44 (`verify:mvp-core-regression:prod` + vendor-delivered + phase14-e2e).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
 - Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`
 
 ## Update Protocol
-- Ship: `npm run away:ship` ? `estimate-log.md` ? `npm run away:validate` (auto-syncs CURRENT_STATE + Phase Tracker + roadmap from verify PASS) ? commit.
-
+- Ship: `npm run away:ship` → `estimate-log.md` → `npm run away:validate` (auto-syncs CURRENT_STATE + Phase Tracker + roadmap from verify PASS) → commit.
