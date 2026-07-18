@@ -275,7 +275,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
 ❌ Self-report "Sonnet PASS" or claim security gate PASS without **`security-gate-id`** from the Task return.
 ❌ Ship CF/auth/rules when completion report lacks valid **`security-gate-id`** (verdict = NOT RUN) — UI label "Security Review — Composer 2.5 Fast" alone is **not** a block.
-❌ Launch duplicate security-review Tasks in one turn or omit `model: claude-4.6-sonnet-medium-thinking`.
+❌ Launch duplicate security-review Tasks in one turn or omit the D-38 allowlist slug per `security-review-gate.mdc`.
 ❌ Push CF/auth/rules after security-review subagent failed twice — report NOT RUN blocker instead.
 ❌ Leave changes uncommitted or unpushed after editing — always commit + push unless Dan says hold off.
 ❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.

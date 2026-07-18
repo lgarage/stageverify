@@ -114,7 +114,7 @@ After every substantive code/config change, brief audit before reporting done.
 | Change | Archetype | Tier | Worker | Scouts parallel? | Escalation review? | Verdict |
 ```
 
-When security gate triggered: `security-gate-id: <uuid>`, `model: claude-4.6-sonnet-medium-thinking`, `actual model invocation evidence: yes/no/unknown`, `verdict: PASS|MEDIUM|HIGH|NOT RUN`. No UUID → **NOT RUN**, not PASS.
+When security gate triggered: `security-gate-id: <uuid>`, `model: <Sonnet gate slug per security-review-gate.mdc D-38 allowlist>`, `actual model invocation evidence: yes/no/unknown`, `verdict: PASS|MEDIUM|HIGH|NOT RUN`. No UUID → **NOT RUN**, not PASS.
 
 Complete ship loop (`ship-loop.mdc`) before declaring done for code/config changes.
 
@@ -161,7 +161,7 @@ Verifier findings are proposals, not orders — the verifier is a peer, never th
 |---|---|---|
 | UI / verify script / logic (default) | Grok 4.5 Fast | `generalPurpose`, `readonly`, `model: grok-4.5-fast-xhigh` |
 | 2nd consecutive same failure fingerprint (D-19) | Grok stall-advisor first; Sonnet diagnose-only if still stuck | unchanged § 2-fail / Grok stall-advisor |
-| Security / auth / rules / CF touched in repair | Sonnet 4.6 | `security-review`, `model: claude-4.6-sonnet-medium-thinking` per `security-review-gate.mdc` |
+| Security / auth / rules / CF touched in repair | Sonnet 4.6 | `security-review`, Sonnet gate slug per `security-review-gate.mdc` D-38 allowlist |
 | Fable-spec phase or architecture ambiguity | Fable 5 | `work-verifier` per § Work Verifier |
 
 **Dispatch (default repair verifier — Grok):**

@@ -7,7 +7,12 @@ alwaysApply: true
 
 > **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = **`security-gate-id`** + **`model:`** line + verdict + invocation evidence.
 
-**Security reviews use exactly one model:** `claude-4.6-sonnet-medium-thinking`.
+**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38):**
+
+1. `claude-4.6-sonnet-high-thinking`
+2. `claude-4.6-sonnet-medium-thinking` (legacy primary)
+
+Dispatch the FIRST slug the platform accepts. A lower slug may be used ONLY after a real Task rejection of every higher slug — record `fallback-from: <rejected slug(s)>` in the evidence block. Inventing slugs or substituting any non-allowlist model = gate NOT RUN. **Sonnet 5 (deferred):** promote to #1 only when its exact slug is dispatchable AND one calibration gate run is logged in `PROJECT_STATUS/verifier-log.jsonl` (or Dan one-shot approves) — new-model-release alone never reopens this list (D-16).
 
 ## Mandatory invocation
 
@@ -16,7 +21,7 @@ Exactly **one** `Task` per ship cycle — **before push** when the security gate
 ```text
 Task({
   subagent_type: "security-review",
-  model: "claude-4.6-sonnet-medium-thinking",
+  model: "<first accepted allowlist slug per D-38>",  // actual slug used must appear in evidence
   readonly: true,
   run_in_background: false,
   description: "Security Review",
@@ -29,7 +34,7 @@ Task({
 ## Valid completion (all required)
 
 1. **`security-gate-id`** — UUID from `Task` return (lowercase hex, 8-4-4-4-12). Not invented.
-2. **Model line:** `model: claude-4.6-sonnet-medium-thinking`.
+2. **Model line:** `model: <the allowlist slug actually dispatched>` (+ `fallback-from:` when a higher slug was rejected).
 3. **`actual model invocation evidence: yes | no | unknown`** — UUID alone ≠ verified invocation.
 4. **Verdict:** PASS | MEDIUM | HIGH | NOT RUN.
 
@@ -38,7 +43,7 @@ Missing **`security-gate-id`** → **NOT RUN**, not PASS. Report block must incl
 ## Forbidden (never counts as security gate)
 
 - Composer 2.5 inline PASS/MEDIUM/HIGH (self-review bypass)
-- `security-review` Task without `model: "claude-4.6-sonnet-medium-thinking"`
+- `security-review` Task with a model outside the D-38 allowlist
 - `generalPurpose` / `explore` / any other subagent for the gate
 - Invented or non-UUID **`security-gate-id`**
 - Treating UI label alone as NOT RUN or wrong model
