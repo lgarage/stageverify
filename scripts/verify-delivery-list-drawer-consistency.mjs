@@ -316,14 +316,16 @@ async function assertStagingLocationBanner(page, record, label, expectVisible) {
       `${label} — Assign Location scrolls assignment section into view`,
       assignmentVisible && (await assignment.count()) > 0,
     );
-    const select = page.getByTestId("staging-location-select");
-    const focusedSelect = await select.evaluate(
-      (el) => el === document.activeElement,
-    );
+    const planned = page.getByTestId("planned-staging-assignment");
+    const focusedCheckbox = await planned
+      .locator('input[type="checkbox"]:not(:disabled)')
+      .first()
+      .evaluate((el) => el === document.activeElement)
+      .catch(() => false);
     record(
-      `${label} — Assign Location focuses staging select`,
-      focusedSelect,
-      `focused=${focusedSelect}`,
+      `${label} — Assign Location focuses planned staging checkbox`,
+      focusedCheckbox,
+      `focused=${focusedCheckbox}`,
     );
   } else {
     record(
@@ -509,85 +511,32 @@ async function getActionButtonRows(page) {
 }
 
 async function assertStagingOccupiedDropdown(page, record, label) {
-  const helper = page.getByTestId("staging-location-occupied-helper");
-  const helperText = (await helper.innerText()).trim();
-  record(
-    `${label} — occupied helper note present`,
-    (await helper.count()) > 0 &&
-      helperText === "Red locations are already assigned to another delivery.",
-    helperText,
-  );
-
-  const select = page.getByTestId("staging-location-select");
-  if ((await select.count()) === 0) {
-    record(`${label} — staging select for occupied styling`, false, "select missing");
+  const planned = page.getByTestId("planned-staging-assignment");
+  if ((await planned.count()) === 0) {
+    record(`${label} — planned staging assignment present`, false, "section missing");
     return;
   }
 
-  const options = await select.locator("option").evaluateAll((opts) =>
-    opts.map((o) => ({
-      value: o.value,
-      text: (o.textContent ?? "").trim(),
-      disabled: o.disabled,
-      occupiedAttr: o.getAttribute("data-staging-occupied") === "true",
-      color: o.style.color || getComputedStyle(o).color,
-    })),
-  );
-
-  const occupied = options.filter((o) => o.text.includes("(in use:"));
+  const unavailableRows = planned.locator('[data-staging-unavailable="true"]');
+  const unavailableCount = await unavailableRows.count();
   record(
-    `${label} — at least one occupied staging option`,
-    occupied.length > 0,
-    `${occupied.length} occupied`,
+    `${label} — at least one unavailable planned staging spot`,
+    unavailableCount > 0,
+    `${unavailableCount} unavailable`,
   );
 
-  for (const opt of occupied) {
+  if (unavailableCount > 0) {
+    const firstBadge = planned.locator('[data-testid^="planned-staging-unavailable-"]').first();
+    const badgeText = (await firstBadge.innerText()).trim();
     record(
-      `${label} — occupied option "${opt.text.slice(0, 40)}" has red styling`,
-      /#bf0a30|rgb\(191,\s*10,\s*48\)/i.test(opt.color),
-      opt.color || "no color",
+      `${label} — unavailable spot shows in-use label`,
+      badgeText.includes("Not available") && badgeText.includes("in use:"),
+      badgeText,
     );
+    const firstCheckbox = unavailableRows.first().locator('input[type="checkbox"]');
     record(
-      `${label} — occupied option disabled`,
-      opt.disabled,
-      opt.text.slice(0, 50),
-    );
-    record(
-      `${label} — occupied option data-staging-occupied`,
-      opt.occupiedAttr,
-      opt.text.slice(0, 50),
-    );
-  }
-
-  const available = options.filter(
-    (o) => o.value && !o.text.includes("(in use:"),
-  );
-  for (const opt of available.slice(0, 2)) {
-    record(
-      `${label} — available option dark text`,
-      /#333|rgb\(51,\s*51,\s*51\)/i.test(opt.color) || opt.color === "",
-      `${opt.text.slice(0, 40)} color=${opt.color || "default"}`,
-    );
-  }
-
-  const currentAssignedId = await select.inputValue();
-  if (currentAssignedId) {
-    const currentOpt = options.find((o) => o.value === currentAssignedId);
-    record(
-      `${label} — current assignment not shown as occupied by another delivery`,
-      Boolean(
-        currentOpt &&
-          !currentOpt.text.includes("(in use:") &&
-          !currentOpt.disabled,
-      ),
-      currentOpt?.text.slice(0, 60) ?? "missing option",
-    );
-    record(
-      `${label} — assign button disabled when selection matches current`,
-      !(await page
-        .getByTestId("staging-location-assignment")
-        .getByRole("button", { name: "Assign" })
-        .isEnabled()),
+      `${label} — unavailable spot checkbox disabled`,
+      await firstCheckbox.isDisabled(),
     );
   }
 }
@@ -609,7 +558,7 @@ async function assertLowerDrawerLayout(page, record, label) {
       : "";
   record(
     `${label} — Assign Staging Location heading`,
-    assignHeadingText === "Assign Staging Location",
+    assignHeadingText === "Planned Staging (dispatcher instruction)",
     assignHeadingText,
   );
 
@@ -979,7 +928,7 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
       : "";
   record(
     `${orderNumber} — Assign Staging Location heading`,
-    assignHeadingText === "Assign Staging Location",
+    assignHeadingText === "Planned Staging (dispatcher instruction)",
     assignHeadingText,
   );
 
@@ -1528,10 +1477,10 @@ async function assertOrd006EmailReviewAction(page, record) {
     }
 
     record(
-      "ORD-005 Assign Staging Location heading present",
+      "ORD-005 Planned Staging heading present",
       (await page.getByTestId("assign-staging-location-heading").count()) > 0 &&
         (await page.getByTestId("assign-staging-location-heading").innerText()).trim() ===
-          "Assign Staging Location",
+          "Planned Staging (dispatcher instruction)",
     );
 
     await assertLowerDrawerLayout(page, record, "ORD-005");

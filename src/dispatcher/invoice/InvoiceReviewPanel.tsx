@@ -540,7 +540,6 @@ export function InvoiceReviewPanel({
       data-testid="invoice-review-panel"
       style={{
         fontFamily: FONT,
-        minHeight: 480,
       }}
     >
       <div

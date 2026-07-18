@@ -1457,6 +1457,27 @@ export async function listPendingInboundVendorEmailEvents(
   return events;
 }
 
+/** Dismissed (rejected) inbound vendor emails — for Needs Review undo list. */
+export async function listDismissedInboundVendorEmailEvents(
+  limit = 50,
+): Promise<VendorEmailEvent[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, V2_COLLECTION_NAMES.vendorEmailEvents),
+      where("reviewStatus", "==", "rejected"),
+    ),
+  );
+  const events = snap.docs
+    .map((d) => {
+      const row = d.data() as VendorEmailEvent;
+      return { ...row, id: row.id ?? d.id };
+    })
+    .filter((e) => e.direction === "inbound" || !e.direction)
+    .slice(0, limit);
+  events.sort((a, b) => (b.receivedAt ?? b.createdAt).localeCompare(a.receivedAt ?? a.createdAt));
+  return events;
+}
+
 export const firestoreDataService = new FirestoreDataService();
 
 export async function addStagingLocation(

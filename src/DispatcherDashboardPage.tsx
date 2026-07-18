@@ -23,8 +23,6 @@ import {
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
-import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
-import { isShopStockLocationReservedError } from "./dispatcher/shopStockMapping";
 import {
   formatShopStockPickListForEditor,
   parseShopStockPickListLines,
@@ -447,38 +445,7 @@ export function DispatcherDashboardPage() {
       .then(setAvailableStagingLocations);
   }, []);
 
-  /* ── Staging location assignment ── */
-  const handleUpdateStagingLocation = async (
-    locationId: string | null,
-  ): Promise<void> => {
-    if (!selectedDeliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updated = await firestoreDataService.updateStagingLocation(
-        selectedDeliveryId,
-        locationId,
-      );
-      if (updated) {
-        setSelectedDetails(updated);
-        await fetchAllData();
-      } else {
-        setMutationError("Failed to update staging location.");
-      }
-    } catch (e) {
-      if (isStagingLocationOccupiedError(e) || isShopStockLocationReservedError(e)) {
-        setMutationError(e.message);
-      } else {
-        setMutationError(
-          "An unexpected error occurred while updating staging location.",
-        );
-        console.error(e);
-      }
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
+  /* ── Planned staging locations ── */
   const handleUpdatePlannedStagingLocations = async (
     plannedIds: string[],
   ): Promise<void> => {
@@ -1950,7 +1917,6 @@ export function DispatcherDashboardPage() {
                 onSetDeliverToSiteConfirmed={handleSetDeliverToSiteConfirmed}
                 onUpdateShopStockPickList={handleUpdateShopStockPickList}
                 stagingLocations={availableStagingLocations}
-                onUpdateStagingLocation={handleUpdateStagingLocation}
                 onUpdatePlannedStagingLocations={handleUpdatePlannedStagingLocations}
                 onUpdateJobPickupScheduled={handleUpdateJobPickupScheduled}
                 onDeliveryOrderUpdated={(delivery) => {
@@ -2372,7 +2338,6 @@ function DetailContent({
   onSetDeliverToSiteConfirmed,
   onUpdateShopStockPickList,
   stagingLocations,
-  onUpdateStagingLocation,
   onUpdatePlannedStagingLocations,
   onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
@@ -2398,7 +2363,6 @@ function DetailContent({
     linkedMappingId?: string,
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
-  onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
   onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
@@ -2965,13 +2929,15 @@ function DetailContent({
             font={font}
             onAssignLocation={() => {
               const target = document.querySelector(
-                '[data-testid="staging-location-assignment"]',
+                '[data-testid="planned-staging-assignment"]',
               );
               if (target instanceof HTMLElement) {
                 target.scrollIntoView({ behavior: "smooth", block: "center" });
-                const select = target.querySelector("select");
-                if (select instanceof HTMLSelectElement) {
-                  select.focus({ preventScroll: true });
+                const firstAvailable = target.querySelector(
+                  'input[type="checkbox"]:not(:disabled)',
+                );
+                if (firstAvailable instanceof HTMLInputElement) {
+                  firstAvailable.focus({ preventScroll: true });
                 }
               }
             }}
@@ -3289,7 +3255,6 @@ function DetailContent({
           onMarkShipped={onMarkShipped}
           onUpdateIssueSummary={onUpdateIssueSummary}
           onUpdateShopStockPickList={onUpdateShopStockPickList}
-          onUpdateStagingLocation={onUpdateStagingLocation}
           onUpdatePlannedStagingLocations={onUpdatePlannedStagingLocations}
           onDeliveryOrderUpdated={onDeliveryOrderUpdated}
           stagingLocations={stagingLocations}
@@ -3879,7 +3844,6 @@ function StatusActionPanel({
   onMarkShipped,
   onUpdateIssueSummary,
   onUpdateShopStockPickList,
-  onUpdateStagingLocation,
   onUpdatePlannedStagingLocations,
   onDeliveryOrderUpdated,
   stagingLocations,
@@ -3899,7 +3863,6 @@ function StatusActionPanel({
     locationNote: string,
     linkedMappingId?: string,
   ) => Promise<void>;
-  onUpdateStagingLocation: (id: string | null) => Promise<void>;
   onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   stagingLocations: StagingLocation[];
@@ -3915,9 +3878,6 @@ function StatusActionPanel({
   const [editingIssue, setEditingIssue] = useState(false);
   const [editReason, setEditReason] = useState("");
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [pendingLocationId, setPendingLocationId] = useState<string>(
-    details.stagingLocation?.id ?? "",
-  );
   const [pendingPlannedIds, setPendingPlannedIds] = useState<string[]>(
     () => details.delivery.plannedStagingLocationIds ?? [],
   );
@@ -3941,7 +3901,6 @@ function StatusActionPanel({
   const [shopStockLocationNote, setShopStockLocationNote] = useState(
     details.delivery.shopStockLocationNote ?? "",
   );
-  const isDirty = pendingLocationId !== (details.stagingLocation?.id ?? "");
   const plannedDirty =
     [...pendingPlannedIds].sort().join(",") !==
     [...(details.delivery.plannedStagingLocationIds ?? [])].sort().join(",");
@@ -3955,10 +3914,6 @@ function StatusActionPanel({
     parsedPickList.length !== savedPickList.length ||
     parsedPickList.some((line, i) => line !== savedPickList[i]) ||
     shopStockLocationNote.trim() !== savedShopStockLocationNote.trim();
-
-  useEffect(() => {
-    setPendingLocationId(details.stagingLocation?.id ?? "");
-  }, [details.stagingLocation?.id, details.delivery.id]);
 
   useEffect(() => {
     setPendingPlannedIds(details.delivery.plannedStagingLocationIds ?? []);
@@ -4110,170 +4065,73 @@ function StatusActionPanel({
           </div>
         )}
 
-        <h3
-          data-testid="assign-staging-location-heading"
-          style={{
-            margin: "0 0 6px",
-            fontSize: 14,
-            fontWeight: 700,
-            color: navy,
-            letterSpacing: "0.02em",
-          }}
-        >
-          Assign Staging Location
-        </h3>
-        <p
-          style={{
-            margin: "0 0 10px",
-            fontSize: 13,
-            color: "#6b7280",
-            lineHeight: 1.45,
-            fontFamily: font,
-          }}
-        >
-          Choose where this delivery will be staged for receiving and pickup.
-        </p>
-        <p
-          data-testid="staging-current-location"
-          style={{
-            margin: "0 0 12px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: details.stagingLocation ? "#2e7d32" : "#ea580c",
-            fontFamily: font,
-            lineHeight: 1.5,
-          }}
-        >
-          {details.stagingLocation ? (
-            <>
-              Current:{" "}
-              <span
-                data-testid="staging-assigned-code"
-                style={{
-                  fontFamily: "monospace",
-                  fontWeight: 700,
-                  backgroundColor: "#fff",
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  color: "#2e7d32",
-                  border: "1px solid #a5d6a7",
-                }}
-              >
-                {details.stagingLocation.code}
-              </span>
-              <span style={{ color: "#4b5563", fontWeight: 500 }}>
-                {" "}
-                {details.stagingLocation.label}
-              </span>
-            </>
-          ) : (
-            <>Current: Not Assigned</>
-          )}
-        </p>
-        <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
-          <select
-            data-testid="staging-location-select"
-            value={pendingLocationId}
-            onChange={(e) => setPendingLocationId(e.target.value)}
-            disabled={loading}
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              border: isDirty ? `2px solid ${navy}` : "1.5px solid #ccd0d7",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: font,
-              color: "#333",
-              backgroundColor: loading ? "#f9fafb" : "#fff",
-              outline: "none",
-              cursor: loading ? "not-allowed" : "pointer",
-              minHeight: 44,
-            }}
-          >
-            <option value="">— Unassigned —</option>
-            {stagingLocations.map((loc) => {
-              const occupant = zoneOccupancy[loc.id];
-              const inUse = Boolean(occupant);
-              return (
-                <option
-                  key={loc.id}
-                  value={loc.id}
-                  disabled={inUse}
-                  data-staging-occupied={inUse ? "true" : undefined}
-                  style={{ color: inUse ? "#bf0a30" : "#333" }}
-                >
-                  {loc.code} — {loc.label}
-                  {inUse ? ` (in use: ${occupant.orderNumber})` : ""}
-                </option>
-              );
-            })}
-          </select>
-          <button
-            onClick={() =>
-              void onUpdateStagingLocation(pendingLocationId || null)
-            }
-            disabled={loading || !isDirty}
-            style={{
-              padding: "10px 18px",
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: font,
-              cursor: loading || !isDirty ? "not-allowed" : "pointer",
-              backgroundColor: loading || !isDirty ? "#f3f4f6" : navy,
-              color: loading || !isDirty ? "#9ca3af" : "#fff",
-              border: `1.5px solid ${loading || !isDirty ? "#d1d5db" : navy}`,
-              transition: "all 0.13s",
-              whiteSpace: "nowrap",
-              minHeight: 44,
-            }}
-          >
-            {loading ? "Saving…" : "Assign"}
-          </button>
-        </div>
-        <p
-          data-testid="staging-location-occupied-helper"
-          style={{
-            margin: "8px 0 0",
-            fontSize: 12,
-            color: "#6b7280",
-            lineHeight: 1.4,
-          }}
-        >
-          Red locations are already assigned to another delivery.
-        </p>
-
         <div
           data-testid="planned-staging-assignment"
-          style={{
-            marginTop: 16,
-            paddingTop: 14,
-            borderTop: "1px solid #e5e7eb",
-          }}
+          style={{ marginTop: (details.delivery.combinationStagingGroupId ||
+            (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0)
+            ? 0
+            : undefined }}
         >
-          <h4
+          <h3
+            data-testid="assign-staging-location-heading"
             style={{
               margin: "0 0 6px",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               color: navy,
-              fontFamily: font,
+              letterSpacing: "0.02em",
             }}
           >
             Planned Staging (dispatcher instruction)
-          </h4>
+          </h3>
           <p
             style={{
               margin: "0 0 10px",
-              fontSize: 12,
+              fontSize: 13,
               color: "#6b7280",
               lineHeight: 1.45,
               fontFamily: font,
             }}
           >
-            Assign one or more spots the vendor should use (e.g. G4+G5+G6 for
-            pipe). List shows actual assignments; divergence badge appears when
-            planned ≠ actual.
+            Choose one or more spots for receiving and pickup (e.g. G4+G5+G6 for
+            pipe). Divergence badge appears when planned ≠ actual.
+          </p>
+          <p
+            data-testid="staging-current-location"
+            style={{
+              margin: "0 0 12px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: details.stagingLocation ? "#2e7d32" : "#ea580c",
+              fontFamily: font,
+              lineHeight: 1.5,
+            }}
+          >
+            {details.stagingLocation ? (
+              <>
+                Current:{" "}
+                <span
+                  data-testid="staging-assigned-code"
+                  style={{
+                    fontFamily: "monospace",
+                    fontWeight: 700,
+                    backgroundColor: "#fff",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    color: "#2e7d32",
+                    border: "1px solid #a5d6a7",
+                  }}
+                >
+                  {details.stagingLocation.code}
+                </span>
+                <span style={{ color: "#4b5563", fontWeight: 500 }}>
+                  {" "}
+                  {details.stagingLocation.label}
+                </span>
+              </>
+            ) : (
+              <>Current: Not Assigned</>
+            )}
           </p>
           <p
             data-testid="planned-staging-current"
@@ -4347,24 +4205,27 @@ function StatusActionPanel({
           >
             {stagingLocations.map((loc) => {
               const checked = pendingPlannedIds.includes(loc.id);
+              const occupant = zoneOccupancy[loc.id];
+              const unavailable = Boolean(occupant);
               return (
                 <label
                   key={loc.id}
                   data-testid={`planned-staging-option-${loc.code}`}
+                  data-staging-unavailable={unavailable ? "true" : undefined}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                     fontSize: 13,
-                    color: "#333",
+                    color: unavailable ? "#9ca3af" : "#333",
                     fontFamily: font,
-                    cursor: loading ? "not-allowed" : "pointer",
+                    cursor: loading || unavailable ? "not-allowed" : "pointer",
                   }}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
-                    disabled={loading}
+                    disabled={loading || unavailable}
                     onChange={(e) => {
                       setPendingPlannedIds((prev) =>
                         e.target.checked
@@ -4373,10 +4234,32 @@ function StatusActionPanel({
                       );
                     }}
                   />
-                  <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      color: unavailable ? "#bf0a30" : "#333",
+                    }}
+                  >
                     {loc.code}
                   </span>
-                  <span style={{ color: "#6b7280" }}>{loc.label}</span>
+                  <span style={{ color: unavailable ? "#9ca3af" : "#6b7280" }}>
+                    {loc.label}
+                  </span>
+                  {unavailable ? (
+                    <span
+                      data-testid={`planned-staging-unavailable-${loc.code}`}
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#bf0a30",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Not available (in use: {occupant.orderNumber})
+                    </span>
+                  ) : null}
                 </label>
               );
             })}
