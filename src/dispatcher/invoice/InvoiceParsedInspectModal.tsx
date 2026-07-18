@@ -15,6 +15,8 @@ import {
   codPaymentContext,
   matchUnavailableReason,
   shipDateMissingWarning,
+  readInvoiceHeaderField,
+  formatInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
 
 const NAVY = "#0a3161";
@@ -114,6 +116,9 @@ export function InvoiceParsedInspectModal({
   const showReparse = Boolean(onReparse) && isPending && !readOnly;
   const approveDisabled = actionLoading || approveBlocked;
   const linkDisabled = actionLoading || approveBlocked || !selectedDeliveryId?.trim();
+  const invoiceDateLabel = formatInvoiceHeaderField(
+    readInvoiceHeaderField(importRow.parsedHeader, "invoiceDate"),
+  );
 
   return (
     <div
@@ -137,40 +142,54 @@ export function InvoiceParsedInspectModal({
           width: "100%",
           maxWidth: 960,
           maxHeight: "90vh",
-          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
           backgroundColor: "#fff",
           borderRadius: 12,
-          padding: "24px 28px",
           boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
           color: CELL_TEXT,
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
+          data-testid="invoice-parsed-inspect-sticky-header"
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 12,
-            marginBottom: 16,
+            flexShrink: 0,
+            padding: "24px 28px 16px",
+            borderBottom: "1px solid #e5e7eb",
+            backgroundColor: "#fff",
+            borderRadius: "12px 12px 0 0",
           }}
         >
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 20,
-                fontWeight: 700,
-                color: NAVY,
-              }}
-            >
-              Parsed import data
-            </h2>
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: MUTED }}>
-              {importRow.pageId} · batch {importRow.importBatchId}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 12,
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: NAVY,
+                }}
+              >
+                Parsed import data
+              </h2>
+              <p
+                data-testid="invoice-parsed-inspect-subtitle"
+                style={{ margin: "6px 0 0", fontSize: 13, color: MUTED }}
+              >
+                {importRow.pageId} · batch {importRow.importBatchId} · invoice date{" "}
+                {invoiceDateLabel}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <button
               type="button"
               data-testid="invoice-parsed-inspect-view-original-pdf"
@@ -236,19 +255,29 @@ export function InvoiceParsedInspectModal({
             </button>
           </div>
         </div>
-        {pdfUnavailableMessage(importRow.id) ? (
-          <p
-            data-testid="invoice-parsed-inspect-pdf-unavailable"
-            style={{
-              margin: "0 0 12px",
-              fontSize: 12,
-              color: "#9a3412",
-            }}
-          >
-            {pdfUnavailableMessage(importRow.id)}
-          </p>
-        ) : null}
+          {pdfUnavailableMessage(importRow.id) ? (
+            <p
+              data-testid="invoice-parsed-inspect-pdf-unavailable"
+              style={{
+                margin: "12px 0 0",
+                fontSize: 12,
+                color: "#9a3412",
+              }}
+            >
+              {pdfUnavailableMessage(importRow.id)}
+            </p>
+          ) : null}
+        </div>
 
+        <div
+          data-testid="invoice-parsed-inspect-scroll-body"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            padding: "16px 28px 24px",
+          }}
+        >
         {showDeliveryPicker && onSelectDelivery && (
           <InvoiceDeliveryMatchSection
             importRow={importRow}
@@ -545,14 +574,17 @@ export function InvoiceParsedInspectModal({
             })}
           </pre>
         </details>
+        </div>
 
         {showActions && (
           <div
             data-testid="invoice-parsed-inspect-actions"
             style={{
-              marginTop: 20,
-              paddingTop: 16,
+              flexShrink: 0,
+              padding: "16px 28px",
               borderTop: "1px solid #e5e7eb",
+              backgroundColor: "#fff",
+              borderRadius: "0 0 12px 12px",
               display: "flex",
               justifyContent: "flex-end",
               gap: 10,
