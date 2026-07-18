@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { DeliveryDetails, StagingLocation } from "../models";
+import type { DeliveryDetails, StagingLocation, VendorEmailEvent } from "../models";
 import { computeDeliveryDisplayState } from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
@@ -252,12 +252,172 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
   );
 }
 
+function formatEmailEventWhen(event: VendorEmailEvent): string {
+  const iso = event.sentAt ?? event.receivedAt ?? event.createdAt;
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const isOutbound = event.direction === "outbound";
+  const body =
+    event.bodyText?.trim() ||
+    event.bodyExcerpt?.trim() ||
+    event.snippet?.trim() ||
+    "";
+  const preview =
+    body.length > 220 ? `${body.slice(0, 219).trim()}…` : body;
+  const recipients = event.recipientEmails?.filter(Boolean).join(", ") || "—";
+
+  return (
+    <div
+      data-testid={`email-evidence-live-card-${event.id}`}
+      style={{
+        backgroundColor: "#fff",
+        border: "1px solid #e0e3e8",
+        borderRadius: 6,
+        padding: "12px",
+      }}
+    >
+      <p
+        data-testid={`email-evidence-live-direction-${event.id}`}
+        style={{
+          margin: "0 0 8px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: isOutbound ? "#0a3161" : "#2e7d32",
+          letterSpacing: "0.02em",
+        }}
+      >
+        {isOutbound ? "Sent by dispatcher" : "Received from vendor"}
+      </p>
+      <div
+        style={{
+          marginBottom: 10,
+          padding: "10px 12px",
+          backgroundColor: "#f8fafc",
+          border: "1px solid #e8ecf0",
+          borderRadius: 4,
+          fontSize: 12,
+          color: "#334155",
+        }}
+      >
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          {event.senderEmail}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>To: </span>
+          {recipients}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          {event.subject}
+        </div>
+        <div style={{ marginBottom: preview ? 8 : 0 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Date: </span>
+          {formatEmailEventWhen(event)}
+        </div>
+        {preview ? (
+          <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
+            {preview}
+          </p>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        data-testid={`email-evidence-live-view-${event.id}`}
+        onClick={() => setShowOriginal((v) => !v)}
+        style={{
+          padding: "4px 10px",
+          borderRadius: 4,
+          border: "1px solid #0a3161",
+          backgroundColor: "#fff",
+          color: "#0a3161",
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        {showOriginal ? "Hide Original Email" : "Show Original Email"}
+      </button>
+
+      {showOriginal ? (
+        <div
+          data-testid={`email-evidence-live-original-${event.id}`}
+          style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            backgroundColor: "#f8fafc",
+            borderRadius: 4,
+            fontSize: 12,
+            color: "#334155",
+          }}
+        >
+          <div style={{ marginBottom: 4 }}>
+            <strong>From:</strong> {event.senderEmail}
+          </div>
+          <div style={{ marginBottom: 4 }}>
+            <strong>To:</strong> {recipients}
+          </div>
+          <div style={{ marginBottom: 4 }}>
+            <strong>Date:</strong> {formatEmailEventWhen(event)}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>Subject:</strong> {event.subject}
+          </div>
+          {body ? (
+            <pre
+              data-testid={`email-evidence-live-body-${event.id}`}
+              style={{
+                margin: 0,
+                whiteSpace: "pre-wrap",
+                fontFamily: "inherit",
+                fontSize: 12,
+              }}
+            >
+              {body}
+            </pre>
+          ) : (
+            <p style={{ margin: 0, color: "#64748b", fontStyle: "italic" }}>
+              Message body was not stored for this email.
+            </p>
+          )}
+          {isOutbound && event.bodyExcerpt && !event.bodyText ? (
+            <p
+              style={{
+                margin: "8px 0 0",
+                fontSize: 11,
+                color: "#64748b",
+                fontStyle: "italic",
+              }}
+            >
+              Showing stored excerpt from outbound send (full body not archived).
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ReadinessEvidencePanel({
   details,
   stagingLocations,
   navy,
   font,
-  onExpandVendorCommunications,
+  onExpandVendorCommunications: _onExpandVendorCommunications,
   emailEvidenceExpandSignal = 0,
 }: {
   details: DeliveryDetails;
@@ -278,7 +438,10 @@ export function ReadinessEvidencePanel({
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
-  const [outboundVendorEmailCount, setOutboundVendorEmailCount] = useState(0);
+  const [vendorEmailEvents, setVendorEmailEvents] = useState<VendorEmailEvent[]>([]);
+  const [vendorEmailEventsLoading, setVendorEmailEventsLoading] = useState(false);
+
+  const emailEvidenceCount = proposals.length + vendorEmailEvents.length;
 
   useEffect(() => {
     if (emailEvidenceExpandSignal > 0) {
@@ -289,16 +452,16 @@ export function ReadinessEvidencePanel({
 
   useEffect(() => {
     let cancelled = false;
+    setVendorEmailEventsLoading(true);
     void listVendorEmailEventsForDelivery(delivery.id)
       .then((rows) => {
-        if (!cancelled) {
-          setOutboundVendorEmailCount(
-            rows.filter((e) => e.direction === "outbound").length,
-          );
-        }
+        if (!cancelled) setVendorEmailEvents(rows);
       })
       .catch(() => {
-        if (!cancelled) setOutboundVendorEmailCount(0);
+        if (!cancelled) setVendorEmailEvents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setVendorEmailEventsLoading(false);
       });
     return () => {
       cancelled = true;
@@ -433,32 +596,45 @@ export function ReadinessEvidencePanel({
   })();
 
   const emailSnapshot = (() => {
-    if (proposals.length === 0) {
+    if (vendorEmailEventsLoading) {
+      return { label: "Loading…", tone: "neutral" as SnapshotTone };
+    }
+    if (emailEvidenceCount === 0) {
       return { label: "No emails found", tone: "neutral" as SnapshotTone };
     }
-    const latestIso = proposals.reduce(
-      (max, row) => (row.receivedAt > max ? row.receivedAt : max),
-      proposals[0].receivedAt,
-    );
-    const countLabel = `${proposals.length} related email${proposals.length === 1 ? "" : "s"}`;
+    const latestIso = [
+      ...proposals.map((row) => row.receivedAt),
+      ...vendorEmailEvents.map(
+        (row) => row.sentAt ?? row.receivedAt ?? row.createdAt,
+      ),
+    ].sort((a, b) => b.localeCompare(a))[0];
+    const sentCount = vendorEmailEvents.filter((e) => e.direction === "outbound").length;
+    const receivedCount = vendorEmailEvents.length - sentCount;
+    const parts: string[] = [];
+    if (sentCount > 0) {
+      parts.push(`${sentCount} sent`);
+    }
+    if (receivedCount > 0) {
+      parts.push(`${receivedCount} received`);
+    }
+    if (proposals.length > 0) {
+      parts.push(`${proposals.length} matched`);
+    }
+    const countLabel =
+      parts.length > 0
+        ? parts.join(", ")
+        : `${emailEvidenceCount} related email${emailEvidenceCount === 1 ? "" : "s"}`;
     return {
-      label: `${countLabel}, latest ${formatSnapshotDate(latestIso)}`,
+      label: `${countLabel} · latest ${formatSnapshotDate(latestIso)}`,
       tone: "neutral" as SnapshotTone,
     };
   })();
 
-  const hasEmailChain =
-    proposals.length > 0 || outboundVendorEmailCount > 0;
+  const hasEmailChain = emailEvidenceCount > 0;
 
   const handleViewFullEmailChain = () => {
-    if (proposals.length > 0) {
-      setDetailsOpen(true);
-      setEmailEvidenceOpen(true);
-      return;
-    }
-    if (outboundVendorEmailCount > 0 && onExpandVendorCommunications) {
-      onExpandVendorCommunications();
-    }
+    setDetailsOpen(true);
+    setEmailEvidenceOpen(true);
   };
 
   return (
@@ -802,7 +978,7 @@ export function ReadinessEvidencePanel({
                   letterSpacing: "0.02em",
                 }}
               >
-                Related email evidence ({proposals.length})
+                Related email evidence ({emailEvidenceCount})
               </span>
               <span style={{ fontSize: 11, color: "#64748b" }}>
                 {emailEvidenceOpen ? "Collapse" : "Expand"}
@@ -819,7 +995,14 @@ export function ReadinessEvidencePanel({
                   gap: 12,
                 }}
               >
-                {proposals.length === 0 ? (
+                {vendorEmailEventsLoading ? (
+                  <p
+                    data-testid="email-evidence-loading"
+                    style={{ margin: 0, fontSize: 13, color: "#64748b" }}
+                  >
+                    Loading vendor emails…
+                  </p>
+                ) : emailEvidenceCount === 0 ? (
                   <p
                     data-testid="email-evidence-empty"
                     style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}
@@ -827,9 +1010,14 @@ export function ReadinessEvidencePanel({
                     No matched email evidence for this delivery.
                   </p>
                 ) : (
-                  proposals.map((row) => (
-                    <EmailEvidenceCard key={row.messageId} row={row} />
-                  ))
+                  <>
+                    {vendorEmailEvents.map((event) => (
+                      <VendorEmailEventCard key={event.id} event={event} />
+                    ))}
+                    {proposals.map((row) => (
+                      <EmailEvidenceCard key={row.messageId} row={row} />
+                    ))}
+                  </>
                 )}
               </div>
             )}
