@@ -68,6 +68,7 @@ import {
 } from "./dispatcher/drawer/needMoreInfoDraft";
 import { ResolveIssueModal } from "./dispatcher/drawer/ResolveIssueModal";
 import { VendorCommunicationsPanel } from "./dispatcher/drawer/VendorCommunicationsPanel";
+import { VendorCommunicationsModal } from "./dispatcher/drawer/VendorCommunicationsModal";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
@@ -2436,12 +2437,15 @@ function DetailContent({
   );
   const [inspectImportLoading, setInspectImportLoading] = useState(false);
   const [inspectImportError, setInspectImportError] = useState<string | null>(null);
+  const [drawerEmailModalOpen, setDrawerEmailModalOpen] = useState(false);
+  const { vendors: portalVendors } = useDispatcherPortal();
 
   useEffect(() => {
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
     setInspectImport(null);
     setInspectImportError(null);
+    setDrawerEmailModalOpen(false);
   }, [details?.delivery.id]);
 
   const expandVendorCommunications = () => {
@@ -2580,6 +2584,37 @@ function DetailContent({
   if (!details.job) return null;
   const job = details.job;
   const delivery = details.delivery;
+  const itemsReceivedTotal = details.items.reduce(
+    (sum, item) => sum + item.qtyReceived,
+    0,
+  );
+  const itemsOrderedTotal = details.items.reduce(
+    (sum, item) => sum + item.qtyOrdered,
+    0,
+  );
+  const drawerDeliveryRow: DeliveryListRow = {
+    deliveryId: delivery.id,
+    status: delivery.status,
+    statusDisplayLabel:
+      DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status,
+    jobNumber: job.jobNumber,
+    jobName: job.jobName,
+    poNumber:
+      resolveDeliveryPoNumber(
+        delivery.customerPoOrReference,
+        details.purchaseOrder?.poNumber,
+      ) ?? undefined,
+    orderNumber: delivery.orderNumber,
+    vendorName: details.vendor.name,
+    deliveryDate: delivery.deliveryDate ?? "",
+    stagingLocationCode: details.stagingLocation?.code,
+    itemsReceivedLabel: `${itemsReceivedTotal}/${itemsOrderedTotal}`,
+    issueSummary: delivery.issueSummary ?? "",
+    openIssueCount: details.materialIssues.filter(
+      (issue) => issue.status === "open" || issue.status === "assigned",
+    ).length,
+    missingStagingAssignment: !details.stagingLocation,
+  };
   const linkedInvoiceImportId = delivery.vendorInvoiceImportId?.trim() ?? "";
   const shopStagingRequired = !isInvoiceShellNoShopStaging(delivery);
 
@@ -2757,6 +2792,44 @@ function DetailContent({
                   <span style={{ color: "#333", textAlign: "right" }}>{value}</span>
                 </div>
               ))}
+              <button
+                type="button"
+                data-testid="delivery-basics-email-vendor"
+                disabled={!emailProviderConnected}
+                onClick={() => setDrawerEmailModalOpen(true)}
+                style={{
+                  marginTop: 4,
+                  width: "100%",
+                  padding: "12px 16px",
+                  borderRadius: 8,
+                  border: `2px solid ${navy}`,
+                  backgroundColor: emailProviderConnected ? navy : "#e5e7eb",
+                  color: emailProviderConnected ? "#fff" : "#9ca3af",
+                  fontSize: 15,
+                  fontWeight: 800,
+                  letterSpacing: "0.03em",
+                  cursor: emailProviderConnected ? "pointer" : "not-allowed",
+                  fontFamily: font,
+                  boxShadow: emailProviderConnected
+                    ? "0 2px 8px rgba(10, 49, 97, 0.25)"
+                    : "none",
+                }}
+              >
+                Email Vendor
+              </button>
+              {!emailProviderConnected ? (
+                <p
+                  data-testid="delivery-basics-email-vendor-hint"
+                  style={{
+                    margin: 0,
+                    fontSize: 11,
+                    color: "#6b7280",
+                    textAlign: "center",
+                  }}
+                >
+                  Connect Gmail in Settings to send vendor email.
+                </p>
+              ) : null}
             </div>
           </>,
         )}
@@ -3820,6 +3893,24 @@ function DetailContent({
           }}
         />
       )}
+      <VendorCommunicationsModal
+        open={drawerEmailModalOpen}
+        vendors={portalVendors}
+        deliveries={[drawerDeliveryRow]}
+        emailProviderConnected={emailProviderConnected}
+        initialVendorId={details.vendor.id}
+        initialDeliveryOrderId={details.delivery.id}
+        navy={navy}
+        font={font}
+        onClose={() => setDrawerEmailModalOpen(false)}
+        onSuccess={() => {
+          setDrawerEmailModalOpen(false);
+          setVendorCommsRefresh((value) => value + 1);
+        }}
+        onSend={async (input) => {
+          await sendVendorEmail(input);
+        }}
+      />
       {showPrintLabel && (
         <PrintLabelModal
           qrUrl={buildEslTagQrUrl({

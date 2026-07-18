@@ -17,6 +17,8 @@ export function VendorCommunicationsModal({
   emailProviderConnected,
   navy,
   font,
+  initialVendorId,
+  initialDeliveryOrderId,
   onClose,
   onSuccess,
   onSend,
@@ -27,6 +29,10 @@ export function VendorCommunicationsModal({
   emailProviderConnected: boolean;
   navy: string;
   font: string;
+  /** Pre-select vendor when opened from delivery drawer. */
+  initialVendorId?: string;
+  /** Pre-select delivery when opened from delivery drawer. */
+  initialDeliveryOrderId?: string;
   onClose: () => void;
   onSuccess?: () => void;
   onSend: (input: {
@@ -78,16 +84,17 @@ export function VendorCommunicationsModal({
 
   useEffect(() => {
     if (!open) return;
-    setTo("");
-    setVendorId("");
-    setDeliveryOrderId("");
+    setVendorId(initialVendorId ?? "");
+    setDeliveryOrderId(initialDeliveryOrderId ?? "");
     setSubject("");
     setBody("");
     setSaveVendorEmail(false);
     setSending(false);
     setError(null);
     setValidationError(null);
-  }, [open]);
+    const presetVendor = (vendors ?? []).find((v) => v.id === initialVendorId);
+    setTo(presetVendor?.email?.trim() ?? "");
+  }, [open, initialVendorId, initialDeliveryOrderId, vendors]);
 
   useEffect(() => {
     if (!vendorId) return;
