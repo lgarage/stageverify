@@ -110,20 +110,24 @@ export function NeedsReviewEmailStrip() {
   const stripRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded && !dismissedExpanded) return;
+
+    const collapseAll = () => {
+      setExpanded(false);
+      setDismissedExpanded(false);
+      setOpenOriginalId(null);
+    };
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (stripRef.current?.contains(target)) return;
-      setExpanded(false);
-      setOpenOriginalId(null);
+      collapseAll();
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setExpanded(false);
-        setOpenOriginalId(null);
+        collapseAll();
       }
     };
 
@@ -135,7 +139,7 @@ export function NeedsReviewEmailStrip() {
       document.removeEventListener("touchstart", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [expanded]);
+  }, [expanded, dismissedExpanded]);
 
   const handleDismiss = async (eventId: string, sourceMessageId: string) => {
     setDismissError(null);
@@ -153,6 +157,7 @@ export function NeedsReviewEmailStrip() {
       } else {
         reloadDismissed();
       }
+      setDismissedExpanded(false);
     } catch (err) {
       setDismissError(err instanceof Error ? err.message : "Dismiss failed.");
     } finally {
@@ -172,6 +177,7 @@ export function NeedsReviewEmailStrip() {
           (b.receivedAt ?? "").localeCompare(a.receivedAt ?? ""),
         );
       });
+      setDismissedExpanded(false);
       setExpanded(true);
     } catch (err) {
       setUndoError(err instanceof Error ? err.message : "Undo failed.");
@@ -184,7 +190,7 @@ export function NeedsReviewEmailStrip() {
 
   return (
     <section
-      ref={needsReview.length > 0 ? stripRef : undefined}
+      ref={stripRef}
       data-testid="needs-review-email-strip"
       style={{
         border: "1px solid #dde1e7",
@@ -480,11 +486,29 @@ function DismissedEmailsFooter({
   onToggle: () => void;
   onUndo: (event: VendorEmailEvent) => void;
 }) {
+  if (dismissedLoaded && dismissedCount === 0) {
+    return (
+      <div
+        style={{
+          borderTop: "1px solid #e0e3e8",
+          padding: "12px 18px",
+        }}
+      >
+        <p
+          data-testid="needs-review-dismissed-count"
+          style={{ margin: 0, fontSize: 13, color: "#64748b", fontFamily: FONT }}
+        >
+          Dismissed emails (0) — none dismissed.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
         borderTop: "1px solid #e0e3e8",
-        backgroundColor: "#fafbfc",
+        backgroundColor: "#f8fafc",
       }}
     >
       <button
@@ -497,20 +521,23 @@ function DismissedEmailsFooter({
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
-          padding: "12px 18px",
+          padding: "14px 18px",
           border: "none",
-          background: "none",
+          backgroundColor: "#f8fafc",
           cursor: "pointer",
           textAlign: "left",
           fontFamily: FONT,
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>
+        <span
+          data-testid="needs-review-dismissed-count"
+          style={{ fontSize: 15, fontWeight: 700, color: NAVY }}
+        >
           Dismissed emails
           {dismissedLoaded ? ` (${dismissedCount})` : ""}
         </span>
         <span style={{ fontSize: 12, color: "#64748b" }}>
-          {dismissedExpanded ? "Hide" : "Show"}
+          {dismissedExpanded ? "Hide" : "Show"} dismissed · undo restore
         </span>
       </button>
 
