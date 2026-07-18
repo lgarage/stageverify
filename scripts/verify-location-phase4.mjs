@@ -290,11 +290,11 @@ async function verifyListBadges(page) {
       .isVisible()
       .catch(() => false);
     record(
-      "ORD-005 Divergence badge in list",
+      "ORD-005 Spot mismatch badge in list",
       divergenceVisible,
       divergenceVisible
         ? "drawer badge (demo rows hidden on prod)"
-        : "missing drawer divergence badge",
+        : "missing drawer spot mismatch badge",
     );
     await closeDrawerIfOpen(page);
 
@@ -320,9 +320,9 @@ async function verifyListBadges(page) {
   await page.waitForTimeout(1500);
   const ord005Text = await page.locator("table").innerText().catch(() => "");
   record(
-    "ORD-005 Divergence badge in list",
-    /Divergence/i.test(ord005Text),
-    /Divergence/i.test(ord005Text) ? "visible" : "missing",
+    "ORD-005 Spot mismatch badge in list",
+    /Spot mismatch/i.test(ord005Text),
+    /Spot mismatch/i.test(ord005Text) ? "visible" : "missing",
   );
 
   await search.fill("ORD-006");

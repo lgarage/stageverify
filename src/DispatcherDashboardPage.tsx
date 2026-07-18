@@ -59,7 +59,7 @@ import { ReadinessEvidencePanel } from "./dispatcher/email/ReadinessEvidencePane
 import { DrawerActionBanner } from "./dispatcher/drawer/DrawerActionBanner";
 import { StagingLocationBanner } from "./dispatcher/drawer/StagingLocationBanner";
 import { IssueSummaryPanel } from "./dispatcher/drawer/IssueSummaryPanel";
-import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, incrementOverviewStatusCounts, formatPlannedStagingCodes, hasPlannedActualDivergence, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
+import { shouldShowPickupSummaryPanel, selectTopActivityHistoryEvents, filterCompactActivityHistory, sortActivityHistoryNewestFirst, formatActivityHistoryHeadline, formatActivityHistoryMeta, deliveryHasCopyPickupIdentifyingInfo, buildPickupInformationClipboardText, effectiveItemQtyReceived, DELIVERY_OVERVIEW_FILTER_LABEL, DELIVERY_OVERVIEW_STATUS_ORDER, incrementOverviewStatusCounts, formatActualStagingCodes, formatPlannedStagingCodes, hasPlannedActualDivergence, STAGING_PLAN_MISMATCH_HELPER, STAGING_PLAN_MISMATCH_LABEL, STAGING_PLAN_MISMATCH_TITLE, type DeliveryOverviewFilterStatus } from "./dispatcher/deliveryDisplayHelpers";
 import { isInvoiceShellNoShopStaging, resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { InvoiceParsedInspectModal } from "./dispatcher/invoice/InvoiceParsedInspectModal";
 import {
@@ -444,6 +444,34 @@ export function DispatcherDashboardPage() {
       .listStagingLocations()
       .then(setAvailableStagingLocations);
   }, []);
+
+  /* ── Move order to a staging spot (actual assignment) ── */
+  const handleUpdateStagingLocation = async (
+    stagingLocationId: string,
+  ): Promise<void> => {
+    if (!selectedDeliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updated = await firestoreDataService.updateStagingLocation(
+        selectedDeliveryId,
+        stagingLocationId,
+      );
+      if (updated) {
+        setSelectedDetails(updated);
+        await fetchAllData();
+      } else {
+        setMutationError("Failed to move order to that spot.");
+      }
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while moving this order.",
+      );
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
 
   /* ── Planned staging locations ── */
   const handleUpdatePlannedStagingLocations = async (
@@ -1488,7 +1516,7 @@ export function DispatcherDashboardPage() {
                               {row.plannedActualDivergence ? (
                                 <span
                                   data-testid={`staging-divergence-badge-${row.deliveryId}`}
-                                  title="Planned staging differs from actual assignment"
+                                  title={STAGING_PLAN_MISMATCH_TITLE}
                                   style={{
                                     display: "inline-block",
                                     padding: "2px 6px",
@@ -1502,13 +1530,14 @@ export function DispatcherDashboardPage() {
                                     border: "1px solid #fdba74",
                                   }}
                                 >
-                                  Divergence
+                                  {STAGING_PLAN_MISMATCH_LABEL}
                                 </span>
                               ) : null}
                             </span>
                           ) : row.plannedActualDivergence ? (
                             <span
                               data-testid={`staging-divergence-badge-${row.deliveryId}`}
+                              title={STAGING_PLAN_MISMATCH_TITLE}
                               style={{
                                 display: "inline-block",
                                 padding: "2px 6px",
@@ -1522,7 +1551,7 @@ export function DispatcherDashboardPage() {
                                 border: "1px solid #fdba74",
                               }}
                             >
-                              Divergence
+                              {STAGING_PLAN_MISMATCH_LABEL}
                             </span>
                           ) : (
                             <span
@@ -1918,6 +1947,8 @@ export function DispatcherDashboardPage() {
                 onUpdateShopStockPickList={handleUpdateShopStockPickList}
                 stagingLocations={availableStagingLocations}
                 onUpdatePlannedStagingLocations={handleUpdatePlannedStagingLocations}
+                onUpdateStagingLocation={handleUpdateStagingLocation}
+                onOpenDelivery={(deliveryId) => void selectDelivery(deliveryId)}
                 onUpdateJobPickupScheduled={handleUpdateJobPickupScheduled}
                 onDeliveryOrderUpdated={(delivery) => {
                   setSelectedDetails((prev) =>
@@ -2339,6 +2370,8 @@ function DetailContent({
   onUpdateShopStockPickList,
   stagingLocations,
   onUpdatePlannedStagingLocations,
+  onUpdateStagingLocation,
+  onOpenDelivery,
   onUpdateJobPickupScheduled,
   onDeliveryOrderUpdated,
   onResolveMaterialIssue,
@@ -2364,6 +2397,8 @@ function DetailContent({
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
   onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
+  onUpdateStagingLocation: (stagingLocationId: string) => Promise<void>;
+  onOpenDelivery: (deliveryId: string) => void;
   onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   onResolveMaterialIssue: (
@@ -3256,6 +3291,8 @@ function DetailContent({
           onUpdateIssueSummary={onUpdateIssueSummary}
           onUpdateShopStockPickList={onUpdateShopStockPickList}
           onUpdatePlannedStagingLocations={onUpdatePlannedStagingLocations}
+          onUpdateStagingLocation={onUpdateStagingLocation}
+          onOpenDelivery={onOpenDelivery}
           onDeliveryOrderUpdated={onDeliveryOrderUpdated}
           stagingLocations={stagingLocations}
           navy={navy}
@@ -3845,6 +3882,8 @@ function StatusActionPanel({
   onUpdateIssueSummary,
   onUpdateShopStockPickList,
   onUpdatePlannedStagingLocations,
+  onUpdateStagingLocation,
+  onOpenDelivery,
   onDeliveryOrderUpdated,
   stagingLocations,
   navy,
@@ -3864,6 +3903,8 @@ function StatusActionPanel({
     linkedMappingId?: string,
   ) => Promise<void>;
   onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
+  onUpdateStagingLocation: (stagingLocationId: string) => Promise<void>;
+  onOpenDelivery: (deliveryId: string) => void;
   onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   stagingLocations: StagingLocation[];
   navy: string;
@@ -4094,8 +4135,27 @@ function StatusActionPanel({
             }}
           >
             Choose one or more spots for receiving and pickup (e.g. G4+G5+G6 for
-            pipe). Divergence badge appears when planned ≠ actual.
+            pipe). {STAGING_PLAN_MISMATCH_HELPER} Click an order number on a
+            blocked spot to open it, then use <strong>Move here</strong> on an
+            open spot for this order.
           </p>
+          {plannedDivergence ? (
+            <p
+              data-testid="staging-actual-location"
+              style={{
+                margin: "0 0 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#9a3412",
+                fontFamily: font,
+              }}
+            >
+              Actually at:{" "}
+              <span style={{ fontFamily: "monospace" }}>
+                {formatActualStagingCodes(details.delivery, locById) ?? "—"}
+              </span>
+            </p>
+          ) : null}
           <p
             data-testid="staging-current-location"
             style={{
@@ -4150,6 +4210,7 @@ function StatusActionPanel({
             {plannedDivergence ? (
               <span
                 data-testid="drawer-planned-divergence-badge"
+                title={STAGING_PLAN_MISMATCH_TITLE}
                 style={{
                   marginLeft: 8,
                   padding: "2px 6px",
@@ -4163,7 +4224,7 @@ function StatusActionPanel({
                   border: "1px solid #fdba74",
                 }}
               >
-                Divergence
+                {STAGING_PLAN_MISMATCH_LABEL}
               </span>
             ) : null}
           </p>
@@ -4246,7 +4307,7 @@ function StatusActionPanel({
                   <span style={{ color: unavailable ? "#9ca3af" : "#6b7280" }}>
                     {loc.label}
                   </span>
-                  {unavailable ? (
+                  {unavailable && occupant ? (
                     <span
                       data-testid={`planned-staging-unavailable-${loc.code}`}
                       style={{
@@ -4257,8 +4318,71 @@ function StatusActionPanel({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      Not available (in use: {occupant.orderNumber})
+                      Not available (in use:{" "}
+                      <button
+                        type="button"
+                        data-testid={`open-occupant-${occupant.orderNumber}`}
+                        disabled={loading}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onOpenDelivery(occupant.deliveryId);
+                        }}
+                        style={{
+                          padding: 0,
+                          border: "none",
+                          background: "none",
+                          color: navy,
+                          fontWeight: 800,
+                          fontSize: 11,
+                          cursor: loading ? "not-allowed" : "pointer",
+                          textDecoration: "underline",
+                          fontFamily: font,
+                        }}
+                      >
+                        {occupant.orderNumber}
+                      </button>
+                      )
                     </span>
+                  ) : !unavailable ? (
+                    details.stagingLocation?.id === loc.id ? (
+                      <span
+                        data-testid={`staging-current-spot-${loc.code}`}
+                        style={{
+                          marginLeft: "auto",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#2e7d32",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Current spot
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        data-testid={`move-staging-${loc.code}`}
+                        disabled={loading}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          void onUpdateStagingLocation(loc.id);
+                        }}
+                        style={{
+                          marginLeft: "auto",
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fontFamily: font,
+                          cursor: loading ? "not-allowed" : "pointer",
+                          backgroundColor: loading ? "#f3f4f6" : "#fff",
+                          color: loading ? "#9ca3af" : navy,
+                          border: `1px solid ${loading ? "#d1d5db" : navy}`,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Move here
+                      </button>
+                    )
                   ) : null}
                 </label>
               );

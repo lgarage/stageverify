@@ -42,6 +42,17 @@ export function hasPlannedStagingLocations(
   return (delivery.plannedStagingLocationIds?.length ?? 0) > 0;
 }
 
+/** User-facing label when planned staging spots differ from spots in use. */
+export const STAGING_PLAN_MISMATCH_LABEL = "Spot mismatch";
+
+/** Tooltip / title for spot mismatch badges. */
+export const STAGING_PLAN_MISMATCH_TITLE =
+  "The spot used for receiving differs from what you planned for the vendor.";
+
+/** Helper copy in the planned-staging drawer section. */
+export const STAGING_PLAN_MISMATCH_HELPER =
+  "Spot mismatch means the vendor used a different spot than you planned.";
+
 /** Planned set differs from actual staging assignment (Phase 4 divergence). */
 export function hasPlannedActualDivergence(delivery: DeliveryOrder): boolean {
   const planned = [...(delivery.plannedStagingLocationIds ?? [])].sort();
