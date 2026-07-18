@@ -521,11 +521,11 @@ export function InvoiceReviewPanel({
             ? `+${delta} line(s)`
             : `${delta} line(s)`;
       setReparseMessage(
-        `Re-parsed — ${result.reparse.newLineCount} line(s) (${deltaLabel}).`,
+        `Refreshed — ${result.reparse.newLineCount} line(s) (${deltaLabel}).`,
       );
     } catch (err) {
       setReparseMessage(
-        err instanceof Error ? err.message : "Re-parse failed.",
+        err instanceof Error ? err.message : "Refresh failed.",
       );
     } finally {
       setReparseLoadingId(null);

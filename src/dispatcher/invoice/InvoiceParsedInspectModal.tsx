@@ -233,7 +233,7 @@ export function InvoiceParsedInspectModal({
                   opacity: reparseLoading || actionLoading ? 0.55 : 1,
                 }}
               >
-                {reparseLoading ? "Re-parsing…" : "Re-parse"}
+                {reparseLoading ? "Refreshing…" : "Refresh"}
               </button>
             )}
             <button
@@ -394,12 +394,12 @@ export function InvoiceParsedInspectModal({
               style={{
                 marginTop: 10,
                 padding: "8px 10px",
-                backgroundColor: reparseMessage.startsWith("Re-parsed")
+                backgroundColor: reparseMessage.startsWith("Refreshed")
                   ? "#ecfdf5"
                   : "#fff7ed",
-                border: `1px solid ${reparseMessage.startsWith("Re-parsed") ? "#bbf7d0" : "#fed7aa"}`,
+                border: `1px solid ${reparseMessage.startsWith("Refreshed") ? "#bbf7d0" : "#fed7aa"}`,
                 borderRadius: 6,
-                color: reparseMessage.startsWith("Re-parsed") ? "#166534" : "#9a3412",
+                color: reparseMessage.startsWith("Refreshed") ? "#166534" : "#9a3412",
                 fontSize: 12,
               }}
             >
