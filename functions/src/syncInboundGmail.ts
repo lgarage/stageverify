@@ -94,16 +94,32 @@ async function collectStaleIssueImportMessageIds(
   db: admin.firestore.Firestore,
 ): Promise<Set<string>> {
   const reparseStaleReviewIds = new Set<string>();
-  const issueReviewSnap = await db
-    .collection(REVIEW_COLLECTION)
-    .where("reviewStatus", "==", "pending_review")
-    .where("importStatus", "==", "issue")
-    .limit(50)
-    .get();
+  const [issueReviewSnap, partialReviewSnap] = await Promise.all([
+    db
+      .collection(REVIEW_COLLECTION)
+      .where("reviewStatus", "==", "pending_review")
+      .where("importStatus", "==", "issue")
+      .limit(50)
+      .get(),
+    db
+      .collection(REVIEW_COLLECTION)
+      .where("reviewStatus", "==", "pending_review")
+      .where("importStatus", "==", "partial")
+      .limit(50)
+      .get(),
+  ]);
 
   for (const doc of issueReviewSnap.docs) {
     const gmailMessageId = (doc.data() as VendorInvoiceImportDoc).gmailMessageId;
     if (gmailMessageId) reparseStaleReviewIds.add(gmailMessageId);
+  }
+
+  for (const doc of partialReviewSnap.docs) {
+    const row = doc.data() as VendorInvoiceImportDoc;
+    const lineCount = row.parsedLineCount ?? row.parsedLines?.length ?? 0;
+    if (lineCount === 0 && row.gmailMessageId) {
+      reparseStaleReviewIds.add(row.gmailMessageId);
+    }
   }
 
   return reparseStaleReviewIds;

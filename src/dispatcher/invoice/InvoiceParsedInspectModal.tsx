@@ -57,6 +57,9 @@ export function InvoiceParsedInspectModal({
   onReject,
   onReopen,
   onLink,
+  onReparse,
+  reparseLoading = false,
+  reparseMessage = null,
   readOnly = false,
   deliverToSiteConfirmed = false,
 }: {
@@ -73,6 +76,10 @@ export function InvoiceParsedInspectModal({
   onReject?: () => void;
   onReopen?: () => void;
   onLink?: () => void;
+  /** Re-run parser on cached PDF text (pending imports only). */
+  onReparse?: () => void;
+  reparseLoading?: boolean;
+  reparseMessage?: string | null;
   /** Drawer inspect — hide review actions and delivery picker. */
   readOnly?: boolean;
   /** Linked delivery confirmed delivered to job site — suppress review-required UI. */
@@ -104,6 +111,7 @@ export function InvoiceParsedInspectModal({
     ((isPending && (onApprove || onReject)) ||
       (isRejected && (onApprove || onReopen)) ||
       (isApprovedUnlinked && Boolean(onLink)));
+  const showReparse = Boolean(onReparse) && isPending && !readOnly;
   const approveDisabled = actionLoading || approveBlocked;
   const linkDisabled = actionLoading || approveBlocked || !selectedDeliveryId?.trim();
 
@@ -187,6 +195,28 @@ export function InvoiceParsedInspectModal({
             >
               {pdfLoading(importRow.id) ? "Loading PDF…" : "View original PDF"}
             </button>
+            {showReparse && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-reparse"
+                disabled={reparseLoading || actionLoading}
+                title="Re-run the invoice parser on cached PDF text"
+                onClick={onReparse}
+                style={{
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  border: `1px solid ${NAVY}`,
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: reparseLoading || actionLoading ? "not-allowed" : "pointer",
+                  opacity: reparseLoading || actionLoading ? 0.55 : 1,
+                }}
+              >
+                {reparseLoading ? "Re-parsing…" : "Re-parse"}
+              </button>
+            )}
             <button
               type="button"
               data-testid="invoice-parsed-inspect-close"
@@ -327,6 +357,24 @@ export function InvoiceParsedInspectModal({
               style={{ marginTop: 10, color: "#b45309", fontSize: 12 }}
             >
               {checklist.zeroLinesNote}
+            </div>
+          )}
+          {reparseMessage && (
+            <div
+              data-testid="invoice-parsed-inspect-reparse-message"
+              style={{
+                marginTop: 10,
+                padding: "8px 10px",
+                backgroundColor: reparseMessage.startsWith("Re-parsed")
+                  ? "#ecfdf5"
+                  : "#fff7ed",
+                border: `1px solid ${reparseMessage.startsWith("Re-parsed") ? "#bbf7d0" : "#fed7aa"}`,
+                borderRadius: 6,
+                color: reparseMessage.startsWith("Re-parsed") ? "#166534" : "#9a3412",
+                fontSize: 12,
+              }}
+            >
+              {reparseMessage}
             </div>
           )}
           {!checklist.hideAutoImportSuggestion ? (

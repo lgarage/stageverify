@@ -10,6 +10,7 @@ import {
   firestoreDataService,
   listVendorInvoiceImports,
   matchInvoiceToRecords,
+  reparseVendorInvoiceImport,
 } from "../firestoreService";
 import { vendorInvoiceImportDisplayLabelForRow } from "./invoiceDisplayHelpers";
 import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
@@ -230,6 +231,8 @@ export function InvoiceReviewPanel({
   const [deliveryById, setDeliveryById] = useState<Record<string, string>>({});
   const [matchLoadingId, setMatchLoadingId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [reparseLoadingId, setReparseLoadingId] = useState<string | null>(null);
+  const [reparseMessage, setReparseMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -497,6 +500,35 @@ export function InvoiceReviewPanel({
       setError(err instanceof Error ? err.message : "Link failed.");
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleReparse = async (row: VendorInvoiceImportReview) => {
+    setReparseLoadingId(row.id);
+    setReparseMessage(null);
+    setError(null);
+    try {
+      const result = await reparseVendorInvoiceImport(row.id);
+      setInspectImport(result.import);
+      setImports((prev) =>
+        prev.map((item) => (item.id === result.import.id ? result.import : item)),
+      );
+      const delta = result.reparse.newLineCount - result.reparse.previousLineCount;
+      const deltaLabel =
+        delta === 0
+          ? "unchanged"
+          : delta > 0
+            ? `+${delta} line(s)`
+            : `${delta} line(s)`;
+      setReparseMessage(
+        `Re-parsed — ${result.reparse.newLineCount} line(s) (${deltaLabel}).`,
+      );
+    } catch (err) {
+      setReparseMessage(
+        err instanceof Error ? err.message : "Re-parse failed.",
+      );
+    } finally {
+      setReparseLoadingId(null);
     }
   };
 
@@ -871,7 +903,19 @@ export function InvoiceReviewPanel({
       {inspectImport && (
         <InvoiceParsedInspectModal
           importRow={inspectImport}
-          onClose={() => setInspectImport(null)}
+          onClose={() => {
+            setInspectImport(null);
+            setReparseMessage(null);
+          }}
+          reparseLoading={reparseLoadingId === inspectImport.id}
+          reparseMessage={reparseMessage}
+          onReparse={
+            inspectImport.reviewStatus === "pending_review"
+              ? () => {
+                  void handleReparse(inspectImport);
+                }
+              : undefined
+          }
           matchResult={inspectRowId ? (matchById[inspectRowId] ?? null) : null}
           matchLoading={inspectRowId ? matchLoadingId === inspectRowId : false}
           selectedDeliveryId={inspectSelectedDeliveryId}

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shouldReprocessExistingDoc = shouldReprocessExistingDoc;
 exports.processInboundGmailMessage = processInboundGmailMessage;
+exports.reparseVendorInvoiceImportFromCache = reparseVendorInvoiceImportFromCache;
 /**
  * Process a single Gmail message into inboundEmailProcessing (+ review queue on M2).
  * Idempotent by gmailMessageId. Does NOT write deliveries/items.
@@ -180,7 +181,17 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
             ...(reviewError ? { error: reviewError } : {}),
         };
-        await db.collection(REVIEW_COLLECTION).doc(reviewId).set((0, firestoreSafeValue_1.firestoreSafeValue)(reviewDoc));
+        const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
+        await db.runTransaction(async (tx) => {
+            const freshSnap = await tx.get(reviewRef);
+            const freshStatus = freshSnap.exists
+                ? freshSnap.data().reviewStatus
+                : undefined;
+            if (freshStatus === "approved" || freshStatus === "rejected") {
+                return;
+            }
+            tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(reviewDoc));
+        });
     }
     return reviewIds;
 }
@@ -373,5 +384,73 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
         }, { merge: true });
         throw err;
     }
+}
+/** Re-run parser on cached inbound PDF text for one pending review import (modal Re-parse). */
+async function reparseVendorInvoiceImportFromCache(importId) {
+    const trimmedId = importId.trim();
+    if (!trimmedId || trimmedId.length > 256) {
+        throw new Error("import id is required.");
+    }
+    const db = getDb();
+    const importSnap = await db.collection(REVIEW_COLLECTION).doc(trimmedId).get();
+    if (!importSnap.exists) {
+        throw new Error("Vendor invoice import not found.");
+    }
+    const importDoc = importSnap.data();
+    if (importDoc.reviewStatus === "approved" || importDoc.reviewStatus === "rejected") {
+        throw new Error("Cannot re-parse an approved or rejected import.");
+    }
+    const inboundId = importDoc.inboundEmailProcessingId?.trim();
+    if (!inboundId) {
+        throw new Error("Import has no inbound email record.");
+    }
+    const inboundSnap = await db.collection(COLLECTION).doc(inboundId).get();
+    if (!inboundSnap.exists) {
+        throw new Error("Inbound email processing record not found.");
+    }
+    const inbound = inboundSnap.data();
+    const gmailMessageId = inbound.gmailMessageId?.trim();
+    if (!gmailMessageId) {
+        throw new Error("Inbound email has no Gmail message id.");
+    }
+    const cached = inbound.combinedExtractedText?.trim();
+    if (!cached) {
+        throw new Error("No cached PDF text on this email — use Refresh Now to re-fetch from Gmail.");
+    }
+    if ((0, normalizePdfText_1.hasCustomFontPdfEncoding)(cached)) {
+        throw new Error("Cached text uses legacy font encoding — use Refresh Now to re-extract the PDF.");
+    }
+    const previousLineCount = importDoc.parsedLineCount ?? importDoc.parsedLines?.length ?? 0;
+    const ref = db.collection(COLLECTION).doc(inboundId);
+    const now = new Date().toISOString();
+    await ref.set({ processingStatus: "processing", updatedAt: now }, { merge: true });
+    try {
+        await finalizeParsedInboundDoc(ref, inbound, trimStoredText(cached), gmailMessageId);
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await ref.set({
+            processingStatus: "error",
+            processingError: message.slice(0, 500),
+            updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        throw err;
+    }
+    const updatedSnap = await db.collection(REVIEW_COLLECTION).doc(trimmedId).get();
+    if (!updatedSnap.exists) {
+        throw new Error("Import record missing after re-parse.");
+    }
+    const updated = updatedSnap.data();
+    const newLineCount = updated.parsedLineCount ?? updated.parsedLines?.length ?? 0;
+    return {
+        importDoc: updated,
+        reparse: {
+            importId: trimmedId,
+            gmailMessageId,
+            previousLineCount,
+            newLineCount,
+            importStatus: updated.importStatus,
+        },
+    };
 }
 //# sourceMappingURL=processInboundGmailMessage.js.map

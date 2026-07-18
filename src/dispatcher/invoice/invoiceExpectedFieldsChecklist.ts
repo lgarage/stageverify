@@ -115,7 +115,7 @@ function buildLineRows(importRow: VendorInvoiceImportReview): ExpectedFieldRow[]
 
   if (lineCount === 0) {
     let notes =
-      "No lines stored. If the PDF had a line table, use Refresh Now to reprocess from cached extracted text.";
+      "No lines stored. If the PDF had a line table, use Re-parse in the review modal (or Refresh Now for full sync).";
     if (orderNum === "4046362") {
       notes =
         "Fixture inv-so-4046362 yields 1 line from clean text; zero here → extract/backfill issue — try Refresh Now reprocess.";
@@ -179,7 +179,7 @@ export function buildExpectedJohnstoneFieldChecklist(
 
   const zeroLinesNote =
     lineCount === 0
-      ? "Zero parsed lines — may need Refresh Now reprocess if the PDF has line items."
+      ? "Zero parsed lines — use Re-parse above if the PDF has line items (or Refresh Now for a full Gmail sync)."
       : undefined;
 
   const approvalEligible =

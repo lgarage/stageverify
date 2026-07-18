@@ -81,11 +81,16 @@ export function adaptJohnstoneMultiColumnLayout(text: string): string {
 /** Canonicalize Johnstone PDF line grid headers/rows for existing parser regexes. */
 export function canonicalizeJohnstoneLineGrid(text: string): string {
   let out = text.replace(
-    /LN\s+QNTY\s+QNT\s+QNT/gi,
+    /LN\s+QNTY\s+QNTY\s+QNTY/gi,
     "LN QNTY ORD QNTY SHIP QNTY B/O",
   );
   out = out.replace(
-    /^(\d+)\s+(\d+)\s+(\d+)\s+([LP][\w-])/gm,
+    /LN\s+QNTY\s+QNT\s+QNT/gi,
+    "LN QNTY ORD QNTY SHIP QNTY B/O",
+  );
+  // Some invoices omit B/O=0 before product (e.g. B72-487, G80-540) — inject fourth qty column.
+  out = out.replace(
+    /^(\d+)\s+(\d+)\s+(\d+)\s+([A-Z][\w-])/gm,
     "$1 $2 $3 0 $4",
   );
   return out;

@@ -197,6 +197,19 @@ export interface InboundGmailSyncResult {
   errorDetails?: Array<{ gmailMessageId: string; message: string }>;
 }
 
+/** Result from in-modal Re-parse (cached PDF text → parser rerun). */
+export interface ReparseVendorInvoiceImportResult {
+  ok: boolean;
+  import: VendorInvoiceImportReview;
+  reparse: {
+    importId: string;
+    gmailMessageId: string;
+    previousLineCount: number;
+    newLineCount: number;
+    importStatus: string;
+  };
+}
+
 /** Connect/disconnect audit — no message bodies. */
 export type EmailProviderAuditAction =
   | "connected"

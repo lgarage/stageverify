@@ -57,6 +57,7 @@ import type {
   EmailProviderConnectionStatus,
   EmailProviderId,
   InboundGmailSyncResult,
+  ReparseVendorInvoiceImportResult,
   ShopStockLocationMapping,
   ShopStockLine,
   SendVendorEmailInput,
@@ -2260,6 +2261,11 @@ const getVendorInvoiceImportCallable = httpsCallable<
   VendorInvoiceImportReview
 >(functions, "getVendorInvoiceImport");
 
+const reparseVendorInvoiceImportCallable = httpsCallable<
+  { vendorInvoiceImportId: string },
+  ReparseVendorInvoiceImportResult
+>(functions, "reparseVendorInvoiceImportCallable");
+
 export interface VendorInvoicePdfPayload {
   filename: string;
   mimeType: string;
@@ -2287,6 +2293,14 @@ export async function getVendorInvoiceImport(
   id: string,
 ): Promise<VendorInvoiceImportReview> {
   const response = await getVendorInvoiceImportCallable({ id });
+  return response.data;
+}
+
+/** Re-run parser on cached inbound PDF text for one pending import (modal Re-parse). */
+export async function reparseVendorInvoiceImport(
+  vendorInvoiceImportId: string,
+): Promise<ReparseVendorInvoiceImportResult> {
+  const response = await reparseVendorInvoiceImportCallable({ vendorInvoiceImportId });
   return response.data;
 }
 

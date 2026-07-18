@@ -558,4 +558,54 @@ Remit To: Taxable 0.00 Johnstone Supply
 please call 605-338-2652
 `.trim(),
   },
+  {
+    pageId: "inv-6167240",
+    importBatchId: "batch-email-19f771768017-a950a3",
+    pageIndexInBatch: 0,
+    extractedText: `
+INVOICE
+Page 1/1
+Sold To Ship To
+TWIN PILLAR HEATING & COOLING TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY 2944 HOLMGREN WAY
+GREEN BAY WI 54304 GREEN BAY WI 54304
+Telephone# 920-687-5081 Telephone#
+Customer # Order Date Sales Order # Buyer Customer P/O # Ship Via Salesman
+0018114 07/17/2026 6167240 LOGAN SMITH SAWYER SCHOOL PICKUP SAD
+Customer #
+0018114
+Sales Order #
+6167240
+Customer P/O #
+SAWYER SCHOOL PICKUP SAD
+Order Date
+07/17/2026
+Buyer
+LOGAN SMITH
+Invoice # Invoice Date Ship Date Freight Terms Job Number Terms
+6167240 07/17/2026 07/17/26 PREPAID& ADD 1% 10th Net 11th
+LN QNTY QNTY QNTY PRODUCT LIST EACH EXTENSION T
+ORD SHIP B/O NUMBER DESCRIPTION PRICE PRICE
+1 1 1 B72-487 40620150B3B6 LINE SET 435.00 115.78 $115.78 N
+MINI-SPLIT 1/4IN 3/8IN 1/2IN
+15FT STRAIGHT END WITH FLARE
+NUTS R3.3
+2 1 1 G80-540 59540702 WIRE MINI-SPLIT 229.00 101.33 $101.33 N
+COMPACT 600 14 GAUGE 4
+CONDUCTOR 600V 50FT SOLID
+CORE BAG
+Floor-Loc: PUG
+If you have any questions about your invoice,
+Merchandise 217.11
+please call 605-338-2652 and ask for Jason.
+Freight 0.00
+Misc Charges 0.00
+Sub Total 217.11
+Terms & Conditions
+Remit To: Taxable 0.00
+Johnstone Supply Tax (30305) 0.00
+335 N Weber Ave
+Sioux Falls SD 57103 TOTAL $217.11
+`.trim(),
+  },
 ];

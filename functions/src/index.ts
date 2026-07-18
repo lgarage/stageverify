@@ -34,6 +34,7 @@ import {
 } from "./inboundEmailProcessingApi";
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
+import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
 import { releasePlannedStagingLocation } from "./releasePlannedStagingLocation";
 import { getVendorReceiveDetails } from "./getVendorReceiveDetails";
@@ -203,4 +204,5 @@ export {
   getVendorInvoicePdf,
   matchInvoiceToRecordsCallable,
   approveVendorInvoiceImport,
+  reparseVendorInvoiceImportCallable,
 };

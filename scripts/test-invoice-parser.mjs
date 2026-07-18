@@ -13,6 +13,7 @@ import {
   NON_JOHNSTONE_INVOICE_FIXTURES,
 } from "../src/dispatcher/invoice/nonJohnstoneInvoiceFixtures.ts";
 import { pageTextFingerprint } from "../src/dispatcher/invoice/parseJohnstoneInvoice.ts";
+import { postProcessExtractedPdfText } from "../functions/src/inboundEmail/normalizePdfText.ts";
 import {
   expectedInvoiceLines,
   processInvoicePage,
@@ -417,6 +418,27 @@ const FIXTURE_EXPECTATIONS = {
       "GREEN BAY WI 54304",
     ],
   },
+  "inv-6167240": {
+    vendorInvoiceNumber: "6167240",
+    vendorOrderNumber: "6167240",
+    customerAccountNumber: "0018114",
+    customerPoOrReference: "SAWYER SCHOOL",
+    buyerName: "LOGAN SMITH",
+    shipViaRaw: "PICKUP",
+    orderDate: "2026-07-17",
+    invoiceDate: "2026-07-17",
+    shipDate: "2026-07-17",
+    soldToName: "TWIN PILLAR HEATING & COOLING",
+    shipToName: "TWIN PILLAR HEATING & COOLING",
+    vendorBranchName: "Johnstone Supply",
+    vendorBranchPhone: "605-338-2652",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    displayLabel: "Will-Call / Pickup.",
+    expectedLineCount: 2,
+    autoProcessed: true,
+    lineDescriptionIncludes: ["LINE SET", "MINI-SPLIT"],
+  },
 };
 
 const failures = [];
@@ -427,13 +449,17 @@ const existing = {
 };
 
 for (const fixture of INVOICE_FIXTURES) {
-  const result = processInvoicePage(fixture, existing);
+  const page = {
+    ...fixture,
+    extractedText: postProcessExtractedPdfText(fixture.extractedText),
+  };
+  const result = processInvoicePage(page, existing);
   if (result.duplicate) {
     console.log(`SKIP duplicate: ${fixture.pageId}`);
     continue;
   }
   existing.byPageId.set(fixture.pageId, fixture.pageId);
-  existing.byFingerprint.set(pageTextFingerprint(fixture), fixture.pageId);
+  existing.byFingerprint.set(pageTextFingerprint(page), fixture.pageId);
 
   console.log(
     JSON.stringify({

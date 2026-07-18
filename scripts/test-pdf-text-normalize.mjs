@@ -91,5 +91,23 @@ assert("adapted parses customerAccountNumber", adaptedResult.parsed.header.custo
 assert("adapted parses PO", /blackduck/i.test(adaptedResult.parsed.header.customerPoOrReference));
 assert("adapted issue (missing Invoice #)", adaptedResult.importStatus === "issue");
 
+console.log("\n5. B/G product prefix B/O inject (invoice 6167240 layout)");
+const bgLineGrid = `
+LN QNTY QNTY QNTY PRODUCT LIST EACH EXTENSION T
+1 1 1 B72-487 40620150B3B6 LINE SET 435.00 115.78 $115.78 N
+2 1 1 G80-540 59540702 WIRE MINI-SPLIT 229.00 101.33 $101.33 N
+`.trim();
+const bgNormalized = postProcessExtractedPdfText(bgLineGrid);
+assert("injects B/O before B72", /1 1 1 0 B72-487/.test(bgNormalized));
+assert("injects B/O before G80", /2 1 1 0 G80-540/.test(bgNormalized));
+const bgPage = {
+  pageId: "inv-6167240-normalize",
+  importBatchId: "batch-bg",
+  pageIndexInBatch: 0,
+  extractedText: bgNormalized,
+};
+const bgResult = processInvoicePage(bgPage, { byPageId: new Map(), byFingerprint: new Map() });
+assert("6167240-style grid parses 2 lines", bgResult.parsed.lines.length === 2);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
