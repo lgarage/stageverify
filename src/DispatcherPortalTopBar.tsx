@@ -4,6 +4,7 @@ import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { DispatcherPortalLinks } from "./PortalNavBar";
 import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
+import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -47,7 +48,7 @@ export function DispatcherPortalTopBar({
   return (
     <div
       data-testid="dispatcher-portal-topbar"
-      className="shrink-0 z-10"
+      className={PORTAL_TOPBAR_CLASS}
       style={{
         backgroundColor: "#fff",
         borderBottom: "1px solid #e0e3e8",

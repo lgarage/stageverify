@@ -90,7 +90,7 @@ function box(page, selector) {
     }
 
     const sidebarTop = await box(page, "aside");
-    const topBar = await box(page, '[class*="shrink-0"][class*="z-10"]');
+    const topBar = await box(page, '[data-testid="dispatcher-portal-topbar"]');
     if (!sidebarTop || !topBar) {
       throw new Error(`${route.label}: could not measure sidebar or top bar`);
     }
@@ -102,7 +102,7 @@ function box(page, selector) {
     await page.waitForTimeout(300);
 
     const sidebarAfter = await box(page, "aside");
-    const topBarAfter = await box(page, '[class*="shrink-0"][class*="z-10"]');
+    const topBarAfter = await box(page, '[data-testid="dispatcher-portal-topbar"]');
     if (!sidebarAfter || !topBarAfter) {
       throw new Error(`${route.label}: lost sidebar/top bar after scroll`);
     }

@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.49** — Needs Review email dismiss undo + `reopenVendorEmailEventCallable`
+- Last shipped: **v0.0.50** — portal shell layout hardened (plain CSS, not Tailwind-only)
 - Active Phase: **Location-first Phase 4 complete** — MVP done; queue empty except blocked away-069.
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

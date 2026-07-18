@@ -1,9 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import type { CSSProperties } from "react";
-import {
-  PORTAL_SIDEBAR_CLASS,
-  PORTAL_SIDEBAR_STYLE,
-} from "./dispatcherPortalLayout";
+import { PORTAL_SIDEBAR_CLASS } from "./dispatcherPortalLayout";
 import { formatAppVersionLabel } from "./appVersion";
 import {
   PORTAL_NAV_ITEMS,
@@ -69,10 +66,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
   const isSettings = location.pathname === "/settings";
 
   return (
-    <aside
-      style={PORTAL_SIDEBAR_STYLE}
-      className={`${PORTAL_SIDEBAR_CLASS} ${className}`.trim()}
-    >
+    <aside className={`${PORTAL_SIDEBAR_CLASS} ${className}`.trim()}>
       <div
         className="flex flex-col items-center px-6 pt-7 pb-5"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
