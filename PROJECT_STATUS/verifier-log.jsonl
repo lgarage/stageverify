@@ -15,3 +15,4 @@
 {"date":"2026-07-13","role":"critical","verdict":"PASS","taskId":"b2166711-46a0-47ff-8fad-ede68184fa8c","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-36 solution deliberation lane approved after 4 adopted changes"}
 {"date":"2026-07-17","role":"qa","verdict":"PASS","taskId":"a9e5f8a9-f8c6-4775-83ed-0dcd5e7163cc","model":"cursor-grok-4.5-high-fast","real":"yes","note":"ACES report accuracy verify - 5 real findings fixed and closed"}
 {"date":"2026-07-18","role":"critical","verdict":"PASS","taskId":"33499071-8db3-44d9-99e6-3257af0d4ea2","model":"cursor-grok-4.5-high-fast","real":"yes","note":"D-38 gate allowlist - sight-unseen Sonnet5 rejected, fallback proof required, duplicate carve-out fixed"}
+{"date":"2026-07-18","role":"ship","verdict":"PASS","taskId":"7822b26e-7667-4700-914d-180ce29451d6","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-38 ship range 00e1d91..de7551f"}
