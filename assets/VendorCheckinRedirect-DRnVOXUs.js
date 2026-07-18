@@ -1,0 +1,1 @@
+import{On as e,Tn as t,xn as n}from"./index-Aqsqv0ZG.js";var r=n();function i(){let{orderId:n}=e(),i=n?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
