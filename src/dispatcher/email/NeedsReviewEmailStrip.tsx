@@ -5,7 +5,7 @@ import {
   formatEmailReviewPreview,
   getEmailReviewHeadlines,
 } from "./emailReviewHelpers";
-import { listPendingInboundVendorEmailEvents, dismissVendorEmailEvent } from "../firestoreService";
+import { listPendingInboundVendorEmailEvents, dismissVendorEmailEvent, reopenVendorEmailEvent } from "../firestoreService";
 import type { VendorEmailEvent } from "../models";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
 
@@ -51,6 +51,8 @@ function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
   };
 }
 
+const UNDO_WINDOW_MS = 30_000;
+
 export function NeedsReviewEmailStrip() {
   const [liveEvents, setLiveEvents] = useState<VendorEmailEvent[]>([]);
   const [liveLoaded, setLiveLoaded] = useState(false);
@@ -84,7 +86,14 @@ export function NeedsReviewEmailStrip() {
   const [openOriginalId, setOpenOriginalId] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [dismissError, setDismissError] = useState<string | null>(null);
+  const [undoDismiss, setUndoDismiss] = useState<{
+    event: VendorEmailEvent;
+    expiresAt: number;
+  } | null>(null);
+  const [undoLoading, setUndoLoading] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
   const stripRef = useRef<HTMLElement>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!expanded) return;
@@ -114,18 +123,80 @@ export function NeedsReviewEmailStrip() {
     };
   }, [expanded]);
 
+  useEffect(() => {
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    if (!undoDismiss) return;
+
+    const remaining = undoDismiss.expiresAt - Date.now();
+    if (remaining <= 0) {
+      setUndoDismiss(null);
+      return;
+    }
+
+    undoTimerRef.current = setTimeout(() => {
+      setUndoDismiss(null);
+      undoTimerRef.current = null;
+    }, remaining);
+
+    return () => {
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+    };
+  }, [undoDismiss]);
+
+  const scheduleUndo = (event: VendorEmailEvent) => {
+    setUndoError(null);
+    setUndoDismiss({ event, expiresAt: Date.now() + UNDO_WINDOW_MS });
+  };
+
   const handleDismiss = async (eventId: string, sourceMessageId: string) => {
     setDismissError(null);
     setDismissingId(eventId);
+    const dismissedEvent = liveEvents.find((e) => e.id === eventId);
     try {
       await dismissVendorEmailEvent(eventId);
       setLiveEvents((prev) => prev.filter((e) => e.id !== eventId));
       setOpenOriginalId((prev) => (prev === sourceMessageId ? null : prev));
+      if (dismissedEvent) {
+        scheduleUndo(dismissedEvent);
+      }
     } catch (err) {
       setDismissError(err instanceof Error ? err.message : "Dismiss failed.");
     } finally {
       setDismissingId(null);
     }
+  };
+
+  const handleUndoDismiss = async () => {
+    if (!undoDismiss) return;
+    const { event } = undoDismiss;
+    setUndoError(null);
+    setUndoLoading(true);
+    try {
+      await reopenVendorEmailEvent(event.id);
+      setLiveEvents((prev) => {
+        if (prev.some((e) => e.id === event.id)) return prev;
+        return [...prev, event].sort((a, b) =>
+          (b.receivedAt ?? "").localeCompare(a.receivedAt ?? ""),
+        );
+      });
+      setUndoDismiss(null);
+      setExpanded(true);
+    } catch (err) {
+      setUndoError(err instanceof Error ? err.message : "Undo failed.");
+    } finally {
+      setUndoLoading(false);
+    }
+  };
+
+  const dismissUndoBanner = () => {
+    setUndoDismiss(null);
+    setUndoError(null);
   };
 
   if (needsReview.length === 0) {
@@ -141,9 +212,18 @@ export function NeedsReviewEmailStrip() {
           padding: "12px 18px",
         }}
       >
+        {undoDismiss && (
+          <UndoDismissBanner
+            subject={undoDismiss.event.subject}
+            undoLoading={undoLoading}
+            undoError={undoError}
+            onUndo={() => void handleUndoDismiss()}
+            onDismiss={dismissUndoBanner}
+          />
+        )}
         <p
           data-testid="needs-review-email-count"
-          style={{ margin: 0, fontSize: 13, color: "#64748b", fontFamily: FONT }}
+          style={{ margin: undoDismiss ? "10px 0 0" : 0, fontSize: 13, color: "#64748b", fontFamily: FONT }}
         >
           Needs Review (0) — no unmatched or ambiguous emails.
         </p>
@@ -192,6 +272,16 @@ export function NeedsReviewEmailStrip() {
           {expanded ? "Hide" : "Show"} vendor replies · unmatched · ambiguous
         </span>
       </button>
+
+      {undoDismiss && (
+        <UndoDismissBanner
+          subject={undoDismiss.event.subject}
+          undoLoading={undoLoading}
+          undoError={undoError}
+          onUndo={() => void handleUndoDismiss()}
+          onDismiss={dismissUndoBanner}
+        />
+      )}
 
       {expanded && (
         <div
@@ -379,5 +469,85 @@ export function NeedsReviewEmailStrip() {
         </div>
       )}
     </section>
+  );
+}
+
+function UndoDismissBanner({
+  subject,
+  undoLoading,
+  undoError,
+  onUndo,
+  onDismiss,
+}: {
+  subject: string;
+  undoLoading: boolean;
+  undoError: string | null;
+  onUndo: () => void;
+  onDismiss: () => void;
+}) {
+  const previewSubject = subject.trim() || "Email";
+  return (
+    <div
+      data-testid="needs-review-email-undo-banner"
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 18px",
+        backgroundColor: "#ecfdf5",
+        borderBottom: "1px solid #bbf7d0",
+        fontFamily: FONT,
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 160, fontSize: 13, color: "#166534" }}>
+        Dismissed: <strong>{previewSubject}</strong>
+      </span>
+      <button
+        type="button"
+        data-testid="needs-review-email-undo"
+        disabled={undoLoading}
+        onClick={onUndo}
+        style={{
+          padding: "4px 12px",
+          borderRadius: 4,
+          border: `1px solid ${NAVY}`,
+          backgroundColor: "#fff",
+          color: NAVY,
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: undoLoading ? "wait" : "pointer",
+          opacity: undoLoading ? 0.7 : 1,
+        }}
+      >
+        {undoLoading ? "Restoring…" : "Undo"}
+      </button>
+      <button
+        type="button"
+        data-testid="needs-review-email-undo-dismiss"
+        disabled={undoLoading}
+        onClick={onDismiss}
+        aria-label="Dismiss undo banner"
+        style={{
+          padding: "4px 8px",
+          borderRadius: 4,
+          border: "1px solid #cbd5e1",
+          backgroundColor: "transparent",
+          color: "#64748b",
+          fontSize: 11,
+          cursor: undoLoading ? "not-allowed" : "pointer",
+        }}
+      >
+        ✕
+      </button>
+      {undoError && (
+        <span
+          data-testid="needs-review-email-undo-error"
+          style={{ width: "100%", fontSize: 12, color: "#b91c1c" }}
+        >
+          {undoError}
+        </span>
+      )}
+    </div>
   );
 }

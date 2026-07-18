@@ -36,6 +36,7 @@ import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
+import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
 import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
 import { releasePlannedStagingLocation } from "./releasePlannedStagingLocation";
 import { getVendorReceiveDetails } from "./getVendorReceiveDetails";
@@ -207,4 +208,5 @@ export {
   approveVendorInvoiceImport,
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
+  reopenVendorEmailEventCallable,
 };

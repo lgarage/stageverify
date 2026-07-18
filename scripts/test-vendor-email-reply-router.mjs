@@ -374,7 +374,33 @@ try {
   fail("dismiss callable failed", String(err?.message ?? err));
 }
 
-console.log("\n7. decodeGmailBodyText sanity");
+console.log("\n7. reopenVendorEmailEventCallable restores rejected inbound");
+const reopenVendorEmailEvent = httpsCallable(functions, "reopenVendorEmailEventCallable");
+try {
+  const reopenRes = await reopenVendorEmailEvent({ vendorEmailEventId: dismissEventId });
+  if (reopenRes.data?.ok && reopenRes.data?.reviewStatus === "pending_review") {
+    pass("reopen callable returned ok");
+  } else {
+    fail("reopen response wrong", JSON.stringify(reopenRes.data));
+  }
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDoc(doc(ctx.firestore(), "vendorEmailEvents", dismissEventId));
+    const data = snap.data();
+    if (
+      data?.reviewStatus === "pending_review" &&
+      data?.rejectedAt === undefined &&
+      data?.rejectedBy === undefined
+    ) {
+      pass("event restored to pending_review; audit fields cleared");
+    } else {
+      fail("event not reopened", JSON.stringify(data));
+    }
+  });
+} catch (err) {
+  fail("reopen callable failed", String(err?.message ?? err));
+}
+
+console.log("\n8. decodeGmailBodyText sanity");
 const sampleBody = decodeGmailBodyData(
   Buffer.from("Hello vendor reply", "utf8")
     .toString("base64")

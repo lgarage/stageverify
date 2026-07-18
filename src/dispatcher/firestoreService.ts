@@ -2274,6 +2274,11 @@ const dismissVendorEmailEventCallable = httpsCallable<
   { ok: boolean; vendorEmailEventId: string; reviewStatus: "rejected" }
 >(functions, "dismissVendorEmailEventCallable");
 
+const reopenVendorEmailEventCallable = httpsCallable<
+  { vendorEmailEventId: string },
+  { ok: boolean; vendorEmailEventId: string; reviewStatus: "pending_review" }
+>(functions, "reopenVendorEmailEventCallable");
+
 export interface VendorInvoicePdfPayload {
   filename: string;
   mimeType: string;
@@ -2317,6 +2322,14 @@ export async function dismissVendorEmailEvent(
   vendorEmailEventId: string,
 ): Promise<{ ok: boolean; vendorEmailEventId: string; reviewStatus: "rejected" }> {
   const response = await dismissVendorEmailEventCallable({ vendorEmailEventId });
+  return response.data;
+}
+
+/** Undo dismiss — reopen one rejected inbound vendor email back to Needs Review. */
+export async function reopenVendorEmailEvent(
+  vendorEmailEventId: string,
+): Promise<{ ok: boolean; vendorEmailEventId: string; reviewStatus: "pending_review" }> {
+  const response = await reopenVendorEmailEventCallable({ vendorEmailEventId });
   return response.data;
 }
 
