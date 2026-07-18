@@ -207,7 +207,7 @@
         "verify:phase14-e2e:prod",
         "reset pickup fixture on gh-pages"
       ],
-      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..006) from dispatcher list (hideSeedDemoRows). Prod verify (phase4, phase14 reset/readback, pickup reset) must open drawer via `#/dispatcher?openDelivery=<id>` — list search for ORD-004/ORD-005 + View button times out on live prod. Do not classify as stale gh-pages."
+      "warning": "Prod gh-pages hides seed demo deliveries (ORD-001..007) and non-invoice deliveries from dispatcher list (hideSeedDemoRows + vendorInvoiceImportId required). Prod verify (phase4, phase14 reset/readback, pickup reset) must open drawer via `#/dispatcher?openDelivery=<id>` — list search for ORD-004/ORD-005 + View button times out on live prod. Do not classify as stale gh-pages."
     },
     {
       "id": "gh-pages-deploy-freshness",

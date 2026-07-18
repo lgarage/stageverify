@@ -57,6 +57,7 @@ import type {
   EmailProviderConnectionStatus,
   EmailProviderId,
   InboundGmailSyncResult,
+  InboundEmailProcessing,
   ReparseVendorInvoiceImportResult,
   ShopStockLocationMapping,
   ShopStockLine,
@@ -185,11 +186,12 @@ const SEED_DEMO_DELIVERY_IDS = new Set([
   "delivery-1",
   "delivery-2",
   "delivery-3",
+  "delivery-cross-vendor-1",
   "delivery-demo-vendor-1",
   "delivery-demo-vendor-2",
 ]);
 
-const SEED_DEMO_ORDER_PATTERN = /^ORD-00[1-6]$/;
+const SEED_DEMO_ORDER_PATTERN = /^ORD-00[1-7]$/;
 
 function isSeedDemoDelivery(delivery: DeliveryOrder): boolean {
   if (SEED_DEMO_DELIVERY_IDS.has(delivery.id)) return true;
@@ -366,6 +368,7 @@ export class FirestoreDataService implements DispatcherDataService {
     const rows: DeliveryListRow[] = [];
     for (const delivery of deliveries) {
       if (hideSeedDemoRows && isSeedDemoDelivery(delivery)) continue;
+      if (hideSeedDemoRows && !delivery.vendorInvoiceImportId?.trim()) continue;
 
       const job = allJobs.find((j) => j.id === delivery.jobId);
       const vendor = allVendors.find((v) => v.id === delivery.vendorId);
@@ -2285,6 +2288,11 @@ const getVendorInvoiceImportCallable = httpsCallable<
   VendorInvoiceImportReview
 >(functions, "getVendorInvoiceImport");
 
+const getInboundEmailProcessingCallable = httpsCallable<
+  { id: string },
+  InboundEmailProcessing
+>(functions, "getInboundEmailProcessing");
+
 const reparseVendorInvoiceImportCallable = httpsCallable<
   { vendorInvoiceImportId: string },
   ReparseVendorInvoiceImportResult
@@ -2327,6 +2335,13 @@ export async function getVendorInvoiceImport(
   id: string,
 ): Promise<VendorInvoiceImportReview> {
   const response = await getVendorInvoiceImportCallable({ id });
+  return response.data;
+}
+
+export async function getInboundEmailProcessing(
+  id: string,
+): Promise<InboundEmailProcessing> {
+  const response = await getInboundEmailProcessingCallable({ id });
   return response.data;
 }
 

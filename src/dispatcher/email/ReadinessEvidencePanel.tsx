@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { DeliveryDetails, StagingLocation, VendorEmailEvent } from "../models";
+import type { DeliveryDetails, InboundEmailProcessing, StagingLocation, VendorEmailEvent } from "../models";
 import { computeDeliveryDisplayState } from "../deliveryDisplayHelpers";
 import {
   filterProposalsForDelivery,
@@ -14,7 +14,7 @@ import {
   proposalNeedsDrawerReview,
 } from "./emailReviewHelpers";
 import { READINESS_BLOCK_LABEL } from "../deliveryDisplayHelpers";
-import { listVendorEmailEventsForDelivery } from "../firestoreService";
+import { listVendorEmailEventsForDelivery, getVendorInvoiceImport, getInboundEmailProcessing } from "../firestoreService";
 
 const BLOCK_LABEL: Record<string, string> = READINESS_BLOCK_LABEL;
 
@@ -267,6 +267,151 @@ function formatEmailEventWhen(event: VendorEmailEvent): string {
   }
 }
 
+function formatInboundEmailWhen(inbound: InboundEmailProcessing): string {
+  try {
+    return new Date(inbound.receivedAt).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return inbound.receivedAt;
+  }
+}
+
+function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const attachments =
+    inbound.attachmentFilenames?.filter(Boolean).join(", ") ||
+    inbound.pdfAttachments?.map((att) => att.filename).filter(Boolean).join(", ") ||
+    "Invoice PDF";
+  const bodyPreview = inbound.combinedExtractedTextPreview?.trim() ?? "";
+
+  return (
+    <div
+      data-testid={`email-evidence-invoice-source-${inbound.id}`}
+      style={{
+        backgroundColor: "#fff",
+        border: "1px solid #e0e3e8",
+        borderRadius: 6,
+        padding: "12px",
+      }}
+    >
+      <p
+        data-testid={`email-evidence-invoice-source-label-${inbound.id}`}
+        style={{
+          margin: "0 0 8px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#0a3161",
+          letterSpacing: "0.02em",
+        }}
+      >
+        Invoice PDF email (scanned)
+      </p>
+      <div
+        style={{
+          marginBottom: 10,
+          padding: "10px 12px",
+          backgroundColor: "#f8fafc",
+          border: "1px solid #e8ecf0",
+          borderRadius: 4,
+          fontSize: 12,
+          color: "#334155",
+        }}
+      >
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          {inbound.senderEmail || "—"}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          {inbound.subject || "—"}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Date: </span>
+          {formatInboundEmailWhen(inbound)}
+        </div>
+        <div style={{ marginBottom: bodyPreview ? 8 : 0 }}>
+          <span style={{ color: "#64748b", fontWeight: 600 }}>Attachment: </span>
+          {attachments}
+        </div>
+        {bodyPreview ? (
+          <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
+            {bodyPreview.length > 220 ? `${bodyPreview.slice(0, 219).trim()}…` : bodyPreview}
+          </p>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        data-testid={`email-evidence-invoice-source-view-${inbound.id}`}
+        onClick={() => setShowOriginal((v) => !v)}
+        style={{
+          padding: "4px 10px",
+          borderRadius: 4,
+          border: "1px solid #0a3161",
+          backgroundColor: "#fff",
+          color: "#0a3161",
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        {showOriginal ? "Hide Original Email" : "Show Original Email"}
+      </button>
+
+      {showOriginal ? (
+        <div
+          data-testid={`email-evidence-invoice-source-original-${inbound.id}`}
+          style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            backgroundColor: "#f8fafc",
+            borderRadius: 4,
+            fontSize: 12,
+            color: "#334155",
+          }}
+        >
+          <div style={{ marginBottom: 4 }}>
+            <strong>From:</strong> {inbound.senderEmail || "—"}
+          </div>
+          <div style={{ marginBottom: 4 }}>
+            <strong>Date:</strong> {formatInboundEmailWhen(inbound)}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>Subject:</strong> {inbound.subject || "—"}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>PDF attachment:</strong> {attachments}
+          </div>
+          {bodyPreview ? (
+            <pre
+              data-testid={`email-evidence-invoice-source-body-${inbound.id}`}
+              style={{
+                margin: 0,
+                whiteSpace: "pre-wrap",
+                fontFamily: "inherit",
+                fontSize: 12,
+              }}
+            >
+              {bodyPreview}
+              {inbound.combinedExtractedTextTruncated ? "\n\n[PDF text truncated for preview]" : ""}
+            </pre>
+          ) : (
+            <p style={{ margin: 0, color: "#64748b", fontStyle: "italic" }}>
+              Email body was not stored; this delivery was created from a scanned invoice PDF
+              attachment.
+            </p>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
   const [showOriginal, setShowOriginal] = useState(false);
   const isOutbound = event.direction === "outbound";
@@ -440,8 +585,20 @@ export function ReadinessEvidencePanel({
   const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
   const [vendorEmailEvents, setVendorEmailEvents] = useState<VendorEmailEvent[]>([]);
   const [vendorEmailEventsLoading, setVendorEmailEventsLoading] = useState(false);
+  const [invoiceSourceEmail, setInvoiceSourceEmail] = useState<InboundEmailProcessing | null>(
+    null,
+  );
+  const [invoiceSourceLoading, setInvoiceSourceLoading] = useState(false);
 
-  const emailEvidenceCount = proposals.length + vendorEmailEvents.length;
+  const showInvoiceSourceEmail =
+    invoiceSourceEmail !== null &&
+    !vendorEmailEvents.some(
+      (event) => event.sourceMessageId === invoiceSourceEmail.gmailMessageId,
+    );
+
+  const emailEvidenceCount =
+    proposals.length + vendorEmailEvents.length + (showInvoiceSourceEmail ? 1 : 0);
+  const emailEvidenceLoading = vendorEmailEventsLoading || invoiceSourceLoading;
 
   useEffect(() => {
     if (emailEvidenceExpandSignal > 0) {
@@ -467,6 +624,39 @@ export function ReadinessEvidencePanel({
       cancelled = true;
     };
   }, [delivery.id]);
+
+  useEffect(() => {
+    const importId = delivery.vendorInvoiceImportId?.trim();
+    if (!importId) {
+      setInvoiceSourceEmail(null);
+      setInvoiceSourceLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setInvoiceSourceLoading(true);
+    void getVendorInvoiceImport(importId)
+      .then((row) => {
+        const inboundId = row.inboundEmailProcessingId?.trim();
+        if (!inboundId) {
+          throw new Error("missing inbound email id");
+        }
+        return getInboundEmailProcessing(inboundId);
+      })
+      .then((inbound) => {
+        if (!cancelled) setInvoiceSourceEmail(inbound);
+      })
+      .catch(() => {
+        if (!cancelled) setInvoiceSourceEmail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setInvoiceSourceLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [delivery.vendorInvoiceImportId]);
 
   const displayState = useMemo(
     () => computeDeliveryDisplayState(delivery, items, materialIssues),
@@ -596,7 +786,7 @@ export function ReadinessEvidencePanel({
   })();
 
   const emailSnapshot = (() => {
-    if (vendorEmailEventsLoading) {
+    if (emailEvidenceLoading) {
       return { label: "Loading…", tone: "neutral" as SnapshotTone };
     }
     if (emailEvidenceCount === 0) {
@@ -607,6 +797,9 @@ export function ReadinessEvidencePanel({
       ...vendorEmailEvents.map(
         (row) => row.sentAt ?? row.receivedAt ?? row.createdAt,
       ),
+      ...(showInvoiceSourceEmail && invoiceSourceEmail
+        ? [invoiceSourceEmail.receivedAt]
+        : []),
     ].sort((a, b) => b.localeCompare(a))[0];
     const sentCount = vendorEmailEvents.filter((e) => e.direction === "outbound").length;
     const receivedCount = vendorEmailEvents.length - sentCount;
@@ -995,7 +1188,7 @@ export function ReadinessEvidencePanel({
                   gap: 12,
                 }}
               >
-                {vendorEmailEventsLoading ? (
+                {emailEvidenceLoading ? (
                   <p
                     data-testid="email-evidence-loading"
                     style={{ margin: 0, fontSize: 13, color: "#64748b" }}
@@ -1011,6 +1204,9 @@ export function ReadinessEvidencePanel({
                   </p>
                 ) : (
                   <>
+                    {showInvoiceSourceEmail && invoiceSourceEmail ? (
+                      <InvoiceSourceEmailCard inbound={invoiceSourceEmail} />
+                    ) : null}
                     {vendorEmailEvents.map((event) => (
                       <VendorEmailEventCard key={event.id} event={event} />
                     ))}

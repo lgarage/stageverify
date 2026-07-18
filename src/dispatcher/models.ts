@@ -922,6 +922,13 @@ export interface InboundEmailProcessing {
   subject: string;
   receivedAt: string;
   attachmentFilenames: string[];
+  pdfAttachments?: Array<{
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  }>;
+  combinedExtractedTextPreview?: string;
+  combinedExtractedTextTruncated?: boolean;
   processingStatus: InboundEmailProcessingStatus;
   reviewStatus: "pending_review";
   parseResult?: {
