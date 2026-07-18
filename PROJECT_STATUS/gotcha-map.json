@@ -386,7 +386,7 @@
       ],
       "gateCandidate": true,
       "injectBefore": ["firebase deploy", "claiming functions live", "final ship loop", "enabling emailReplyIngestEnabled"],
-      "warning": "firebase deploy CLI success or functions:list presence ≠ prod revision current. Before claiming CF live: confirm deploy finished without error AND affected functions show post-ship DEPLOYMENT_ROLLOUT / UpdateFunction logs after intended main commit (Stage 1 overnight: Jul 4 revision while main had a55b3e9). Emulator/offline tests green is necessary not sufficient. Combined UI+CF ships also require gh-pages freshness (see deploy-state-verification)."
+      "warning": "firebase deploy CLI success or functions:list presence ≠ prod revision current. Before claiming CF live: confirm deploy finished without error AND affected functions show post-ship DEPLOYMENT_ROLLOUT / UpdateFunction logs after intended main commit (Stage 1 overnight: Jul 4 revision while main had a55b3e9). Emulator/offline tests green is necessary not sufficient. Combined UI+CF ships also require gh-pages freshness (see deploy-state-verification). Parallel deploys to the same function can return HTTP 409 \"unable to queue the operation\" — wait ~45s and retry once; never run two firebase deploy workers on the same function (observed reopenVendorEmailEventCallable 2026-07-18)."
     },
     {
       "id": "deploy-state-verification",
@@ -849,6 +849,97 @@
       "rules": [],
       "commands": [],
       "warning": "Windows PowerShell 5 rejects `&&` chaining — \"The token '&&' is not a valid statement separator\" (unlike PS7+/bash). Shell commands on this machine run under PS5-compatible PowerShell: never write `cmd1 && cmd2`. Use `;` when the second command can run regardless of the first's failure; when it must only run on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08)."
+    },
+    {
+      "id": "subagent-transcript-stuck",
+      "match": [
+        "subagent stuck",
+        "background agent stuck",
+        "transcript only initial message",
+        "multitask worker hung",
+        "Task subagent no output",
+        "check if stuck"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": [],
+      "rules": ["parallel-agent-strategy.mdc"],
+      "commands": ["git log -1 --oneline", "git status -sb"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "declaring subagent failed",
+        "waiting on background Task",
+        "re-dispatching same work"
+      ],
+      "warning": "Background Task subagent transcripts can stop after the initial user message while work still lands on main (partial commit, parent takeover, or duplicate worker). Before re-dispatching: check git log / origin/main and git status — do not assume hung from transcript alone. If commit exists, finish deploy/verify only; if not, parent continues implementation (observed dismiss undo fff545b 2026-07-18)."
+    },
+    {
+      "id": "security-gate-non-allowlist-slug",
+      "match": [
+        "security gate model",
+        "D-38 allowlist",
+        "claude-sonnet-5-thinking-high",
+        "gate NOT RUN",
+        "ship verifier FAIL process",
+        "security-gate-id model line"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "process-agents",
+      "files": [".cursor/rules/security-review-gate.mdc"],
+      "rules": ["security-review-gate.mdc", "model-gates.mdc"],
+      "commands": [],
+      "gateCandidate": true,
+      "injectBefore": [
+        "pushing backend-write-critical",
+        "reporting security gate PASS",
+        "ship verifier evidence"
+      ],
+      "warning": "When claude-4.6-sonnet allowlist slugs are unavailable, security-review may run on claude-sonnet-5-thinking-high with substantive PASS — Ship Verifier can still FAIL process (harness NOT RUN per D-38). Record fallback-from + actual slug in commit; do not treat UI label or self-review as gate PASS. Re-run with first accepted allowlist slug when platform accepts it (observed dismiss/undo ships 2026-07-18)."
+    },
+    {
+      "id": "functions-lib-stale-build-dirty",
+      "match": [
+        "functions/lib dirty",
+        "stale lib js",
+        "normalizePdfText.js modified",
+        "processInboundGmailMessage.js modified",
+        "unrelated lib diff",
+        "git restore functions/lib"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": ["functions/lib/"],
+      "rules": ["ship-loop.mdc"],
+      "commands": ["git status --short functions/lib", "git restore functions/lib"],
+      "warning": "Running tsc in functions/ can leave unrelated compiled functions/lib/*.js diffs dirty when src/ for those modules was not part of the current task (e.g. normalizePdfText, processInboundGmailMessage). Before push: stage only task-related lib outputs; git restore functions/lib/<unrelated>.js if matching src/ unchanged (observed 2026-07-18 post undo ship)."
+    },
+    {
+      "id": "vendor-email-dismiss-reopen",
+      "match": [
+        "needs review email",
+        "dismiss vendor email",
+        "reopen vendor email",
+        "vendorEmailEvents dismiss",
+        "undo dismiss email",
+        "NeedsReviewEmailStrip"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "functions/src/dismissVendorEmailEventCallable.ts",
+        "functions/src/reopenVendorEmailEventCallable.ts",
+        "src/dispatcher/email/NeedsReviewEmailStrip.tsx"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [
+        "npm run test:vendor-email-reply-router",
+        "npm run verify:dispatcher-nav"
+      ],
+      "warning": "Needs Review strip cards are live vendorEmailEvents (pending_review inbound) — not delivery jobs; client cannot write vendorEmailEvents (rules block). Dismiss → rejected + audit fields via dismissVendorEmailEventCallable (transaction); undo → reopenVendorEmailEventCallable clears rejectedAt/rejectedBy. UI: 30s undo banner after dismiss. Fixture proposals in dev have no eventId — Dismiss/Undo only on live Firestore rows."
     }
   ]
 }
