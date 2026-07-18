@@ -827,10 +827,16 @@ export interface SendVendorEmailInput {
   vendorId?: string;
   materialIssueId?: string;
   to: string;
+  /** Additional recipients (Cc). Max 5; must not duplicate `to`. */
+  cc?: string[];
   subject: string;
   body: string;
   /** When true, CF updates vendor.email to `to` before send (required if `to` differs from on-file email). */
   saveVendorEmail?: boolean;
+  /** Gmail thread id when replying to an inbound vendor message. */
+  replyThreadId?: string;
+  inReplyTo?: string;
+  references?: string[];
 }
 
 export interface SendVendorEmailResult {

@@ -83,12 +83,34 @@ function buildGmailRawMessage(to, from, subject, bodyText, options) {
     if (opts.replyTo !== undefined) {
         assertSafeEmailHeaderValue(opts.replyTo, "Reply-To");
     }
+    if (opts.cc?.length) {
+        for (const cc of opts.cc) {
+            assertSafeEmailHeaderValue(cc, "Cc");
+        }
+    }
+    if (opts.inReplyTo) {
+        assertSafeEmailHeaderValue(opts.inReplyTo, "In-Reply-To");
+    }
+    if (opts.references?.length) {
+        for (const ref of opts.references) {
+            assertSafeEmailHeaderValue(ref, "References");
+        }
+    }
     const fromHeader = formatFromHeader(from, opts.fromDisplayName);
     const headerLines = [
         formatEmailHeader("To", to),
         formatEmailHeader("From", fromHeader),
         formatEmailHeader("Subject", encodeRfc2822Subject(subject)),
     ];
+    if (opts.cc?.length) {
+        headerLines.push(formatEmailHeader("Cc", opts.cc.join(", ")));
+    }
+    if (opts.inReplyTo) {
+        headerLines.push(formatEmailHeader("In-Reply-To", opts.inReplyTo));
+    }
+    if (opts.references?.length) {
+        headerLines.push(formatEmailHeader("References", opts.references.join(" ")));
+    }
     if (opts.replyTo !== undefined) {
         headerLines.push(formatEmailHeader("Reply-To", opts.replyTo));
     }
@@ -100,14 +122,17 @@ function buildGmailRawMessage(to, from, subject, bodyText, options) {
         .replace(/\//g, "_")
         .replace(/=+$/, "");
 }
-async function sendGmailMessage(accessToken, raw) {
+async function sendGmailMessage(accessToken, raw, options) {
     const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ raw }),
+        body: JSON.stringify({
+            raw,
+            ...(options?.threadId ? { threadId: options.threadId } : {}),
+        }),
     });
     const text = await res.text();
     if (!res.ok) {

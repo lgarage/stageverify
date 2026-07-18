@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DeliveryListRow, Vendor } from "../models";
+import { listVendorEmailEventsForDelivery } from "../firestoreService";
+import {
+  inboundReplyHeaders,
+  latestTrustedInboundVendorEmailEvent,
+  parseEmailList,
+  primaryRecipientFromEvents,
+  replySubjectFromInbound,
+} from "../email/vendorEmailComposeHelpers";
 import {
   DRAWER_MODAL_INPUT_STYLE,
   DRAWER_MODAL_LABEL_STYLE,
@@ -37,14 +45,19 @@ export function VendorCommunicationsModal({
   onSuccess?: () => void;
   onSend: (input: {
     to: string;
+    cc?: string[];
     subject: string;
     body: string;
     vendorId?: string;
     deliveryOrderId?: string;
     saveVendorEmail?: boolean;
+    replyThreadId?: string;
+    inReplyTo?: string;
+    references?: string[];
   }) => Promise<void>;
 }) {
   const [to, setTo] = useState("");
+  const [additionalEmails, setAdditionalEmails] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [deliveryOrderId, setDeliveryOrderId] = useState("");
   const [subject, setSubject] = useState("");
@@ -53,6 +66,13 @@ export function VendorCommunicationsModal({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [replyFromInbound, setReplyFromInbound] = useState(false);
+  const [replyHeaders, setReplyHeaders] = useState<{
+    replyThreadId?: string;
+    inReplyTo?: string;
+    references?: string[];
+  }>({});
+  const [eventsLoading, setEventsLoading] = useState(false);
 
   const sortedVendors = useMemo(
     () => [...(vendors ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
@@ -86,23 +106,65 @@ export function VendorCommunicationsModal({
     if (!open) return;
     setVendorId(initialVendorId ?? "");
     setDeliveryOrderId(initialDeliveryOrderId ?? "");
-    setSubject("");
+    setAdditionalEmails("");
     setBody("");
     setSaveVendorEmail(false);
     setSending(false);
     setError(null);
     setValidationError(null);
+    setReplyFromInbound(false);
+    setReplyHeaders({});
     const presetVendor = (vendors ?? []).find((v) => v.id === initialVendorId);
     setTo(presetVendor?.email?.trim() ?? "");
+    setSubject("");
+
+    if (!initialDeliveryOrderId) return;
+
+    let cancelled = false;
+    setEventsLoading(true);
+    void listVendorEmailEventsForDelivery(initialDeliveryOrderId)
+      .then((events) => {
+        if (cancelled) return;
+        const vendorEmailOnFile = presetVendor?.email?.trim() ?? "";
+        const inbound = latestTrustedInboundVendorEmailEvent(events);
+        const primaryTo = primaryRecipientFromEvents(events, vendorEmailOnFile);
+        if (primaryTo) {
+          setTo(primaryTo);
+        }
+        if (inbound) {
+          setReplyFromInbound(true);
+          setReplyHeaders(inboundReplyHeaders(inbound));
+          setSubject(
+            replySubjectFromInbound(
+              inbound,
+              presetVendor?.name
+                ? `Delivery follow up — ${presetVendor.name}`
+                : "Delivery follow up",
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTo(presetVendor?.email?.trim() ?? "");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setEventsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, initialVendorId, initialDeliveryOrderId, vendors]);
 
   useEffect(() => {
-    if (!vendorId) return;
+    if (!vendorId || initialDeliveryOrderId) return;
     const vendor = sortedVendors.find((v) => v.id === vendorId);
     if (vendor?.email?.trim() && !to.trim()) {
       setTo(vendor.email.trim());
     }
-  }, [vendorId, sortedVendors, to]);
+  }, [vendorId, sortedVendors, to, initialDeliveryOrderId]);
 
   useEffect(() => {
     if (!deliveryOrderId) return;
@@ -120,13 +182,23 @@ export function VendorCommunicationsModal({
 
   if (!open) return null;
 
+  const parsedCc = useMemo(
+    () =>
+      parseEmailList(additionalEmails).filter(
+        (email) => email !== toNormalized,
+      ),
+    [additionalEmails, toNormalized],
+  );
+
   const canSend =
     emailProviderConnected &&
     isValidEmail(to) &&
     !!subject.trim() &&
     !!body.trim() &&
     !sending &&
-    (!needsSaveCheckbox || saveVendorEmail);
+    !eventsLoading &&
+    (!needsSaveCheckbox || saveVendorEmail) &&
+    parsedCc.every(isValidEmail);
 
   const handleSend = async () => {
     setValidationError(null);
@@ -152,15 +224,26 @@ export function VendorCommunicationsModal({
       );
       return;
     }
+    const cc = parseEmailList(additionalEmails).filter(
+      (email) => email !== trimmedTo.toLowerCase(),
+    );
+    for (const ccEmail of cc) {
+      if (!isValidEmail(ccEmail)) {
+        setValidationError(`Invalid additional email: ${ccEmail}`);
+        return;
+      }
+    }
     setSending(true);
     try {
       await onSend({
         to: trimmedTo,
+        cc: cc.length > 0 ? cc : undefined,
         subject: trimmedSubject,
         body: trimmedBody,
         vendorId: vendorId || undefined,
         deliveryOrderId: deliveryOrderId || undefined,
         saveVendorEmail: needsSaveCheckbox ? saveVendorEmail : undefined,
+        ...replyHeaders,
       });
       onSuccess?.();
     } catch (e) {
@@ -221,8 +304,9 @@ export function VendorCommunicationsModal({
             textAlign: "left",
           }}
         >
-          This starts a new tracked vendor email thread. Replies will stay in
-          Needs Review until inbound ingest is enabled.
+          {replyFromInbound
+            ? "Replying to the vendor's latest inbound message. Add Cc addresses below if needed."
+            : "This starts a new tracked vendor email thread. Replies stay in Needs Review until inbound ingest is enabled."}
         </p>
 
         <label
@@ -293,7 +377,7 @@ export function VendorCommunicationsModal({
           data-testid="vendor-comms-label-email"
           style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
         >
-          Email Address
+          {replyFromInbound ? "Reply to" : "Email Address"}
         </label>
         <input
           id="vendor-comms-to"
@@ -302,9 +386,10 @@ export function VendorCommunicationsModal({
           value={to}
           onChange={(e) => setTo(e.target.value)}
           placeholder="vendor@example.com"
+          disabled={eventsLoading}
           style={{
             width: "100%",
-            marginBottom: 12,
+            marginBottom: 6,
             padding: "10px 12px",
             borderRadius: 6,
             border: "1px solid #d1d5db",
@@ -313,6 +398,56 @@ export function VendorCommunicationsModal({
             ...DRAWER_MODAL_INPUT_STYLE,
           }}
         />
+        {replyFromInbound ? (
+          <p
+            data-testid="vendor-comms-reply-to-hint"
+            style={{
+              margin: "0 0 12px",
+              fontSize: 11,
+              color: "#64748b",
+              fontFamily: font,
+            }}
+          >
+            Pre-filled from the vendor's latest inbound email. Edit if needed.
+          </p>
+        ) : null}
+
+        <label
+          htmlFor="vendor-comms-cc"
+          data-testid="vendor-comms-label-additional"
+          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+        >
+          Additional email addresses (optional)
+        </label>
+        <input
+          id="vendor-comms-cc"
+          data-testid="vendor-comms-additional"
+          type="text"
+          value={additionalEmails}
+          onChange={(e) => setAdditionalEmails(e.target.value)}
+          placeholder="sales@vendor.com, branch@vendor.com"
+          style={{
+            width: "100%",
+            marginBottom: 6,
+            padding: "10px 12px",
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            fontSize: 14,
+            fontFamily: font,
+            ...DRAWER_MODAL_INPUT_STYLE,
+          }}
+        />
+        <p
+          data-testid="vendor-comms-additional-hint"
+          style={{
+            margin: "0 0 12px",
+            fontSize: 11,
+            color: "#64748b",
+            fontFamily: font,
+          }}
+        >
+          Comma-separated Cc recipients (max 5).
+        </p>
 
         {needsSaveCheckbox ? (
           <label

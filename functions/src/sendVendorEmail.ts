@@ -74,9 +74,45 @@ interface SendVendorEmailRequest {
   vendorId?: string;
   materialIssueId?: string;
   to?: string;
+  cc?: string[];
   subject?: string;
   body?: string;
   saveVendorEmail?: boolean;
+  replyThreadId?: string;
+  inReplyTo?: string;
+  references?: string[];
+}
+
+const MAX_CC_RECIPIENTS = 5;
+const MAX_MESSAGE_ID_LEN = 512;
+
+function asEmailList(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  const out: string[] = [];
+  for (const item of values) {
+    const email = asEmail(item);
+    if (email) out.push(email);
+    if (out.length > MAX_CC_RECIPIENTS) break;
+  }
+  return [...new Set(out)];
+}
+
+function asMessageIdHeader(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_MESSAGE_ID_LEN) return null;
+  if (containsCrlfInEmailHeader(trimmed)) return null;
+  return trimmed;
+}
+
+function asMessageIdList(values: unknown): string[] | null {
+  if (!Array.isArray(values)) return null;
+  const out: string[] = [];
+  for (const item of values) {
+    const id = asMessageIdHeader(item);
+    if (id) out.push(id);
+  }
+  return out.length > 0 ? out : null;
 }
 
 export const sendVendorEmail = onCall(
@@ -101,13 +137,24 @@ export const sendVendorEmail = onCall(
       ? asNonEmptyString(data.materialIssueId, MAX_ID_LEN)
       : null;
     const to = asEmail(data.to);
+    const cc = asEmailList(data.cc);
     const subject = asNonEmptyString(data.subject, MAX_SUBJECT_LEN);
     const body = asNonEmptyString(data.body, MAX_BODY_LEN);
+    const replyThreadId = asNonEmptyString(data.replyThreadId, MAX_ID_LEN);
+    const inReplyTo = asMessageIdHeader(data.inReplyTo);
+    const references = asMessageIdList(data.references);
 
     if (!to || !subject || !body) {
       throw new HttpsError(
         "invalid-argument",
         "to, subject, and body are required.",
+      );
+    }
+
+    if (cc.includes(to)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Cc must not duplicate the primary recipient.",
       );
     }
 
@@ -271,10 +318,15 @@ export const sendVendorEmail = onCall(
     const raw = buildGmailRawMessage(to, fromEmail, subject, bodyWithFooter, {
       replyTo,
       fromDisplayName: "L. Garage Dispatch (StageVerify)",
+      cc: cc.length > 0 ? cc : undefined,
+      inReplyTo: inReplyTo ?? undefined,
+      references: references ?? undefined,
     });
     let gmailResult: { id: string; threadId?: string };
     try {
-      gmailResult = await sendGmailMessage(accessToken, raw);
+      gmailResult = await sendGmailMessage(accessToken, raw, {
+        threadId: replyThreadId ?? undefined,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("sendVendorEmail gmail send failed:", message);
@@ -313,7 +365,7 @@ export const sendVendorEmail = onCall(
       communicationPurpose,
       materialIssueId: materialIssueId ?? undefined,
       senderEmail: fromEmail,
-      recipientEmails: [to],
+      recipientEmails: [to, ...cc],
       replyToAddress: replyTo,
       subject,
       receivedAt: now,

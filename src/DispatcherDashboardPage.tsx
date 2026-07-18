@@ -19,6 +19,7 @@ import {
   mapOccupancyByLocationId,
   resolveMaterialIssue,
   sendVendorEmail,
+  listVendorEmailEventsForDelivery,
   listShopStockMappings,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
@@ -66,6 +67,13 @@ import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
 } from "./dispatcher/drawer/needMoreInfoDraft";
+import {
+  inboundReplyHeaders,
+  latestTrustedInboundVendorEmailEvent,
+  parseEmailList,
+  primaryRecipientFromEvents,
+  replySubjectFromInbound,
+} from "./dispatcher/email/vendorEmailComposeHelpers";
 import { ResolveIssueModal } from "./dispatcher/drawer/ResolveIssueModal";
 import { VendorCommunicationsPanel } from "./dispatcher/drawer/VendorCommunicationsPanel";
 import { VendorCommunicationsModal } from "./dispatcher/drawer/VendorCommunicationsModal";
@@ -2419,8 +2427,14 @@ function DetailContent({
   const [emailVendorError, setEmailVendorError] = useState<string | null>(null);
   const [emailVendorSuccess, setEmailVendorSuccess] = useState(false);
   const [emailTo, setEmailTo] = useState("");
+  const [emailCc, setEmailCc] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [emailReplyHeaders, setEmailReplyHeaders] = useState<{
+    replyThreadId?: string;
+    inReplyTo?: string;
+    references?: string[];
+  }>({});
   const [saveVendorEmail, setSaveVendorEmail] = useState(false);
   const [emailFieldsTouched, setEmailFieldsTouched] = useState(false);
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
@@ -2476,12 +2490,36 @@ function DetailContent({
       })),
   };
 
-  const resetNeedMoreInfoEmailFields = (deliveryDetails: DeliveryDetails) => {
-    setEmailTo(deliveryDetails.vendor.email?.trim() ?? "");
-    setEmailSubject(buildNeedMoreInfoEmailSubject(deliveryDetails));
-    setEmailBody(buildNeedMoreInfoEmailBody(deliveryDetails) ?? "");
+  const resetNeedMoreInfoEmailFields = async (deliveryDetails: DeliveryDetails) => {
+    setEmailCc("");
+    setEmailReplyHeaders({});
     setSaveVendorEmail(false);
     setEmailFieldsTouched(false);
+    setEmailBody(buildNeedMoreInfoEmailBody(deliveryDetails) ?? "");
+    const vendorEmailOnFile = deliveryDetails.vendor.email?.trim() ?? "";
+    setEmailTo(vendorEmailOnFile);
+    setEmailSubject(buildNeedMoreInfoEmailSubject(deliveryDetails));
+    try {
+      const events = await listVendorEmailEventsForDelivery(
+        deliveryDetails.delivery.id,
+      );
+      const inbound = latestTrustedInboundVendorEmailEvent(events);
+      const primaryTo = primaryRecipientFromEvents(events, vendorEmailOnFile);
+      if (primaryTo) {
+        setEmailTo(primaryTo);
+      }
+      if (inbound) {
+        setEmailReplyHeaders(inboundReplyHeaders(inbound));
+        setEmailSubject(
+          replySubjectFromInbound(
+            inbound,
+            buildNeedMoreInfoEmailSubject(deliveryDetails),
+          ),
+        );
+      }
+    } catch {
+      setEmailTo(vendorEmailOnFile);
+    }
   };
 
   const openResolveModal = (issue: MaterialIssue) => {
@@ -2493,7 +2531,7 @@ function DetailContent({
       buildSuggestedResolutionNote(issue, defaultType, resolutionContext),
     );
     setResolutionNoteTouched(false);
-    resetNeedMoreInfoEmailFields(details);
+    void resetNeedMoreInfoEmailFields(details);
     setEmailVendorLoading(false);
     setEmailVendorError(null);
     setEmailVendorSuccess(false);
@@ -2521,14 +2559,19 @@ function DetailContent({
     setEmailVendorLoading(true);
     setEmailVendorError(null);
     setEmailVendorSuccess(false);
+    const cc = parseEmailList(emailCc).filter(
+      (email) => email !== toNormalized,
+    );
     try {
       await sendVendorEmail({
         deliveryOrderId: details.delivery.id,
         materialIssueId: resolveIssueId,
         to,
+        cc: cc.length > 0 ? cc : undefined,
         subject,
         body,
         saveVendorEmail: needsSave ? saveVendorEmail : undefined,
+        ...emailReplyHeaders,
       });
       setEmailVendorSuccess(true);
       setVendorCommsRefresh((v) => v + 1);
@@ -3834,6 +3877,7 @@ function DetailContent({
           resolutionType={resolutionType}
           resolutionNote={resolutionNote}
           emailTo={emailTo}
+          emailCc={emailCc}
           emailSubject={emailSubject}
           emailBody={emailBody}
           saveVendorEmail={saveVendorEmail}
@@ -3851,6 +3895,10 @@ function DetailContent({
             setEmailFieldsTouched(true);
             setEmailTo(value);
           }}
+          onEmailCcChange={(value) => {
+            setEmailFieldsTouched(true);
+            setEmailCc(value);
+          }}
           onEmailSubjectChange={(value) => {
             setEmailFieldsTouched(true);
             setEmailSubject(value);
@@ -3863,7 +3911,7 @@ function DetailContent({
           onResolutionTypeChange={(nextType, issue) => {
             setResolutionType(nextType);
             if (nextType === "need_more_information" && !emailFieldsTouched) {
-              resetNeedMoreInfoEmailFields(details);
+              void resetNeedMoreInfoEmailFields(details);
             }
             if (!resolutionNoteTouched) {
               setResolutionNote(

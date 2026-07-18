@@ -18,6 +18,7 @@ export function ResolveIssueModal({
   resolutionType,
   resolutionNote,
   emailTo,
+  emailCc,
   emailSubject,
   emailBody,
   saveVendorEmail,
@@ -31,6 +32,7 @@ export function ResolveIssueModal({
   onResolutionTypeChange,
   onResolutionNoteChange,
   onEmailToChange,
+  onEmailCcChange,
   onEmailSubjectChange,
   onEmailBodyChange,
   onSaveVendorEmailChange,
@@ -43,6 +45,7 @@ export function ResolveIssueModal({
   resolutionType: IssueResolutionType;
   resolutionNote: string;
   emailTo: string;
+  emailCc: string;
   emailSubject: string;
   emailBody: string;
   saveVendorEmail: boolean;
@@ -56,6 +59,7 @@ export function ResolveIssueModal({
   onResolutionTypeChange: (type: IssueResolutionType, issue: MaterialIssue) => void;
   onResolutionNoteChange: (note: string, touched: boolean) => void;
   onEmailToChange: (value: string) => void;
+  onEmailCcChange: (value: string) => void;
   onEmailSubjectChange: (value: string) => void;
   onEmailBodyChange: (value: string) => void;
   onSaveVendorEmailChange: (checked: boolean) => void;
@@ -323,6 +327,47 @@ export function ResolveIssueModal({
                 ...DRAWER_MODAL_INPUT_STYLE,
               }}
             />
+            <label
+              htmlFor="resolve-email-cc"
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                marginBottom: 6,
+                fontFamily: font,
+              }}
+            >
+              Additional email addresses (optional)
+            </label>
+            <input
+              id="resolve-email-cc"
+              data-testid="resolve-email-cc"
+              type="text"
+              value={emailCc}
+              onChange={(e) => onEmailCcChange(e.target.value)}
+              placeholder="sales@vendor.com, branch@vendor.com"
+              style={{
+                width: "100%",
+                marginBottom: 6,
+                padding: "10px 12px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                fontSize: 14,
+                fontFamily: font,
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
+            />
+            <p
+              data-testid="resolve-email-cc-hint"
+              style={{
+                margin: "0 0 12px",
+                fontSize: 11,
+                color: "#64748b",
+                fontFamily: font,
+              }}
+            >
+              Comma-separated Cc recipients (max 5).
+            </p>
             {toDiffersFromOnFile && (
               <p
                 data-testid="resolve-email-to-warning"

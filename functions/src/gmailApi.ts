@@ -73,6 +73,9 @@ export interface BuildGmailRawMessageOptions {
   replyTo?: string;
   /** Friendly display name — e.g. "L. Garage Dispatch (StageVerify)" */
   fromDisplayName?: string;
+  cc?: string[];
+  inReplyTo?: string;
+  references?: string[];
 }
 
 function formatFromHeader(fromEmail: string, displayName?: string): string {
@@ -99,6 +102,19 @@ export function buildGmailRawMessage(
   if (opts.replyTo !== undefined) {
     assertSafeEmailHeaderValue(opts.replyTo, "Reply-To");
   }
+  if (opts.cc?.length) {
+    for (const cc of opts.cc) {
+      assertSafeEmailHeaderValue(cc, "Cc");
+    }
+  }
+  if (opts.inReplyTo) {
+    assertSafeEmailHeaderValue(opts.inReplyTo, "In-Reply-To");
+  }
+  if (opts.references?.length) {
+    for (const ref of opts.references) {
+      assertSafeEmailHeaderValue(ref, "References");
+    }
+  }
 
   const fromHeader = formatFromHeader(from, opts.fromDisplayName);
 
@@ -107,6 +123,15 @@ export function buildGmailRawMessage(
     formatEmailHeader("From", fromHeader),
     formatEmailHeader("Subject", encodeRfc2822Subject(subject)),
   ];
+  if (opts.cc?.length) {
+    headerLines.push(formatEmailHeader("Cc", opts.cc.join(", ")));
+  }
+  if (opts.inReplyTo) {
+    headerLines.push(formatEmailHeader("In-Reply-To", opts.inReplyTo));
+  }
+  if (opts.references?.length) {
+    headerLines.push(formatEmailHeader("References", opts.references.join(" ")));
+  }
   if (opts.replyTo !== undefined) {
     headerLines.push(formatEmailHeader("Reply-To", opts.replyTo));
   }
@@ -128,6 +153,7 @@ export function buildGmailRawMessage(
 export async function sendGmailMessage(
   accessToken: string,
   raw: string,
+  options?: { threadId?: string },
 ): Promise<{ id: string; threadId?: string }> {
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
@@ -135,7 +161,10 @@ export async function sendGmailMessage(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ raw }),
+    body: JSON.stringify({
+      raw,
+      ...(options?.threadId ? { threadId: options.threadId } : {}),
+    }),
   });
 
   const text = await res.text();

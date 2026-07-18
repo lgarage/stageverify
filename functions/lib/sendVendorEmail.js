@@ -57,6 +57,42 @@ function bodyExcerpt(body) {
         return trimmed;
     return `${trimmed.slice(0, BODY_EXCERPT_LEN - 1)}…`;
 }
+const MAX_CC_RECIPIENTS = 5;
+const MAX_MESSAGE_ID_LEN = 512;
+function asEmailList(values) {
+    if (!Array.isArray(values))
+        return [];
+    const out = [];
+    for (const item of values) {
+        const email = asEmail(item);
+        if (email)
+            out.push(email);
+        if (out.length > MAX_CC_RECIPIENTS)
+            break;
+    }
+    return [...new Set(out)];
+}
+function asMessageIdHeader(value) {
+    if (typeof value !== "string")
+        return null;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > MAX_MESSAGE_ID_LEN)
+        return null;
+    if ((0, gmailApi_1.containsCrlfInEmailHeader)(trimmed))
+        return null;
+    return trimmed;
+}
+function asMessageIdList(values) {
+    if (!Array.isArray(values))
+        return null;
+    const out = [];
+    for (const item of values) {
+        const id = asMessageIdHeader(item);
+        if (id)
+            out.push(id);
+    }
+    return out.length > 0 ? out : null;
+}
 exports.sendVendorEmail = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [gmailApi_1.gmailClientId, gmailApi_1.gmailClientSecret],
@@ -76,10 +112,17 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         ? asNonEmptyString(data.materialIssueId, MAX_ID_LEN)
         : null;
     const to = asEmail(data.to);
+    const cc = asEmailList(data.cc);
     const subject = asNonEmptyString(data.subject, MAX_SUBJECT_LEN);
     const body = asNonEmptyString(data.body, MAX_BODY_LEN);
+    const replyThreadId = asNonEmptyString(data.replyThreadId, MAX_ID_LEN);
+    const inReplyTo = asMessageIdHeader(data.inReplyTo);
+    const references = asMessageIdList(data.references);
     if (!to || !subject || !body) {
         throw new https_1.HttpsError("invalid-argument", "to, subject, and body are required.");
+    }
+    if (cc.includes(to)) {
+        throw new https_1.HttpsError("invalid-argument", "Cc must not duplicate the primary recipient.");
     }
     const db = getDb();
     const connSnap = await connectionRef(db).get();
@@ -186,10 +229,15 @@ exports.sendVendorEmail = (0, https_1.onCall)({
     const raw = (0, gmailApi_1.buildGmailRawMessage)(to, fromEmail, subject, bodyWithFooter, {
         replyTo,
         fromDisplayName: "L. Garage Dispatch (StageVerify)",
+        cc: cc.length > 0 ? cc : undefined,
+        inReplyTo: inReplyTo ?? undefined,
+        references: references ?? undefined,
     });
     let gmailResult;
     try {
-        gmailResult = await (0, gmailApi_1.sendGmailMessage)(accessToken, raw);
+        gmailResult = await (0, gmailApi_1.sendGmailMessage)(accessToken, raw, {
+            threadId: replyThreadId ?? undefined,
+        });
     }
     catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -222,7 +270,7 @@ exports.sendVendorEmail = (0, https_1.onCall)({
         communicationPurpose,
         materialIssueId: materialIssueId ?? undefined,
         senderEmail: fromEmail,
-        recipientEmails: [to],
+        recipientEmails: [to, ...cc],
         replyToAddress: replyTo,
         subject,
         receivedAt: now,
