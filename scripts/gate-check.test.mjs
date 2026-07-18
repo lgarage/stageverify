@@ -7,7 +7,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   SECURITY_GATE_ID_RE,
+  ALLOWED_GATE_MODELS,
   REQUIRED_MODEL_LINE,
+  MISSING_MODEL_LINE_HINT,
+  hasAllowedGateModel,
   classifyPath,
   packageJsonHighRisk,
   checkEvidence,
@@ -90,6 +93,20 @@ describe("SECURITY_GATE_ID_RE", () => {
   });
 });
 
+describe("hasAllowedGateModel", () => {
+  it("accepts high-thinking slug", () => {
+    assert.equal(hasAllowedGateModel("model: claude-4.6-sonnet-high-thinking"), true);
+  });
+
+  it("accepts medium-thinking slug", () => {
+    assert.equal(hasAllowedGateModel("model: claude-4.6-sonnet-medium-thinking"), true);
+  });
+
+  it("rejects non-allowlist slug", () => {
+    assert.equal(hasAllowedGateModel("model: claude-fable-5-thinking-high"), false);
+  });
+});
+
 describe("packageJsonHighRisk", () => {
   const base = {
     scripts: { build: "tsc" },
@@ -123,9 +140,15 @@ describe("packageJsonHighRisk", () => {
 });
 
 describe("checkEvidence", () => {
-  const validBody = [
-    "security-gate-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    REQUIRED_MODEL_LINE,
+  const gateId = "security-gate-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+  const validBodyMedium = [gateId, REQUIRED_MODEL_LINE, "actual model invocation evidence: yes"].join(
+    "\n",
+  );
+
+  const validBodyHigh = [
+    gateId,
+    `model: ${ALLOWED_GATE_MODELS[0]}`,
     "actual model invocation evidence: yes",
   ].join("\n");
 
@@ -143,16 +166,29 @@ describe("checkEvidence", () => {
   });
 
   it("fails when model line missing", () => {
-    const body = "security-gate-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+    const body = gateId;
     const result = checkEvidence(body, true);
     assert.equal(result.pass, false);
-    assert.ok(result.missing.includes(REQUIRED_MODEL_LINE));
+    assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
   });
 
-  it("passes when both required lines present", () => {
-    const result = checkEvidence(validBody, true);
+  it("passes when medium-thinking model line present", () => {
+    const result = checkEvidence(validBodyMedium, true);
     assert.equal(result.pass, true);
     assert.deepEqual(result.missing, []);
+  });
+
+  it("passes when high-thinking model line present", () => {
+    const result = checkEvidence(validBodyHigh, true);
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("fails when non-allowlist model line present", () => {
+    const body = [gateId, "model: claude-fable-5-thinking-high"].join("\n");
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
   });
 });
 

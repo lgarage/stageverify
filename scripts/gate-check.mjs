@@ -15,6 +15,9 @@
  * The check does not validate the verdict value — a PR body with `verdict: HIGH` or
  * `NOT RUN` still passes the presence check. Known v1 gap, presence-only by design (D-28).
  *
+ * Model line (D-38): accepts any slug in ALLOWED_GATE_MODELS — preference order is
+ * enforced by harness rules, not by this mechanical presence check.
+ *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
  * the merge ref — this gate is advisory-vs-malice, protective-vs-honest-mistakes; branch
  * protection + human review remain the backstop for hostile PRs.
@@ -33,7 +36,23 @@ import { fileURLToPath } from "node:url";
 export const SECURITY_GATE_ID_RE =
   /security-gate-id:\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-export const REQUIRED_MODEL_LINE = "model: claude-4.6-sonnet-medium-thinking";
+export const ALLOWED_GATE_MODELS = [
+  "claude-4.6-sonnet-high-thinking",
+  "claude-4.6-sonnet-medium-thinking",
+];
+
+/** @deprecated Use ALLOWED_GATE_MODELS — kept for tests referencing legacy primary slug */
+export const REQUIRED_MODEL_LINE = `model: ${ALLOWED_GATE_MODELS[1]}`;
+
+export const MISSING_MODEL_LINE_HINT = `model: <allowlisted slug per D-38 (${ALLOWED_GATE_MODELS.join(" | ")})>`;
+
+/**
+ * @param {string} prBody
+ * @returns {boolean}
+ */
+export function hasAllowedGateModel(prBody) {
+  return ALLOWED_GATE_MODELS.some((slug) => prBody.includes(`model: ${slug}`));
+}
 
 const AUTH_HEURISTIC = /auth|session|token|guard|login/i;
 
@@ -156,8 +175,8 @@ export function checkEvidence(prBody, hasHighRisk) {
   if (!SECURITY_GATE_ID_RE.test(prBody)) {
     missing.push("security-gate-id: <lowercase-hex UUID 8-4-4-4-12>");
   }
-  if (!prBody.includes(REQUIRED_MODEL_LINE)) {
-    missing.push(REQUIRED_MODEL_LINE);
+  if (!hasAllowedGateModel(prBody)) {
+    missing.push(MISSING_MODEL_LINE_HINT);
   }
   if (!/actual model invocation evidence:/i.test(prBody)) {
     warnings.push("actual model invocation evidence: line absent");
