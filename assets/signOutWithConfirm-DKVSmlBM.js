@@ -1,1 +1,0 @@
-import{_n as e}from"./index-D7_IKXhs.js";function t(t,n){window.confirm(`Are you sure you want to sign out?`)&&e(t).then(()=>{n(`/login`,{replace:!0})})}export{t};
