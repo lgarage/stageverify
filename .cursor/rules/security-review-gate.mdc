@@ -51,7 +51,7 @@ Missing **`security-gate-id`** → **NOT RUN**, not PASS. Report block must incl
 ## Hard stops
 
 - **NEVER** push CF / auth / Firestore-rules without subagent verdict.
-- **NEVER** launch duplicate security Tasks in one turn.
+- **NEVER** launch duplicate security Tasks in one turn. A platform **rejection** of a higher allowlist slug followed by retry with the next slug is ONE gate cycle (record `fallback-from:`), not a forbidden duplicate — only parallel or repeated *accepted* dispatches are.
 - Workers/multitask/away-batch: paste Task block verbatim; await gate; include id + model + evidence + verdict in ship report.
 
 ### RC-3 model param caveat (unverified)
