@@ -180,8 +180,6 @@ export function VendorCommunicationsModal({
     }
   }, [deliveryOrderId, sortedDeliveries, sortedVendors, vendorId, to]);
 
-  if (!open) return null;
-
   const parsedCc = useMemo(
     () =>
       parseEmailList(additionalEmails).filter(
@@ -191,6 +189,7 @@ export function VendorCommunicationsModal({
   );
 
   const canSend =
+    open &&
     emailProviderConnected &&
     isValidEmail(to) &&
     !!subject.trim() &&
@@ -254,6 +253,8 @@ export function VendorCommunicationsModal({
       setSending(false);
     }
   };
+
+  if (!open) return null;
 
   return (
     <div
