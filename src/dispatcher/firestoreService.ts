@@ -1447,7 +1447,10 @@ export async function listPendingInboundVendorEmailEvents(
     ),
   );
   const events = snap.docs
-    .map((d) => d.data() as VendorEmailEvent)
+    .map((d) => {
+      const row = d.data() as VendorEmailEvent;
+      return { ...row, id: row.id ?? d.id };
+    })
     .filter((e) => e.direction === "inbound" || !e.direction)
     .slice(0, limit);
   events.sort((a, b) => (b.receivedAt ?? b.createdAt).localeCompare(a.receivedAt ?? a.createdAt));
@@ -2266,6 +2269,11 @@ const reparseVendorInvoiceImportCallable = httpsCallable<
   ReparseVendorInvoiceImportResult
 >(functions, "reparseVendorInvoiceImportCallable");
 
+const dismissVendorEmailEventCallable = httpsCallable<
+  { vendorEmailEventId: string },
+  { ok: boolean; vendorEmailEventId: string; reviewStatus: "rejected" }
+>(functions, "dismissVendorEmailEventCallable");
+
 export interface VendorInvoicePdfPayload {
   filename: string;
   mimeType: string;
@@ -2301,6 +2309,14 @@ export async function reparseVendorInvoiceImport(
   vendorInvoiceImportId: string,
 ): Promise<ReparseVendorInvoiceImportResult> {
   const response = await reparseVendorInvoiceImportCallable({ vendorInvoiceImportId });
+  return response.data;
+}
+
+/** Dismiss one pending inbound vendor email from Needs Review (sets reviewStatus rejected). */
+export async function dismissVendorEmailEvent(
+  vendorEmailEventId: string,
+): Promise<{ ok: boolean; vendorEmailEventId: string; reviewStatus: "rejected" }> {
+  const response = await dismissVendorEmailEventCallable({ vendorEmailEventId });
   return response.data;
 }
 

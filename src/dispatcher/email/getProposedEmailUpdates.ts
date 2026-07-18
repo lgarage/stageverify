@@ -11,6 +11,8 @@ import type { DeliveryOrder } from "../models";
 import type { EmailClassification, EmailProcessingResult } from "./types";
 
 export interface ProposedEmailUpdate {
+  /** Firestore vendorEmailEvents id — present for live inbound rows only. */
+  eventId?: string;
   messageId: string;
   subject: string;
   senderEmail: string;

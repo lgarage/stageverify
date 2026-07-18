@@ -884,6 +884,8 @@ export interface VendorEmailEvent {
   confidenceReason?: string;
   humanReviewRequired?: boolean;
   reviewStatus: VendorEmailReviewStatus;
+  rejectedAt?: string;
+  rejectedBy?: string;
   rawPayloadRef?: string;
   duplicateOfEventId?: string;
   appliedAt?: string;

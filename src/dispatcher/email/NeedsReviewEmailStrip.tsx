@@ -5,16 +5,18 @@ import {
   formatEmailReviewPreview,
   getEmailReviewHeadlines,
 } from "./emailReviewHelpers";
-import { listPendingInboundVendorEmailEvents } from "../firestoreService";
+import { listPendingInboundVendorEmailEvents, dismissVendorEmailEvent } from "../firestoreService";
 import type { VendorEmailEvent } from "../models";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
 
 const NAVY = "#0a3161";
+const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
   const originalBody = event.bodyText ?? event.bodyExcerpt ?? "";
   return {
+    eventId: event.id,
     messageId: event.sourceMessageId,
     subject: event.subject,
     senderEmail: event.senderEmail,
@@ -80,6 +82,8 @@ export function NeedsReviewEmailStrip() {
   }, [liveEvents, liveLoaded]);
   const [expanded, setExpanded] = useState(false);
   const [openOriginalId, setOpenOriginalId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [dismissError, setDismissError] = useState<string | null>(null);
   const stripRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -109,6 +113,20 @@ export function NeedsReviewEmailStrip() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [expanded]);
+
+  const handleDismiss = async (eventId: string, sourceMessageId: string) => {
+    setDismissError(null);
+    setDismissingId(eventId);
+    try {
+      await dismissVendorEmailEvent(eventId);
+      setLiveEvents((prev) => prev.filter((e) => e.id !== eventId));
+      setOpenOriginalId((prev) => (prev === sourceMessageId ? null : prev));
+    } catch (err) {
+      setDismissError(err instanceof Error ? err.message : "Dismiss failed.");
+    } finally {
+      setDismissingId(null);
+    }
+  };
 
   if (needsReview.length === 0) {
     return (
@@ -180,6 +198,22 @@ export function NeedsReviewEmailStrip() {
           data-testid="needs-review-email-list"
           style={{ padding: "12px 18px 16px", display: "flex", flexDirection: "column", gap: 10 }}
         >
+          {dismissError && (
+            <p
+              data-testid="needs-review-email-dismiss-error"
+              style={{
+                margin: 0,
+                padding: "8px 10px",
+                borderRadius: 4,
+                backgroundColor: "#fef2f2",
+                border: "1px solid #fecaca",
+                color: "#b91c1c",
+                fontSize: 12,
+              }}
+            >
+              {dismissError}
+            </p>
+          )}
           {needsReview.map((row) => {
             const headlines = getEmailReviewHeadlines(row);
             const preview = formatEmailReviewPreview(row);
@@ -259,27 +293,50 @@ export function NeedsReviewEmailStrip() {
                   {headlines.secondary}
                 </p>
 
-                <button
-                  type="button"
-                  data-testid={`needs-review-view-original-${row.messageId}`}
-                  onClick={() =>
-                    setOpenOriginalId((prev) =>
-                      prev === row.messageId ? null : row.messageId,
-                    )
-                  }
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 4,
-                    border: `1px solid ${NAVY}`,
-                    backgroundColor: "#fff",
-                    color: NAVY,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  {showOriginal ? "Hide Original Email" : "Show Original Email"}
-                </button>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    data-testid={`needs-review-view-original-${row.messageId}`}
+                    onClick={() =>
+                      setOpenOriginalId((prev) =>
+                        prev === row.messageId ? null : row.messageId,
+                      )
+                    }
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 4,
+                      border: `1px solid ${NAVY}`,
+                      backgroundColor: "#fff",
+                      color: NAVY,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {showOriginal ? "Hide Original Email" : "Show Original Email"}
+                  </button>
+                  {row.eventId && (
+                    <button
+                      type="button"
+                      data-testid={`needs-review-email-dismiss-${row.messageId}`}
+                      disabled={dismissingId === row.eventId}
+                      onClick={() => void handleDismiss(row.eventId!, row.messageId)}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 4,
+                        border: `1px solid ${RED}`,
+                        backgroundColor: dismissingId === row.eventId ? "#f8fafc" : "#fff",
+                        color: RED,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: dismissingId === row.eventId ? "wait" : "pointer",
+                        opacity: dismissingId === row.eventId ? 0.7 : 1,
+                      }}
+                    >
+                      {dismissingId === row.eventId ? "Dismissing…" : "Dismiss"}
+                    </button>
+                  )}
+                </div>
                 {showOriginal && (
                   <div
                     data-testid={`needs-review-original-${row.messageId}`}

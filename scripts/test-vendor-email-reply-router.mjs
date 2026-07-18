@@ -335,7 +335,46 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   }
 });
 
-console.log("\n6. decodeGmailBodyText sanity");
+console.log("\n6. dismissVendorEmailEventCallable rejects pending inbound");
+await signInWithEmailAndPassword(auth, DISPATCHER_EMAIL, PASSWORD);
+let dismissEventId;
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  dismissEventId = "vee-dismiss-test";
+  await setDoc(doc(adminDb, "vendorEmailEvents", dismissEventId), {
+    id: dismissEventId,
+    direction: "inbound",
+    sourceMessageId: "gmail-dismiss-test",
+    subject: "Test dismiss",
+    senderEmail: "rep@johnstone.com",
+    reviewStatus: "pending_review",
+    receivedAt: "2026-07-06T12:00:00Z",
+    createdAt: "2026-07-06T12:00:00Z",
+    updatedAt: "2026-07-06T12:00:00Z",
+  });
+});
+const dismissVendorEmailEvent = httpsCallable(functions, "dismissVendorEmailEventCallable");
+try {
+  const dismissRes = await dismissVendorEmailEvent({ vendorEmailEventId: dismissEventId });
+  if (dismissRes.data?.ok && dismissRes.data?.reviewStatus === "rejected") {
+    pass("dismiss callable returned ok");
+  } else {
+    fail("dismiss response wrong", JSON.stringify(dismissRes.data));
+  }
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDoc(doc(ctx.firestore(), "vendorEmailEvents", dismissEventId));
+    const data = snap.data();
+    if (data?.reviewStatus === "rejected" && data?.rejectedBy === dispatcherUid) {
+      pass("event marked rejected with audit fields");
+    } else {
+      fail("event not rejected", JSON.stringify(data));
+    }
+  });
+} catch (err) {
+  fail("dismiss callable failed", String(err?.message ?? err));
+}
+
+console.log("\n7. decodeGmailBodyText sanity");
 const sampleBody = decodeGmailBodyData(
   Buffer.from("Hello vendor reply", "utf8")
     .toString("base64")
