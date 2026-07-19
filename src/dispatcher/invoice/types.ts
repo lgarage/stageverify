@@ -16,7 +16,11 @@ export type InvoiceLineType = "product" | "core_charge" | "return" | "freight" |
 
 export type InvoiceConfidenceTier = "high" | "medium" | "low";
 
-export type VendorInvoiceParserFormatId = "johnstone" | "first_supply" | "unknown";
+export type VendorInvoiceParserFormatId =
+  | "johnstone"
+  | "first_supply"
+  | "generic"
+  | "unknown";
 
 /** Plain-text page extracted from a Johnstone branch invoice PDF (offline prototype). */
 export interface JohnstoneInvoicePageText {

@@ -2,7 +2,7 @@ import type { JohnstoneInvoicePageText } from "./types";
 
 const BATCH_ID = "batch-non-johnstone-2026-07-05";
 
-/** Controlled non-Johnstone vendor text — expect issue/review, not Johnstone auto-parse. */
+/** Controlled non-Johnstone vendor text — generic extraction with review, not empty issue rows. */
 export const NON_JOHNSTONE_INVOICE_FIXTURES: JohnstoneInvoicePageText[] = [
   {
     pageId: "inv-ferguson-sample-001",
@@ -93,39 +93,44 @@ export const NON_JOHNSTONE_FIXTURE_EXPECTATIONS: Record<
   {
     importStatus: string;
     humanReviewRequired: boolean;
+    parserFormatId?: "generic" | "unknown";
+    minProductLines?: number;
+    maxProductLines?: number;
     minConfidenceScore?: number;
     maxConfidenceScore?: number;
-    maxProductLines?: number;
+    vendorInvoiceNumber?: string;
   }
 > = {
   "inv-ferguson-sample-001": {
-    importStatus: "issue",
+    importStatus: "pending",
     humanReviewRequired: true,
-    maxConfidenceScore: 60,
-    maxProductLines: 0,
+    parserFormatId: "generic",
+    minProductLines: 2,
+    vendorInvoiceNumber: "FE-882145",
   },
   "inv-firstsupply-sample-001": {
-    importStatus: "issue",
+    importStatus: "partial",
     humanReviewRequired: true,
-    maxConfidenceScore: 60,
-    maxProductLines: 0,
+    parserFormatId: "generic",
+    minProductLines: 1,
   },
   "inv-ferguson-willcall-002": {
-    importStatus: "issue",
+    importStatus: "pickup_at_vendor",
     humanReviewRequired: true,
-    maxConfidenceScore: 55,
-    maxProductLines: 0,
+    parserFormatId: "generic",
+    minProductLines: 1,
+    vendorInvoiceNumber: "FE-990011",
   },
   "inv-firstsupply-pickup-002": {
     importStatus: "issue",
     humanReviewRequired: true,
-    maxConfidenceScore: 55,
-    maxProductLines: 0,
+    parserFormatId: "generic",
+    minProductLines: 1,
   },
   "inv-ferguson-blank-po-003": {
     importStatus: "issue",
     humanReviewRequired: true,
-    maxConfidenceScore: 50,
+    parserFormatId: "generic",
     maxProductLines: 0,
   },
 };

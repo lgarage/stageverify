@@ -16,6 +16,10 @@ import {
   FIRST_SUPPLY_FIXTURE_EXPECTATIONS,
   FIRST_SUPPLY_INVOICE_FIXTURES,
 } from "../src/dispatcher/invoice/firstSupplyInvoiceFixtures.ts";
+import {
+  NOVEL_VENDOR_FIXTURE_EXPECTATIONS,
+  NOVEL_VENDOR_INVOICE_FIXTURES,
+} from "../src/dispatcher/invoice/novelVendorInvoiceFixtures.ts";
 import { pageTextFingerprint } from "../src/dispatcher/invoice/parseJohnstoneInvoice.ts";
 import { postProcessExtractedPdfText } from "../functions/src/inboundEmail/normalizePdfText.ts";
 import {
@@ -492,7 +496,7 @@ for (const fixture of INVOICE_FIXTURES) {
   }
 }
 
-console.log("\n--- Non-Johnstone vendor fixtures (graceful issue/review) ---");
+console.log("\n--- Non-Johnstone vendor fixtures (generic extraction + review) ---");
 for (const fixture of NON_JOHNSTONE_INVOICE_FIXTURES) {
   const result = processInvoicePage(fixture, existing);
   existing.byPageId.set(fixture.pageId, fixture.pageId);
@@ -508,6 +512,17 @@ for (const fixture of NON_JOHNSTONE_INVOICE_FIXTURES) {
   if (result.humanReviewRequired !== expected.humanReviewRequired) {
     failures.push(`${fixture.pageId}: humanReviewRequired mismatch`);
   }
+  if (expected.parserFormatId && result.parserFormatId !== expected.parserFormatId) {
+    failures.push(
+      `${fixture.pageId}: parserFormatId expected ${expected.parserFormatId}, got ${result.parserFormatId}`,
+    );
+  }
+  if (
+    expected.vendorInvoiceNumber &&
+    result.parsed.header.vendorInvoiceNumber !== expected.vendorInvoiceNumber
+  ) {
+    failures.push(`${fixture.pageId}: vendorInvoiceNumber mismatch`);
+  }
   if (
     expected.maxConfidenceScore !== undefined &&
     result.confidenceScore > expected.maxConfidenceScore
@@ -518,13 +533,58 @@ for (const fixture of NON_JOHNSTONE_INVOICE_FIXTURES) {
   }
   const productLines = expectedInvoiceLines(result).length;
   if (
+    expected.minProductLines !== undefined &&
+    productLines < expected.minProductLines
+  ) {
+    failures.push(
+      `${fixture.pageId}: expected >= ${expected.minProductLines} lines, got ${productLines}`,
+    );
+  }
+  if (
     expected.maxProductLines !== undefined &&
     productLines > expected.maxProductLines
   ) {
     failures.push(`${fixture.pageId}: unexpected product lines (${productLines})`);
   }
   console.log(
-    `  PASS ${fixture.pageId} — status=${result.importStatus}, confidence=${result.confidenceScore}, lines=${productLines}`,
+    `  PASS ${fixture.pageId} — format=${result.parserFormatId}, status=${result.importStatus}, confidence=${result.confidenceScore}, lines=${productLines}`,
+  );
+}
+
+console.log("\n--- Novel vendor fixtures (no dedicated parser) ---");
+for (const fixture of NOVEL_VENDOR_INVOICE_FIXTURES) {
+  const result = processInvoicePage(fixture, existing);
+  existing.byPageId.set(fixture.pageId, fixture.pageId);
+  const expected = NOVEL_VENDOR_FIXTURE_EXPECTATIONS[fixture.pageId];
+  if (!expected) continue;
+
+  if (result.parserFormatId !== expected.parserFormatId) {
+    failures.push(
+      `${fixture.pageId}: parserFormatId expected ${expected.parserFormatId}, got ${result.parserFormatId}`,
+    );
+  }
+  if (result.parsed.header.vendorInvoiceNumber !== expected.vendorInvoiceNumber) {
+    failures.push(`${fixture.pageId}: vendorInvoiceNumber mismatch`);
+  }
+  if (result.parsed.header.customerPoOrReference !== expected.customerPoOrReference) {
+    failures.push(`${fixture.pageId}: customer P/O mismatch`);
+  }
+  if (result.importStatus !== expected.importStatus) {
+    failures.push(
+      `${fixture.pageId}: importStatus expected ${expected.importStatus}, got ${result.importStatus}`,
+    );
+  }
+  if (result.humanReviewRequired !== expected.humanReviewRequired) {
+    failures.push(`${fixture.pageId}: humanReviewRequired mismatch`);
+  }
+  const productLines = expectedInvoiceLines(result).length;
+  if (productLines < expected.minProductLines) {
+    failures.push(
+      `${fixture.pageId}: expected >= ${expected.minProductLines} lines, got ${productLines}`,
+    );
+  }
+  console.log(
+    `  PASS ${fixture.pageId} — vendor=${result.detectedVendorName}, inv=${result.parsed.header.vendorInvoiceNumber}, lines=${productLines}`,
   );
 }
 

@@ -1,4 +1,10 @@
 import { deriveImportStatus, scoreInvoiceConfidence } from "./inferImportStatus";
+import { mergeParsedInvoices, specializedParseSucceeded } from "./mergeParsedInvoices";
+import {
+  pageTextFingerprint as canonicalFingerprint,
+  detectVendorNameFromText,
+  parseCanonicalInvoicePage,
+} from "./parseCanonicalInvoice";
 import { pageTextFingerprint as johnstoneFingerprint, parseJohnstoneInvoicePage } from "./parseJohnstoneInvoice";
 import {
   pageTextFingerprint as firstSupplyFingerprint,
@@ -24,32 +30,52 @@ function fingerprintForFormat(
   page: JohnstoneInvoicePageText,
 ): string {
   if (formatId === "first_supply") return firstSupplyFingerprint(page);
-  return johnstoneFingerprint(page);
+  if (formatId === "johnstone") return johnstoneFingerprint(page);
+  return canonicalFingerprint(page);
 }
 
-function buildUnknownFormatParsed(_page: JohnstoneInvoicePageText): ParsedJohnstoneInvoice {
-  return {
-    header: {
-      customerAccountNumber: "",
-      vendorOrderNumber: "",
-      vendorInvoiceNumber: "",
-      customerPoOrReference: "",
-      orderDate: "",
-      invoiceDate: "",
-      shipDate: "",
-      vendorBranchName: "",
-      vendorBranchAddress: "",
-      vendorBranchPhone: "",
-      soldToName: "",
-      shipToName: "",
-      shipToAddress: "",
-      fulfillmentMethod: "unknown",
-      shipCompletePolicy: "unknown",
-    },
-    lines: [],
-    orderNotes: [],
-    parseWarnings: ["Unrecognized vendor invoice format"],
-  };
+function resolveEffectiveFormat(
+  routeFormatId: VendorInvoiceParserFormatId,
+  canonical: ParsedJohnstoneInvoice,
+): VendorInvoiceParserFormatId {
+  if (routeFormatId === "johnstone" || routeFormatId === "first_supply") {
+    return routeFormatId;
+  }
+  const hasInvoice = Boolean(canonical.header.vendorInvoiceNumber);
+  const hasLines = canonical.lines.some((l) => l.lineType === "product");
+  if (hasInvoice || hasLines) return "generic";
+  return "unknown";
+}
+
+function buildParsedInvoice(
+  page: JohnstoneInvoicePageText,
+  routeFormatId: VendorInvoiceParserFormatId,
+): { parsed: ParsedJohnstoneInvoice; formatId: VendorInvoiceParserFormatId } {
+  const canonical = parseCanonicalInvoicePage(page);
+
+  if (routeFormatId === "first_supply") {
+    const merged = mergeParsedInvoices(canonical, parseFirstSupplyInvoicePage(page));
+    if (specializedParseSucceeded(merged, "first_supply")) {
+      return { parsed: merged, formatId: "first_supply" };
+    }
+    return {
+      parsed: canonical,
+      formatId: resolveEffectiveFormat("unknown", canonical),
+    };
+  }
+  if (routeFormatId === "johnstone") {
+    const merged = mergeParsedInvoices(canonical, parseJohnstoneInvoicePage(page));
+    if (specializedParseSucceeded(merged, "johnstone")) {
+      return { parsed: merged, formatId: "johnstone" };
+    }
+    return {
+      parsed: canonical,
+      formatId: resolveEffectiveFormat("unknown", canonical),
+    };
+  }
+
+  const formatId = resolveEffectiveFormat(routeFormatId, canonical);
+  return { parsed: canonical, formatId };
 }
 
 export function processInvoicePage(
@@ -58,21 +84,10 @@ export function processInvoicePage(
   options?: InvoiceProcessOptions,
 ): InvoiceProcessingResult {
   const route = routeInvoiceFormat(page.extractedText, options?.routeHints);
-  const formatId = route.formatId;
+  const { parsed, formatId } = buildParsedInvoice(page, route.formatId);
 
-  const parsed =
-    formatId === "first_supply"
-      ? parseFirstSupplyInvoicePage(page)
-      : formatId === "johnstone"
-        ? parseJohnstoneInvoicePage(page)
-        : buildUnknownFormatParsed(page);
-
-  const fingerprint = fingerprintForFormat(
-    formatId === "unknown" ? "johnstone" : formatId,
-    page,
-  );
-  const importStatus =
-    formatId === "unknown" ? "issue" : deriveImportStatus(parsed, formatId);
+  const fingerprint = fingerprintForFormat(formatId, page);
+  const importStatus = deriveImportStatus(parsed, formatId);
   const confidence = scoreInvoiceConfidence(parsed, formatId);
 
   const duplicateOfPage = existing.byPageId.get(page.pageId);
@@ -88,12 +103,18 @@ export function processInvoicePage(
     confidence.tier === "high" &&
     !confidence.humanReviewRequired &&
     confidence.score >= INVOICE_AUTO_APPLY_CONFIDENCE &&
-    importStatus !== "partial"
+    importStatus !== "partial" &&
+    formatId !== "generic"
   ) {
     reviewStatus = "auto_processed";
-  } else if (confidence.humanReviewRequired) {
+  } else if (confidence.humanReviewRequired || formatId === "generic") {
     reviewStatus = "pending_review";
   }
+
+  const detectedVendorName =
+    formatId === "johnstone" || formatId === "first_supply"
+      ? vendorDisplayNameForFormat(formatId)
+      : detectVendorNameFromText(page.extractedText);
 
   return {
     page,
@@ -101,14 +122,14 @@ export function processInvoicePage(
     importStatus,
     confidenceTier: confidence.tier,
     confidenceScore: confidence.score,
-    humanReviewRequired: formatId === "unknown" ? true : confidence.humanReviewRequired,
+    humanReviewRequired:
+      formatId === "unknown" || formatId === "generic" ? true : confidence.humanReviewRequired,
     duplicate,
     duplicateOfPageId: duplicateOfPage ?? duplicateOfFingerprint,
     reviewStatus,
     parserFormatId: formatId,
     parserRouteConfidence: route.confidence,
-    detectedVendorName:
-      formatId === "unknown" ? undefined : vendorDisplayNameForFormat(formatId),
+    detectedVendorName,
   };
 }
 

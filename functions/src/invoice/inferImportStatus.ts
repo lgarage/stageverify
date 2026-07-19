@@ -84,6 +84,10 @@ export function deriveImportStatus(
   const { header, parseWarnings } = parsed;
   const criticalWarnings = parseWarnings.filter((warning) => {
     if (warning === "missing vendorOrderNumber" && header.vendorInvoiceNumber) return false;
+    if (warning === "missing vendorInvoiceNumber" && header.vendorOrderNumber && formatId === "generic") {
+      return false;
+    }
+    if (warning.startsWith("uncertain:")) return false;
     if (warning === "missing product lines") return true;
     return warning.includes("missing vendorInvoiceNumber") || warning.includes("Unrecognized");
   });
@@ -91,7 +95,9 @@ export function deriveImportStatus(
     return "issue";
   }
   if (formatId === "unknown") {
-    return "issue";
+    const hasIdentity = Boolean(header.vendorInvoiceNumber || header.vendorOrderNumber);
+    const hasLines = parsed.lines.some((l) => l.lineType === "product");
+    if (!hasIdentity && !hasLines) return "issue";
   }
 
   const { allFulfilled, hasBackorder, hasPartialShip, noFulfilledMaterial } =
@@ -131,15 +137,20 @@ export function scoreInvoiceConfidence(
           parsed.header.orderDate,
           parsed.header.invoiceDate,
         ]
-      : [
-          parsed.header.customerAccountNumber,
-          parsed.header.vendorOrderNumber,
-          parsed.header.vendorInvoiceNumber,
-          parsed.header.customerPoOrReference,
-          parsed.header.orderDate,
-          parsed.header.invoiceDate,
-          parsed.header.vendorBranchPhone,
-        ];
+      : formatId === "generic"
+        ? [
+            parsed.header.vendorInvoiceNumber,
+            parsed.header.customerPoOrReference,
+          ]
+        : [
+            parsed.header.customerAccountNumber,
+            parsed.header.vendorOrderNumber,
+            parsed.header.vendorInvoiceNumber,
+            parsed.header.customerPoOrReference,
+            parsed.header.orderDate,
+            parsed.header.invoiceDate,
+            parsed.header.vendorBranchPhone,
+          ];
   const missingRequired = required.filter((v) => !v).length;
   const productLines = parsed.lines.filter((l) => l.lineType === "product");
   const { hasBackorder, hasPartialShip, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);
@@ -159,6 +170,7 @@ export function scoreInvoiceConfidence(
   else if (score < 85) tier = "medium";
 
   const humanReviewRequired =
+    formatId === "generic" ||
     tier !== "high" ||
     parsed.header.fulfillmentMethod === "unknown" ||
     hasBackorder ||

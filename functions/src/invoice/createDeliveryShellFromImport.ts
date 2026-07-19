@@ -97,6 +97,16 @@ async function resolveVendorForInvoiceImport(
     const resolved = await resolveVendorByNamePattern(db, /johnstone/i);
     if (resolved) return resolved;
   }
+  if (formatId === "generic" || formatId === "unknown") {
+    const branch = header.vendorBranchName?.trim() ?? "";
+    if (branch) {
+      const resolved = await resolveVendorByNamePattern(
+        db,
+        new RegExp(branch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      );
+      if (resolved) return resolved;
+    }
+  }
 
   const branch = header.vendorBranchName?.trim() ?? "";
   if (branch) {

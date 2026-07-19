@@ -22,7 +22,7 @@ export interface AutoImportEligibilityInput {
   }>;
   parsedLineCount?: number;
   pageId?: string;
-  parserFormatId?: "johnstone" | "first_supply" | "unknown";
+  parserFormatId?: "johnstone" | "first_supply" | "generic" | "unknown";
 }
 
 export interface AutoImportEligibilityResult {
@@ -137,7 +137,13 @@ export function computeAutoImportEligibility(
           ["Order date", "orderDate", true],
           ["First Supply branch", "vendorBranchName", true],
         ]
-      : [
+      : parserFormatId === "generic"
+        ? [
+            ["Invoice #", "vendorInvoiceNumber", true],
+            ["Customer P/O or reference", "customerPoOrReference", false],
+            ["Vendor name", "vendorBranchName", false],
+          ]
+        : [
           ["Customer account #", "customerAccountNumber", true],
           ["S/O #", "vendorOrderNumber", true],
           ["Invoice #", "vendorInvoiceNumber", true],
@@ -158,7 +164,18 @@ export function computeAutoImportEligibility(
       if (key === "vendorBranchName" && parserFormatId === "first_supply" && !/first supply/i.test(value)) {
         reviewRequiredReasons.push("Vendor branch not recognized as First Supply");
       }
+      if (
+        key === "vendorBranchName" &&
+        parserFormatId === "generic" &&
+        /johnstone|first supply/i.test(value)
+      ) {
+        autoImportReasons.push("Known vendor name detected — optional format helper may apply on reparse");
+      }
     }
+  }
+
+  if (parserFormatId === "generic") {
+    reviewRequiredReasons.push("Generic vendor-agnostic parse — dispatcher review required");
   }
 
   const hasParty =

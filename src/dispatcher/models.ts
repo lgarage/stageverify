@@ -1003,7 +1003,7 @@ export interface VendorInvoiceImportReview {
     reviewRequiredReasons: string[];
     deliveryOrderId?: string;
   }>;
-  parserFormatId?: "johnstone" | "first_supply" | "unknown";
+  parserFormatId?: "johnstone" | "first_supply" | "generic" | "unknown";
   parserRouteConfidence?: number;
   detectedVendorId?: string;
   detectedVendorName?: string;

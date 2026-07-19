@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.computeAutoImportEligibility = computeAutoImportEligibility;
 exports.eligibilityFieldsFromInput = eligibilityFieldsFromInput;
 exports.buildImportDecisionLogEntry = buildImportDecisionLogEntry;
+exports.resolveAutoImportEligibility = resolveAutoImportEligibility;
 /**
  * Stage 1 — deterministic auto-import eligibility (suggested action only; no CF auto-approve).
  * Shared rules with client copy in src/dispatcher/invoice/computeAutoImportEligibility.ts
@@ -79,14 +80,20 @@ function computeAutoImportEligibility(input) {
             ["Order date", "orderDate", true],
             ["First Supply branch", "vendorBranchName", true],
         ]
-        : [
-            ["Customer account #", "customerAccountNumber", true],
-            ["S/O #", "vendorOrderNumber", true],
-            ["Invoice #", "vendorInvoiceNumber", true],
-            ["Customer P/O", "customerPoOrReference", true],
-            ["Order date", "orderDate", true],
-            ["Johnstone branch", "vendorBranchName", true],
-        ];
+        : parserFormatId === "generic"
+            ? [
+                ["Invoice #", "vendorInvoiceNumber", true],
+                ["Customer P/O or reference", "customerPoOrReference", false],
+                ["Vendor name", "vendorBranchName", false],
+            ]
+            : [
+                ["Customer account #", "customerAccountNumber", true],
+                ["S/O #", "vendorOrderNumber", true],
+                ["Invoice #", "vendorInvoiceNumber", true],
+                ["Customer P/O", "customerPoOrReference", true],
+                ["Order date", "orderDate", true],
+                ["Johnstone branch", "vendorBranchName", true],
+            ];
     for (const [label, key, required] of requiredChecks) {
         const value = headerStr(header, key);
         if (!value) {
@@ -101,7 +108,15 @@ function computeAutoImportEligibility(input) {
             if (key === "vendorBranchName" && parserFormatId === "first_supply" && !/first supply/i.test(value)) {
                 reviewRequiredReasons.push("Vendor branch not recognized as First Supply");
             }
+            if (key === "vendorBranchName" &&
+                parserFormatId === "generic" &&
+                /johnstone|first supply/i.test(value)) {
+                autoImportReasons.push("Known vendor name detected — optional format helper may apply on reparse");
+            }
         }
+    }
+    if (parserFormatId === "generic") {
+        reviewRequiredReasons.push("Generic vendor-agnostic parse — dispatcher review required");
     }
     const hasParty = headerStr(header, "buyerName") ||
         headerStr(header, "shipToName") ||
@@ -200,5 +215,21 @@ function buildImportDecisionLogEntry(action, uid, at, eligibility, deliveryOrder
         reviewRequiredReasons: eligibility.reviewRequiredReasons.slice(0, 12),
         ...(deliveryOrderId ? { deliveryOrderId } : {}),
     };
+}
+/** Use persisted fields when present; recompute for legacy rows. */
+function resolveAutoImportEligibility(row) {
+    if (row.importDecisionMode &&
+        row.autoImportEligible !== undefined &&
+        row.suggestedAction) {
+        return {
+            autoImportEligible: row.autoImportEligible,
+            autoImportConfidence: row.autoImportConfidence ?? row.confidenceScore,
+            autoImportReasons: row.autoImportReasons ?? [],
+            reviewRequiredReasons: row.reviewRequiredReasons ?? [],
+            importDecisionMode: row.importDecisionMode,
+            suggestedAction: row.suggestedAction,
+        };
+    }
+    return computeAutoImportEligibility(row);
 }
 //# sourceMappingURL=computeAutoImportEligibility.js.map
