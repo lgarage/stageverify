@@ -76,7 +76,7 @@ import {
   ZONE_CLEARED_DELIVERY_STATUSES,
   V2_COLLECTION_NAMES,
 } from "./models";
-import { findStagingLocationByCode, normalizeStagingCodeKey } from "./stagingCode";
+import { findStagingLocationByCode } from "./stagingCode";
 import {
   computeJobReadiness,
   type JobReadinessResult,
@@ -105,6 +105,10 @@ import {
   ShopStockLocationReservedError,
   findShopStockMappingForLocationCode,
 } from "./shopStockMapping";
+import {
+  computeZoneOccupancyByCode,
+  type ZoneOccupancySummaryWithReadiness,
+} from "./zoneOccupancyCompute";
 
 export {
   StagingLocationOccupiedError,
@@ -1761,48 +1765,19 @@ export interface ZoneOccupancySummary {
   vendorName: string;
   jobId: string;
   status: DeliveryOrder["status"];
+  /** Map color: ready_for_pickup (effective readiness). */
+  readyForPickup?: boolean;
+  /** Map: code is planned but not in actual staging ids. */
+  plannedOnly?: boolean;
 }
 
-/** Zone code → active delivery on that spot (for Minew ESL QR + status line). */
+/** Zone code → active delivery on that spot (for Minew ESL QR + status line + shop map). */
 export async function mapActiveZoneOccupancyByCode(): Promise<
-  Record<string, ZoneOccupancySummary>
+  Record<string, ZoneOccupancySummaryWithReadiness>
 > {
   const locations = await fetchAllStagingLocations();
   const deliveries = await fetchAll<DeliveryOrder>("deliveries");
-  const byCode: Record<string, ZoneOccupancySummary> = {};
-
-  const shouldReplace = (
-    existing: ZoneOccupancySummary,
-    candidate: DeliveryOrder,
-  ): boolean => {
-    const prev = deliveries.find((d) => d.id === existing.deliveryId);
-    return Boolean(
-      prev && candidate.updatedAt.localeCompare(prev.updatedAt) > 0,
-    );
-  };
-
-  for (const delivery of deliveries) {
-    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
-    const summary: ZoneOccupancySummary = {
-      deliveryId: delivery.id,
-      orderNumber: delivery.orderNumber,
-      vendorName: denormalizedVendorName(delivery),
-      jobId: delivery.jobId,
-      status: delivery.status,
-    };
-
-    for (const locId of getAllStagingLocationIds(delivery)) {
-      const location = locations.find((loc) => loc.id === locId);
-      if (!location) continue;
-      const key = normalizeStagingCodeKey(location.code);
-      const existing = byCode[key];
-      if (!existing || shouldReplace(existing, delivery)) {
-        byCode[key] = summary;
-      }
-    }
-  }
-
-  return byCode;
+  return computeZoneOccupancyByCode(locations, deliveries);
 }
 
 export interface StagingLocationOccupant {

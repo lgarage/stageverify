@@ -21,14 +21,14 @@ import {
   listAllZones,
   mapActiveZoneOccupancyByCode,
   listShopStockMappings,
-  type ZoneOccupancySummary,
 } from "./firestoreService";
 import { formatGmailSyncMessage } from "./formatGmailSyncMessage";
 import { mapActiveShopStockReservationsByCode } from "./shopStockMapping";
+import type { ZoneOccupancySummaryWithReadiness } from "./zoneOccupancyCompute";
 
 export type DispatcherZonesSnapshot = {
   zones: StagingLocation[];
-  occupancyByZoneCode: Record<string, ZoneOccupancySummary>;
+  occupancyByZoneCode: Record<string, ZoneOccupancySummaryWithReadiness>;
   shopStockByCode: Record<string, ShopStockLocationMapping>;
 };
 

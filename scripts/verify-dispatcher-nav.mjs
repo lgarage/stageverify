@@ -411,7 +411,7 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await nav.getByRole("link", { name: "Staging Map", exact: true }).click();
   await page.waitForTimeout(400);
   assertUrl(page, /\/zones/, "Staging Map");
-  await page.getByRole("heading", { name: "Zone Management" }).waitFor({
+  await page.getByRole("heading", { name: "Staging Map" }).waitFor({
     timeout: 15_000,
   });
 

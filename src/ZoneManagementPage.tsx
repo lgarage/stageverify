@@ -38,6 +38,10 @@ import { PortalSidebar } from "./PortalSidebar";
 import { ShopStockDirectoryPanel } from "./ShopStockDirectoryPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
+import { useLiveZoneOccupancy } from "./dispatcher/useLiveZoneOccupancy";
+import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupancyCompute";
+import { ShopFloorMap } from "./ShopFloorMap";
+import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -245,7 +249,7 @@ export function ZoneManagementPage() {
   } = useDispatcherPortal();
   const [zones, setZones] = useState<StagingLocation[]>([]);
   const [occupancyByZoneCode, setOccupancyByZoneCode] = useState<
-    Record<string, ZoneOccupancySummary>
+    Record<string, ZoneOccupancySummaryWithReadiness>
   >({});
   const [shopStockByCode, setShopStockByCode] = useState<
     Record<string, ShopStockLocationMapping>
@@ -258,6 +262,11 @@ export function ZoneManagementPage() {
   const [form, setForm] = useState<ZoneFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [eslDrafts, setEslDrafts] = useState<Record<string, string>>({});
+  const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
+    null,
+  );
+  const [showZoneTools, setShowZoneTools] = useState(false);
+  const liveOccupancy = useLiveZoneOccupancy(true);
 
   const loadZones = useCallback(async () => {
     setLoading(true);
@@ -425,8 +434,8 @@ export function ZoneManagementPage() {
         style={{ backgroundColor: "#f0f2f5" }}
       >
         <DispatcherPortalTopBar
-          title="Zone Management"
-          subtitle="Staging Map"
+          title="Staging Map"
+          subtitle="Live shop floor"
           lastUpdated={lastUpdated}
           refreshBusy={refreshBusy}
           gmailSyncMessage={gmailSyncMessage}
@@ -448,7 +457,7 @@ export function ZoneManagementPage() {
             margin: "0 auto",
           }}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4 print:hidden">
             <div>
               <h1
                 style={{
@@ -459,15 +468,49 @@ export function ZoneManagementPage() {
                   lineHeight: "1.2",
                 }}
               >
-                Zone Management
+                Staging Map
               </h1>
               <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                Link each staging spot to a Minew e-ink tag. QR and status text
-                on the tag open receive for that zone or job (pushed via Minew
-                API when connected).
+                Live floor map — green free, orange assigned/planned, red ready
+                for pickup, gray shop stock. Click a spot to open the delivery
+                drawer.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 4,
+                  border: `1px solid ${NAVY}`,
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                Print map
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowZoneTools((v) => !v)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 4,
+                  border: "1px solid #ccd0d7",
+                  backgroundColor: showZoneTools ? "#e8eef5" : "#fff",
+                  color: "#333",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                {showZoneTools ? "Hide zone tools" : "Zone tools"}
+              </button>
               <button
                 type="button"
                 onClick={openAddForm}
@@ -488,8 +531,44 @@ export function ZoneManagementPage() {
             </div>
           </div>
 
+          {liveOccupancy.error && (
+            <div
+              style={{
+                ...cardStyle,
+                backgroundColor: "#fef2f2",
+                color: "#991b1b",
+                fontSize: 13,
+              }}
+            >
+              Live map error: {liveOccupancy.error}
+            </div>
+          )}
+
+          <div className="shop-floor-map-host" style={{ ...cardStyle, padding: 16 }}>
+            <ShopFloorMap
+              occupancyByZoneCode={
+                liveOccupancy.ready
+                  ? liveOccupancy.occupancyByZoneCode
+                  : occupancyByZoneCode
+              }
+              shopStockByCode={
+                liveOccupancy.ready
+                  ? liveOccupancy.shopStockByCode
+                  : shopStockByCode
+              }
+              onOpenDelivery={(id) => setSelectedDeliveryId(id)}
+            />
+            {!liveOccupancy.ready && (
+              <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
+                Connecting live occupancy…
+              </p>
+            )}
+          </div>
+
+          {showZoneTools && (
+          <>
           <div
-            className="flex items-center gap-3"
+            className="flex items-center gap-3 print:hidden"
             style={{ ...cardStyle, padding: "12px 16px" }}
           >
             <label
@@ -1184,12 +1263,41 @@ export function ZoneManagementPage() {
             })
           )}
 
-          <div style={{ marginTop: 24 }}>
+          </>
+          )}
+
+          <div style={{ marginTop: 24 }} className="print:hidden">
             <ShopStockDirectoryPanel />
           </div>
+
         </div>
         </div>
       </div>
+
+      <DeliveryDetailDrawer
+        deliveryId={selectedDeliveryId}
+        onClose={() => setSelectedDeliveryId(null)}
+        onDataChanged={() => void loadZones()}
+        onOpenDelivery={(id) => setSelectedDeliveryId(id)}
+      />
+
+      <style>{`
+        @media print {
+          .print\\:hidden { display: none !important; }
+          body * { visibility: hidden; }
+          .shop-floor-map-host, .shop-floor-map-host * { visibility: visible; }
+          .shop-floor-map-host {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .shop-map-you-are-here { display: block !important; }
+        }
+        .shop-map-you-are-here { display: none; }
+      `}</style>
     </div>
   );
 }
