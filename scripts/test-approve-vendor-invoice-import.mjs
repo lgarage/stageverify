@@ -717,6 +717,138 @@ if (autoJob.createdFromInvoiceImport === true && autoJob.jobName === "Zephyr War
   fail("auto-created job fields", autoJob);
 }
 
+console.log("\n=== CF: First Supply SO-less approve ===\n");
+
+const firstSupplyHeader = {
+  customerAccountNumber: "91132956",
+  vendorOrderNumber: "",
+  vendorInvoiceNumber: "15046467-00",
+  customerPoOrReference: "2026-0200",
+  orderDate: "2026-06-23",
+  invoiceDate: "2026-06-23",
+  shipDate: "2026-06-23",
+  vendorBranchName: "First Supply LLC - Oshkosh",
+  soldToName: "TWIN PILLAR",
+  shipToName: "TWIN PILLAR",
+  shipToAddress: "Oshkosh WI",
+  fulfillmentMethod: "unknown",
+  shipCompletePolicy: "unknown",
+};
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendors", "vendor-first-supply"), {
+    id: "vendor-first-supply",
+    name: "First Supply LLC",
+    active: true,
+    createdAt: "2026-06-02T00:00:00Z",
+    updatedAt: "2026-06-02T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-first-supply-test"), {
+    id: "vii-first-supply-test",
+    inboundEmailProcessingId: "inbound-first-supply",
+    gmailMessageId: "msg-first-supply",
+    importBatchId: "batch-test",
+    pageId: "inv-first-supply",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parserFormatId: "first_supply",
+    parsedHeader: firstSupplyHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let firstSupplyApproveResult;
+try {
+  firstSupplyApproveResult = await approveImport({
+    vendorInvoiceImportId: "vii-first-supply-test",
+    action: "approve",
+  });
+} catch (err) {
+  fail("First Supply SO-less approve call failed", err?.message);
+}
+
+const firstSupplyData = firstSupplyApproveResult?.data ?? {};
+const firstSupplyShellId = shellDeliveryIdForImport("vii-first-supply-test");
+if (
+  firstSupplyData.reviewStatus === "approved" &&
+  firstSupplyData.deliveryOrderId === firstSupplyShellId &&
+  firstSupplyData.shellCreated === true
+) {
+  pass("First Supply SO-less approve created shell delivery");
+} else {
+  fail("First Supply SO-less approve response", firstSupplyData);
+}
+
+console.log("\n=== CF: both-identity-empty rejection ===\n");
+
+const emptyIdentityHeader = {
+  customerAccountNumber: "91132956",
+  vendorOrderNumber: "",
+  vendorInvoiceNumber: "",
+  customerPoOrReference: "2026-0200",
+  orderDate: "2026-06-23",
+  vendorBranchName: "First Supply LLC - Oshkosh",
+  fulfillmentMethod: "unknown",
+  shipCompletePolicy: "unknown",
+};
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-empty-identity-test"), {
+    id: "vii-empty-identity-test",
+    inboundEmailProcessingId: "inbound-empty-identity",
+    gmailMessageId: "msg-empty-identity",
+    importBatchId: "batch-test",
+    pageId: "inv-empty-identity",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: emptyIdentityHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-empty-identity-test",
+    action: "approve",
+  });
+  fail("both-identity-empty approve should be rejected");
+} catch (err) {
+  const code = String(err?.code ?? "");
+  const message = String(err?.message ?? "");
+  if (
+    code.includes("failed-precondition") &&
+    message.toLowerCase().includes("identity")
+  ) {
+    pass("both-identity-empty approve rejected with identity error");
+  } else {
+    fail("expected identity failed-precondition", { code, message });
+  }
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

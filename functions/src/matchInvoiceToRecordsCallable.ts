@@ -5,7 +5,7 @@ import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { loadEmailMatchContext } from "./email/loadMatchContext";
 import { matchInvoiceToRecords } from "./invoice/matchInvoiceToRecords";
-import type { ParsedInvoiceHeader } from "./invoice/types";
+import { asParsedHeaderForImport } from "./invoice/parsedHeaderValidation";
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
@@ -16,46 +16,6 @@ function getDb() {
 }
 
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
-
-function asParsedHeader(raw: Record<string, unknown>): ParsedInvoiceHeader {
-  const str = (key: string, required = false): string => {
-    const v = raw[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (required) throw new HttpsError("failed-precondition", `Invoice header missing ${key}.`);
-    return "";
-  };
-  return {
-    customerAccountNumber: str("customerAccountNumber", true),
-    vendorOrderNumber: str("vendorOrderNumber", true),
-    vendorInvoiceNumber: str("vendorInvoiceNumber", true),
-    customerPoOrReference: str("customerPoOrReference", true),
-    quoteNumber: str("quoteNumber") || undefined,
-    orderDate: str("orderDate", true),
-    invoiceDate: str("invoiceDate"),
-    shipDate: str("shipDate"),
-    buyerName: str("buyerName") || undefined,
-    shipViaRaw: str("shipViaRaw") || undefined,
-    jobNumberRaw: str("jobNumberRaw") || undefined,
-    vendorBranchName: str("vendorBranchName", true),
-    vendorBranchAddress: str("vendorBranchAddress"),
-    vendorBranchPhone: str("vendorBranchPhone"),
-    soldToName: str("soldToName"),
-    shipToName: str("shipToName"),
-    shipToAddress: str("shipToAddress"),
-    fulfillmentMethod:
-      raw.fulfillmentMethod === "delivery" ||
-      raw.fulfillmentMethod === "will_call_pickup" ||
-      raw.fulfillmentMethod === "unknown"
-        ? raw.fulfillmentMethod
-        : "unknown",
-    shipCompletePolicy:
-      raw.shipCompletePolicy === "hold_until_complete" ||
-      raw.shipCompletePolicy === "allow_partial" ||
-      raw.shipCompletePolicy === "unknown"
-        ? raw.shipCompletePolicy
-        : "unknown",
-  };
-}
 
 async function loadDeliveryNotes(
   deliveryIds: string[],
@@ -93,7 +53,7 @@ export const matchInvoiceToRecordsCallable = onCall(
     }
 
     const doc = snap.data() as VendorInvoiceImportDoc;
-    const header = asParsedHeader(doc.parsedHeader);
+    const header = asParsedHeaderForImport(doc.parsedHeader);
 
     const ctx = await loadEmailMatchContext();
     const deliveryNotesById = await loadDeliveryNotes(ctx.deliveries.map((d) => d.id));

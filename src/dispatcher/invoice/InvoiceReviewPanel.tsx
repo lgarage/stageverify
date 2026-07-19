@@ -419,12 +419,22 @@ export function InvoiceReviewPanel({
       if (!trimmedDeliveryId) {
         if (result.shellError?.trim()) {
           setError(result.shellError);
+          setInspectImport(null);
+          await loadQueue();
+          if (onApproveSuccess) {
+            await onApproveSuccess();
+          }
           return;
         }
         if (!result.deliveryOrderId?.trim()) {
           setError(
             "Approved but no dashboard delivery was created. Use Refresh Now or link a delivery manually.",
           );
+          setInspectImport(null);
+          await loadQueue();
+          if (onApproveSuccess) {
+            await onApproveSuccess();
+          }
           return;
         }
         const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";

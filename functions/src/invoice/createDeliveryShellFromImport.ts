@@ -9,6 +9,7 @@ import {
   resolveShellDeliveryStatus,
 } from "./invoiceShellDisplayHelpers";
 import { matchInvoiceToRecords } from "./matchInvoiceToRecords";
+import { asParsedHeaderForImport } from "./parsedHeaderValidation";
 import type { ParsedInvoiceHeader } from "./types";
 import type { VendorInvoiceImportDoc } from "../inboundEmail/types";
 
@@ -16,46 +17,6 @@ export const SHELL_DELIVERY_ID_PREFIX = "delivery-vii-";
 
 export function shellDeliveryIdForImport(importId: string): string {
   return `${SHELL_DELIVERY_ID_PREFIX}${importId}`;
-}
-
-function asParsedHeader(raw: Record<string, unknown>): ParsedInvoiceHeader {
-  const str = (key: string, required = false): string => {
-    const v = raw[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (required) throw new HttpsError("failed-precondition", `Invoice header missing ${key}.`);
-    return "";
-  };
-  return {
-    customerAccountNumber: str("customerAccountNumber", true),
-    vendorOrderNumber: str("vendorOrderNumber", true),
-    vendorInvoiceNumber: str("vendorInvoiceNumber", true),
-    customerPoOrReference: str("customerPoOrReference", true),
-    quoteNumber: str("quoteNumber") || undefined,
-    orderDate: str("orderDate", true),
-    invoiceDate: str("invoiceDate"),
-    shipDate: str("shipDate"),
-    buyerName: str("buyerName") || undefined,
-    shipViaRaw: str("shipViaRaw") || undefined,
-    jobNumberRaw: str("jobNumberRaw") || undefined,
-    vendorBranchName: str("vendorBranchName", true),
-    vendorBranchAddress: str("vendorBranchAddress"),
-    vendorBranchPhone: str("vendorBranchPhone"),
-    soldToName: str("soldToName"),
-    shipToName: str("shipToName"),
-    shipToAddress: str("shipToAddress"),
-    fulfillmentMethod:
-      raw.fulfillmentMethod === "delivery" ||
-      raw.fulfillmentMethod === "will_call_pickup" ||
-      raw.fulfillmentMethod === "unknown"
-        ? raw.fulfillmentMethod
-        : "unknown",
-    shipCompletePolicy:
-      raw.shipCompletePolicy === "hold_until_complete" ||
-      raw.shipCompletePolicy === "allow_partial" ||
-      raw.shipCompletePolicy === "unknown"
-        ? raw.shipCompletePolicy
-        : "unknown",
-  };
 }
 
 async function resolveVendorByNamePattern(
@@ -298,7 +259,7 @@ export async function buildInvoiceDeliveryShellContext(
   importId: string,
   importDoc: VendorInvoiceImportDoc,
 ): Promise<InvoiceShellContext> {
-  const header = asParsedHeader(importDoc.parsedHeader);
+  const header = asParsedHeaderForImport(importDoc.parsedHeader);
   const orderNotes = importDoc.orderNotes ?? [];
   const deliverToLabel = extractDeliverToSiteLabel(orderNotes);
   const deliverToSite = Boolean(deliverToLabel);

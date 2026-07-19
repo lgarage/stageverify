@@ -6,7 +6,7 @@ exports.buildImportDecisionLogEntry = buildImportDecisionLogEntry;
 exports.resolveAutoImportEligibility = resolveAutoImportEligibility;
 /**
  * Stage 1 — deterministic auto-import eligibility (suggested action only; no CF auto-approve).
- * Shared rules with client copy in src/dispatcher/invoice/computeAutoImportEligibility.ts
+ * Client mirror: src/dispatcher/invoice/computeAutoImportEligibility.ts
  */
 const types_1 = require("./types");
 function headerStr(header, key) {

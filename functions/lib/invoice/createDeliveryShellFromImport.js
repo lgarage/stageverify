@@ -13,48 +13,10 @@ const loadMatchContext_1 = require("../email/loadMatchContext");
 const buildExpectedItemsFromImport_1 = require("./buildExpectedItemsFromImport");
 const invoiceShellDisplayHelpers_1 = require("./invoiceShellDisplayHelpers");
 const matchInvoiceToRecords_1 = require("./matchInvoiceToRecords");
+const parsedHeaderValidation_1 = require("./parsedHeaderValidation");
 exports.SHELL_DELIVERY_ID_PREFIX = "delivery-vii-";
 function shellDeliveryIdForImport(importId) {
     return `${exports.SHELL_DELIVERY_ID_PREFIX}${importId}`;
-}
-function asParsedHeader(raw) {
-    const str = (key, required = false) => {
-        const v = raw[key];
-        if (typeof v === "string" && v.trim())
-            return v.trim();
-        if (required)
-            throw new https_1.HttpsError("failed-precondition", `Invoice header missing ${key}.`);
-        return "";
-    };
-    return {
-        customerAccountNumber: str("customerAccountNumber", true),
-        vendorOrderNumber: str("vendorOrderNumber", true),
-        vendorInvoiceNumber: str("vendorInvoiceNumber", true),
-        customerPoOrReference: str("customerPoOrReference", true),
-        quoteNumber: str("quoteNumber") || undefined,
-        orderDate: str("orderDate", true),
-        invoiceDate: str("invoiceDate"),
-        shipDate: str("shipDate"),
-        buyerName: str("buyerName") || undefined,
-        shipViaRaw: str("shipViaRaw") || undefined,
-        jobNumberRaw: str("jobNumberRaw") || undefined,
-        vendorBranchName: str("vendorBranchName", true),
-        vendorBranchAddress: str("vendorBranchAddress"),
-        vendorBranchPhone: str("vendorBranchPhone"),
-        soldToName: str("soldToName"),
-        shipToName: str("shipToName"),
-        shipToAddress: str("shipToAddress"),
-        fulfillmentMethod: raw.fulfillmentMethod === "delivery" ||
-            raw.fulfillmentMethod === "will_call_pickup" ||
-            raw.fulfillmentMethod === "unknown"
-            ? raw.fulfillmentMethod
-            : "unknown",
-        shipCompletePolicy: raw.shipCompletePolicy === "hold_until_complete" ||
-            raw.shipCompletePolicy === "allow_partial" ||
-            raw.shipCompletePolicy === "unknown"
-            ? raw.shipCompletePolicy
-            : "unknown",
-    };
 }
 async function resolveVendorByNamePattern(db, pattern) {
     const snap = await db.collection("vendors").limit(100).get();
@@ -225,7 +187,7 @@ async function ensureJobForInvoiceShell(db, header, ctx, matchJobId, orderNotes 
 }
 /** Resolve job/vendor + line items for a dashboard shell — auto-creates job from P/O when unmatched. */
 async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
-    const header = asParsedHeader(importDoc.parsedHeader);
+    const header = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(importDoc.parsedHeader);
     const orderNotes = importDoc.orderNotes ?? [];
     const deliverToLabel = (0, invoiceShellDisplayHelpers_1.extractDeliverToSiteLabel)(orderNotes);
     const deliverToSite = Boolean(deliverToLabel);

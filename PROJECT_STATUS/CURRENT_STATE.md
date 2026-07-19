@@ -7,6 +7,7 @@
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
 - Last shipped: **v0.0.62** — Cap parsed invoice lines at 200 (ingest + generic parser); Sonnet 4.6 medium security re-gate PASS on multi-vendor invoice platform
+- **Committed, NOT deployed (Dan hold):** First Supply SO-less approve fix — shared `asParsedHeaderForImport` (identity = invoice# OR S/O#), modal close on approve; Sonnet gate PASS. Needs `firebase deploy --only functions` + gh-pages when Dan approves deploy.
 - Active Phase: **Location-first Phase 4 complete** — MVP done; queue empty except blocked away-069.
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
