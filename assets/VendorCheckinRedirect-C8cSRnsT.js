@@ -1,1 +1,0 @@
-import{An as e,Cn as t,Dn as n}from"./index-DOhZ2jdk.js";var r=t();function i(){let{orderId:t}=e(),i=t?.trim()??``;return(0,r.jsx)(n,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
