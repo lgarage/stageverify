@@ -109,12 +109,15 @@ function extractCanonicalHeader(text) {
         warnings,
     };
 }
+const MAX_GENERIC_PRODUCT_LINES = 200;
 function parseGenericLineTable(text) {
     const lines = [];
     const rows = text.split("\n");
     let inTable = false;
     let lineNumber = 0;
     for (const rawRow of rows) {
+        if (lines.length >= MAX_GENERIC_PRODUCT_LINES)
+            break;
         const row = rawRow.trim();
         if (!row)
             continue;
@@ -199,6 +202,9 @@ function parseCanonicalInvoicePage(page) {
     const parseWarnings = [...warnings];
     if (lines.length === 0)
         parseWarnings.push("missing product lines");
+    if (lines.length >= MAX_GENERIC_PRODUCT_LINES) {
+        parseWarnings.push(`truncated product lines at ${MAX_GENERIC_PRODUCT_LINES}`);
+    }
     if (header.fulfillmentMethod === "unknown") {
         parseWarnings.push("uncertain:fulfillmentMethod");
     }

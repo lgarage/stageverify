@@ -155,6 +155,8 @@ function extractCanonicalHeader(text: string): {
   };
 }
 
+const MAX_GENERIC_PRODUCT_LINES = 200;
+
 function parseGenericLineTable(text: string): ParsedInvoiceLine[] {
   const lines: ParsedInvoiceLine[] = [];
   const rows = text.split("\n");
@@ -162,6 +164,7 @@ function parseGenericLineTable(text: string): ParsedInvoiceLine[] {
   let lineNumber = 0;
 
   for (const rawRow of rows) {
+    if (lines.length >= MAX_GENERIC_PRODUCT_LINES) break;
     const row = rawRow.trim();
     if (!row) continue;
 
@@ -261,6 +264,9 @@ export function parseCanonicalInvoicePage(
   const parseWarnings = [...warnings];
 
   if (lines.length === 0) parseWarnings.push("missing product lines");
+  if (lines.length >= MAX_GENERIC_PRODUCT_LINES) {
+    parseWarnings.push(`truncated product lines at ${MAX_GENERIC_PRODUCT_LINES}`);
+  }
   if (header.fulfillmentMethod === "unknown") {
     parseWarnings.push("uncertain:fulfillmentMethod");
   }
