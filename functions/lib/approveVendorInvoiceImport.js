@@ -319,6 +319,18 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             }
             const linkedId = fresh.linkedDeliveryOrderId?.trim();
             if (linkedId) {
+                const linkedDeliveryRef = getDb().collection("deliveries").doc(linkedId);
+                const linkedDeliverySnap = await tx.get(linkedDeliveryRef);
+                if (linkedDeliverySnap.exists) {
+                    const linkedData = linkedDeliverySnap.data();
+                    if (!linkedData.vendorInvoiceImportId?.trim()) {
+                        tx.update(linkedDeliveryRef, {
+                            vendorInvoiceImportId: importId,
+                            invoiceImportStatus: fresh.importStatus,
+                            updatedAt: now,
+                        });
+                    }
+                }
                 tx.update(importRef, {
                     reviewStatus: "approved",
                     approvedAt: now,
@@ -334,9 +346,18 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             const shellWasNew = !existingDelivery.exists;
             if (shellWasNew) {
                 tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
-                for (const item of shell.expectedItems) {
-                    tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+            }
+            else {
+                const existingData = existingDelivery.data();
+                const isInvoiceShellSlot = shell.deliveryOrderId === deliveryRef.id ||
+                    existingData.createdFromInvoiceImport === true ||
+                    !existingData.vendorInvoiceImportId?.trim();
+                if (isInvoiceShellSlot) {
+                    tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
                 }
+            }
+            for (const item of shell.expectedItems) {
+                tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
             }
             tx.update(importRef, {
                 reviewStatus: "approved",

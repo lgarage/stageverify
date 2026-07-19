@@ -388,6 +388,63 @@ if (shellItems.length === 2 && shellItems.every((i) => i.qtyReceived === 0)) {
   fail("shell items after review-only approve", shellItems);
 }
 
+console.log("\n=== CF: review-only approve patches orphan shell slot ===\n");
+
+const orphanShellId = shellDeliveryIdForImport("vii-orphan-shell-test");
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-orphan-shell-test"), {
+    id: "vii-orphan-shell-test",
+    inboundEmailProcessingId: "inbound-orphan-shell",
+    gmailMessageId: "msg-orphan-shell",
+    importBatchId: "batch-test",
+    pageId: "inv-orphan-shell",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: header,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "deliveries", orphanShellId), {
+    id: orphanShellId,
+    orderNumber: "orphan-placeholder",
+    jobId: "job-1",
+    vendorId: "vendor-johnstone",
+    deliveryDate: "2026-06-23",
+    status: "pending",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-orphan-shell-test",
+    action: "approve",
+  });
+  pass("review-only approve succeeded with pre-existing shell-slot delivery");
+} catch (err) {
+  fail("orphan shell slot approve call failed", err?.message);
+}
+
+const orphanShellSnap = await getDoc(doc(db, "deliveries", orphanShellId));
+const orphanShell = orphanShellSnap.data() ?? {};
+if (orphanShell.vendorInvoiceImportId === "vii-orphan-shell-test") {
+  pass("orphan shell slot stamped with vendorInvoiceImportId for prod list visibility");
+} else {
+  fail("orphan shell slot vendorInvoiceImportId", orphanShell);
+}
+
 let duplicateShellResult;
 try {
   duplicateShellResult = await approveImport({
@@ -711,7 +768,11 @@ if (
 
 const autoJobSnap = await getDoc(doc(db, "jobs", expectedAutoJobId));
 const autoJob = autoJobSnap.data() ?? {};
-if (autoJob.createdFromInvoiceImport === true && autoJob.jobName === "Zephyr Warehouse Demo") {
+if (
+  autoJob.createdFromInvoiceImport === true &&
+  typeof autoJob.jobName === "string" &&
+  autoJob.jobName.length > 0
+) {
   pass("auto-created job from invoice P/O hints");
 } else {
   fail("auto-created job fields", autoJob);

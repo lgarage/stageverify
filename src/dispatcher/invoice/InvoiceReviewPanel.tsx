@@ -330,11 +330,7 @@ export function InvoiceReviewPanel({
         delete next[rowId];
         return next;
       });
-      const top =
-        result.deliveryOrderId ?? result.candidates[0]?.deliveryId ?? "";
-      if (top) {
-        setDeliveryById((prev) => (prev[rowId] ? prev : { ...prev, [rowId]: top }));
-      }
+      // Do not auto-fill the optional link field — Approve creates a new shell when blank.
     } catch (err) {
       const message = err instanceof Error ? err.message : "Match lookup failed.";
       setMatchUnavailableById((prev) =>
@@ -440,6 +436,13 @@ export function InvoiceReviewPanel({
         const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
         setSuccessMessage(
           `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}`,
+        );
+        if (onApproveSuccess) {
+          await onApproveSuccess();
+        }
+      } else {
+        setSuccessMessage(
+          `Approved — linked to existing delivery ${trimmedDeliveryId}.`,
         );
         if (onApproveSuccess) {
           await onApproveSuccess();

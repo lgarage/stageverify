@@ -490,6 +490,20 @@ export const approveVendorInvoiceImport = onCall(
 
         const linkedId = fresh.linkedDeliveryOrderId?.trim();
         if (linkedId) {
+          const linkedDeliveryRef = getDb().collection("deliveries").doc(linkedId);
+          const linkedDeliverySnap = await tx.get(linkedDeliveryRef);
+          if (linkedDeliverySnap.exists) {
+            const linkedData = linkedDeliverySnap.data() as {
+              vendorInvoiceImportId?: string;
+            };
+            if (!linkedData.vendorInvoiceImportId?.trim()) {
+              tx.update(linkedDeliveryRef, {
+                vendorInvoiceImportId: importId,
+                invoiceImportStatus: fresh.importStatus,
+                updatedAt: now,
+              });
+            }
+          }
           tx.update(importRef, {
             reviewStatus: "approved",
             approvedAt: now,
@@ -518,9 +532,24 @@ export const approveVendorInvoiceImport = onCall(
             deliveryRef,
             buildDeliveryShellDocument(shell, importId, fresh, now),
           );
-          for (const item of shell.expectedItems) {
-            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+        } else {
+          const existingData = existingDelivery.data() as {
+            createdFromInvoiceImport?: boolean;
+            vendorInvoiceImportId?: string;
+          };
+          const isInvoiceShellSlot =
+            shell.deliveryOrderId === deliveryRef.id ||
+            existingData.createdFromInvoiceImport === true ||
+            !existingData.vendorInvoiceImportId?.trim();
+          if (isInvoiceShellSlot) {
+            tx.update(
+              deliveryRef,
+              buildInvoiceShellPatchDocument(shell, importId, fresh, now),
+            );
           }
+        }
+        for (const item of shell.expectedItems) {
+          tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
         }
 
         tx.update(importRef, {
