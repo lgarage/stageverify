@@ -21,6 +21,8 @@ function inferFulfillmentMethod(customerPoOrReference, shipViaRaw, pageText) {
         return "will_call_pickup";
     if (shipVia && /\bWILL\s*[- ]?\s*CALL\b/i.test(shipVia))
         return "will_call_pickup";
+    if (shipVia && /\bPU\b/i.test(shipVia))
+        return "will_call_pickup";
     if (shipVia && /TRUCK\s+DELIVE/i.test(shipVia))
         return "delivery";
     if (/DELIVERY\s+ROUTE/i.test(text))
@@ -59,9 +61,19 @@ function assessFulfillmentCompleteness(parsed) {
     return { allFulfilled, hasBackorder, hasPartialShip, noFulfilledMaterial };
 }
 /** Derive import-domain status from parsed invoice — never sets shop readiness (spec §7). */
-function deriveImportStatus(parsed) {
+function deriveImportStatus(parsed, formatId = "johnstone") {
     const { header, parseWarnings } = parsed;
-    if (parseWarnings.some((w) => w.includes("missing vendorInvoiceNumber"))) {
+    const criticalWarnings = parseWarnings.filter((warning) => {
+        if (warning === "missing vendorOrderNumber" && header.vendorInvoiceNumber)
+            return false;
+        if (warning === "missing product lines")
+            return true;
+        return warning.includes("missing vendorInvoiceNumber") || warning.includes("Unrecognized");
+    });
+    if (criticalWarnings.length > 0) {
+        return "issue";
+    }
+    if (formatId === "unknown") {
         return "issue";
     }
     const { allFulfilled, hasBackorder, hasPartialShip, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);
@@ -78,16 +90,24 @@ function deriveImportStatus(parsed) {
     }
     return "pending";
 }
-function scoreInvoiceConfidence(parsed) {
-    const required = [
-        parsed.header.customerAccountNumber,
-        parsed.header.vendorOrderNumber,
-        parsed.header.vendorInvoiceNumber,
-        parsed.header.customerPoOrReference,
-        parsed.header.orderDate,
-        parsed.header.invoiceDate,
-        parsed.header.vendorBranchPhone,
-    ];
+function scoreInvoiceConfidence(parsed, formatId = "johnstone") {
+    const required = formatId === "first_supply"
+        ? [
+            parsed.header.customerAccountNumber,
+            parsed.header.vendorInvoiceNumber,
+            parsed.header.customerPoOrReference,
+            parsed.header.orderDate,
+            parsed.header.invoiceDate,
+        ]
+        : [
+            parsed.header.customerAccountNumber,
+            parsed.header.vendorOrderNumber,
+            parsed.header.vendorInvoiceNumber,
+            parsed.header.customerPoOrReference,
+            parsed.header.orderDate,
+            parsed.header.invoiceDate,
+            parsed.header.vendorBranchPhone,
+        ];
     const missingRequired = required.filter((v) => !v).length;
     const productLines = parsed.lines.filter((l) => l.lineType === "product");
     const { hasBackorder, hasPartialShip, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);

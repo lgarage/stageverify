@@ -12,6 +12,8 @@ const crypto_1 = require("crypto");
 const gmailInbound_1 = require("../gmailInbound");
 const extractPdfText_1 = require("./extractPdfText");
 const normalizePdfText_1 = require("./normalizePdfText");
+const invoiceDocumentSplit_1 = require("../invoice/invoiceDocumentSplit");
+const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
 const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
 const firestoreSafeValue_1 = require("./firestoreSafeValue");
@@ -83,11 +85,17 @@ function shouldReprocessExistingDoc(data, options) {
 }
 async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, gmailMessageId) {
     const db = getDb();
-    const normalizedText = trimStoredText((0, normalizePdfText_1.postProcessExtractedPdfText)(combinedExtractedText));
+    const preFormat = (0, invoiceDocumentSplit_1.preferredPreParseFormat)(combinedExtractedText, {
+        senderEmail: inboundDoc.senderEmail,
+    });
+    const normalizedText = trimStoredText(preFormat === "johnstone" || (0, normalizePdfText_1.hasCustomFontPdfEncoding)(combinedExtractedText)
+        ? (0, normalizePdfText_1.postProcessExtractedPdfText)(combinedExtractedText)
+        : (0, pdfTextAdapter_1.normalizeExtractedPageText)(combinedExtractedText));
     const importBatchId = `batch-email-${gmailMessageId.slice(0, 12)}-${(0, crypto_1.randomBytes)(3).toString("hex")}`;
     const batchResult = (0, processInvoiceForInbound_1.parseInboundInvoiceText)(normalizedText, {
         importBatchId,
         gmailMessageId,
+        senderEmail: inboundDoc.senderEmail,
     });
     const partialDoc = {
         ...inboundDoc,
@@ -147,6 +155,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             parsedLines,
             parsedLineCount: parsedLines.length,
             pageId: row.pageId,
+            parserFormatId: proc.parserFormatId,
         });
         const createdAt = existingSnap.exists && existingSnap.data().createdAt
             ? existingSnap.data().createdAt
@@ -176,6 +185,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             reviewRequiredReasons: eligibility.reviewRequiredReasons,
             importDecisionMode: eligibility.importDecisionMode,
             suggestedAction: eligibility.suggestedAction,
+            parserFormatId: proc.parserFormatId,
+            parserRouteConfidence: proc.parserRouteConfidence,
+            detectedVendorName: proc.detectedVendorName,
             createdAt,
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),

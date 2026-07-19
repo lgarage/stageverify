@@ -1,5 +1,6 @@
 import { adaptExtractedPagesToInvoicePages } from "./pdfTextAdapter";
-import { pageTextFingerprint } from "./parseJohnstoneInvoice";
+import { pageTextFingerprint as johnstoneFingerprint } from "./parseJohnstoneInvoice";
+import { pageTextFingerprint as firstSupplyFingerprint } from "./parseFirstSupplyInvoice";
 import {
   type ExistingInvoiceIndex,
   processInvoicePage,
@@ -10,6 +11,7 @@ import type {
   InvoiceBatchResult,
   InvoiceBatchSummary,
   InvoicePdfExtractInput,
+  InvoiceProcessOptions,
   InvoiceProcessingResult,
   JohnstoneInvoicePageText,
 } from "./types";
@@ -50,6 +52,7 @@ function emptyExistingIndex(): ExistingInvoiceIndex {
 function processOnePage(
   page: JohnstoneInvoicePageText,
   existing: ExistingInvoiceIndex,
+  processOptions?: InvoiceProcessOptions,
 ): InvoiceBatchPageResult {
   try {
     const normalized: JohnstoneInvoicePageText = {
@@ -66,11 +69,15 @@ function processOnePage(
       };
     }
 
-    const processing = processInvoicePage(normalized, existing);
+    const processing = processInvoicePage(normalized, existing, processOptions);
 
     if (!processing.duplicate) {
       existing.byPageId.set(page.pageId, page.pageId);
-      existing.byFingerprint.set(pageTextFingerprint(normalized), page.pageId);
+      const fingerprint =
+        processing.parserFormatId === "first_supply"
+          ? firstSupplyFingerprint(normalized)
+          : johnstoneFingerprint(normalized);
+      existing.byFingerprint.set(fingerprint, page.pageId);
     }
 
     return {
@@ -101,7 +108,11 @@ function sortPagesInBatch(pages: JohnstoneInvoicePageText[]): JohnstoneInvoicePa
  */
 export function processInvoiceBatch(
   pages: JohnstoneInvoicePageText[],
-  options?: { importBatchId?: string; existing?: ExistingInvoiceIndex },
+  options?: {
+    importBatchId?: string;
+    existing?: ExistingInvoiceIndex;
+    processOptions?: InvoiceProcessOptions;
+  },
 ): InvoiceBatchResult {
   const importBatchId = options?.importBatchId ?? createImportBatchId();
   const existing = options?.existing ?? emptyExistingIndex();
@@ -111,7 +122,7 @@ export function processInvoiceBatch(
 
   const results: InvoiceBatchPageResult[] = [];
   for (const page of ordered) {
-    results.push(processOnePage(page, existing));
+    results.push(processOnePage(page, existing, options?.processOptions));
   }
 
   return { importBatchId, results, summary: summarizeResults(results) };

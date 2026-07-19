@@ -504,7 +504,7 @@ function parseRemitToBlock(text: string): {
   vendorBranchAddress: string;
   vendorBranchPhone: string;
 } {
-  const defaultName = "Johnstone Supply";
+  const defaultName = "";
   const vendorBranchPhone =
     capture(/please call\s*([\d-]+)/i, text) ?? capture(/(\d{3}-\d{3}-\d{4})/i, text) ?? "";
 
@@ -525,8 +525,10 @@ function parseRemitToBlock(text: string): {
     .filter(Boolean);
 
   const firstLine = stripRemitToLineBleed(blockLines[0] ?? "");
-  const johnstoneInLine = firstLine.match(/(Johnstone Supply)/i);
-  const vendorBranchName = johnstoneInLine?.[1] ?? (firstLine || defaultName);
+  let vendorBranchName =
+    blockLines.map((line) => line.match(/(Johnstone Supply)/i)?.[1]).find(Boolean) ??
+    firstLine.match(/(Johnstone Supply)/i)?.[1] ??
+    (firstLine || defaultName);
 
   const addressLines: string[] = [];
   for (const line of blockLines.slice(1)) {

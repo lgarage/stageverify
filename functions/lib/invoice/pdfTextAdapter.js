@@ -9,6 +9,7 @@ exports.adaptExtractedPagesToInvoicePages = adaptExtractedPagesToInvoicePages;
 exports.adaptConcatenatedPdfText = adaptConcatenatedPdfText;
 exports.adaptMultiPageDocuments = adaptMultiPageDocuments;
 exports.extractedPagesFromTexts = extractedPagesFromTexts;
+const invoiceDocumentSplit_1 = require("./invoiceDocumentSplit");
 /** Marker inserted between PDF pages when concatenating multi-page extraction output. */
 exports.INVOICE_PAGE_BOUNDARY = "\n---INVOICE PAGE---\n";
 /** Normalize whitespace from PDF text extractors (pdf-parse, OCR, fixtures). */
@@ -69,8 +70,8 @@ function adaptExtractedPagesToInvoicePages(input) {
     });
 }
 /** Build invoice pages from a concatenated multi-page PDF extraction string. */
-function adaptConcatenatedPdfText(concatenatedText, importBatchId, pageIds) {
-    const pageTexts = splitExtractedTextIntoPages(concatenatedText);
+function adaptConcatenatedPdfText(concatenatedText, importBatchId, pageIds, options) {
+    const pageTexts = (0, invoiceDocumentSplit_1.splitExtractedTextIntoInvoiceDocuments)(concatenatedText, options?.routeHints);
     const batchId = importBatchId ?? `batch-${new Date().toISOString().slice(0, 10)}-concat`;
     return adaptExtractedPagesToInvoicePages({
         importBatchId: batchId,

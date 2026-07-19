@@ -58,25 +58,56 @@ function asParsedHeader(raw: Record<string, unknown>): ParsedInvoiceHeader {
   };
 }
 
-async function resolveJohnstoneVendor(
+async function resolveVendorByNamePattern(
   db: Firestore,
+  pattern: RegExp,
 ): Promise<{ id: string; name: string } | null> {
   const snap = await db.collection("vendors").limit(100).get();
   for (const doc of snap.docs) {
     const name = doc.data().name;
-    if (typeof name === "string" && /johnstone/i.test(name)) {
+    if (typeof name === "string" && pattern.test(name)) {
       return { id: doc.id, name };
     }
   }
-  if (!snap.empty) {
-    const doc = snap.docs[0];
-    const name = doc.data().name;
-    return {
-      id: doc.id,
-      name: typeof name === "string" ? name : "Vendor",
-    };
-  }
   return null;
+}
+
+async function resolveVendorForInvoiceImport(
+  db: Firestore,
+  importDoc: VendorInvoiceImportDoc,
+  header: ParsedInvoiceHeader,
+): Promise<{ id: string; name: string }> {
+  if (importDoc.detectedVendorId?.trim()) {
+    const vendorSnap = await db.collection("vendors").doc(importDoc.detectedVendorId.trim()).get();
+    if (vendorSnap.exists) {
+      const name = vendorSnap.data()?.name;
+      return {
+        id: vendorSnap.id,
+        name: typeof name === "string" ? name : "Vendor",
+      };
+    }
+  }
+
+  const formatId = importDoc.parserFormatId;
+  if (formatId === "first_supply") {
+    const resolved = await resolveVendorByNamePattern(db, /first supply/i);
+    if (resolved) return resolved;
+  }
+  if (formatId === "johnstone") {
+    const resolved = await resolveVendorByNamePattern(db, /johnstone/i);
+    if (resolved) return resolved;
+  }
+
+  const branch = header.vendorBranchName?.trim() ?? "";
+  if (branch) {
+    const resolved = await resolveVendorByNamePattern(db, new RegExp(branch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    if (resolved) return resolved;
+  }
+
+  throw new HttpsError(
+    "failed-precondition",
+    "Cannot create dashboard record — vendor not identified for this invoice format.",
+  );
 }
 
 function normalizeMatchText(value: string): string {
@@ -280,14 +311,17 @@ export async function buildInvoiceDeliveryShellContext(
       const name = vendorSnap.data()?.name;
       if (typeof name === "string") vendorName = name;
     }
-  } else {
-    const resolved = await resolveJohnstoneVendor(db);
-    if (!resolved) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Cannot create dashboard record — no vendor record found.",
-      );
+    if (importDoc.parserFormatId && importDoc.parserFormatId !== "unknown") {
+      const resolved = await resolveVendorForInvoiceImport(db, importDoc, header);
+      if (resolved.id !== vendorId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Vendor from invoice format does not match PO-linked vendor — review before creating shell.",
+        );
+      }
     }
+  } else {
+    const resolved = await resolveVendorForInvoiceImport(db, importDoc, header);
     vendorId = resolved.id;
     vendorName = resolved.name;
   }
@@ -310,7 +344,10 @@ export async function buildInvoiceDeliveryShellContext(
   const vendorInvoiceNumber = header.vendorInvoiceNumber;
   const vendorOrderNumber = header.vendorOrderNumber;
   const customerPo = header.customerPoOrReference;
-  const evidenceNote = `Imported from Johnstone invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`;
+  const evidenceNote =
+    importDoc.parserFormatId === "first_supply"
+      ? `Imported from First Supply invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`
+      : `Imported from Johnstone invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`;
 
   const deliveryDate =
     header.shipDate?.trim() ||

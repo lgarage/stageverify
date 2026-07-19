@@ -1,7 +1,9 @@
+import { splitExtractedTextIntoInvoiceDocuments } from "./invoiceDocumentSplit";
 import type {
   ExtractedPdfPage,
   InvoiceMultiPageDocument,
   InvoicePdfExtractInput,
+  InvoiceProcessOptions,
   JohnstoneInvoicePageText,
 } from "./types";
 
@@ -80,8 +82,12 @@ export function adaptConcatenatedPdfText(
   concatenatedText: string,
   importBatchId?: string,
   pageIds?: string[],
+  options?: InvoiceProcessOptions,
 ): JohnstoneInvoicePageText[] {
-  const pageTexts = splitExtractedTextIntoPages(concatenatedText);
+  const pageTexts = splitExtractedTextIntoInvoiceDocuments(
+    concatenatedText,
+    options?.routeHints,
+  );
   const batchId = importBatchId ?? `batch-${new Date().toISOString().slice(0, 10)}-concat`;
   return adaptExtractedPagesToInvoicePages({
     importBatchId: batchId,

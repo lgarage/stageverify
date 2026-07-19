@@ -403,7 +403,7 @@ function stripRemitToLineBleed(line) {
 }
 /** Branch identity comes from the Remit To footer block — never ship-to or totals columns. */
 function parseRemitToBlock(text) {
-    const defaultName = "Johnstone Supply";
+    const defaultName = "";
     const vendorBranchPhone = capture(/please call\s*([\d-]+)/i, text) ?? capture(/(\d{3}-\d{3}-\d{4})/i, text) ?? "";
     const remitIdx = text.search(/Remit\s+To\s*:/i);
     if (remitIdx < 0) {
@@ -420,8 +420,9 @@ function parseRemitToBlock(text) {
         .map((line) => line.trim())
         .filter(Boolean);
     const firstLine = stripRemitToLineBleed(blockLines[0] ?? "");
-    const johnstoneInLine = firstLine.match(/(Johnstone Supply)/i);
-    const vendorBranchName = johnstoneInLine?.[1] ?? (firstLine || defaultName);
+    let vendorBranchName = blockLines.map((line) => line.match(/(Johnstone Supply)/i)?.[1]).find(Boolean) ??
+        firstLine.match(/(Johnstone Supply)/i)?.[1] ??
+        (firstLine || defaultName);
     const addressLines = [];
     for (const line of blockLines.slice(1)) {
         if (/^please call/i.test(line))

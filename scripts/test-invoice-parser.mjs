@@ -12,6 +12,10 @@ import {
   NON_JOHNSTONE_FIXTURE_EXPECTATIONS,
   NON_JOHNSTONE_INVOICE_FIXTURES,
 } from "../src/dispatcher/invoice/nonJohnstoneInvoiceFixtures.ts";
+import {
+  FIRST_SUPPLY_FIXTURE_EXPECTATIONS,
+  FIRST_SUPPLY_INVOICE_FIXTURES,
+} from "../src/dispatcher/invoice/firstSupplyInvoiceFixtures.ts";
 import { pageTextFingerprint } from "../src/dispatcher/invoice/parseJohnstoneInvoice.ts";
 import { postProcessExtractedPdfText } from "../functions/src/inboundEmail/normalizePdfText.ts";
 import {
@@ -521,6 +525,46 @@ for (const fixture of NON_JOHNSTONE_INVOICE_FIXTURES) {
   }
   console.log(
     `  PASS ${fixture.pageId} — status=${result.importStatus}, confidence=${result.confidenceScore}, lines=${productLines}`,
+  );
+}
+
+console.log("\n--- First Supply golden fixtures (Dan PDF extract) ---");
+for (const fixture of FIRST_SUPPLY_INVOICE_FIXTURES) {
+  const result = processInvoicePage(fixture, existing);
+  existing.byPageId.set(fixture.pageId, fixture.pageId);
+  const expected = FIRST_SUPPLY_FIXTURE_EXPECTATIONS[fixture.pageId];
+  if (!expected) continue;
+
+  if (result.parserFormatId !== expected.parserFormatId) {
+    failures.push(
+      `${fixture.pageId}: parserFormatId expected ${expected.parserFormatId}, got ${result.parserFormatId}`,
+    );
+  }
+  if (result.parsed.header.vendorInvoiceNumber !== expected.vendorInvoiceNumber) {
+    failures.push(
+      `${fixture.pageId}: vendorInvoiceNumber expected ${expected.vendorInvoiceNumber}, got ${result.parsed.header.vendorInvoiceNumber}`,
+    );
+  }
+  if (result.parsed.header.customerPoOrReference !== expected.customerPoOrReference) {
+    failures.push(`${fixture.pageId}: customer P/O mismatch`);
+  }
+  if (!result.parsed.header.vendorBranchName.includes(expected.vendorBranchContains)) {
+    failures.push(`${fixture.pageId}: branch expected to include ${expected.vendorBranchContains}`);
+  }
+  if (result.importStatus !== expected.importStatus) {
+    failures.push(
+      `${fixture.pageId}: importStatus expected ${expected.importStatus}, got ${result.importStatus}`,
+    );
+  }
+  if (result.parsed.header.fulfillmentMethod !== expected.fulfillmentMethod) {
+    failures.push(`${fixture.pageId}: fulfillmentMethod mismatch`);
+  }
+  const productLines = expectedInvoiceLines(result).length;
+  if (productLines !== expected.lineCount) {
+    failures.push(`${fixture.pageId}: expected ${expected.lineCount} lines, got ${productLines}`);
+  }
+  console.log(
+    `  PASS ${fixture.pageId} — inv=${result.parsed.header.vendorInvoiceNumber}, po=${result.parsed.header.customerPoOrReference}, lines=${productLines}, branch=${result.parsed.header.vendorBranchName}`,
   );
 }
 

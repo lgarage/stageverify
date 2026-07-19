@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.forceReviewOnlyStatus = forceReviewOnlyStatus;
 exports.parseInboundInvoiceText = parseInboundInvoiceText;
 /**
- * Johnstone invoice parse for inbound email — review-only path.
+ * Vendor invoice parse for inbound email — review-only path.
  * Hard rule: always pending_review; never auto_processed; no delivery writes.
  */
 const pdfTextAdapter_1 = require("./pdfTextAdapter");
@@ -17,8 +17,14 @@ function forceReviewOnlyStatus(result) {
 }
 /** Parse extracted PDF text from inbound email into review-only batch results. */
 function parseInboundInvoiceText(combinedText, options) {
-    const pages = (0, pdfTextAdapter_1.adaptConcatenatedPdfText)(combinedText, options.importBatchId, undefined);
-    const batch = (0, processInvoiceBatch_1.processInvoiceBatch)(pages, { importBatchId: options.importBatchId });
+    const processOptions = {
+        routeHints: { senderEmail: options.senderEmail },
+    };
+    const pages = (0, pdfTextAdapter_1.adaptConcatenatedPdfText)(combinedText, options.importBatchId, undefined, processOptions);
+    const batch = (0, processInvoiceBatch_1.processInvoiceBatch)(pages, {
+        importBatchId: options.importBatchId,
+        processOptions,
+    });
     return {
         ...batch,
         results: batch.results.map((row) => {

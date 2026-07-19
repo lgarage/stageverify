@@ -16,6 +16,8 @@ import {
   hasCustomFontPdfEncoding,
   postProcessExtractedPdfText,
 } from "./normalizePdfText";
+import { preferredPreParseFormat } from "../invoice/invoiceDocumentSplit";
+import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
 import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import { firestoreSafeValue } from "./firestoreSafeValue";
@@ -132,11 +134,19 @@ async function finalizeParsedInboundDoc(
   gmailMessageId: string,
 ): Promise<ProcessInboundGmailMessageResult> {
   const db = getDb();
-  const normalizedText = trimStoredText(postProcessExtractedPdfText(combinedExtractedText));
+  const preFormat = preferredPreParseFormat(combinedExtractedText, {
+    senderEmail: inboundDoc.senderEmail,
+  });
+  const normalizedText = trimStoredText(
+    preFormat === "johnstone" || hasCustomFontPdfEncoding(combinedExtractedText)
+      ? postProcessExtractedPdfText(combinedExtractedText)
+      : normalizeExtractedPageText(combinedExtractedText),
+  );
   const importBatchId = `batch-email-${gmailMessageId.slice(0, 12)}-${randomBytes(3).toString("hex")}`;
   const batchResult = parseInboundInvoiceText(normalizedText, {
     importBatchId,
     gmailMessageId,
+    senderEmail: inboundDoc.senderEmail,
   });
 
   const partialDoc: InboundEmailProcessingDoc = {
@@ -208,6 +218,7 @@ async function writeReviewRecords(
       parsedLines,
       parsedLineCount: parsedLines.length,
       pageId: row.pageId,
+      parserFormatId: proc.parserFormatId,
     });
     const createdAt =
       existingSnap.exists && (existingSnap.data() as VendorInvoiceImportDoc).createdAt
@@ -238,6 +249,9 @@ async function writeReviewRecords(
       reviewRequiredReasons: eligibility.reviewRequiredReasons,
       importDecisionMode: eligibility.importDecisionMode,
       suggestedAction: eligibility.suggestedAction,
+      parserFormatId: proc.parserFormatId,
+      parserRouteConfidence: proc.parserRouteConfidence,
+      detectedVendorName: proc.detectedVendorName,
       createdAt,
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),

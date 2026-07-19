@@ -16,6 +16,8 @@ export type InvoiceLineType = "product" | "core_charge" | "return" | "freight" |
 
 export type InvoiceConfidenceTier = "high" | "medium" | "low";
 
+export type VendorInvoiceParserFormatId = "johnstone" | "first_supply" | "unknown";
+
 /** Plain-text page extracted from a Johnstone branch invoice PDF (offline prototype). */
 export interface JohnstoneInvoicePageText {
   pageId: string;
@@ -82,6 +84,15 @@ export interface InvoiceProcessingResult {
   duplicate: boolean;
   duplicateOfPageId?: string;
   reviewStatus: "pending_review" | "approved" | "rejected" | "auto_processed";
+  parserFormatId?: VendorInvoiceParserFormatId;
+  parserRouteConfidence?: number;
+  detectedVendorName?: string;
+}
+
+export interface InvoiceProcessOptions {
+  routeHints?: {
+    senderEmail?: string;
+  };
 }
 
 export const INVOICE_AUTO_APPLY_CONFIDENCE = 85;

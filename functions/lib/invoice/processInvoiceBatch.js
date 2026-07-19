@@ -6,6 +6,7 @@ exports.processInvoiceBatch = processInvoiceBatch;
 exports.processInvoiceBatchFromExtracted = processInvoiceBatchFromExtracted;
 const pdfTextAdapter_1 = require("./pdfTextAdapter");
 const parseJohnstoneInvoice_1 = require("./parseJohnstoneInvoice");
+const parseFirstSupplyInvoice_1 = require("./parseFirstSupplyInvoice");
 const processInvoicePage_1 = require("./processInvoicePage");
 function createImportBatchId(suffix) {
     const date = new Date().toISOString().slice(0, 10);
@@ -41,7 +42,7 @@ function summarizeResults(results) {
 function emptyExistingIndex() {
     return { byPageId: new Map(), byFingerprint: new Map() };
 }
-function processOnePage(page, existing) {
+function processOnePage(page, existing, processOptions) {
     try {
         const normalized = {
             ...page,
@@ -56,10 +57,13 @@ function processOnePage(page, existing) {
                 error: "Empty extracted text",
             };
         }
-        const processing = (0, processInvoicePage_1.processInvoicePage)(normalized, existing);
+        const processing = (0, processInvoicePage_1.processInvoicePage)(normalized, existing, processOptions);
         if (!processing.duplicate) {
             existing.byPageId.set(page.pageId, page.pageId);
-            existing.byFingerprint.set((0, parseJohnstoneInvoice_1.pageTextFingerprint)(normalized), page.pageId);
+            const fingerprint = processing.parserFormatId === "first_supply"
+                ? (0, parseFirstSupplyInvoice_1.pageTextFingerprint)(normalized)
+                : (0, parseJohnstoneInvoice_1.pageTextFingerprint)(normalized);
+            existing.byFingerprint.set(fingerprint, page.pageId);
         }
         return {
             pageIndexInBatch: page.pageIndexInBatch,
@@ -92,7 +96,7 @@ function processInvoiceBatch(pages, options) {
     const ordered = sortPagesInBatch(pages.map((p) => ({ ...p, importBatchId })));
     const results = [];
     for (const page of ordered) {
-        results.push(processOnePage(page, existing));
+        results.push(processOnePage(page, existing, options?.processOptions));
     }
     return { importBatchId, results, summary: summarizeResults(results) };
 }

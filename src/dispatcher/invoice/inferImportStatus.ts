@@ -3,6 +3,7 @@ import type {
   ParsedJohnstoneInvoice,
   ShipCompletePolicy,
   VendorInvoiceImportStatus,
+  VendorInvoiceParserFormatId,
 } from "./types";
 
 /** Fulfillment method from explicit header/shipping language only — never from backorder lines or ship-complete policy. */
@@ -21,6 +22,8 @@ export function inferFulfillmentMethod(
 
   if (shipVia && /\bPICKUP\b/i.test(shipVia)) return "will_call_pickup";
   if (shipVia && /\bWILL\s*[- ]?\s*CALL\b/i.test(shipVia)) return "will_call_pickup";
+
+  if (shipVia && /\bPU\b/i.test(shipVia)) return "will_call_pickup";
 
   if (shipVia && /TRUCK\s+DELIVE/i.test(shipVia)) return "delivery";
   if (/DELIVERY\s+ROUTE/i.test(text)) return "delivery";
@@ -74,9 +77,20 @@ export function assessFulfillmentCompleteness(
 }
 
 /** Derive import-domain status from parsed invoice — never sets shop readiness (spec §7). */
-export function deriveImportStatus(parsed: ParsedJohnstoneInvoice): VendorInvoiceImportStatus {
+export function deriveImportStatus(
+  parsed: ParsedJohnstoneInvoice,
+  formatId: VendorInvoiceParserFormatId = "johnstone",
+): VendorInvoiceImportStatus {
   const { header, parseWarnings } = parsed;
-  if (parseWarnings.some((w) => w.includes("missing vendorInvoiceNumber"))) {
+  const criticalWarnings = parseWarnings.filter((warning) => {
+    if (warning === "missing vendorOrderNumber" && header.vendorInvoiceNumber) return false;
+    if (warning === "missing product lines") return true;
+    return warning.includes("missing vendorInvoiceNumber") || warning.includes("Unrecognized");
+  });
+  if (criticalWarnings.length > 0) {
+    return "issue";
+  }
+  if (formatId === "unknown") {
     return "issue";
   }
 
@@ -100,20 +114,32 @@ export function deriveImportStatus(parsed: ParsedJohnstoneInvoice): VendorInvoic
   return "pending";
 }
 
-export function scoreInvoiceConfidence(parsed: ParsedJohnstoneInvoice): {
+export function scoreInvoiceConfidence(
+  parsed: ParsedJohnstoneInvoice,
+  formatId: VendorInvoiceParserFormatId = "johnstone",
+): {
   tier: "high" | "medium" | "low";
   score: number;
   humanReviewRequired: boolean;
 } {
-  const required = [
-    parsed.header.customerAccountNumber,
-    parsed.header.vendorOrderNumber,
-    parsed.header.vendorInvoiceNumber,
-    parsed.header.customerPoOrReference,
-    parsed.header.orderDate,
-    parsed.header.invoiceDate,
-    parsed.header.vendorBranchPhone,
-  ];
+  const required =
+    formatId === "first_supply"
+      ? [
+          parsed.header.customerAccountNumber,
+          parsed.header.vendorInvoiceNumber,
+          parsed.header.customerPoOrReference,
+          parsed.header.orderDate,
+          parsed.header.invoiceDate,
+        ]
+      : [
+          parsed.header.customerAccountNumber,
+          parsed.header.vendorOrderNumber,
+          parsed.header.vendorInvoiceNumber,
+          parsed.header.customerPoOrReference,
+          parsed.header.orderDate,
+          parsed.header.invoiceDate,
+          parsed.header.vendorBranchPhone,
+        ];
   const missingRequired = required.filter((v) => !v).length;
   const productLines = parsed.lines.filter((l) => l.lineType === "product");
   const { hasBackorder, hasPartialShip, noFulfilledMaterial } = assessFulfillmentCompleteness(parsed);

@@ -1,6 +1,17 @@
 import { deriveImportStatus, scoreInvoiceConfidence } from "./inferImportStatus";
-import { pageTextFingerprint, parseJohnstoneInvoicePage } from "./parseJohnstoneInvoice";
-import type { InvoiceProcessingResult, JohnstoneInvoicePageText } from "./types";
+import { pageTextFingerprint as johnstoneFingerprint, parseJohnstoneInvoicePage } from "./parseJohnstoneInvoice";
+import {
+  pageTextFingerprint as firstSupplyFingerprint,
+  parseFirstSupplyInvoicePage,
+} from "./parseFirstSupplyInvoice";
+import { routeInvoiceFormat, vendorDisplayNameForFormat } from "./vendorInvoiceRouter";
+import type {
+  InvoiceProcessOptions,
+  InvoiceProcessingResult,
+  JohnstoneInvoicePageText,
+  ParsedJohnstoneInvoice,
+  VendorInvoiceParserFormatId,
+} from "./types";
 import { INVOICE_AUTO_APPLY_CONFIDENCE } from "./types";
 
 export interface ExistingInvoiceIndex {
@@ -8,14 +19,61 @@ export interface ExistingInvoiceIndex {
   byFingerprint: Map<string, string>;
 }
 
+function fingerprintForFormat(
+  formatId: VendorInvoiceParserFormatId,
+  page: JohnstoneInvoicePageText,
+): string {
+  if (formatId === "first_supply") return firstSupplyFingerprint(page);
+  return johnstoneFingerprint(page);
+}
+
+function buildUnknownFormatParsed(_page: JohnstoneInvoicePageText): ParsedJohnstoneInvoice {
+  return {
+    header: {
+      customerAccountNumber: "",
+      vendorOrderNumber: "",
+      vendorInvoiceNumber: "",
+      customerPoOrReference: "",
+      orderDate: "",
+      invoiceDate: "",
+      shipDate: "",
+      vendorBranchName: "",
+      vendorBranchAddress: "",
+      vendorBranchPhone: "",
+      soldToName: "",
+      shipToName: "",
+      shipToAddress: "",
+      fulfillmentMethod: "unknown",
+      shipCompletePolicy: "unknown",
+    },
+    lines: [],
+    orderNotes: [],
+    parseWarnings: ["Unrecognized vendor invoice format"],
+  };
+}
+
 export function processInvoicePage(
   page: JohnstoneInvoicePageText,
   existing: ExistingInvoiceIndex,
+  options?: InvoiceProcessOptions,
 ): InvoiceProcessingResult {
-  const parsed = parseJohnstoneInvoicePage(page);
-  const fingerprint = pageTextFingerprint(page);
-  const importStatus = deriveImportStatus(parsed);
-  const confidence = scoreInvoiceConfidence(parsed);
+  const route = routeInvoiceFormat(page.extractedText, options?.routeHints);
+  const formatId = route.formatId;
+
+  const parsed =
+    formatId === "first_supply"
+      ? parseFirstSupplyInvoicePage(page)
+      : formatId === "johnstone"
+        ? parseJohnstoneInvoicePage(page)
+        : buildUnknownFormatParsed(page);
+
+  const fingerprint = fingerprintForFormat(
+    formatId === "unknown" ? "johnstone" : formatId,
+    page,
+  );
+  const importStatus =
+    formatId === "unknown" ? "issue" : deriveImportStatus(parsed, formatId);
+  const confidence = scoreInvoiceConfidence(parsed, formatId);
 
   const duplicateOfPage = existing.byPageId.get(page.pageId);
   const duplicateOfFingerprint = existing.byFingerprint.get(fingerprint);
@@ -24,7 +82,7 @@ export function processInvoicePage(
   let reviewStatus: InvoiceProcessingResult["reviewStatus"] = "pending_review";
   if (duplicate) {
     reviewStatus = "rejected";
-  } else if (importStatus === "issue") {
+  } else if (importStatus === "issue" || formatId === "unknown") {
     reviewStatus = "pending_review";
   } else if (
     confidence.tier === "high" &&
@@ -43,10 +101,14 @@ export function processInvoicePage(
     importStatus,
     confidenceTier: confidence.tier,
     confidenceScore: confidence.score,
-    humanReviewRequired: confidence.humanReviewRequired,
+    humanReviewRequired: formatId === "unknown" ? true : confidence.humanReviewRequired,
     duplicate,
     duplicateOfPageId: duplicateOfPage ?? duplicateOfFingerprint,
     reviewStatus,
+    parserFormatId: formatId,
+    parserRouteConfidence: route.confidence,
+    detectedVendorName:
+      formatId === "unknown" ? undefined : vendorDisplayNameForFormat(formatId),
   };
 }
 

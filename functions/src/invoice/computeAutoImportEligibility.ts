@@ -22,6 +22,7 @@ export interface AutoImportEligibilityInput {
   }>;
   parsedLineCount?: number;
   pageId?: string;
+  parserFormatId?: "johnstone" | "first_supply" | "unknown";
 }
 
 export interface AutoImportEligibilityResult {
@@ -121,23 +122,41 @@ export function computeAutoImportEligibility(
 
   autoImportReasons.push(`${lines.length} product line(s) parsed`);
 
-  const requiredChecks: Array<[string, string]> = [
-    ["Customer account #", "customerAccountNumber"],
-    ["S/O #", "vendorOrderNumber"],
-    ["Invoice #", "vendorInvoiceNumber"],
-    ["Customer P/O", "customerPoOrReference"],
-    ["Order date", "orderDate"],
-    ["Johnstone branch", "vendorBranchName"],
-  ];
+  const parserFormatId = input.parserFormatId ?? "johnstone";
+  if (parserFormatId === "unknown") {
+    reviewRequiredReasons.push("Unrecognized vendor invoice format");
+    return finalize(false, confidence, autoImportReasons, reviewRequiredReasons, "blocked");
+  }
 
-  for (const [label, key] of requiredChecks) {
+  const requiredChecks: Array<[string, string, boolean]> =
+    parserFormatId === "first_supply"
+      ? [
+          ["Customer account #", "customerAccountNumber", true],
+          ["Invoice #", "vendorInvoiceNumber", true],
+          ["Customer P/O", "customerPoOrReference", true],
+          ["Order date", "orderDate", true],
+          ["First Supply branch", "vendorBranchName", true],
+        ]
+      : [
+          ["Customer account #", "customerAccountNumber", true],
+          ["S/O #", "vendorOrderNumber", true],
+          ["Invoice #", "vendorInvoiceNumber", true],
+          ["Customer P/O", "customerPoOrReference", true],
+          ["Order date", "orderDate", true],
+          ["Johnstone branch", "vendorBranchName", true],
+        ];
+
+  for (const [label, key, required] of requiredChecks) {
     const value = headerStr(header, key);
     if (!value) {
-      reviewRequiredReasons.push(`Missing ${label}`);
+      if (required) reviewRequiredReasons.push(`Missing ${label}`);
     } else {
       autoImportReasons.push(`${label} present`);
-      if (key === "vendorBranchName" && !/johnstone/i.test(value)) {
+      if (key === "vendorBranchName" && parserFormatId === "johnstone" && !/johnstone/i.test(value)) {
         reviewRequiredReasons.push("Vendor branch not recognized as Johnstone");
+      }
+      if (key === "vendorBranchName" && parserFormatId === "first_supply" && !/first supply/i.test(value)) {
+        reviewRequiredReasons.push("Vendor branch not recognized as First Supply");
       }
     }
   }
