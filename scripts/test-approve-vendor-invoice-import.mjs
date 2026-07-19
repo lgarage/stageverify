@@ -691,6 +691,119 @@ if (
   fail("P411190 shell delivery fields", backfillShell);
 }
 
+// Historical backfill: approved import linked to real delivery missing vendorInvoiceImportId stamp
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", "delivery-hist-stamp-test"), {
+    id: "delivery-hist-stamp-test",
+    orderNumber: "6164159",
+    jobId: "job-1",
+    vendorId: "vendor-johnstone",
+    deliveryDate: "2026-06-23",
+    status: "pending",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-hist-stamp-test"), {
+    id: "vii-hist-stamp-test",
+    inboundEmailProcessingId: "inbound-hist-stamp",
+    gmailMessageId: "msg-hist-stamp",
+    importBatchId: "batch-test",
+    pageId: "inv-hist-stamp",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    linkedDeliveryOrderId: "delivery-hist-stamp-test",
+    importStatus: "delivered",
+    confidenceTier: "medium",
+    confidenceScore: 80,
+    humanReviewRequired: false,
+    duplicate: false,
+    parsedHeader: header,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-06-24T10:00:00Z",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-hist-stamp-test",
+    action: "create_shell",
+  });
+  pass("historical linked delivery create_shell backfill succeeded");
+} catch (err) {
+  fail("historical linked delivery create_shell backfill failed", err?.message);
+}
+
+const histStampSnap = await getDoc(doc(db, "deliveries", "delivery-hist-stamp-test"));
+if (histStampSnap.data()?.vendorInvoiceImportId === "vii-hist-stamp-test") {
+  pass("historical linked delivery stamped with vendorInvoiceImportId");
+} else {
+  fail("historical linked delivery vendorInvoiceImportId", histStampSnap.data());
+}
+
+// Historical backfill: linked orphan shell slot missing stamp (approved, linked, shell exists)
+const histOrphanShellId = shellDeliveryIdForImport("vii-hist-orphan-stamp");
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", histOrphanShellId), {
+    id: histOrphanShellId,
+    orderNumber: "orphan-hist",
+    jobId: "job-1",
+    vendorId: "vendor-johnstone",
+    deliveryDate: "2026-06-23",
+    status: "pending",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-hist-orphan-stamp"), {
+    id: "vii-hist-orphan-stamp",
+    inboundEmailProcessingId: "inbound-hist-orphan",
+    gmailMessageId: "msg-hist-orphan",
+    importBatchId: "batch-test",
+    pageId: "inv-hist-orphan",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    linkedDeliveryOrderId: histOrphanShellId,
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: header,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-06-24T10:00:00Z",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-hist-orphan-stamp",
+    action: "create_shell",
+  });
+  pass("historical orphan shell create_shell backfill succeeded");
+} catch (err) {
+  fail("historical orphan shell create_shell backfill failed", err?.message);
+}
+
+const histOrphanSnap = await getDoc(doc(db, "deliveries", histOrphanShellId));
+if (histOrphanSnap.data()?.vendorInvoiceImportId === "vii-hist-orphan-stamp") {
+  pass("historical orphan shell stamped with vendorInvoiceImportId");
+} else {
+  fail("historical orphan shell vendorInvoiceImportId", histOrphanSnap.data());
+}
+
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   const autoJobHeader = {

@@ -88,7 +88,6 @@ import {
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
 import { resolveDeliveryPoNumber } from "./invoice/invoiceShellDisplayHelpers";
-import { extractDeliverToSiteLabel } from "./invoice/invoiceShellDisplayHelpers";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -2395,21 +2394,9 @@ export async function approveVendorInvoiceImport(input: {
 function invoiceShellBackfillCandidate(
   row: VendorInvoiceImportReview,
 ): boolean {
-  if (row.reviewStatus !== "approved" || row.importStatus === "issue") {
-    return false;
-  }
-  if (!row.linkedDeliveryOrderId?.trim()) {
-    return true;
-  }
-  const orderNotes = row.orderNotes ?? [];
-  if (extractDeliverToSiteLabel(orderNotes)) {
-    return true;
-  }
-  if (row.importStatus === "pickup_at_vendor") {
-    return true;
-  }
-  const fulfillment = row.parsedHeader?.fulfillmentMethod;
-  return fulfillment === "will_call_pickup";
+  // All approved non-issue imports: create_shell stamps missing vendorInvoiceImportId
+  // on linked deliveries and creates shells for unlinked — idempotent via Refresh Now.
+  return row.reviewStatus === "approved" && row.importStatus !== "issue";
 }
 
 /** Idempotent backfill: create shells for unlinked imports; re-patch linked invoice shells. */

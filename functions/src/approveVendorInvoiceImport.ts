@@ -349,7 +349,11 @@ export const approveVendorInvoiceImport = onCall(
         const deliveryRef = getDb().collection("deliveries").doc(linkedId);
         const deliverySnap = await deliveryRef.get();
         if (deliverySnap.exists) {
-          const delivery = deliverySnap.data() as { createdFromInvoiceImport?: boolean };
+          const delivery = deliverySnap.data() as {
+            createdFromInvoiceImport?: boolean;
+            vendorInvoiceImportId?: string;
+          };
+          const missingStamp = !delivery.vendorInvoiceImportId?.trim();
           const isInvoiceShell =
             linkedId === shell.deliveryOrderId ||
             delivery.createdFromInvoiceImport === true;
@@ -357,6 +361,12 @@ export const approveVendorInvoiceImport = onCall(
             await deliveryRef.update(
               buildInvoiceShellPatchDocument(shell, importId, importDoc, now),
             );
+          } else if (missingStamp) {
+            await deliveryRef.update({
+              vendorInvoiceImportId: importId,
+              invoiceImportStatus: importDoc.importStatus,
+              updatedAt: now,
+            });
           }
           const jobSnap = await getDb().collection("jobs").doc(shell.jobId).get();
           const jobData = jobSnap.data();
@@ -377,6 +387,21 @@ export const approveVendorInvoiceImport = onCall(
               });
             }
           }
+        } else if (linkedId === shell.deliveryOrderId) {
+          await getDb().runTransaction(async (tx) => {
+            const existingDelivery = await tx.get(deliveryRef);
+            if (!existingDelivery.exists) {
+              tx.set(
+                deliveryRef,
+                buildDeliveryShellDocument(shell, importId, importDoc, now),
+              );
+              for (const item of shell.expectedItems) {
+                tx.set(getDb().collection("items").doc(item.id), item, {
+                  merge: true,
+                });
+              }
+            }
+          });
         }
         return {
           vendorInvoiceImportId: importId,
