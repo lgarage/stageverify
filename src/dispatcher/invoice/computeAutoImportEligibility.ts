@@ -1,6 +1,5 @@
 /**
- * Stage 1 — deterministic auto-import eligibility (suggested action only; no CF auto-approve).
- * Shared rules with client copy in src/dispatcher/invoice/computeAutoImportEligibility.ts
+ * Stage 1 — deterministic auto-import eligibility (client mirror; CF canonical in functions/src/invoice/).
  */
 import { INVOICE_AUTO_APPLY_CONFIDENCE } from "./types";
 

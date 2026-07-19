@@ -26,6 +26,7 @@ import {
   expectedInvoiceLines,
   processInvoicePage,
 } from "../src/dispatcher/invoice/processInvoicePage.ts";
+import { splitExtractedTextIntoInvoiceDocuments } from "../src/dispatcher/invoice/invoiceDocumentSplit.ts";
 
 const ACCURACY_GATE = 95;
 
@@ -625,6 +626,41 @@ for (const fixture of FIRST_SUPPLY_INVOICE_FIXTURES) {
   }
   console.log(
     `  PASS ${fixture.pageId} — inv=${result.parsed.header.vendorInvoiceNumber}, po=${result.parsed.header.customerPoOrReference}, lines=${productLines}, branch=${result.parsed.header.vendorBranchName}`,
+  );
+}
+
+console.log("\n--- First Supply multi-invoice document split (Dan PDF) ---");
+const multiInvoiceBlob = FIRST_SUPPLY_INVOICE_FIXTURES.map((f) => f.extractedText).join("\n");
+const splitDocs = splitExtractedTextIntoInvoiceDocuments(multiInvoiceBlob);
+if (splitDocs.length !== 3) {
+  failures.push(`document split: expected 3 invoices, got ${splitDocs.length}`);
+} else {
+  const expectedInvoices = [
+    "15047500-00",
+    "15046467-00",
+    "3869488-00",
+  ];
+  for (let i = 0; i < splitDocs.length; i += 1) {
+    const page = {
+      pageId: `inv-firstsupply-split-${i}`,
+      importBatchId: "batch-firstsupply-split",
+      pageIndexInBatch: i,
+      extractedText: splitDocs[i],
+    };
+    const result = processInvoicePage(page, existing);
+    if (result.parsed.header.vendorInvoiceNumber !== expectedInvoices[i]) {
+      failures.push(
+        `document split block ${i}: expected inv ${expectedInvoices[i]}, got ${result.parsed.header.vendorInvoiceNumber}`,
+      );
+    }
+    if (result.parserFormatId !== "first_supply") {
+      failures.push(
+        `document split block ${i}: expected parserFormatId first_supply, got ${result.parserFormatId}`,
+      );
+    }
+  }
+  console.log(
+    `  PASS split → 3 documents (${expectedInvoices.join(", ")})`,
   );
 }
 

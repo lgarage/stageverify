@@ -268,6 +268,8 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Invoice import spec (docs):** `docs/vendor-import/johnstone-invoice-import-spec.md` — PDF batch → expected vendor orders; `pickup_at_vendor` displays as **Will-Call / Pickup.**; import ≠ shop receipt
 - **Invoice import Slice 1 (shipped 2026-07-03):** Offline text-fixture parser in `src/dispatcher/invoice/` — header/line extraction, fulfillment inference, import status + dispatcher labels, confidence/review routing; `npm run test:invoice-parser` ≥95% gate on spec worked examples + Table D; no PDF upload UI or Firestore writes yet
 - **Invoice import Slice 2 (shipped 2026-07-03):** PDF text adapter + `processInvoiceBatch` — multi-page extraction fixtures, one `importBatchId` per batch, page outcomes processed/needs_review/failed, failure isolation; `npm run test:invoice-batch` ≥95% gate; still offline — no upload UI or Firestore
+- **Multi-vendor invoice platform (v0.0.59, 2026-07-18):** ✅ Shipped — vendor router + First Supply parser + multi-invoice PDF split; PO-linked vendor wins on shell create; `parserFormatId` on imports; golden First Supply fixtures (Dan PDF)
+- **Hybrid canonical extractor (v0.0.60, 2026-07-18):** ✅ Shipped — vendor-agnostic field search (`parseCanonicalInvoice`) on every PDF; Johnstone/First Supply optional accelerators; novel vendors (`generic`) extract without parser files; always review-required for generic; `test:invoice-parser` covers Ferguson + Monroe + Gustave Larson fixtures
 
 ### Phase 6 — Vendor Email Monitoring (`svscope` §5 Condition 1 — live)
 
