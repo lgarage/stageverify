@@ -6,9 +6,17 @@ export type SpotMapColor = "green" | "orange" | "red" | "gray";
 
 export const SPOT_MAP_COLORS: Record<SpotMapColor, string> = {
   green: "#16a34a",
-  orange: "#ea580c",
+  orange: "#facc15",
   red: "#dc2626",
   gray: "#6b7280",
+};
+
+/** Foreground text on status-colored fills (assigned/planned uses black on yellow). */
+export const SPOT_MAP_FG: Record<SpotMapColor, string> = {
+  green: "#ffffff",
+  orange: "#111827",
+  red: "#ffffff",
+  gray: "#ffffff",
 };
 
 /**
