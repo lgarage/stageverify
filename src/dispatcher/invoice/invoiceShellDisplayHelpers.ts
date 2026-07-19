@@ -24,6 +24,11 @@ export type InvoiceShellStagingFields = {
 
 const SHELL_DELIVERY_ID_PREFIX = "delivery-vii-";
 
+/** Deterministic delivery id created when approving an import without a linked delivery. */
+export function shellDeliveryIdForImport(importId: string): string {
+  return `${SHELL_DELIVERY_ID_PREFIX}${importId}`;
+}
+
 function isVerifiedInvoiceShell(delivery: InvoiceShellStagingFields): boolean {
   if (delivery.createdFromInvoiceImport === true) return true;
   const id = delivery.id?.trim();

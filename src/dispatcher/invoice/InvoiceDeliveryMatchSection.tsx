@@ -3,6 +3,7 @@ import {
   formatInvoiceMatchReasonList,
   formatInvoiceMatchReasons,
 } from "./invoiceMatchReasonLabels";
+import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -32,6 +33,14 @@ export function InvoiceDeliveryMatchSection({
     return null;
   }
 
+  const willCreateShellId = shellDeliveryIdForImport(importRow.id);
+  const linkingExisting = Boolean(selectedDeliveryId.trim());
+  const noCandidates =
+    !matchLoading &&
+    !matchUnavailable &&
+    matchResult != null &&
+    matchResult.candidates.length === 0;
+
   return (
     <div
       data-testid="invoice-delivery-match-section"
@@ -47,8 +56,8 @@ export function InvoiceDeliveryMatchSection({
         Delivery match
       </h3>
       <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.45 }}>
-        Optional — link this import to a delivery when you have a match. Approve works from
-        parsed data alone; linking applies expected line items to that delivery.
+        Linking to an existing delivery is optional. Leave the field blank and click Approve —
+        StageVerify creates a new dashboard order automatically.
       </p>
 
       {shipDateWarning && (
@@ -83,12 +92,13 @@ export function InvoiceDeliveryMatchSection({
           >
             {formatInvoiceMatchReasons(matchResult.confidenceReason)}
           </p>
-          {matchResult.candidates.length === 0 && (
+          {noCandidates && (
             <p
               data-testid="invoice-delivery-match-no-candidates"
-              style={{ fontSize: 12, color: "#b45309", margin: "0 0 10px" }}
+              style={{ fontSize: 12, color: "#b45309", margin: "0 0 10px", lineHeight: 1.45 }}
             >
-              No delivery candidates — you can still approve from parsed data, or link manually below.
+              No existing delivery matched this invoice. That is normal for a new First Supply
+              order — Approve creates a new dashboard delivery (no Delivery ID required).
             </p>
           )}
           {matchResult.candidates.length > 0 && (
@@ -135,16 +145,37 @@ export function InvoiceDeliveryMatchSection({
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {!linkingExisting && (
+          <p
+            data-testid="invoice-delivery-will-create"
+            style={{
+              fontSize: 12,
+              color: NAVY,
+              margin: 0,
+              lineHeight: 1.45,
+              padding: "8px 10px",
+              backgroundColor: "#eef2ff",
+              borderRadius: 6,
+              border: "1px solid #c7d2fe",
+            }}
+          >
+            On Approve, a new delivery will be created as{" "}
+            <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
+              {willCreateShellId}
+            </span>
+            . Use the field below only if you want to link an existing delivery instead.
+          </p>
+        )}
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>
-            Delivery ID (manual)
+            Link to existing delivery (optional)
           </span>
           <input
             type="text"
             data-testid="invoice-delivery-manual-id"
             value={selectedDeliveryId}
             onChange={(e) => onSelectDelivery(e.target.value.trim())}
-            placeholder="Paste or type delivery order ID"
+            placeholder="Leave blank to create a new order on Approve"
             style={{
               fontSize: 13,
               padding: "8px 10px",
