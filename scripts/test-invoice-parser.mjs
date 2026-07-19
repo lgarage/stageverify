@@ -26,7 +26,11 @@ import {
   expectedInvoiceLines,
   processInvoicePage,
 } from "../src/dispatcher/invoice/processInvoicePage.ts";
-import { splitExtractedTextIntoInvoiceDocuments } from "../src/dispatcher/invoice/invoiceDocumentSplit.ts";
+import {
+  PDF_ATTACHMENT_BOUNDARY,
+  splitExtractedTextIntoInvoiceDocuments,
+} from "../src/dispatcher/invoice/invoiceDocumentSplit.ts";
+import { INVOICE_PAGE_BOUNDARY } from "../src/dispatcher/invoice/pdfTextAdapter.ts";
 
 const ACCURACY_GATE = 95;
 
@@ -661,6 +665,130 @@ if (splitDocs.length !== 3) {
   }
   console.log(
     `  PASS split → 3 documents (${expectedInvoices.join(", ")})`,
+  );
+}
+
+console.log("\n--- Generic multi-invoice document split ---");
+
+const genericTwoInvoiceBlob = [
+  NOVEL_VENDOR_INVOICE_FIXTURES[0].extractedText,
+  NOVEL_VENDOR_INVOICE_FIXTURES[1].extractedText,
+].join("\n\n");
+const genericSplitDocs = splitExtractedTextIntoInvoiceDocuments(genericTwoInvoiceBlob);
+if (genericSplitDocs.length !== 2) {
+  failures.push(`generic split: expected 2 invoices, got ${genericSplitDocs.length}`);
+} else {
+  const genericExpected = [
+    NOVEL_VENDOR_FIXTURE_EXPECTATIONS["inv-monroe-equipment-001"].vendorInvoiceNumber,
+    NOVEL_VENDOR_FIXTURE_EXPECTATIONS["inv-gustave-larson-001"].vendorInvoiceNumber,
+  ];
+  for (let i = 0; i < genericSplitDocs.length; i += 1) {
+    const page = {
+      pageId: `inv-generic-split-${i}`,
+      importBatchId: "batch-generic-split",
+      pageIndexInBatch: i,
+      extractedText: genericSplitDocs[i],
+    };
+    const result = processInvoicePage(page, existing);
+    if (result.parsed.header.vendorInvoiceNumber !== genericExpected[i]) {
+      failures.push(
+        `generic split block ${i}: expected inv ${genericExpected[i]}, got ${result.parsed.header.vendorInvoiceNumber}`,
+      );
+    }
+    if (result.parserFormatId !== "generic") {
+      failures.push(
+        `generic split block ${i}: expected parserFormatId generic, got ${result.parserFormatId}`,
+      );
+    }
+  }
+  console.log(`  PASS generic concat → 2 documents (${genericExpected.join(", ")})`);
+}
+
+const fergusonA = NON_JOHNSTONE_INVOICE_FIXTURES[0].extractedText;
+const fergusonB = NON_JOHNSTONE_INVOICE_FIXTURES[2].extractedText;
+const fergusonSplitDocs = splitExtractedTextIntoInvoiceDocuments(
+  `${fergusonA}\n\n${fergusonB}`,
+);
+if (fergusonSplitDocs.length !== 2) {
+  failures.push(`ferguson split: expected 2 invoices, got ${fergusonSplitDocs.length}`);
+} else {
+  const fergusonExpected = ["FE-882145", "FE-990011"];
+  for (let i = 0; i < fergusonSplitDocs.length; i += 1) {
+    const page = {
+      pageId: `inv-ferguson-split-${i}`,
+      importBatchId: "batch-ferguson-split",
+      pageIndexInBatch: i,
+      extractedText: fergusonSplitDocs[i],
+    };
+    const result = processInvoicePage(page, existing);
+    if (result.parsed.header.vendorInvoiceNumber !== fergusonExpected[i]) {
+      failures.push(
+        `ferguson split block ${i}: expected inv ${fergusonExpected[i]}, got ${result.parsed.header.vendorInvoiceNumber}`,
+      );
+    }
+  }
+  console.log(`  PASS ferguson concat → 2 documents (${fergusonExpected.join(", ")})`);
+}
+
+const johnstonePageA = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 6164999
+Invoice #: 6164999
+Customer P/O #: MULTI PAGE SPLIT TEST
+`.trim();
+const johnstonePageB = `
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 TH8320R1003/U THERMOSTAT
+please call 605-338-2652
+`.trim();
+const johnstoneMultiPageBlob = `${johnstonePageA}${INVOICE_PAGE_BOUNDARY}${johnstonePageB}`;
+const johnstoneSplitDocs = splitExtractedTextIntoInvoiceDocuments(johnstoneMultiPageBlob);
+if (johnstoneSplitDocs.length !== 1) {
+  failures.push(
+    `johnstone multi-page split: expected 1 document, got ${johnstoneSplitDocs.length}`,
+  );
+} else {
+  const johnstonePage = {
+    pageId: "inv-johnstone-multipage-split",
+    importBatchId: "batch-johnstone-multipage-split",
+    pageIndexInBatch: 0,
+    extractedText: johnstoneSplitDocs[0],
+  };
+  const johnstoneResult = processInvoicePage(johnstonePage, existing);
+  if (johnstoneResult.parsed.header.vendorInvoiceNumber !== "6164999") {
+    failures.push(
+      `johnstone multi-page split: expected inv 6164999, got ${johnstoneResult.parsed.header.vendorInvoiceNumber}`,
+    );
+  }
+  console.log("  PASS johnstone multi-page boundary → 1 document (6164999)");
+}
+
+const attachmentSplitDocs = splitExtractedTextIntoInvoiceDocuments(
+  `${fergusonA}${PDF_ATTACHMENT_BOUNDARY}${fergusonB}`,
+);
+if (attachmentSplitDocs.length !== 2) {
+  failures.push(
+    `PDF attachment split: expected 2 invoices, got ${attachmentSplitDocs.length}`,
+  );
+} else {
+  const attachmentExpected = ["FE-882145", "FE-990011"];
+  for (let i = 0; i < attachmentSplitDocs.length; i += 1) {
+    const page = {
+      pageId: `inv-attachment-split-${i}`,
+      importBatchId: "batch-attachment-split",
+      pageIndexInBatch: i,
+      extractedText: attachmentSplitDocs[i],
+    };
+    const result = processInvoicePage(page, existing);
+    if (result.parsed.header.vendorInvoiceNumber !== attachmentExpected[i]) {
+      failures.push(
+        `PDF attachment split block ${i}: expected inv ${attachmentExpected[i]}, got ${result.parsed.header.vendorInvoiceNumber}`,
+      );
+    }
+  }
+  console.log(
+    `  PASS PDF attachment boundary → 2 documents (${attachmentExpected.join(", ")})`,
   );
 }
 
