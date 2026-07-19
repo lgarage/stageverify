@@ -8,7 +8,12 @@ import { clampListLimit, requireDispatcherAuth } from "./inboundEmail/dispatcher
 import { recoverStrandedInboundProcessingList } from "./inboundEmail/recoverStrandedProcessing";
 import { sanitizeVendorInvoiceImportForClient } from "./inboundEmail/sanitizeVendorInvoiceImport";
 import { gmailClientId, gmailClientSecret } from "./gmailApi";
-import { downloadGmailAttachment, getGmailAccessTokenForProvider } from "./gmailInbound";
+import {
+  downloadGmailAttachment,
+  fetchGmailMessage,
+  findPdfAttachments,
+  getGmailAccessTokenForProvider,
+} from "./gmailInbound";
 
 const COLLECTION = "inboundEmailProcessing";
 const IMPORTS_COLLECTION = "vendorInvoiceImports";
@@ -204,12 +209,52 @@ export const getVendorInvoicePdf = onCall(
     }
 
     const refreshToken = await loadGmailRefreshToken();
-    const accessToken = await getGmailAccessTokenForProvider(refreshToken);
-    const bytes = await downloadGmailAttachment(
-      accessToken,
-      gmailMessageId,
-      attachment.gmailAttachmentId,
-    );
+    let accessToken: string;
+    try {
+      accessToken = await getGmailAccessTokenForProvider(refreshToken);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("token refresh failed")) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Gmail connection expired. Disconnect and reconnect Gmail in Settings, then try again.",
+        );
+      }
+      throw err;
+    }
+
+    let bytes: Buffer;
+    try {
+      bytes = await downloadGmailAttachment(
+        accessToken,
+        gmailMessageId,
+        attachment.gmailAttachmentId,
+      );
+    } catch {
+      try {
+        const message = await fetchGmailMessage(accessToken, gmailMessageId);
+        const freshPdfs = findPdfAttachments(message.payload);
+        const freshAttachment =
+          freshPdfs[pageIndex] ??
+          freshPdfs.find((pdf) => pdf.attachmentId) ??
+          freshPdfs[0];
+        if (!freshAttachment?.attachmentId) {
+          throw new HttpsError(
+            "unavailable",
+            "Gmail attachment download failed. The PDF may have been moved or deleted.",
+          );
+        }
+        bytes = await downloadGmailAttachment(
+          accessToken,
+          gmailMessageId,
+          freshAttachment.attachmentId,
+        );
+      } catch {
+        throw new HttpsError(
+          "unavailable",
+          "Gmail attachment download failed. The PDF may have been moved or deleted.",
+        );
+      }
+    }
     if (bytes.length > MAX_PDF_BYTES) {
       throw new HttpsError(
         "failed-precondition",

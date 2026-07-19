@@ -60,6 +60,9 @@ function callableErrorMessage(error: unknown): string | null {
 export function vendorInvoicePdfUnavailableMessage(error: unknown): string {
   const message = callableErrorMessage(error);
   if (message) {
+    if (/connection expired|reconnect Gmail/i.test(message)) {
+      return "Gmail connection expired. Disconnect and reconnect Gmail in Settings, then try again.";
+    }
     if (/not connected|credentials|refresh token/i.test(message)) {
       return "Invoice PDF unavailable — Gmail is not connected for inbound sync.";
     }
@@ -71,5 +74,5 @@ export function vendorInvoicePdfUnavailableMessage(error: unknown): string {
     }
     return message;
   }
-  return "Invoice PDF could not be loaded — server error while fetching the Gmail attachment.";
+  return "Invoice PDF could not be loaded. If Gmail was recently re-authorized, disconnect and reconnect Gmail in Settings, then try again.";
 }

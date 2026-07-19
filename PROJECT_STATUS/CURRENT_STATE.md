@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.65** — Clarify empty Delivery ID: optional; Approve creates shell (delivery-vii-*). Match UI copy + will-create banner.
+- Last shipped: **v0.0.66** ? Invoice PDF: actionable Gmail reconnect errors + stale attachment re-fetch CF; match candidate selection uses navy (not error-red).
 - Active Phase: **Location-first Phase 4 complete** — MVP done; queue empty except blocked away-069.
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

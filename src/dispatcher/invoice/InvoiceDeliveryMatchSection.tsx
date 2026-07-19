@@ -6,7 +6,6 @@ import {
 import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 
 const NAVY = "#0a3161";
-const RED = "#bf0a30";
 
 export function InvoiceDeliveryMatchSection({
   importRow,
@@ -114,12 +113,12 @@ export function InvoiceDeliveryMatchSection({
                     padding: "8px 10px",
                     border:
                       selectedDeliveryId === c.deliveryId
-                        ? `2px solid ${RED}`
+                        ? `2px solid ${NAVY}`
                         : "1px solid #e0e3e8",
                     borderRadius: 6,
                     cursor: "pointer",
                     backgroundColor:
-                      selectedDeliveryId === c.deliveryId ? "#fff5f7" : "#fff",
+                      selectedDeliveryId === c.deliveryId ? "#eef2ff" : "#fff",
                   }}
                 >
                   <input

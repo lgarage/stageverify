@@ -155,8 +155,36 @@ exports.getVendorInvoicePdf = (0, https_1.onCall)({
         throw new https_1.HttpsError("failed-precondition", "No PDF attachment metadata on this inbound email.");
     }
     const refreshToken = await loadGmailRefreshToken();
-    const accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
-    const bytes = await (0, gmailInbound_1.downloadGmailAttachment)(accessToken, gmailMessageId, attachment.gmailAttachmentId);
+    let accessToken;
+    try {
+        accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
+    }
+    catch (err) {
+        if (err instanceof Error && err.message.includes("token refresh failed")) {
+            throw new https_1.HttpsError("failed-precondition", "Gmail connection expired. Disconnect and reconnect Gmail in Settings, then try again.");
+        }
+        throw err;
+    }
+    let bytes;
+    try {
+        bytes = await (0, gmailInbound_1.downloadGmailAttachment)(accessToken, gmailMessageId, attachment.gmailAttachmentId);
+    }
+    catch {
+        try {
+            const message = await (0, gmailInbound_1.fetchGmailMessage)(accessToken, gmailMessageId);
+            const freshPdfs = (0, gmailInbound_1.findPdfAttachments)(message.payload);
+            const freshAttachment = freshPdfs[pageIndex] ??
+                freshPdfs.find((pdf) => pdf.attachmentId) ??
+                freshPdfs[0];
+            if (!freshAttachment?.attachmentId) {
+                throw new https_1.HttpsError("unavailable", "Gmail attachment download failed. The PDF may have been moved or deleted.");
+            }
+            bytes = await (0, gmailInbound_1.downloadGmailAttachment)(accessToken, gmailMessageId, freshAttachment.attachmentId);
+        }
+        catch {
+            throw new https_1.HttpsError("unavailable", "Gmail attachment download failed. The PDF may have been moved or deleted.");
+        }
+    }
     if (bytes.length > MAX_PDF_BYTES) {
         throw new https_1.HttpsError("failed-precondition", "Invoice PDF exceeds maximum download size.");
     }
