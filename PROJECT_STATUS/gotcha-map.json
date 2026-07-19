@@ -896,7 +896,7 @@
         "reporting security gate PASS",
         "ship verifier evidence"
       ],
-      "warning": "When claude-4.6-sonnet allowlist slugs are unavailable, security-review may run on claude-sonnet-5-thinking-high with substantive PASS — Ship Verifier can still FAIL process (harness NOT RUN per D-38). Record fallback-from + actual slug in commit; do not treat UI label or self-review as gate PASS. Re-run with first accepted allowlist slug when platform accepts it (observed dismiss/undo ships 2026-07-18)."
+      "warning": "When BOTH D-38 Sonnet 4.6 allowlist slugs are platform-rejected, STOP — gate NOT RUN; do not push CF/auth/rules; do NOT substitute claude-sonnet-5-thinking-high (or Opus/Composer). Sonnet 5 only after Dan one-shot + verifier-log calibration + ALLOWED_GATE_MODELS update same commit. Pre-push gate-check already rejects non-allowlist model lines — install hooks via npm prepare / node scripts/install-git-hooks.mjs (pain: v0.0.59–61 Sonnet 5 theater 2026-07-18)."
     },
     {
       "id": "functions-lib-stale-build-dirty",

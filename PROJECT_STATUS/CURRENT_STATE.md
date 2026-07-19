@@ -15,6 +15,7 @@
 1. **Shelving decision (Jake Korb)** — shop map / location IDs.
 2. **Physical shop map** — not created (blocks sign printing only).
 3. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
+4. **Sonnet 4.6 security gate undispatchable** — Cursor Task tool rejects both D-38 slugs; CF/auth/rules ships blocked until 4.6 returns or Dan one-shots Sonnet 5 promote ritual (D-38).
 
 ## Immediate Next Step
 - **Post-queue:** see `docs/project_state.md` immediate next steps.
