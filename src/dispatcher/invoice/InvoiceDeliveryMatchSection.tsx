@@ -1,4 +1,8 @@
 import type { DeliveryListRow, InvoiceDeliveryMatchCandidate, InvoiceMatchResult, VendorInvoiceImportReview } from "../models";
+import {
+  formatInvoiceMatchReasonList,
+  formatInvoiceMatchReasons,
+} from "./invoiceMatchReasonLabels";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -77,7 +81,7 @@ export function InvoiceDeliveryMatchSection({
             data-testid="invoice-delivery-match-confidence"
             style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}
           >
-            {matchResult.confidenceReason} (score {matchResult.confidenceScore})
+            {formatInvoiceMatchReasons(matchResult.confidenceReason)}
           </p>
           {matchResult.candidates.length === 0 && (
             <p
@@ -120,7 +124,7 @@ export function InvoiceDeliveryMatchSection({
                       {c.orderNumber}
                     </div>
                     <div style={{ fontSize: 11, color: "#6b7280" }}>
-                      {c.matchReasons.join(" · ")} · score {c.confidenceScore}
+                      {formatInvoiceMatchReasonList(c.matchReasons)}
                     </div>
                   </div>
                 </label>
