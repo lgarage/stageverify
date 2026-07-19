@@ -42,7 +42,9 @@ function phraseMatches(query, phrase) {
   const qTokens = q.split(/\s+/).filter(Boolean);
   const pTokens = p.split(/\s+/).filter(Boolean);
   if (pTokens.length > 1) return false;
-  return pTokens.some((t) => t.length >= 3 && qTokens.some((qt) => qt.includes(t) || t.includes(qt)));
+  // Require both sides ≥3 chars so short query tokens ("in","no","or") cannot
+  // substring-match long camelCase/hyphenated phrases (demo-packet false positives).
+  return pTokens.some((t) => t.length >= 3 && qTokens.some((qt) => qt.length >= 3 && (qt.includes(t) || t.includes(qt))));
 }
 
 /** @param {string} task @param {GotchaTrigger[]} triggers */

@@ -180,7 +180,10 @@
         "reset pickup fixture",
         "ORD-004",
         "hasText: /^View$/",
-        "verify:phase14-e2e:prod"
+        "verify:phase14-e2e:prod",
+        "approved invoice missing",
+        "missing from deliveries",
+        "approved not on deliveries"
       ],
       "orchestratorSteps": [7],
       "dossierTags": ["agent-lessons"],
@@ -485,8 +488,16 @@
         "vendor invoice",
         "johnstone invoice",
         "approve vendor invoice import",
-        "vendorInvoiceImports",
-        "invoice review"
+        "approve vendor invoice",
+        "invoice review",
+        "invoice header missing vendorOrderNumber",
+        "approve invoice",
+        "match auto-fill",
+        "approved invoice missing",
+        "missing from deliveries",
+        "match candidate",
+        "delivery match",
+        "optional delivery id"
       ],
       "orchestratorSteps": [6, 7],
       "dossierTags": ["backend-critical"],
@@ -499,8 +510,18 @@
       "rules": ["product-guardrails.mdc", "ship-loop.mdc"],
       "commands": [
         "npm run verify:inbound-email-ingest",
-        "npm run verify:invoice-review"
-      ]
+        "npm run verify:invoice-review",
+        "npm run test:approve-vendor-invoice-import"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "approve invoice",
+        "debugging approve failure",
+        "approved invoice not on Deliveries",
+        "invoice match UI",
+        "claiming approve fixed"
+      ],
+      "warning": "Invoice approve: (1) Identity is OR — vendorOrderNumber OR customerPo; do NOT hard-require S/O alone when parser left SO empty (symptom: Invoice header missing vendorOrderNumber). (2) Match auto-fill links an existing delivery → Approve skips create_shell; prod hideSeedDemoRows hides deliveries without vendorInvoiceImportId — linked historical rows look missing until Refresh Now / create_shell stamps the id. (3) Match UI: humanize snake_case, hide (score N), selection = navy not brand RED, Optional Delivery ID must read optional. Gate: test:approve-vendor-invoice-import + verify:invoice-review."
     },
     {
       "id": "inbound-email",
@@ -583,7 +604,11 @@
         "settings shows connected",
         "sync failed token",
         "gmail connected dead token",
-        "mailbox connected sync broken"
+        "mailbox connected sync broken",
+        "view original pdf",
+        "View original PDF",
+        "invoice pdf error",
+        "pdf callable INTERNAL"
       ],
       "orchestratorSteps": [6, 7],
       "dossierTags": ["backend-critical", "agent-lessons"],
@@ -606,9 +631,11 @@
         "debugging empty invoice review",
         "gmail ingest not working",
         "inbound sync returns 0",
-        "PDF invoice not appearing after forward"
+        "PDF invoice not appearing after forward",
+        "View original PDF fails",
+        "generic server error on invoice PDF"
       ],
-      "warning": "Settings can show Gmail Connected while the stored OAuth refresh token is dead or revoked — Cloud Functions logs token refresh failed: 400 (gmailApi.ts). syncInboundGmail does NOT update emailProviderConnections status to token_expired on refresh failure (sendVendorEmail does). Symptom: Connected UI + Refresh Now → 0 invoices / sync errors. Fix: Settings Disconnect → Reconnect OAuth. Do NOT debug parser, Pub/Sub, or push ingest until token refresh succeeds."
+      "warning": "Settings can show Gmail Connected while the stored OAuth refresh token is dead or revoked — Cloud Functions logs token refresh failed: 400 (gmailApi.ts). syncInboundGmail does NOT update emailProviderConnections status to token_expired on refresh failure (sendVendorEmail does). Symptom: Connected UI + Refresh Now → 0 invoices / sync errors; also View original PDF may surface generic INTERNAL when the CF swallows the dead-token cause. Fix: Settings Disconnect → Reconnect OAuth. Do NOT debug parser, Pub/Sub, or push ingest until token refresh succeeds; prefer actionable client errors over INTERNAL for auth/token failures."
     },
     {
       "id": "gmail-sync-banner",
