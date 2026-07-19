@@ -74,6 +74,32 @@ async function main() {
     }
   }
 
+  // Floor-plan orientation: vertical shelf units with level-pair labels
+  for (const unit of ["S1", "S2"]) {
+    const labels = page.getByTestId(`shop-shelf-${unit}-labels`);
+    if (!(await labels.isVisible())) {
+      throw new Error(`Missing shelf level labels for ${unit}`);
+    }
+    const labelText = await labels.innerText();
+    if (!/A\+G/i.test(labelText) || !/F\+L/i.test(labelText)) {
+      throw new Error(
+        `Shelf ${unit} labels missing A+G/F+L pairing. Got: ${labelText}`,
+      );
+    }
+  }
+
+  // S1A (bottom level) should sit below S1F (top level) on screen
+  const s1aBox = await page.getByTestId("shop-spot-S1A").boundingBox();
+  const s1fBox = await page.getByTestId("shop-spot-S1F").boundingBox();
+  if (!s1aBox || !s1fBox) {
+    throw new Error("Could not measure S1A/S1F bounding boxes");
+  }
+  if (s1aBox.y <= s1fBox.y) {
+    throw new Error(
+      `S1A should be below S1F (vertical unit). S1A.y=${s1aBox.y} S1F.y=${s1fBox.y}`,
+    );
+  }
+
   // Hover free or occupied — card should appear
   await page.getByTestId("shop-spot-G1").hover();
   await page.waitForTimeout(400);

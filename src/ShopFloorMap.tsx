@@ -5,6 +5,7 @@ import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
   SHOP_MAP_GROUND_LEFT,
   SHOP_MAP_GROUND_TOP,
+  SHOP_MAP_SHELF_LEVELS,
   SHOP_MAP_SHELF_UNITS,
   allShopMapSpotCodes,
   shelfSpotCode,
@@ -21,9 +22,6 @@ import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDispla
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const NAVY = "#0a3161";
-
-const SHELF_TOP_ROW = ["A", "B", "C", "D", "E", "F"] as const;
-const SHELF_BOTTOM_ROW = ["G", "H", "I", "J", "K", "L"] as const;
 
 type HoverInfo =
   | { kind: "free"; code: string }
@@ -68,6 +66,7 @@ function groundSpotStyle(color: SpotMapColor): CSSProperties {
   };
 }
 
+/** CAD-style cubby: black frame, dark cavity, colored floor slab, readable label. */
 function ShelfCubby({
   code,
   color,
@@ -94,21 +93,24 @@ function ShelfCubby({
       onMouseLeave={onLeave}
       onClick={onClick}
       style={{
+        position: "relative",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
-        width: 56,
-        height: 50,
+        width: 58,
+        height: 52,
         padding: 0,
         border: "2px solid #0a0a0a",
-        borderRadius: 2,
-        backgroundColor: "#2a2a2a",
+        borderRadius: 1,
+        backgroundColor: "#1f1f1f",
         cursor: "pointer",
         overflow: "hidden",
         fontFamily: FONT,
         userSelect: "none",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.35)",
+          "inset 4px 0 6px rgba(0,0,0,0.45), inset -4px 0 6px rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.08), 0 3px 6px rgba(0,0,0,0.25)",
+        transform: "perspective(140px) rotateX(4deg)",
+        transformOrigin: "center bottom",
       }}
     >
       <span
@@ -118,27 +120,29 @@ function ShelfCubby({
           alignItems: "center",
           justifyContent: "center",
           fontWeight: 800,
-          fontSize: 14,
-          color: "#f8fafc",
-          letterSpacing: 0.2,
+          fontSize: 15,
+          color: "#f1f5f9",
+          letterSpacing: 0.3,
+          textShadow: "0 1px 2px rgba(0,0,0,0.6)",
         }}
       >
         {shortLabel}
       </span>
       <div
         style={{
-          height: "36%",
-          minHeight: 16,
+          height: "38%",
+          minHeight: 18,
           backgroundColor: floorColor,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderTop: "1px solid rgba(0,0,0,0.45)",
+          borderTop: "2px solid rgba(0,0,0,0.55)",
+          boxShadow: "inset 0 3px 6px rgba(0,0,0,0.2)",
         }}
       >
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 800,
             color: floorFg,
             opacity: color === "green" ? 0 : 0.95,
@@ -149,6 +153,118 @@ function ShelfCubby({
         </span>
       </div>
     </button>
+  );
+}
+
+function VerticalShelfUnit({
+  unit,
+  colorOf,
+  onEnter,
+  onLeave,
+  onClickSpot,
+}: {
+  unit: (typeof SHOP_MAP_SHELF_UNITS)[number];
+  colorOf: (code: string) => SpotMapColor;
+  onEnter: (code: string) => void;
+  onLeave: () => void;
+  onClickSpot: (code: string) => void;
+}) {
+  const levelRowHeight = 56;
+
+  return (
+    <div
+      data-testid={`shop-shelf-${unit}`}
+      style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
+    >
+      {/* Pair labels beside unit — bottom→top A+G … F+L */}
+      <div
+        data-testid={`shop-shelf-${unit}-labels`}
+        style={{
+          display: "flex",
+          flexDirection: "column-reverse",
+          gap: 6,
+          paddingBottom: 4,
+        }}
+      >
+        {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => (
+          <div
+            key={`${unit}-${a}${b}`}
+            style={{
+              height: levelRowHeight,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              fontWeight: 800,
+              fontSize: 13,
+              color: "#475569",
+              letterSpacing: 0.2,
+              minWidth: 36,
+            }}
+          >
+            {a}+{b}
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <div
+          style={{
+            fontWeight: 800,
+            color: NAVY,
+            marginBottom: 10,
+            fontSize: 17,
+            textAlign: "center",
+          }}
+        >
+          {unit}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column-reverse",
+            gap: 6,
+            border: "4px solid #0a0a0a",
+            borderRadius: 3,
+            padding: 8,
+            backgroundColor: "#0f0f0f",
+            boxShadow:
+              "inset 0 3px 8px rgba(0,0,0,0.55), 4px 6px 14px rgba(0,0,0,0.22)",
+            perspective: "900px",
+          }}
+        >
+          {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
+            const codeA = shelfSpotCode(unit, a);
+            const codeB = shelfSpotCode(unit, b);
+            return (
+              <div
+                key={`${unit}-level-${a}${b}`}
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  minHeight: levelRowHeight,
+                  alignItems: "flex-end",
+                }}
+              >
+                <ShelfCubby
+                  code={codeA}
+                  color={colorOf(codeA)}
+                  onEnter={() => onEnter(codeA)}
+                  onLeave={onLeave}
+                  onClick={() => onClickSpot(codeA)}
+                />
+                <ShelfCubby
+                  code={codeB}
+                  color={colorOf(codeB)}
+                  onEnter={() => onEnter(codeB)}
+                  onLeave={onLeave}
+                  onClick={() => onClickSpot(codeB)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -271,7 +387,7 @@ export function ShopFloorMap({
           minHeight: 560,
         }}
       >
-        {/* Left ground column G1–G4 */}
+        {/* Left ground column G1–G4 (bottom→top on floor plan) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {SHOP_MAP_GROUND_LEFT.map((code) => (
             <button
@@ -290,7 +406,7 @@ export function ShopFloorMap({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Top ground row G5–G12 */}
+          {/* Top ground row G5–G12 — L-shape leg */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {SHOP_MAP_GROUND_TOP.map((code) => (
               <button
@@ -308,77 +424,26 @@ export function ShopFloorMap({
             ))}
           </div>
 
-          {/* Shelves S1 / S2 — CAD-style 2×6 grid */}
-          <div style={{ display: "flex", gap: 40, flexWrap: "wrap" }}>
+          {/* Shelves S1 / S2 — vertical units (floor-plan orientation) */}
+          <div
+            style={{
+              display: "flex",
+              gap: 48,
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              paddingTop: 8,
+            }}
+          >
             {SHOP_MAP_SHELF_UNITS.map((unit) => (
-              <div key={unit} data-testid={`shop-shelf-${unit}`}>
-                <div
-                  style={{
-                    fontWeight: 800,
-                    color: NAVY,
-                    marginBottom: 10,
-                    fontSize: 16,
-                  }}
-                >
-                  {unit}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    border: "3px solid #0a0a0a",
-                    borderRadius: 4,
-                    padding: 10,
-                    backgroundColor: "#1a1a1a",
-                    boxShadow:
-                      "inset 0 2px 6px rgba(0,0,0,0.5), 0 4px 10px rgba(0,0,0,0.18)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(6, 1fr)",
-                      gap: 5,
-                    }}
-                  >
-                    {SHELF_TOP_ROW.map((letter) => {
-                      const code = shelfSpotCode(unit, letter);
-                      return (
-                        <ShelfCubby
-                          key={code}
-                          code={code}
-                          color={colorOf(code)}
-                          onEnter={() => void onEnter(code)}
-                          onLeave={() => setHover(null)}
-                          onClick={() => onClickSpot(code)}
-                        />
-                      );
-                    })}
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(6, 1fr)",
-                      gap: 5,
-                    }}
-                  >
-                    {SHELF_BOTTOM_ROW.map((letter) => {
-                      const code = shelfSpotCode(unit, letter);
-                      return (
-                        <ShelfCubby
-                          key={code}
-                          code={code}
-                          color={colorOf(code)}
-                          onEnter={() => void onEnter(code)}
-                          onLeave={() => setHover(null)}
-                          onClick={() => onClickSpot(code)}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+              <VerticalShelfUnit
+                key={unit}
+                unit={unit}
+                colorOf={colorOf}
+                onEnter={(code) => void onEnter(code)}
+                onLeave={() => setHover(null)}
+                onClickSpot={onClickSpot}
+              />
             ))}
           </div>
         </div>
@@ -527,7 +592,9 @@ export function ShopFloorMap({
                 borderRadius: 3,
                 backgroundColor: SPOT_MAP_COLORS[color],
                 border:
-                  color === "orange" ? "1px solid #ca8a04" : "1px solid rgba(0,0,0,0.12)",
+                  color === "orange"
+                    ? "1px solid #ca8a04"
+                    : "1px solid rgba(0,0,0,0.12)",
                 display: "inline-block",
               }}
             />
