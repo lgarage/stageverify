@@ -875,7 +875,60 @@
       "files": [],
       "rules": [],
       "commands": [],
-      "warning": "Windows PowerShell 5 rejects `&&` chaining — \"The token '&&' is not a valid statement separator\" (unlike PS7+/bash). Shell commands on this machine run under PS5-compatible PowerShell: never write `cmd1 && cmd2`. Use `;` when the second command can run regardless of the first's failure; when it must only run on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08)."
+      "warning": "Windows PowerShell 5 rejects `&&` chaining — \"The token '&&' is not a valid statement separator\" (unlike PS7+/bash). Shell commands on this machine run under PS5-compatible PowerShell: never write `cmd1 && cmd2`. Use `;` when the second command can run regardless of the first's failure; when it must only run on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08). Also: bash HEREDOC (`cat <<'EOF'`) is not valid in PS5 — use `git commit -m \"title\" -m \"body\"` or a here-string (`@'...'@`) instead (observed 2026-07-19)."
+    },
+    {
+      "id": "shop-map-pending-overlap-click",
+      "match": [
+        "shop-map",
+        "staging map",
+        "verify:shop-map",
+        "shop-spot",
+        "intercepts pointer events",
+        "pending offset",
+        "map edit drag",
+        "force: true shop map"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "src/ShopFloorMap.tsx",
+        "scripts/verify-shop-map.mjs"
+      ],
+      "rules": [],
+      "commands": ["npm run verify:shop-map"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "verify:shop-map",
+        "Staging Map edit Playwright",
+        "map edit Cancel/Undo tests"
+      ],
+      "warning": "Staging Map edit: a pending drag can leave a spot under another chip. Playwright normal click then times out (observed: `… intercepts pointer events`). Not a product bug. Workarounds: `{ force: true }`, Undo to clear pending, or Cancel while still selected. Also: Cancel is per-object only — other spots’ pending maps stay; verify that expects full-session Cancel will fail (v0.0.87, 2026-07-19)."
+    },
+    {
+      "id": "task-model-slug-grok",
+      "match": [
+        "grok-4.5-fast-xhigh",
+        "cursor-grok-4.5-high-fast",
+        "Model could not be resolved",
+        "Invalid model selection",
+        "ship verifier model",
+        "Task model slug"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": [],
+      "rules": ["model-gates.mdc"],
+      "commands": [],
+      "gateCandidate": true,
+      "injectBefore": [
+        "Ship Verifier Task",
+        "Planning/Q&A/Repair Verifier Task",
+        "dispatching Grok via Task"
+      ],
+      "warning": "Task `model` must resolve on the current platform allowlist. On 2026-07-19 v0.0.87 ship-verifier dispatch, `grok-4.5-fast-xhigh` (still named in some rules) was rejected once with \"Model could not be resolved\"; retry with `cursor-grok-4.5-high-fast` succeeded. Same slug may work or fail across sessions — on rejection, retry once using a slug from the error’s Allowed model slugs list."
     },
     {
       "id": "subagent-transcript-stuck",
