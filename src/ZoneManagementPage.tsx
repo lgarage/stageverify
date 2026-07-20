@@ -57,7 +57,7 @@ import {
   withExtraShelfUnit,
   type ShopMapLayoutExtras,
 } from "./dispatcher/shopMapLayout";
-import type { MapZoneSavePayload } from "./ShopFloorMap";
+import type { MapZoneSavePayload, ShopFloorMapHandle } from "./ShopFloorMap";
 import { ShopFloorMap } from "./ShopFloorMap";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 
@@ -285,6 +285,7 @@ export function ZoneManagementPage() {
   );
   const [showZoneTools, setShowZoneTools] = useState(false);
   const [mapEditMode, setMapEditMode] = useState(false);
+  const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
   const liveOccupancy = useLiveZoneOccupancy(true);
 
@@ -713,10 +714,18 @@ export function ZoneManagementPage() {
                 type="button"
                 data-testid="shop-map-edit-mode-toggle"
                 onClick={() => {
-                  setMapEditMode((v) => {
-                    if (v) setSelectedDeliveryId(null);
-                    return !v;
-                  });
+                  if (mapEditMode) {
+                    void (async () => {
+                      const ok = mapRef.current
+                        ? await mapRef.current.persistAllPendingEdits()
+                        : true;
+                      if (!ok) return;
+                      setSelectedDeliveryId(null);
+                      setMapEditMode(false);
+                    })();
+                  } else {
+                    setMapEditMode(true);
+                  }
                 }}
                 style={{
                   padding: "8px 18px",
@@ -784,6 +793,7 @@ export function ZoneManagementPage() {
 
           <div className="shop-floor-map-host" style={{ ...cardStyle, padding: 16 }}>
             <ShopFloorMap
+              ref={mapRef}
               occupancyByZoneCode={
                 liveOccupancy.ready
                   ? liveOccupancy.occupancyByZoneCode

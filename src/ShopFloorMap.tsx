@@ -1,8 +1,10 @@
 import {
+  forwardRef,
   useMemo,
   useState,
   useCallback,
   useRef,
+  useImperativeHandle,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -80,6 +82,10 @@ type Props = {
   onPersistLayoutExtras?: (next: ShopMapLayoutExtras) => Promise<void>;
   /** Deactivate zone docs for deleted layout slots after Save. */
   onDeactivateSlots?: (slots: string[]) => Promise<void>;
+};
+
+export type ShopFloorMapHandle = {
+  persistAllPendingEdits: () => Promise<boolean>;
 };
 
 const UNDO_STACK_CAP = 30;
@@ -201,20 +207,24 @@ function spotStyle(
   };
 }
 
-export function ShopFloorMap({
-  occupancyByZoneCode,
-  shopStockByCode,
-  onOpenDelivery,
-  editMode = false,
-  zonesByLayoutSlot = {},
-  onSaveZone,
-  layout: layoutProp,
-  onAddGroundSpot,
-  onAddShelf,
-  onAddSpotToShelf,
-  onPersistLayoutExtras,
-  onDeactivateSlots,
-}: Props) {
+export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
+  function ShopFloorMap(
+    {
+      occupancyByZoneCode,
+      shopStockByCode,
+      onOpenDelivery,
+      editMode = false,
+      zonesByLayoutSlot = {},
+      onSaveZone,
+      layout: layoutProp,
+      onAddGroundSpot,
+      onAddShelf,
+      onAddSpotToShelf,
+      onPersistLayoutExtras,
+      onDeactivateSlots,
+    },
+    ref,
+  ) {
   const [pendingHidden, setPendingHidden] = useState<string[]>([]);
   const layout = useMemo(() => {
     const base = layoutProp ?? resolveShopMapLayout();
@@ -731,8 +741,8 @@ export function ShopFloorMap({
     setSaveError(null);
   }, [selectedSlots, selectedLayoutSlot, layout]);
 
-  const persistEdit = async () => {
-    if ((!onSaveZone && pendingHidden.length === 0) || saving) return;
+  const persistEdit = useCallback(async (): Promise<boolean> => {
+    if (saving) return false;
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
     const flushedRotations = { ...pendingRotations };
@@ -765,7 +775,9 @@ export function ShopFloorMap({
       ...Object.keys(flushedSizes),
       ...multi,
     ]);
-    if (slotsToSave.size === 0 && pendingHidden.length === 0) return;
+    if (slotsToSave.size === 0 && pendingHidden.length === 0) return true;
+    if (pendingHidden.length > 0 && !onPersistLayoutExtras) return false;
+    if (slotsToSave.size > 0 && !onSaveZone) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -798,7 +810,7 @@ export function ShopFloorMap({
         setPendingHidden([]);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
-        return;
+        return true;
       }
       for (const slot of slotsToSave) {
         const zone = zoneForLayoutSlot(slot);
@@ -885,12 +897,44 @@ export function ShopFloorMap({
       setPendingHidden([]);
       undoStackRef.current = [];
       setUndoDepth(0);
+      return true;
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
+      return false;
     } finally {
       setSaving(false);
     }
-  };
+  }, [
+    saving,
+    pendingOffsets,
+    pendingLabels,
+    pendingRotations,
+    pendingSizes,
+    pendingHidden,
+    selectedLayoutSlot,
+    editOffsetX,
+    editOffsetY,
+    editLabel,
+    editCode,
+    editWidth,
+    editHeight,
+    editRotationDeg,
+    selectedSlots,
+    onSaveZone,
+    onPersistLayoutExtras,
+    onDeactivateSlots,
+    layoutProp,
+    layout,
+    zoneForLayoutSlot,
+  ]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      persistAllPendingEdits: () => persistEdit(),
+    }),
+    [persistEdit],
+  );
 
   const markSelectionDeleted = () => {
     const slot = selectedLayoutSlot;
@@ -2430,7 +2474,8 @@ export function ShopFloorMap({
       </div>
     </div>
   );
-}
+  },
+);
 
 const nudgeBtnStyle: CSSProperties = {
   padding: "4px 8px",

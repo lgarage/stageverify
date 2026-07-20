@@ -657,6 +657,60 @@ async function main() {
   await page.getByTestId("shop-map-edit-save").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
 
+  // Done editing persists pending offset without explicit Save
+  const offsetBeforeDoneEdit = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await page.getByTestId("shop-map-nudge-right").click();
+  const offsetAfterDoneNudge = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (offsetAfterDoneNudge <= offsetBeforeDoneEdit) {
+    throw new Error(
+      `Done-editing test: nudge should increase offset. before=${offsetBeforeDoneEdit} after=${offsetAfterDoneNudge}`,
+    );
+  }
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "hidden",
+    timeout: 10000,
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByTestId("shop-floor-map").waitFor({
+    state: "visible",
+    timeout: 30000,
+  });
+  const g1AfterDoneReload = page.getByTestId("shop-spot-G1");
+  await g1AfterDoneReload.waitFor({ state: "visible" });
+  const offsetAfterDoneReload = Number(
+    (await g1AfterDoneReload.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (offsetAfterDoneReload !== offsetAfterDoneNudge) {
+    throw new Error(
+      `Done editing should persist offset after reload. expected=${offsetAfterDoneNudge} got=${offsetAfterDoneReload}`,
+    );
+  }
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "visible",
+    timeout: 5000,
+  });
+  await g1AfterDoneReload.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await page.getByTestId("shop-map-nudge-reset").click();
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "hidden",
+    timeout: 10000,
+  });
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "visible",
+    timeout: 5000,
+  });
+
   // Marquee multi-select: drag box over G1+G2, move together, cancel
   const canvas = page.getByTestId("shop-map-canvas");
   await canvas.scrollIntoViewIfNeeded();
