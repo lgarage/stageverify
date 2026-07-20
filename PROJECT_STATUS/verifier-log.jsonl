@@ -28,3 +28,6 @@
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"2abe4df5-141a-459a-aa81-9d7f0cbe212c","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-07-20","role":"qa","verdict":"PASS","taskId":"07ea83d1-bcc8-426a-928c-5d0d1c91748e","model":"cursor-grok-4.5-high-fast","real":"na","note":"staging map five features"}
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"b932f2bf-bae6-408b-bea9-dc0e4c32a356","model":"grok-4.5-fast-xhigh","real":"na","note":"v0.0.83 marquee shelf print"}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"20fb56e6-2f2f-4f54-b840-2b0e13b13778","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"qa","verdict":"PASS","taskId":"f3bfc1ae-1afc-421c-a070-a7a0096f5e25","model":"cursor-grok-4.5-high-fast","real":"na","note":"shop-map snap-back + shelf rename behavior"}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"9ac8075c-2724-4422-b894-64eccde5aa4c","model":"grok-4.5-fast-xhigh","real":"na","note":""}
