@@ -22,6 +22,8 @@ import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDispla
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const NAVY = "#0a3161";
+/** Outer S1/S2 frame stroke — internal bay dividers must match exactly. */
+const SHELF_FRAME_STROKE = "2px solid #64748b";
 
 type HoverInfo =
   | { kind: "free"; code: string }
@@ -282,7 +284,7 @@ export function ShopFloorMap({
                       display: "flex",
                       flexDirection: "column-reverse",
                       gap: 0,
-                      border: "2px solid #64748b",
+                      border: SHELF_FRAME_STROKE,
                       backgroundColor: "#fff",
                       boxSizing: "border-box",
                     }}
@@ -296,8 +298,12 @@ export function ShopFloorMap({
                           height: 52,
                           boxSizing: "border-box",
                           backgroundColor: "#fff",
+                          /*
+                           * column-reverse (A at visual bottom): borderTop on B–F draws every
+                           * adjacent seam, including A/G↔B/H and E/K↔F/L — same stroke as frame.
+                           */
                           borderTop:
-                            levelIndex === 0 ? "none" : "1px solid #94a3b8",
+                            levelIndex === 0 ? "none" : SHELF_FRAME_STROKE,
                         }}
                       />
                     ))}
