@@ -420,7 +420,162 @@ async function main() {
   await codeInput.fill(priorCode);
   await page.getByTestId("shop-map-nudge-reset").click();
   await page.getByTestId("shop-map-edit-save").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
+  // Marquee multi-select: drag box over G1+G2, move together, cancel
+  const canvas = page.getByTestId("shop-map-canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  await g1.scrollIntoViewIfNeeded();
+  await page.getByTestId("shop-spot-G2").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
+  const g1BoxM = await g1.boundingBox();
+  const g2BoxM = await page.getByTestId("shop-spot-G2").boundingBox();
+  if (!g1BoxM || !g2BoxM) throw new Error("Could not measure G1/G2 for marquee");
+  const canvasBox = await canvas.boundingBox();
+  if (!canvasBox) throw new Error("Could not measure shop-map-canvas");
+  if (g1BoxM.y < 0 || g2BoxM.y < 0) {
+    throw new Error(
+      `G1/G2 off-screen for marquee. G1.y=${g1BoxM.y} G2.y=${g2BoxM.y}`,
+    );
+  }
+  // Clamp marquee to canvas so pointerdown hits the map surface, not chrome
+  const mLeft = Math.max(
+    canvasBox.x + 8,
+    Math.min(g1BoxM.x, g2BoxM.x) - 6,
+  );
+  const mTop = Math.max(
+    canvasBox.y + 8,
+    Math.min(g1BoxM.y, g2BoxM.y) - 6,
+  );
+  const mRight = Math.min(
+    canvasBox.x + canvasBox.width - 8,
+    Math.max(g1BoxM.x + g1BoxM.width, g2BoxM.x + g2BoxM.width) + 6,
+  );
+  const mBottom = Math.min(
+    canvasBox.y + canvasBox.height - 8,
+    Math.max(g1BoxM.y + g1BoxM.height, g2BoxM.y + g2BoxM.height) + 6,
+  );
+  await page.mouse.move(mLeft, mTop);
+  await page.mouse.down();
+  await page.mouse.move(mRight, mBottom, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const multiHint = page.getByTestId("shop-map-multi-hint");
+  if (!(await multiHint.isVisible())) {
+    throw new Error("Marquee should select multiple spots (shop-map-multi-hint)");
+  }
+  const g1OxBeforeMulti = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const g2OxBeforeMulti = Number(
+    (await page.getByTestId("shop-spot-G2").getAttribute("data-map-offset-x")) ??
+      "0",
+  );
+  const g1Center = {
+    x: g1BoxM.x + g1BoxM.width / 2,
+    y: g1BoxM.y + g1BoxM.height / 2,
+  };
+  await page.mouse.move(g1Center.x, g1Center.y);
+  await page.mouse.down();
+  await page.mouse.move(g1Center.x + 36, g1Center.y + 12, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const g1OxAfterMulti = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const g2OxAfterMulti = Number(
+    (await page.getByTestId("shop-spot-G2").getAttribute("data-map-offset-x")) ??
+      "0",
+  );
+  if (g1OxAfterMulti <= g1OxBeforeMulti || g2OxAfterMulti <= g2OxBeforeMulti) {
+    throw new Error(
+      `Marquee group drag should move G1 and G2. G1 ${g1OxBeforeMulti}→${g1OxAfterMulti} G2 ${g2OxBeforeMulti}→${g2OxAfterMulti}`,
+    );
+  }
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
+  // Shelf frame move: drag S1 frame — frame + chips translate together
+  const s1Frame = page.getByTestId("shop-shelf-S1-frame");
+  if (!(await s1Frame.isVisible())) {
+    throw new Error("Missing shop-shelf-S1-frame");
+  }
+  await s1Frame.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
+  const s1Shelf = page.getByTestId("shop-shelf-S1");
+  const s1aBeforeFrame = await page.getByTestId("shop-spot-S1A").boundingBox();
+  const s1OxBefore = Number(
+    (await s1Shelf.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const frameBox = await s1Frame.boundingBox();
+  if (!frameBox || !s1aBeforeFrame) {
+    throw new Error("Could not measure S1 frame / S1A before drag");
+  }
+  if (frameBox.y < 0) {
+    throw new Error(`S1 frame off-screen. y=${frameBox.y}`);
+  }
+  await page.mouse.move(
+    frameBox.x + 20,
+    frameBox.y + frameBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    frameBox.x + 20 + 48,
+    frameBox.y + frameBox.height / 2 + 20,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const s1OxAfter = Number(
+    (await s1Shelf.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (s1OxAfter <= s1OxBefore) {
+    throw new Error(
+      `S1 frame drag should change unit offset. before=${s1OxBefore} after=${s1OxAfter}`,
+    );
+  }
+  const s1aAfterFrame = await page.getByTestId("shop-spot-S1A").boundingBox();
+  if (!s1aAfterFrame) throw new Error("Could not measure S1A after frame drag");
+  if (s1aAfterFrame.x <= s1aBeforeFrame.x + 10) {
+    throw new Error(
+      `S1A chip should move with S1 frame. before.x=${s1aBeforeFrame.x} after.x=${s1aAfterFrame.x}`,
+    );
+  }
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
   await editToggle.click();
+
+  // Print map: @media print must show the floor map (not blank)
+  await page.emulateMedia({ media: "print" });
+  await page.waitForTimeout(200);
+  const mapVisiblePrint = await page
+    .getByTestId("shop-floor-map")
+    .evaluate((el) => {
+      const s = getComputedStyle(el);
+      return s.display !== "none" && s.visibility !== "hidden" && s.opacity !== "0";
+    });
+  if (!mapVisiblePrint) {
+    throw new Error("shop-floor-map must remain visible under @media print");
+  }
+  const mapHostBox = await page.locator(".shop-floor-map-host").boundingBox();
+  if (!mapHostBox || mapHostBox.height < 80) {
+    throw new Error(
+      `Print layout blank/collapsed shop-floor-map-host. box=${JSON.stringify(mapHostBox)}`,
+    );
+  }
+  const sidebarHidden = await page.locator("aside").evaluate((el) => {
+    const s = getComputedStyle(el);
+    return s.display === "none" || s.visibility === "hidden";
+  });
+  if (!sidebarHidden) {
+    throw new Error("aside sidebar should be print:hidden");
+  }
+  await page.screenshot({
+    path: resolve(screenshotDir, "shop-map-print.png"),
+    fullPage: true,
+  });
+  await page.emulateMedia({ media: "screen" });
 
   await page.screenshot({
     path: resolve(screenshotDir, "shop-map-verify.png"),

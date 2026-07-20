@@ -56,6 +56,30 @@ export function shelfSpotCode(
   return `${unit}${letter}`;
 }
 
+export type ShopMapShelfUnit = (typeof SHOP_MAP_SHELF_UNITS)[number];
+
+/** True for shelf unit keys S1/S2 (not spot chips like S1A). */
+export function isShelfUnitCode(code: string): boolean {
+  return /^S\d+$/i.test(code.trim());
+}
+
+/** Parent shelf unit for a chip (S1A → S1), or null for ground. */
+export function shelfUnitForSpot(code: string): ShopMapShelfUnit | null {
+  const m = /^S(\d+)[A-Z]$/i.exec(code.replace(/-/g, ""));
+  if (!m) return null;
+  const unit = `S${m[1]}` as ShopMapShelfUnit;
+  return (SHOP_MAP_SHELF_UNITS as readonly string[]).includes(unit)
+    ? unit
+    : null;
+}
+
+export function spotsForShelfUnit(unit: ShopMapShelfUnit): string[] {
+  return SHOP_MAP_SHELF_LEVELS.flatMap(([a, b]) => [
+    shelfSpotCode(unit, a),
+    shelfSpotCode(unit, b),
+  ]);
+}
+
 export function allShopMapSpotCodes(): string[] {
   const shelf = SHOP_MAP_SHELF_UNITS.flatMap((unit) =>
     SHOP_MAP_SHELF_LEVELS.flatMap(([a, b]) => [
@@ -72,6 +96,10 @@ export function inferSpotZoneType(code: string): "ground" | "shelf" {
 }
 
 export function defaultLabelForSpotCode(code: string): string {
+  if (isShelfUnitCode(code)) {
+    const n = /^S(\d+)$/i.exec(code.trim());
+    return n ? `Shelf ${n[1]}` : code;
+  }
   const shelf = /^S(\d+)([A-Z])$/i.exec(code.replace(/-/g, ""));
   if (shelf) return `Shelf ${shelf[1]} — ${shelf[2].toUpperCase()}`;
   const ground = /^G(\d+)$/i.exec(code.trim());

@@ -494,19 +494,21 @@ export function ZoneManagementPage() {
 
       <PortalSidebar className="print:hidden" />
 
-      {/* Main content */}
+      {/* Main content — do NOT print:hidden the shell; that blanks Print map */}
       <div
-        className={`${PORTAL_MAIN_CLASS} print:hidden`}
+        className={PORTAL_MAIN_CLASS}
         style={{ backgroundColor: "#f0f2f5" }}
       >
-        <DispatcherPortalTopBar
-          title="Staging Map"
-          subtitle="Live shop floor"
-          lastUpdated={lastUpdated}
-          refreshBusy={refreshBusy}
-          gmailSyncMessage={gmailSyncMessage}
-          onRefreshNow={handleRefreshNow}
-        />
+        <div className="print:hidden">
+          <DispatcherPortalTopBar
+            title="Staging Map"
+            subtitle="Live shop floor"
+            lastUpdated={lastUpdated}
+            refreshBusy={refreshBusy}
+            gmailSyncMessage={gmailSyncMessage}
+            onRefreshNow={handleRefreshNow}
+          />
+        </div>
 
         <div
           className={PORTAL_SCROLL_CLASS}
@@ -1376,15 +1378,44 @@ export function ZoneManagementPage() {
       <style>{`
         @media print {
           .print\\:hidden { display: none !important; }
-          body * { visibility: hidden; }
-          .shop-floor-map-host, .shop-floor-map-host * { visibility: visible; }
+          html, body {
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .portal-shell {
+            display: block !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: #fff !important;
+          }
+          .portal-main,
+          .portal-scroll {
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           .shop-floor-map-host {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 8px !important;
             border: none !important;
             box-shadow: none !important;
+            background: #fff !important;
+            break-inside: avoid;
+          }
+          [data-testid="shop-map-edit-panel"],
+          [data-testid="shop-map-edit-mode-banner"],
+          [data-testid="shop-map-resize-handle"],
+          [data-testid="shop-map-marquee"] {
+            display: none !important;
           }
           .shop-map-you-are-here { display: block !important; }
         }
