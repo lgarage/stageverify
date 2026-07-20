@@ -107,6 +107,21 @@ async function main() {
         `${unit} bay levels not flush (A below B). seam=${seam}px (want ~0)`,
       );
     }
+    // 5 internal dividers for 6 bays — A must have borderTop (A/G↔B/H seam)
+    const aBorderTop = await levelA.evaluate((el) => getComputedStyle(el).borderTopWidth);
+    if (aBorderTop !== "2px") {
+      throw new Error(
+        `${unit} level A missing 2px top divider (A/G↔B/H seam). Got: ${aBorderTop}`,
+      );
+    }
+    const fBorderTop = await page
+      .getByTestId(`shop-shelf-${unit}-level-F`)
+      .evaluate((el) => getComputedStyle(el).borderTopWidth);
+    if (fBorderTop !== "0px") {
+      throw new Error(
+        `${unit} level F should skip top border (outer frame). Got: ${fBorderTop}`,
+      );
+    }
     for (const [a, b] of [
       ["A", "G"],
       ["B", "H"],

@@ -519,11 +519,14 @@ export function ShopFloorMap({
                           boxSizing: "border-box",
                           backgroundColor: "#fff",
                           /*
-                           * column-reverse (A at visual bottom): borderTop on B–F draws every
-                           * adjacent seam, including A/G↔B/H and E/K↔F/L — same stroke as frame.
+                           * column-reverse: visual bottom→top is A…F. borderTop on A–E draws
+                           * each seam (incl. A/G↔B/H). Skip F (last) so the top bay doesn't
+                           * double the outer frame stroke.
                            */
                           borderTop:
-                            levelIndex === 0 ? "none" : SHELF_FRAME_STROKE,
+                            levelIndex === SHOP_MAP_SHELF_LEVELS.length - 1
+                              ? "none"
+                              : SHELF_FRAME_STROKE,
                         }}
                       />
                     ))}
