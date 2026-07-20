@@ -29,6 +29,23 @@ function asDeliveryIdList(value) {
     }
     return ids.length > 0 ? ids : null;
 }
+async function assertVendorScopeSession(sessionToken) {
+    const snap = await getDb()
+        .collection("vendorSessions")
+        .doc(sessionToken)
+        .get();
+    if (!snap.exists) {
+        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
+    }
+    const session = snap.data();
+    if (session.sessionScope !== "vendor" || !session.vendorId) {
+        throw new https_1.HttpsError("permission-denied", "Session is not valid for vendor bulk mark.");
+    }
+    const expiresMs = Date.parse(String(session.expiresAt ?? ""));
+    if (!Number.isFinite(expiresMs) || Date.now() >= expiresMs) {
+        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
+    }
+}
 async function markOneDeliveryDelivered(deliveryId, sessionToken, actorName) {
     try {
         await (0, vendorSessionValidation_1.assertVendorSessionForDelivery)(sessionToken, deliveryId);
@@ -99,7 +116,7 @@ async function markOneDeliveryDelivered(deliveryId, sessionToken, actorName) {
         return { deliveryId, success: false, error: message };
     }
 }
-/** Bulk vendor DELIVERED — vendor-scoped sessions; per-id results on partial failure. */
+/** Bulk vendor DELIVERED — vendor-scoped sessions only; per-id assert + spot checks. */
 exports.markVendorDeliveriesBulk = (0, https_1.onCall)({
     region: "us-central1",
     cors: [
@@ -118,6 +135,7 @@ exports.markVendorDeliveriesBulk = (0, https_1.onCall)({
     if (deliveryIds.length > MAX_BULK_IDS) {
         throw new https_1.HttpsError("invalid-argument", `Too many deliveries (max ${MAX_BULK_IDS}).`);
     }
+    await assertVendorScopeSession(sessionToken);
     const results = [];
     for (const deliveryId of deliveryIds) {
         results.push(await markOneDeliveryDelivered(deliveryId, sessionToken, actorName));
