@@ -1,4 +1,4 @@
-/** Jake shop floor layout — hardcoded v1 geometry + optional persisted extras. */
+/** Default shop floor layout — hardcoded v1 geometry + optional persisted extras. */
 
 /** Default ground spot chip size (px) — reserved slot matches until resized. */
 export const SHOP_MAP_GROUND_SPOT_W = 52;
@@ -62,6 +62,11 @@ export type ShopMapLayoutExtras = {
   extraShelfUnits?: string[];
   /** Extra spot letters beyond A–L, keyed by unit (e.g. { S1: ["M"] }). */
   extraShelfSpots?: Record<string, string[]>;
+  /**
+   * Layout slots hidden from the map (any ground, shelf unit, or shelf chip).
+   * Canonical codes e.g. G1, S2, S1A.
+   */
+  hiddenSlots?: string[];
 };
 
 export type ResolvedShopMapLayout = {
@@ -136,27 +141,57 @@ export function normalizeShopMapLayoutExtras(
     if (cleaned.length) extraShelfSpots[unit] = cleaned;
   }
 
-  return { extraGround, extraShelfUnits, extraShelfSpots };
+  const hiddenSlots = [
+    ...new Set(
+      (raw?.hiddenSlots ?? [])
+        .map((c) => formatLayoutSlotKey(c))
+        .filter((c): c is string => !!c),
+    ),
+  ].sort();
+
+  return { extraGround, extraShelfUnits, extraShelfSpots, hiddenSlots };
 }
 
-/** Merge Jake constants with persisted extras for map rendering. */
+function formatLayoutSlotKey(code: string): string | null {
+  const t = code.trim().toUpperCase().replace(/-/g, "");
+  if (/^G\d+$/.test(t)) return t;
+  if (/^S\d+$/.test(t)) return t;
+  if (/^S\d+[A-Z]$/.test(t)) return t;
+  return null;
+}
+
+function isHidden(hidden: Set<string>, slot: string): boolean {
+  const key = formatLayoutSlotKey(slot);
+  return !!key && hidden.has(key);
+}
+
+/** Merge default layout constants with persisted extras for map rendering. */
 export function resolveShopMapLayout(
   extras?: ShopMapLayoutExtras | null,
 ): ResolvedShopMapLayout {
   const normalized = normalizeShopMapLayoutExtras(extras);
-  const groundLeft = [...SHOP_MAP_GROUND_LEFT];
-  const groundTop = [...SHOP_MAP_GROUND_TOP, ...(normalized.extraGround ?? [])];
-  const groundCodes = [...SHOP_MAP_GROUND_CODES, ...(normalized.extraGround ?? [])];
+  const hidden = new Set(normalized.hiddenSlots ?? []);
+  const groundLeft = [...SHOP_MAP_GROUND_LEFT].filter(
+    (c) => !isHidden(hidden, c),
+  );
+  const groundTop = [
+    ...SHOP_MAP_GROUND_TOP,
+    ...(normalized.extraGround ?? []),
+  ].filter((c) => !isHidden(hidden, c));
+  const groundCodes = [
+    ...SHOP_MAP_GROUND_CODES,
+    ...(normalized.extraGround ?? []),
+  ].filter((c) => !isHidden(hidden, c));
   const shelfUnits = [
     ...SHOP_MAP_SHELF_UNITS,
     ...(normalized.extraShelfUnits ?? []),
-  ];
+  ].filter((c) => !isHidden(hidden, c));
   const shelfLettersByUnit: Record<string, string[]> = {};
   for (const unit of shelfUnits) {
     shelfLettersByUnit[unit] = [
       ...SHOP_MAP_DEFAULT_SHELF_LETTERS,
       ...(normalized.extraShelfSpots?.[unit] ?? []),
-    ];
+    ].filter((letter) => !isHidden(hidden, shelfSpotCode(unit, letter)));
   }
   return {
     groundLeft,
@@ -238,7 +273,7 @@ export function allShopMapSpotCodes(layout?: ResolvedShopMapLayout): string[] {
   return [...resolved.groundCodes, ...shelf];
 }
 
-/** Infer zone type from Jake map spot code (G* ground, S* shelf). */
+/** Infer zone type from map spot code (G* ground, S* shelf). */
 export function inferSpotZoneType(code: string): "ground" | "shelf" {
   return /^G\d+$/i.test(code.trim()) ? "ground" : "shelf";
 }
@@ -307,4 +342,88 @@ export function withExtraShelfSpot(
       [u]: [...prev, l],
     },
   };
+}
+
+/** Hide any layout slot (ground, shelf unit, or shelf chip) from the map. */
+export function withHiddenSlots(
+  extras: ShopMapLayoutExtras | null | undefined,
+  slots: string[],
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const next = new Set(normalized.hiddenSlots ?? []);
+  for (const slot of slots) {
+    const key = formatLayoutSlotKey(slot);
+    if (key) next.add(key);
+  }
+  return { ...normalized, hiddenSlots: [...next].sort() };
+}
+
+/** Un-hide slots (for undo). */
+export function withoutHiddenSlots(
+  extras: ShopMapLayoutExtras | null | undefined,
+  slots: string[],
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const remove = new Set(
+    slots
+      .map(formatLayoutSlotKey)
+      .filter((c): c is string => !!c),
+  );
+  return {
+    ...normalized,
+    hiddenSlots: (normalized.hiddenSlots ?? []).filter((c) => !remove.has(c)),
+  };
+}
+
+/**
+ * Slots to hide when deleting a ground spot, shelf chip, or whole shelf assembly.
+ * Shelf unit → unit key + all chips on that unit.
+ */
+export function slotsToHideForDelete(
+  layoutSlot: string,
+  layout: ResolvedShopMapLayout,
+): string[] {
+  const key = formatLayoutSlotKey(layoutSlot);
+  if (!key) return [];
+  if (isShelfUnitCode(key)) {
+    return [key, ...spotsForShelfUnit(key, layout)];
+  }
+  return [key];
+}
+
+/** Remove an extra ground code from extras (if present) and hide the slot. */
+export function removeGroundSpotFromExtras(
+  extras: ShopMapLayoutExtras | null | undefined,
+  code: string,
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const g = canonGround(code);
+  if (!g) return normalized;
+  return withHiddenSlots(
+    {
+      ...normalized,
+      extraGround: (normalized.extraGround ?? []).filter((c) => c !== g),
+    },
+    [g],
+  );
+}
+
+/** Remove an extra shelf unit from extras (if present) and hide unit + chips. */
+export function removeShelfUnitFromExtras(
+  extras: ShopMapLayoutExtras | null | undefined,
+  unit: string,
+  layout: ResolvedShopMapLayout,
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const u = canonShelfUnit(unit);
+  if (!u) return normalized;
+  const { [u]: _drop, ...restSpots } = normalized.extraShelfSpots ?? {};
+  return withHiddenSlots(
+    {
+      ...normalized,
+      extraShelfUnits: (normalized.extraShelfUnits ?? []).filter((c) => c !== u),
+      extraShelfSpots: restSpots,
+    },
+    slotsToHideForDelete(u, layout),
+  );
 }

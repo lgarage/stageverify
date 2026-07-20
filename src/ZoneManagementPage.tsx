@@ -453,6 +453,32 @@ export function ZoneManagementPage() {
     [handleMapZoneSave, layoutExtras, persistLayoutExtras],
   );
 
+  const handleDeactivateSlots = useCallback(
+    async (slots: string[]) => {
+      const byKey = new Map(
+        zones.map((z) => [normalizeStagingCodeKey(z.code), z]),
+      );
+      for (const slot of slots) {
+        const zone =
+          byKey.get(normalizeStagingCodeKey(slot)) ??
+          zones.find(
+            (z) =>
+              z.mapLayoutSlot &&
+              normalizeStagingCodeKey(z.mapLayoutSlot) ===
+                normalizeStagingCodeKey(slot),
+          );
+        if (!zone || !isLocationActive(zone)) continue;
+        await deactivateZone(zone.id);
+        setZones((prev) =>
+          prev.map((z) =>
+            z.id === zone.id ? { ...z, status: "Inactive" as LocationStatus } : z,
+          ),
+        );
+      }
+    },
+    [zones],
+  );
+
   const loadZones = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -776,6 +802,8 @@ export function ZoneManagementPage() {
               onAddGroundSpot={handleAddGroundSpot}
               onAddShelf={handleAddShelf}
               onAddSpotToShelf={handleAddSpotToShelf}
+              onPersistLayoutExtras={persistLayoutExtras}
+              onDeactivateSlots={handleDeactivateSlots}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>

@@ -18,10 +18,15 @@ import {
   SHOP_MAP_DEFAULT_SHELF_LETTERS,
   allShopMapSpotCodes,
   isShelfUnitCode,
+  removeGroundSpotFromExtras,
+  removeShelfUnitFromExtras,
   resolveShopMapLayout,
   shelfSpotCode,
   shelfUnitForSpot,
+  slotsToHideForDelete,
+  withHiddenSlots,
   type ResolvedShopMapLayout,
+  type ShopMapLayoutExtras,
   type ShopMapShelfUnit,
 } from "./dispatcher/shopMapLayout";
 import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
@@ -71,15 +76,15 @@ type Props = {
   onAddGroundSpot?: () => Promise<void>;
   onAddShelf?: () => Promise<void>;
   onAddSpotToShelf?: (unit: string) => Promise<void>;
+  /** Persist layout extras (hidden slots, adds) after Save / Undo of layout changes. */
+  onPersistLayoutExtras?: (next: ShopMapLayoutExtras) => Promise<void>;
+  /** Deactivate zone docs for deleted layout slots after Save. */
+  onDeactivateSlots?: (slots: string[]) => Promise<void>;
 };
 
-const NUDGE_STEP = 8;
-const SIZE_STEP = 4;
-const ROTATE_STEP = 15;
-const MIN_SPOT_SIZE = 24;
-const DRAG_CLICK_THRESHOLD_PX = 4;
+const UNDO_STACK_CAP = 30;
 
-type EditSessionSnapshot = {
+type SlotSnapshot = {
   label: string;
   code: string;
   offsetX: number;
@@ -88,6 +93,29 @@ type EditSessionSnapshot = {
   height: number;
   rotationDeg: number;
 };
+
+type UndoFrame = {
+  pendingOffsets: Record<string, { ox: number; oy: number }>;
+  pendingLabels: Record<string, string>;
+  pendingRotations: Record<string, number>;
+  pendingSizes: Record<string, { w: number; h: number }>;
+  pendingHidden: string[];
+  editLabel: string;
+  editCode: string;
+  editOffsetX: number;
+  editOffsetY: number;
+  editWidth: number;
+  editHeight: number;
+  editRotationDeg: number;
+  selectedLayoutSlot: string | null;
+  selectedSlots: string[];
+};
+
+const NUDGE_STEP = 8;
+const SIZE_STEP = 4;
+const ROTATE_STEP = 15;
+const MIN_SPOT_SIZE = 24;
+const DRAG_CLICK_THRESHOLD_PX = 4;
 
 function normalizeRotationDeg(deg: number): number {
   const n = ((Math.round(deg) % 360) + 360) % 360;
@@ -184,11 +212,17 @@ export function ShopFloorMap({
   onAddGroundSpot,
   onAddShelf,
   onAddSpotToShelf,
+  onPersistLayoutExtras,
+  onDeactivateSlots,
 }: Props) {
-  const layout = useMemo(
-    () => layoutProp ?? resolveShopMapLayout(),
-    [layoutProp],
-  );
+  const [pendingHidden, setPendingHidden] = useState<string[]>([]);
+  const layout = useMemo(() => {
+    const base = layoutProp ?? resolveShopMapLayout();
+    if (pendingHidden.length === 0) return base;
+    return resolveShopMapLayout(
+      withHiddenSlots(base.extras, pendingHidden),
+    );
+  }, [layoutProp, pendingHidden]);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [addingLayout, setAddingLayout] = useState(false);
   /** Primary slot for the edit panel (single-select / last focused). */
@@ -231,19 +265,26 @@ export function ShopFloorMap({
     x1: number;
     y1: number;
   } | null>(null);
-  const editSessionRef = useRef<EditSessionSnapshot | null>(null);
+  /** Per-slot snapshot when that object was first selected this edit (Cancel target). */
+  const editSessionBySlotRef = useRef<Record<string, SlotSnapshot>>({});
+  const undoStackRef = useRef<UndoFrame[]>([]);
+  const [undoDepth, setUndoDepth] = useState(0);
+  const labelFocusSnapshotRef = useRef("");
+  const codeFocusSnapshotRef = useRef("");
   const dragRef = useRef<{
     slots: string[];
     startX: number;
     startY: number;
     bases: Record<string, { ox: number; oy: number }>;
     moved: boolean;
+    undoPushed: boolean;
   } | null>(null);
   const resizeRef = useRef<{
     startX: number;
     startY: number;
     baseW: number;
     baseH: number;
+    undoPushed: boolean;
   } | null>(null);
   const marqueeRef = useRef<{
     startX: number;
@@ -438,15 +479,19 @@ export function ShopFloorMap({
       setEditHeight(height);
       setEditRotationDeg(rotationDeg);
       setSizeInputFocus(null);
-      editSessionRef.current = {
-        label: zone?.label ?? layoutSlot,
-        code,
-        offsetX: zone?.mapOffsetX ?? 0,
-        offsetY: zone?.mapOffsetY ?? 0,
-        width: zone?.mapWidth ?? defaults.w,
-        height: zone?.mapHeight ?? defaults.h,
-        rotationDeg: normalizeRotationDeg(zone?.mapRotationDeg ?? 0),
-      };
+      // Snapshot displayed state once when edit starts on this slot (Cancel baseline).
+      if (!editSessionBySlotRef.current[layoutSlot]) {
+        editSessionBySlotRef.current[layoutSlot] = {
+          label:
+            flushedLabels[layoutSlot] ?? zone?.label ?? layoutSlot,
+          code: zone?.code ?? formatStagingCodeCanonical(layoutSlot),
+          offsetX,
+          offsetY,
+          width,
+          height,
+          rotationDeg,
+        };
+      }
       setSaveError(null);
       setHover(null);
     },
@@ -465,6 +510,95 @@ export function ShopFloorMap({
       editRotationDeg,
     ],
   );
+
+  const captureUndoFrame = useCallback((): UndoFrame => {
+    const flushedOffsets = { ...pendingOffsets };
+    const flushedLabels = { ...pendingLabels };
+    const flushedRotations = { ...pendingRotations };
+    const flushedSizes = { ...pendingSizes };
+    if (selectedLayoutSlot) {
+      flushedOffsets[selectedLayoutSlot] = {
+        ox: editOffsetX,
+        oy: editOffsetY,
+      };
+      flushedLabels[selectedLayoutSlot] = editLabel;
+      flushedRotations[selectedLayoutSlot] = editRotationDeg;
+      if (!isShelfUnitCode(selectedLayoutSlot)) {
+        flushedSizes[selectedLayoutSlot] = {
+          w: editWidth,
+          h: editHeight,
+        };
+      }
+    }
+    return {
+      pendingOffsets: flushedOffsets,
+      pendingLabels: flushedLabels,
+      pendingRotations: flushedRotations,
+      pendingSizes: flushedSizes,
+      pendingHidden: [...pendingHidden],
+      editLabel,
+      editCode,
+      editOffsetX,
+      editOffsetY,
+      editWidth,
+      editHeight,
+      editRotationDeg,
+      selectedLayoutSlot,
+      selectedSlots: [...selectedSlots],
+    };
+  }, [
+    pendingOffsets,
+    pendingLabels,
+    pendingRotations,
+    pendingSizes,
+    pendingHidden,
+    selectedLayoutSlot,
+    selectedSlots,
+    editLabel,
+    editCode,
+    editOffsetX,
+    editOffsetY,
+    editWidth,
+    editHeight,
+    editRotationDeg,
+  ]);
+
+  const pushUndo = useCallback(() => {
+    const frame = captureUndoFrame();
+    undoStackRef.current = [
+      ...undoStackRef.current.slice(-(UNDO_STACK_CAP - 1)),
+      frame,
+    ];
+    setUndoDepth(undoStackRef.current.length);
+  }, [captureUndoFrame]);
+
+  const applyUndoFrame = useCallback((frame: UndoFrame) => {
+    setPendingOffsets(frame.pendingOffsets);
+    setPendingLabels(frame.pendingLabels);
+    setPendingRotations(frame.pendingRotations);
+    setPendingSizes(frame.pendingSizes);
+    setPendingHidden(frame.pendingHidden);
+    setEditLabel(frame.editLabel);
+    setEditCode(frame.editCode);
+    setEditOffsetX(frame.editOffsetX);
+    setEditOffsetY(frame.editOffsetY);
+    setEditWidth(frame.editWidth);
+    setEditHeight(frame.editHeight);
+    setEditRotationDeg(frame.editRotationDeg);
+    setSelectedLayoutSlot(frame.selectedLayoutSlot);
+    setSelectedSlots(frame.selectedSlots);
+    setSaveError(null);
+  }, []);
+
+  const undoLastEdit = useCallback(() => {
+    const stack = undoStackRef.current;
+    if (stack.length === 0) return;
+    const prev = stack[stack.length - 1];
+    undoStackRef.current = stack.slice(0, -1);
+    setUndoDepth(undoStackRef.current.length);
+    cancelActiveDrag();
+    applyUndoFrame(prev);
+  }, [applyUndoFrame]);
 
   const applyGroupDelta = (dx: number, dy: number) => {
     const drag = dragRef.current;
@@ -506,6 +640,7 @@ export function ShopFloorMap({
       startY: e.clientY,
       bases,
       moved: false,
+      undoPushed: false,
     };
   };
 
@@ -520,28 +655,84 @@ export function ShopFloorMap({
 
   const cancelEditSession = useCallback(() => {
     cancelActiveDrag();
-    const snap = editSessionRef.current;
-    if (snap) {
-      setEditLabel(snap.label);
-      setEditCode(snap.code);
-      setEditOffsetX(snap.offsetX);
-      setEditOffsetY(snap.offsetY);
-      setEditWidth(snap.width);
-      setEditHeight(snap.height);
-      setEditRotationDeg(snap.rotationDeg);
+    const slots =
+      selectedSlots.length > 0
+        ? selectedSlots
+        : selectedLayoutSlot
+          ? [selectedLayoutSlot]
+          : [];
+    if (slots.length === 0) {
+      setSaveError(null);
+      return;
     }
-    editSessionRef.current = null;
+    const hideSet = new Set(
+      slots.flatMap((s) => slotsToHideForDelete(s, layout)),
+    );
+    setPendingOffsets((prev) => {
+      const next = { ...prev };
+      for (const slot of slots) {
+        const snap = editSessionBySlotRef.current[slot];
+        if (!snap) {
+          delete next[slot];
+          continue;
+        }
+        next[slot] = { ox: snap.offsetX, oy: snap.offsetY };
+      }
+      return next;
+    });
+    setPendingLabels((prev) => {
+      const next = { ...prev };
+      for (const slot of slots) {
+        const snap = editSessionBySlotRef.current[slot];
+        if (!snap) {
+          delete next[slot];
+          continue;
+        }
+        next[slot] = snap.label;
+      }
+      return next;
+    });
+    setPendingRotations((prev) => {
+      const next = { ...prev };
+      for (const slot of slots) {
+        const snap = editSessionBySlotRef.current[slot];
+        if (!snap) {
+          delete next[slot];
+          continue;
+        }
+        next[slot] = snap.rotationDeg;
+      }
+      return next;
+    });
+    setPendingSizes((prev) => {
+      const next = { ...prev };
+      for (const slot of slots) {
+        if (isShelfUnitCode(slot)) {
+          delete next[slot];
+          continue;
+        }
+        const snap = editSessionBySlotRef.current[slot];
+        if (!snap) {
+          delete next[slot];
+          continue;
+        }
+        next[slot] = { w: snap.width, h: snap.height };
+      }
+      return next;
+    });
+    setPendingHidden((prev) =>
+      prev.filter((h) => !hideSet.has(h.toUpperCase().replace(/-/g, ""))),
+    );
+    for (const slot of slots) {
+      delete editSessionBySlotRef.current[slot];
+    }
     setSelectedLayoutSlot(null);
     setSelectedSlots([]);
-    setPendingOffsets({});
-    setPendingLabels({});
-    setPendingRotations({});
-    setPendingSizes({});
     setSaveError(null);
-  }, []);
+  }, [selectedSlots, selectedLayoutSlot, layout]);
 
   const persistEdit = async () => {
-    if (!onSaveZone || saving) return;
+    if ((!onSaveZone && pendingHidden.length === 0) || saving) return;
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
     const flushedRotations = { ...pendingRotations };
@@ -574,10 +765,41 @@ export function ShopFloorMap({
       ...Object.keys(flushedSizes),
       ...multi,
     ]);
-    if (slotsToSave.size === 0) return;
+    if (slotsToSave.size === 0 && pendingHidden.length === 0) return;
     setSaving(true);
     setSaveError(null);
     try {
+      if (pendingHidden.length > 0 && onPersistLayoutExtras) {
+        let nextExtras: ShopMapLayoutExtras = layoutProp?.extras ??
+          layout.extras ??
+          {};
+        const baseLayout = resolveShopMapLayout(nextExtras);
+        for (const slot of pendingHidden) {
+          if (isShelfUnitCode(slot)) {
+            nextExtras = removeShelfUnitFromExtras(
+              nextExtras,
+              slot,
+              baseLayout,
+            );
+          } else if (isGroundLayoutSlot(slot)) {
+            nextExtras = removeGroundSpotFromExtras(nextExtras, slot);
+          } else {
+            nextExtras = withHiddenSlots(nextExtras, [slot]);
+          }
+        }
+        // Also hide all chips when deleting via pendingHidden that already expanded
+        nextExtras = withHiddenSlots(nextExtras, pendingHidden);
+        await onPersistLayoutExtras(nextExtras);
+        if (onDeactivateSlots) {
+          await onDeactivateSlots(pendingHidden);
+        }
+      }
+      if (!onSaveZone) {
+        setPendingHidden([]);
+        setSelectedLayoutSlot(null);
+        setSelectedSlots([]);
+        return;
+      }
       for (const slot of slotsToSave) {
         const zone = zoneForLayoutSlot(slot);
         const { ox, oy } = flushedPending[slot] ?? {
@@ -651,18 +873,54 @@ export function ShopFloorMap({
           },
         });
       }
-      editSessionRef.current = null;
+      for (const slot of slotsToSave) {
+        delete editSessionBySlotRef.current[slot];
+      }
       setSelectedLayoutSlot(null);
       setSelectedSlots([]);
       setPendingOffsets({});
       setPendingLabels({});
       setPendingRotations({});
       setPendingSizes({});
+      setPendingHidden([]);
+      undoStackRef.current = [];
+      setUndoDepth(0);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
+  };
+
+  const markSelectionDeleted = () => {
+    const slot = selectedLayoutSlot;
+    if (!slot || selectedSlots.length > 1) {
+      setSaveError("Select a single ground spot or shelf to delete.");
+      return;
+    }
+    const hide = slotsToHideForDelete(slot, layout);
+    for (const code of hide) {
+      const display = displayCodeForSlot(code);
+      if (occupancyByZoneCode[normalizeStagingCodeKey(display)]) {
+        setSaveError(
+          `Cannot delete ${display} — a delivery is assigned there.`,
+        );
+        return;
+      }
+      if (shopStockByCode[normalizeStagingCodeKey(display)]) {
+        setSaveError(
+          `Cannot delete ${display} — shop stock is mapped there.`,
+        );
+        return;
+      }
+    }
+    pushUndo();
+    setPendingHidden((prev) => [
+      ...new Set([...prev, ...hide.map((h) => h.toUpperCase())]),
+    ]);
+    setSelectedLayoutSlot(null);
+    setSelectedSlots([]);
+    setSaveError(null);
   };
 
   const nudgeRotation = (delta: number) => {
@@ -673,6 +931,7 @@ export function ShopFloorMap({
     ) {
       return;
     }
+    pushUndo();
     setEditRotationDeg((prev) => {
       const next = normalizeRotationDeg(prev + delta);
       setPendingRotations((p) => ({
@@ -724,6 +983,10 @@ export function ShopFloorMap({
       !dragRef.current.moved &&
       Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
     ) {
+      if (!dragRef.current.undoPushed) {
+        pushUndo();
+        dragRef.current.undoPushed = true;
+      }
       dragRef.current.moved = true;
     }
     applyGroupDelta(dx, dy);
@@ -733,6 +996,7 @@ export function ShopFloorMap({
     if (!editMode || !dragRef.current) return;
     if (dragRef.current.moved) {
       suppressClickRef.current = true;
+      // Frame before drag was captured at pointer down via pushUndo in beginDrag
     }
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -890,7 +1154,21 @@ export function ShopFloorMap({
         flushedRotations[hits[0]] ?? zone?.mapRotationDeg ?? 0,
       ),
     );
-    editSessionRef.current = null;
+    for (const slot of hits) {
+      if (!editSessionBySlotRef.current[slot]) {
+        const z = zoneForLayoutSlot(slot);
+        const d = defaultSpotSize(slot);
+        editSessionBySlotRef.current[slot] = {
+          label: z?.label ?? slot,
+          code: z?.code ?? formatStagingCodeCanonical(slot),
+          offsetX: z?.mapOffsetX ?? 0,
+          offsetY: z?.mapOffsetY ?? 0,
+          width: z?.mapWidth ?? d.w,
+          height: z?.mapHeight ?? d.h,
+          rotationDeg: normalizeRotationDeg(z?.mapRotationDeg ?? 0),
+        };
+      }
+    }
     const seeded: Record<string, { ox: number; oy: number }> = {};
     for (const slot of hits) {
       if (flushedPending[slot]) {
@@ -916,6 +1194,7 @@ export function ShopFloorMap({
           ? [selectedLayoutSlot]
           : [];
     if (slots.length === 0) return;
+    pushUndo();
     const bases = Object.fromEntries(
       slots.map((slot) => [slot, syncOffsetForSlot(slot)]),
     );
@@ -935,6 +1214,7 @@ export function ShopFloorMap({
 
   const nudgeSize = (dw: number, dh: number) => {
     if (!selectedLayoutSlot || isShelfUnitCode(selectedLayoutSlot)) return;
+    pushUndo();
     setSizeInputFocus(null);
     applyPendingSize(selectedLayoutSlot, editWidth + dw, editHeight + dh);
   };
@@ -945,11 +1225,11 @@ export function ShopFloorMap({
     const clamped = Number.isFinite(parsed)
       ? Math.max(MIN_SPOT_SIZE, parsed)
       : MIN_SPOT_SIZE;
-    if (dim === "width") {
-      applyPendingSize(selectedLayoutSlot, clamped, editHeight);
-    } else {
-      applyPendingSize(selectedLayoutSlot, editWidth, clamped);
-    }
+    const nextW = dim === "width" ? clamped : editWidth;
+    const nextH = dim === "height" ? clamped : editHeight;
+    if (nextW === editWidth && nextH === editHeight) return;
+    pushUndo();
+    applyPendingSize(selectedLayoutSlot, nextW, nextH);
   };
 
   const onResizeHandlePointerDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
@@ -963,6 +1243,7 @@ export function ShopFloorMap({
       startY: e.clientY,
       baseW: editWidth,
       baseH: editHeight,
+      undoPushed: false,
     };
   };
 
@@ -971,6 +1252,10 @@ export function ShopFloorMap({
     const { startX, startY, baseW, baseH } = resizeRef.current;
     const dw = e.clientX - startX;
     const dh = e.clientY - startY;
+    if (!resizeRef.current.undoPushed && (dw !== 0 || dh !== 0)) {
+      pushUndo();
+      resizeRef.current.undoPushed = true;
+    }
     applyPendingSize(
       selectedLayoutSlot,
       baseW + Math.round(dw),
@@ -1102,6 +1387,7 @@ export function ShopFloorMap({
 
   const runAdd = async (action: () => Promise<void>) => {
     if (addingLayout) return;
+    pushUndo();
     setAddingLayout(true);
     setSaveError(null);
     try {
@@ -1234,7 +1520,7 @@ export function ShopFloorMap({
         )}
       </div>
 
-      {editMode && (onAddGroundSpot || onAddShelf) && (
+      {editMode && (onAddGroundSpot || onAddShelf || onSaveZone) && (
         <div
           data-testid="shop-map-add-bar"
           style={{
@@ -1242,8 +1528,22 @@ export function ShopFloorMap({
             flexWrap: "wrap",
             gap: 6,
             marginBottom: 10,
+            alignItems: "center",
           }}
         >
+          <button
+            type="button"
+            data-testid="shop-map-undo"
+            disabled={undoDepth === 0}
+            onClick={undoLastEdit}
+            style={{
+              ...addLayoutBtnStyle,
+              opacity: undoDepth === 0 ? 0.45 : 1,
+              cursor: undoDepth === 0 ? "not-allowed" : "pointer",
+            }}
+          >
+            Undo
+          </button>
           {onAddGroundSpot && (
             <button
               type="button"
@@ -1565,6 +1865,22 @@ export function ShopFloorMap({
                   type="text"
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
+                  onFocus={() => {
+                    labelFocusSnapshotRef.current = editLabel;
+                    pushUndo();
+                  }}
+                  onBlur={() => {
+                    if (!selectedLayoutSlot) return;
+                    if (editLabel === labelFocusSnapshotRef.current) {
+                      undoStackRef.current = undoStackRef.current.slice(0, -1);
+                      setUndoDepth(undoStackRef.current.length);
+                      return;
+                    }
+                    setPendingLabels((prev) => ({
+                      ...prev,
+                      [selectedLayoutSlot]: editLabel,
+                    }));
+                  }}
                   style={editInputStyle}
                 />
               </label>
@@ -1578,6 +1894,16 @@ export function ShopFloorMap({
                     type="text"
                     value={editCode}
                     onChange={(e) => setEditCode(e.target.value)}
+                    onFocus={() => {
+                      codeFocusSnapshotRef.current = editCode;
+                      pushUndo();
+                    }}
+                    onBlur={() => {
+                      if (editCode === codeFocusSnapshotRef.current) {
+                        undoStackRef.current = undoStackRef.current.slice(0, -1);
+                        setUndoDepth(undoStackRef.current.length);
+                      }
+                    }}
                     style={editInputStyle}
                   />
                   <span
@@ -1870,14 +2196,19 @@ export function ShopFloorMap({
               {saveError}
             </div>
           )}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               type="button"
               data-testid="shop-map-edit-save"
-              disabled={saving || !onSaveZone}
+              disabled={
+                saving ||
+                (!onSaveZone &&
+                  !(pendingHidden.length > 0 && onPersistLayoutExtras))
+              }
               onClick={() => void persistEdit()}
               style={{
                 flex: 1,
+                minWidth: 80,
                 padding: "8px 12px",
                 borderRadius: 4,
                 border: "none",
@@ -1911,6 +2242,25 @@ export function ShopFloorMap({
             >
               Cancel
             </button>
+            {selectedSlots.length <= 1 && selectedLayoutSlot && (
+                <button
+                  type="button"
+                  data-testid="shop-map-edit-delete"
+                  onClick={markSelectionDeleted}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 4,
+                    border: "1px solid #fecaca",
+                    backgroundColor: "#fef2f2",
+                    color: "#991b1b",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Delete
+                </button>
+              )}
           </div>
         </div>
       )}

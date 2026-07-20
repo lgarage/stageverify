@@ -572,7 +572,7 @@ export interface DeliveryOrder {
   /** Technician item checklist — persisted per delivery for reload continuity. */
   pickupCheckedItemIds?: string[];
   /**
-   * Slice 6 — combination staging group (optional; real shop-map IDs pending Jake Korb decision).
+   * Slice 6 — combination staging group (optional; shop-map IDs pending layout decision).
    * When set, all member locations stay reserved together until full pickup release (CF away-037).
    */
   combinationStagingGroupId?: string;
@@ -626,13 +626,14 @@ export interface AppSettings {
   /** Hashed shared shop PIN for management audit tier (location-first Phase 1 types only). */
   managementPinHash?: string;
   /**
-   * Staging Map layout additions beyond Jake constants (extra ground / shelf units / shelf letters).
-   * Written by authenticated dispatcher map edit; public-readable via appSettings.
+   * Staging Map layout additions beyond default constants (extra ground / shelf units / shelf letters)
+   * plus optional hiddenSlots. Written by authenticated dispatcher map edit; public-readable via appSettings.
    */
   shopMapLayoutExtras?: {
     extraGround?: string[];
     extraShelfUnits?: string[];
     extraShelfSpots?: Record<string, string[]>;
+    hiddenSlots?: string[];
   };
 }
 
@@ -737,7 +738,7 @@ export interface StagingLocation {
   mapHeight?: number;
   /** Optional CSS rotation in degrees for map chip / shelf frame. */
   mapRotationDeg?: number;
-  /** Fixed Jake map slot (e.g. G1) when zone code differs from layout position. */
+  /** Fixed map layout slot (e.g. G1) when zone code differs from layout position. */
   mapLayoutSlot?: string;
 }
 

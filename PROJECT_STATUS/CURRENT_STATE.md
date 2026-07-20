@@ -6,13 +6,14 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.86** — Staging Map edit: pending sizes persist across spot selection (no size snap-back).
+- Last shipped: **v0.0.87** — Staging Map edit: per-object Cancel, Undo stack, Delete any spot/shelf (hiddenSlots), de-Jake copy.
+
 - Active Phase: **Location-first Phase 4 complete** — MVP done; queue empty except blocked away-069.
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
-1. **Shelving decision (Jake Korb)** — layout IDs provisional (Jake concept locked for v1 map).
+1. **Shelving decision** — layout IDs provisional (default shop layout locked for v1 map).
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step

@@ -411,12 +411,28 @@ async function main() {
   const g2OxAfterMultiCancel = Number(
     (await g2.getAttribute("data-map-offset-x")) ?? "0",
   );
-  if (
-    g1OxAfterMultiCancel !== g1OxMultiBefore ||
-    g2OxAfterMultiCancel !== g2OxMultiBefore
-  ) {
+  // Per-object Cancel: only the selected spot (G2) restores; G1 keeps its pending move
+  if (g1OxAfterMultiCancel !== g1OxAfterMoveA) {
     throw new Error(
-      `Cancel should restore both pending moves. G1 ${g1OxMultiBefore}→${g1OxAfterMultiCancel} G2 ${g2OxMultiBefore}→${g2OxAfterMultiCancel}`,
+      `Cancel on G2 must leave G1 pending. expected=${g1OxAfterMoveA} got=${g1OxAfterMultiCancel}`,
+    );
+  }
+  if (g2OxAfterMultiCancel !== g2OxMultiBefore) {
+    throw new Error(
+      `Cancel on G2 should restore G2. expected=${g2OxMultiBefore} got=${g2OxAfterMultiCancel}`,
+    );
+  }
+
+  // Clear leftover G1 pending via Undo (per-object Cancel left G1 moved by design)
+  await page.getByTestId("shop-map-undo").click();
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(100);
+  const g1OxCleared = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (g1OxCleared !== g1OxMultiBefore) {
+    throw new Error(
+      `Undo should clear G1 pending after per-object Cancel. expected=${g1OxMultiBefore} got=${g1OxCleared}`,
     );
   }
 
@@ -532,13 +548,34 @@ async function main() {
   }
   await page.getByTestId("shop-map-edit-cancel").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const s2lOxAfterCancel = Number(
+    (await s2l.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (s2lOxAfterCancel !== s2lOxBefore) {
+    throw new Error(
+      `Cancel on S2L should restore S2L only. expected=${s2lOxBefore} got=${s2lOxAfterCancel}`,
+    );
+  }
+  // Per-object Cancel: G1 keeps its pending size/rotation until Cancel on G1
+  const g1WidthStillPending = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  if (g1WidthStillPending !== typedWidth) {
+    throw new Error(
+      `Cancel on S2L must leave G1 pending size. expected=${typedWidth} got=${g1WidthStillPending}`,
+    );
+  }
+  await g1.click({ force: true });
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
 
   const widthAfterSizeCancel = Number(
     (await g1.getAttribute("data-map-width")) ?? "0",
   );
   if (widthAfterSizeCancel !== priorWidth) {
     throw new Error(
-      `Cancel should revert size edit. expected width=${priorWidth} got=${widthAfterSizeCancel}`,
+      `Cancel on G1 should revert size edit. expected width=${priorWidth} got=${widthAfterSizeCancel}`,
     );
   }
   const rotAfterCancel = Number(
@@ -546,7 +583,7 @@ async function main() {
   );
   if (rotAfterCancel !== rotBefore) {
     throw new Error(
-      `Cancel should restore rotation. expected=${rotBefore} got=${rotAfterCancel}`,
+      `Cancel on G1 should restore rotation. expected=${rotBefore} got=${rotAfterCancel}`,
     );
   }
 
@@ -804,6 +841,67 @@ async function main() {
   await page.getByTestId("shop-map-edit-save").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
   await page.waitForTimeout(500);
+
+  // Undo: nudge then Undo restores offset (still in edit mode)
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "visible" });
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const undoOxBefore = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  await page.getByTestId("shop-map-nudge-right").click();
+  const undoOxAfterNudge = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (undoOxAfterNudge === undoOxBefore) {
+    throw new Error("Undo prep: nudge should change G1 offset");
+  }
+  const undoBtn = page.getByTestId("shop-map-undo");
+  if (await undoBtn.isDisabled()) {
+    throw new Error("Undo should be enabled after nudge");
+  }
+  await undoBtn.click();
+  await page.waitForTimeout(100);
+  const undoOxRestored = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (undoOxRestored !== undoOxBefore) {
+    throw new Error(
+      `Undo should restore G1 offset. expected=${undoOxBefore} got=${undoOxRestored}`,
+    );
+  }
+
+  // Delete (pending hide) + Undo — do not Save (avoid mutating prod layout)
+  await page.getByTestId("shop-map-edit-delete").click();
+  await page.waitForTimeout(150);
+  if ((await page.getByTestId("shop-spot-G1").count()) !== 0) {
+    throw new Error("Delete should hide G1 from the map (pending)");
+  }
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(150);
+  await page.getByTestId("shop-spot-G1").waitFor({ state: "visible" });
+
+  // Rename code + Cancel restores code field on reselect
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const spotCodeInput = page.getByTestId("shop-map-edit-code");
+  const codeBeforeRename = await spotCodeInput.inputValue();
+  await spotCodeInput.fill("G1ZZ");
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  if ((await spotCodeInput.inputValue()) !== codeBeforeRename) {
+    throw new Error(
+      `Cancel should restore spot code. expected=${codeBeforeRename} got=${await spotCodeInput.inputValue()}`,
+    );
+  }
+  await page.getByTestId("shop-map-edit-cancel").click();
+
+  const mapChromeText = await page.getByTestId("shop-floor-map").innerText();
+  if (/jake/i.test(mapChromeText)) {
+    throw new Error('Staging Map chrome must not contain user-facing "Jake"');
+  }
 
   await editToggle.click();
 
