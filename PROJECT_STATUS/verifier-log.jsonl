@@ -24,3 +24,7 @@
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"05752bae-2e69-48b7-84e5-16a0c1a81e55","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"cd2f8fbe-9a23-4e0c-a44b-3e02f6142e34","model":"grok-4.5-fast-xhigh","real":"na","note":""}
 {"date":"2026-07-20","role":"repair","verdict":"PASS","taskId":"7a4915d1-9975-4166-8d25-9deb901a55f3","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-20","role":"repair","verdict":"PASS","taskId":"b3e59471-288d-4490-a6da-90c9c5273117","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"2abe4df5-141a-459a-aa81-9d7f0cbe212c","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"qa","verdict":"PASS","taskId":"07ea83d1-bcc8-426a-928c-5d0d1c91748e","model":"cursor-grok-4.5-high-fast","real":"na","note":"staging map five features"}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"b932f2bf-bae6-408b-bea9-dc0e4c32a356","model":"grok-4.5-fast-xhigh","real":"na","note":"v0.0.83 marquee shelf print"}
