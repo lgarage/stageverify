@@ -782,7 +782,7 @@ export function ZoneManagementPage() {
                   minWidth: 96,
                 }}
               >
-                Edit spots
+                {mapEditMode ? "Done editing" : "Edit Locations"}
               </button>
               <button
                 type="button"

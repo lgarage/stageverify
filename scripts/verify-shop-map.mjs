@@ -1072,14 +1072,14 @@ async function main() {
   if (!(await vendorToggle.isVisible())) {
     throw new Error("Missing shop-map-vendor-view-toggle");
   }
-  // Toggle labels stay stable (no "Exit…" / "Done…" swap that shifts the toolbar)
+  // Vendor toggle label stays stable; edit toggle shows idle vs active label
   const vendorLabel = (await vendorToggle.innerText()).trim();
   const editLabel = (await editToggle.innerText()).trim();
   if (vendorLabel !== "Vendor view") {
     throw new Error(`Vendor toggle label must stay "Vendor view". got="${vendorLabel}"`);
   }
-  if (editLabel !== "Edit spots") {
-    throw new Error(`Edit toggle label must stay "Edit spots". got="${editLabel}"`);
+  if (editLabel !== "Edit Locations") {
+    throw new Error(`Edit toggle idle label must be "Edit Locations". got="${editLabel}"`);
   }
   // Leaving Edit does not turn Vendor view on
   const youAreHereAfterEdit = await page
@@ -1111,12 +1111,18 @@ async function main() {
   // Edit alone: still no YOU ARE HERE (must click Vendor view)
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "visible" });
+  const editLabelActive = (await editToggle.innerText()).trim();
+  if (editLabelActive !== "Done editing") {
+    throw new Error(
+      `Edit toggle active label must be "Done editing". got="${editLabelActive}"`,
+    );
+  }
   const yahEditOnly = await page
     .getByTestId("shop-map-you-are-here")
     .evaluate((el) => getComputedStyle(el).display);
   if (yahEditOnly !== "none") {
     throw new Error(
-      `Edit spots alone must not show YOU ARE HERE. display=${yahEditOnly}`,
+      `Edit Locations alone must not show YOU ARE HERE. display=${yahEditOnly}`,
     );
   }
   // Edit + Vendor view: yellow circle + drag + resize handle
