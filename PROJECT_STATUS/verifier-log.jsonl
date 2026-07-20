@@ -46,3 +46,5 @@
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"6186579b-75c0-48e5-bde9-74905eaf8ace","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"d10043f8-1f19-41b9-9f41-300a70680f5a","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"5919d6a5-73d2-4a76-8f83-7809b5691725","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"9f0c5c1a-e981-460c-a01e-2244164f5a71","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"critical","verdict":"PASS","taskId":"ad243d74-cd51-4f5c-b64c-582dbf9b8ffa","model":"cursor-grok-4.5-high-fast","real":"yes","note":"D-37 verify-dedup; separate Add Zone commit"}
