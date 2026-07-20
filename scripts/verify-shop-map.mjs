@@ -494,6 +494,10 @@ async function main() {
   if (!nudgeUpLabel.includes("↑")) {
     throw new Error(`Nudge up button should show ↑ glyph. got="${nudgeUpLabel}"`);
   }
+  const nudgeResetLabel = (await page.getByTestId("shop-map-nudge-reset").innerText()).trim();
+  if (!nudgeResetLabel.includes("●")) {
+    throw new Error(`Nudge reset button should show ● glyph. got="${nudgeResetLabel}"`);
+  }
   const wMinusLabel = (await page.getByTestId("shop-map-size-w-minus").innerText()).trim();
   const wPlusLabel = (await page.getByTestId("shop-map-size-w-plus").innerText()).trim();
   if (wMinusLabel !== "−" || wPlusLabel !== "+") {

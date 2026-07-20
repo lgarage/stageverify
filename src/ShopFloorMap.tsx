@@ -43,6 +43,7 @@ import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const NUDGE_SYMBOL_FONT = `${FONT}, "Segoe UI Symbol", "Noto Sans Symbols", sans-serif`;
 const NAVY = "#0a3161";
 /** Outer S1/S2 frame stroke — internal bay dividers must match exactly. */
 const SHELF_FRAME_STROKE = "2px solid #64748b";
@@ -2042,7 +2043,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 style={nudgeResetBtnStyle}
                 title="Reset position and size"
               >
-                ⟲
+                ●
               </button>
               <button
                 type="button"
@@ -2482,8 +2483,9 @@ const nudgeBtnStyle: CSSProperties = {
   border: "1px solid #d1d5db",
   borderRadius: 4,
   backgroundColor: "#f9fafb",
+  color: "#111",
   cursor: "pointer",
-  fontFamily: FONT,
+  fontFamily: NUDGE_SYMBOL_FONT,
   fontWeight: 700,
 };
 
@@ -2500,7 +2502,7 @@ const nudgeArrowBtnStyle: CSSProperties = {
 
 const nudgeResetBtnStyle: CSSProperties = {
   ...nudgeArrowBtnStyle,
-  fontSize: 16,
+  fontSize: 23,
 };
 
 const sizePadBtnStyle: CSSProperties = {
