@@ -32,3 +32,4 @@
 {"date":"2026-07-20","role":"qa","verdict":"PASS","taskId":"f3bfc1ae-1afc-421c-a070-a7a0096f5e25","model":"cursor-grok-4.5-high-fast","real":"na","note":"shop-map snap-back + shelf rename behavior"}
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"9ac8075c-2724-4422-b894-64eccde5aa4c","model":"grok-4.5-fast-xhigh","real":"na","note":""}
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"7b2f63c4-aef9-48b2-82ce-9c34347c6f9b","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"10cfd82e-87c1-406d-b43c-ff5ae7e52be7","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
