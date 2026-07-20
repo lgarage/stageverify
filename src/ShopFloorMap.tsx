@@ -2346,25 +2346,19 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                       nudgeDoorRotation(-ROTATE_STEP);
                     }}
                     style={{
-                      position: "absolute",
+                      ...doorRotateBtnStyle,
                       left: -4,
-                      top: "50%",
                       transform: "translate(-100%, -50%)",
-                      width: 22,
-                      height: 22,
-                      padding: 0,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      borderRadius: 4,
-                      border: "1px solid #64748b",
-                      background: "#fff",
-                      cursor: "pointer",
-                      zIndex: 6,
                     }}
-                    aria-label="Rotate door counter-clockwise"
+                    title="Rotate left 15°"
+                    aria-label="Rotate left 15°"
                   >
-                    ↺
+                    <span style={doorRotateGlyphStyle} aria-hidden>
+                      ↺
+                    </span>
+                    <span style={doorRotateStepStyle} aria-hidden>
+                      15°
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -2375,25 +2369,19 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                       nudgeDoorRotation(ROTATE_STEP);
                     }}
                     style={{
-                      position: "absolute",
+                      ...doorRotateBtnStyle,
                       right: -4,
-                      top: "50%",
                       transform: "translate(100%, -50%)",
-                      width: 22,
-                      height: 22,
-                      padding: 0,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      borderRadius: 4,
-                      border: "1px solid #64748b",
-                      background: "#fff",
-                      cursor: "pointer",
-                      zIndex: 6,
                     }}
-                    aria-label="Rotate door clockwise"
+                    title="Rotate right 15°"
+                    aria-label="Rotate right 15°"
                   >
-                    ↻
+                    <span style={doorRotateGlyphStyle} aria-hidden>
+                      ↻
+                    </span>
+                    <span style={doorRotateStepStyle} aria-hidden>
+                      15°
+                    </span>
                   </button>
                 </>
               )}
@@ -3380,6 +3368,43 @@ const sizePadBtnStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+};
+
+const doorRotateBtnStyle: CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  minWidth: 28,
+  minHeight: 32,
+  padding: "2px 4px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 0,
+  fontFamily: NUDGE_SYMBOL_FONT,
+  borderRadius: 4,
+  border: `2px solid ${NAVY}`,
+  background: "#fff",
+  boxShadow: "0 1px 4px rgba(10, 49, 97, 0.35)",
+  cursor: "pointer",
+  zIndex: 6,
+  touchAction: "manipulation",
+};
+
+const doorRotateGlyphStyle: CSSProperties = {
+  fontSize: 16,
+  fontWeight: 800,
+  lineHeight: 1,
+  color: NAVY,
+};
+
+const doorRotateStepStyle: CSSProperties = {
+  fontSize: 8,
+  fontWeight: 800,
+  lineHeight: 1,
+  color: NAVY,
+  marginTop: 1,
+  fontFamily: FONT,
 };
 
 const addLayoutBtnStyle: CSSProperties = {
