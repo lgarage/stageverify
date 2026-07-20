@@ -878,6 +878,25 @@
       "warning": "Windows PowerShell 5 rejects `&&` chaining — \"The token '&&' is not a valid statement separator\" (unlike PS7+/bash). Shell commands on this machine run under PS5-compatible PowerShell: never write `cmd1 && cmd2`. Use `;` when the second command can run regardless of the first's failure; when it must only run on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08). Also: bash HEREDOC (`cat <<'EOF'`) is not valid in PS5 — use `git commit -m \"title\" -m \"body\"` or a here-string (`@'...'@`) instead (observed 2026-07-19)."
     },
     {
+      "id": "shop-map-svg-stroke-hit-target",
+      "match": [
+        "shop-map door drag",
+        "svg pointer-events",
+        "swinging door drag",
+        "door offset",
+        "visiblePainted"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": ["src/ShopFloorMap.tsx", "scripts/verify-shop-map.mjs"],
+      "rules": [],
+      "commands": ["npm run verify:shop-map"],
+      "gateCandidate": true,
+      "injectBefore": ["Staging Map door drag", "SVG icon pointer handlers"],
+      "warning": "SVG default pointer-events is visiblePainted — empty space inside a stroke-only icon (e.g. swinging door) does not receive clicks; Playwright center-clicks pass through to the canvas. Fix: opaque hit wrapper div (sized box) with handlers, SVG pointer-events:none inside (observed v0.0.93 door drag, 2026-07-19)."
+    },
+    {
       "id": "shop-map-pending-overlap-click",
       "match": [
         "shop-map",
