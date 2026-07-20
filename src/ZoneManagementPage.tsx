@@ -20,6 +20,8 @@ import {
   deactivateZone,
   mapActiveZoneOccupancyByCode,
   listShopStockMappings,
+  getAppSettings,
+  updateAppSettings,
   type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
 import { mapActiveShopStockReservationsByCode } from "./dispatcher/shopStockMapping";
@@ -41,8 +43,19 @@ import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { useLiveZoneOccupancy } from "./dispatcher/useLiveZoneOccupancy";
 import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupancyCompute";
 import {
+  SHOP_MAP_GROUND_SPOT_H,
+  SHOP_MAP_GROUND_SPOT_W,
   defaultLabelForSpotCode,
   inferSpotZoneType,
+  nextGroundSpotCode,
+  nextShelfSpotLetter,
+  nextShelfUnitCode,
+  resolveShopMapLayout,
+  shelfSpotCode,
+  withExtraGroundSpot,
+  withExtraShelfSpot,
+  withExtraShelfUnit,
+  type ShopMapLayoutExtras,
 } from "./dispatcher/shopMapLayout";
 import type { MapZoneSavePayload } from "./ShopFloorMap";
 import { ShopFloorMap } from "./ShopFloorMap";
@@ -272,7 +285,13 @@ export function ZoneManagementPage() {
   );
   const [showZoneTools, setShowZoneTools] = useState(false);
   const [mapEditMode, setMapEditMode] = useState(false);
+  const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
   const liveOccupancy = useLiveZoneOccupancy(true);
+
+  const mapLayout = useMemo(
+    () => resolveShopMapLayout(layoutExtras),
+    [layoutExtras],
+  );
 
   const zonesByLayoutSlot = useMemo(
     () =>
@@ -305,6 +324,9 @@ export function ZoneManagementPage() {
           : {}),
         ...(patch.mapWidth !== undefined ? { mapWidth: patch.mapWidth } : {}),
         ...(patch.mapHeight !== undefined ? { mapHeight: patch.mapHeight } : {}),
+        ...(patch.mapRotationDeg !== undefined
+          ? { mapRotationDeg: patch.mapRotationDeg }
+          : {}),
       };
       if (zoneId) {
         await updateZone(zoneId, savePatch);
@@ -331,6 +353,9 @@ export function ZoneManagementPage() {
           ...(patch.mapHeight !== undefined
             ? { mapHeight: patch.mapHeight }
             : {}),
+          ...(patch.mapRotationDeg !== undefined
+            ? { mapRotationDeg: patch.mapRotationDeg }
+            : {}),
         });
         const newZone: StagingLocation = {
           id,
@@ -349,6 +374,9 @@ export function ZoneManagementPage() {
           ...(patch.mapHeight !== undefined
             ? { mapHeight: patch.mapHeight }
             : {}),
+          ...(patch.mapRotationDeg !== undefined
+            ? { mapRotationDeg: patch.mapRotationDeg }
+            : {}),
         };
         setZones((prev) => [...prev, newZone]);
       }
@@ -356,16 +384,87 @@ export function ZoneManagementPage() {
     [],
   );
 
+  const persistLayoutExtras = useCallback(
+    async (next: ShopMapLayoutExtras) => {
+      await updateAppSettings({ shopMapLayoutExtras: next });
+      setLayoutExtras(next);
+    },
+    [],
+  );
+
+  const handleAddGroundSpot = useCallback(async () => {
+    const layout = resolveShopMapLayout(layoutExtras);
+    const code = nextGroundSpotCode(layout);
+    const nextExtras = withExtraGroundSpot(layoutExtras, code);
+    await persistLayoutExtras(nextExtras);
+    await handleMapZoneSave({
+      code,
+      patch: {
+        code,
+        label: defaultLabelForSpotCode(code),
+        mapOffsetX: 0,
+        mapOffsetY: 0,
+        mapWidth: SHOP_MAP_GROUND_SPOT_W,
+        mapHeight: SHOP_MAP_GROUND_SPOT_H,
+        mapRotationDeg: 0,
+      },
+    });
+  }, [handleMapZoneSave, layoutExtras, persistLayoutExtras]);
+
+  const handleAddShelf = useCallback(async () => {
+    const layout = resolveShopMapLayout(layoutExtras);
+    const unit = nextShelfUnitCode(layout);
+    const nextExtras = withExtraShelfUnit(layoutExtras, unit);
+    await persistLayoutExtras(nextExtras);
+    await handleMapZoneSave({
+      code: unit,
+      patch: {
+        code: unit,
+        label: defaultLabelForSpotCode(unit),
+        mapOffsetX: 0,
+        mapOffsetY: 0,
+        mapRotationDeg: 0,
+      },
+    });
+  }, [handleMapZoneSave, layoutExtras, persistLayoutExtras]);
+
+  const handleAddSpotToShelf = useCallback(
+    async (unit: string) => {
+      const layout = resolveShopMapLayout(layoutExtras);
+      const letter = nextShelfSpotLetter(layout, unit);
+      if (!letter) {
+        throw new Error(`No free letters left on ${unit}`);
+      }
+      const code = shelfSpotCode(unit, letter);
+      const nextExtras = withExtraShelfSpot(layoutExtras, unit, letter);
+      await persistLayoutExtras(nextExtras);
+      await handleMapZoneSave({
+        code,
+        patch: {
+          code,
+          label: defaultLabelForSpotCode(code),
+          mapOffsetX: 0,
+          mapOffsetY: 0,
+          mapWidth: 40,
+          mapHeight: 32,
+        },
+      });
+    },
+    [handleMapZoneSave, layoutExtras, persistLayoutExtras],
+  );
+
   const loadZones = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [loaded, occupancy, mappings] = await Promise.all([
+      const [loaded, occupancy, mappings, settings] = await Promise.all([
         listAllZones(),
         mapActiveZoneOccupancyByCode(),
         listShopStockMappings(),
+        getAppSettings(),
       ]);
       setZones(loaded);
+      setLayoutExtras(settings.shopMapLayoutExtras ?? {});
       setOccupancyByZoneCode(occupancy);
       setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
       setEslDrafts(
@@ -673,6 +772,10 @@ export function ZoneManagementPage() {
               editMode={mapEditMode}
               zonesByLayoutSlot={zonesByLayoutSlot}
               onSaveZone={handleMapZoneSave}
+              layout={mapLayout}
+              onAddGroundSpot={handleAddGroundSpot}
+              onAddShelf={handleAddShelf}
+              onAddSpotToShelf={handleAddSpotToShelf}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>

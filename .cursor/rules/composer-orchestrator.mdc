@@ -194,6 +194,8 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 
 **Ship loop:** see `ship-loop.mdc` (authoritative — always deploy gh-pages after bundle changes so Dan can test live; never wait for "ship it"; overrides generic Cursor “commit only when requested”).
 
+**Product UI — Composer implements, Grok verifies (Dan standing preference):** For StageVerify **product UI** (especially Staging Map / dispatcher edit tooling), **Composer 2.5 owns all code, commits, and ships** end-to-end. **Grok is verify-only** — readonly Task for Playwright/screenshot + rule/scope checks — **never Grok implementing or committing**. Dan should not restate this each turn.
+
 ### Completion report (mandatory)
 After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
 

@@ -625,6 +625,15 @@ export interface AppSettings {
   managementSessionMinutes?: number;
   /** Hashed shared shop PIN for management audit tier (location-first Phase 1 types only). */
   managementPinHash?: string;
+  /**
+   * Staging Map layout additions beyond Jake constants (extra ground / shelf units / shelf letters).
+   * Written by authenticated dispatcher map edit; public-readable via appSettings.
+   */
+  shopMapLayoutExtras?: {
+    extraGround?: string[];
+    extraShelfUnits?: string[];
+    extraShelfSpots?: Record<string, string[]>;
+  };
 }
 
 export interface Item {
@@ -695,6 +704,11 @@ export function parseStagingLocation(
       typeof data.mapWidth === "number" ? data.mapWidth : undefined,
     mapHeight:
       typeof data.mapHeight === "number" ? data.mapHeight : undefined,
+    mapRotationDeg:
+      typeof data.mapRotationDeg === "number" &&
+      Number.isFinite(data.mapRotationDeg)
+        ? data.mapRotationDeg
+        : undefined,
     mapLayoutSlot:
       typeof data.mapLayoutSlot === "string" ? data.mapLayoutSlot : undefined,
   };
@@ -721,6 +735,8 @@ export interface StagingLocation {
   /** Optional pixel size override for map chip (defaults to layout constants). */
   mapWidth?: number;
   mapHeight?: number;
+  /** Optional CSS rotation in degrees for map chip / shelf frame. */
+  mapRotationDeg?: number;
   /** Fixed Jake map slot (e.g. G1) when zone code differs from layout position. */
   mapLayoutSlot?: string;
 }

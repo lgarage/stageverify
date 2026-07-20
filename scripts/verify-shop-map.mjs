@@ -162,19 +162,15 @@ async function main() {
     );
   }
 
-  // Moderate aisle (halved from 120 → 60) + pair shifted into open floor
-  const s1Box = await page.getByTestId("shop-shelf-S1").boundingBox();
-  const s2Box = await page.getByTestId("shop-shelf-S2").boundingBox();
-  if (!s1Box || !s2Box) {
-    throw new Error("Could not measure S1/S2 shelf bounding boxes");
-  }
-  const aisleGap = s2Box.x - (s1Box.x + s1Box.width);
-  if (aisleGap < 45 || aisleGap > 85) {
+  // Moderate aisle (halved from 120 → 60) + pair shifted into open floor.
+  // Use CSS gap (not bounding boxes) so persisted mapOffsetX on S1/S2 cannot fail this.
+  const shelfRow = page.getByTestId("shop-shelf-row");
+  const rowGap = await shelfRow.evaluate((el) => getComputedStyle(el).gap);
+  if (rowGap !== "60px") {
     throw new Error(
-      `S1–S2 aisle should be moderate (~60px after halving). Got: ${aisleGap}`,
+      `S1–S2 aisle CSS gap should be 60px after halving. Got: ${rowGap}`,
     );
   }
-  const shelfRow = page.getByTestId("shop-shelf-row");
   const rowMargin = await shelfRow.evaluate(
     (el) => getComputedStyle(el).marginLeft,
   );
@@ -182,6 +178,11 @@ async function main() {
     throw new Error(
       `Shelf row should shift right by half prior aisle (marginLeft 60px). Got: ${rowMargin}`,
     );
+  }
+  const s1Box = await page.getByTestId("shop-shelf-S1").boundingBox();
+  const s2Box = await page.getByTestId("shop-shelf-S2").boundingBox();
+  if (!s1Box || !s2Box) {
+    throw new Error("Could not measure S1/S2 shelf bounding boxes");
   }
 
   // Flat 2D spots — no faux-3D perspective cubbies
@@ -445,8 +446,65 @@ async function main() {
     );
   }
 
+  const nudgeUpLabel = (await page.getByTestId("shop-map-nudge-up").innerText()).trim();
+  if (!nudgeUpLabel.includes("↑")) {
+    throw new Error(`Nudge up button should show ↑ glyph. got="${nudgeUpLabel}"`);
+  }
+  const wMinusLabel = (await page.getByTestId("shop-map-size-w-minus").innerText()).trim();
+  const wPlusLabel = (await page.getByTestId("shop-map-size-w-plus").innerText()).trim();
+  if (wMinusLabel !== "−" || wPlusLabel !== "+") {
+    throw new Error(
+      `W size pads should show − and +. minus="${wMinusLabel}" plus="${wPlusLabel}"`,
+    );
+  }
+  const typedWidth = priorWidth + 24;
+  await page.getByTestId("shop-map-edit-width").click();
+  await page.getByTestId("shop-map-edit-width").fill(String(typedWidth));
+  await page.getByTestId("shop-map-edit-width").blur();
+  await page.waitForTimeout(100);
+  const widthAfterType = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  if (widthAfterType !== typedWidth) {
+    throw new Error(
+      `Typed width should update spot live. expected=${typedWidth} got=${widthAfterType}`,
+    );
+  }
+
+  // Rotation — show degrees, cancel restores
+  const rotBefore = Number((await g1.getAttribute("data-map-rotation-deg")) ?? "0");
+  await page.getByTestId("shop-map-rotate-cw").click();
+  const rotDegLabel = (await page.getByTestId("shop-map-rotation-deg").innerText()).trim();
+  if (!/^\d+°$/.test(rotDegLabel)) {
+    throw new Error(`Rotation label should show degrees. got="${rotDegLabel}"`);
+  }
+  const rotAfterClick = Number(
+    (await g1.getAttribute("data-map-rotation-deg")) ?? "0",
+  );
+  if (rotAfterClick === rotBefore) {
+    throw new Error(
+      `Rotate CW should change rotation. before=${rotBefore} after=${rotAfterClick}`,
+    );
+  }
+
+  // Shelf spot S2L — size + nudge
+  const s2l = page.getByTestId("shop-spot-S2L");
+  const s2lOxBefore = Number((await s2l.getAttribute("data-map-offset-x")) ?? "0");
+  await s2l.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  if ((await page.getByTestId("shop-map-edit-width").count()) === 0) {
+    throw new Error("S2L edit panel should show width input");
+  }
+  await page.getByTestId("shop-map-nudge-left").click();
+  const s2lOx = Number((await s2l.getAttribute("data-map-offset-x")) ?? "0");
+  if (s2lOx >= s2lOxBefore) {
+    throw new Error(
+      `S2L nudge left should decrease offset. before=${s2lOxBefore} after=${s2lOx}`,
+    );
+  }
   await page.getByTestId("shop-map-edit-cancel").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
   const widthAfterSizeCancel = Number(
     (await g1.getAttribute("data-map-width")) ?? "0",
   );
@@ -455,12 +513,29 @@ async function main() {
       `Cancel should revert size edit. expected width=${priorWidth} got=${widthAfterSizeCancel}`,
     );
   }
+  const rotAfterCancel = Number(
+    (await g1.getAttribute("data-map-rotation-deg")) ?? "0",
+  );
+  if (rotAfterCancel !== rotBefore) {
+    throw new Error(
+      `Cancel should restore rotation. expected=${rotBefore} got=${rotAfterCancel}`,
+    );
+  }
+
+  // Add layout controls visible in edit mode
+  if (!(await page.getByTestId("shop-map-add-ground").isVisible())) {
+    throw new Error("Add ground spot button missing in edit mode");
+  }
+  if (!(await page.getByTestId("shop-map-add-shelf").isVisible())) {
+    throw new Error("Add shelf button missing in edit mode");
+  }
 
   await g1.click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
   await page.getByTestId("shop-map-size-w-plus").click();
   await page.getByTestId("shop-map-size-h-plus").click();
   await page.getByTestId("shop-map-nudge-right").click();
+  await page.getByTestId("shop-map-rotate-cw").click();
 
   const tempCode = priorCode.toUpperCase() === "G1" ? "G4" : "G1";
   await codeInput.fill(tempCode);
@@ -497,12 +572,23 @@ async function main() {
     );
   }
 
-  // Restore label + code + offset + size for env hygiene
+  const savedRotation = Number(
+    (await g1.getAttribute("data-map-rotation-deg")) ?? "0",
+  );
+  const expectedSavedRot = (rotBefore + 15) % 360;
+  if (savedRotation !== expectedSavedRot) {
+    throw new Error(
+      `Saved rotation not persisted. expected=${expectedSavedRot} got=${savedRotation}`,
+    );
+  }
+
+  // Restore label + code + offset + size + rotation for env hygiene
   await g1.click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
   await labelInput.fill(priorLabel);
   await codeInput.fill(priorCode);
   await page.getByTestId("shop-map-nudge-reset").click();
+  await page.getByTestId("shop-map-rotate-reset").click();
   await page.getByTestId("shop-map-edit-save").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
 

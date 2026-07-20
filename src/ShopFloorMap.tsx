@@ -10,17 +10,18 @@ import type { DeliveryDetails } from "./dispatcher";
 import type { ShopStockLocationMapping, StagingLocation } from "./dispatcher/models";
 import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
-  SHOP_MAP_GROUND_LEFT,
-  SHOP_MAP_GROUND_TOP,
   SHOP_MAP_GROUND_SPOT_H,
   SHOP_MAP_GROUND_SPOT_W,
   SHOP_MAP_SHELF_LEVELS,
   SHOP_MAP_SHELF_SPOT_H,
   SHOP_MAP_SHELF_SPOT_W,
-  SHOP_MAP_SHELF_UNITS,
+  SHOP_MAP_DEFAULT_SHELF_LETTERS,
   allShopMapSpotCodes,
   isShelfUnitCode,
+  resolveShopMapLayout,
   shelfSpotCode,
+  shelfUnitForSpot,
+  type ResolvedShopMapLayout,
   type ShopMapShelfUnit,
 } from "./dispatcher/shopMapLayout";
 import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
@@ -65,10 +66,16 @@ type Props = {
   editMode?: boolean;
   zonesByLayoutSlot?: Record<string, StagingLocation>;
   onSaveZone?: (payload: MapZoneSavePayload) => Promise<void>;
+  /** Constants + persisted extras (ground / shelf units / extra letters). */
+  layout?: ResolvedShopMapLayout;
+  onAddGroundSpot?: () => Promise<void>;
+  onAddShelf?: () => Promise<void>;
+  onAddSpotToShelf?: (unit: string) => Promise<void>;
 };
 
 const NUDGE_STEP = 8;
 const SIZE_STEP = 4;
+const ROTATE_STEP = 15;
 const MIN_SPOT_SIZE = 24;
 const DRAG_CLICK_THRESHOLD_PX = 4;
 
@@ -79,7 +86,13 @@ type EditSessionSnapshot = {
   offsetY: number;
   width: number;
   height: number;
+  rotationDeg: number;
 };
+
+function normalizeRotationDeg(deg: number): number {
+  const n = ((Math.round(deg) % 360) + 360) % 360;
+  return n;
+}
 
 function isGroundLayoutSlot(layoutSlot: string): boolean {
   return /^G\d+$/i.test(layoutSlot.trim());
@@ -167,8 +180,17 @@ export function ShopFloorMap({
   editMode = false,
   zonesByLayoutSlot = {},
   onSaveZone,
+  layout: layoutProp,
+  onAddGroundSpot,
+  onAddShelf,
+  onAddSpotToShelf,
 }: Props) {
+  const layout = useMemo(
+    () => layoutProp ?? resolveShopMapLayout(),
+    [layoutProp],
+  );
   const [hover, setHover] = useState<HoverInfo | null>(null);
+  const [addingLayout, setAddingLayout] = useState(false);
   /** Primary slot for the edit panel (single-select / last focused). */
   const [selectedLayoutSlot, setSelectedLayoutSlot] = useState<string | null>(
     null,
@@ -189,6 +211,14 @@ export function ShopFloorMap({
   const [editOffsetY, setEditOffsetY] = useState(0);
   const [editWidth, setEditWidth] = useState(SHOP_MAP_GROUND_SPOT_W);
   const [editHeight, setEditHeight] = useState(SHOP_MAP_GROUND_SPOT_H);
+  const [sizeInputFocus, setSizeInputFocus] = useState<
+    "width" | "height" | null
+  >(null);
+  const [sizeInputDraft, setSizeInputDraft] = useState("");
+  const [editRotationDeg, setEditRotationDeg] = useState(0);
+  const [pendingRotations, setPendingRotations] = useState<
+    Record<string, number>
+  >({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [marquee, setMarquee] = useState<{
@@ -301,21 +331,44 @@ export function ShopFloorMap({
     ],
   );
 
+  const readRotation = useCallback(
+    (layoutSlot: string): number => {
+      if (pendingRotations[layoutSlot] !== undefined) {
+        return pendingRotations[layoutSlot];
+      }
+      if (editMode && selectedLayoutSlot === layoutSlot) {
+        return editRotationDeg;
+      }
+      const zone = zoneForLayoutSlot(layoutSlot);
+      return normalizeRotationDeg(zone?.mapRotationDeg ?? 0);
+    },
+    [
+      editMode,
+      editRotationDeg,
+      pendingRotations,
+      selectedLayoutSlot,
+      zoneForLayoutSlot,
+    ],
+  );
+
   const selectSpotForEdit = useCallback(
     (layoutSlot: string, additive = false) => {
       cancelActiveDrag();
       const zone = zoneForLayoutSlot(layoutSlot);
       const flushedPending = { ...pendingOffsets };
       const flushedLabels = { ...pendingLabels };
+      const flushedRotations = { ...pendingRotations };
       if (selectedLayoutSlot && selectedLayoutSlot !== layoutSlot) {
         flushedPending[selectedLayoutSlot] = {
           ox: editOffsetX,
           oy: editOffsetY,
         };
         flushedLabels[selectedLayoutSlot] = editLabel;
+        flushedRotations[selectedLayoutSlot] = editRotationDeg;
       }
       setPendingOffsets(flushedPending);
       setPendingLabels(flushedLabels);
+      setPendingRotations(flushedRotations);
       const label =
         flushedLabels[layoutSlot] ?? zone?.label ?? layoutSlot;
       const code = zone?.code ?? formatStagingCodeCanonical(layoutSlot);
@@ -328,6 +381,9 @@ export function ShopFloorMap({
         : defaultSpotSize(layoutSlot);
       const width = zone?.mapWidth ?? defaults.w;
       const height = zone?.mapHeight ?? defaults.h;
+      const rotationDeg = normalizeRotationDeg(
+        flushedRotations[layoutSlot] ?? zone?.mapRotationDeg ?? 0,
+      );
       setSelectedLayoutSlot(layoutSlot);
       setSelectedSlots((prev) => {
         if (additive && prev.includes(layoutSlot)) return prev;
@@ -340,13 +396,16 @@ export function ShopFloorMap({
       setEditOffsetY(offsetY);
       setEditWidth(width);
       setEditHeight(height);
+      setEditRotationDeg(rotationDeg);
+      setSizeInputFocus(null);
       editSessionRef.current = {
         label: zone?.label ?? layoutSlot,
         code,
         offsetX: zone?.mapOffsetX ?? 0,
         offsetY: zone?.mapOffsetY ?? 0,
-        width,
-        height,
+        width: zone?.mapWidth ?? defaults.w,
+        height: zone?.mapHeight ?? defaults.h,
+        rotationDeg: normalizeRotationDeg(zone?.mapRotationDeg ?? 0),
       };
       setSaveError(null);
       setHover(null);
@@ -355,10 +414,12 @@ export function ShopFloorMap({
       zoneForLayoutSlot,
       pendingOffsets,
       pendingLabels,
+      pendingRotations,
       selectedLayoutSlot,
       editOffsetX,
       editOffsetY,
       editLabel,
+      editRotationDeg,
     ],
   );
 
@@ -424,12 +485,14 @@ export function ShopFloorMap({
       setEditOffsetY(snap.offsetY);
       setEditWidth(snap.width);
       setEditHeight(snap.height);
+      setEditRotationDeg(snap.rotationDeg);
     }
     editSessionRef.current = null;
     setSelectedLayoutSlot(null);
     setSelectedSlots([]);
     setPendingOffsets({});
     setPendingLabels({});
+    setPendingRotations({});
     setSaveError(null);
   }, []);
 
@@ -437,12 +500,14 @@ export function ShopFloorMap({
     if (!onSaveZone || saving) return;
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
+    const flushedRotations = { ...pendingRotations };
     if (selectedLayoutSlot) {
       flushedPending[selectedLayoutSlot] = {
         ox: editOffsetX,
         oy: editOffsetY,
       };
       flushedLabels[selectedLayoutSlot] = editLabel;
+      flushedRotations[selectedLayoutSlot] = editRotationDeg;
     }
     const primarySlot = selectedLayoutSlot;
     const multi =
@@ -454,6 +519,7 @@ export function ShopFloorMap({
     const slotsToSave = new Set<string>([
       ...Object.keys(flushedPending),
       ...Object.keys(flushedLabels),
+      ...Object.keys(flushedRotations),
       ...multi,
     ]);
     if (slotsToSave.size === 0) return;
@@ -470,6 +536,7 @@ export function ShopFloorMap({
         const baseOy = zone?.mapOffsetY ?? 0;
         const isPrimary = slot === primarySlot && selectedSlots.length <= 1;
         const shelfUnit = isShelfUnitCode(slot);
+        const canRotate = shelfUnit || isGroundLayoutSlot(slot);
         const defaults = shelfUnit
           ? { w: undefined, h: undefined }
           : defaultSpotSize(slot);
@@ -477,6 +544,12 @@ export function ShopFloorMap({
         const baseH = zone?.mapHeight ?? defaults.h ?? MIN_SPOT_SIZE;
         const patchWidth = isPrimary && !shelfUnit ? editWidth : baseW;
         const patchHeight = isPrimary && !shelfUnit ? editHeight : baseH;
+        const rotationDeg = normalizeRotationDeg(
+          isPrimary && canRotate
+            ? editRotationDeg
+            : (flushedRotations[slot] ?? zone?.mapRotationDeg ?? 0),
+        );
+        const baseRotation = normalizeRotationDeg(zone?.mapRotationDeg ?? 0);
         // Shelf units keep layout-slot code (S1/S2); only display name changes.
         const patchCode = shelfUnit
           ? formatStagingCodeCanonical(slot)
@@ -497,7 +570,14 @@ export function ShopFloorMap({
           isPrimary &&
           !shelfUnit &&
           (patchWidth !== baseW || patchHeight !== baseH);
-        if (!offsetChanged && !labelChanged && !codeChanged && !sizeChanged) {
+        const rotationChanged = canRotate && rotationDeg !== baseRotation;
+        if (
+          !offsetChanged &&
+          !labelChanged &&
+          !codeChanged &&
+          !sizeChanged &&
+          !rotationChanged
+        ) {
           continue;
         }
         await onSaveZone({
@@ -511,6 +591,7 @@ export function ShopFloorMap({
             ...(shelfUnit
               ? {}
               : { mapWidth: patchWidth, mapHeight: patchHeight }),
+            ...(canRotate ? { mapRotationDeg: rotationDeg } : {}),
           },
         });
       }
@@ -519,11 +600,30 @@ export function ShopFloorMap({
       setSelectedSlots([]);
       setPendingOffsets({});
       setPendingLabels({});
+      setPendingRotations({});
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
+  };
+
+  const nudgeRotation = (delta: number) => {
+    if (!selectedLayoutSlot) return;
+    if (
+      !isShelfUnitCode(selectedLayoutSlot) &&
+      !isGroundLayoutSlot(selectedLayoutSlot)
+    ) {
+      return;
+    }
+    setEditRotationDeg((prev) => {
+      const next = normalizeRotationDeg(prev + delta);
+      setPendingRotations((p) => ({
+        ...p,
+        [selectedLayoutSlot]: next,
+      }));
+      return next;
+    });
   };
 
   const onSpotPointerDown = (
@@ -611,7 +711,7 @@ export function ShopFloorMap({
     if (!canvas) return [];
     const canvasRect = canvas.getBoundingClientRect();
     const hits: string[] = [];
-    for (const code of allShopMapSpotCodes()) {
+    for (const code of allShopMapSpotCodes(layout)) {
       const el = spotElRefs.current[code];
       if (!el) continue;
       const r = el.getBoundingClientRect();
@@ -631,7 +731,7 @@ export function ShopFloorMap({
     const target = e.target as HTMLElement;
     if (
       target.closest(
-        '[data-testid^="shop-spot-"], [data-testid="shop-map-resize-handle"], [data-testid="shop-map-edit-panel"], [data-testid^="shop-shelf-"][data-testid$="-frame"]',
+        '[data-testid^="shop-spot-"], [data-testid="shop-map-resize-handle"], [data-testid="shop-map-edit-panel"], [data-testid="shop-map-add-bar"], [data-testid^="shop-shelf-"][data-testid$="-frame"]',
       )
     ) {
       return;
@@ -698,12 +798,14 @@ export function ShopFloorMap({
     cancelActiveDrag();
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
+    const flushedRotations = { ...pendingRotations };
     if (selectedLayoutSlot) {
       flushedPending[selectedLayoutSlot] = {
         ox: editOffsetX,
         oy: editOffsetY,
       };
       flushedLabels[selectedLayoutSlot] = editLabel;
+      flushedRotations[selectedLayoutSlot] = editRotationDeg;
     }
     setSelectedSlots(hits);
     setSelectedLayoutSlot(hits[0]);
@@ -719,6 +821,11 @@ export function ShopFloorMap({
     setEditOffsetY(primaryOy);
     setEditWidth(zone?.mapWidth ?? defaults.w);
     setEditHeight(zone?.mapHeight ?? defaults.h);
+    setEditRotationDeg(
+      normalizeRotationDeg(
+        flushedRotations[hits[0]] ?? zone?.mapRotationDeg ?? 0,
+      ),
+    );
     editSessionRef.current = null;
     const seeded: Record<string, { ox: number; oy: number }> = {};
     for (const slot of hits) {
@@ -731,6 +838,7 @@ export function ShopFloorMap({
     }
     setPendingOffsets({ ...flushedPending, ...seeded });
     setPendingLabels(flushedLabels);
+    setPendingRotations(flushedRotations);
     setSaveError(null);
     setHover(null);
   };
@@ -761,8 +869,18 @@ export function ShopFloorMap({
   };
 
   const nudgeSize = (dw: number, dh: number) => {
+    setSizeInputFocus(null);
     setEditWidth((w) => Math.max(MIN_SPOT_SIZE, w + dw));
     setEditHeight((h) => Math.max(MIN_SPOT_SIZE, h + dh));
+  };
+
+  const commitSizeDraft = (dim: "width" | "height", raw: string) => {
+    const parsed = parseInt(raw.trim(), 10);
+    const clamped = Number.isFinite(parsed)
+      ? Math.max(MIN_SPOT_SIZE, parsed)
+      : MIN_SPOT_SIZE;
+    if (dim === "width") setEditWidth(clamped);
+    else setEditHeight(clamped);
   };
 
   const onResizeHandlePointerDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
@@ -815,6 +933,7 @@ export function ShopFloorMap({
     zIndex = 1,
   ) => {
     const { ox, oy, width, height } = offsetAttrsForSpot(layoutSlot);
+    const rotationDeg = ground ? readRotation(layoutSlot) : 0;
     const offset = absoluteBase
       ? { left: absoluteBase.left + ox, top: absoluteBase.top + oy }
       : { left: ox, top: oy };
@@ -835,11 +954,18 @@ export function ShopFloorMap({
           data-map-offset-y={oy}
           data-map-width={width}
           data-map-height={height}
+          data-map-rotation-deg={rotationDeg}
           style={{
             ...spotStyle(colorOf(layoutSlot), ground, width, height),
             position: "absolute",
             zIndex,
             ...offset,
+            ...(rotationDeg
+              ? {
+                  transform: `rotate(${rotationDeg}deg)`,
+                  transformOrigin: "center center",
+                }
+              : {}),
             ...spotEditChrome(layoutSlot),
           }}
           onMouseEnter={() => !editMode && void onEnter(layoutSlot)}
@@ -888,13 +1014,32 @@ export function ShopFloorMap({
   };
 
   const unplaced = useMemo(() => {
-    const layout = new Set(
-      allShopMapSpotCodes().map((c) => normalizeStagingCodeKey(c)),
+    const codes = new Set(
+      allShopMapSpotCodes(layout).map((c) => normalizeStagingCodeKey(c)),
     );
     return Object.keys(occupancyByZoneCode)
-      .filter((k) => !layout.has(normalizeStagingCodeKey(k)))
+      .filter((k) => !codes.has(normalizeStagingCodeKey(k)))
       .sort();
-  }, [occupancyByZoneCode]);
+  }, [layout, occupancyByZoneCode]);
+
+  const selectedShelfUnit = useMemo(() => {
+    if (!selectedLayoutSlot) return null;
+    if (isShelfUnitCode(selectedLayoutSlot)) return selectedLayoutSlot;
+    return shelfUnitForSpot(selectedLayoutSlot);
+  }, [selectedLayoutSlot]);
+
+  const runAdd = async (action: () => Promise<void>) => {
+    if (addingLayout) return;
+    setAddingLayout(true);
+    setSaveError(null);
+    try {
+      await action();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Add failed");
+    } finally {
+      setAddingLayout(false);
+    }
+  };
 
   const colorOf = (layoutSlot: string) =>
     resolveSpotColor(
@@ -1012,10 +1157,58 @@ export function ShopFloorMap({
               borderRadius: 6,
             }}
           >
-            Edit mode — drag spots, marquee-select, drag S1/S2 frames
+            Edit mode — drag spots, marquee-select, drag shelf frames
           </span>
         )}
       </div>
+
+      {editMode && (onAddGroundSpot || onAddShelf) && (
+        <div
+          data-testid="shop-map-add-bar"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginBottom: 10,
+          }}
+        >
+          {onAddGroundSpot && (
+            <button
+              type="button"
+              data-testid="shop-map-add-ground"
+              disabled={addingLayout || !onSaveZone}
+              onClick={() => void runAdd(onAddGroundSpot)}
+              style={addLayoutBtnStyle}
+            >
+              Add ground spot
+            </button>
+          )}
+          {onAddShelf && (
+            <button
+              type="button"
+              data-testid="shop-map-add-shelf"
+              disabled={addingLayout || !onSaveZone}
+              onClick={() => void runAdd(onAddShelf)}
+              style={addLayoutBtnStyle}
+            >
+              Add shelf
+            </button>
+          )}
+          {onAddSpotToShelf && selectedShelfUnit && (
+            <button
+              type="button"
+              data-testid="shop-map-add-shelf-spot"
+              disabled={addingLayout || !onSaveZone}
+              onClick={() =>
+                void runAdd(() => onAddSpotToShelf(selectedShelfUnit))
+              }
+              style={addLayoutBtnStyle}
+            >
+              Add spot to {selectedShelfUnit}
+            </button>
+          )}
+        </div>
+      )}
 
       <div
         ref={mapCanvasRef}
@@ -1056,7 +1249,7 @@ export function ShopFloorMap({
         )}
         {/* Left ground column G1–G4 — fixed slots; spots absolute within slot */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {SHOP_MAP_GROUND_LEFT.map((layoutSlot) => (
+          {layout.groundLeft.map((layoutSlot) => (
             <div
               key={layoutSlot}
               data-testid={`shop-ground-slot-${layoutSlot}`}
@@ -1068,9 +1261,9 @@ export function ShopFloorMap({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Top ground row G5–G12 */}
+          {/* Top ground row G5–G12 (+ extras) */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {SHOP_MAP_GROUND_TOP.map((layoutSlot) => (
+            {layout.groundTop.map((layoutSlot) => (
               <div
                 key={layoutSlot}
                 data-testid={`shop-ground-slot-${layoutSlot}`}
@@ -1081,7 +1274,7 @@ export function ShopFloorMap({
             ))}
           </div>
 
-          {/* Shelves S1 / S2 — flush 6-bay columns; moderate aisle; shift into open floor */}
+          {/* Shelves — flush 6-bay columns; moderate aisle; shift into open floor */}
           <div
             data-testid="shop-shelf-row"
             style={{
@@ -1093,21 +1286,32 @@ export function ShopFloorMap({
               marginLeft: 60,
             }}
           >
-            {SHOP_MAP_SHELF_UNITS.map((unit) => {
+            {layout.shelfUnits.map((unit) => {
               const unitOff = readOffset(unit);
+              const unitRot = readRotation(unit);
               const unitTitle = readLabel(unit);
               const unitSelected =
                 editMode &&
                 (selectedLayoutSlot === unit || selectedSlots.includes(unit));
+              const extraLetters = (
+                layout.shelfLettersByUnit[unit] ?? []
+              ).filter(
+                (letter) =>
+                  !(
+                    SHOP_MAP_DEFAULT_SHELF_LETTERS as readonly string[]
+                  ).includes(letter),
+              );
               return (
                 <div
                   key={unit}
                   data-testid={`shop-shelf-${unit}`}
                   data-map-offset-x={unitOff.ox}
                   data-map-offset-y={unitOff.oy}
+                  data-map-rotation-deg={unitRot}
                   style={{
                     position: "relative",
-                    transform: `translate(${unitOff.ox}px, ${unitOff.oy}px)`,
+                    transform: `translate(${unitOff.ox}px, ${unitOff.oy}px) rotate(${unitRot}deg)`,
+                    transformOrigin: "center center",
                     zIndex: unitSelected ? 3 : 1,
                   }}
                 >
@@ -1221,6 +1425,32 @@ export function ShopFloorMap({
                       })}
                     </div>
                   </div>
+                  {extraLetters.length > 0 && (
+                    <div
+                      data-testid={`shop-shelf-${unit}-extra-spots`}
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginTop: 8,
+                        maxWidth: 160,
+                        position: "relative",
+                        minHeight: 40,
+                      }}
+                    >
+                      {extraLetters.map((letter, idx) =>
+                        renderSpotButton(
+                          shelfSpotCode(unit, letter),
+                          false,
+                          {
+                            left: (idx % 3) * 44,
+                            top: Math.floor(idx / 3) * 36,
+                          },
+                          1,
+                        ),
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1318,8 +1548,9 @@ export function ShopFloorMap({
               <button
                 type="button"
                 data-testid="shop-map-nudge-up"
+                aria-label="Nudge up"
                 onClick={() => nudge(0, -NUDGE_STEP)}
-                style={nudgeBtnStyle}
+                style={nudgeArrowBtnStyle}
               >
                 ↑
               </button>
@@ -1327,14 +1558,16 @@ export function ShopFloorMap({
               <button
                 type="button"
                 data-testid="shop-map-nudge-left"
+                aria-label="Nudge left"
                 onClick={() => nudge(-NUDGE_STEP, 0)}
-                style={nudgeBtnStyle}
+                style={nudgeArrowBtnStyle}
               >
                 ←
               </button>
               <button
                 type="button"
                 data-testid="shop-map-nudge-reset"
+                aria-label="Reset position and size"
                 onClick={() => {
                   if (selectedSlots.length > 1) {
                     const cleared: Record<string, { ox: number; oy: number }> =
@@ -1361,16 +1594,17 @@ export function ShopFloorMap({
                     setEditHeight(defaults.h);
                   }
                 }}
-                style={nudgeBtnStyle}
-                title="Reset offset"
+                style={nudgeResetBtnStyle}
+                title="Reset position and size"
               >
-                ·
+                ⟲
               </button>
               <button
                 type="button"
                 data-testid="shop-map-nudge-right"
+                aria-label="Nudge right"
                 onClick={() => nudge(NUDGE_STEP, 0)}
-                style={nudgeBtnStyle}
+                style={nudgeArrowBtnStyle}
               >
                 →
               </button>
@@ -1378,8 +1612,9 @@ export function ShopFloorMap({
               <button
                 type="button"
                 data-testid="shop-map-nudge-down"
+                aria-label="Nudge down"
                 onClick={() => nudge(0, NUDGE_STEP)}
-                style={nudgeBtnStyle}
+                style={nudgeArrowBtnStyle}
               >
                 ↓
               </button>
@@ -1396,6 +1631,66 @@ export function ShopFloorMap({
           </div>
           {selectedSlots.length <= 1 &&
             selectedLayoutSlot &&
+            (isShelfUnitCode(selectedLayoutSlot) ||
+              isGroundLayoutSlot(selectedLayoutSlot)) && (
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                  Rotation
+                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 6,
+                  }}
+                >
+                  <button
+                    type="button"
+                    data-testid="shop-map-rotate-ccw"
+                    aria-label="Rotate counter-clockwise"
+                    onClick={() => nudgeRotation(-ROTATE_STEP)}
+                    style={sizePadBtnStyle}
+                  >
+                    ↺
+                  </button>
+                  <span
+                    data-testid="shop-map-rotation-deg"
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: NAVY,
+                      minWidth: 52,
+                      textAlign: "center",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {editRotationDeg}°
+                  </span>
+                  <button
+                    type="button"
+                    data-testid="shop-map-rotate-cw"
+                    aria-label="Rotate clockwise"
+                    onClick={() => nudgeRotation(ROTATE_STEP)}
+                    style={sizePadBtnStyle}
+                  >
+                    ↻
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="shop-map-rotate-reset"
+                    aria-label="Reset rotation"
+                    onClick={() => nudgeRotation(-editRotationDeg)}
+                    style={{ ...sizePadBtnStyle, fontSize: 11, minWidth: 40 }}
+                    title="Reset to 0°"
+                  >
+                    0°
+                  </button>
+                </div>
+              </div>
+            )}
+          {selectedSlots.length <= 1 &&
+            selectedLayoutSlot &&
             !isShelfUnitCode(selectedLayoutSlot) && (
               <div style={{ marginBottom: 12 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
@@ -1404,7 +1699,6 @@ export function ShopFloorMap({
                 {(["width", "height"] as const).map((dim) => {
                   const isW = dim === "width";
                   const value = isW ? editWidth : editHeight;
-                  const setValue = isW ? setEditWidth : setEditHeight;
                   const minusId = isW
                     ? "shop-map-size-w-minus"
                     : "shop-map-size-h-minus";
@@ -1430,35 +1724,54 @@ export function ShopFloorMap({
                       <button
                         type="button"
                         data-testid={minusId}
+                        aria-label={isW ? "Decrease width" : "Decrease height"}
                         onClick={() =>
                           nudgeSize(isW ? -SIZE_STEP : 0, isW ? 0 : -SIZE_STEP)
                         }
-                        style={nudgeBtnStyle}
+                        style={sizePadBtnStyle}
                       >
                         −
                       </button>
                       <input
                         data-testid={inputId}
-                        type="number"
-                        min={MIN_SPOT_SIZE}
-                        value={value}
-                        onChange={(e) =>
-                          setValue(
-                            Math.max(
-                              MIN_SPOT_SIZE,
-                              Number(e.target.value) || MIN_SPOT_SIZE,
-                            ),
-                          )
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        aria-label={isW ? "Width in pixels" : "Height in pixels"}
+                        readOnly={false}
+                        value={
+                          sizeInputFocus === dim ? sizeInputDraft : String(value)
                         }
+                        onFocus={() => {
+                          setSizeInputFocus(dim);
+                          setSizeInputDraft(String(value));
+                        }}
+                        onChange={(e) => {
+                          if (sizeInputFocus === dim) {
+                            setSizeInputDraft(e.target.value);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (sizeInputFocus === dim) {
+                            commitSizeDraft(dim, sizeInputDraft);
+                            setSizeInputFocus(null);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.currentTarget.blur();
+                          }
+                        }}
                         style={{ ...editInputStyle, marginTop: 0, width: 56 }}
                       />
                       <button
                         type="button"
                         data-testid={plusId}
+                        aria-label={isW ? "Increase width" : "Increase height"}
                         onClick={() =>
                           nudgeSize(isW ? SIZE_STEP : 0, isW ? 0 : SIZE_STEP)
                         }
-                        style={nudgeBtnStyle}
+                        style={sizePadBtnStyle}
                       >
                         +
                       </button>
@@ -1702,6 +2015,42 @@ const nudgeBtnStyle: CSSProperties = {
   cursor: "pointer",
   fontFamily: FONT,
   fontWeight: 700,
+};
+
+const nudgeArrowBtnStyle: CSSProperties = {
+  ...nudgeBtnStyle,
+  fontSize: 18,
+  lineHeight: 1,
+  minWidth: 36,
+  minHeight: 36,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const nudgeResetBtnStyle: CSSProperties = {
+  ...nudgeArrowBtnStyle,
+  fontSize: 16,
+};
+
+const sizePadBtnStyle: CSSProperties = {
+  ...nudgeBtnStyle,
+  minWidth: 28,
+  minHeight: 28,
+  fontSize: 16,
+  lineHeight: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const addLayoutBtnStyle: CSSProperties = {
+  ...nudgeBtnStyle,
+  fontSize: 12,
+  fontWeight: 700,
+  color: NAVY,
+  backgroundColor: "#eff6ff",
+  border: "1px solid #bfdbfe",
 };
 
 function HoverRow({
