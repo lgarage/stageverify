@@ -1090,10 +1090,27 @@ async function main() {
       `YOU ARE HERE must stay hidden until Vendor view is clicked. display=${youAreHereAfterEdit}`,
     );
   }
-  // Vendor view alone (no edit): marker visible; click again hides it
+  // Vendor view alone (no edit): marker visible; door must not jump (YAH absolute)
+  const doorWrapBeforeVendor = page.getByTestId("shop-map-door-wrap");
+  const doorBoxBeforeVendor = await doorWrapBeforeVendor.boundingBox();
+  if (!doorBoxBeforeVendor) {
+    throw new Error("Could not measure door wrap before Vendor view");
+  }
   await vendorToggle.click();
   if ((await vendorToggle.getAttribute("aria-pressed")) !== "true") {
     throw new Error("Vendor view toggle should be aria-pressed=true when on");
+  }
+  const doorBoxWithVendor = await doorWrapBeforeVendor.boundingBox();
+  if (!doorBoxWithVendor) {
+    throw new Error("Could not measure door wrap with Vendor view on");
+  }
+  if (
+    Math.abs(doorBoxBeforeVendor.x - doorBoxWithVendor.x) > 1 ||
+    Math.abs(doorBoxBeforeVendor.y - doorBoxWithVendor.y) > 1
+  ) {
+    throw new Error(
+      `Door wrap must stay put when Vendor view shows YOU ARE HERE. before=(${doorBoxBeforeVendor.x},${doorBoxBeforeVendor.y}) after=(${doorBoxWithVendor.x},${doorBoxWithVendor.y})`,
+    );
   }
   const yahVendor = page.getByTestId("shop-map-you-are-here");
   if (!(await yahVendor.isVisible())) {

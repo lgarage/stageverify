@@ -1691,9 +1691,14 @@ export function ZoneManagementPage() {
             height: 72px !important;
           }
           .shop-map-door line,
-          .shop-map-door path {
+          .shop-map-door-leaf {
             stroke: #0a3161 !important;
             stroke-width: 4 !important;
+          }
+          .shop-map-door-swing {
+            stroke: #0a3161 !important;
+            stroke-width: 3 !important;
+            stroke-dasharray: 5 4 !important;
           }
           .shop-map-last-edited {
             display: block !important;

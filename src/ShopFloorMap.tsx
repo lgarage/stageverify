@@ -2139,11 +2139,73 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               display: "flex",
               flexDirection: "column",
               alignItems: "flex-start",
-              gap: 8,
               marginTop: 4,
               position: "relative",
             }}
           >
+            {/* Door in-flow — layout anchor; YAH absolute so vendor toggle does not shift door */}
+            <div
+              className="shop-map-door-wrap"
+              data-testid="shop-map-door-wrap"
+              data-map-offset-x={doorOffset.ox}
+              data-map-offset-y={doorOffset.oy}
+              title={
+                editMode
+                  ? "Drag to place the door for this wall sign, then Save"
+                  : undefined
+              }
+              onPointerDown={onDoorPointerDown}
+              onPointerMove={onDoorPointerMove}
+              onPointerUp={onDoorPointerUp}
+              style={{
+                display: "block",
+                width: 80,
+                height: 64,
+                boxSizing: "border-box",
+                padding: 4,
+                backgroundColor: "rgba(255,255,255,0.01)",
+                transform: `translate(${doorOffset.ox}px, ${doorOffset.oy}px)`,
+                cursor: editMode ? "grab" : "default",
+                touchAction: "none",
+                outline: editMode ? "2px dashed #2563eb" : undefined,
+                outlineOffset: 2,
+                zIndex: 4,
+                position: "relative",
+              }}
+            >
+              <svg
+                className="shop-map-door"
+                data-testid="shop-map-door"
+                width="72"
+                height="56"
+                viewBox="0 0 72 56"
+                aria-label="Entrance door"
+                style={{
+                  display: "block",
+                  overflow: "visible",
+                  pointerEvents: "none",
+                }}
+              >
+                <line
+                  className="shop-map-door-leaf"
+                  x1="8"
+                  y1="4"
+                  x2="8"
+                  y2="52"
+                  stroke={NAVY}
+                  strokeWidth="3"
+                  strokeLinecap="square"
+                />
+                <path
+                  className="shop-map-door-swing"
+                  d="M 8 4 A 40 40 0 0 1 52 44"
+                  fill="none"
+                  stroke={NAVY}
+                  strokeWidth="2.5"
+                  strokeDasharray="5 4"
+                />
+              </svg>
+            </div>
             <div
               className="shop-map-you-are-here"
               data-testid="shop-map-you-are-here"
@@ -2159,7 +2221,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               onPointerMove={onYouAreHerePointerMove}
               onPointerUp={onYouAreHerePointerUp}
               style={{
-                position: "relative",
+                position: "absolute",
+                top: 0,
+                left: 0,
                 width: youAreHere.sizePx,
                 height: youAreHere.sizePx,
                 borderRadius: "50%",
@@ -2207,65 +2271,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   }}
                 />
               )}
-            </div>
-            <div
-              className="shop-map-door-wrap"
-              data-testid="shop-map-door-wrap"
-              data-map-offset-x={doorOffset.ox}
-              data-map-offset-y={doorOffset.oy}
-              title={
-                editMode
-                  ? "Drag to place the door for this wall sign, then Save"
-                  : undefined
-              }
-              onPointerDown={onDoorPointerDown}
-              onPointerMove={onDoorPointerMove}
-              onPointerUp={onDoorPointerUp}
-              style={{
-                display: "block",
-                width: 80,
-                height: 64,
-                boxSizing: "border-box",
-                padding: 4,
-                backgroundColor: "rgba(255,255,255,0.01)",
-                transform: `translate(${doorOffset.ox}px, ${doorOffset.oy}px)`,
-                cursor: editMode ? "grab" : "default",
-                touchAction: "none",
-                outline: editMode ? "2px dashed #2563eb" : undefined,
-                outlineOffset: 2,
-                zIndex: 4,
-                position: "relative",
-              }}
-            >
-              <svg
-                className="shop-map-door"
-                data-testid="shop-map-door"
-                width="72"
-                height="56"
-                viewBox="0 0 72 56"
-                aria-label="Entrance door"
-                style={{
-                  display: "block",
-                  overflow: "visible",
-                  pointerEvents: "none",
-                }}
-              >
-                <line
-                  x1="8"
-                  y1="4"
-                  x2="8"
-                  y2="52"
-                  stroke={NAVY}
-                  strokeWidth="3"
-                  strokeLinecap="square"
-                />
-                <path
-                  d="M 8 4 A 40 40 0 0 1 52 44"
-                  fill="none"
-                  stroke={NAVY}
-                  strokeWidth="2.5"
-                />
-              </svg>
             </div>
           </div>
         </div>
