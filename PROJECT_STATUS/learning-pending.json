@@ -151,6 +151,37 @@
       "mergedAt": "2026-07-12T04:05:51.662Z",
       "mergedToId": null,
       "sourceTask": "mobile-harness-chore"
+    },
+    {
+      "id": "dfl-002",
+      "scriptName": "deploy",
+      "fingerprint": "1c88b1d2e1024d3f",
+      "exitCode": 1,
+      "category": "gotcha",
+      "summary": "npm run deploy — live bundle mismatch; confirm live index.html main JS asset before :prod verify or claiming live",
+      "triggerTerms": [
+        "deploy",
+        "gh-pages",
+        "npm run deploy",
+        "ship loop",
+        "live bundle mismatch",
+        "stale bundle",
+        "live index asset",
+        "propagation lag",
+        "local bundle differs from live"
+      ],
+      "type": "service-logic",
+      "subtype": "deploy",
+      "gateCandidate": true,
+      "domain": "deploy",
+      "source": "deploy-auto-capture",
+      "taskHint": "stale-bundle",
+      "stderrTail": "deploy: wrote dist/.nojekyll\ndeploy: pushing dist/ to gh-pages branch…\ndeploy: gh-pages branch push complete\ndeploy: expected bundle | /stageverify/assets/index-DiIEdTbh.js\ndeploy: poll | elapsed=1s | timeout_in=299s | status=built | sha=c1fcb07 | expected=/stageverify/assets/index-DiIEdTbh.js | live=/stageverify/assets/index-C2RoMP6D.js | building_for=— | posts=0/2\ndeploy: status change | — → built | sha=c1fcb07 | total_elapsed=1s\ndeploy: Pages build succeeded (commit c1fcb07)\ndeploy: checking live index.html references /stageverify/assets/index-DiIEdTbh.js…\ndeploy: live bundle not yet matching — waiting 15s for propagation…\ndeploy: checking live index.html references /stageverify/assets/index-DiIEdTbh.js…\ndeploy: FAIL — live bundle mismatch — expected /stageverify/assets/index-DiIEdTbh.js, live has /stageverify/assets/index-C2RoMP6D.js.\n\nPages reported built but live is stale. Do NOT re-run npm run deploy.\n\nNext steps:\n  1. Wait 15s and re-check live index.html\n  2. Force rebuild: gh api -X POST repos/lgarage/stageverify/pages/builds\n  3. Poll until built: gh api repos/lgarage/stageverify/pages/builds",
+      "stdoutTail": null,
+      "createdAt": "2026-07-20T23:48:00.165Z",
+      "mergedAt": null,
+      "mergedToId": null,
+      "sourceTask": null
     }
   ]
 }
