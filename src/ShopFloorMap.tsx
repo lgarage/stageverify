@@ -243,13 +243,16 @@ export function ShopFloorMap({
             ))}
           </div>
 
-          {/* Shelves S1 / S2 — flat 2D unit frames; staggered cubby chips per level */}
+          {/* Shelves S1 / S2 — flush 6-bay columns; moderate aisle; shift into open floor */}
           <div
+            data-testid="shop-shelf-row"
             style={{
               display: "flex",
-              gap: 120,
+              gap: 60,
               flexWrap: "wrap",
               alignItems: "flex-end",
+              /* previous aisle was 120; shift pair right by gap/2 (=60) into open floor */
+              marginLeft: 60,
             }}
           >
             {SHOP_MAP_SHELF_UNITS.map((unit) => (
@@ -258,55 +261,66 @@ export function ShopFloorMap({
                   style={{
                     fontWeight: 800,
                     color: NAVY,
-                    marginBottom: 8,
+                    marginBottom: 6,
                     fontSize: 14,
                     textAlign: "center",
+                    width: 52,
                   }}
                 >
                   {unit}
                 </div>
                 <div
-                  data-testid={`shop-shelf-${unit}-bays`}
                   style={{
                     display: "flex",
-                    flexDirection: "column-reverse",
-                    gap: 4,
-                    border: "2px solid #cbd5e1",
-                    borderRadius: 6,
-                    padding: 8,
-                    backgroundColor: "rgba(255,255,255,0.85)",
+                    alignItems: "stretch",
                   }}
                 >
-                  {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
-                    const codeA = shelfSpotCode(unit, a);
-                    const codeB = shelfSpotCode(unit, b);
-                    return (
+                  {/* Continuous tall column: 6 flush squares, shared borders, zero gap */}
+                  <div
+                    data-testid={`shop-shelf-${unit}-bays`}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column-reverse",
+                      gap: 0,
+                      border: "2px solid #64748b",
+                      backgroundColor: "#fff",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {SHOP_MAP_SHELF_LEVELS.map(([a], levelIndex) => (
                       <div
                         key={`${unit}-${a}`}
                         data-testid={`shop-shelf-${unit}-level-${a}`}
                         style={{
-                          display: "flex",
-                          gap: 8,
-                          alignItems: "flex-start",
-                          minHeight: 56,
+                          width: 52,
+                          height: 52,
+                          boxSizing: "border-box",
+                          backgroundColor: "#fff",
+                          borderTop:
+                            levelIndex === 0 ? "none" : "1px solid #94a3b8",
                         }}
-                      >
+                      />
+                    ))}
+                  </div>
+                  {/* Staggered spot chips per level, aligned to flush bays */}
+                  <div
+                    data-testid={`shop-shelf-${unit}-spots`}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column-reverse",
+                      gap: 0,
+                      marginLeft: 6,
+                    }}
+                  >
+                    {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
+                      const codeA = shelfSpotCode(unit, a);
+                      const codeB = shelfSpotCode(unit, b);
+                      return (
                         <div
-                          aria-hidden
-                          style={{
-                            width: 44,
-                            height: 44,
-                            flexShrink: 0,
-                            backgroundColor: "#fff",
-                            borderRadius: 3,
-                            border: "1px solid #94a3b8",
-                            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.6)",
-                          }}
-                        />
-                        <div
+                          key={`${unit}-spots-${a}`}
                           style={{
                             position: "relative",
-                            width: 88,
+                            width: 84,
                             height: 52,
                             flexShrink: 0,
                           }}
@@ -318,7 +332,7 @@ export function ShopFloorMap({
                             style={{
                               ...spotStyle(colorOf(codeA), false),
                               position: "absolute",
-                              top: 0,
+                              top: 2,
                               left: 0,
                               zIndex: 1,
                             }}
@@ -335,8 +349,8 @@ export function ShopFloorMap({
                             style={{
                               ...spotStyle(colorOf(codeB), false),
                               position: "absolute",
-                              top: 14,
-                              left: 36,
+                              top: 18,
+                              left: 34,
                               zIndex: 2,
                             }}
                             onMouseEnter={() => void onEnter(codeB)}
@@ -346,9 +360,9 @@ export function ShopFloorMap({
                             {codeB}
                           </button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             ))}

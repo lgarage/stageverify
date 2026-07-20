@@ -81,11 +81,31 @@ async function main() {
     }
   }
 
-  // Shelf units: bay frame + staggered cubby chips (no combined A+G / F+L labels)
+  // Shelf units: flush bay column + staggered chips (no A+G / F+L labels)
   for (const unit of ["S1", "S2"]) {
     const bays = page.getByTestId(`shop-shelf-${unit}-bays`);
     if (!(await bays.isVisible())) {
-      throw new Error(`Missing shelf bay frame for ${unit}`);
+      throw new Error(`Missing shelf bay column for ${unit}`);
+    }
+    const bayGap = await bays.evaluate((el) => getComputedStyle(el).gap);
+    if (bayGap && bayGap !== "0px" && bayGap !== "normal") {
+      throw new Error(
+        `Shelf ${unit} bay column must be flush (gap 0). Got: ${bayGap}`,
+      );
+    }
+    // Adjacent levels share edges — no vertical air gap between bay squares
+    const levelA = page.getByTestId(`shop-shelf-${unit}-level-A`);
+    const levelB = page.getByTestId(`shop-shelf-${unit}-level-B`);
+    const boxLevelA = await levelA.boundingBox();
+    const boxLevelB = await levelB.boundingBox();
+    if (!boxLevelA || !boxLevelB) {
+      throw new Error(`Could not measure ${unit} level A/B bay boxes`);
+    }
+    const seam = boxLevelA.y - (boxLevelB.y + boxLevelB.height);
+    if (Math.abs(seam) > 2) {
+      throw new Error(
+        `${unit} bay levels not flush (A below B). seam=${seam}px (want ~0)`,
+      );
     }
     for (const [a, b] of [
       ["A", "G"],
@@ -127,16 +147,25 @@ async function main() {
     );
   }
 
-  // S2 further right — aisle gap between S1 and S2
+  // Moderate aisle (halved from 120 → 60) + pair shifted into open floor
   const s1Box = await page.getByTestId("shop-shelf-S1").boundingBox();
   const s2Box = await page.getByTestId("shop-shelf-S2").boundingBox();
   if (!s1Box || !s2Box) {
     throw new Error("Could not measure S1/S2 shelf bounding boxes");
   }
   const aisleGap = s2Box.x - (s1Box.x + s1Box.width);
-  if (aisleGap < 80) {
+  if (aisleGap < 45 || aisleGap > 85) {
     throw new Error(
-      `S1–S2 aisle gap too small (want ≥80px). Got: ${aisleGap}`,
+      `S1–S2 aisle should be moderate (~60px after halving). Got: ${aisleGap}`,
+    );
+  }
+  const shelfRow = page.getByTestId("shop-shelf-row");
+  const rowMargin = await shelfRow.evaluate(
+    (el) => getComputedStyle(el).marginLeft,
+  );
+  if (rowMargin !== "60px") {
+    throw new Error(
+      `Shelf row should shift right by half prior aisle (marginLeft 60px). Got: ${rowMargin}`,
     );
   }
 
