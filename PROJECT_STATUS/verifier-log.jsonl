@@ -20,3 +20,4 @@
 {"date":"2026-07-19","role":"work","verdict":"PASS","taskId":"d5556b04-2072-4a4e-84e2-5d8c70016cd8","model":"claude-fable-5-thinking-high","real":"na","note":""}
 {"date":"2026-07-19","role":"qa","verdict":"PASS","taskId":"N/A","model":"cursor-grok-4.5-high-fast","real":"na","note":"planning-style analysis; Fable work-verifier subsumed Q&A"}
 {"date":"2026-07-19","role":"ship","verdict":"PASS","taskId":"95f90714-4f3e-4957-9180-78e544bb1be5","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"9cc3ba3f-0abd-45e3-bb32-4c45bfe023fd","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.73 staging map rotated labels wider aisle"}
