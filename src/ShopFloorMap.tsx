@@ -482,7 +482,7 @@ export function ShopFloorMap({
       >
         {(
           [
-            ["green", "Free"],
+            ["green", "Available"],
             ["orange", "Assigned / planned (yellow)"],
             ["red", "Ready for pickup"],
             ["gray", "Shop stock"],

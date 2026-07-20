@@ -66,6 +66,13 @@ async function main() {
   if (!(await legend.isVisible())) {
     throw new Error("shop-map-legend not visible");
   }
+  const legendText = await legend.innerText();
+  if (!/Available/i.test(legendText)) {
+    throw new Error(`Legend should say Available (not Free). Got: ${legendText}`);
+  }
+  if (/\bFree\b/i.test(legendText)) {
+    throw new Error(`Legend still says Free — use Available. Got: ${legendText}`);
+  }
 
   for (const code of ["G1", "G12", "S1A", "S1G", "S2L"]) {
     const spot = page.getByTestId(`shop-spot-${code}`);
