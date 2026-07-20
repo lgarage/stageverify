@@ -1257,6 +1257,74 @@ async function main() {
     );
   }
 
+  // Door resize + rotate (Edit mode — not tied to Vendor view)
+  const doorResizeHandle = page.getByTestId("shop-map-door-resize-handle");
+  if (!(await doorResizeHandle.isVisible())) {
+    throw new Error("Door resize handle must show in Edit mode");
+  }
+  const doorSizeBefore = Number(
+    (await doorWrap.getAttribute("data-map-size")) ?? "0",
+  );
+  if (doorSizeBefore < 40) {
+    throw new Error(`Door sizePx unexpected: ${doorSizeBefore}`);
+  }
+  const doorResizeBox = await doorResizeHandle.boundingBox();
+  if (!doorResizeBox) throw new Error("Could not measure door resize handle");
+  await page.mouse.move(
+    doorResizeBox.x + doorResizeBox.width / 2,
+    doorResizeBox.y + doorResizeBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    doorResizeBox.x + doorResizeBox.width / 2 + 32,
+    doorResizeBox.y + doorResizeBox.height / 2 + 32,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const doorSizeAfter = Number(
+    (await doorWrap.getAttribute("data-map-size")) ?? "0",
+  );
+  if (doorSizeAfter <= doorSizeBefore) {
+    throw new Error(
+      `Resizing door should increase size. before=${doorSizeBefore} after=${doorSizeAfter}`,
+    );
+  }
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(100);
+  const doorSizeUndone = Number(
+    (await doorWrap.getAttribute("data-map-size")) ?? "0",
+  );
+  if (doorSizeUndone !== doorSizeBefore) {
+    throw new Error(
+      `Undo should restore door size. expected=${doorSizeBefore} got=${doorSizeUndone}`,
+    );
+  }
+
+  const doorRotBefore = Number(
+    (await doorWrap.getAttribute("data-map-rotation-deg")) ?? "0",
+  );
+  await page.getByTestId("shop-map-door-rotate-cw").click();
+  await page.waitForTimeout(100);
+  const doorRotAfter = Number(
+    (await doorWrap.getAttribute("data-map-rotation-deg")) ?? "0",
+  );
+  if (doorRotAfter === doorRotBefore) {
+    throw new Error(
+      `Rotate CW should change door rotation. before=${doorRotBefore} after=${doorRotAfter}`,
+    );
+  }
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(100);
+  const doorRotUndone = Number(
+    (await doorWrap.getAttribute("data-map-rotation-deg")) ?? "0",
+  );
+  if (doorRotUndone !== doorRotBefore) {
+    throw new Error(
+      `Undo should restore door rotation. expected=${doorRotBefore} got=${doorRotUndone}`,
+    );
+  }
+
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
 

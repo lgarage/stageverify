@@ -29,8 +29,13 @@ import {
   slotsToHideForDelete,
   withHiddenSlots,
   withYouAreHere,
-  withDoorOffset,
+  withDoor,
   resolveYouAreHereMarker,
+  resolveDoorMarker,
+  doorHeightFromWidth,
+  DOOR_DEFAULT_SIZE_PX,
+  DOOR_MIN_SIZE_PX,
+  DOOR_MAX_SIZE_PX,
   YOU_ARE_HERE_DEFAULT_SIZE_PX,
   YOU_ARE_HERE_MIN_SIZE_PX,
   YOU_ARE_HERE_MAX_SIZE_PX,
@@ -38,6 +43,7 @@ import {
   type ShopMapLayoutExtras,
   type ShopMapShelfUnit,
   type YouAreHereMarker,
+  type DoorMarker,
 } from "./dispatcher/shopMapLayout";
 import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
 import {
@@ -125,7 +131,7 @@ type UndoFrame = {
   pendingSizes: Record<string, { w: number; h: number }>;
   pendingHidden: string[];
   pendingYouAreHere: YouAreHereMarker | null;
-  pendingDoor: { ox: number; oy: number } | null;
+  pendingDoor: DoorMarker | null;
   editLabel: string;
   editCode: string;
   editOffsetX: number;
@@ -282,10 +288,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   /** null = use persisted extras; object = pending drag/resize in this edit session. */
   const [pendingYouAreHere, setPendingYouAreHere] =
     useState<YouAreHereMarker | null>(null);
-  const [pendingDoor, setPendingDoor] = useState<{
-    ox: number;
-    oy: number;
-  } | null>(null);
+  const [pendingDoor, setPendingDoor] = useState<DoorMarker | null>(null);
   const formatLastEdited = () =>
     new Date().toLocaleString(undefined, {
       dateStyle: "short",
@@ -312,8 +315,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     sizePx: YOU_ARE_HERE_DEFAULT_SIZE_PX,
   };
   const youAreHere = pendingYouAreHere ?? persistedYouAreHere;
-  const persistedDoor = layout.extras?.doorOffset ?? { ox: 0, oy: 0 };
-  const doorOffset = pendingDoor ?? persistedDoor;
+  const persistedDoor: DoorMarker =
+    resolveDoorMarker(layout.extras) ?? {
+      ox: 0,
+      oy: 0,
+      sizePx: DOOR_DEFAULT_SIZE_PX,
+      rotationDeg: 0,
+    };
+  const door = pendingDoor ?? persistedDoor;
+  const doorHeightPx = doorHeightFromWidth(door.sizePx);
   /** Drag/resize only while editing inside Vendor view (marker visibility is CSS). */
   const canEditYouAreHere = editMode && vendorView;
   const [hover, setHover] = useState<HoverInfo | null>(null);
@@ -404,6 +414,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     startY: number;
     baseOx: number;
     baseOy: number;
+    baseSizePx: number;
+    baseRotationDeg: number;
+    undoPushed: boolean;
+  } | null>(null);
+  const doorResizeRef = useRef<{
+    startX: number;
+    startY: number;
+    baseSizePx: number;
+    baseOx: number;
+    baseOy: number;
+    baseRotationDeg: number;
     undoPushed: boolean;
   } | null>(null);
   useEffect(() => {
@@ -413,6 +434,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       yahDragRef.current = null;
       yahResizeRef.current = null;
       doorDragRef.current = null;
+      doorResizeRef.current = null;
     }
   }, [editMode]);
   const marqueeRef = useRef<{
@@ -445,6 +467,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     yahDragRef.current = null;
     yahResizeRef.current = null;
     doorDragRef.current = null;
+    doorResizeRef.current = null;
     marqueeRef.current = null;
   };
 
@@ -553,21 +576,32 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
 
   const onDoorPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!editMode) return;
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('[data-testid="shop-map-door-resize-handle"]') ||
+      target.closest('[data-testid="shop-map-door-rotate-cw"]') ||
+      target.closest('[data-testid="shop-map-door-rotate-ccw"]')
+    ) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     doorDragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      baseOx: doorOffset.ox,
-      baseOy: doorOffset.oy,
+      baseOx: door.ox,
+      baseOy: door.oy,
+      baseSizePx: door.sizePx,
+      baseRotationDeg: door.rotationDeg,
       undoPushed: false,
     };
   };
 
   const onDoorPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!editMode || !doorDragRef.current) return;
-    const { startX, startY, baseOx, baseOy } = doorDragRef.current;
+    const { startX, startY, baseOx, baseOy, baseSizePx, baseRotationDeg } =
+      doorDragRef.current;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (
@@ -580,6 +614,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingDoor({
       ox: baseOx + Math.round(dx),
       oy: baseOy + Math.round(dy),
+      sizePx: baseSizePx,
+      rotationDeg: baseRotationDeg,
     });
   };
 
@@ -591,6 +627,62 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       /* already released */
     }
     doorDragRef.current = null;
+  };
+
+  const onDoorResizePointerDown = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    doorResizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseSizePx: door.sizePx,
+      baseOx: door.ox,
+      baseOy: door.oy,
+      baseRotationDeg: door.rotationDeg,
+      undoPushed: false,
+    };
+  };
+
+  const onDoorResizePointerMove = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!editMode || !doorResizeRef.current) return;
+    const { startX, startY, baseSizePx, baseOx, baseOy, baseRotationDeg } =
+      doorResizeRef.current;
+    const delta = Math.max(e.clientX - startX, e.clientY - startY);
+    if (
+      !doorResizeRef.current.undoPushed &&
+      Math.abs(delta) >= DRAG_CLICK_THRESHOLD_PX
+    ) {
+      pushUndo();
+      doorResizeRef.current.undoPushed = true;
+    }
+    const next = Math.max(
+      DOOR_MIN_SIZE_PX,
+      Math.min(DOOR_MAX_SIZE_PX, baseSizePx + Math.round(delta)),
+    );
+    setPendingDoor({
+      ox: baseOx,
+      oy: baseOy,
+      sizePx: next,
+      rotationDeg: baseRotationDeg,
+    });
+  };
+
+  const onDoorResizePointerUp = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!doorResizeRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    doorResizeRef.current = null;
   };
 
   const readOffset = useCallback(
@@ -903,6 +995,21 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setUndoDepth(undoStackRef.current.length);
   }, [captureUndoFrame]);
 
+  const nudgeDoorRotation = useCallback(
+    (deltaDeg: number) => {
+      if (!editMode) return;
+      pushUndo();
+      setPendingDoor((prev) => {
+        const base = prev ?? persistedDoor;
+        return {
+          ...base,
+          rotationDeg: normalizeRotationDeg(base.rotationDeg + deltaDeg),
+        };
+      });
+    },
+    [editMode, pushUndo, persistedDoor],
+  );
+
   const applyUndoFrame = useCallback((frame: UndoFrame) => {
     setPendingOffsets(frame.pendingOffsets);
     setPendingLabels(frame.pendingLabels);
@@ -1172,7 +1279,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           nextExtras = withYouAreHere(nextExtras, pendingYouAreHere);
         }
         if (doorPending && pendingDoor) {
-          nextExtras = withDoorOffset(nextExtras, pendingDoor);
+          nextExtras = withDoor(nextExtras, pendingDoor);
         }
         await onPersistLayoutExtras(nextExtras);
         if (pendingHidden.length > 0 && onDeactivateSlots) {
@@ -2147,8 +2254,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             <div
               className="shop-map-door-wrap"
               data-testid="shop-map-door-wrap"
-              data-map-offset-x={doorOffset.ox}
-              data-map-offset-y={doorOffset.oy}
+              data-map-offset-x={door.ox}
+              data-map-offset-y={door.oy}
+              data-map-size={door.sizePx}
+              data-map-rotation-deg={door.rotationDeg}
               title={
                 editMode
                   ? "Drag to place the door for this wall sign, then Save"
@@ -2159,12 +2268,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               onPointerUp={onDoorPointerUp}
               style={{
                 display: "block",
-                width: 80,
-                height: 64,
+                width: door.sizePx,
+                height: doorHeightPx,
                 boxSizing: "border-box",
-                padding: 4,
                 backgroundColor: "rgba(255,255,255,0.01)",
-                transform: `translate(${doorOffset.ox}px, ${doorOffset.oy}px)`,
+                transform: `translate(${door.ox}px, ${door.oy}px) rotate(${door.rotationDeg}deg)`,
+                transformOrigin: "center center",
                 cursor: editMode ? "grab" : "default",
                 touchAction: "none",
                 outline: editMode ? "2px dashed #2563eb" : undefined,
@@ -2176,8 +2285,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               <svg
                 className="shop-map-door"
                 data-testid="shop-map-door"
-                width="72"
-                height="56"
+                width={door.sizePx}
+                height={doorHeightPx}
                 viewBox="0 0 72 56"
                 aria-label="Entrance door"
                 style={{
@@ -2205,6 +2314,89 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   strokeDasharray="5 4"
                 />
               </svg>
+              {editMode && (
+                <>
+                  <span
+                    className="shop-map-door-resize-handle"
+                    data-testid="shop-map-door-resize-handle"
+                    onPointerDown={onDoorResizePointerDown}
+                    onPointerMove={onDoorResizePointerMove}
+                    onPointerUp={onDoorResizePointerUp}
+                    style={{
+                      position: "absolute",
+                      right: 2,
+                      bottom: 2,
+                      width: 14,
+                      height: 14,
+                      borderRadius: 2,
+                      backgroundColor: "#2563eb",
+                      border: "2px solid #fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      cursor: "nwse-resize",
+                      zIndex: 6,
+                      touchAction: "none",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    data-testid="shop-map-door-rotate-ccw"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nudgeDoorRotation(-ROTATE_STEP);
+                    }}
+                    style={{
+                      position: "absolute",
+                      left: -4,
+                      top: "50%",
+                      transform: "translate(-100%, -50%)",
+                      width: 22,
+                      height: 22,
+                      padding: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      borderRadius: 4,
+                      border: "1px solid #64748b",
+                      background: "#fff",
+                      cursor: "pointer",
+                      zIndex: 6,
+                    }}
+                    aria-label="Rotate door counter-clockwise"
+                  >
+                    ↺
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="shop-map-door-rotate-cw"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nudgeDoorRotation(ROTATE_STEP);
+                    }}
+                    style={{
+                      position: "absolute",
+                      right: -4,
+                      top: "50%",
+                      transform: "translate(100%, -50%)",
+                      width: 22,
+                      height: 22,
+                      padding: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      borderRadius: 4,
+                      border: "1px solid #64748b",
+                      background: "#fff",
+                      cursor: "pointer",
+                      zIndex: 6,
+                    }}
+                    aria-label="Rotate door clockwise"
+                  >
+                    ↻
+                  </button>
+                </>
+              )}
             </div>
             <div
               className="shop-map-you-are-here"

@@ -1638,6 +1638,9 @@ export function ZoneManagementPage() {
           [data-testid="shop-map-edit-mode-banner"],
           [data-testid="shop-map-resize-handle"],
           [data-testid="shop-map-yah-resize-handle"],
+          [data-testid="shop-map-door-resize-handle"],
+          [data-testid="shop-map-door-rotate-cw"],
+          [data-testid="shop-map-door-rotate-ccw"],
           [data-testid="shop-map-marquee"],
           [data-testid="shop-map-add-bar"],
           .shop-map-unplaced,
@@ -1687,8 +1690,6 @@ export function ZoneManagementPage() {
           }
           .shop-map-door {
             display: block !important;
-            width: 96px !important;
-            height: 72px !important;
           }
           .shop-map-door line,
           .shop-map-door-leaf {

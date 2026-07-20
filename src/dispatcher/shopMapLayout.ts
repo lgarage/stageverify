@@ -77,10 +77,25 @@ export type ShopMapLayoutExtras = {
    */
   youAreHereOffset?: { ox: number; oy: number };
   /**
-   * Swinging-door icon offset (px) from the default entrance anchor.
-   * Visible on dispatcher + print; drag in Edit mode.
+   * Swinging-door icon — offset, width (px), rotation (deg) from entrance anchor.
+   * Visible on dispatcher + print; edit in Edit mode.
+   */
+  door?: { ox: number; oy: number; sizePx: number; rotationDeg: number };
+  /**
+   * @deprecated Prefer door — kept for migrate-on-read.
    */
   doorOffset?: { ox: number; oy: number };
+};
+
+export const DOOR_DEFAULT_SIZE_PX = 72;
+export const DOOR_MIN_SIZE_PX = 40;
+export const DOOR_MAX_SIZE_PX = 160;
+
+export type DoorMarker = {
+  ox: number;
+  oy: number;
+  sizePx: number;
+  rotationDeg: number;
 };
 
 export const YOU_ARE_HERE_DEFAULT_SIZE_PX = 96;
@@ -174,13 +189,7 @@ export function normalizeShopMapLayoutExtras(
   ].sort();
 
   const youAreHere = resolveYouAreHereMarker(raw);
-  const rawDoor = raw?.doorOffset;
-  const doorOffset =
-    rawDoor &&
-    Number.isFinite(rawDoor.ox) &&
-    Number.isFinite(rawDoor.oy)
-      ? { ox: Math.round(rawDoor.ox), oy: Math.round(rawDoor.oy) }
-      : undefined;
+  const door = resolveDoorMarker(raw);
 
   return {
     extraGround,
@@ -188,8 +197,61 @@ export function normalizeShopMapLayoutExtras(
     extraShelfSpots,
     hiddenSlots,
     ...(youAreHere ? { youAreHere } : {}),
-    ...(doorOffset ? { doorOffset } : {}),
+    ...(door ? { door } : {}),
   };
+}
+
+function normalizeDoorRotationDeg(deg: number): number {
+  return ((Math.round(deg) % 360) + 360) % 360;
+}
+
+function clampDoorSize(sizePx: number): number {
+  return Math.max(
+    DOOR_MIN_SIZE_PX,
+    Math.min(DOOR_MAX_SIZE_PX, Math.round(sizePx)),
+  );
+}
+
+/** Door SVG height from width (viewBox 72×56). */
+export function doorHeightFromWidth(sizePx: number): number {
+  return Math.round((sizePx * 56) / 72);
+}
+
+/** Resolve new or legacy door marker from extras. */
+export function resolveDoorMarker(
+  raw: ShopMapLayoutExtras | null | undefined,
+): DoorMarker | undefined {
+  const modern = raw?.door;
+  if (
+    modern &&
+    Number.isFinite(modern.ox) &&
+    Number.isFinite(modern.oy)
+  ) {
+    return {
+      ox: Math.round(modern.ox),
+      oy: Math.round(modern.oy),
+      sizePx: Number.isFinite(modern.sizePx)
+        ? clampDoorSize(modern.sizePx)
+        : DOOR_DEFAULT_SIZE_PX,
+      rotationDeg: Number.isFinite(modern.rotationDeg)
+        ? normalizeDoorRotationDeg(modern.rotationDeg)
+        : 0,
+    };
+  }
+  const legacy = raw?.doorOffset;
+  if (
+    legacy &&
+    Number.isFinite(legacy.ox) &&
+    Number.isFinite(legacy.oy)
+  ) {
+    return {
+      ox: Math.round(legacy.ox),
+      oy: Math.round(legacy.oy),
+      sizePx: DOOR_DEFAULT_SIZE_PX,
+      rotationDeg: 0,
+    };
+  }
+  return undefined;
 }
 
 function clampYouAreHereSize(sizePx: number): number {
@@ -232,13 +294,6 @@ export function resolveYouAreHereMarker(
   return undefined;
 }
 
-function roundOffset(offset: { ox: number; oy: number }): {
-  ox: number;
-  oy: number;
-} {
-  return { ox: Math.round(offset.ox), oy: Math.round(offset.oy) };
-}
-
 /** Persist / update the print/vendor "YOU ARE HERE" marker. */
 export function withYouAreHere(
   extras: ShopMapLayoutExtras | null | undefined,
@@ -269,16 +324,36 @@ export function withYouAreHereOffset(
   });
 }
 
-/** Persist / update the swinging-door icon offset. */
+/** Persist / update the swinging-door icon. */
+export function withDoor(
+  extras: ShopMapLayoutExtras | null | undefined,
+  marker: DoorMarker,
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const { doorOffset: _dropLegacy, ...rest } = normalized;
+  return {
+    ...rest,
+    door: {
+      ox: Math.round(marker.ox),
+      oy: Math.round(marker.oy),
+      sizePx: clampDoorSize(marker.sizePx),
+      rotationDeg: normalizeDoorRotationDeg(marker.rotationDeg),
+    },
+  };
+}
+
+/** @deprecated Use withDoor — keeps size/rotation from existing extras when only offset changes. */
 export function withDoorOffset(
   extras: ShopMapLayoutExtras | null | undefined,
   offset: { ox: number; oy: number },
 ): ShopMapLayoutExtras {
-  const normalized = normalizeShopMapLayoutExtras(extras);
-  return {
-    ...normalized,
-    doorOffset: roundOffset(offset),
-  };
+  const prev = resolveDoorMarker(extras);
+  return withDoor(extras, {
+    ox: offset.ox,
+    oy: offset.oy,
+    sizePx: prev?.sizePx ?? DOOR_DEFAULT_SIZE_PX,
+    rotationDeg: prev?.rotationDeg ?? 0,
+  });
 }
 
 function formatLayoutSlotKey(code: string): string | null {

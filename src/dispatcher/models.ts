@@ -638,7 +638,9 @@ export interface AppSettings {
     youAreHere?: { ox: number; oy: number; sizePx: number };
     /** @deprecated Prefer youAreHere. */
     youAreHereOffset?: { ox: number; oy: number };
-    /** Swinging-door icon offset from entrance anchor (px). */
+    /** Swinging-door icon from entrance anchor (px). */
+    door?: { ox: number; oy: number; sizePx: number; rotationDeg: number };
+    /** @deprecated Prefer door. */
     doorOffset?: { ox: number; oy: number };
   };
 }
