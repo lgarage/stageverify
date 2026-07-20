@@ -100,6 +100,16 @@ async function main() {
     );
   }
 
+  // Flat 2D spots — no faux-3D perspective cubbies
+  const s1aTransform = await page.getByTestId("shop-spot-S1A").evaluate((el) =>
+    getComputedStyle(el).transform,
+  );
+  if (s1aTransform && s1aTransform !== "none") {
+    throw new Error(
+      `S1A should be flat 2D (no transform). Got: ${s1aTransform}`,
+    );
+  }
+
   // Hover free or occupied — card should appear
   await page.getByTestId("shop-spot-G1").hover();
   await page.waitForTimeout(400);

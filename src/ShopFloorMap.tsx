@@ -41,231 +41,50 @@ type Props = {
   onOpenDelivery: (deliveryId: string) => void;
 };
 
-function groundSpotStyle(color: SpotMapColor): CSSProperties {
+function spotStyle(color: SpotMapColor, ground: boolean): CSSProperties {
   const bg = SPOT_MAP_COLORS[color];
   const fg = SPOT_MAP_FG[color];
+  if (ground) {
+    return {
+      backgroundColor: bg,
+      color: fg,
+      border:
+        color === "orange"
+          ? "1px solid #ca8a04"
+          : "1px solid rgba(0,0,0,0.15)",
+      borderRadius: 4,
+      fontWeight: 800,
+      fontSize: 14,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      minWidth: 52,
+      minHeight: 52,
+      cursor: "pointer",
+      fontFamily: FONT,
+      userSelect: "none",
+    };
+  }
   return {
     backgroundColor: bg,
     color: fg,
     border:
       color === "orange"
         ? "1px solid #ca8a04"
-        : "1px solid rgba(0,0,0,0.15)",
-    borderRadius: 6,
-    fontWeight: 800,
-    fontSize: 16,
-    display: "flex",
+        : "1px solid rgba(0,0,0,0.2)",
+    borderRadius: 3,
+    fontWeight: 700,
+    fontSize: 11,
+    padding: "4px 6px",
+    display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 64,
-    minHeight: 64,
+    minWidth: 40,
+    minHeight: 32,
     cursor: "pointer",
     fontFamily: FONT,
     userSelect: "none",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
   };
-}
-
-/** CAD-style cubby: black frame, dark cavity, colored floor slab, readable label. */
-function ShelfCubby({
-  code,
-  color,
-  onEnter,
-  onLeave,
-  onClick,
-}: {
-  code: string;
-  color: SpotMapColor;
-  onEnter: () => void;
-  onLeave: () => void;
-  onClick: () => void;
-}) {
-  const floorColor = SPOT_MAP_COLORS[color];
-  const floorFg = SPOT_MAP_FG[color];
-  const shortLabel = code.replace(/^S[12]/, "");
-
-  return (
-    <button
-      type="button"
-      data-testid={`shop-spot-${code}`}
-      data-spot-color={color}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      onClick={onClick}
-      style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-end",
-        width: 58,
-        height: 52,
-        padding: 0,
-        border: "2px solid #0a0a0a",
-        borderRadius: 1,
-        backgroundColor: "#1f1f1f",
-        cursor: "pointer",
-        overflow: "hidden",
-        fontFamily: FONT,
-        userSelect: "none",
-        boxShadow:
-          "inset 4px 0 6px rgba(0,0,0,0.45), inset -4px 0 6px rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.08), 0 3px 6px rgba(0,0,0,0.25)",
-        transform: "perspective(140px) rotateX(4deg)",
-        transformOrigin: "center bottom",
-      }}
-    >
-      <span
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 800,
-          fontSize: 15,
-          color: "#f1f5f9",
-          letterSpacing: 0.3,
-          textShadow: "0 1px 2px rgba(0,0,0,0.6)",
-        }}
-      >
-        {shortLabel}
-      </span>
-      <div
-        style={{
-          height: "38%",
-          minHeight: 18,
-          backgroundColor: floorColor,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderTop: "2px solid rgba(0,0,0,0.55)",
-          boxShadow: "inset 0 3px 6px rgba(0,0,0,0.2)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            color: floorFg,
-            opacity: color === "green" ? 0 : 0.95,
-          }}
-          aria-hidden
-        >
-          {shortLabel}
-        </span>
-      </div>
-    </button>
-  );
-}
-
-function VerticalShelfUnit({
-  unit,
-  colorOf,
-  onEnter,
-  onLeave,
-  onClickSpot,
-}: {
-  unit: (typeof SHOP_MAP_SHELF_UNITS)[number];
-  colorOf: (code: string) => SpotMapColor;
-  onEnter: (code: string) => void;
-  onLeave: () => void;
-  onClickSpot: (code: string) => void;
-}) {
-  const levelRowHeight = 56;
-
-  return (
-    <div
-      data-testid={`shop-shelf-${unit}`}
-      style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
-    >
-      {/* Pair labels beside unit — bottom→top A+G … F+L */}
-      <div
-        data-testid={`shop-shelf-${unit}-labels`}
-        style={{
-          display: "flex",
-          flexDirection: "column-reverse",
-          gap: 6,
-          paddingBottom: 4,
-        }}
-      >
-        {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => (
-          <div
-            key={`${unit}-${a}${b}`}
-            style={{
-              height: levelRowHeight,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              fontWeight: 800,
-              fontSize: 13,
-              color: "#475569",
-              letterSpacing: 0.2,
-              minWidth: 36,
-            }}
-          >
-            {a}+{b}
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <div
-          style={{
-            fontWeight: 800,
-            color: NAVY,
-            marginBottom: 10,
-            fontSize: 17,
-            textAlign: "center",
-          }}
-        >
-          {unit}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column-reverse",
-            gap: 6,
-            border: "4px solid #0a0a0a",
-            borderRadius: 3,
-            padding: 8,
-            backgroundColor: "#0f0f0f",
-            boxShadow:
-              "inset 0 3px 8px rgba(0,0,0,0.55), 4px 6px 14px rgba(0,0,0,0.22)",
-            perspective: "900px",
-          }}
-        >
-          {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
-            const codeA = shelfSpotCode(unit, a);
-            const codeB = shelfSpotCode(unit, b);
-            return (
-              <div
-                key={`${unit}-level-${a}${b}`}
-                style={{
-                  display: "flex",
-                  gap: 6,
-                  minHeight: levelRowHeight,
-                  alignItems: "flex-end",
-                }}
-              >
-                <ShelfCubby
-                  code={codeA}
-                  color={colorOf(codeA)}
-                  onEnter={() => onEnter(codeA)}
-                  onLeave={onLeave}
-                  onClick={() => onClickSpot(codeA)}
-                />
-                <ShelfCubby
-                  code={codeB}
-                  color={colorOf(codeB)}
-                  onEnter={() => onEnter(codeB)}
-                  onLeave={onLeave}
-                  onClick={() => onClickSpot(codeB)}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export function ShopFloorMap({
@@ -342,13 +161,13 @@ export function ShopFloorMap({
           display: "flex",
           alignItems: "center",
           gap: 10,
-          marginBottom: 14,
+          marginBottom: 12,
         }}
       >
         <div
           style={{
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             borderRadius: 8,
             backgroundColor: NAVY,
             color: "#fff",
@@ -356,7 +175,7 @@ export function ShopFloorMap({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 15,
+            fontSize: 14,
           }}
         >
           SV
@@ -364,7 +183,7 @@ export function ShopFloorMap({
         <h2
           style={{
             margin: 0,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: 800,
             color: NAVY,
             letterSpacing: 0.3,
@@ -378,24 +197,24 @@ export function ShopFloorMap({
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: 20,
+          gap: 16,
           background:
             "repeating-linear-gradient(0deg, #f8fafc, #f8fafc 19px, #eef2f7 20px), repeating-linear-gradient(90deg, #f8fafc, #f8fafc 19px, #eef2f7 20px)",
           border: "1px solid #dde1e7",
           borderRadius: 10,
-          padding: 28,
-          minHeight: 560,
+          padding: 20,
+          minHeight: 420,
         }}
       >
-        {/* Left ground column G1–G4 (bottom→top on floor plan) */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Left ground column G1–G4 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {SHOP_MAP_GROUND_LEFT.map((code) => (
             <button
               key={code}
               type="button"
               data-testid={`shop-spot-${code}`}
               data-spot-color={colorOf(code)}
-              style={groundSpotStyle(colorOf(code))}
+              style={spotStyle(colorOf(code), true)}
               onMouseEnter={() => void onEnter(code)}
               onMouseLeave={() => setHover(null)}
               onClick={() => onClickSpot(code)}
@@ -405,16 +224,16 @@ export function ShopFloorMap({
           ))}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Top ground row G5–G12 — L-shape leg */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Top ground row G5–G12 */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {SHOP_MAP_GROUND_TOP.map((code) => (
               <button
                 key={code}
                 type="button"
                 data-testid={`shop-spot-${code}`}
                 data-spot-color={colorOf(code)}
-                style={groundSpotStyle(colorOf(code))}
+                style={spotStyle(colorOf(code), true)}
                 onMouseEnter={() => void onEnter(code)}
                 onMouseLeave={() => setHover(null)}
                 onClick={() => onClickSpot(code)}
@@ -424,26 +243,116 @@ export function ShopFloorMap({
             ))}
           </div>
 
-          {/* Shelves S1 / S2 — vertical units (floor-plan orientation) */}
-          <div
-            style={{
-              display: "flex",
-              gap: 48,
-              flexWrap: "wrap",
-              alignItems: "flex-end",
-              justifyContent: "center",
-              paddingTop: 8,
-            }}
-          >
+          {/* Shelves S1 / S2 — flat 2D units with level-pair labels */}
+          <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
             {SHOP_MAP_SHELF_UNITS.map((unit) => (
-              <VerticalShelfUnit
+              <div
                 key={unit}
-                unit={unit}
-                colorOf={colorOf}
-                onEnter={(code) => void onEnter(code)}
-                onLeave={() => setHover(null)}
-                onClickSpot={onClickSpot}
-              />
+                data-testid={`shop-shelf-${unit}`}
+                style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
+              >
+                <div
+                  data-testid={`shop-shelf-${unit}-labels`}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column-reverse",
+                    gap: 6,
+                    paddingBottom: 4,
+                  }}
+                >
+                  {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => (
+                    <div
+                      key={`${unit}-${a}${b}`}
+                      style={{
+                        height: 36,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        fontWeight: 800,
+                        fontSize: 12,
+                        color: "#475569",
+                        letterSpacing: 0.2,
+                        minWidth: 32,
+                      }}
+                    >
+                      {a}+{b}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      color: NAVY,
+                      marginBottom: 8,
+                      fontSize: 14,
+                      textAlign: "center",
+                    }}
+                  >
+                    {unit}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column-reverse",
+                      gap: 6,
+                      border: "2px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: 8,
+                      backgroundColor: "rgba(255,255,255,0.85)",
+                    }}
+                  >
+                    {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
+                      const codeA = shelfSpotCode(unit, a);
+                      const codeB = shelfSpotCode(unit, b);
+                      return (
+                        <div
+                          key={`${unit}-${a}`}
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            alignItems: "center",
+                            minHeight: 36,
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 40,
+                              height: 32,
+                              backgroundColor: "#e2e8f0",
+                              borderRadius: 3,
+                              border: "1px solid #94a3b8",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            data-testid={`shop-spot-${codeA}`}
+                            data-spot-color={colorOf(codeA)}
+                            style={spotStyle(colorOf(codeA), false)}
+                            onMouseEnter={() => void onEnter(codeA)}
+                            onMouseLeave={() => setHover(null)}
+                            onClick={() => onClickSpot(codeA)}
+                          >
+                            {codeA}
+                          </button>
+                          <button
+                            type="button"
+                            data-testid={`shop-spot-${codeB}`}
+                            data-spot-color={colorOf(codeB)}
+                            style={spotStyle(colorOf(codeB), false)}
+                            onMouseEnter={() => void onEnter(codeB)}
+                            onMouseLeave={() => setHover(null)}
+                            onClick={() => onClickSpot(codeB)}
+                          >
+                            {codeB}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -567,9 +476,9 @@ export function ShopFloorMap({
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 16,
-          marginTop: 16,
-          fontSize: 13,
+          gap: 14,
+          marginTop: 14,
+          fontSize: 12,
           color: "#374151",
         }}
       >
@@ -587,8 +496,8 @@ export function ShopFloorMap({
           >
             <span
               style={{
-                width: 16,
-                height: 16,
+                width: 14,
+                height: 14,
                 borderRadius: 3,
                 backgroundColor: SPOT_MAP_COLORS[color],
                 border:
