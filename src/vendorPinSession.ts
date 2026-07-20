@@ -233,3 +233,118 @@ export function touchPinSession(deliveryId: string): void {
 export function clearPinSession(deliveryId: string): void {
   sessionStorage.removeItem(storageKey(deliveryId));
 }
+
+const VENDOR_RUN_STORAGE_PREFIX = "sv-vendor-run-pin:";
+
+export interface VendorRunPinSession {
+  vendorId: string;
+  vendorName: string;
+  anchorDeliveryId: string;
+  lastActivityAt: number;
+  sessionToken?: string;
+  expiresAt?: string;
+  sessionMinutes?: number;
+  scannedStagingLocationCode?: string;
+}
+
+function vendorRunStorageKey(vendorId: string): string {
+  return `${VENDOR_RUN_STORAGE_PREFIX}${vendorId}`;
+}
+
+function readVendorRunRaw(vendorId: string): VendorRunPinSession | null {
+  try {
+    const raw = sessionStorage.getItem(vendorRunStorageKey(vendorId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as VendorRunPinSession;
+    if (
+      typeof parsed.vendorId !== "string" ||
+      typeof parsed.vendorName !== "string" ||
+      typeof parsed.anchorDeliveryId !== "string" ||
+      typeof parsed.lastActivityAt !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function isVendorRunPinSessionValid(vendorId: string): boolean {
+  const session = readVendorRunRaw(vendorId);
+  if (!session) return false;
+  if (serverSessionExpired(session) || clientInactivityExpired(session)) {
+    clearVendorRunPinSession(vendorId);
+    return false;
+  }
+  return true;
+}
+
+export function getVendorRunPinSession(
+  vendorId: string,
+): VendorRunPinSession | null {
+  const session = readVendorRunRaw(vendorId);
+  if (!session || !isVendorRunPinSessionValid(vendorId)) {
+    clearVendorRunPinSession(vendorId);
+    return null;
+  }
+  return session;
+}
+
+export function getVendorRunSessionToken(vendorId: string): string | null {
+  return getVendorRunPinSession(vendorId)?.sessionToken ?? null;
+}
+
+export function setVendorRunPinSession(
+  vendorId: string,
+  vendorName: string,
+  anchorDeliveryId: string,
+  options?: {
+    sessionToken?: string;
+    expiresAt?: string;
+    sessionMinutes?: number;
+    scannedStagingLocationCode?: string;
+  },
+): VendorRunPinSession {
+  const session: VendorRunPinSession = {
+    vendorId,
+    vendorName,
+    anchorDeliveryId,
+    lastActivityAt: Date.now(),
+    sessionToken: options?.sessionToken,
+    expiresAt: options?.expiresAt,
+    sessionMinutes: options?.sessionMinutes,
+    scannedStagingLocationCode: options?.scannedStagingLocationCode,
+  };
+  sessionStorage.setItem(vendorRunStorageKey(vendorId), JSON.stringify(session));
+  return session;
+}
+
+export function touchVendorRunPinSession(vendorId: string): void {
+  const session = readVendorRunRaw(vendorId);
+  if (!session || serverSessionExpired(session)) {
+    clearVendorRunPinSession(vendorId);
+    return;
+  }
+  session.lastActivityAt = Date.now();
+  sessionStorage.setItem(vendorRunStorageKey(vendorId), JSON.stringify(session));
+}
+
+export function clearVendorRunPinSession(vendorId: string): void {
+  sessionStorage.removeItem(vendorRunStorageKey(vendorId));
+}
+
+/** Bridge vendor-run session token onto a delivery for legacy vendor CF clients. */
+export function bridgeVendorRunSessionToDelivery(
+  vendorId: string,
+  deliveryId: string,
+): boolean {
+  const runSession = getVendorRunPinSession(vendorId);
+  if (!runSession?.sessionToken) return false;
+  setPinSession(deliveryId, runSession.vendorId, runSession.vendorName, {
+    sessionToken: runSession.sessionToken,
+    expiresAt: runSession.expiresAt,
+    sessionMinutes: runSession.sessionMinutes,
+  });
+  return true;
+}

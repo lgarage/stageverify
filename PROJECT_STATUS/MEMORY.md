@@ -56,7 +56,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 | ------- | -------------- | ---- |
 | **Security gate (CF/auth/rules)** | `security-review-gate.mdc` | Before push T2+/backend-write-critical; see rule for invocation + evidence requirements. |
 | Parallel builds (disjoint) | `parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain; parallel Composer 2.5 when paths disjoint |
-| Location-first transition (QR/PIN/pickup rework) | `docs/location-first-transition-spec.md` § Phase Tracker | Read tracker first. **Vendor PIN = job-scoped (D14, Dan 2026-07-08)** — § Job-scoped vendor PIN before any PIN/scan visibility work; vendor/company-scoped visibility REJECTED |
+| Location-first transition (QR/PIN/pickup rework) | `docs/location-first-transition-spec.md` § Phase Tracker | Read tracker first. **Vendor PIN = job-scoped by default (D14)** — § Job-scoped vendor PIN before PIN/scan work; vendor/company-scoped visibility REJECTED unless dispatcher enables `companyWideSessionEnabled` (D-09 amended 2026-07-20) |
 | ESL / Minew | `ESL_INTEGRATION_PLAN.md` | **Not in MVP scope (D-26)** — post-MVP only |
 | Nav rejections | `USER_SCOPE_REJECTIONS.md` | Dispatcher nav / Settings IA |
 | Delivery display / dossier § | `deliveryDisplayHelpers.ts`, `dossier-index.json`, `npm run dossier:slice -- --tag <tag>` | List/drawer readiness; dossier by tag only |

@@ -5,6 +5,7 @@ import type { VerifyVendorPinInput } from "./dispatcher/models";
 import {
   setPinSession,
   setJobPinSession,
+  setVendorRunPinSession,
   touchPinSession,
   touchJobPinSession,
   VENDOR_PIN_SESSION_MS,
@@ -22,7 +23,7 @@ export interface VendorPinVerifiedPayload {
   vendorName: string;
   deliveryId?: string;
   jobId?: string;
-  sessionScope?: "job" | "delivery";
+  sessionScope?: "job" | "delivery" | "vendor";
 }
 
 interface VendorPinGateProps {
@@ -66,7 +67,7 @@ export function VendorPinGate({
 
   const defaultSubtitle =
     stagingLocationCode && !deliveryId
-      ? "Enter the 4-digit PIN for this job delivery."
+      ? "Enter your job PIN, or your company PIN if dispatch enabled multi-site run."
       : "Enter the 4-digit PIN for this delivery.";
 
   const activityKey = jobId ?? deliveryId ?? stagingLocationCode ?? "pin";
@@ -108,6 +109,22 @@ export function VendorPinGate({
             result.jobId,
             result.vendorId,
             result.vendorName,
+            {
+              ...sessionOpts,
+              scannedStagingLocationCode: result.scannedStagingLocationCode,
+            },
+          );
+        }
+
+        if (
+          result.sessionScope === "vendor" &&
+          result.vendorId &&
+          result.deliveryId
+        ) {
+          setVendorRunPinSession(
+            result.vendorId,
+            result.vendorName,
+            result.deliveryId,
             {
               ...sessionOpts,
               scannedStagingLocationCode: result.scannedStagingLocationCode,

@@ -159,7 +159,7 @@ async function assertPermanentSignUrl(browser) {
   record("Location header shows scanned code", true);
   await shot(page, "01-location-header");
 
-  await page.waitForSelector("text=Enter Job PIN", { timeout: 30_000 });
+  await page.waitForSelector("text=Enter Job or Company PIN", { timeout: 30_000 });
   await enterPin(page, job1Pin);
   await page.waitForTimeout(3000);
   await shot(page, "01b-after-pin");

@@ -45,7 +45,12 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const vendors = [
-  { id: "vendor-1", pinCode: "1234", active: true },
+  {
+    id: "vendor-1",
+    pinCode: "1234",
+    active: true,
+    companyWideSessionEnabled: true,
+  },
   { id: "vendor-2", pinCode: "2345", active: true },
   { id: "vendor-3", pinCode: "3456", active: true },
 ];

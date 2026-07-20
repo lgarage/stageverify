@@ -324,6 +324,8 @@ export interface Vendor {
   pinHash?: string;
   /** When false, PIN verification fails. Defaults to active when unset. */
   active?: boolean;
+  /** Opt-in company PIN path — lists vendor open orders across jobs (D-09 amended). Default false. */
+  companyWideSessionEnabled?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -344,7 +346,7 @@ export interface VerifyVendorPinResult {
   vendorName?: string;
   deliveryId?: string;
   jobId?: string;
-  sessionScope?: "job" | "delivery";
+  sessionScope?: "job" | "delivery" | "vendor";
   scannedStagingLocationCode?: string;
   /** Opaque server-issued session token. */
   sessionToken?: string;
@@ -360,6 +362,25 @@ export interface JobVendorDeliverySummary {
   status: string;
   stagingLocationCodes: string[];
   scannedStagingLocationCode?: string;
+}
+
+export interface VendorRunDeliveryItem {
+  id: string;
+  description: string;
+  qtyOrdered: number;
+}
+
+export interface VendorRunDeliverySummary {
+  deliveryId: string;
+  jobId: string;
+  jobName: string;
+  orderNumber: string;
+  vendorInvoiceNumber?: string;
+  poNumber?: string;
+  stagingLocationCodes: string[];
+  hasAssignableSpot: boolean;
+  vendorPhysicalDropoffConfirmed: boolean;
+  items: VendorRunDeliveryItem[];
 }
 
 export interface LocationPublicBranding {
@@ -415,7 +436,7 @@ export interface VendorSession {
   vendorName: string;
   expiresAt: string;
   createdAt: string;
-  sessionScope?: "job" | "delivery";
+  sessionScope?: "job" | "delivery" | "vendor";
   jobId?: string;
   scannedStagingLocationId?: string;
   scannedStagingLocationCode?: string;

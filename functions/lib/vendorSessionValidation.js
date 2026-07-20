@@ -49,6 +49,20 @@ async function assertVendorSessionForDelivery(sessionToken, deliveryId) {
         throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
     }
     assertNotExpired(session);
+    if (session.sessionScope === "vendor") {
+        const deliverySnap = await getDb()
+            .collection("deliveries")
+            .doc(deliveryId)
+            .get();
+        if (!deliverySnap.exists) {
+            throw new https_1.HttpsError("not-found", "Delivery not found.");
+        }
+        const deliveryVendorId = String(deliverySnap.data()?.vendorId ?? "");
+        if (deliveryVendorId !== session.vendorId) {
+            throw new https_1.HttpsError("permission-denied", "Session is not valid for this delivery.");
+        }
+        return session;
+    }
     if (session.sessionScope === "job" && session.jobId) {
         const deliverySnap = await getDb()
             .collection("deliveries")

@@ -57,6 +57,8 @@
 ## § Job-scoped vendor PIN (REVISION — Dan 2026-07-08, binding)
 
 > **Supersedes** the original vendor-scoped PIN visibility model everywhere in this spec. The pre-revision D3 wording ("show a list of that vendor's active orders") and the master-architecture bullet "Vendor PIN → that vendor's deliveries only" are **REJECTED** as written — vendor/company-scoped visibility is the hazard this revision eliminates. Any phase section or older doc that implies a vendor PIN reveals company-wide orders is superseded by this section.
+>
+> **D-09 amended (2026-07-20):** Opt-in per-vendor `companyWideSessionEnabled` (dispatcher default off) adds a separate **company PIN** path after location QR scan — vendor-scoped session listing that vendor's open orders across jobs. Job PINs remain job-scoped and never elevate. See `PROJECT_STATUS/DECISIONS.md` D-09 amended.
 
 ### The rule
 

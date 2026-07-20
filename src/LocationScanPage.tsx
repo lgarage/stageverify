@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -16,32 +17,52 @@ import {
 import {
   getJobVendorDeliveriesClient,
   getLocationPublicBrandingClient,
+  getVendorRunDeliveriesClient,
+  markVendorDeliveriesBulkClient,
   recordVendorLocationScanClient,
 } from "./phase2CallableClients";
 import type {
   DeliveryDetails,
   JobVendorDeliverySummary,
+  VendorRunDeliverySummary,
 } from "./dispatcher/models";
 import { VendorPinGate } from "./VendorPinGate";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import {
   bridgeJobSessionToDelivery,
   clearJobPinSession,
+  clearVendorRunPinSession,
   getJobPinSession,
   getJobSessionToken,
+  getVendorRunPinSession,
+  getVendorRunSessionToken,
   isJobPinSessionValid,
+  isVendorRunPinSessionValid,
+  touchVendorRunPinSession,
 } from "./vendorPinSession";
 import { isVendorSessionError } from "./vendorSessionErrors";
 import { useVendorPinActivity } from "./useVendorPinActivity";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 
-type Step = "loading" | "missing" | "pin" | "list" | "hub" | "done";
+type Step = "loading" | "missing" | "pin" | "list" | "vendor-list" | "hub" | "done";
+type SessionScope = "job" | "vendor" | null;
 
 interface LocationBranding {
   code: string;
   label: string;
   type: string;
+}
+
+function formatSpotLine(row: VendorRunDeliverySummary): string {
+  const spot =
+    row.stagingLocationCodes.length > 0
+      ? row.stagingLocationCodes.join(", ")
+      : "—";
+  const inv = row.vendorInvoiceNumber ?? row.orderNumber;
+  const po = row.poNumber ?? "—";
+  const line = `${spot} · Inv ${inv} · PO ${po}`;
+  return line.length > 72 ? `${line.slice(0, 69)}…` : line;
 }
 
 export function LocationScanPage() {
@@ -53,7 +74,19 @@ export function LocationScanPage() {
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [vendorId, setVendorId] = useState<string | null>(null);
+  const [sessionScope, setSessionScope] = useState<SessionScope>(null);
   const [deliveries, setDeliveries] = useState<JobVendorDeliverySummary[]>([]);
+  const [vendorRunDeliveries, setVendorRunDeliveries] = useState<
+    VendorRunDeliverySummary[]
+  >([]);
+  const [checkedDeliveryIds, setCheckedDeliveryIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedDeliveryIds, setExpandedDeliveryIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [deliveryDetails, setDeliveryDetails] =
     useState<DeliveryDetails | null>(null);
@@ -63,6 +96,14 @@ export function LocationScanPage() {
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
+
+  const activeVendorRun = useMemo(() => {
+    return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
+  }, [vendorRunDeliveries]);
+
+  const deliveredVendorRun = useMemo(() => {
+    return vendorRunDeliveries.filter((d) => d.vendorPhysicalDropoffConfirmed);
+  }, [vendorRunDeliveries]);
 
   const loadBranding = useCallback(async () => {
     if (!locationCode) {
@@ -179,6 +220,7 @@ export function LocationScanPage() {
           sessionToken: token,
         });
         setJobId(resolvedJobId);
+        setSessionScope("job");
         setDeliveries(result.deliveries);
         setScannedCode(result.scannedStagingLocationCode);
         if (result.deliveries.length === 1) {
@@ -199,35 +241,167 @@ export function LocationScanPage() {
     [openDelivery],
   );
 
+  const loadVendorRunDeliveries = useCallback(async (resolvedVendorId: string) => {
+    const token = getVendorRunSessionToken(resolvedVendorId);
+    if (!token) {
+      setStep("pin");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getVendorRunDeliveriesClient({ sessionToken: token });
+      setVendorId(resolvedVendorId);
+      setSessionScope("vendor");
+      setVendorRunDeliveries(result.deliveries);
+      setScannedCode(result.scannedStagingLocationCode);
+      setCheckedDeliveryIds(new Set());
+      setExpandedDeliveryIds(new Set());
+      setStep("vendor-list");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not load vendor deliveries.",
+      );
+      clearVendorRunPinSession(resolvedVendorId);
+      setStep("pin");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (step !== "pin" || !jobId || !isJobPinSessionValid(jobId)) return;
     void loadJobDeliveries(jobId);
   }, [step, jobId, loadJobDeliveries]);
 
+  useEffect(() => {
+    if (step !== "pin" || !vendorId || !isVendorRunPinSessionValid(vendorId)) {
+      return;
+    }
+    void loadVendorRunDeliveries(vendorId);
+  }, [step, vendorId, loadVendorRunDeliveries]);
+
   const handlePinVerified = useCallback(
-    (payload: { jobId?: string }) => {
+    (payload: {
+      jobId?: string;
+      vendorId?: string;
+      sessionScope?: "job" | "delivery" | "vendor";
+    }) => {
+      if (payload.sessionScope === "vendor" && payload.vendorId) {
+        setVendorId(payload.vendorId);
+        setJobId(null);
+        void loadVendorRunDeliveries(payload.vendorId);
+        return;
+      }
       if (!payload.jobId) {
         setError("Invalid session.");
         return;
       }
       setJobId(payload.jobId);
+      setVendorId(null);
       void loadJobDeliveries(payload.jobId);
     },
-    [loadJobDeliveries],
+    [loadJobDeliveries, loadVendorRunDeliveries],
   );
 
   const handlePinSessionExpired = useCallback(() => {
     setDeliveryDetails(null);
     setDeliveries([]);
+    setVendorRunDeliveries([]);
+    setCheckedDeliveryIds(new Set());
     if (jobId) clearJobPinSession(jobId);
+    if (vendorId) clearVendorRunPinSession(vendorId);
     setJobId(null);
+    setVendorId(null);
+    setSessionScope(null);
     setStep("pin");
-  }, [jobId]);
+  }, [jobId, vendorId]);
+
+  const activityKey =
+    deliveryDetails?.delivery.id ?? jobId ?? vendorId ?? locationCode;
 
   useVendorPinActivity(
-    deliveryDetails?.delivery.id ?? jobId,
+    typeof activityKey === "string" ? activityKey : null,
     handlePinSessionExpired,
   );
+
+  useEffect(() => {
+    if (!vendorId) return;
+    const interval = window.setInterval(() => {
+      if (isVendorRunPinSessionValid(vendorId)) {
+        touchVendorRunPinSession(vendorId);
+      }
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [vendorId]);
+
+  const toggleChecked = (deliveryId: string, enabled: boolean) => {
+    if (!enabled) return;
+    setCheckedDeliveryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(deliveryId)) next.delete(deliveryId);
+      else next.add(deliveryId);
+      return next;
+    });
+  };
+
+  const toggleExpanded = (deliveryId: string) => {
+    setExpandedDeliveryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(deliveryId)) next.delete(deliveryId);
+      else next.add(deliveryId);
+      return next;
+    });
+  };
+
+  const distinctJobsForChecked = useMemo(() => {
+    const names = new Set<string>();
+    for (const row of activeVendorRun) {
+      if (checkedDeliveryIds.has(row.deliveryId)) {
+        names.add(row.jobName);
+      }
+    }
+    return [...names].sort();
+  }, [activeVendorRun, checkedDeliveryIds]);
+
+  const handleBulkDeliver = async () => {
+    if (!vendorId || checkedDeliveryIds.size === 0) return;
+    if (vendorGeofenceEnforce && outsideGeofence) {
+      setError("You must be at the shop to confirm delivery.");
+      return;
+    }
+    const token = getVendorRunSessionToken(vendorId);
+    if (!token) {
+      handlePinSessionExpired();
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const deliveryIds = [...checkedDeliveryIds];
+      const result = await markVendorDeliveriesBulkClient({
+        sessionToken: token,
+        deliveryIds,
+      });
+      const failed = result.results.filter((r) => !r.success);
+      if (failed.length > 0) {
+        setError(
+          failed.map((f) => `${f.deliveryId}: ${f.error ?? "failed"}`).join("; "),
+        );
+      }
+      await loadVendorRunDeliveries(vendorId);
+      setConfirmBulkOpen(false);
+      setCheckedDeliveryIds(new Set());
+    } catch (err) {
+      if (isVendorSessionError(err)) {
+        handlePinSessionExpired();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Bulk deliver failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleMarkDelivered = async (): Promise<boolean> => {
     if (!deliveryDetails) return false;
@@ -287,8 +461,14 @@ export function LocationScanPage() {
 
   const resetFlow = () => {
     if (jobId) clearJobPinSession(jobId);
+    if (vendorId) clearVendorRunPinSession(vendorId);
     setJobId(null);
+    setVendorId(null);
+    setSessionScope(null);
     setDeliveries([]);
+    setVendorRunDeliveries([]);
+    setCheckedDeliveryIds(new Set());
+    setExpandedDeliveryIds(new Set());
     setDeliveryDetails(null);
     setError(null);
     setStep("pin");
@@ -334,10 +514,196 @@ export function LocationScanPage() {
         </div>
         <VendorPinGate
           stagingLocationCode={locationCode}
-          title="Enter Job PIN"
-          subtitle="Enter the 4-digit PIN from your delivery email for this job."
+          title="Enter Job or Company PIN"
+          subtitle="Job PIN for one job, or company PIN when dispatch enabled multi-site run."
           onVerified={handlePinVerified}
         />
+      </div>
+    );
+  }
+
+  if (step === "vendor-list" && branding) {
+    const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
+    return (
+      <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
+        <div className="shrink-0 px-6 py-4 border-b border-border bg-bg-surface">
+          <p className="text-xs uppercase tracking-widest text-text-secondary">
+            Scanned {branding.code}
+            {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
+          </p>
+          <h1 className="text-lg font-bold text-text-primary mt-1">
+            Your open deliveries
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Check each order you delivered, then tap Delivered.
+          </p>
+        </div>
+
+        {error && (
+          <p className="px-6 py-2 text-sm text-accent-red" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {activeVendorRun.map((row) => {
+            const canCheck = row.hasAssignableSpot;
+            const expanded = expandedDeliveryIds.has(row.deliveryId);
+            return (
+              <div
+                key={row.deliveryId}
+                className="rounded-xl border border-border bg-bg-surface p-4"
+                data-testid={`vendor-run-row-${row.deliveryId}`}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-5 shrink-0"
+                    checked={checkedDeliveryIds.has(row.deliveryId)}
+                    disabled={!canCheck || loading}
+                    aria-label={`Select ${row.jobName}`}
+                    onChange={() => toggleChecked(row.deliveryId, canCheck)}
+                  />
+                  <button
+                    type="button"
+                    className="flex-1 text-left min-w-0"
+                    onClick={() => toggleExpanded(row.deliveryId)}
+                  >
+                    <p className="font-semibold text-text-primary truncate">
+                      {row.jobName}
+                    </p>
+                    <p className="text-sm text-text-secondary mt-0.5 truncate">
+                      {formatSpotLine(row)}
+                    </p>
+                    {!canCheck && (
+                      <p className="text-xs text-accent-red mt-1">
+                        No spot — ask dispatch
+                      </p>
+                    )}
+                  </button>
+                </div>
+                {expanded && (
+                  <ul className="mt-3 ml-8 text-sm text-text-secondary space-y-1 border-t border-border pt-2">
+                    {row.items.map((item) => (
+                      <li key={item.id}>
+                        {item.description} × {item.qtyOrdered}
+                      </li>
+                    ))}
+                    {row.items.length === 0 && <li>No line items</li>}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+          {activeVendorRun.length === 0 && (
+            <p className="text-sm text-text-secondary text-center py-8">
+              No active deliveries to confirm.
+            </p>
+          )}
+
+          {deliveredVendorRun.length > 0 && (
+            <div className="pt-4 border-t border-border">
+              <h2 className="text-sm font-semibold text-text-secondary mb-3">
+                Delivered
+              </h2>
+              {deliveredVendorRun.map((row) => {
+                const expanded = expandedDeliveryIds.has(row.deliveryId);
+                return (
+                  <div
+                    key={row.deliveryId}
+                    className="rounded-xl border border-border bg-bg-card p-4 mb-2 opacity-80"
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => toggleExpanded(row.deliveryId)}
+                    >
+                      <p className="font-semibold text-text-primary truncate">
+                        {row.jobName}
+                      </p>
+                      <p className="text-sm text-text-secondary mt-0.5 truncate">
+                        {formatSpotLine(row)}
+                      </p>
+                    </button>
+                    {expanded && (
+                      <ul className="mt-3 text-sm text-text-secondary space-y-1 border-t border-border pt-2">
+                        {row.items.map((item) => (
+                          <li key={item.id}>
+                            {item.description} × {item.qtyOrdered}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-border space-y-3">
+          <button
+            type="button"
+            disabled={loading || checkedDeliveryIds.size === 0}
+            onClick={() => setConfirmBulkOpen(true)}
+            className="action-btn action-btn-delivered w-full disabled:opacity-40"
+            data-testid="vendor-run-bulk-deliver"
+          >
+            Delivered
+            {checkedDeliveryIds.size > 0
+              ? ` (${checkedDeliveryIds.size})`
+              : ""}
+          </button>
+          <button
+            type="button"
+            onClick={resetFlow}
+            className="action-btn action-btn-secondary w-full"
+          >
+            ← Back
+          </button>
+        </div>
+
+        {confirmBulkOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-6">
+            <div className="w-full max-w-sm rounded-2xl bg-bg-surface p-6 shadow-xl">
+              <h2 className="text-lg font-bold text-text-primary mb-2">
+                Confirm delivered
+              </h2>
+              <p className="text-sm text-text-secondary mb-3">
+                Jobs in this batch:
+              </p>
+              <ul className="text-sm text-text-primary mb-6 list-disc pl-5 space-y-1">
+                {distinctJobsForChecked.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  className="action-btn action-btn-secondary flex-1"
+                  onClick={() => setConfirmBulkOpen(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="action-btn action-btn-delivered flex-1"
+                  onClick={() => void handleBulkDeliver()}
+                  disabled={loading}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {runSession && (
+          <p className="sr-only" data-testid="vendor-run-session-active">
+            vendor-run-session
+          </p>
+        )}
       </div>
     );
   }
@@ -438,6 +804,10 @@ export function LocationScanPage() {
             onDelivered={() => handleMarkDelivered()}
             onUndoDelivered={() => handleRevertDelivered()}
             onBack={() => {
+              if (sessionScope === "vendor" && vendorId) {
+                void loadVendorRunDeliveries(vendorId);
+                return;
+              }
               if (deliveries.length > 1) setStep("list");
               else resetFlow();
             }}

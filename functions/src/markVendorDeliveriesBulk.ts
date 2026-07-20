@@ -12,6 +12,8 @@ function getDb() {
   return admin.firestore();
 }
 
+const MAX_BULK_IDS = 50;
+
 type DeliveryStatus =
   | "pending"
   | "shipped"
@@ -23,17 +25,27 @@ type DeliveryStatus =
   | "picked_up"
   | "installed";
 
-interface MarkVendorDeliveredRequest {
-  deliveryId?: string;
-  sessionToken?: string;
-  actorName?: string;
-}
-
 interface DeliveryDoc {
   status: DeliveryStatus;
+  vendorId?: string;
   vendorPhysicalDropoffConfirmed?: boolean;
   vendorPhysicalDropoffConfirmedAt?: string;
   deliveredAt?: string;
+}
+
+interface MarkVendorDeliveriesBulkRequest {
+  sessionToken?: string;
+  deliveryIds?: string[];
+  actorName?: string;
+}
+
+interface BulkMarkResult {
+  deliveryId: string;
+  success: boolean;
+  error?: string;
+  status?: DeliveryStatus;
+  vendorPhysicalDropoffConfirmed?: boolean;
+  idempotent?: boolean;
 }
 
 function asActorName(value: unknown): string {
@@ -42,45 +54,47 @@ function asActorName(value: unknown): string {
   return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : "Vendor Driver";
 }
 
-/** Server-owned vendor DELIVERED — validates session, writes evidence, recalculates readiness. */
-export const markVendorDelivered = onCall(
-  {
-    region: "us-central1",
-    cors: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "https://lgarage.github.io",
-    ],
-  },
-  async (request) => {
-    const data = (request.data ?? {}) as MarkVendorDeliveredRequest;
-    const deliveryId = asDeliveryId(data.deliveryId);
-    const sessionToken = asSessionToken(data.sessionToken);
-    const actorName = asActorName(data.actorName);
+function asDeliveryIdList(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const ids: string[] = [];
+  for (const entry of value) {
+    const id = asDeliveryId(entry);
+    if (!id) return null;
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids.length > 0 ? ids : null;
+}
 
-    if (!deliveryId || !sessionToken) {
-      throw new HttpsError("invalid-argument", "Invalid session.");
-    }
-
+async function markOneDeliveryDelivered(
+  deliveryId: string,
+  sessionToken: string,
+  actorName: string,
+): Promise<BulkMarkResult> {
+  try {
     await assertVendorSessionForDelivery(sessionToken, deliveryId);
 
     const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
     const deliverySnap = await deliveryRef.get();
     if (!deliverySnap.exists) {
-      throw new HttpsError("not-found", "Delivery not found.");
+      return { deliveryId, success: false, error: "Delivery not found." };
     }
 
     const delivery = deliverySnap.data() as DeliveryDoc;
+
     if (!hasAssignableSpot(deliverySnap.data() as admin.firestore.DocumentData)) {
-      throw new HttpsError(
-        "failed-precondition",
-        "No assigned spot — ask dispatch.",
-      );
+      return {
+        deliveryId,
+        success: false,
+        error: "No assigned spot — ask dispatch.",
+      };
     }
+
     const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
     const fromStatus = delivery.status;
     const toStatus: DeliveryStatus =
-      fromStatus === "pending" || fromStatus === "shipped" ? "arrived" : fromStatus;
+      fromStatus === "pending" || fromStatus === "shipped"
+        ? "arrived"
+        : fromStatus;
 
     const now = new Date().toISOString();
     const confirmedAt =
@@ -117,19 +131,62 @@ export const markVendorDelivered = onCall(
 
     await batch.commit();
 
-    const readiness = await applyDeliveryReadinessTransaction(
-      getDb(),
-      deliveryId,
-      { historyReason: "Vendor DELIVERED readiness recalculation" },
-    );
+    await applyDeliveryReadinessTransaction(getDb(), deliveryId, {
+      historyReason: "Vendor DELIVERED readiness recalculation",
+    });
 
     return {
       deliveryId,
+      success: true,
       status: toStatus,
       vendorPhysicalDropoffConfirmed: true,
-      vendorPhysicalDropoffConfirmedAt: confirmedAt,
       idempotent: alreadyConfirmed && fromStatus === toStatus,
-      readiness,
     };
+  } catch (err) {
+    const message =
+      err instanceof HttpsError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : "Mark delivered failed.";
+    return { deliveryId, success: false, error: message };
+  }
+}
+
+/** Bulk vendor DELIVERED — vendor-scoped sessions; per-id results on partial failure. */
+export const markVendorDeliveriesBulk = onCall(
+  {
+    region: "us-central1",
+    cors: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://lgarage.github.io",
+    ],
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as MarkVendorDeliveriesBulkRequest;
+    const sessionToken = asSessionToken(data.sessionToken);
+    const deliveryIds = asDeliveryIdList(data.deliveryIds);
+    const actorName = asActorName(data.actorName);
+
+    if (!sessionToken || !deliveryIds) {
+      throw new HttpsError("invalid-argument", "Invalid session.");
+    }
+
+    if (deliveryIds.length > MAX_BULK_IDS) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Too many deliveries (max ${MAX_BULK_IDS}).`,
+      );
+    }
+
+    const results: BulkMarkResult[] = [];
+    for (const deliveryId of deliveryIds) {
+      results.push(
+        await markOneDeliveryDelivered(deliveryId, sessionToken, actorName),
+      );
+    }
+
+    return { results };
   },
 );

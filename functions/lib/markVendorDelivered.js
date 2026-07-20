@@ -5,6 +5,7 @@ const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 const vendorSessionValidation_1 = require("./vendorSessionValidation");
+const vendorDeliverySpotUtils_1 = require("./vendorDeliverySpotUtils");
 function getDb() {
     return admin.firestore();
 }
@@ -30,13 +31,16 @@ exports.markVendorDelivered = (0, https_1.onCall)({
     if (!deliveryId || !sessionToken) {
         throw new https_1.HttpsError("invalid-argument", "Invalid session.");
     }
-    await (0, vendorSessionValidation_1.assertVendorSessionValid)(sessionToken, deliveryId);
+    await (0, vendorSessionValidation_1.assertVendorSessionForDelivery)(sessionToken, deliveryId);
     const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
     const deliverySnap = await deliveryRef.get();
     if (!deliverySnap.exists) {
         throw new https_1.HttpsError("not-found", "Delivery not found.");
     }
     const delivery = deliverySnap.data();
+    if (!(0, vendorDeliverySpotUtils_1.hasAssignableSpot)(deliverySnap.data())) {
+        throw new https_1.HttpsError("failed-precondition", "No assigned spot — ask dispatch.");
+    }
     const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
     const fromStatus = delivery.status;
     const toStatus = fromStatus === "pending" || fromStatus === "shipped" ? "arrived" : fromStatus;

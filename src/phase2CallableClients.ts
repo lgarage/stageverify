@@ -163,3 +163,30 @@ export async function recordVendorLocationScanClient(input: {
 }): Promise<{ ok: boolean; recorded: boolean }> {
   return callCallable("recordVendorLocationScan", input);
 }
+
+export async function getVendorRunDeliveriesClient(input: {
+  sessionToken: string;
+}): Promise<{
+  vendorId: string;
+  scannedStagingLocationCode: string | null;
+  deliveries: import("./dispatcher/models").VendorRunDeliverySummary[];
+}> {
+  return callCallable("getVendorRunDeliveries", input);
+}
+
+export async function markVendorDeliveriesBulkClient(input: {
+  sessionToken: string;
+  deliveryIds: string[];
+  actorName?: string;
+}): Promise<{
+  results: Array<{
+    deliveryId: string;
+    success: boolean;
+    error?: string;
+    status?: string;
+    vendorPhysicalDropoffConfirmed?: boolean;
+    idempotent?: boolean;
+  }>;
+}> {
+  return callCallable("markVendorDeliveriesBulk", input);
+}

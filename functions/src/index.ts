@@ -49,6 +49,8 @@ import { updateVendorDeliveryStatus } from "./updateVendorDeliveryStatus";
 import { markPickupDeliveryInstalled } from "./markPickupDeliveryInstalled";
 import { getLocationPublicBranding } from "./getLocationPublicBranding";
 import { getJobVendorDeliveries } from "./getJobVendorDeliveries";
+import { getVendorRunDeliveries } from "./getVendorRunDeliveries";
+import { markVendorDeliveriesBulk } from "./markVendorDeliveriesBulk";
 import { recordVendorLocationScan } from "./recordVendorLocationScan";
 
 admin.initializeApp();
@@ -188,6 +190,8 @@ export {
   markPickupDeliveryInstalled,
   getLocationPublicBranding,
   getJobVendorDeliveries,
+  getVendorRunDeliveries,
+  markVendorDeliveriesBulk,
   recordVendorLocationScan,
   processInboundVendorEmail,
   initiateGmailOAuth,

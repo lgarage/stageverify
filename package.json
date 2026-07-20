@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.101",
+  "version": "0.0.102",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -73,6 +73,8 @@
     "verify:privacy:prod": "node scripts/run-verify-with-learning.mjs --script verify:privacy:prod scripts/verify-privacy-negative.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:location-scan": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs",
     "verify:location-scan:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:vendor-run-checklist": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-run-checklist.mjs",
+    "verify:vendor-run-checklist:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-run-checklist.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:location-phase4": "node scripts/run-verify-with-learning.mjs --script verify:location-phase4 scripts/verify-location-phase4.mjs",
     "verify:location-phase4:prod": "node scripts/run-verify-with-learning.mjs --script verify:location-phase4:prod scripts/verify-location-phase4.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:public-network-error": "node scripts/verify-public-network-error.mjs",

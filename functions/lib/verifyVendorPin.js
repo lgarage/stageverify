@@ -132,6 +132,51 @@ async function findJobByPin(pin) {
     }
     return null;
 }
+async function findVendorByCompanyPin(pin) {
+    const db = getDb();
+    const pinCodeSnap = await db
+        .collection("vendors")
+        .where("pinCode", "==", pin)
+        .where("companyWideSessionEnabled", "==", true)
+        .limit(2)
+        .get();
+    const candidates = [];
+    for (const doc of pinCodeSnap.docs) {
+        const vendor = doc.data();
+        if (vendor.active === false)
+            continue;
+        candidates.push({ id: doc.id, data: vendor });
+    }
+    if (candidates.length === 1) {
+        return candidates[0];
+    }
+    if (candidates.length > 1)
+        return null;
+    const allVendors = await db
+        .collection("vendors")
+        .where("companyWideSessionEnabled", "==", true)
+        .limit(200)
+        .get();
+    for (const doc of allVendors.docs) {
+        const vendor = doc.data();
+        if (vendor.active === false)
+            continue;
+        if ((0, pinMatching_1.pinMatches)(vendor, pin)) {
+            return { id: doc.id, data: vendor };
+        }
+    }
+    return null;
+}
+async function anchorDeliveryForVendor(vendorId) {
+    const snap = await getDb()
+        .collection("deliveries")
+        .where("vendorId", "==", vendorId)
+        .limit(20)
+        .get();
+    if (snap.empty)
+        return null;
+    return snap.docs[0].id;
+}
 async function primaryVendorForJob(jobId) {
     const snap = await getDb()
         .collection("deliveries")
@@ -293,7 +338,44 @@ exports.verifyVendorPin = (0, https_1.onCall)({
             })()
             : await findJobByPin(pin);
         if (!jobMatch) {
-            return { success: false, message: "Invalid code." };
+            const vendorMatch = await findVendorByCompanyPin(pin);
+            if (!vendorMatch) {
+                return { success: false, message: "Invalid code." };
+            }
+            const anchorDeliveryId = await anchorDeliveryForVendor(vendorMatch.id);
+            if (!anchorDeliveryId) {
+                return { success: false, message: "Invalid code." };
+            }
+            const location = await resolveStagingLocation(stagingLocationCode);
+            const vendorName = vendorDisplayName(vendorMatch.data);
+            await clearRateLimitOnSuccess(attemptKey);
+            if (locationFirst) {
+                await clearRateLimitOnSuccess("pin:location-first:global");
+            }
+            await writePinVerifiedAudit({
+                deliveryId: anchorDeliveryId,
+                vendorId: vendorMatch.id,
+                vendorName,
+                stagingLocationCode: stagingLocationCode ?? undefined,
+            });
+            const session = await createVendorSession({
+                deliveryId: anchorDeliveryId,
+                vendorId: vendorMatch.id,
+                vendorName,
+                sessionScope: "vendor",
+                scannedStagingLocationId: location?.id,
+                scannedStagingLocationCode: location?.code ?? stagingLocationCode ?? undefined,
+            });
+            return {
+                success: true,
+                vendorId: vendorMatch.id,
+                vendorName,
+                deliveryId: anchorDeliveryId,
+                sessionScope: "vendor",
+                scannedStagingLocationCode: location?.code ?? stagingLocationCode,
+                sessionToken: session.sessionToken,
+                expiresAt: session.expiresAt,
+            };
         }
         const jobId = jobMatch.id;
         const vendorInfo = await primaryVendorForJob(jobId);
