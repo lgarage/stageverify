@@ -1548,8 +1548,11 @@ export function ZoneManagementPage() {
       />
 
       <style>{`
-        /* Dispatcher: door visible; YOU ARE HERE + Last edited are print-only */
+        /* Dispatcher: door visible; YOU ARE HERE print-only (visible in Edit mode to drag) */
         .shop-map-you-are-here { display: none !important; }
+        .shop-floor-map--edit .shop-map-you-are-here {
+          display: flex !important;
+        }
         .shop-map-last-edited { display: none !important; }
         .shop-map-door { display: block; }
 
@@ -1631,12 +1634,16 @@ export function ZoneManagementPage() {
             border-radius: 0 !important;
           }
           .shop-map-you-are-here {
-            display: inline-flex !important;
-            font-size: 18px !important;
+            display: flex !important;
+            width: 120px !important;
+            height: 120px !important;
+            border-radius: 50% !important;
+            background: #ffe600 !important;
+            color: #111 !important;
+            font-size: 16px !important;
             font-weight: 900 !important;
-            padding: 10px 14px !important;
-            background: #0a3161 !important;
-            color: #fff !important;
+            line-height: 1.15 !important;
+            box-shadow: none !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }

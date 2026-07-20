@@ -634,6 +634,8 @@ export interface AppSettings {
     extraShelfUnits?: string[];
     extraShelfSpots?: Record<string, string[]>;
     hiddenSlots?: string[];
+    /** Print/vendor YOU ARE HERE marker offset from entrance anchor (px). */
+    youAreHereOffset?: { ox: number; oy: number };
   };
 }
 

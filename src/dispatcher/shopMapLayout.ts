@@ -67,6 +67,11 @@ export type ShopMapLayoutExtras = {
    * Canonical codes e.g. G1, S2, S1A.
    */
   hiddenSlots?: string[];
+  /**
+   * Print/vendor "YOU ARE HERE" marker offset (px) from the default entrance anchor.
+   * Edit in map Edit mode; reposition before each wall-sign print as needed.
+   */
+  youAreHereOffset?: { ox: number; oy: number };
 };
 
 export type ResolvedShopMapLayout = {
@@ -149,7 +154,36 @@ export function normalizeShopMapLayoutExtras(
     ),
   ].sort();
 
-  return { extraGround, extraShelfUnits, extraShelfSpots, hiddenSlots };
+  const rawYah = raw?.youAreHereOffset;
+  const youAreHereOffset =
+    rawYah &&
+    Number.isFinite(rawYah.ox) &&
+    Number.isFinite(rawYah.oy)
+      ? { ox: Math.round(rawYah.ox), oy: Math.round(rawYah.oy) }
+      : undefined;
+
+  return {
+    extraGround,
+    extraShelfUnits,
+    extraShelfSpots,
+    hiddenSlots,
+    ...(youAreHereOffset ? { youAreHereOffset } : {}),
+  };
+}
+
+/** Persist / update the print "YOU ARE HERE" marker offset. */
+export function withYouAreHereOffset(
+  extras: ShopMapLayoutExtras | null | undefined,
+  offset: { ox: number; oy: number },
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  return {
+    ...normalized,
+    youAreHereOffset: {
+      ox: Math.round(offset.ox),
+      oy: Math.round(offset.oy),
+    },
+  };
 }
 
 function formatLayoutSlotKey(code: string): string | null {

@@ -28,6 +28,7 @@ import {
   shelfUnitForSpot,
   slotsToHideForDelete,
   withHiddenSlots,
+  withYouAreHereOffset,
   type ResolvedShopMapLayout,
   type ShopMapLayoutExtras,
   type ShopMapShelfUnit,
@@ -46,6 +47,8 @@ import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDispla
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const NUDGE_SYMBOL_FONT = `${FONT}, "Segoe UI Symbol", "Noto Sans Symbols", sans-serif`;
 const NAVY = "#0a3161";
+/** Bright yellow for print/vendor YOU ARE HERE circle (wall poster). */
+const YOU_ARE_HERE_YELLOW = "#FFE600";
 /** Outer S1/S2 frame stroke — internal bay dividers must match exactly. */
 const SHELF_FRAME_STROKE = "2px solid #64748b";
 
@@ -110,6 +113,7 @@ type UndoFrame = {
   pendingLabelRotations: Record<string, number>;
   pendingSizes: Record<string, { w: number; h: number }>;
   pendingHidden: string[];
+  pendingYouAreHere: { ox: number; oy: number } | null;
   editLabel: string;
   editCode: string;
   editOffsetX: number;
@@ -262,6 +266,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ref,
   ) {
   const [pendingHidden, setPendingHidden] = useState<string[]>([]);
+  /** null = use persisted extras; object = pending drag in this edit session. */
+  const [pendingYouAreHere, setPendingYouAreHere] = useState<{
+    ox: number;
+    oy: number;
+  } | null>(null);
   const formatLastEdited = () =>
     new Date().toLocaleString(undefined, {
       dateStyle: "short",
@@ -273,6 +282,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     window.addEventListener("beforeprint", onBeforePrint);
     return () => window.removeEventListener("beforeprint", onBeforePrint);
   }, []);
+  useEffect(() => {
+    if (!editMode) {
+      setPendingYouAreHere(null);
+      yahDragRef.current = null;
+    }
+  }, [editMode]);
   const layout = useMemo(() => {
     const base = layoutProp ?? resolveShopMapLayout();
     if (pendingHidden.length === 0) return base;
@@ -280,6 +295,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       withHiddenSlots(base.extras, pendingHidden),
     );
   }, [layoutProp, pendingHidden]);
+  const persistedYouAreHere = layout.extras?.youAreHereOffset ?? {
+    ox: 0,
+    oy: 0,
+  };
+  const youAreHereOffset = pendingYouAreHere ?? persistedYouAreHere;
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [addingLayout, setAddingLayout] = useState(false);
   /** Primary slot for the edit panel (single-select / last focused). */
@@ -347,6 +367,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     baseH: number;
     undoPushed: boolean;
   } | null>(null);
+  const yahDragRef = useRef<{
+    startX: number;
+    startY: number;
+    baseOx: number;
+    baseOy: number;
+    undoPushed: boolean;
+  } | null>(null);
   const marqueeRef = useRef<{
     startX: number;
     startY: number;
@@ -374,7 +401,56 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const cancelActiveDrag = () => {
     dragRef.current = null;
     resizeRef.current = null;
+    yahDragRef.current = null;
     marqueeRef.current = null;
+  };
+
+  const onYouAreHerePointerDown = (
+    e: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    yahDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseOx: youAreHereOffset.ox,
+      baseOy: youAreHereOffset.oy,
+      undoPushed: false,
+    };
+  };
+
+  const onYouAreHerePointerMove = (
+    e: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!editMode || !yahDragRef.current) return;
+    const { startX, startY, baseOx, baseOy } = yahDragRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (
+      !yahDragRef.current.undoPushed &&
+      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+    ) {
+      pushUndo();
+      yahDragRef.current.undoPushed = true;
+    }
+    setPendingYouAreHere({
+      ox: baseOx + Math.round(dx),
+      oy: baseOy + Math.round(dy),
+    });
+  };
+
+  const onYouAreHerePointerUp = (
+    e: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!yahDragRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    yahDragRef.current = null;
   };
 
   const readOffset = useCallback(
@@ -642,6 +718,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       pendingLabelRotations: flushedLabelRotations,
       pendingSizes: flushedSizes,
       pendingHidden: [...pendingHidden],
+      pendingYouAreHere: pendingYouAreHere
+        ? { ...pendingYouAreHere }
+        : null,
       editLabel,
       editCode,
       editOffsetX,
@@ -660,6 +739,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingLabelRotations,
     pendingSizes,
     pendingHidden,
+    pendingYouAreHere,
     selectedLayoutSlot,
     selectedSlots,
     editLabel,
@@ -688,6 +768,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingLabelRotations(frame.pendingLabelRotations);
     setPendingSizes(frame.pendingSizes);
     setPendingHidden(frame.pendingHidden);
+    setPendingYouAreHere(
+      frame.pendingYouAreHere ? { ...frame.pendingYouAreHere } : null,
+    );
     setEditLabel(frame.editLabel);
     setEditCode(frame.editCode);
     setEditOffsetX(frame.editOffsetX);
@@ -898,39 +981,59 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       ...Object.keys(flushedSizes),
       ...multi,
     ]);
-    if (slotsToSave.size === 0 && pendingHidden.length === 0) return true;
-    if (pendingHidden.length > 0 && !onPersistLayoutExtras) return false;
+    const yahPending = pendingYouAreHere !== null;
+    if (
+      slotsToSave.size === 0 &&
+      pendingHidden.length === 0 &&
+      !yahPending
+    ) {
+      return true;
+    }
+    if (
+      (pendingHidden.length > 0 || yahPending) &&
+      !onPersistLayoutExtras
+    ) {
+      return false;
+    }
     if (slotsToSave.size > 0 && !onSaveZone) return false;
     setSaving(true);
     setSaveError(null);
     try {
-      if (pendingHidden.length > 0 && onPersistLayoutExtras) {
+      if (
+        (pendingHidden.length > 0 || yahPending) &&
+        onPersistLayoutExtras
+      ) {
         let nextExtras: ShopMapLayoutExtras = layoutProp?.extras ??
           layout.extras ??
           {};
-        const baseLayout = resolveShopMapLayout(nextExtras);
-        for (const slot of pendingHidden) {
-          if (isShelfUnitCode(slot)) {
-            nextExtras = removeShelfUnitFromExtras(
-              nextExtras,
-              slot,
-              baseLayout,
-            );
-          } else if (isGroundLayoutSlot(slot)) {
-            nextExtras = removeGroundSpotFromExtras(nextExtras, slot);
-          } else {
-            nextExtras = withHiddenSlots(nextExtras, [slot]);
+        if (pendingHidden.length > 0) {
+          const baseLayout = resolveShopMapLayout(nextExtras);
+          for (const slot of pendingHidden) {
+            if (isShelfUnitCode(slot)) {
+              nextExtras = removeShelfUnitFromExtras(
+                nextExtras,
+                slot,
+                baseLayout,
+              );
+            } else if (isGroundLayoutSlot(slot)) {
+              nextExtras = removeGroundSpotFromExtras(nextExtras, slot);
+            } else {
+              nextExtras = withHiddenSlots(nextExtras, [slot]);
+            }
           }
+          nextExtras = withHiddenSlots(nextExtras, pendingHidden);
         }
-        // Also hide all chips when deleting via pendingHidden that already expanded
-        nextExtras = withHiddenSlots(nextExtras, pendingHidden);
+        if (yahPending && pendingYouAreHere) {
+          nextExtras = withYouAreHereOffset(nextExtras, pendingYouAreHere);
+        }
         await onPersistLayoutExtras(nextExtras);
-        if (onDeactivateSlots) {
+        if (pendingHidden.length > 0 && onDeactivateSlots) {
           await onDeactivateSlots(pendingHidden);
         }
       }
       if (!onSaveZone) {
         setPendingHidden([]);
+        setPendingYouAreHere(null);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
         return true;
@@ -1034,6 +1137,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingLabelRotations({});
       setPendingSizes({});
       setPendingHidden([]);
+      setPendingYouAreHere(null);
       undoStackRef.current = [];
       setUndoDepth(0);
       return true;
@@ -1047,6 +1151,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     saving,
     pendingOffsets,
     pendingLabels,
+    pendingYouAreHere,
     pendingRotations,
     pendingLabelRotations,
     pendingSizes,
@@ -1250,7 +1355,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const target = e.target as HTMLElement;
     if (
       target.closest(
-        '[data-testid^="shop-spot-"], [data-testid="shop-map-resize-handle"], [data-testid="shop-map-edit-panel"], [data-testid="shop-map-add-bar"], [data-testid^="shop-shelf-"][data-testid$="-frame"]',
+        '[data-testid^="shop-spot-"], [data-testid="shop-map-resize-handle"], [data-testid="shop-map-edit-panel"], [data-testid="shop-map-add-bar"], [data-testid="shop-map-you-are-here"], [data-testid^="shop-shelf-"][data-testid$="-frame"]',
       )
     ) {
       return;
@@ -1689,7 +1794,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   return (
     <div
       data-testid="shop-floor-map"
-      className="shop-floor-map"
+      className={`shop-floor-map${editMode ? " shop-floor-map--edit" : ""}`}
       style={{ fontFamily: FONT, position: "relative" }}
     >
       <div
@@ -1877,28 +1982,50 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               display: "flex",
               flexDirection: "column",
               alignItems: "flex-start",
-              gap: 6,
+              gap: 8,
               marginTop: 4,
+              position: "relative",
             }}
           >
             <div
               className="shop-map-you-are-here"
               data-testid="shop-map-you-are-here"
+              data-map-offset-x={youAreHereOffset.ox}
+              data-map-offset-y={youAreHereOffset.oy}
+              title={
+                editMode
+                  ? "Drag to place YOU ARE HERE for this wall sign, then Save"
+                  : undefined
+              }
+              onPointerDown={onYouAreHerePointerDown}
+              onPointerMove={onYouAreHerePointerMove}
+              onPointerUp={onYouAreHerePointerUp}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "6px 10px",
-                backgroundColor: NAVY,
-                color: "#fff",
+                width: 96,
+                height: 96,
+                borderRadius: "50%",
+                backgroundColor: YOU_ARE_HERE_YELLOW,
+                color: "#111",
                 fontWeight: 900,
                 fontSize: 13,
-                letterSpacing: 0.4,
-                borderRadius: 4,
+                lineHeight: 1.15,
+                letterSpacing: 0.2,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                userSelect: "none",
+                cursor: editMode ? "grab" : "default",
+                transform: `translate(${youAreHereOffset.ox}px, ${youAreHereOffset.oy}px)`,
+                boxShadow: editMode ? "0 0 0 2px #2563eb" : undefined,
+                touchAction: "none",
+                zIndex: 5,
               }}
             >
-              <span aria-hidden="true">←</span>
-              YOU ARE HERE
+              <span>YOU</span>
+              <span>ARE</span>
+              <span>HERE</span>
             </div>
             <svg
               className="shop-map-door"

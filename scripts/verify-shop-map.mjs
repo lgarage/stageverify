@@ -1062,7 +1062,7 @@ async function main() {
 
   await editToggle.click();
 
-  // Door on dispatcher (screen); YOU ARE HERE print-only
+  // Door on dispatcher (screen); YOU ARE HERE hidden unless Edit mode
   const doorScreen = page.getByTestId("shop-map-door");
   if (!(await doorScreen.isVisible())) {
     throw new Error("Swinging door must be visible on dispatcher map");
@@ -1072,9 +1072,53 @@ async function main() {
     .evaluate((el) => getComputedStyle(el).display);
   if (youAreHereScreen !== "none") {
     throw new Error(
-      `YOU ARE HERE must be hidden on dispatcher. display=${youAreHereScreen}`,
+      `YOU ARE HERE must be hidden on dispatcher (non-edit). display=${youAreHereScreen}`,
     );
   }
+  // Edit mode: yellow circle visible + draggable for wall-sign placement
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "visible" });
+  const yahEdit = page.getByTestId("shop-map-you-are-here");
+  if (!(await yahEdit.isVisible())) {
+    throw new Error("YOU ARE HERE circle must show in Edit mode");
+  }
+  const yahText = (await yahEdit.innerText()).replace(/\s+/g, " ").trim();
+  if (!/YOU\s*ARE\s*HERE/i.test(yahText)) {
+    throw new Error(`YOU ARE HERE circle text unexpected: "${yahText}"`);
+  }
+  const yahBg = await yahEdit.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // #FFE600 ≈ rgb(255, 230, 0)
+  if (!/rgb\(\s*255\s*,\s*230\s*,\s*0\s*\)/i.test(yahBg)) {
+    throw new Error(`YOU ARE HERE should be bright yellow. got=${yahBg}`);
+  }
+  const yahOxBefore = Number((await yahEdit.getAttribute("data-map-offset-x")) ?? "0");
+  const yahBox = await yahEdit.boundingBox();
+  if (!yahBox) throw new Error("Could not measure YOU ARE HERE for drag");
+  await page.mouse.move(yahBox.x + yahBox.width / 2, yahBox.y + yahBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    yahBox.x + yahBox.width / 2 + 40,
+    yahBox.y + yahBox.height / 2 + 24,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const yahOxAfter = Number((await yahEdit.getAttribute("data-map-offset-x")) ?? "0");
+  if (yahOxAfter === yahOxBefore) {
+    throw new Error(
+      `Dragging YOU ARE HERE should change offset. before=${yahOxBefore} after=${yahOxAfter}`,
+    );
+  }
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(100);
+  const yahOxUndone = Number((await yahEdit.getAttribute("data-map-offset-x")) ?? "0");
+  if (yahOxUndone !== yahOxBefore) {
+    throw new Error(
+      `Undo should restore YOU ARE HERE offset. expected=${yahOxBefore} got=${yahOxUndone}`,
+    );
+  }
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
 
   // Print map: location guide — no status colors / legend / unplaced; bold poster
   await page.emulateMedia({ media: "print" });
