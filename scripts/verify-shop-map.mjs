@@ -280,8 +280,16 @@ async function main() {
   const priorOffsetX = Number(
     (await g1.getAttribute("data-map-offset-x")) ?? "0",
   );
+  const priorWidth = Number(
+    (await g1.getAttribute("data-map-width")) ?? "52",
+  );
+  const priorHeight = Number(
+    (await g1.getAttribute("data-map-height")) ?? "52",
+  );
   const g1BoxBefore = await g1.boundingBox();
+  const g2BoxBefore = await page.getByTestId("shop-spot-G2").boundingBox();
   if (!g1BoxBefore) throw new Error("Could not measure G1 before drag");
+  if (!g2BoxBefore) throw new Error("Could not measure G2 before drag");
 
   const dragStartX = g1BoxBefore.x + g1BoxBefore.width / 2;
   const dragStartY = g1BoxBefore.y + g1BoxBefore.height / 2;
@@ -297,6 +305,19 @@ async function main() {
   if (offsetAfterDrag === priorOffsetX) {
     throw new Error(
       `G1 drag should change offset before save. before=${priorOffsetX} after=${offsetAfterDrag}`,
+    );
+  }
+
+  const g2BoxAfterDrag = await page.getByTestId("shop-spot-G2").boundingBox();
+  if (!g2BoxAfterDrag) throw new Error("Could not measure G2 after G1 drag");
+  if (
+    Math.abs(g2BoxBefore.width - g2BoxAfterDrag.width) > 1 ||
+    Math.abs(g2BoxBefore.height - g2BoxAfterDrag.height) > 1 ||
+    Math.abs(g2BoxBefore.x - g2BoxAfterDrag.x) > 1 ||
+    Math.abs(g2BoxBefore.y - g2BoxAfterDrag.y) > 1
+  ) {
+    throw new Error(
+      `Moving G1 must not change G2 size/position. before=${JSON.stringify(g2BoxBefore)} after=${JSON.stringify(g2BoxAfterDrag)}`,
     );
   }
 
@@ -326,6 +347,37 @@ async function main() {
     );
   }
 
+  await page.getByTestId("shop-map-size-w-plus").click();
+  await page.getByTestId("shop-map-size-h-plus").click();
+  const widthAfterNudge = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  const heightAfterNudge = Number(
+    (await g1.getAttribute("data-map-height")) ?? "0",
+  );
+  if (widthAfterNudge <= priorWidth || heightAfterNudge <= priorHeight) {
+    throw new Error(
+      `Size nudge should increase W/H before save. before=${priorWidth}x${priorHeight} after=${widthAfterNudge}x${heightAfterNudge}`,
+    );
+  }
+
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const widthAfterSizeCancel = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  if (widthAfterSizeCancel !== priorWidth) {
+    throw new Error(
+      `Cancel should revert size edit. expected width=${priorWidth} got=${widthAfterSizeCancel}`,
+    );
+  }
+
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await page.getByTestId("shop-map-size-w-plus").click();
+  await page.getByTestId("shop-map-size-h-plus").click();
+  await page.getByTestId("shop-map-nudge-right").click();
+
   const tempCode = priorCode.toUpperCase() === "G1" ? "G4" : "G1";
   await codeInput.fill(tempCode);
   await page.getByTestId("shop-map-edit-save").click();
@@ -349,7 +401,19 @@ async function main() {
     );
   }
 
-  // Restore label + code + offset for env hygiene
+  const savedWidth = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  const savedHeight = Number(
+    (await g1.getAttribute("data-map-height")) ?? "0",
+  );
+  if (savedWidth <= priorWidth || savedHeight <= priorHeight) {
+    throw new Error(
+      `Saved size not persisted. before=${priorWidth}x${priorHeight} after=${savedWidth}x${savedHeight}`,
+    );
+  }
+
+  // Restore label + code + offset + size for env hygiene
   await g1.click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
   await labelInput.fill(priorLabel);

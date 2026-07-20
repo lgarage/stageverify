@@ -1,5 +1,12 @@
 /** Jake shop floor layout — hardcoded v1 geometry (visual polish may change). */
 
+/** Default ground spot chip size (px) — reserved slot matches until resized. */
+export const SHOP_MAP_GROUND_SPOT_W = 52;
+export const SHOP_MAP_GROUND_SPOT_H = 52;
+/** Default shelf stagger chip size (px). */
+export const SHOP_MAP_SHELF_SPOT_W = 40;
+export const SHOP_MAP_SHELF_SPOT_H = 32;
+
 export const SHOP_MAP_GROUND_CODES = [
   "G1",
   "G2",

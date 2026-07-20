@@ -691,6 +691,10 @@ export function parseStagingLocation(
       typeof data.mapOffsetX === "number" ? data.mapOffsetX : undefined,
     mapOffsetY:
       typeof data.mapOffsetY === "number" ? data.mapOffsetY : undefined,
+    mapWidth:
+      typeof data.mapWidth === "number" ? data.mapWidth : undefined,
+    mapHeight:
+      typeof data.mapHeight === "number" ? data.mapHeight : undefined,
     mapLayoutSlot:
       typeof data.mapLayoutSlot === "string" ? data.mapLayoutSlot : undefined,
   };
@@ -714,6 +718,9 @@ export interface StagingLocation {
   /** Optional pixel nudge from default map layout (dispatcher map edit). */
   mapOffsetX?: number;
   mapOffsetY?: number;
+  /** Optional pixel size override for map chip (defaults to layout constants). */
+  mapWidth?: number;
+  mapHeight?: number;
   /** Fixed Jake map slot (e.g. G1) when zone code differs from layout position. */
   mapLayoutSlot?: string;
 }

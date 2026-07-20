@@ -312,6 +312,8 @@ export function ZoneManagementPage() {
           status: "Active",
           mapOffsetX: patch.mapOffsetX,
           mapOffsetY: patch.mapOffsetY,
+          mapWidth: patch.mapWidth,
+          mapHeight: patch.mapHeight,
           mapLayoutSlot: layoutSlotCanonical,
         });
         const newZone: StagingLocation = {
@@ -322,6 +324,8 @@ export function ZoneManagementPage() {
           status: "Active",
           mapOffsetX: patch.mapOffsetX,
           mapOffsetY: patch.mapOffsetY,
+          mapWidth: patch.mapWidth,
+          mapHeight: patch.mapHeight,
           mapLayoutSlot: layoutSlotCanonical,
         };
         setZones((prev) => [...prev, newZone]);

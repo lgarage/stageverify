@@ -12,7 +12,11 @@ import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
   SHOP_MAP_GROUND_LEFT,
   SHOP_MAP_GROUND_TOP,
+  SHOP_MAP_GROUND_SPOT_H,
+  SHOP_MAP_GROUND_SPOT_W,
   SHOP_MAP_SHELF_LEVELS,
+  SHOP_MAP_SHELF_SPOT_H,
+  SHOP_MAP_SHELF_SPOT_W,
   SHOP_MAP_SHELF_UNITS,
   allShopMapSpotCodes,
   shelfSpotCode,
@@ -62,6 +66,8 @@ type Props = {
 };
 
 const NUDGE_STEP = 8;
+const SIZE_STEP = 4;
+const MIN_SPOT_SIZE = 24;
 const DRAG_CLICK_THRESHOLD_PX = 4;
 
 type EditSessionSnapshot = {
@@ -69,7 +75,19 @@ type EditSessionSnapshot = {
   code: string;
   offsetX: number;
   offsetY: number;
+  width: number;
+  height: number;
 };
+
+function isGroundLayoutSlot(layoutSlot: string): boolean {
+  return /^G\d+$/i.test(layoutSlot.trim());
+}
+
+function defaultSpotSize(layoutSlot: string): { w: number; h: number } {
+  return isGroundLayoutSlot(layoutSlot)
+    ? { w: SHOP_MAP_GROUND_SPOT_W, h: SHOP_MAP_GROUND_SPOT_H }
+    : { w: SHOP_MAP_SHELF_SPOT_W, h: SHOP_MAP_SHELF_SPOT_H };
+}
 
 const editInputStyle: CSSProperties = {
   display: "block",
@@ -84,9 +102,15 @@ const editInputStyle: CSSProperties = {
   backgroundColor: "#fff",
 };
 
-function spotStyle(color: SpotMapColor, ground: boolean): CSSProperties {
+function spotStyle(
+  color: SpotMapColor,
+  ground: boolean,
+  width: number,
+  height: number,
+): CSSProperties {
   const bg = SPOT_MAP_COLORS[color];
   const fg = SPOT_MAP_FG[color];
+  const boxSizing = "border-box" as const;
   if (ground) {
     return {
       backgroundColor: bg,
@@ -101,8 +125,10 @@ function spotStyle(color: SpotMapColor, ground: boolean): CSSProperties {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      minWidth: 52,
-      minHeight: 52,
+      width,
+      height,
+      boxSizing,
+      flexShrink: 0,
       cursor: "pointer",
       fontFamily: FONT,
       userSelect: "none",
@@ -118,12 +144,14 @@ function spotStyle(color: SpotMapColor, ground: boolean): CSSProperties {
     borderRadius: 3,
     fontWeight: 700,
     fontSize: 11,
-    padding: "4px 6px",
-    display: "inline-flex",
+    padding: "2px 4px",
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 40,
-    minHeight: 32,
+    width,
+    height,
+    boxSizing,
+    flexShrink: 0,
     cursor: "pointer",
     fontFamily: FONT,
     userSelect: "none",
@@ -146,6 +174,8 @@ export function ShopFloorMap({
   const [editCode, setEditCode] = useState("");
   const [editOffsetX, setEditOffsetX] = useState(0);
   const [editOffsetY, setEditOffsetY] = useState(0);
+  const [editWidth, setEditWidth] = useState(SHOP_MAP_GROUND_SPOT_W);
+  const [editHeight, setEditHeight] = useState(SHOP_MAP_GROUND_SPOT_H);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const editSessionRef = useRef<EditSessionSnapshot | null>(null);
@@ -156,6 +186,12 @@ export function ShopFloorMap({
     baseOx: number;
     baseOy: number;
     moved: boolean;
+  } | null>(null);
+  const resizeRef = useRef<{
+    startX: number;
+    startY: number;
+    baseW: number;
+    baseH: number;
   } | null>(null);
   const suppressClickRef = useRef(false);
 
@@ -175,7 +211,25 @@ export function ShopFloorMap({
 
   const cancelActiveDrag = () => {
     dragRef.current = null;
+    resizeRef.current = null;
   };
+
+  const sizeForSpot = useCallback(
+    (layoutSlot: string): { width: number; height: number } => {
+      const zone = zoneForLayoutSlot(layoutSlot);
+      const defaults = defaultSpotSize(layoutSlot);
+      const width =
+        editMode && selectedLayoutSlot === layoutSlot
+          ? editWidth
+          : (zone?.mapWidth ?? defaults.w);
+      const height =
+        editMode && selectedLayoutSlot === layoutSlot
+          ? editHeight
+          : (zone?.mapHeight ?? defaults.h);
+      return { width, height };
+    },
+    [editMode, editHeight, editWidth, selectedLayoutSlot, zoneForLayoutSlot],
+  );
 
   const selectSpotForEdit = useCallback(
     (layoutSlot: string) => {
@@ -185,12 +239,24 @@ export function ShopFloorMap({
       const code = zone?.code ?? formatStagingCodeCanonical(layoutSlot);
       const offsetX = zone?.mapOffsetX ?? 0;
       const offsetY = zone?.mapOffsetY ?? 0;
+      const defaults = defaultSpotSize(layoutSlot);
+      const width = zone?.mapWidth ?? defaults.w;
+      const height = zone?.mapHeight ?? defaults.h;
       setSelectedLayoutSlot(layoutSlot);
       setEditLabel(label);
       setEditCode(code);
       setEditOffsetX(offsetX);
       setEditOffsetY(offsetY);
-      editSessionRef.current = { label, code, offsetX, offsetY };
+      setEditWidth(width);
+      setEditHeight(height);
+      editSessionRef.current = {
+        label,
+        code,
+        offsetX,
+        offsetY,
+        width,
+        height,
+      };
       setSaveError(null);
       setHover(null);
     },
@@ -205,6 +271,8 @@ export function ShopFloorMap({
       setEditCode(snap.code);
       setEditOffsetX(snap.offsetX);
       setEditOffsetY(snap.offsetY);
+      setEditWidth(snap.width);
+      setEditHeight(snap.height);
     }
     editSessionRef.current = null;
     setSelectedLayoutSlot(null);
@@ -228,6 +296,8 @@ export function ShopFloorMap({
           label: editLabel.trim() || selectedLayoutSlot,
           mapOffsetX: editOffsetX,
           mapOffsetY: editOffsetY,
+          mapWidth: editWidth,
+          mapHeight: editHeight,
         },
       });
       editSessionRef.current = null;
@@ -307,6 +377,40 @@ export function ShopFloorMap({
     setEditOffsetY((y) => y + dy);
   };
 
+  const nudgeSize = (dw: number, dh: number) => {
+    setEditWidth((w) => Math.max(MIN_SPOT_SIZE, w + dw));
+    setEditHeight((h) => Math.max(MIN_SPOT_SIZE, h + dh));
+  };
+
+  const onResizeHandlePointerDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    if (!editMode || !selectedLayoutSlot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelActiveDrag();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    resizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseW: editWidth,
+      baseH: editHeight,
+    };
+  };
+
+  const onResizeHandlePointerMove = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    if (!editMode || !resizeRef.current) return;
+    const { startX, startY, baseW, baseH } = resizeRef.current;
+    const dw = e.clientX - startX;
+    const dh = e.clientY - startY;
+    setEditWidth(Math.max(MIN_SPOT_SIZE, baseW + Math.round(dw)));
+    setEditHeight(Math.max(MIN_SPOT_SIZE, baseH + Math.round(dh)));
+  };
+
+  const onResizeHandlePointerUp = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    if (!resizeRef.current) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    resizeRef.current = null;
+  };
+
   const spotEditChrome = (layoutSlot: string): CSSProperties =>
     editMode && selectedLayoutSlot === layoutSlot
       ? { outline: "2px dashed #2563eb", outlineOffset: 2 }
@@ -314,10 +418,7 @@ export function ShopFloorMap({
         ? { outline: "1px dashed #94a3b8", outlineOffset: 1 }
         : {};
 
-  const offsetForSpot = (
-    layoutSlot: string,
-    absoluteBase?: { left: number; top: number },
-  ): CSSProperties => {
+  const offsetForSpot = (layoutSlot: string): CSSProperties => {
     const zone = zoneForLayoutSlot(layoutSlot);
     const ox =
       editMode && selectedLayoutSlot === layoutSlot
@@ -327,11 +428,7 @@ export function ShopFloorMap({
       editMode && selectedLayoutSlot === layoutSlot
         ? editOffsetY
         : (zone?.mapOffsetY ?? 0);
-    if (absoluteBase) {
-      return { left: absoluteBase.left + ox, top: absoluteBase.top + oy };
-    }
-    if (ox === 0 && oy === 0) return {};
-    return { marginLeft: ox, marginTop: oy };
+    return { left: ox, top: oy };
   };
 
   const offsetAttrsForSpot = (layoutSlot: string) => {
@@ -344,7 +441,81 @@ export function ShopFloorMap({
       editMode && selectedLayoutSlot === layoutSlot
         ? editOffsetY
         : (zone?.mapOffsetY ?? 0);
-    return { ox, oy };
+    const { width, height } = sizeForSpot(layoutSlot);
+    return { ox, oy, width, height };
+  };
+
+  const renderSpotButton = (
+    layoutSlot: string,
+    ground: boolean,
+    absoluteBase?: { left: number; top: number },
+    zIndex = 1,
+  ) => {
+    const { ox, oy, width, height } = offsetAttrsForSpot(layoutSlot);
+    const offset = absoluteBase
+      ? { left: absoluteBase.left + ox, top: absoluteBase.top + oy }
+      : offsetForSpot(layoutSlot);
+    const selected = editMode && selectedLayoutSlot === layoutSlot;
+    return (
+      <>
+        <button
+          type="button"
+          data-testid={`shop-spot-${layoutSlot}`}
+          data-spot-color={colorOf(layoutSlot)}
+          data-map-offset-x={ox}
+          data-map-offset-y={oy}
+          data-map-width={width}
+          data-map-height={height}
+          style={{
+            ...spotStyle(colorOf(layoutSlot), ground, width, height),
+            position: "absolute",
+            zIndex,
+            ...offset,
+            ...spotEditChrome(layoutSlot),
+          }}
+          onMouseEnter={() => !editMode && void onEnter(layoutSlot)}
+          onMouseLeave={() => !editMode && setHover(null)}
+          onClick={() => onClickSpot(layoutSlot)}
+          onPointerDown={(e) => onSpotPointerDown(e, layoutSlot)}
+          onPointerMove={(e) => onSpotPointerMove(e, layoutSlot)}
+          onPointerUp={(e) => onSpotPointerUp(e, layoutSlot)}
+        >
+          {displayCodeForSlot(layoutSlot)}
+        </button>
+        {selected && (
+          <span
+            data-testid="shop-map-resize-handle"
+            role="presentation"
+            onPointerDown={onResizeHandlePointerDown}
+            onPointerMove={onResizeHandlePointerMove}
+            onPointerUp={onResizeHandlePointerUp}
+            style={{
+              position: "absolute",
+              left: (absoluteBase?.left ?? 0) + ox + width - 6,
+              top: (absoluteBase?.top ?? 0) + oy + height - 6,
+              width: 12,
+              height: 12,
+              borderRadius: 2,
+              backgroundColor: "#2563eb",
+              border: "2px solid #fff",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+              cursor: "nwse-resize",
+              zIndex: 4,
+            }}
+          />
+        )}
+      </>
+    );
+  };
+
+  const groundSlotStyle = (layoutSlot: string): CSSProperties => {
+    const defaults = defaultSpotSize(layoutSlot);
+    return {
+      position: "relative",
+      width: defaults.w,
+      height: defaults.h,
+      flexShrink: 0,
+    };
   };
 
   const unplaced = useMemo(() => {
@@ -472,7 +643,7 @@ export function ShopFloorMap({
               borderRadius: 6,
             }}
           >
-            Edit mode — click a spot to rename or drag to move
+            Edit mode — click a spot to rename, drag to move, or resize
           </span>
         )}
       </div>
@@ -490,65 +661,31 @@ export function ShopFloorMap({
           minHeight: 420,
         }}
       >
-        {/* Left ground column G1–G4 */}
+        {/* Left ground column G1–G4 — fixed slots; spots absolute within slot */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {SHOP_MAP_GROUND_LEFT.map((layoutSlot) => {
-            const { ox, oy } = offsetAttrsForSpot(layoutSlot);
-            return (
-            <button
+          {SHOP_MAP_GROUND_LEFT.map((layoutSlot) => (
+            <div
               key={layoutSlot}
-              type="button"
-              data-testid={`shop-spot-${layoutSlot}`}
-              data-spot-color={colorOf(layoutSlot)}
-              data-map-offset-x={ox}
-              data-map-offset-y={oy}
-              style={{
-                ...spotStyle(colorOf(layoutSlot), true),
-                ...offsetForSpot(layoutSlot),
-                ...spotEditChrome(layoutSlot),
-              }}
-              onMouseEnter={() => !editMode && void onEnter(layoutSlot)}
-              onMouseLeave={() => !editMode && setHover(null)}
-              onClick={() => onClickSpot(layoutSlot)}
-              onPointerDown={(e) => onSpotPointerDown(e, layoutSlot)}
-              onPointerMove={(e) => onSpotPointerMove(e, layoutSlot)}
-              onPointerUp={(e) => onSpotPointerUp(e, layoutSlot)}
+              data-testid={`shop-ground-slot-${layoutSlot}`}
+              style={groundSlotStyle(layoutSlot)}
             >
-              {displayCodeForSlot(layoutSlot)}
-            </button>
-            );
-          })}
+              {renderSpotButton(layoutSlot, true)}
+            </div>
+          ))}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Top ground row G5–G12 */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {SHOP_MAP_GROUND_TOP.map((layoutSlot) => {
-              const { ox, oy } = offsetAttrsForSpot(layoutSlot);
-              return (
-              <button
+            {SHOP_MAP_GROUND_TOP.map((layoutSlot) => (
+              <div
                 key={layoutSlot}
-                type="button"
-                data-testid={`shop-spot-${layoutSlot}`}
-                data-spot-color={colorOf(layoutSlot)}
-                data-map-offset-x={ox}
-                data-map-offset-y={oy}
-                style={{
-                  ...spotStyle(colorOf(layoutSlot), true),
-                  ...offsetForSpot(layoutSlot),
-                  ...spotEditChrome(layoutSlot),
-                }}
-                onMouseEnter={() => !editMode && void onEnter(layoutSlot)}
-                onMouseLeave={() => !editMode && setHover(null)}
-                onClick={() => onClickSpot(layoutSlot)}
-                onPointerDown={(e) => onSpotPointerDown(e, layoutSlot)}
-                onPointerMove={(e) => onSpotPointerMove(e, layoutSlot)}
-                onPointerUp={(e) => onSpotPointerUp(e, layoutSlot)}
+                data-testid={`shop-ground-slot-${layoutSlot}`}
+                style={groundSlotStyle(layoutSlot)}
               >
-                {displayCodeForSlot(layoutSlot)}
-              </button>
-              );
-            })}
+                {renderSpotButton(layoutSlot, true)}
+              </div>
+            ))}
           </div>
 
           {/* Shelves S1 / S2 — flush 6-bay columns; moderate aisle; shift into open floor */}
@@ -630,8 +767,6 @@ export function ShopFloorMap({
                     {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
                       const codeA = shelfSpotCode(unit, a);
                       const codeB = shelfSpotCode(unit, b);
-                      const offA = offsetAttrsForSpot(codeA);
-                      const offB = offsetAttrsForSpot(codeB);
                       return (
                         <div
                           key={`${unit}-spots-${a}`}
@@ -642,50 +777,8 @@ export function ShopFloorMap({
                             flexShrink: 0,
                           }}
                         >
-                          <button
-                            type="button"
-                            data-testid={`shop-spot-${codeA}`}
-                            data-spot-color={colorOf(codeA)}
-                            data-map-offset-x={offA.ox}
-                            data-map-offset-y={offA.oy}
-                            style={{
-                              ...spotStyle(colorOf(codeA), false),
-                              position: "absolute",
-                              zIndex: 1,
-                              ...offsetForSpot(codeA, { left: 0, top: 2 }),
-                              ...spotEditChrome(codeA),
-                            }}
-                            onMouseEnter={() => !editMode && void onEnter(codeA)}
-                            onMouseLeave={() => !editMode && setHover(null)}
-                            onClick={() => onClickSpot(codeA)}
-                            onPointerDown={(e) => onSpotPointerDown(e, codeA)}
-                            onPointerMove={(e) => onSpotPointerMove(e, codeA)}
-                            onPointerUp={(e) => onSpotPointerUp(e, codeA)}
-                          >
-                            {displayCodeForSlot(codeA)}
-                          </button>
-                          <button
-                            type="button"
-                            data-testid={`shop-spot-${codeB}`}
-                            data-spot-color={colorOf(codeB)}
-                            data-map-offset-x={offB.ox}
-                            data-map-offset-y={offB.oy}
-                            style={{
-                              ...spotStyle(colorOf(codeB), false),
-                              position: "absolute",
-                              zIndex: 2,
-                              ...offsetForSpot(codeB, { left: 34, top: 18 }),
-                              ...spotEditChrome(codeB),
-                            }}
-                            onMouseEnter={() => !editMode && void onEnter(codeB)}
-                            onMouseLeave={() => !editMode && setHover(null)}
-                            onClick={() => onClickSpot(codeB)}
-                            onPointerDown={(e) => onSpotPointerDown(e, codeB)}
-                            onPointerMove={(e) => onSpotPointerMove(e, codeB)}
-                            onPointerUp={(e) => onSpotPointerUp(e, codeB)}
-                          >
-                            {displayCodeForSlot(codeB)}
-                          </button>
+                          {renderSpotButton(codeA, false, { left: 0, top: 2 }, 1)}
+                          {renderSpotButton(codeB, false, { left: 34, top: 18 }, 2)}
                         </div>
                       );
                     })}
@@ -781,6 +874,11 @@ export function ShopFloorMap({
                 onClick={() => {
                   setEditOffsetX(0);
                   setEditOffsetY(0);
+                  if (selectedLayoutSlot) {
+                    const defaults = defaultSpotSize(selectedLayoutSlot);
+                    setEditWidth(defaults.w);
+                    setEditHeight(defaults.h);
+                  }
                 }}
                 style={nudgeBtnStyle}
                 title="Reset offset"
@@ -808,6 +906,65 @@ export function ShopFloorMap({
             </div>
             <span style={{ fontSize: 11, color: "#6b7280" }}>
               Offset: {editOffsetX}px, {editOffsetY}px — or drag the spot
+            </span>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+              Size (px)
+            </span>
+            {(["width", "height"] as const).map((dim) => {
+              const isW = dim === "width";
+              const value = isW ? editWidth : editHeight;
+              const setValue = isW ? setEditWidth : setEditHeight;
+              const minusId = isW ? "shop-map-size-w-minus" : "shop-map-size-h-minus";
+              const plusId = isW ? "shop-map-size-w-plus" : "shop-map-size-h-plus";
+              const inputId = isW ? "shop-map-edit-width" : "shop-map-edit-height";
+              return (
+                <div
+                  key={dim}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginTop: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 11, color: "#6b7280", width: 14 }}>
+                    {isW ? "W" : "H"}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid={minusId}
+                    onClick={() => nudgeSize(isW ? -SIZE_STEP : 0, isW ? 0 : -SIZE_STEP)}
+                    style={nudgeBtnStyle}
+                  >
+                    −
+                  </button>
+                  <input
+                    data-testid={inputId}
+                    type="number"
+                    min={MIN_SPOT_SIZE}
+                    value={value}
+                    onChange={(e) =>
+                      setValue(
+                        Math.max(MIN_SPOT_SIZE, Number(e.target.value) || MIN_SPOT_SIZE),
+                      )
+                    }
+                    style={{ ...editInputStyle, marginTop: 0, width: 56 }}
+                  />
+                  <button
+                    type="button"
+                    data-testid={plusId}
+                    onClick={() => nudgeSize(isW ? SIZE_STEP : 0, isW ? 0 : SIZE_STEP)}
+                    style={nudgeBtnStyle}
+                  >
+                    +
+                  </button>
+                </div>
+              );
+            })}
+            <span style={{ fontSize: 11, color: "#6b7280", display: "block", marginTop: 4 }}>
+              {editWidth}×{editHeight}px — or drag the blue corner handle
             </span>
           </div>
           {saveError && (
