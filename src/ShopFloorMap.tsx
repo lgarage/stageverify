@@ -138,8 +138,13 @@ export function ShopFloorMap({
     [zonesByCode],
   );
 
+  const cancelActiveDrag = () => {
+    dragRef.current = null;
+  };
+
   const selectSpotForEdit = useCallback(
     (code: string) => {
+      cancelActiveDrag();
       const zone = zoneForCode(code);
       setSelectedCode(code);
       setEditLabel(zone?.label ?? code);
@@ -183,10 +188,20 @@ export function ShopFloorMap({
   ) => {
     if (!editMode) return;
     e.preventDefault();
+    const alreadySelected = selectedCode === code;
+    if (!alreadySelected) {
+      selectSpotForEdit(code);
+    } else if (dragRef.current && dragRef.current.code !== code) {
+      cancelActiveDrag();
+    }
     const zone = zoneForCode(code);
-    const baseOx = zone?.mapOffsetX ?? 0;
-    const baseOy = zone?.mapOffsetY ?? 0;
-    if (selectedCode !== code) selectSpotForEdit(code);
+    // Include unsaved nudge when re-dragging the selected spot (Grok fix #1).
+    const baseOx = alreadySelected
+      ? editOffsetX
+      : (zone?.mapOffsetX ?? 0);
+    const baseOy = alreadySelected
+      ? editOffsetY
+      : (zone?.mapOffsetY ?? 0);
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       code,
@@ -197,15 +212,23 @@ export function ShopFloorMap({
     };
   };
 
-  const onSpotPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!editMode || !dragRef.current) return;
+  const onSpotPointerMove = (
+    e: ReactPointerEvent<HTMLButtonElement>,
+    code: string,
+  ) => {
+    if (!editMode || !dragRef.current || dragRef.current.code !== code) return;
+    // Ignore stale moves after spot switch mid-drag (Grok fix #2).
+    if (dragRef.current.code !== selectedCode) return;
     const { startX, startY, baseOx, baseOy } = dragRef.current;
     setEditOffsetX(baseOx + Math.round(e.clientX - startX));
     setEditOffsetY(baseOy + Math.round(e.clientY - startY));
   };
 
-  const onSpotPointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!editMode || !dragRef.current) return;
+  const onSpotPointerUp = (
+    e: ReactPointerEvent<HTMLButtonElement>,
+    code: string,
+  ) => {
+    if (!editMode || !dragRef.current || dragRef.current.code !== code) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
     dragRef.current = null;
   };
@@ -398,8 +421,8 @@ export function ShopFloorMap({
               onMouseLeave={() => !editMode && setHover(null)}
               onClick={() => onClickSpot(code)}
               onPointerDown={(e) => onSpotPointerDown(e, code)}
-              onPointerMove={onSpotPointerMove}
-              onPointerUp={onSpotPointerUp}
+              onPointerMove={(e) => onSpotPointerMove(e, code)}
+              onPointerUp={(e) => onSpotPointerUp(e, code)}
             >
               {code}
             </button>
@@ -434,8 +457,8 @@ export function ShopFloorMap({
                 onMouseLeave={() => !editMode && setHover(null)}
                 onClick={() => onClickSpot(code)}
                 onPointerDown={(e) => onSpotPointerDown(e, code)}
-                onPointerMove={onSpotPointerMove}
-                onPointerUp={onSpotPointerUp}
+                onPointerMove={(e) => onSpotPointerMove(e, code)}
+                onPointerUp={(e) => onSpotPointerUp(e, code)}
               >
                 {code}
               </button>
@@ -553,8 +576,8 @@ export function ShopFloorMap({
                             onMouseLeave={() => !editMode && setHover(null)}
                             onClick={() => onClickSpot(codeA)}
                             onPointerDown={(e) => onSpotPointerDown(e, codeA)}
-                            onPointerMove={onSpotPointerMove}
-                            onPointerUp={onSpotPointerUp}
+                            onPointerMove={(e) => onSpotPointerMove(e, codeA)}
+                            onPointerUp={(e) => onSpotPointerUp(e, codeA)}
                           >
                             {codeA}
                           </button>
@@ -583,8 +606,8 @@ export function ShopFloorMap({
                             onMouseLeave={() => !editMode && setHover(null)}
                             onClick={() => onClickSpot(codeB)}
                             onPointerDown={(e) => onSpotPointerDown(e, codeB)}
-                            onPointerMove={onSpotPointerMove}
-                            onPointerUp={onSpotPointerUp}
+                            onPointerMove={(e) => onSpotPointerMove(e, codeB)}
+                            onPointerUp={(e) => onSpotPointerUp(e, codeB)}
                           >
                             {codeB}
                           </button>
@@ -758,7 +781,10 @@ export function ShopFloorMap({
             <button
               type="button"
               data-testid="shop-map-edit-cancel"
-              onClick={() => setSelectedCode(null)}
+              onClick={() => {
+                cancelActiveDrag();
+                setSelectedCode(null);
+              }}
               style={{
                 padding: "8px 12px",
                 borderRadius: 4,
