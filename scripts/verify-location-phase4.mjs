@@ -369,10 +369,11 @@ async function main() {
       timeout: 45_000,
     });
     await page.getByText("Zone Management").first().waitFor({ timeout: 30_000 });
-    const addZoneBtn = page.getByRole("button", { name: "Add Zone", exact: true });
-    await addZoneBtn.waitFor({ state: "visible", timeout: 20_000 });
-    await addZoneBtn.click({ force: true });
-    await page.getByRole("heading", { name: /Add Zone/i }).waitFor({
+    await page.getByRole("button", { name: "Zone tools", exact: true }).click();
+    const editZoneBtn = page.getByRole("button", { name: "Edit", exact: true }).first();
+    await editZoneBtn.waitFor({ state: "visible", timeout: 20_000 });
+    await editZoneBtn.click({ force: true });
+    await page.getByRole("heading", { name: /Edit Zone/i }).waitFor({
       state: "visible",
       timeout: 20_000,
     });

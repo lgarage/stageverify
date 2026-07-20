@@ -561,12 +561,6 @@ export function ZoneManagementPage() {
     return groups;
   }, [visibleZones]);
 
-  const openAddForm = () => {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setShowForm(true);
-  };
-
   const openEditForm = (zone: StagingLocation) => {
     setEditingId(zone.id);
     setForm(zoneToForm(zone));
@@ -803,23 +797,6 @@ export function ZoneManagementPage() {
               >
                 Zone tools
               </button>
-              <button
-                type="button"
-                onClick={openAddForm}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: "none",
-                  backgroundColor: RED,
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
-                }}
-              >
-                Add Zone
-              </button>
             </div>
           </div>
 
@@ -940,7 +917,7 @@ export function ZoneManagementPage() {
                   color: NAVY,
                 }}
               >
-                {editingId ? "Edit Zone" : "Add Zone"}
+                Edit Zone
               </h2>
               <form onSubmit={(e) => void handleSubmit(e)}>
                 <div
