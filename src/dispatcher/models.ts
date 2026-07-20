@@ -691,6 +691,8 @@ export function parseStagingLocation(
       typeof data.mapOffsetX === "number" ? data.mapOffsetX : undefined,
     mapOffsetY:
       typeof data.mapOffsetY === "number" ? data.mapOffsetY : undefined,
+    mapLayoutSlot:
+      typeof data.mapLayoutSlot === "string" ? data.mapLayoutSlot : undefined,
   };
 }
 
@@ -712,6 +714,8 @@ export interface StagingLocation {
   /** Optional pixel nudge from default map layout (dispatcher map edit). */
   mapOffsetX?: number;
   mapOffsetY?: number;
+  /** Fixed Jake map slot (e.g. G1) when zone code differs from layout position. */
+  mapLayoutSlot?: string;
 }
 
 export const isOversizedSpot = (loc: StagingLocation): boolean =>

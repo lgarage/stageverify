@@ -241,7 +241,7 @@ async function main() {
     );
   }
 
-  // Edit mode smoke: rename label + nudge position on G1, then restore
+  // Edit mode: drag persists before save, cancel reverts, code rename on chip, input contrast
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
   if (!(await editToggle.isVisible())) {
     throw new Error("Missing shop-map-edit-mode-toggle");
@@ -257,18 +257,66 @@ async function main() {
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
 
   const labelInput = page.getByTestId("shop-map-edit-label");
+  const codeInput = page.getByTestId("shop-map-edit-code");
   const priorLabel = await labelInput.inputValue();
+  const priorCode = await codeInput.inputValue();
   const testLabel = `${priorLabel} (verify)`;
+
+  const labelColor = await labelInput.evaluate(
+    (el) => getComputedStyle(el).color,
+  );
+  const labelLum = await labelInput.evaluate((el) => {
+    const c = getComputedStyle(el).color.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+    return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+  });
+  if (labelLum > 200) {
+    throw new Error(
+      `Edit label input text too light (unreadable). color=${labelColor}`,
+    );
+  }
+
   await labelInput.fill(testLabel);
 
   const priorOffsetX = Number(
     (await g1.getAttribute("data-map-offset-x")) ?? "0",
   );
-  await page.getByTestId("shop-map-nudge-right").click();
-  await page.getByTestId("shop-map-edit-save").click();
-  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const g1BoxBefore = await g1.boundingBox();
+  if (!g1BoxBefore) throw new Error("Could not measure G1 before drag");
 
-  await page.waitForTimeout(500);
+  const dragStartX = g1BoxBefore.x + g1BoxBefore.width / 2;
+  const dragStartY = g1BoxBefore.y + g1BoxBefore.height / 2;
+  await page.mouse.move(dragStartX, dragStartY);
+  await page.mouse.down();
+  await page.mouse.move(dragStartX + 40, dragStartY + 30, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+
+  const offsetAfterDrag = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (offsetAfterDrag === priorOffsetX) {
+    throw new Error(
+      `G1 drag should change offset before save. before=${priorOffsetX} after=${offsetAfterDrag}`,
+    );
+  }
+
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const offsetAfterCancel = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (offsetAfterCancel !== priorOffsetX) {
+    throw new Error(
+      `Cancel should revert drag offset. expected=${priorOffsetX} got=${offsetAfterCancel}`,
+    );
+  }
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  if ((await labelInput.inputValue()) !== priorLabel) {
+    throw new Error("Cancel should revert label edit");
+  }
+
+  await page.getByTestId("shop-map-nudge-right").click();
   const offsetAfterNudge = Number(
     (await g1.getAttribute("data-map-offset-x")) ?? "0",
   );
@@ -278,10 +326,34 @@ async function main() {
     );
   }
 
-  // Restore label + offset for env hygiene
+  const tempCode = priorCode.toUpperCase() === "G1" ? "G4" : "G1";
+  await codeInput.fill(tempCode);
+  await page.getByTestId("shop-map-edit-save").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  await page.waitForTimeout(800);
+
+  const chipText = (await g1.innerText()).trim();
+  const expectedChip = tempCode.trim().toUpperCase();
+  if (chipText !== expectedChip) {
+    throw new Error(
+      `G1 chip should show saved code "${expectedChip}". Got: "${chipText}"`,
+    );
+  }
+
+  const savedOffset = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (savedOffset <= priorOffsetX) {
+    throw new Error(
+      `Saved nudge offset not persisted. before=${priorOffsetX} after=${savedOffset}`,
+    );
+  }
+
+  // Restore label + code + offset for env hygiene
   await g1.click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
   await labelInput.fill(priorLabel);
+  await codeInput.fill(priorCode);
   await page.getByTestId("shop-map-nudge-reset").click();
   await page.getByTestId("shop-map-edit-save").click();
   await editToggle.click();

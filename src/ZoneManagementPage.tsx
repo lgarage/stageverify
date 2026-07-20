@@ -274,47 +274,55 @@ export function ZoneManagementPage() {
   const [mapEditMode, setMapEditMode] = useState(false);
   const liveOccupancy = useLiveZoneOccupancy(true);
 
-  const zonesByCode = useMemo(
+  const zonesByLayoutSlot = useMemo(
     () =>
       Object.fromEntries(
-        zones.map((z) => [normalizeStagingCodeKey(z.code), z]),
+        zones.map((z) => [
+          normalizeStagingCodeKey(z.mapLayoutSlot ?? z.code),
+          z,
+        ]),
       ),
     [zones],
   );
 
   const handleMapZoneSave = useCallback(
-    async ({ code, zoneId, patch }: MapZoneSavePayload) => {
+    async ({ code: layoutSlot, zoneId, patch }: MapZoneSavePayload) => {
       const canonicalCode = formatStagingCodeCanonical(
-        patch.code ?? code,
+        patch.code ?? layoutSlot,
       );
       const type = inferSpotZoneType(canonicalCode);
+      const layoutSlotCanonical = formatStagingCodeCanonical(layoutSlot);
+      const savePatch = {
+        ...patch,
+        code: canonicalCode,
+        mapLayoutSlot: layoutSlotCanonical,
+      };
       if (zoneId) {
-        await updateZone(zoneId, {
-          ...patch,
-          code: canonicalCode,
-        });
+        await updateZone(zoneId, savePatch);
         setZones((prev) =>
           prev.map((z) =>
-            z.id === zoneId ? { ...z, ...patch, code: canonicalCode } : z,
+            z.id === zoneId ? { ...z, ...savePatch } : z,
           ),
         );
       } else {
         const id = await createZone({
           code: canonicalCode,
-          label: patch.label ?? defaultLabelForSpotCode(code),
+          label: patch.label ?? defaultLabelForSpotCode(layoutSlot),
           type,
           status: "Active",
           mapOffsetX: patch.mapOffsetX,
           mapOffsetY: patch.mapOffsetY,
+          mapLayoutSlot: layoutSlotCanonical,
         });
         const newZone: StagingLocation = {
           id,
           code: canonicalCode,
-          label: patch.label ?? defaultLabelForSpotCode(code),
+          label: patch.label ?? defaultLabelForSpotCode(layoutSlot),
           type,
           status: "Active",
           mapOffsetX: patch.mapOffsetX,
           mapOffsetY: patch.mapOffsetY,
+          mapLayoutSlot: layoutSlotCanonical,
         };
         setZones((prev) => [...prev, newZone]);
       }
@@ -635,7 +643,7 @@ export function ZoneManagementPage() {
               }
               onOpenDelivery={(id) => setSelectedDeliveryId(id)}
               editMode={mapEditMode}
-              zonesByCode={zonesByCode}
+              zonesByLayoutSlot={zonesByLayoutSlot}
               onSaveZone={handleMapZoneSave}
             />
             {!liveOccupancy.ready && (
