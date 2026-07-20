@@ -29,6 +29,7 @@ import {
   slotsToHideForDelete,
   withHiddenSlots,
   withYouAreHereOffset,
+  withDoorOffset,
   type ResolvedShopMapLayout,
   type ShopMapLayoutExtras,
   type ShopMapShelfUnit,
@@ -114,6 +115,7 @@ type UndoFrame = {
   pendingSizes: Record<string, { w: number; h: number }>;
   pendingHidden: string[];
   pendingYouAreHere: { ox: number; oy: number } | null;
+  pendingDoor: { ox: number; oy: number } | null;
   editLabel: string;
   editCode: string;
   editOffsetX: number;
@@ -271,6 +273,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ox: number;
     oy: number;
   } | null>(null);
+  const [pendingDoor, setPendingDoor] = useState<{
+    ox: number;
+    oy: number;
+  } | null>(null);
   const formatLastEdited = () =>
     new Date().toLocaleString(undefined, {
       dateStyle: "short",
@@ -285,7 +291,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   useEffect(() => {
     if (!editMode) {
       setPendingYouAreHere(null);
+      setPendingDoor(null);
       yahDragRef.current = null;
+      doorDragRef.current = null;
     }
   }, [editMode]);
   const layout = useMemo(() => {
@@ -300,6 +308,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     oy: 0,
   };
   const youAreHereOffset = pendingYouAreHere ?? persistedYouAreHere;
+  const persistedDoor = layout.extras?.doorOffset ?? { ox: 0, oy: 0 };
+  const doorOffset = pendingDoor ?? persistedDoor;
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [addingLayout, setAddingLayout] = useState(false);
   /** Primary slot for the edit panel (single-select / last focused). */
@@ -374,6 +384,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     baseOy: number;
     undoPushed: boolean;
   } | null>(null);
+  const doorDragRef = useRef<{
+    startX: number;
+    startY: number;
+    baseOx: number;
+    baseOy: number;
+    undoPushed: boolean;
+  } | null>(null);
   const marqueeRef = useRef<{
     startX: number;
     startY: number;
@@ -402,6 +419,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     dragRef.current = null;
     resizeRef.current = null;
     yahDragRef.current = null;
+    doorDragRef.current = null;
     marqueeRef.current = null;
   };
 
@@ -451,6 +469,48 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       /* already released */
     }
     yahDragRef.current = null;
+  };
+
+  const onDoorPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    doorDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseOx: doorOffset.ox,
+      baseOy: doorOffset.oy,
+      undoPushed: false,
+    };
+  };
+
+  const onDoorPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editMode || !doorDragRef.current) return;
+    const { startX, startY, baseOx, baseOy } = doorDragRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (
+      !doorDragRef.current.undoPushed &&
+      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+    ) {
+      pushUndo();
+      doorDragRef.current.undoPushed = true;
+    }
+    setPendingDoor({
+      ox: baseOx + Math.round(dx),
+      oy: baseOy + Math.round(dy),
+    });
+  };
+
+  const onDoorPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!doorDragRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    doorDragRef.current = null;
   };
 
   const readOffset = useCallback(
@@ -721,6 +781,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       pendingYouAreHere: pendingYouAreHere
         ? { ...pendingYouAreHere }
         : null,
+      pendingDoor: pendingDoor ? { ...pendingDoor } : null,
       editLabel,
       editCode,
       editOffsetX,
@@ -740,6 +801,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingSizes,
     pendingHidden,
     pendingYouAreHere,
+    pendingDoor,
     selectedLayoutSlot,
     selectedSlots,
     editLabel,
@@ -771,6 +833,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingYouAreHere(
       frame.pendingYouAreHere ? { ...frame.pendingYouAreHere } : null,
     );
+    setPendingDoor(frame.pendingDoor ? { ...frame.pendingDoor } : null);
     setEditLabel(frame.editLabel);
     setEditCode(frame.editCode);
     setEditOffsetX(frame.editOffsetX);
@@ -982,15 +1045,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       ...multi,
     ]);
     const yahPending = pendingYouAreHere !== null;
+    const doorPending = pendingDoor !== null;
     if (
       slotsToSave.size === 0 &&
       pendingHidden.length === 0 &&
-      !yahPending
+      !yahPending &&
+      !doorPending
     ) {
       return true;
     }
     if (
-      (pendingHidden.length > 0 || yahPending) &&
+      (pendingHidden.length > 0 || yahPending || doorPending) &&
       !onPersistLayoutExtras
     ) {
       return false;
@@ -1000,7 +1065,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setSaveError(null);
     try {
       if (
-        (pendingHidden.length > 0 || yahPending) &&
+        (pendingHidden.length > 0 || yahPending || doorPending) &&
         onPersistLayoutExtras
       ) {
         let nextExtras: ShopMapLayoutExtras = layoutProp?.extras ??
@@ -1026,6 +1091,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         if (yahPending && pendingYouAreHere) {
           nextExtras = withYouAreHereOffset(nextExtras, pendingYouAreHere);
         }
+        if (doorPending && pendingDoor) {
+          nextExtras = withDoorOffset(nextExtras, pendingDoor);
+        }
         await onPersistLayoutExtras(nextExtras);
         if (pendingHidden.length > 0 && onDeactivateSlots) {
           await onDeactivateSlots(pendingHidden);
@@ -1034,6 +1102,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       if (!onSaveZone) {
         setPendingHidden([]);
         setPendingYouAreHere(null);
+        setPendingDoor(null);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
         return true;
@@ -1138,6 +1207,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingSizes({});
       setPendingHidden([]);
       setPendingYouAreHere(null);
+      setPendingDoor(null);
       undoStackRef.current = [];
       setUndoDepth(0);
       return true;
@@ -1152,6 +1222,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingOffsets,
     pendingLabels,
     pendingYouAreHere,
+    pendingDoor,
     pendingRotations,
     pendingLabelRotations,
     pendingSizes,
@@ -1355,7 +1426,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const target = e.target as HTMLElement;
     if (
       target.closest(
-        '[data-testid^="shop-spot-"], [data-testid="shop-map-resize-handle"], [data-testid="shop-map-edit-panel"], [data-testid="shop-map-add-bar"], [data-testid="shop-map-you-are-here"], [data-testid^="shop-shelf-"][data-testid$="-frame"]',
+        '[data-testid^="shop-spot-"], [data-testid="shop-map-resize-handle"], [data-testid="shop-map-edit-panel"], [data-testid="shop-map-add-bar"], [data-testid="shop-map-you-are-here"], [data-testid="shop-map-door-wrap"], [data-testid^="shop-shelf-"][data-testid$="-frame"]',
       )
     ) {
       return;
@@ -2027,31 +2098,65 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               <span>ARE</span>
               <span>HERE</span>
             </div>
-            <svg
-              className="shop-map-door"
-              data-testid="shop-map-door"
-              width="72"
-              height="56"
-              viewBox="0 0 72 56"
-              aria-label="Entrance door"
-              style={{ display: "block", overflow: "visible" }}
+            <div
+              className="shop-map-door-wrap"
+              data-testid="shop-map-door-wrap"
+              data-map-offset-x={doorOffset.ox}
+              data-map-offset-y={doorOffset.oy}
+              title={
+                editMode
+                  ? "Drag to place the door for this wall sign, then Save"
+                  : undefined
+              }
+              onPointerDown={onDoorPointerDown}
+              onPointerMove={onDoorPointerMove}
+              onPointerUp={onDoorPointerUp}
+              style={{
+                display: "block",
+                width: 80,
+                height: 64,
+                boxSizing: "border-box",
+                padding: 4,
+                backgroundColor: "rgba(255,255,255,0.01)",
+                transform: `translate(${doorOffset.ox}px, ${doorOffset.oy}px)`,
+                cursor: editMode ? "grab" : "default",
+                touchAction: "none",
+                outline: editMode ? "2px dashed #2563eb" : undefined,
+                outlineOffset: 2,
+                zIndex: 4,
+                position: "relative",
+              }}
             >
-              <line
-                x1="8"
-                y1="4"
-                x2="8"
-                y2="52"
-                stroke={NAVY}
-                strokeWidth="3"
-                strokeLinecap="square"
-              />
-              <path
-                d="M 8 4 A 40 40 0 0 1 52 44"
-                fill="none"
-                stroke={NAVY}
-                strokeWidth="2.5"
-              />
-            </svg>
+              <svg
+                className="shop-map-door"
+                data-testid="shop-map-door"
+                width="72"
+                height="56"
+                viewBox="0 0 72 56"
+                aria-label="Entrance door"
+                style={{
+                  display: "block",
+                  overflow: "visible",
+                  pointerEvents: "none",
+                }}
+              >
+                <line
+                  x1="8"
+                  y1="4"
+                  x2="8"
+                  y2="52"
+                  stroke={NAVY}
+                  strokeWidth="3"
+                  strokeLinecap="square"
+                />
+                <path
+                  d="M 8 4 A 40 40 0 0 1 52 44"
+                  fill="none"
+                  stroke={NAVY}
+                  strokeWidth="2.5"
+                />
+              </svg>
+            </div>
           </div>
         </div>
 

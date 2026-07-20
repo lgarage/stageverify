@@ -636,6 +636,8 @@ export interface AppSettings {
     hiddenSlots?: string[];
     /** Print/vendor YOU ARE HERE marker offset from entrance anchor (px). */
     youAreHereOffset?: { ox: number; oy: number };
+    /** Swinging-door icon offset from entrance anchor (px). */
+    doorOffset?: { ox: number; oy: number };
   };
 }
 

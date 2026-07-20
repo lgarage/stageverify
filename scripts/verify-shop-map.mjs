@@ -1117,6 +1117,45 @@ async function main() {
       `Undo should restore YOU ARE HERE offset. expected=${yahOxBefore} got=${yahOxUndone}`,
     );
   }
+
+  // Door: draggable in Edit mode (same persist path as YOU ARE HERE)
+  const doorWrap = page.getByTestId("shop-map-door-wrap");
+  if (!(await doorWrap.isVisible())) {
+    throw new Error("Door wrap must be visible in Edit mode");
+  }
+  const doorOxBefore = Number(
+    (await doorWrap.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const doorBox = await doorWrap.boundingBox();
+  if (!doorBox) throw new Error("Could not measure door for drag");
+  await doorWrap.hover();
+  await page.mouse.down();
+  await page.mouse.move(
+    doorBox.x + doorBox.width / 2 + 40,
+    doorBox.y + doorBox.height / 2 + 28,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const doorOxAfter = Number(
+    (await doorWrap.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (doorOxAfter === doorOxBefore) {
+    throw new Error(
+      `Dragging door should change offset. before=${doorOxBefore} after=${doorOxAfter}`,
+    );
+  }
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(100);
+  const doorOxUndone = Number(
+    (await doorWrap.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (doorOxUndone !== doorOxBefore) {
+    throw new Error(
+      `Undo should restore door offset. expected=${doorOxBefore} got=${doorOxUndone}`,
+    );
+  }
+
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
 

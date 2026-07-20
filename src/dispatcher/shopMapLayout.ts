@@ -72,6 +72,11 @@ export type ShopMapLayoutExtras = {
    * Edit in map Edit mode; reposition before each wall-sign print as needed.
    */
   youAreHereOffset?: { ox: number; oy: number };
+  /**
+   * Swinging-door icon offset (px) from the default entrance anchor.
+   * Visible on dispatcher + print; drag in Edit mode.
+   */
+  doorOffset?: { ox: number; oy: number };
 };
 
 export type ResolvedShopMapLayout = {
@@ -162,13 +167,29 @@ export function normalizeShopMapLayoutExtras(
       ? { ox: Math.round(rawYah.ox), oy: Math.round(rawYah.oy) }
       : undefined;
 
+  const rawDoor = raw?.doorOffset;
+  const doorOffset =
+    rawDoor &&
+    Number.isFinite(rawDoor.ox) &&
+    Number.isFinite(rawDoor.oy)
+      ? { ox: Math.round(rawDoor.ox), oy: Math.round(rawDoor.oy) }
+      : undefined;
+
   return {
     extraGround,
     extraShelfUnits,
     extraShelfSpots,
     hiddenSlots,
     ...(youAreHereOffset ? { youAreHereOffset } : {}),
+    ...(doorOffset ? { doorOffset } : {}),
   };
+}
+
+function roundOffset(offset: { ox: number; oy: number }): {
+  ox: number;
+  oy: number;
+} {
+  return { ox: Math.round(offset.ox), oy: Math.round(offset.oy) };
 }
 
 /** Persist / update the print "YOU ARE HERE" marker offset. */
@@ -179,10 +200,19 @@ export function withYouAreHereOffset(
   const normalized = normalizeShopMapLayoutExtras(extras);
   return {
     ...normalized,
-    youAreHereOffset: {
-      ox: Math.round(offset.ox),
-      oy: Math.round(offset.oy),
-    },
+    youAreHereOffset: roundOffset(offset),
+  };
+}
+
+/** Persist / update the swinging-door icon offset. */
+export function withDoorOffset(
+  extras: ShopMapLayoutExtras | null | undefined,
+  offset: { ox: number; oy: number },
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  return {
+    ...normalized,
+    doorOffset: roundOffset(offset),
   };
 }
 

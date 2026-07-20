@@ -1647,6 +1647,9 @@ export function ZoneManagementPage() {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+          .shop-map-door-wrap {
+            outline: none !important;
+          }
           .shop-map-door {
             display: block !important;
             width: 96px !important;
