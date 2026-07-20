@@ -678,7 +678,7 @@ export function ZoneManagementPage() {
             margin: "0 auto",
           }}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4 print:hidden">
+          <div className="print:hidden">
             <div>
               <h1
                 style={{
@@ -697,7 +697,7 @@ export function ZoneManagementPage() {
                 drawer.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => window.print()}
