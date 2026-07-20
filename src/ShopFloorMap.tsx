@@ -175,10 +175,14 @@ export function ShopFloorMap({
   );
   /** All selected layout slots (marquee or multi). */
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  /** Draft offsets for multi-select / in-progress group moves. */
+  /** Draft offsets held per layout slot for the edit session. */
   const [pendingOffsets, setPendingOffsets] = useState<
     Record<string, { ox: number; oy: number }>
   >({});
+  /** Draft display names held per layout slot for the edit session. */
+  const [pendingLabels, setPendingLabels] = useState<Record<string, string>>(
+    {},
+  );
   const [editLabel, setEditLabel] = useState("");
   const [editCode, setEditCode] = useState("");
   const [editOffsetX, setEditOffsetX] = useState(0);
@@ -277,14 +281,48 @@ export function ShopFloorMap({
     [editMode, editHeight, editWidth, selectedLayoutSlot, zoneForLayoutSlot],
   );
 
+  const readLabel = useCallback(
+    (layoutSlot: string): string => {
+      if (editMode && selectedLayoutSlot === layoutSlot) {
+        return editLabel;
+      }
+      if (pendingLabels[layoutSlot] !== undefined) {
+        return pendingLabels[layoutSlot];
+      }
+      const zone = zoneForLayoutSlot(layoutSlot);
+      return zone?.label ?? layoutSlot;
+    },
+    [
+      editMode,
+      editLabel,
+      pendingLabels,
+      selectedLayoutSlot,
+      zoneForLayoutSlot,
+    ],
+  );
+
   const selectSpotForEdit = useCallback(
     (layoutSlot: string, additive = false) => {
       cancelActiveDrag();
       const zone = zoneForLayoutSlot(layoutSlot);
-      const label = zone?.label ?? layoutSlot;
+      const flushedPending = { ...pendingOffsets };
+      const flushedLabels = { ...pendingLabels };
+      if (selectedLayoutSlot && selectedLayoutSlot !== layoutSlot) {
+        flushedPending[selectedLayoutSlot] = {
+          ox: editOffsetX,
+          oy: editOffsetY,
+        };
+        flushedLabels[selectedLayoutSlot] = editLabel;
+      }
+      setPendingOffsets(flushedPending);
+      setPendingLabels(flushedLabels);
+      const label =
+        flushedLabels[layoutSlot] ?? zone?.label ?? layoutSlot;
       const code = zone?.code ?? formatStagingCodeCanonical(layoutSlot);
-      const offsetX = zone?.mapOffsetX ?? 0;
-      const offsetY = zone?.mapOffsetY ?? 0;
+      const offsetX =
+        flushedPending[layoutSlot]?.ox ?? zone?.mapOffsetX ?? 0;
+      const offsetY =
+        flushedPending[layoutSlot]?.oy ?? zone?.mapOffsetY ?? 0;
       const defaults = isShelfUnitCode(layoutSlot)
         ? { w: 0, h: 0 }
         : defaultSpotSize(layoutSlot);
@@ -296,7 +334,6 @@ export function ShopFloorMap({
         if (additive) return [...prev, layoutSlot];
         return [layoutSlot];
       });
-      if (!additive) setPendingOffsets({});
       setEditLabel(label);
       setEditCode(code);
       setEditOffsetX(offsetX);
@@ -304,17 +341,25 @@ export function ShopFloorMap({
       setEditWidth(width);
       setEditHeight(height);
       editSessionRef.current = {
-        label,
+        label: zone?.label ?? layoutSlot,
         code,
-        offsetX,
-        offsetY,
+        offsetX: zone?.mapOffsetX ?? 0,
+        offsetY: zone?.mapOffsetY ?? 0,
         width,
         height,
       };
       setSaveError(null);
       setHover(null);
     },
-    [zoneForLayoutSlot],
+    [
+      zoneForLayoutSlot,
+      pendingOffsets,
+      pendingLabels,
+      selectedLayoutSlot,
+      editOffsetX,
+      editOffsetY,
+      editLabel,
+    ],
   );
 
   const applyGroupDelta = (dx: number, dy: number) => {
@@ -329,9 +374,14 @@ export function ShopFloorMap({
       };
     }
     setPendingOffsets((prev) => ({ ...prev, ...next }));
-    if (selectedLayoutSlot && next[selectedLayoutSlot]) {
-      setEditOffsetX(next[selectedLayoutSlot].ox);
-      setEditOffsetY(next[selectedLayoutSlot].oy);
+    // Prefer drag.slots primary (index 0) when selection state is still flushing
+    const panelSlot =
+      selectedLayoutSlot && next[selectedLayoutSlot]
+        ? selectedLayoutSlot
+        : drag.slots.find((s) => next[s]);
+    if (panelSlot && next[panelSlot]) {
+      setEditOffsetX(next[panelSlot].ox);
+      setEditOffsetY(next[panelSlot].oy);
     }
   };
 
@@ -379,63 +429,88 @@ export function ShopFloorMap({
     setSelectedLayoutSlot(null);
     setSelectedSlots([]);
     setPendingOffsets({});
+    setPendingLabels({});
     setSaveError(null);
   }, []);
 
   const persistEdit = async () => {
     if (!onSaveZone || saving) return;
+    const flushedPending = { ...pendingOffsets };
+    const flushedLabels = { ...pendingLabels };
+    if (selectedLayoutSlot) {
+      flushedPending[selectedLayoutSlot] = {
+        ox: editOffsetX,
+        oy: editOffsetY,
+      };
+      flushedLabels[selectedLayoutSlot] = editLabel;
+    }
+    const primarySlot = selectedLayoutSlot;
     const multi =
       selectedSlots.length > 1
         ? selectedSlots
-        : selectedLayoutSlot
-          ? [selectedLayoutSlot]
+        : primarySlot
+          ? [primarySlot]
           : [];
-    if (multi.length === 0) return;
+    const slotsToSave = new Set<string>([
+      ...Object.keys(flushedPending),
+      ...Object.keys(flushedLabels),
+      ...multi,
+    ]);
+    if (slotsToSave.size === 0) return;
     setSaving(true);
     setSaveError(null);
     try {
-      if (multi.length > 1) {
-        for (const slot of multi) {
-          const zone = zoneForLayoutSlot(slot);
-          const { ox, oy } = readOffset(slot);
-          const defaults = isShelfUnitCode(slot)
-            ? { w: undefined, h: undefined }
-            : defaultSpotSize(slot);
-          await onSaveZone({
-            code: slot,
-            zoneId: zone?.id,
-            patch: {
-              code: zone?.code ?? formatStagingCodeCanonical(slot),
-              label: zone?.label ?? slot,
-              mapOffsetX: ox,
-              mapOffsetY: oy,
-              ...(isShelfUnitCode(slot)
-                ? {}
-                : {
-                    mapWidth: zone?.mapWidth ?? defaults.w,
-                    mapHeight: zone?.mapHeight ?? defaults.h,
-                  }),
-            },
-          });
-        }
-      } else {
-        const slot = multi[0];
+      for (const slot of slotsToSave) {
         const zone = zoneForLayoutSlot(slot);
-        const canonicalCode = formatStagingCodeCanonical(
-          editCode.trim() || slot,
-        );
-        const { ox, oy } = readOffset(slot);
+        const { ox, oy } = flushedPending[slot] ?? {
+          ox: zone?.mapOffsetX ?? 0,
+          oy: zone?.mapOffsetY ?? 0,
+        };
+        const baseOx = zone?.mapOffsetX ?? 0;
+        const baseOy = zone?.mapOffsetY ?? 0;
+        const isPrimary = slot === primarySlot && selectedSlots.length <= 1;
+        const shelfUnit = isShelfUnitCode(slot);
+        const defaults = shelfUnit
+          ? { w: undefined, h: undefined }
+          : defaultSpotSize(slot);
+        const baseW = zone?.mapWidth ?? defaults.w ?? MIN_SPOT_SIZE;
+        const baseH = zone?.mapHeight ?? defaults.h ?? MIN_SPOT_SIZE;
+        const patchWidth = isPrimary && !shelfUnit ? editWidth : baseW;
+        const patchHeight = isPrimary && !shelfUnit ? editHeight : baseH;
+        // Shelf units keep layout-slot code (S1/S2); only display name changes.
+        const patchCode = shelfUnit
+          ? formatStagingCodeCanonical(slot)
+          : isPrimary
+            ? formatStagingCodeCanonical(editCode.trim() || slot)
+            : (zone?.code ?? formatStagingCodeCanonical(slot));
+        const patchLabel = (
+          flushedLabels[slot] ??
+          zone?.label ??
+          slot
+        ).trim() || slot;
+        const offsetChanged = ox !== baseOx || oy !== baseOy;
+        const labelChanged = patchLabel !== (zone?.label ?? slot);
+        const codeChanged =
+          !shelfUnit &&
+          patchCode !== (zone?.code ?? formatStagingCodeCanonical(slot));
+        const sizeChanged =
+          isPrimary &&
+          !shelfUnit &&
+          (patchWidth !== baseW || patchHeight !== baseH);
+        if (!offsetChanged && !labelChanged && !codeChanged && !sizeChanged) {
+          continue;
+        }
         await onSaveZone({
           code: slot,
           zoneId: zone?.id,
           patch: {
-            code: canonicalCode,
-            label: editLabel.trim() || slot,
+            code: patchCode,
+            label: patchLabel,
             mapOffsetX: ox,
             mapOffsetY: oy,
-            ...(isShelfUnitCode(slot)
+            ...(shelfUnit
               ? {}
-              : { mapWidth: editWidth, mapHeight: editHeight }),
+              : { mapWidth: patchWidth, mapHeight: patchHeight }),
           },
         });
       }
@@ -443,6 +518,7 @@ export function ShopFloorMap({
       setSelectedLayoutSlot(null);
       setSelectedSlots([]);
       setPendingOffsets({});
+      setPendingLabels({});
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -620,25 +696,41 @@ export function ShopFloorMap({
       return;
     }
     cancelActiveDrag();
+    const flushedPending = { ...pendingOffsets };
+    const flushedLabels = { ...pendingLabels };
+    if (selectedLayoutSlot) {
+      flushedPending[selectedLayoutSlot] = {
+        ox: editOffsetX,
+        oy: editOffsetY,
+      };
+      flushedLabels[selectedLayoutSlot] = editLabel;
+    }
     setSelectedSlots(hits);
     setSelectedLayoutSlot(hits[0]);
     const zone = zoneForLayoutSlot(hits[0]);
-    const ox = zone?.mapOffsetX ?? 0;
-    const oy = zone?.mapOffsetY ?? 0;
     const defaults = defaultSpotSize(hits[0]);
+    const primaryOx =
+      flushedPending[hits[0]]?.ox ?? zone?.mapOffsetX ?? 0;
+    const primaryOy =
+      flushedPending[hits[0]]?.oy ?? zone?.mapOffsetY ?? 0;
     setEditLabel(`${hits.length} spots selected`);
     setEditCode("");
-    setEditOffsetX(ox);
-    setEditOffsetY(oy);
+    setEditOffsetX(primaryOx);
+    setEditOffsetY(primaryOy);
     setEditWidth(zone?.mapWidth ?? defaults.w);
     setEditHeight(zone?.mapHeight ?? defaults.h);
     editSessionRef.current = null;
     const seeded: Record<string, { ox: number; oy: number }> = {};
     for (const slot of hits) {
+      if (flushedPending[slot]) {
+        seeded[slot] = flushedPending[slot];
+        continue;
+      }
       const z = zoneForLayoutSlot(slot);
       seeded[slot] = { ox: z?.mapOffsetX ?? 0, oy: z?.mapOffsetY ?? 0 };
     }
-    setPendingOffsets(seeded);
+    setPendingOffsets({ ...flushedPending, ...seeded });
+    setPendingLabels(flushedLabels);
     setSaveError(null);
     setHover(null);
   };
@@ -1003,6 +1095,7 @@ export function ShopFloorMap({
           >
             {SHOP_MAP_SHELF_UNITS.map((unit) => {
               const unitOff = readOffset(unit);
+              const unitTitle = readLabel(unit);
               const unitSelected =
                 editMode &&
                 (selectedLayoutSlot === unit || selectedSlots.includes(unit));
@@ -1019,16 +1112,22 @@ export function ShopFloorMap({
                   }}
                 >
                   <div
+                    data-testid={`shop-shelf-${unit}-title`}
                     style={{
                       fontWeight: 800,
                       color: NAVY,
                       marginBottom: 6,
                       fontSize: 14,
                       textAlign: "center",
-                      width: 52,
+                      minWidth: 52,
+                      maxWidth: 140,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
+                    title={unitTitle}
                   >
-                    {unit}
+                    {unitTitle}
                   </div>
                   <div
                     data-testid={`shop-shelf-${unit}-frame`}

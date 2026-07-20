@@ -292,10 +292,19 @@ export function ZoneManagementPage() {
       );
       const type = inferSpotZoneType(canonicalCode);
       const layoutSlotCanonical = formatStagingCodeCanonical(layoutSlot);
-      const savePatch = {
-        ...patch,
+      // Firestore rejects undefined field values — omit optional size for shelf units.
+      const savePatch: Partial<StagingLocation> = {
         code: canonicalCode,
+        label: patch.label,
         mapLayoutSlot: layoutSlotCanonical,
+        ...(patch.mapOffsetX !== undefined
+          ? { mapOffsetX: patch.mapOffsetX }
+          : {}),
+        ...(patch.mapOffsetY !== undefined
+          ? { mapOffsetY: patch.mapOffsetY }
+          : {}),
+        ...(patch.mapWidth !== undefined ? { mapWidth: patch.mapWidth } : {}),
+        ...(patch.mapHeight !== undefined ? { mapHeight: patch.mapHeight } : {}),
       };
       if (zoneId) {
         await updateZone(zoneId, savePatch);
@@ -305,28 +314,41 @@ export function ZoneManagementPage() {
           ),
         );
       } else {
+        const label = patch.label ?? defaultLabelForSpotCode(layoutSlot);
         const id = await createZone({
           code: canonicalCode,
-          label: patch.label ?? defaultLabelForSpotCode(layoutSlot),
+          label,
           type,
           status: "Active",
-          mapOffsetX: patch.mapOffsetX,
-          mapOffsetY: patch.mapOffsetY,
-          mapWidth: patch.mapWidth,
-          mapHeight: patch.mapHeight,
           mapLayoutSlot: layoutSlotCanonical,
+          ...(patch.mapOffsetX !== undefined
+            ? { mapOffsetX: patch.mapOffsetX }
+            : {}),
+          ...(patch.mapOffsetY !== undefined
+            ? { mapOffsetY: patch.mapOffsetY }
+            : {}),
+          ...(patch.mapWidth !== undefined ? { mapWidth: patch.mapWidth } : {}),
+          ...(patch.mapHeight !== undefined
+            ? { mapHeight: patch.mapHeight }
+            : {}),
         });
         const newZone: StagingLocation = {
           id,
           code: canonicalCode,
-          label: patch.label ?? defaultLabelForSpotCode(layoutSlot),
+          label,
           type,
           status: "Active",
-          mapOffsetX: patch.mapOffsetX,
-          mapOffsetY: patch.mapOffsetY,
-          mapWidth: patch.mapWidth,
-          mapHeight: patch.mapHeight,
           mapLayoutSlot: layoutSlotCanonical,
+          ...(patch.mapOffsetX !== undefined
+            ? { mapOffsetX: patch.mapOffsetX }
+            : {}),
+          ...(patch.mapOffsetY !== undefined
+            ? { mapOffsetY: patch.mapOffsetY }
+            : {}),
+          ...(patch.mapWidth !== undefined ? { mapWidth: patch.mapWidth } : {}),
+          ...(patch.mapHeight !== undefined
+            ? { mapHeight: patch.mapHeight }
+            : {}),
         };
         setZones((prev) => [...prev, newZone]);
       }

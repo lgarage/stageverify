@@ -337,6 +337,90 @@ async function main() {
     throw new Error("Cancel should revert label edit");
   }
 
+  // Multi-spot pending offsets: move A, then B — A must keep its new offset
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const g2 = page.getByTestId("shop-spot-G2");
+  const g1OxMultiBefore = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const g2OxMultiBefore = Number(
+    (await g2.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const g1BoxMulti = await g1.boundingBox();
+  if (!g1BoxMulti) throw new Error("Could not measure G1 for multi-move");
+  const g1DragX = g1BoxMulti.x + g1BoxMulti.width / 2;
+  const g1DragY = g1BoxMulti.y + g1BoxMulti.height / 2;
+  await page.mouse.move(g1DragX, g1DragY);
+  await page.mouse.down();
+  await page.mouse.move(g1DragX + 48, g1DragY + 24, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const g1OxAfterMoveA = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (g1OxAfterMoveA === g1OxMultiBefore) {
+    throw new Error(
+      `G1 should move before selecting G2. before=${g1OxMultiBefore} after=${g1OxAfterMoveA}`,
+    );
+  }
+  await g2.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  // After selecting G2, G1 must still show its pending offset (no snap-back)
+  const g1OxAfterSelectB = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (g1OxAfterSelectB !== g1OxAfterMoveA) {
+    throw new Error(
+      `G1 snapped back when selecting G2. expected=${g1OxAfterMoveA} got=${g1OxAfterSelectB}`,
+    );
+  }
+  const g2BoxMulti = await g2.boundingBox();
+  if (!g2BoxMulti) throw new Error("Could not measure G2 for multi-move");
+  const g2DragX = g2BoxMulti.x + g2BoxMulti.width / 2;
+  const g2DragY = g2BoxMulti.y + g2BoxMulti.height / 2;
+  await page.mouse.move(g2DragX, g2DragY);
+  await page.mouse.down();
+  await page.mouse.move(g2DragX + 40, g2DragY + 16, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const g1OxAfterMoveB = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const g2OxAfterMoveB = Number(
+    (await g2.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (g1OxAfterMoveB !== g1OxAfterMoveA) {
+    throw new Error(
+      `G1 snapped back after moving G2. expected=${g1OxAfterMoveA} got=${g1OxAfterMoveB}`,
+    );
+  }
+  if (g2OxAfterMoveB === g2OxMultiBefore) {
+    throw new Error(
+      `G2 should have a new pending offset. before=${g2OxMultiBefore} after=${g2OxAfterMoveB}`,
+    );
+  }
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const g1OxAfterMultiCancel = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  const g2OxAfterMultiCancel = Number(
+    (await g2.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (
+    g1OxAfterMultiCancel !== g1OxMultiBefore ||
+    g2OxAfterMultiCancel !== g2OxMultiBefore
+  ) {
+    throw new Error(
+      `Cancel should restore both pending moves. G1 ${g1OxMultiBefore}→${g1OxAfterMultiCancel} G2 ${g2OxMultiBefore}→${g2OxAfterMultiCancel}`,
+    );
+  }
+
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
   await page.getByTestId("shop-map-nudge-right").click();
   const offsetAfterNudge = Number(
     (await g1.getAttribute("data-map-offset-x")) ?? "0",
@@ -543,6 +627,69 @@ async function main() {
   }
   await page.getByTestId("shop-map-edit-cancel").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
+  // Shelf unit display-name rename (S1 title) — cancel reverts; save persists
+  const s1Title = page.getByTestId("shop-shelf-S1-title");
+  const s1TitleBefore = (await s1Title.innerText()).trim();
+  const s1FrameForRename = page.getByTestId("shop-shelf-S1-frame");
+  await s1FrameForRename.click({ position: { x: 10, y: 20 } });
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const shelfLabelInput = page.getByTestId("shop-map-edit-label");
+  const priorShelfLabel = await shelfLabelInput.inputValue();
+  const tempShelfName = `ShelfVerify ${Date.now().toString().slice(-4)}`;
+  await shelfLabelInput.fill(tempShelfName);
+  await page.waitForTimeout(100);
+  const titleWhileEditing = (await s1Title.innerText()).trim();
+  if (titleWhileEditing !== tempShelfName) {
+    throw new Error(
+      `S1 title should update live while editing. expected=${tempShelfName} got=${titleWhileEditing}`,
+    );
+  }
+  // Spot chip rename path must still exist for ground spots (not shelf units)
+  if (await page.getByTestId("shop-map-edit-code").count()) {
+    throw new Error("Shelf unit edit panel must not show spot-code rename");
+  }
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  const titleAfterCancel = (await s1Title.innerText()).trim();
+  if (titleAfterCancel !== s1TitleBefore) {
+    throw new Error(
+      `Cancel should revert S1 title. expected=${s1TitleBefore} got=${titleAfterCancel}`,
+    );
+  }
+  await s1FrameForRename.click({ position: { x: 10, y: 20 } });
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await shelfLabelInput.fill(tempShelfName);
+  await page.getByTestId("shop-map-edit-save").click();
+  try {
+    await page.getByTestId("shop-map-edit-panel").waitFor({
+      state: "hidden",
+      timeout: 15000,
+    });
+  } catch (err) {
+    const errText = await page
+      .getByTestId("shop-map-edit-panel")
+      .innerText()
+      .catch(() => "");
+    throw new Error(
+      `S1 shelf rename save did not close panel. panel=${errText.slice(0, 400)}`,
+      { cause: err },
+    );
+  }
+  await page.waitForTimeout(800);
+  const titleAfterSave = (await s1Title.innerText()).trim();
+  if (titleAfterSave !== tempShelfName) {
+    throw new Error(
+      `S1 title should persist after save. expected=${tempShelfName} got=${titleAfterSave}`,
+    );
+  }
+  // Restore prior shelf label for env hygiene
+  await s1FrameForRename.click({ position: { x: 10, y: 20 } });
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await shelfLabelInput.fill(priorShelfLabel);
+  await page.getByTestId("shop-map-edit-save").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+  await page.waitForTimeout(500);
 
   await editToggle.click();
 
