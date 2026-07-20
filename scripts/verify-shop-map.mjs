@@ -1062,7 +1062,21 @@ async function main() {
 
   await editToggle.click();
 
-  // Print map: @media print must show the floor map (not blank)
+  // Door on dispatcher (screen); YOU ARE HERE print-only
+  const doorScreen = page.getByTestId("shop-map-door");
+  if (!(await doorScreen.isVisible())) {
+    throw new Error("Swinging door must be visible on dispatcher map");
+  }
+  const youAreHereScreen = await page
+    .getByTestId("shop-map-you-are-here")
+    .evaluate((el) => getComputedStyle(el).display);
+  if (youAreHereScreen !== "none") {
+    throw new Error(
+      `YOU ARE HERE must be hidden on dispatcher. display=${youAreHereScreen}`,
+    );
+  }
+
+  // Print map: location guide — no status colors / legend / unplaced; bold poster
   await page.emulateMedia({ media: "print" });
   await page.waitForTimeout(200);
   const mapVisiblePrint = await page
@@ -1086,6 +1100,56 @@ async function main() {
   });
   if (!sidebarHidden) {
     throw new Error("aside sidebar should be print:hidden");
+  }
+  const legendPrintDisplay = await page
+    .getByTestId("shop-map-legend")
+    .evaluate((el) => getComputedStyle(el).display);
+  if (legendPrintDisplay !== "none") {
+    throw new Error("Print guide must hide status legend");
+  }
+  const unplacedCount = await page.getByTestId("shop-map-unplaced").count();
+  if (unplacedCount > 0) {
+    const unplacedPrintDisplay = await page
+      .getByTestId("shop-map-unplaced")
+      .evaluate((el) => getComputedStyle(el).display);
+    if (unplacedPrintDisplay !== "none") {
+      throw new Error("Print guide must hide unplaced codes");
+    }
+  }
+  const youAreHerePrint = await page
+    .getByTestId("shop-map-you-are-here")
+    .evaluate((el) => getComputedStyle(el).display);
+  if (youAreHerePrint === "none") {
+    throw new Error("YOU ARE HERE must show on print guide");
+  }
+  if (!(await page.getByTestId("shop-map-door").isVisible())) {
+    throw new Error("Door must show on print guide");
+  }
+  const lastEditedText = (
+    await page.getByTestId("shop-map-last-edited").innerText()
+  ).trim();
+  if (!/^Last edited:/i.test(lastEditedText)) {
+    throw new Error(
+      `Print footer must say Last edited. got="${lastEditedText}"`,
+    );
+  }
+  const g1PrintBg = await page
+    .getByTestId("shop-spot-G1")
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  // Neutral white (rgb(255,255,255)) — not status green/red
+  if (!/rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)/i.test(g1PrintBg)) {
+    throw new Error(
+      `Print spots must be neutral white, not status color. got=${g1PrintBg}`,
+    );
+  }
+  const titlePrintSize = await page
+    .getByTestId("shop-floor-map")
+    .locator("h2")
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  if (titlePrintSize < 24) {
+    throw new Error(
+      `Print poster title should be bold/large (≥24px). got=${titlePrintSize}`,
+    );
   }
   await page.screenshot({
     path: resolve(screenshotDir, "shop-map-print.png"),

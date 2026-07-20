@@ -1548,12 +1548,23 @@ export function ZoneManagementPage() {
       />
 
       <style>{`
+        /* Dispatcher: door visible; YOU ARE HERE + Last edited are print-only */
+        .shop-map-you-are-here { display: none !important; }
+        .shop-map-last-edited { display: none !important; }
+        .shop-map-door { display: block; }
+
         @media print {
+          @page {
+            size: letter landscape;
+            margin: 0.4in;
+          }
           .print\\:hidden { display: none !important; }
           html, body {
             background: #fff !important;
             margin: 0 !important;
             padding: 0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .portal-shell {
             display: block !important;
@@ -1577,7 +1588,7 @@ export function ZoneManagementPage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 8px !important;
+            padding: 12px !important;
             border: none !important;
             box-shadow: none !important;
             background: #fff !important;
@@ -1586,12 +1597,71 @@ export function ZoneManagementPage() {
           [data-testid="shop-map-edit-panel"],
           [data-testid="shop-map-edit-mode-banner"],
           [data-testid="shop-map-resize-handle"],
-          [data-testid="shop-map-marquee"] {
+          [data-testid="shop-map-marquee"],
+          [data-testid="shop-map-add-bar"],
+          .shop-map-unplaced,
+          .shop-map-legend {
             display: none !important;
           }
-          .shop-map-you-are-here { display: block !important; }
+
+          /* Bold wall-poster guide — location only, no live status colors */
+          .shop-floor-map h2 {
+            font-size: 28px !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.6px !important;
+            color: #0a3161 !important;
+          }
+          .shop-floor-map [data-testid^="shop-spot-"] {
+            background-color: #fff !important;
+            color: #0a3161 !important;
+            border: 3px solid #0a3161 !important;
+            font-weight: 900 !important;
+            font-size: 16px !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .shop-floor-map [data-testid^="shop-shelf-"][data-testid$="-title"] {
+            font-size: 20px !important;
+            font-weight: 900 !important;
+            color: #0a3161 !important;
+          }
+          .shop-floor-map [data-testid="shop-map-canvas"] {
+            background: #fff !important;
+            border: 3px solid #0a3161 !important;
+            border-radius: 0 !important;
+          }
+          .shop-map-you-are-here {
+            display: inline-flex !important;
+            font-size: 18px !important;
+            font-weight: 900 !important;
+            padding: 10px 14px !important;
+            background: #0a3161 !important;
+            color: #fff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .shop-map-door {
+            display: block !important;
+            width: 96px !important;
+            height: 72px !important;
+          }
+          .shop-map-door line,
+          .shop-map-door path {
+            stroke: #0a3161 !important;
+            stroke-width: 4 !important;
+          }
+          .shop-map-last-edited {
+            display: block !important;
+            position: fixed !important;
+            right: 0.45in !important;
+            bottom: 0.35in !important;
+            margin: 0 !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: #111 !important;
+            text-align: right !important;
+          }
         }
-        .shop-map-you-are-here { display: none; }
       `}</style>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useEffect,
   useImperativeHandle,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -261,6 +262,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ref,
   ) {
   const [pendingHidden, setPendingHidden] = useState<string[]>([]);
+  const formatLastEdited = () =>
+    new Date().toLocaleString(undefined, {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  const [lastEditedLabel, setLastEditedLabel] = useState(formatLastEdited);
+  useEffect(() => {
+    const onBeforePrint = () => setLastEditedLabel(formatLastEdited());
+    window.addEventListener("beforeprint", onBeforePrint);
+    return () => window.removeEventListener("beforeprint", onBeforePrint);
+  }, []);
   const layout = useMemo(() => {
     const base = layoutProp ?? resolveShopMapLayout();
     if (pendingHidden.length === 0) return base;
@@ -1832,17 +1844,88 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             }}
           />
         )}
-        {/* Left ground column G1–G4 — fixed slots; spots absolute within slot */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {layout.groundLeft.map((layoutSlot) => (
+        {/* Left ground column G1–G4 (visual bottom→top) + entrance markers */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column-reverse",
+              gap: 8,
+            }}
+          >
+            {layout.groundLeft.map((layoutSlot) => (
+              <div
+                key={layoutSlot}
+                data-testid={`shop-ground-slot-${layoutSlot}`}
+                style={groundSlotStyle(layoutSlot)}
+              >
+                {renderSpotButton(layoutSlot, true)}
+              </div>
+            ))}
+          </div>
+          <div
+            className="shop-map-entrance"
+            data-testid="shop-map-entrance"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 6,
+              marginTop: 4,
+            }}
+          >
             <div
-              key={layoutSlot}
-              data-testid={`shop-ground-slot-${layoutSlot}`}
-              style={groundSlotStyle(layoutSlot)}
+              className="shop-map-you-are-here"
+              data-testid="shop-map-you-are-here"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 10px",
+                backgroundColor: NAVY,
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 13,
+                letterSpacing: 0.4,
+                borderRadius: 4,
+              }}
             >
-              {renderSpotButton(layoutSlot, true)}
+              <span aria-hidden="true">←</span>
+              YOU ARE HERE
             </div>
-          ))}
+            <svg
+              className="shop-map-door"
+              data-testid="shop-map-door"
+              width="72"
+              height="56"
+              viewBox="0 0 72 56"
+              aria-label="Entrance door"
+              style={{ display: "block", overflow: "visible" }}
+            >
+              <line
+                x1="8"
+                y1="4"
+                x2="8"
+                y2="52"
+                stroke={NAVY}
+                strokeWidth="3"
+                strokeLinecap="square"
+              />
+              <path
+                d="M 8 4 A 40 40 0 0 1 52 44"
+                fill="none"
+                stroke={NAVY}
+                strokeWidth="2.5"
+              />
+            </svg>
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2647,6 +2730,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
 
       {unplaced.length > 0 && (
         <div
+          className="shop-map-unplaced"
           data-testid="shop-map-unplaced"
           style={{
             marginTop: 12,
@@ -2662,6 +2746,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       )}
 
       <div
+        className="shop-map-legend"
         data-testid="shop-map-legend"
         style={{
           display: "flex",
@@ -2703,10 +2788,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       </div>
 
       <div
-        className="shop-map-you-are-here"
-        style={{ marginTop: 16, fontWeight: 700, color: NAVY }}
+        className="shop-map-last-edited"
+        data-testid="shop-map-last-edited"
+        style={{
+          marginTop: 18,
+          textAlign: "right",
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#374151",
+        }}
       >
-        YOU ARE HERE → (entrance)
+        Last edited: {lastEditedLabel}
       </div>
     </div>
   );
