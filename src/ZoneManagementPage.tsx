@@ -724,6 +724,12 @@ export function ZoneManagementPage() {
               <button
                 type="button"
                 data-testid="shop-map-vendor-view-toggle"
+                aria-pressed={vendorView}
+                title={
+                  vendorView
+                    ? "Vendor view on — click to return to live map"
+                    : "Show wall-sign preview (YOU ARE HERE)"
+                }
                 onClick={() => setVendorView((v) => !v)}
                 style={{
                   padding: "8px 18px",
@@ -735,13 +741,20 @@ export function ZoneManagementPage() {
                   fontSize: 13,
                   cursor: "pointer",
                   fontFamily: FONT,
+                  minWidth: 118,
                 }}
               >
-                {vendorView ? "Exit vendor view" : "Vendor view"}
+                Vendor view
               </button>
               <button
                 type="button"
                 data-testid="shop-map-edit-mode-toggle"
+                aria-pressed={mapEditMode}
+                title={
+                  mapEditMode
+                    ? "Edit mode on — click to finish and save pending changes"
+                    : "Edit spot positions and labels"
+                }
                 onClick={() => {
                   if (mapEditMode) {
                     void (async () => {
@@ -753,7 +766,6 @@ export function ZoneManagementPage() {
                       setMapEditMode(false);
                     })();
                   } else {
-                    setVendorView(true);
                     setMapEditMode(true);
                   }
                 }}
@@ -767,26 +779,29 @@ export function ZoneManagementPage() {
                   fontSize: 13,
                   cursor: "pointer",
                   fontFamily: FONT,
+                  minWidth: 96,
                 }}
               >
-                {mapEditMode ? "Done editing" : "Edit spots"}
+                Edit spots
               </button>
               <button
                 type="button"
+                aria-pressed={showZoneTools}
                 onClick={() => setShowZoneTools((v) => !v)}
                 style={{
                   padding: "8px 18px",
                   borderRadius: 4,
-                  border: "1px solid #ccd0d7",
+                  border: showZoneTools ? "2px solid #64748b" : "1px solid #ccd0d7",
                   backgroundColor: showZoneTools ? "#e8eef5" : "#fff",
                   color: "#333",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: "pointer",
                   fontFamily: FONT,
+                  minWidth: 96,
                 }}
               >
-                {showZoneTools ? "Hide zone tools" : "Zone tools"}
+                Zone tools
               </button>
               <button
                 type="button"

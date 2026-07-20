@@ -1063,7 +1063,7 @@ async function main() {
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
 
-  // Door on dispatcher; YOU ARE HERE stays until Exit vendor view (session toggle)
+  // Door on dispatcher; YOU ARE HERE only after explicit Vendor view click
   const doorScreen = page.getByTestId("shop-map-door");
   if (!(await doorScreen.isVisible())) {
     throw new Error("Swinging door must be visible on dispatcher map");
@@ -1072,24 +1072,29 @@ async function main() {
   if (!(await vendorToggle.isVisible())) {
     throw new Error("Missing shop-map-vendor-view-toggle");
   }
-  // Edit spots left Vendor view on — marker still visible for wall-sign preview
-  const yahAfterDoneEdit = page.getByTestId("shop-map-you-are-here");
-  if (!(await yahAfterDoneEdit.isVisible())) {
-    throw new Error(
-      "After Done editing, YOU ARE HERE must stay visible while Vendor view remains on",
-    );
+  // Toggle labels stay stable (no "Exit…" / "Done…" swap that shifts the toolbar)
+  const vendorLabel = (await vendorToggle.innerText()).trim();
+  const editLabel = (await editToggle.innerText()).trim();
+  if (vendorLabel !== "Vendor view") {
+    throw new Error(`Vendor toggle label must stay "Vendor view". got="${vendorLabel}"`);
   }
-  await vendorToggle.click();
-  const youAreHereScreen = await page
+  if (editLabel !== "Edit spots") {
+    throw new Error(`Edit toggle label must stay "Edit spots". got="${editLabel}"`);
+  }
+  // Leaving Edit does not turn Vendor view on
+  const youAreHereAfterEdit = await page
     .getByTestId("shop-map-you-are-here")
     .evaluate((el) => getComputedStyle(el).display);
-  if (youAreHereScreen !== "none") {
+  if (youAreHereAfterEdit !== "none") {
     throw new Error(
-      `YOU ARE HERE must be hidden on live dispatcher after Exit vendor view. display=${youAreHereScreen}`,
+      `YOU ARE HERE must stay hidden until Vendor view is clicked. display=${youAreHereAfterEdit}`,
     );
   }
-  // Vendor view alone (no edit): marker visible; Exit hides it again
+  // Vendor view alone (no edit): marker visible; click again hides it
   await vendorToggle.click();
+  if ((await vendorToggle.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Vendor view toggle should be aria-pressed=true when on");
+  }
   const yahVendor = page.getByTestId("shop-map-you-are-here");
   if (!(await yahVendor.isVisible())) {
     throw new Error("YOU ARE HERE circle must show in Vendor view");
@@ -1100,15 +1105,25 @@ async function main() {
     .evaluate((el) => getComputedStyle(el).display);
   if (yahHiddenAgain !== "none") {
     throw new Error(
-      `Exit vendor view must hide YOU ARE HERE. display=${yahHiddenAgain}`,
+      `Turning Vendor view off must hide YOU ARE HERE. display=${yahHiddenAgain}`,
     );
   }
-  // Edit spots auto-enables Vendor view: yellow circle + drag + resize handle
+  // Edit alone: still no YOU ARE HERE (must click Vendor view)
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "visible" });
+  const yahEditOnly = await page
+    .getByTestId("shop-map-you-are-here")
+    .evaluate((el) => getComputedStyle(el).display);
+  if (yahEditOnly !== "none") {
+    throw new Error(
+      `Edit spots alone must not show YOU ARE HERE. display=${yahEditOnly}`,
+    );
+  }
+  // Edit + Vendor view: yellow circle + drag + resize handle
+  await vendorToggle.click();
   const yahEdit = page.getByTestId("shop-map-you-are-here");
   if (!(await yahEdit.isVisible())) {
-    throw new Error("YOU ARE HERE circle must show when Edit spots enables Vendor view");
+    throw new Error("YOU ARE HERE circle must show when Vendor view is on during Edit");
   }
   const yahText = (await yahEdit.innerText()).replace(/\s+/g, " ").trim();
   if (!/YOU\s*ARE\s*HERE/i.test(yahText)) {
