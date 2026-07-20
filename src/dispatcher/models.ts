@@ -634,7 +634,9 @@ export interface AppSettings {
     extraShelfUnits?: string[];
     extraShelfSpots?: Record<string, string[]>;
     hiddenSlots?: string[];
-    /** Print/vendor YOU ARE HERE marker offset from entrance anchor (px). */
+    /** Print/vendor YOU ARE HERE marker (offset + diameter px). */
+    youAreHere?: { ox: number; oy: number; sizePx: number };
+    /** @deprecated Prefer youAreHere. */
     youAreHereOffset?: { ox: number; oy: number };
     /** Swinging-door icon offset from entrance anchor (px). */
     doorOffset?: { ox: number; oy: number };

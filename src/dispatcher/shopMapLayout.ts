@@ -68,8 +68,12 @@ export type ShopMapLayoutExtras = {
    */
   hiddenSlots?: string[];
   /**
-   * Print/vendor "YOU ARE HERE" marker offset (px) from the default entrance anchor.
-   * Edit in map Edit mode; reposition before each wall-sign print as needed.
+   * Print/vendor "YOU ARE HERE" marker — offset + diameter (px) from entrance anchor.
+   * Prefer this over legacy youAreHereOffset.
+   */
+  youAreHere?: { ox: number; oy: number; sizePx: number };
+  /**
+   * @deprecated Prefer youAreHere — kept for migrate-on-read.
    */
   youAreHereOffset?: { ox: number; oy: number };
   /**
@@ -77,6 +81,16 @@ export type ShopMapLayoutExtras = {
    * Visible on dispatcher + print; drag in Edit mode.
    */
   doorOffset?: { ox: number; oy: number };
+};
+
+export const YOU_ARE_HERE_DEFAULT_SIZE_PX = 96;
+export const YOU_ARE_HERE_MIN_SIZE_PX = 48;
+export const YOU_ARE_HERE_MAX_SIZE_PX = 200;
+
+export type YouAreHereMarker = {
+  ox: number;
+  oy: number;
+  sizePx: number;
 };
 
 export type ResolvedShopMapLayout = {
@@ -159,14 +173,7 @@ export function normalizeShopMapLayoutExtras(
     ),
   ].sort();
 
-  const rawYah = raw?.youAreHereOffset;
-  const youAreHereOffset =
-    rawYah &&
-    Number.isFinite(rawYah.ox) &&
-    Number.isFinite(rawYah.oy)
-      ? { ox: Math.round(rawYah.ox), oy: Math.round(rawYah.oy) }
-      : undefined;
-
+  const youAreHere = resolveYouAreHereMarker(raw);
   const rawDoor = raw?.doorOffset;
   const doorOffset =
     rawDoor &&
@@ -180,9 +187,49 @@ export function normalizeShopMapLayoutExtras(
     extraShelfUnits,
     extraShelfSpots,
     hiddenSlots,
-    ...(youAreHereOffset ? { youAreHereOffset } : {}),
+    ...(youAreHere ? { youAreHere } : {}),
     ...(doorOffset ? { doorOffset } : {}),
   };
+}
+
+function clampYouAreHereSize(sizePx: number): number {
+  return Math.max(
+    YOU_ARE_HERE_MIN_SIZE_PX,
+    Math.min(YOU_ARE_HERE_MAX_SIZE_PX, Math.round(sizePx)),
+  );
+}
+
+/** Resolve new or legacy YOU ARE HERE marker from extras. */
+export function resolveYouAreHereMarker(
+  raw: ShopMapLayoutExtras | null | undefined,
+): YouAreHereMarker | undefined {
+  const modern = raw?.youAreHere;
+  if (
+    modern &&
+    Number.isFinite(modern.ox) &&
+    Number.isFinite(modern.oy)
+  ) {
+    return {
+      ox: Math.round(modern.ox),
+      oy: Math.round(modern.oy),
+      sizePx: Number.isFinite(modern.sizePx)
+        ? clampYouAreHereSize(modern.sizePx)
+        : YOU_ARE_HERE_DEFAULT_SIZE_PX,
+    };
+  }
+  const legacy = raw?.youAreHereOffset;
+  if (
+    legacy &&
+    Number.isFinite(legacy.ox) &&
+    Number.isFinite(legacy.oy)
+  ) {
+    return {
+      ox: Math.round(legacy.ox),
+      oy: Math.round(legacy.oy),
+      sizePx: YOU_ARE_HERE_DEFAULT_SIZE_PX,
+    };
+  }
+  return undefined;
 }
 
 function roundOffset(offset: { ox: number; oy: number }): {
@@ -192,16 +239,34 @@ function roundOffset(offset: { ox: number; oy: number }): {
   return { ox: Math.round(offset.ox), oy: Math.round(offset.oy) };
 }
 
-/** Persist / update the print "YOU ARE HERE" marker offset. */
+/** Persist / update the print/vendor "YOU ARE HERE" marker. */
+export function withYouAreHere(
+  extras: ShopMapLayoutExtras | null | undefined,
+  marker: YouAreHereMarker,
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const { youAreHereOffset: _dropLegacy, ...rest } = normalized;
+  return {
+    ...rest,
+    youAreHere: {
+      ox: Math.round(marker.ox),
+      oy: Math.round(marker.oy),
+      sizePx: clampYouAreHereSize(marker.sizePx),
+    },
+  };
+}
+
+/** @deprecated Use withYouAreHere — keeps size from existing extras when only offset changes. */
 export function withYouAreHereOffset(
   extras: ShopMapLayoutExtras | null | undefined,
   offset: { ox: number; oy: number },
 ): ShopMapLayoutExtras {
-  const normalized = normalizeShopMapLayoutExtras(extras);
-  return {
-    ...normalized,
-    youAreHereOffset: roundOffset(offset),
-  };
+  const prev = resolveYouAreHereMarker(extras);
+  return withYouAreHere(extras, {
+    ox: offset.ox,
+    oy: offset.oy,
+    sizePx: prev?.sizePx ?? YOU_ARE_HERE_DEFAULT_SIZE_PX,
+  });
 }
 
 /** Persist / update the swinging-door icon offset. */

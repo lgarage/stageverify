@@ -1061,26 +1061,54 @@ async function main() {
   }
 
   await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
 
-  // Door on dispatcher (screen); YOU ARE HERE hidden unless Edit mode
+  // Door on dispatcher; YOU ARE HERE stays until Exit vendor view (session toggle)
   const doorScreen = page.getByTestId("shop-map-door");
   if (!(await doorScreen.isVisible())) {
     throw new Error("Swinging door must be visible on dispatcher map");
   }
+  const vendorToggle = page.getByTestId("shop-map-vendor-view-toggle");
+  if (!(await vendorToggle.isVisible())) {
+    throw new Error("Missing shop-map-vendor-view-toggle");
+  }
+  // Edit spots left Vendor view on — marker still visible for wall-sign preview
+  const yahAfterDoneEdit = page.getByTestId("shop-map-you-are-here");
+  if (!(await yahAfterDoneEdit.isVisible())) {
+    throw new Error(
+      "After Done editing, YOU ARE HERE must stay visible while Vendor view remains on",
+    );
+  }
+  await vendorToggle.click();
   const youAreHereScreen = await page
     .getByTestId("shop-map-you-are-here")
     .evaluate((el) => getComputedStyle(el).display);
   if (youAreHereScreen !== "none") {
     throw new Error(
-      `YOU ARE HERE must be hidden on dispatcher (non-edit). display=${youAreHereScreen}`,
+      `YOU ARE HERE must be hidden on live dispatcher after Exit vendor view. display=${youAreHereScreen}`,
     );
   }
-  // Edit mode: yellow circle visible + draggable for wall-sign placement
+  // Vendor view alone (no edit): marker visible; Exit hides it again
+  await vendorToggle.click();
+  const yahVendor = page.getByTestId("shop-map-you-are-here");
+  if (!(await yahVendor.isVisible())) {
+    throw new Error("YOU ARE HERE circle must show in Vendor view");
+  }
+  await vendorToggle.click();
+  const yahHiddenAgain = await page
+    .getByTestId("shop-map-you-are-here")
+    .evaluate((el) => getComputedStyle(el).display);
+  if (yahHiddenAgain !== "none") {
+    throw new Error(
+      `Exit vendor view must hide YOU ARE HERE. display=${yahHiddenAgain}`,
+    );
+  }
+  // Edit spots auto-enables Vendor view: yellow circle + drag + resize handle
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "visible" });
   const yahEdit = page.getByTestId("shop-map-you-are-here");
   if (!(await yahEdit.isVisible())) {
-    throw new Error("YOU ARE HERE circle must show in Edit mode");
+    throw new Error("YOU ARE HERE circle must show when Edit spots enables Vendor view");
   }
   const yahText = (await yahEdit.innerText()).replace(/\s+/g, " ").trim();
   if (!/YOU\s*ARE\s*HERE/i.test(yahText)) {
@@ -1090,6 +1118,42 @@ async function main() {
   // #FFE600 ≈ rgb(255, 230, 0)
   if (!/rgb\(\s*255\s*,\s*230\s*,\s*0\s*\)/i.test(yahBg)) {
     throw new Error(`YOU ARE HERE should be bright yellow. got=${yahBg}`);
+  }
+  const resizeHandle = page.getByTestId("shop-map-yah-resize-handle");
+  if (!(await resizeHandle.isVisible())) {
+    throw new Error("YOU ARE HERE resize handle must show in Edit + Vendor view");
+  }
+  const yahSizeBefore = Number((await yahEdit.getAttribute("data-map-size")) ?? "0");
+  if (yahSizeBefore < 48) {
+    throw new Error(`YOU ARE HERE sizePx unexpected: ${yahSizeBefore}`);
+  }
+  const resizeBox = await resizeHandle.boundingBox();
+  if (!resizeBox) throw new Error("Could not measure YOU ARE HERE resize handle");
+  await page.mouse.move(
+    resizeBox.x + resizeBox.width / 2,
+    resizeBox.y + resizeBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    resizeBox.x + resizeBox.width / 2 + 36,
+    resizeBox.y + resizeBox.height / 2 + 36,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const yahSizeAfter = Number((await yahEdit.getAttribute("data-map-size")) ?? "0");
+  if (yahSizeAfter <= yahSizeBefore) {
+    throw new Error(
+      `Resizing YOU ARE HERE should increase size. before=${yahSizeBefore} after=${yahSizeAfter}`,
+    );
+  }
+  await page.getByTestId("shop-map-undo").click();
+  await page.waitForTimeout(100);
+  const yahSizeUndone = Number((await yahEdit.getAttribute("data-map-size")) ?? "0");
+  if (yahSizeUndone !== yahSizeBefore) {
+    throw new Error(
+      `Undo should restore YOU ARE HERE size. expected=${yahSizeBefore} got=${yahSizeUndone}`,
+    );
   }
   const yahOxBefore = Number((await yahEdit.getAttribute("data-map-offset-x")) ?? "0");
   const yahBox = await yahEdit.boundingBox();
@@ -1117,7 +1181,6 @@ async function main() {
       `Undo should restore YOU ARE HERE offset. expected=${yahOxBefore} got=${yahOxUndone}`,
     );
   }
-
   // Door: draggable in Edit mode (same persist path as YOU ARE HERE)
   const doorWrap = page.getByTestId("shop-map-door-wrap");
   if (!(await doorWrap.isVisible())) {

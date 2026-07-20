@@ -28,11 +28,16 @@ import {
   shelfUnitForSpot,
   slotsToHideForDelete,
   withHiddenSlots,
-  withYouAreHereOffset,
+  withYouAreHere,
   withDoorOffset,
+  resolveYouAreHereMarker,
+  YOU_ARE_HERE_DEFAULT_SIZE_PX,
+  YOU_ARE_HERE_MIN_SIZE_PX,
+  YOU_ARE_HERE_MAX_SIZE_PX,
   type ResolvedShopMapLayout,
   type ShopMapLayoutExtras,
   type ShopMapShelfUnit,
+  type YouAreHereMarker,
 } from "./dispatcher/shopMapLayout";
 import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
 import {
@@ -77,6 +82,11 @@ type Props = {
   onOpenDelivery: (deliveryId: string) => void;
   /** Dispatcher map edit — rename label and nudge/drag spot position. */
   editMode?: boolean;
+  /**
+   * Vendor / wall-sign preview — shows YOU ARE HERE marker.
+   * Hidden on the live dispatcher map when off.
+   */
+  vendorView?: boolean;
   zonesByLayoutSlot?: Record<string, StagingLocation>;
   onSaveZone?: (payload: MapZoneSavePayload) => Promise<void>;
   /** Constants + persisted extras (ground / shelf units / extra letters). */
@@ -114,7 +124,7 @@ type UndoFrame = {
   pendingLabelRotations: Record<string, number>;
   pendingSizes: Record<string, { w: number; h: number }>;
   pendingHidden: string[];
-  pendingYouAreHere: { ox: number; oy: number } | null;
+  pendingYouAreHere: YouAreHereMarker | null;
   pendingDoor: { ox: number; oy: number } | null;
   editLabel: string;
   editCode: string;
@@ -256,6 +266,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       shopStockByCode,
       onOpenDelivery,
       editMode = false,
+      vendorView = false,
       zonesByLayoutSlot = {},
       onSaveZone,
       layout: layoutProp,
@@ -268,11 +279,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ref,
   ) {
   const [pendingHidden, setPendingHidden] = useState<string[]>([]);
-  /** null = use persisted extras; object = pending drag in this edit session. */
-  const [pendingYouAreHere, setPendingYouAreHere] = useState<{
-    ox: number;
-    oy: number;
-  } | null>(null);
+  /** null = use persisted extras; object = pending drag/resize in this edit session. */
+  const [pendingYouAreHere, setPendingYouAreHere] =
+    useState<YouAreHereMarker | null>(null);
   const [pendingDoor, setPendingDoor] = useState<{
     ox: number;
     oy: number;
@@ -288,14 +297,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     window.addEventListener("beforeprint", onBeforePrint);
     return () => window.removeEventListener("beforeprint", onBeforePrint);
   }, []);
-  useEffect(() => {
-    if (!editMode) {
-      setPendingYouAreHere(null);
-      setPendingDoor(null);
-      yahDragRef.current = null;
-      doorDragRef.current = null;
-    }
-  }, [editMode]);
   const layout = useMemo(() => {
     const base = layoutProp ?? resolveShopMapLayout();
     if (pendingHidden.length === 0) return base;
@@ -303,13 +304,18 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       withHiddenSlots(base.extras, pendingHidden),
     );
   }, [layoutProp, pendingHidden]);
-  const persistedYouAreHere = layout.extras?.youAreHereOffset ?? {
+  const persistedYouAreHere: YouAreHereMarker = resolveYouAreHereMarker(
+    layout.extras,
+  ) ?? {
     ox: 0,
     oy: 0,
+    sizePx: YOU_ARE_HERE_DEFAULT_SIZE_PX,
   };
-  const youAreHereOffset = pendingYouAreHere ?? persistedYouAreHere;
+  const youAreHere = pendingYouAreHere ?? persistedYouAreHere;
   const persistedDoor = layout.extras?.doorOffset ?? { ox: 0, oy: 0 };
   const doorOffset = pendingDoor ?? persistedDoor;
+  /** Drag/resize only while editing inside Vendor view (marker visibility is CSS). */
+  const canEditYouAreHere = editMode && vendorView;
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [addingLayout, setAddingLayout] = useState(false);
   /** Primary slot for the edit panel (single-select / last focused). */
@@ -382,6 +388,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     startY: number;
     baseOx: number;
     baseOy: number;
+    baseSize: number;
+    undoPushed: boolean;
+  } | null>(null);
+  const yahResizeRef = useRef<{
+    startX: number;
+    startY: number;
+    baseSize: number;
+    baseOx: number;
+    baseOy: number;
     undoPushed: boolean;
   } | null>(null);
   const doorDragRef = useRef<{
@@ -391,6 +406,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     baseOy: number;
     undoPushed: boolean;
   } | null>(null);
+  useEffect(() => {
+    if (!editMode) {
+      setPendingYouAreHere(null);
+      setPendingDoor(null);
+      yahDragRef.current = null;
+      yahResizeRef.current = null;
+      doorDragRef.current = null;
+    }
+  }, [editMode]);
   const marqueeRef = useRef<{
     startX: number;
     startY: number;
@@ -419,6 +443,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     dragRef.current = null;
     resizeRef.current = null;
     yahDragRef.current = null;
+    yahResizeRef.current = null;
     doorDragRef.current = null;
     marqueeRef.current = null;
   };
@@ -426,15 +451,16 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const onYouAreHerePointerDown = (
     e: ReactPointerEvent<HTMLDivElement>,
   ) => {
-    if (!editMode) return;
+    if (!canEditYouAreHere) return;
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     yahDragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      baseOx: youAreHereOffset.ox,
-      baseOy: youAreHereOffset.oy,
+      baseOx: youAreHere.ox,
+      baseOy: youAreHere.oy,
+      baseSize: youAreHere.sizePx,
       undoPushed: false,
     };
   };
@@ -442,8 +468,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const onYouAreHerePointerMove = (
     e: ReactPointerEvent<HTMLDivElement>,
   ) => {
-    if (!editMode || !yahDragRef.current) return;
-    const { startX, startY, baseOx, baseOy } = yahDragRef.current;
+    if (!canEditYouAreHere || !yahDragRef.current) return;
+    const { startX, startY, baseOx, baseOy, baseSize } = yahDragRef.current;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (
@@ -456,6 +482,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingYouAreHere({
       ox: baseOx + Math.round(dx),
       oy: baseOy + Math.round(dy),
+      sizePx: baseSize,
     });
   };
 
@@ -469,6 +496,59 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       /* already released */
     }
     yahDragRef.current = null;
+  };
+
+  const onYouAreHereResizePointerDown = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!canEditYouAreHere) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    yahResizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseSize: youAreHere.sizePx,
+      baseOx: youAreHere.ox,
+      baseOy: youAreHere.oy,
+      undoPushed: false,
+    };
+  };
+
+  const onYouAreHereResizePointerMove = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!canEditYouAreHere || !yahResizeRef.current) return;
+    const { startX, startY, baseSize, baseOx, baseOy } = yahResizeRef.current;
+    const delta = Math.max(e.clientX - startX, e.clientY - startY);
+    if (
+      !yahResizeRef.current.undoPushed &&
+      Math.abs(delta) >= DRAG_CLICK_THRESHOLD_PX
+    ) {
+      pushUndo();
+      yahResizeRef.current.undoPushed = true;
+    }
+    const next = Math.max(
+      YOU_ARE_HERE_MIN_SIZE_PX,
+      Math.min(YOU_ARE_HERE_MAX_SIZE_PX, baseSize + Math.round(delta)),
+    );
+    setPendingYouAreHere({
+      ox: baseOx,
+      oy: baseOy,
+      sizePx: next,
+    });
+  };
+
+  const onYouAreHereResizePointerUp = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!yahResizeRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    yahResizeRef.current = null;
   };
 
   const onDoorPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -1089,7 +1169,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           nextExtras = withHiddenSlots(nextExtras, pendingHidden);
         }
         if (yahPending && pendingYouAreHere) {
-          nextExtras = withYouAreHereOffset(nextExtras, pendingYouAreHere);
+          nextExtras = withYouAreHere(nextExtras, pendingYouAreHere);
         }
         if (doorPending && pendingDoor) {
           nextExtras = withDoorOffset(nextExtras, pendingDoor);
@@ -1865,7 +1945,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   return (
     <div
       data-testid="shop-floor-map"
-      className={`shop-floor-map${editMode ? " shop-floor-map--edit" : ""}`}
+      className={[
+        "shop-floor-map",
+        editMode ? "shop-floor-map--edit" : "",
+        vendorView ? "shop-floor-map--vendor" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={{ fontFamily: FONT, position: "relative" }}
     >
       <div
@@ -2061,24 +2147,26 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             <div
               className="shop-map-you-are-here"
               data-testid="shop-map-you-are-here"
-              data-map-offset-x={youAreHereOffset.ox}
-              data-map-offset-y={youAreHereOffset.oy}
+              data-map-offset-x={youAreHere.ox}
+              data-map-offset-y={youAreHere.oy}
+              data-map-size={youAreHere.sizePx}
               title={
-                editMode
-                  ? "Drag to place YOU ARE HERE for this wall sign, then Save"
+                canEditYouAreHere
+                  ? "Drag to place; drag blue corner to resize; then Save"
                   : undefined
               }
               onPointerDown={onYouAreHerePointerDown}
               onPointerMove={onYouAreHerePointerMove}
               onPointerUp={onYouAreHerePointerUp}
               style={{
-                width: 96,
-                height: 96,
+                position: "relative",
+                width: youAreHere.sizePx,
+                height: youAreHere.sizePx,
                 borderRadius: "50%",
                 backgroundColor: YOU_ARE_HERE_YELLOW,
                 color: "#111",
                 fontWeight: 900,
-                fontSize: 13,
+                fontSize: Math.max(11, Math.round(youAreHere.sizePx * 0.135)),
                 lineHeight: 1.15,
                 letterSpacing: 0.2,
                 display: "flex",
@@ -2087,9 +2175,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 justifyContent: "center",
                 textAlign: "center",
                 userSelect: "none",
-                cursor: editMode ? "grab" : "default",
-                transform: `translate(${youAreHereOffset.ox}px, ${youAreHereOffset.oy}px)`,
-                boxShadow: editMode ? "0 0 0 2px #2563eb" : undefined,
+                cursor: canEditYouAreHere ? "grab" : "default",
+                transform: `translate(${youAreHere.ox}px, ${youAreHere.oy}px)`,
+                boxShadow: canEditYouAreHere ? "0 0 0 2px #2563eb" : undefined,
                 touchAction: "none",
                 zIndex: 5,
               }}
@@ -2097,6 +2185,28 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               <span>YOU</span>
               <span>ARE</span>
               <span>HERE</span>
+              {canEditYouAreHere && (
+                <span
+                  data-testid="shop-map-yah-resize-handle"
+                  onPointerDown={onYouAreHereResizePointerDown}
+                  onPointerMove={onYouAreHereResizePointerMove}
+                  onPointerUp={onYouAreHereResizePointerUp}
+                  style={{
+                    position: "absolute",
+                    right: 2,
+                    bottom: 2,
+                    width: 14,
+                    height: 14,
+                    borderRadius: 2,
+                    backgroundColor: "#2563eb",
+                    border: "2px solid #fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                    cursor: "nwse-resize",
+                    zIndex: 6,
+                    touchAction: "none",
+                  }}
+                />
+              )}
             </div>
             <div
               className="shop-map-door-wrap"

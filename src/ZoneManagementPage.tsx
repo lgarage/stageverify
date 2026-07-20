@@ -285,6 +285,8 @@ export function ZoneManagementPage() {
   );
   const [showZoneTools, setShowZoneTools] = useState(false);
   const [mapEditMode, setMapEditMode] = useState(false);
+  /** Session-only wall-sign preview — YOU ARE HERE shows here (not on live dispatcher). */
+  const [vendorView, setVendorView] = useState(false);
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
   const liveOccupancy = useLiveZoneOccupancy(true);
@@ -721,6 +723,24 @@ export function ZoneManagementPage() {
               </button>
               <button
                 type="button"
+                data-testid="shop-map-vendor-view-toggle"
+                onClick={() => setVendorView((v) => !v)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 4,
+                  border: vendorView ? "2px solid #ca8a04" : "1px solid #ccd0d7",
+                  backgroundColor: vendorView ? "#fef9c3" : "#fff",
+                  color: vendorView ? "#854d0e" : "#333",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                {vendorView ? "Exit vendor view" : "Vendor view"}
+              </button>
+              <button
+                type="button"
                 data-testid="shop-map-edit-mode-toggle"
                 onClick={() => {
                   if (mapEditMode) {
@@ -733,6 +753,7 @@ export function ZoneManagementPage() {
                       setMapEditMode(false);
                     })();
                   } else {
+                    setVendorView(true);
                     setMapEditMode(true);
                   }
                 }}
@@ -815,6 +836,7 @@ export function ZoneManagementPage() {
               }
               onOpenDelivery={(id) => setSelectedDeliveryId(id)}
               editMode={mapEditMode}
+              vendorView={vendorView}
               zonesByLayoutSlot={zonesByLayoutSlot}
               onSaveZone={handleMapZoneSave}
               layout={mapLayout}
@@ -1548,9 +1570,9 @@ export function ZoneManagementPage() {
       />
 
       <style>{`
-        /* Dispatcher: door visible; YOU ARE HERE print-only (visible in Edit mode to drag) */
+        /* Dispatcher: door visible; YOU ARE HERE only in Vendor view (and print) */
         .shop-map-you-are-here { display: none !important; }
-        .shop-floor-map--edit .shop-map-you-are-here {
+        .shop-floor-map--vendor .shop-map-you-are-here {
           display: flex !important;
         }
         .shop-map-last-edited { display: none !important; }
@@ -1600,6 +1622,7 @@ export function ZoneManagementPage() {
           [data-testid="shop-map-edit-panel"],
           [data-testid="shop-map-edit-mode-banner"],
           [data-testid="shop-map-resize-handle"],
+          [data-testid="shop-map-yah-resize-handle"],
           [data-testid="shop-map-marquee"],
           [data-testid="shop-map-add-bar"],
           .shop-map-unplaced,
@@ -1635,12 +1658,9 @@ export function ZoneManagementPage() {
           }
           .shop-map-you-are-here {
             display: flex !important;
-            width: 120px !important;
-            height: 120px !important;
             border-radius: 50% !important;
             background: #ffe600 !important;
             color: #111 !important;
-            font-size: 16px !important;
             font-weight: 900 !important;
             line-height: 1.15 !important;
             box-shadow: none !important;
