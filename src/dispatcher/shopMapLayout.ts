@@ -30,7 +30,7 @@ export const SHOP_MAP_GROUND_TOP = [
   "G12",
 ] as const;
 
-/** Each shelf unit: 6 vertical levels (bottom→top), 2 cubbies per level — A+G … F+L. */
+/** Each shelf unit: 6 vertical levels (bottom→top), 2 cubbies per level — A/G … F/L (staggered on map). */
 export const SHOP_MAP_SHELF_LEVELS = [
   ["A", "G"],
   ["B", "H"],

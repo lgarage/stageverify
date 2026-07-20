@@ -243,7 +243,7 @@ export function ShopFloorMap({
             ))}
           </div>
 
-          {/* Shelves S1 / S2 — flat 2D; wide aisle; rotated level labels on right */}
+          {/* Shelves S1 / S2 — flat 2D unit frames; staggered cubby chips per level */}
           <div
             style={{
               display: "flex",
@@ -266,11 +266,11 @@ export function ShopFloorMap({
                   {unit}
                 </div>
                 <div
-                  data-testid={`shop-shelf-${unit}-labels`}
+                  data-testid={`shop-shelf-${unit}-bays`}
                   style={{
                     display: "flex",
                     flexDirection: "column-reverse",
-                    gap: 6,
+                    gap: 4,
                     border: "2px solid #cbd5e1",
                     borderRadius: 6,
                     padding: 8,
@@ -280,74 +280,71 @@ export function ShopFloorMap({
                   {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
                     const codeA = shelfSpotCode(unit, a);
                     const codeB = shelfSpotCode(unit, b);
-                    const pairLabel = `${codeA}/${codeB}`;
                     return (
                       <div
                         key={`${unit}-${a}`}
+                        data-testid={`shop-shelf-${unit}-level-${a}`}
                         style={{
                           display: "flex",
-                          gap: 6,
-                          alignItems: "center",
-                          minHeight: 40,
+                          gap: 8,
+                          alignItems: "flex-start",
+                          minHeight: 56,
                         }}
                       >
                         <div
+                          aria-hidden
                           style={{
-                            width: 40,
-                            height: 32,
-                            backgroundColor: "#e2e8f0",
+                            width: 44,
+                            height: 44,
+                            flexShrink: 0,
+                            backgroundColor: "#fff",
                             borderRadius: 3,
                             border: "1px solid #94a3b8",
+                            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.6)",
                           }}
                         />
-                        <button
-                          type="button"
-                          data-testid={`shop-spot-${codeA}`}
-                          data-spot-color={colorOf(codeA)}
-                          style={spotStyle(colorOf(codeA), false)}
-                          onMouseEnter={() => void onEnter(codeA)}
-                          onMouseLeave={() => setHover(null)}
-                          onClick={() => onClickSpot(codeA)}
-                        >
-                          {codeA}
-                        </button>
-                        <button
-                          type="button"
-                          data-testid={`shop-spot-${codeB}`}
-                          data-spot-color={colorOf(codeB)}
-                          style={spotStyle(colorOf(codeB), false)}
-                          onMouseEnter={() => void onEnter(codeB)}
-                          onMouseLeave={() => setHover(null)}
-                          onClick={() => onClickSpot(codeB)}
-                        >
-                          {codeB}
-                        </button>
-                        {/* Vertical pair label along right of compartment (~90°) */}
                         <div
-                          data-testid={`shop-shelf-${unit}-label-${a}${b}`}
                           style={{
-                            width: 22,
-                            height: 40,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
+                            position: "relative",
+                            width: 88,
+                            height: 52,
                             flexShrink: 0,
                           }}
                         >
-                          <span
+                          <button
+                            type="button"
+                            data-testid={`shop-spot-${codeA}`}
+                            data-spot-color={colorOf(codeA)}
                             style={{
-                              display: "inline-block",
-                              transform: "rotate(-90deg)",
-                              whiteSpace: "nowrap",
-                              fontWeight: 800,
-                              fontSize: 10,
-                              color: "#475569",
-                              letterSpacing: 0.3,
-                              fontFamily: FONT,
+                              ...spotStyle(colorOf(codeA), false),
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              zIndex: 1,
                             }}
+                            onMouseEnter={() => void onEnter(codeA)}
+                            onMouseLeave={() => setHover(null)}
+                            onClick={() => onClickSpot(codeA)}
                           >
-                            {pairLabel}
-                          </span>
+                            {codeA}
+                          </button>
+                          <button
+                            type="button"
+                            data-testid={`shop-spot-${codeB}`}
+                            data-spot-color={colorOf(codeB)}
+                            style={{
+                              ...spotStyle(colorOf(codeB), false),
+                              position: "absolute",
+                              top: 14,
+                              left: 36,
+                              zIndex: 2,
+                            }}
+                            onMouseEnter={() => void onEnter(codeB)}
+                            onMouseLeave={() => setHover(null)}
+                            onClick={() => onClickSpot(codeB)}
+                          >
+                            {codeB}
+                          </button>
                         </div>
                       </div>
                     );

@@ -74,30 +74,37 @@ async function main() {
     }
   }
 
-  // Floor-plan orientation: vertical shelf units with rotated level-pair labels
+  // Shelf units: bay frame + staggered cubby chips (no combined A+G / F+L labels)
   for (const unit of ["S1", "S2"]) {
-    const labels = page.getByTestId(`shop-shelf-${unit}-labels`);
-    if (!(await labels.isVisible())) {
-      throw new Error(`Missing shelf level labels for ${unit}`);
+    const bays = page.getByTestId(`shop-shelf-${unit}-bays`);
+    if (!(await bays.isVisible())) {
+      throw new Error(`Missing shelf bay frame for ${unit}`);
     }
-    const labelText = await labels.innerText();
-    if (
-      !new RegExp(`${unit}A/${unit}G`, "i").test(labelText) ||
-      !new RegExp(`${unit}F/${unit}L`, "i").test(labelText)
-    ) {
-      throw new Error(
-        `Shelf ${unit} labels missing ${unit}A/${unit}G … ${unit}F/${unit}L. Got: ${labelText}`,
-      );
-    }
-    const bottomLabel = page.getByTestId(`shop-shelf-${unit}-label-AG`);
-    const transform = await bottomLabel.evaluate((el) => {
-      const span = el.querySelector("span");
-      return span ? getComputedStyle(span).transform : "";
-    });
-    if (!transform || transform === "none") {
-      throw new Error(
-        `Shelf ${unit} pair label should be rotated ~90°. Got: ${transform}`,
-      );
+    for (const [a, b] of [
+      ["A", "G"],
+      ["B", "H"],
+      ["C", "I"],
+      ["D", "J"],
+      ["E", "K"],
+      ["F", "L"],
+    ]) {
+      const codeA = `${unit}${a}`;
+      const codeB = `${unit}${b}`;
+      const spotA = page.getByTestId(`shop-spot-${codeA}`);
+      const spotB = page.getByTestId(`shop-spot-${codeB}`);
+      if (!(await spotA.count()) || !(await spotB.count())) {
+        throw new Error(`Missing staggered shelf spots ${codeA} / ${codeB}`);
+      }
+      const boxA = await spotA.boundingBox();
+      const boxB = await spotB.boundingBox();
+      if (!boxA || !boxB) {
+        throw new Error(`Could not measure ${codeA}/${codeB} bounding boxes`);
+      }
+      if (boxB.x <= boxA.x + 4 || boxB.y <= boxA.y + 4) {
+        throw new Error(
+          `${codeB} should be staggered down-right of ${codeA}. A=(${boxA.x},${boxA.y}) B=(${boxB.x},${boxB.y})`,
+        );
+      }
     }
   }
 
