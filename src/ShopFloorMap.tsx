@@ -1,6 +1,13 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import {
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { DeliveryDetails } from "./dispatcher";
-import type { ShopStockLocationMapping } from "./dispatcher/models";
+import type { ShopStockLocationMapping, StagingLocation } from "./dispatcher/models";
 import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
   SHOP_MAP_GROUND_LEFT,
@@ -10,6 +17,7 @@ import {
   allShopMapSpotCodes,
   shelfSpotCode,
 } from "./dispatcher/shopMapLayout";
+import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
 import {
   SPOT_MAP_COLORS,
   SPOT_MAP_FG,
@@ -26,7 +34,7 @@ const NAVY = "#0a3161";
 const SHELF_FRAME_STROKE = "2px solid #64748b";
 
 type HoverInfo =
-  | { kind: "free"; code: string }
+  | { kind: "free"; code: string; label?: string }
   | {
       kind: "occupied";
       code: string;
@@ -37,11 +45,23 @@ type HoverInfo =
     }
   | { kind: "shop"; code: string; label: string };
 
+export type MapZoneSavePayload = {
+  code: string;
+  zoneId?: string;
+  patch: Partial<StagingLocation>;
+};
+
 type Props = {
   occupancyByZoneCode: Record<string, ZoneOccupancySummaryWithReadiness>;
   shopStockByCode: Record<string, ShopStockLocationMapping>;
   onOpenDelivery: (deliveryId: string) => void;
+  /** Dispatcher map edit — rename label and nudge/drag spot position. */
+  editMode?: boolean;
+  zonesByCode?: Record<string, StagingLocation>;
+  onSaveZone?: (payload: MapZoneSavePayload) => Promise<void>;
 };
+
+const NUDGE_STEP = 8;
 
 function spotStyle(color: SpotMapColor, ground: boolean): CSSProperties {
   const bg = SPOT_MAP_COLORS[color];
@@ -93,8 +113,130 @@ export function ShopFloorMap({
   occupancyByZoneCode,
   shopStockByCode,
   onOpenDelivery,
+  editMode = false,
+  zonesByCode = {},
+  onSaveZone,
 }: Props) {
   const [hover, setHover] = useState<HoverInfo | null>(null);
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editCode, setEditCode] = useState("");
+  const [editOffsetX, setEditOffsetX] = useState(0);
+  const [editOffsetY, setEditOffsetY] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const dragRef = useRef<{
+    code: string;
+    startX: number;
+    startY: number;
+    baseOx: number;
+    baseOy: number;
+  } | null>(null);
+
+  const zoneForCode = useCallback(
+    (code: string) => zonesByCode[normalizeStagingCodeKey(code)],
+    [zonesByCode],
+  );
+
+  const selectSpotForEdit = useCallback(
+    (code: string) => {
+      const zone = zoneForCode(code);
+      setSelectedCode(code);
+      setEditLabel(zone?.label ?? code);
+      setEditCode(zone?.code ?? formatStagingCodeCanonical(code));
+      setEditOffsetX(zone?.mapOffsetX ?? 0);
+      setEditOffsetY(zone?.mapOffsetY ?? 0);
+      setSaveError(null);
+      setHover(null);
+    },
+    [zoneForCode],
+  );
+
+  const persistEdit = async () => {
+    if (!selectedCode || !onSaveZone || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const zone = zoneForCode(selectedCode);
+      const canonicalCode = formatStagingCodeCanonical(editCode.trim() || selectedCode);
+      await onSaveZone({
+        code: selectedCode,
+        zoneId: zone?.id,
+        patch: {
+          code: canonicalCode,
+          label: editLabel.trim() || selectedCode,
+          mapOffsetX: editOffsetX,
+          mapOffsetY: editOffsetY,
+        },
+      });
+      setSelectedCode(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onSpotPointerDown = (
+    e: ReactPointerEvent<HTMLButtonElement>,
+    code: string,
+  ) => {
+    if (!editMode) return;
+    e.preventDefault();
+    const zone = zoneForCode(code);
+    const baseOx = zone?.mapOffsetX ?? 0;
+    const baseOy = zone?.mapOffsetY ?? 0;
+    if (selectedCode !== code) selectSpotForEdit(code);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      code,
+      startX: e.clientX,
+      startY: e.clientY,
+      baseOx,
+      baseOy,
+    };
+  };
+
+  const onSpotPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!editMode || !dragRef.current) return;
+    const { startX, startY, baseOx, baseOy } = dragRef.current;
+    setEditOffsetX(baseOx + Math.round(e.clientX - startX));
+    setEditOffsetY(baseOy + Math.round(e.clientY - startY));
+  };
+
+  const onSpotPointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!editMode || !dragRef.current) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    dragRef.current = null;
+  };
+
+  const nudge = (dx: number, dy: number) => {
+    setEditOffsetX((x) => x + dx);
+    setEditOffsetY((y) => y + dy);
+  };
+
+  const spotEditChrome = (code: string): CSSProperties =>
+    editMode && selectedCode === code
+      ? { outline: "2px dashed #2563eb", outlineOffset: 2 }
+      : editMode
+        ? { outline: "1px dashed #94a3b8", outlineOffset: 1 }
+        : {};
+
+  const offsetForSpot = (
+    code: string,
+    absoluteBase?: { left: number; top: number },
+  ): CSSProperties => {
+    const zone = zoneForCode(code);
+    const ox =
+      editMode && selectedCode === code ? editOffsetX : (zone?.mapOffsetX ?? 0);
+    const oy =
+      editMode && selectedCode === code ? editOffsetY : (zone?.mapOffsetY ?? 0);
+    if (absoluteBase) {
+      return { left: absoluteBase.left + ox, top: absoluteBase.top + oy };
+    }
+    if (ox === 0 && oy === 0) return {};
+    return { marginLeft: ox, marginTop: oy };
+  };
 
   const unplaced = useMemo(() => {
     const layout = new Set(
@@ -113,7 +255,8 @@ export function ShopFloorMap({
     const stock = shopStockByCode[key];
     const occ = occupancyByZoneCode[key];
     if (!occ && !stock) {
-      setHover({ kind: "free", code });
+      const zone = zoneForCode(code);
+      setHover({ kind: "free", code, label: zone?.label });
       return;
     }
     if (!occ && stock) {
@@ -148,6 +291,10 @@ export function ShopFloorMap({
   };
 
   const onClickSpot = (code: string) => {
+    if (editMode) {
+      selectSpotForEdit(code);
+      return;
+    }
     const occ = occupancyByZoneCode[normalizeStagingCodeKey(code)];
     if (occ) onOpenDelivery(occ.deliveryId);
   };
@@ -193,6 +340,22 @@ export function ShopFloorMap({
         >
           VENDOR DROP-OFF LOCATION GUIDE
         </h2>
+        {editMode && (
+          <span
+            data-testid="shop-map-edit-mode-banner"
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#1d4ed8",
+              backgroundColor: "#dbeafe",
+              padding: "4px 10px",
+              borderRadius: 6,
+            }}
+          >
+            Edit mode — click a spot to rename or drag to move
+          </span>
+        )}
       </div>
 
       <div
@@ -216,10 +379,27 @@ export function ShopFloorMap({
               type="button"
               data-testid={`shop-spot-${code}`}
               data-spot-color={colorOf(code)}
-              style={spotStyle(colorOf(code), true)}
-              onMouseEnter={() => void onEnter(code)}
-              onMouseLeave={() => setHover(null)}
+              data-map-offset-x={
+                editMode && selectedCode === code
+                  ? editOffsetX
+                  : (zoneForCode(code)?.mapOffsetX ?? 0)
+              }
+              data-map-offset-y={
+                editMode && selectedCode === code
+                  ? editOffsetY
+                  : (zoneForCode(code)?.mapOffsetY ?? 0)
+              }
+              style={{
+                ...spotStyle(colorOf(code), true),
+                ...offsetForSpot(code),
+                ...spotEditChrome(code),
+              }}
+              onMouseEnter={() => !editMode && void onEnter(code)}
+              onMouseLeave={() => !editMode && setHover(null)}
               onClick={() => onClickSpot(code)}
+              onPointerDown={(e) => onSpotPointerDown(e, code)}
+              onPointerMove={onSpotPointerMove}
+              onPointerUp={onSpotPointerUp}
             >
               {code}
             </button>
@@ -235,10 +415,27 @@ export function ShopFloorMap({
                 type="button"
                 data-testid={`shop-spot-${code}`}
                 data-spot-color={colorOf(code)}
-                style={spotStyle(colorOf(code), true)}
-                onMouseEnter={() => void onEnter(code)}
-                onMouseLeave={() => setHover(null)}
+                data-map-offset-x={
+                  editMode && selectedCode === code
+                    ? editOffsetX
+                    : (zoneForCode(code)?.mapOffsetX ?? 0)
+                }
+                data-map-offset-y={
+                  editMode && selectedCode === code
+                    ? editOffsetY
+                    : (zoneForCode(code)?.mapOffsetY ?? 0)
+                }
+                style={{
+                  ...spotStyle(colorOf(code), true),
+                  ...offsetForSpot(code),
+                  ...spotEditChrome(code),
+                }}
+                onMouseEnter={() => !editMode && void onEnter(code)}
+                onMouseLeave={() => !editMode && setHover(null)}
                 onClick={() => onClickSpot(code)}
+                onPointerDown={(e) => onSpotPointerDown(e, code)}
+                onPointerMove={onSpotPointerMove}
+                onPointerUp={onSpotPointerUp}
               >
                 {code}
               </button>
@@ -335,16 +532,29 @@ export function ShopFloorMap({
                             type="button"
                             data-testid={`shop-spot-${codeA}`}
                             data-spot-color={colorOf(codeA)}
+                            data-map-offset-x={
+                              editMode && selectedCode === codeA
+                                ? editOffsetX
+                                : (zoneForCode(codeA)?.mapOffsetX ?? 0)
+                            }
+                            data-map-offset-y={
+                              editMode && selectedCode === codeA
+                                ? editOffsetY
+                                : (zoneForCode(codeA)?.mapOffsetY ?? 0)
+                            }
                             style={{
                               ...spotStyle(colorOf(codeA), false),
                               position: "absolute",
-                              top: 2,
-                              left: 0,
                               zIndex: 1,
+                              ...offsetForSpot(codeA, { left: 0, top: 2 }),
+                              ...spotEditChrome(codeA),
                             }}
-                            onMouseEnter={() => void onEnter(codeA)}
-                            onMouseLeave={() => setHover(null)}
+                            onMouseEnter={() => !editMode && void onEnter(codeA)}
+                            onMouseLeave={() => !editMode && setHover(null)}
                             onClick={() => onClickSpot(codeA)}
+                            onPointerDown={(e) => onSpotPointerDown(e, codeA)}
+                            onPointerMove={onSpotPointerMove}
+                            onPointerUp={onSpotPointerUp}
                           >
                             {codeA}
                           </button>
@@ -352,16 +562,29 @@ export function ShopFloorMap({
                             type="button"
                             data-testid={`shop-spot-${codeB}`}
                             data-spot-color={colorOf(codeB)}
+                            data-map-offset-x={
+                              editMode && selectedCode === codeB
+                                ? editOffsetX
+                                : (zoneForCode(codeB)?.mapOffsetX ?? 0)
+                            }
+                            data-map-offset-y={
+                              editMode && selectedCode === codeB
+                                ? editOffsetY
+                                : (zoneForCode(codeB)?.mapOffsetY ?? 0)
+                            }
                             style={{
                               ...spotStyle(colorOf(codeB), false),
                               position: "absolute",
-                              top: 18,
-                              left: 34,
                               zIndex: 2,
+                              ...offsetForSpot(codeB, { left: 34, top: 18 }),
+                              ...spotEditChrome(codeB),
                             }}
-                            onMouseEnter={() => void onEnter(codeB)}
-                            onMouseLeave={() => setHover(null)}
+                            onMouseEnter={() => !editMode && void onEnter(codeB)}
+                            onMouseLeave={() => !editMode && setHover(null)}
                             onClick={() => onClickSpot(codeB)}
+                            onPointerDown={(e) => onSpotPointerDown(e, codeB)}
+                            onPointerMove={onSpotPointerMove}
+                            onPointerUp={onSpotPointerUp}
                           >
                             {codeB}
                           </button>
@@ -376,7 +599,183 @@ export function ShopFloorMap({
         </div>
       </div>
 
-      {hover && (
+      {editMode && selectedCode && (
+        <div
+          data-testid="shop-map-edit-panel"
+          style={{
+            position: "absolute",
+            right: 16,
+            top: 56,
+            width: 300,
+            backgroundColor: "#fff",
+            border: "2px solid #2563eb",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            padding: "14px 16px",
+            zIndex: 6,
+            fontSize: 13,
+          }}
+        >
+          <div style={{ fontWeight: 800, color: NAVY, marginBottom: 10 }}>
+            Edit {selectedCode}
+          </div>
+          <label style={{ display: "block", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+              Display name
+            </span>
+            <input
+              data-testid="shop-map-edit-label"
+              type="text"
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 4,
+                padding: "6px 8px",
+                border: "1px solid #d1d5db",
+                borderRadius: 4,
+                fontFamily: FONT,
+                fontSize: 13,
+              }}
+            />
+          </label>
+          <label style={{ display: "block", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+              Spot code
+            </span>
+            <input
+              data-testid="shop-map-edit-code"
+              type="text"
+              value={editCode}
+              onChange={(e) => setEditCode(e.target.value)}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 4,
+                padding: "6px 8px",
+                border: "1px solid #d1d5db",
+                borderRadius: 4,
+                fontFamily: FONT,
+                fontSize: 13,
+              }}
+            />
+            <span style={{ fontSize: 10, color: "#b45309", marginTop: 4, display: "block" }}>
+              Changing code updates QR/sign URLs — prefer display name when possible.
+            </span>
+          </label>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+              Position nudge
+            </span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 4,
+                marginTop: 6,
+                maxWidth: 120,
+              }}
+            >
+              <span />
+              <button
+                type="button"
+                data-testid="shop-map-nudge-up"
+                onClick={() => nudge(0, -NUDGE_STEP)}
+                style={nudgeBtnStyle}
+              >
+                ↑
+              </button>
+              <span />
+              <button
+                type="button"
+                data-testid="shop-map-nudge-left"
+                onClick={() => nudge(-NUDGE_STEP, 0)}
+                style={nudgeBtnStyle}
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                data-testid="shop-map-nudge-reset"
+                onClick={() => {
+                  setEditOffsetX(0);
+                  setEditOffsetY(0);
+                }}
+                style={nudgeBtnStyle}
+                title="Reset offset"
+              >
+                ·
+              </button>
+              <button
+                type="button"
+                data-testid="shop-map-nudge-right"
+                onClick={() => nudge(NUDGE_STEP, 0)}
+                style={nudgeBtnStyle}
+              >
+                →
+              </button>
+              <span />
+              <button
+                type="button"
+                data-testid="shop-map-nudge-down"
+                onClick={() => nudge(0, NUDGE_STEP)}
+                style={nudgeBtnStyle}
+              >
+                ↓
+              </button>
+              <span />
+            </div>
+            <span style={{ fontSize: 11, color: "#6b7280" }}>
+              Offset: {editOffsetX}px, {editOffsetY}px — or drag the spot
+            </span>
+          </div>
+          {saveError && (
+            <div style={{ color: "#991b1b", fontSize: 12, marginBottom: 8 }}>
+              {saveError}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              data-testid="shop-map-edit-save"
+              disabled={saving || !onSaveZone}
+              onClick={() => void persistEdit()}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 4,
+                border: "none",
+                backgroundColor: NAVY,
+                color: "#fff",
+                fontWeight: 700,
+                cursor: saving ? "wait" : "pointer",
+                fontFamily: FONT,
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              data-testid="shop-map-edit-cancel"
+              onClick={() => setSelectedCode(null)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 4,
+                border: "1px solid #d1d5db",
+                backgroundColor: "#fff",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: FONT,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!editMode && hover && (
         <div
           data-testid="shop-map-hover-card"
           style={{
@@ -396,6 +795,9 @@ export function ShopFloorMap({
           {hover.kind === "free" && (
             <>
               <div style={{ fontWeight: 800, color: NAVY }}>{hover.code}</div>
+              {hover.label && hover.label !== hover.code && (
+                <div style={{ color: "#374151", marginTop: 2 }}>{hover.label}</div>
+              )}
               <div style={{ color: "#16a34a", marginTop: 4 }}>Available</div>
             </>
           )}
@@ -539,6 +941,16 @@ export function ShopFloorMap({
     </div>
   );
 }
+
+const nudgeBtnStyle: CSSProperties = {
+  padding: "4px 8px",
+  border: "1px solid #d1d5db",
+  borderRadius: 4,
+  backgroundColor: "#f9fafb",
+  cursor: "pointer",
+  fontFamily: FONT,
+  fontWeight: 700,
+};
 
 function HoverRow({
   label,

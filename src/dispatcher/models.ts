@@ -687,6 +687,10 @@ export function parseStagingLocation(
     sizeClass: typeof data.sizeClass === "string" ? data.sizeClass : undefined,
     adjacentGroupId:
       typeof data.adjacentGroupId === "string" ? data.adjacentGroupId : undefined,
+    mapOffsetX:
+      typeof data.mapOffsetX === "number" ? data.mapOffsetX : undefined,
+    mapOffsetY:
+      typeof data.mapOffsetY === "number" ? data.mapOffsetY : undefined,
   };
 }
 
@@ -705,6 +709,9 @@ export interface StagingLocation {
   sizeClass?: string;
   /** Ground-spot adjacency group for Need More Space (location-first Phase 1 types only). */
   adjacentGroupId?: string;
+  /** Optional pixel nudge from default map layout (dispatcher map edit). */
+  mapOffsetX?: number;
+  mapOffsetY?: number;
 }
 
 export const isOversizedSpot = (loc: StagingLocation): boolean =>

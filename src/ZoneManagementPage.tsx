@@ -40,6 +40,11 @@ import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { useLiveZoneOccupancy } from "./dispatcher/useLiveZoneOccupancy";
 import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupancyCompute";
+import {
+  defaultLabelForSpotCode,
+  inferSpotZoneType,
+} from "./dispatcher/shopMapLayout";
+import type { MapZoneSavePayload } from "./ShopFloorMap";
 import { ShopFloorMap } from "./ShopFloorMap";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 
@@ -266,7 +271,56 @@ export function ZoneManagementPage() {
     null,
   );
   const [showZoneTools, setShowZoneTools] = useState(false);
+  const [mapEditMode, setMapEditMode] = useState(false);
   const liveOccupancy = useLiveZoneOccupancy(true);
+
+  const zonesByCode = useMemo(
+    () =>
+      Object.fromEntries(
+        zones.map((z) => [normalizeStagingCodeKey(z.code), z]),
+      ),
+    [zones],
+  );
+
+  const handleMapZoneSave = useCallback(
+    async ({ code, zoneId, patch }: MapZoneSavePayload) => {
+      const canonicalCode = formatStagingCodeCanonical(
+        patch.code ?? code,
+      );
+      const type = inferSpotZoneType(canonicalCode);
+      if (zoneId) {
+        await updateZone(zoneId, {
+          ...patch,
+          code: canonicalCode,
+        });
+        setZones((prev) =>
+          prev.map((z) =>
+            z.id === zoneId ? { ...z, ...patch, code: canonicalCode } : z,
+          ),
+        );
+      } else {
+        const id = await createZone({
+          code: canonicalCode,
+          label: patch.label ?? defaultLabelForSpotCode(code),
+          type,
+          status: "Active",
+          mapOffsetX: patch.mapOffsetX,
+          mapOffsetY: patch.mapOffsetY,
+        });
+        const newZone: StagingLocation = {
+          id,
+          code: canonicalCode,
+          label: patch.label ?? defaultLabelForSpotCode(code),
+          type,
+          status: "Active",
+          mapOffsetX: patch.mapOffsetX,
+          mapOffsetY: patch.mapOffsetY,
+        };
+        setZones((prev) => [...prev, newZone]);
+      }
+    },
+    [],
+  );
 
   const loadZones = useCallback(async () => {
     setLoading(true);
@@ -496,6 +550,29 @@ export function ZoneManagementPage() {
               </button>
               <button
                 type="button"
+                data-testid="shop-map-edit-mode-toggle"
+                onClick={() => {
+                  setMapEditMode((v) => {
+                    if (v) setSelectedDeliveryId(null);
+                    return !v;
+                  });
+                }}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 4,
+                  border: mapEditMode ? "2px solid #2563eb" : "1px solid #ccd0d7",
+                  backgroundColor: mapEditMode ? "#dbeafe" : "#fff",
+                  color: mapEditMode ? "#1d4ed8" : "#333",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                {mapEditMode ? "Done editing" : "Edit spots"}
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowZoneTools((v) => !v)}
                 style={{
                   padding: "8px 18px",
@@ -557,6 +634,9 @@ export function ZoneManagementPage() {
                   : shopStockByCode
               }
               onOpenDelivery={(id) => setSelectedDeliveryId(id)}
+              editMode={mapEditMode}
+              zonesByCode={zonesByCode}
+              onSaveZone={handleMapZoneSave}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>

@@ -226,6 +226,51 @@ async function main() {
     );
   }
 
+  // Edit mode smoke: rename label + nudge position on G1, then restore
+  const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
+  if (!(await editToggle.isVisible())) {
+    throw new Error("Missing shop-map-edit-mode-toggle");
+  }
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "visible",
+    timeout: 5000,
+  });
+
+  const g1 = page.getByTestId("shop-spot-G1");
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+
+  const labelInput = page.getByTestId("shop-map-edit-label");
+  const priorLabel = await labelInput.inputValue();
+  const testLabel = `${priorLabel} (verify)`;
+  await labelInput.fill(testLabel);
+
+  const priorOffsetX = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  await page.getByTestId("shop-map-nudge-right").click();
+  await page.getByTestId("shop-map-edit-save").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
+  await page.waitForTimeout(500);
+  const offsetAfterNudge = Number(
+    (await g1.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (offsetAfterNudge <= priorOffsetX) {
+    throw new Error(
+      `G1 map offset should increase after nudge right. before=${priorOffsetX} after=${offsetAfterNudge}`,
+    );
+  }
+
+  // Restore label + offset for env hygiene
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  await labelInput.fill(priorLabel);
+  await page.getByTestId("shop-map-nudge-reset").click();
+  await page.getByTestId("shop-map-edit-save").click();
+  await editToggle.click();
+
   await page.screenshot({
     path: resolve(screenshotDir, "shop-map-verify.png"),
     fullPage: true,

@@ -58,3 +58,16 @@ export function allShopMapSpotCodes(): string[] {
   );
   return [...SHOP_MAP_GROUND_CODES, ...shelf];
 }
+
+/** Infer zone type from Jake map spot code (G* ground, S* shelf). */
+export function inferSpotZoneType(code: string): "ground" | "shelf" {
+  return /^G\d+$/i.test(code.trim()) ? "ground" : "shelf";
+}
+
+export function defaultLabelForSpotCode(code: string): string {
+  const shelf = /^S(\d+)([A-Z])$/i.exec(code.replace(/-/g, ""));
+  if (shelf) return `Shelf ${shelf[1]} — ${shelf[2].toUpperCase()}`;
+  const ground = /^G(\d+)$/i.exec(code.trim());
+  if (ground) return `Ground Spot ${ground[1]}`;
+  return code;
+}
