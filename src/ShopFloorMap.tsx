@@ -99,12 +99,14 @@ type SlotSnapshot = {
   width: number;
   height: number;
   rotationDeg: number;
+  labelRotationDeg: number;
 };
 
 type UndoFrame = {
   pendingOffsets: Record<string, { ox: number; oy: number }>;
   pendingLabels: Record<string, string>;
   pendingRotations: Record<string, number>;
+  pendingLabelRotations: Record<string, number>;
   pendingSizes: Record<string, { w: number; h: number }>;
   pendingHidden: string[];
   editLabel: string;
@@ -114,6 +116,7 @@ type UndoFrame = {
   editWidth: number;
   editHeight: number;
   editRotationDeg: number;
+  editLabelRotationDeg: number;
   selectedLayoutSlot: string | null;
   selectedSlots: string[];
 };
@@ -121,12 +124,43 @@ type UndoFrame = {
 const NUDGE_STEP = 8;
 const SIZE_STEP = 4;
 const ROTATE_STEP = 15;
+const LABEL_ROTATE_STEP = 90;
 const MIN_SPOT_SIZE = 24;
 const DRAG_CLICK_THRESHOLD_PX = 4;
 
 function normalizeRotationDeg(deg: number): number {
   const n = ((Math.round(deg) % 360) + 360) % 360;
   return n;
+}
+
+/** Inverse-rotate screen delta into a parent's local offset space. */
+function rotateDelta(
+  dx: number,
+  dy: number,
+  deg: number,
+): { dx: number; dy: number } {
+  if (deg === 0) return { dx, dy };
+  const rad = (-deg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    dx: dx * cos - dy * sin,
+    dy: dx * sin + dy * cos,
+  };
+}
+
+function screenDeltaToLocal(
+  slot: string,
+  screenDx: number,
+  screenDy: number,
+  readRot: (layoutSlot: string) => number,
+): { dx: number; dy: number } {
+  if (isShelfUnitCode(slot) || isGroundLayoutSlot(slot)) {
+    return { dx: screenDx, dy: screenDy };
+  }
+  const unit = shelfUnitForSpot(slot);
+  if (!unit) return { dx: screenDx, dy: screenDy };
+  return rotateDelta(screenDx, screenDy, readRot(unit));
 }
 
 function isGroundLayoutSlot(layoutSlot: string): boolean {
@@ -265,7 +299,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   >(null);
   const [sizeInputDraft, setSizeInputDraft] = useState("");
   const [editRotationDeg, setEditRotationDeg] = useState(0);
+  const [editLabelRotationDeg, setEditLabelRotationDeg] = useState(0);
   const [pendingRotations, setPendingRotations] = useState<
+    Record<string, number>
+  >({});
+  const [pendingLabelRotations, setPendingLabelRotations] = useState<
     Record<string, number>
   >({});
   const [saving, setSaving] = useState(false);
@@ -433,6 +471,30 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ],
   );
 
+  const readLabelRotation = useCallback(
+    (unit: string): number => {
+      if (pendingLabelRotations[unit] !== undefined) {
+        return pendingLabelRotations[unit];
+      }
+      if (
+        editMode &&
+        selectedLayoutSlot === unit &&
+        isShelfUnitCode(unit)
+      ) {
+        return editLabelRotationDeg;
+      }
+      const zone = zoneForLayoutSlot(unit);
+      return normalizeRotationDeg(zone?.mapLabelRotationDeg ?? 0);
+    },
+    [
+      editMode,
+      editLabelRotationDeg,
+      pendingLabelRotations,
+      selectedLayoutSlot,
+      zoneForLayoutSlot,
+    ],
+  );
+
   const selectSpotForEdit = useCallback(
     (layoutSlot: string, additive = false) => {
       cancelActiveDrag();
@@ -440,6 +502,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       const flushedPending = { ...pendingOffsets };
       const flushedLabels = { ...pendingLabels };
       const flushedRotations = { ...pendingRotations };
+      const flushedLabelRotations = { ...pendingLabelRotations };
       const flushedSizes = { ...pendingSizes };
       if (selectedLayoutSlot && selectedLayoutSlot !== layoutSlot) {
         flushedPending[selectedLayoutSlot] = {
@@ -448,6 +511,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         };
         flushedLabels[selectedLayoutSlot] = editLabel;
         flushedRotations[selectedLayoutSlot] = editRotationDeg;
+        if (isShelfUnitCode(selectedLayoutSlot)) {
+          flushedLabelRotations[selectedLayoutSlot] = editLabelRotationDeg;
+        }
         if (!isShelfUnitCode(selectedLayoutSlot)) {
           flushedSizes[selectedLayoutSlot] = {
             w: editWidth,
@@ -458,6 +524,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingOffsets(flushedPending);
       setPendingLabels(flushedLabels);
       setPendingRotations(flushedRotations);
+      setPendingLabelRotations(flushedLabelRotations);
       setPendingSizes(flushedSizes);
       const label =
         flushedLabels[layoutSlot] ?? zone?.label ?? layoutSlot;
@@ -476,6 +543,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       const rotationDeg = normalizeRotationDeg(
         flushedRotations[layoutSlot] ?? zone?.mapRotationDeg ?? 0,
       );
+      const labelRotationDeg = isShelfUnitCode(layoutSlot)
+        ? normalizeRotationDeg(
+            flushedLabelRotations[layoutSlot] ??
+              zone?.mapLabelRotationDeg ??
+              0,
+          )
+        : 0;
       setSelectedLayoutSlot(layoutSlot);
       setSelectedSlots((prev) => {
         if (additive && prev.includes(layoutSlot)) return prev;
@@ -489,6 +563,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setEditWidth(width);
       setEditHeight(height);
       setEditRotationDeg(rotationDeg);
+      setEditLabelRotationDeg(labelRotationDeg);
       setSizeInputFocus(null);
       // Snapshot displayed state once when edit starts on this slot (Cancel baseline).
       if (!editSessionBySlotRef.current[layoutSlot]) {
@@ -501,6 +576,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           width,
           height,
           rotationDeg,
+          labelRotationDeg,
         };
       }
       setSaveError(null);
@@ -511,6 +587,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       pendingOffsets,
       pendingLabels,
       pendingRotations,
+      pendingLabelRotations,
       pendingSizes,
       selectedLayoutSlot,
       editOffsetX,
@@ -519,6 +596,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       editHeight,
       editLabel,
       editRotationDeg,
+      editLabelRotationDeg,
     ],
   );
 
@@ -526,6 +604,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const flushedOffsets = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
     const flushedRotations = { ...pendingRotations };
+    const flushedLabelRotations = { ...pendingLabelRotations };
     const flushedSizes = { ...pendingSizes };
     if (selectedLayoutSlot) {
       flushedOffsets[selectedLayoutSlot] = {
@@ -534,6 +613,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       };
       flushedLabels[selectedLayoutSlot] = editLabel;
       flushedRotations[selectedLayoutSlot] = editRotationDeg;
+      if (isShelfUnitCode(selectedLayoutSlot)) {
+        flushedLabelRotations[selectedLayoutSlot] = editLabelRotationDeg;
+      }
       if (!isShelfUnitCode(selectedLayoutSlot)) {
         flushedSizes[selectedLayoutSlot] = {
           w: editWidth,
@@ -545,6 +627,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       pendingOffsets: flushedOffsets,
       pendingLabels: flushedLabels,
       pendingRotations: flushedRotations,
+      pendingLabelRotations: flushedLabelRotations,
       pendingSizes: flushedSizes,
       pendingHidden: [...pendingHidden],
       editLabel,
@@ -554,6 +637,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       editWidth,
       editHeight,
       editRotationDeg,
+      editLabelRotationDeg,
       selectedLayoutSlot,
       selectedSlots: [...selectedSlots],
     };
@@ -561,6 +645,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingOffsets,
     pendingLabels,
     pendingRotations,
+    pendingLabelRotations,
     pendingSizes,
     pendingHidden,
     selectedLayoutSlot,
@@ -572,6 +657,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     editWidth,
     editHeight,
     editRotationDeg,
+    editLabelRotationDeg,
   ]);
 
   const pushUndo = useCallback(() => {
@@ -587,6 +673,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingOffsets(frame.pendingOffsets);
     setPendingLabels(frame.pendingLabels);
     setPendingRotations(frame.pendingRotations);
+    setPendingLabelRotations(frame.pendingLabelRotations);
     setPendingSizes(frame.pendingSizes);
     setPendingHidden(frame.pendingHidden);
     setEditLabel(frame.editLabel);
@@ -596,6 +683,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setEditWidth(frame.editWidth);
     setEditHeight(frame.editHeight);
     setEditRotationDeg(frame.editRotationDeg);
+    setEditLabelRotationDeg(frame.editLabelRotationDeg);
     setSelectedLayoutSlot(frame.selectedLayoutSlot);
     setSelectedSlots(frame.selectedSlots);
     setSaveError(null);
@@ -617,9 +705,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const next: Record<string, { ox: number; oy: number }> = {};
     for (const slot of drag.slots) {
       const base = drag.bases[slot] ?? { ox: 0, oy: 0 };
+      const local = screenDeltaToLocal(slot, dx, dy, readRotation);
       next[slot] = {
-        ox: base.ox + Math.round(dx),
-        oy: base.oy + Math.round(dy),
+        ox: base.ox + Math.round(local.dx),
+        oy: base.oy + Math.round(local.dy),
       };
     }
     setPendingOffsets((prev) => ({ ...prev, ...next }));
@@ -715,6 +804,22 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       }
       return next;
     });
+    setPendingLabelRotations((prev) => {
+      const next = { ...prev };
+      for (const slot of slots) {
+        if (!isShelfUnitCode(slot)) {
+          delete next[slot];
+          continue;
+        }
+        const snap = editSessionBySlotRef.current[slot];
+        if (!snap) {
+          delete next[slot];
+          continue;
+        }
+        next[slot] = snap.labelRotationDeg;
+      }
+      return next;
+    });
     setPendingSizes((prev) => {
       const next = { ...prev };
       for (const slot of slots) {
@@ -747,6 +852,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
     const flushedRotations = { ...pendingRotations };
+    const flushedLabelRotations = { ...pendingLabelRotations };
     const flushedSizes = { ...pendingSizes };
     if (selectedLayoutSlot) {
       flushedPending[selectedLayoutSlot] = {
@@ -755,6 +861,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       };
       flushedLabels[selectedLayoutSlot] = editLabel;
       flushedRotations[selectedLayoutSlot] = editRotationDeg;
+      if (isShelfUnitCode(selectedLayoutSlot)) {
+        flushedLabelRotations[selectedLayoutSlot] = editLabelRotationDeg;
+      }
       if (!isShelfUnitCode(selectedLayoutSlot)) {
         flushedSizes[selectedLayoutSlot] = {
           w: editWidth,
@@ -773,6 +882,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       ...Object.keys(flushedPending),
       ...Object.keys(flushedLabels),
       ...Object.keys(flushedRotations),
+      ...Object.keys(flushedLabelRotations),
       ...Object.keys(flushedSizes),
       ...multi,
     ]);
@@ -843,6 +953,18 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             : (flushedRotations[slot] ?? zone?.mapRotationDeg ?? 0),
         );
         const baseRotation = normalizeRotationDeg(zone?.mapRotationDeg ?? 0);
+        const labelRotationDeg = shelfUnit
+          ? normalizeRotationDeg(
+              isPrimary
+                ? editLabelRotationDeg
+                : (flushedLabelRotations[slot] ??
+                    zone?.mapLabelRotationDeg ??
+                    0),
+            )
+          : 0;
+        const baseLabelRotation = normalizeRotationDeg(
+          zone?.mapLabelRotationDeg ?? 0,
+        );
         // Shelf units keep layout-slot code (S1/S2); only display name changes.
         const patchCode = shelfUnit
           ? formatStagingCodeCanonical(slot)
@@ -862,12 +984,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         const sizeChanged =
           !shelfUnit && (patchWidth !== baseW || patchHeight !== baseH);
         const rotationChanged = canRotate && rotationDeg !== baseRotation;
+        const labelRotationChanged =
+          shelfUnit && labelRotationDeg !== baseLabelRotation;
         if (
           !offsetChanged &&
           !labelChanged &&
           !codeChanged &&
           !sizeChanged &&
-          !rotationChanged
+          !rotationChanged &&
+          !labelRotationChanged
         ) {
           continue;
         }
@@ -880,7 +1005,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             mapOffsetX: ox,
             mapOffsetY: oy,
             ...(shelfUnit
-              ? {}
+              ? { mapLabelRotationDeg: labelRotationDeg }
               : { mapWidth: patchWidth, mapHeight: patchHeight }),
             ...(canRotate ? { mapRotationDeg: rotationDeg } : {}),
           },
@@ -894,6 +1019,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingOffsets({});
       setPendingLabels({});
       setPendingRotations({});
+      setPendingLabelRotations({});
       setPendingSizes({});
       setPendingHidden([]);
       undoStackRef.current = [];
@@ -910,6 +1036,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingOffsets,
     pendingLabels,
     pendingRotations,
+    pendingLabelRotations,
     pendingSizes,
     pendingHidden,
     selectedLayoutSlot,
@@ -920,6 +1047,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     editWidth,
     editHeight,
     editRotationDeg,
+    editLabelRotationDeg,
     selectedSlots,
     onSaveZone,
     onPersistLayoutExtras,
@@ -980,6 +1108,19 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setEditRotationDeg((prev) => {
       const next = normalizeRotationDeg(prev + delta);
       setPendingRotations((p) => ({
+        ...p,
+        [selectedLayoutSlot]: next,
+      }));
+      return next;
+    });
+  };
+
+  const nudgeLabelRotation = (delta: number) => {
+    if (!selectedLayoutSlot || !isShelfUnitCode(selectedLayoutSlot)) return;
+    pushUndo();
+    setEditLabelRotationDeg((prev) => {
+      const next = normalizeRotationDeg(prev + delta);
+      setPendingLabelRotations((p) => ({
         ...p,
         [selectedLayoutSlot]: next,
       }));
@@ -1211,6 +1352,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           width: z?.mapWidth ?? d.w,
           height: z?.mapHeight ?? d.h,
           rotationDeg: normalizeRotationDeg(z?.mapRotationDeg ?? 0),
+          labelRotationDeg: 0,
         };
       }
     }
@@ -1247,13 +1389,23 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       const next = { ...prev };
       for (const slot of slots) {
         const cur = bases[slot] ?? { ox: 0, oy: 0 };
-        next[slot] = { ox: cur.ox + dx, oy: cur.oy + dy };
+        const local = screenDeltaToLocal(slot, dx, dy, readRotation);
+        next[slot] = {
+          ox: cur.ox + Math.round(local.dx),
+          oy: cur.oy + Math.round(local.dy),
+        };
       }
       return next;
     });
     if (selectedLayoutSlot && slots.includes(selectedLayoutSlot)) {
-      setEditOffsetX((x) => x + dx);
-      setEditOffsetY((y) => y + dy);
+      const local = screenDeltaToLocal(
+        selectedLayoutSlot,
+        dx,
+        dy,
+        readRotation,
+      );
+      setEditOffsetX((x) => x + Math.round(local.dx));
+      setEditOffsetY((y) => y + Math.round(local.dy));
     }
   };
 
@@ -1336,6 +1488,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   ) => {
     const { ox, oy, width, height } = offsetAttrsForSpot(layoutSlot);
     const rotationDeg = ground ? readRotation(layoutSlot) : 0;
+    const shelfUnit = !ground ? shelfUnitForSpot(layoutSlot) : null;
+    const labelRot = shelfUnit ? readLabelRotation(shelfUnit) : 0;
+    const spotLabel = displayCodeForSlot(layoutSlot);
     const offset = absoluteBase
       ? { left: absoluteBase.left + ox, top: absoluteBase.top + oy }
       : { left: ox, top: oy };
@@ -1377,7 +1532,20 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           onPointerMove={onDragPointerMove}
           onPointerUp={onDragPointerUp}
         >
-          {displayCodeForSlot(layoutSlot)}
+          {shelfUnit ? (
+            <span
+              data-map-label-rotation-deg={labelRot}
+              style={{
+                display: "inline-block",
+                transform: labelRot ? `rotate(${labelRot}deg)` : undefined,
+                transformOrigin: "center center",
+              }}
+            >
+              {spotLabel}
+            </span>
+          ) : (
+            spotLabel
+          )}
         </button>
         {selected && (
           <span
@@ -1706,6 +1874,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             {layout.shelfUnits.map((unit) => {
               const unitOff = readOffset(unit);
               const unitRot = readRotation(unit);
+              const unitLabelRot = readLabelRotation(unit);
               const unitTitle = readLabel(unit);
               const unitSelected =
                 editMode &&
@@ -1734,6 +1903,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 >
                   <div
                     data-testid={`shop-shelf-${unit}-title`}
+                    data-map-label-rotation-deg={unitLabelRot}
                     style={{
                       fontWeight: 800,
                       color: NAVY,
@@ -1745,6 +1915,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      ...(unitLabelRot
+                        ? {
+                            transform: `rotate(${unitLabelRot}deg)`,
+                            transformOrigin: "center center",
+                          }
+                        : {}),
                     }}
                     title={unitTitle}
                   >
@@ -2129,6 +2305,65 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                     onClick={() => nudgeRotation(-editRotationDeg)}
                     style={{ ...sizePadBtnStyle, fontSize: 11, minWidth: 40 }}
                     title="Reset to 0°"
+                  >
+                    0°
+                  </button>
+                </div>
+              </div>
+            )}
+          {selectedSlots.length <= 1 &&
+            selectedLayoutSlot &&
+            isShelfUnitCode(selectedLayoutSlot) && (
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                  Labels
+                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 6,
+                  }}
+                >
+                  <button
+                    type="button"
+                    data-testid="shop-map-label-rotate-ccw"
+                    aria-label="Rotate labels counter-clockwise"
+                    onClick={() => nudgeLabelRotation(-LABEL_ROTATE_STEP)}
+                    style={sizePadBtnStyle}
+                  >
+                    ↺
+                  </button>
+                  <span
+                    data-testid="shop-map-label-rotation-deg"
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: NAVY,
+                      minWidth: 52,
+                      textAlign: "center",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {editLabelRotationDeg}°
+                  </span>
+                  <button
+                    type="button"
+                    data-testid="shop-map-label-rotate-cw"
+                    aria-label="Rotate labels clockwise"
+                    onClick={() => nudgeLabelRotation(LABEL_ROTATE_STEP)}
+                    style={sizePadBtnStyle}
+                  >
+                    ↻
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="shop-map-label-rotate-reset"
+                    aria-label="Reset label rotation"
+                    onClick={() => nudgeLabelRotation(-editLabelRotationDeg)}
+                    style={{ ...sizePadBtnStyle, fontSize: 11, minWidth: 40 }}
+                    title="Reset labels to 0°"
                   >
                     0°
                   </button>

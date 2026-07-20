@@ -710,6 +710,11 @@ export function parseStagingLocation(
       Number.isFinite(data.mapRotationDeg)
         ? data.mapRotationDeg
         : undefined,
+    mapLabelRotationDeg:
+      typeof data.mapLabelRotationDeg === "number" &&
+      Number.isFinite(data.mapLabelRotationDeg)
+        ? data.mapLabelRotationDeg
+        : undefined,
     mapLayoutSlot:
       typeof data.mapLayoutSlot === "string" ? data.mapLayoutSlot : undefined,
   };
@@ -738,6 +743,8 @@ export interface StagingLocation {
   mapHeight?: number;
   /** Optional CSS rotation in degrees for map chip / shelf frame. */
   mapRotationDeg?: number;
+  /** Optional CSS rotation for shelf unit title + spot labels (independent of frame). */
+  mapLabelRotationDeg?: number;
   /** Fixed map layout slot (e.g. G1) when zone code differs from layout position. */
   mapLayoutSlot?: string;
 }

@@ -837,6 +837,105 @@ async function main() {
   await page.getByTestId("shop-map-edit-cancel").click();
   await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
 
+  // Rotated shelf: spot drag follows screen X (not parent-local skew)
+  const s1FrameRot = page.getByTestId("shop-shelf-S1-frame");
+  await s1FrameRot.scrollIntoViewIfNeeded();
+  await s1FrameRot.click({ position: { x: 10, y: 20 } });
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const s1RotBefore = Number(
+    (await page.getByTestId("shop-shelf-S1").getAttribute("data-map-rotation-deg")) ??
+      "0",
+  );
+  for (let i = 0; i < 6; i++) {
+    await page.getByTestId("shop-map-rotate-cw").click();
+  }
+  const s1RotAfter = Number(
+    (await page.getByTestId("shop-shelf-S1").getAttribute("data-map-rotation-deg")) ??
+      "0",
+  );
+  if (s1RotAfter === s1RotBefore) {
+    throw new Error("S1 frame rotation should change before rotated spot drag test");
+  }
+
+  const s1aRot = page.getByTestId("shop-spot-S1A");
+  await s1aRot.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const s1aBoxRotBefore = await s1aRot.boundingBox();
+  if (!s1aBoxRotBefore) {
+    throw new Error("Could not measure S1A before rotated drag");
+  }
+  const dragCx = s1aBoxRotBefore.x + s1aBoxRotBefore.width / 2;
+  const dragCy = s1aBoxRotBefore.y + s1aBoxRotBefore.height / 2;
+  await page.mouse.move(dragCx, dragCy);
+  await page.mouse.down();
+  await page.mouse.move(dragCx + 48, dragCy, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const s1aBoxRotAfter = await s1aRot.boundingBox();
+  if (!s1aBoxRotAfter) {
+    throw new Error("Could not measure S1A after rotated drag");
+  }
+  const screenDx = s1aBoxRotAfter.x - s1aBoxRotBefore.x;
+  const screenDy = s1aBoxRotAfter.y - s1aBoxRotBefore.y;
+  if (Math.abs(screenDx) < 20 || Math.abs(screenDy) > Math.abs(screenDx) * 0.6) {
+    throw new Error(
+      `Rotated shelf S1A drag should follow screen X. dx=${screenDx} dy=${screenDy}`,
+    );
+  }
+
+  const s1aOyBeforeNudge = Number(
+    (await s1aRot.getAttribute("data-map-offset-y")) ?? "0",
+  );
+  await page.getByTestId("shop-map-nudge-right").click();
+  const s1aOyAfterNudge = Number(
+    (await s1aRot.getAttribute("data-map-offset-y")) ?? "0",
+  );
+  if (s1aOyAfterNudge >= s1aOyBeforeNudge) {
+    throw new Error(
+      `Rotated S1A nudge right should decrease local oy. before=${s1aOyBeforeNudge} after=${s1aOyAfterNudge}`,
+    );
+  }
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
+  // Label rotation control on shelf unit (independent of frame)
+  await s1FrameRot.click({ position: { x: 10, y: 20 } });
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  if (!(await page.getByTestId("shop-map-label-rotate-cw").isVisible())) {
+    throw new Error("Missing Labels rotation control for shelf unit");
+  }
+  const titleBefore = Number(
+    (await page.getByTestId("shop-shelf-S1-title").getAttribute(
+      "data-map-label-rotation-deg",
+    )) ?? "0",
+  );
+  await page.getByTestId("shop-map-label-rotate-cw").click();
+  const titleAfter = Number(
+    (await page.getByTestId("shop-shelf-S1-title").getAttribute(
+      "data-map-label-rotation-deg",
+    )) ?? "0",
+  );
+  if (titleAfter === titleBefore) {
+    throw new Error(
+      `Label rotate CW should change title rotation. before=${titleBefore} after=${titleAfter}`,
+    );
+  }
+  const chipLabelDeg = Number(
+    (await s1aRot
+      .locator("[data-map-label-rotation-deg]")
+      .first()
+      .getAttribute("data-map-label-rotation-deg")) ?? "0",
+  );
+  if (chipLabelDeg !== titleAfter) {
+    throw new Error(
+      `Spot chip label rotation should match unit. title=${titleAfter} chip=${chipLabelDeg}`,
+    );
+  }
+  await page.getByTestId("shop-map-label-rotate-reset").click();
+  await page.getByTestId("shop-map-rotate-reset").click();
+  await page.getByTestId("shop-map-edit-cancel").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "hidden" });
+
   // Shelf unit display-name rename (S1 title) — cancel reverts; save persists
   const s1Title = page.getByTestId("shop-shelf-S1-title");
   const s1TitleBefore = (await s1Title.innerText()).trim();

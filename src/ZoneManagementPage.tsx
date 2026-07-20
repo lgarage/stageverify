@@ -328,6 +328,9 @@ export function ZoneManagementPage() {
         ...(patch.mapRotationDeg !== undefined
           ? { mapRotationDeg: patch.mapRotationDeg }
           : {}),
+        ...(patch.mapLabelRotationDeg !== undefined
+          ? { mapLabelRotationDeg: patch.mapLabelRotationDeg }
+          : {}),
       };
       if (zoneId) {
         await updateZone(zoneId, savePatch);
@@ -357,6 +360,9 @@ export function ZoneManagementPage() {
           ...(patch.mapRotationDeg !== undefined
             ? { mapRotationDeg: patch.mapRotationDeg }
             : {}),
+          ...(patch.mapLabelRotationDeg !== undefined
+            ? { mapLabelRotationDeg: patch.mapLabelRotationDeg }
+            : {}),
         });
         const newZone: StagingLocation = {
           id,
@@ -377,6 +383,9 @@ export function ZoneManagementPage() {
             : {}),
           ...(patch.mapRotationDeg !== undefined
             ? { mapRotationDeg: patch.mapRotationDeg }
+            : {}),
+          ...(patch.mapLabelRotationDeg !== undefined
+            ? { mapLabelRotationDeg: patch.mapLabelRotationDeg }
             : {}),
         };
         setZones((prev) => [...prev, newZone]);
