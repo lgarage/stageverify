@@ -445,6 +445,34 @@ async function main() {
       `Size nudge should increase W/H before save. before=${priorWidth}x${priorHeight} after=${widthAfterNudge}x${heightAfterNudge}`,
     );
   }
+  // Resize G1, then select G2 — G1 must keep pending size (no snap-back)
+  await g2.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const g1WidthAfterSelectG2 = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  const g1HeightAfterSelectG2 = Number(
+    (await g1.getAttribute("data-map-height")) ?? "0",
+  );
+  if (
+    g1WidthAfterSelectG2 !== widthAfterNudge ||
+    g1HeightAfterSelectG2 !== heightAfterNudge
+  ) {
+    throw new Error(
+      `G1 size snapped back when selecting G2. expected=${widthAfterNudge}x${heightAfterNudge} got=${g1WidthAfterSelectG2}x${g1HeightAfterSelectG2}`,
+    );
+  }
+  await page.getByTestId("shop-map-size-w-plus").click();
+  await g1.click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+  const g1WidthAfterReselect = Number(
+    (await g1.getAttribute("data-map-width")) ?? "0",
+  );
+  if (g1WidthAfterReselect !== widthAfterNudge) {
+    throw new Error(
+      `G1 pending size lost after editing G2 size. expected=${widthAfterNudge} got=${g1WidthAfterReselect}`,
+    );
+  }
 
   const nudgeUpLabel = (await page.getByTestId("shop-map-nudge-up").innerText()).trim();
   if (!nudgeUpLabel.includes("↑")) {

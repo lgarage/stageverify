@@ -205,6 +205,10 @@ export function ShopFloorMap({
   const [pendingLabels, setPendingLabels] = useState<Record<string, string>>(
     {},
   );
+  /** Draft sizes held per layout slot for the edit session. */
+  const [pendingSizes, setPendingSizes] = useState<
+    Record<string, { w: number; h: number }>
+  >({});
   const [editLabel, setEditLabel] = useState("");
   const [editCode, setEditCode] = useState("");
   const [editOffsetX, setEditOffsetX] = useState(0);
@@ -296,6 +300,10 @@ export function ShopFloorMap({
       if (isShelfUnitCode(layoutSlot)) {
         return { width: 0, height: 0 };
       }
+      const pending = pendingSizes[layoutSlot];
+      if (pending) {
+        return { width: pending.w, height: pending.h };
+      }
       const zone = zoneForLayoutSlot(layoutSlot);
       const defaults = defaultSpotSize(layoutSlot);
       const width =
@@ -308,7 +316,29 @@ export function ShopFloorMap({
           : (zone?.mapHeight ?? defaults.h);
       return { width, height };
     },
-    [editMode, editHeight, editWidth, selectedLayoutSlot, zoneForLayoutSlot],
+    [
+      editMode,
+      editHeight,
+      editWidth,
+      pendingSizes,
+      selectedLayoutSlot,
+      zoneForLayoutSlot,
+    ],
+  );
+
+  const applyPendingSize = useCallback(
+    (layoutSlot: string | null, w: number, h: number) => {
+      if (!layoutSlot || isShelfUnitCode(layoutSlot)) return;
+      const nextW = Math.max(MIN_SPOT_SIZE, w);
+      const nextH = Math.max(MIN_SPOT_SIZE, h);
+      setEditWidth(nextW);
+      setEditHeight(nextH);
+      setPendingSizes((prev) => ({
+        ...prev,
+        [layoutSlot]: { w: nextW, h: nextH },
+      }));
+    },
+    [],
   );
 
   const readLabel = useCallback(
@@ -358,6 +388,7 @@ export function ShopFloorMap({
       const flushedPending = { ...pendingOffsets };
       const flushedLabels = { ...pendingLabels };
       const flushedRotations = { ...pendingRotations };
+      const flushedSizes = { ...pendingSizes };
       if (selectedLayoutSlot && selectedLayoutSlot !== layoutSlot) {
         flushedPending[selectedLayoutSlot] = {
           ox: editOffsetX,
@@ -365,10 +396,17 @@ export function ShopFloorMap({
         };
         flushedLabels[selectedLayoutSlot] = editLabel;
         flushedRotations[selectedLayoutSlot] = editRotationDeg;
+        if (!isShelfUnitCode(selectedLayoutSlot)) {
+          flushedSizes[selectedLayoutSlot] = {
+            w: editWidth,
+            h: editHeight,
+          };
+        }
       }
       setPendingOffsets(flushedPending);
       setPendingLabels(flushedLabels);
       setPendingRotations(flushedRotations);
+      setPendingSizes(flushedSizes);
       const label =
         flushedLabels[layoutSlot] ?? zone?.label ?? layoutSlot;
       const code = zone?.code ?? formatStagingCodeCanonical(layoutSlot);
@@ -379,8 +417,10 @@ export function ShopFloorMap({
       const defaults = isShelfUnitCode(layoutSlot)
         ? { w: 0, h: 0 }
         : defaultSpotSize(layoutSlot);
-      const width = zone?.mapWidth ?? defaults.w;
-      const height = zone?.mapHeight ?? defaults.h;
+      const width =
+        flushedSizes[layoutSlot]?.w ?? zone?.mapWidth ?? defaults.w;
+      const height =
+        flushedSizes[layoutSlot]?.h ?? zone?.mapHeight ?? defaults.h;
       const rotationDeg = normalizeRotationDeg(
         flushedRotations[layoutSlot] ?? zone?.mapRotationDeg ?? 0,
       );
@@ -415,9 +455,12 @@ export function ShopFloorMap({
       pendingOffsets,
       pendingLabels,
       pendingRotations,
+      pendingSizes,
       selectedLayoutSlot,
       editOffsetX,
       editOffsetY,
+      editWidth,
+      editHeight,
       editLabel,
       editRotationDeg,
     ],
@@ -493,6 +536,7 @@ export function ShopFloorMap({
     setPendingOffsets({});
     setPendingLabels({});
     setPendingRotations({});
+    setPendingSizes({});
     setSaveError(null);
   }, []);
 
@@ -501,6 +545,7 @@ export function ShopFloorMap({
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
     const flushedRotations = { ...pendingRotations };
+    const flushedSizes = { ...pendingSizes };
     if (selectedLayoutSlot) {
       flushedPending[selectedLayoutSlot] = {
         ox: editOffsetX,
@@ -508,6 +553,12 @@ export function ShopFloorMap({
       };
       flushedLabels[selectedLayoutSlot] = editLabel;
       flushedRotations[selectedLayoutSlot] = editRotationDeg;
+      if (!isShelfUnitCode(selectedLayoutSlot)) {
+        flushedSizes[selectedLayoutSlot] = {
+          w: editWidth,
+          h: editHeight,
+        };
+      }
     }
     const primarySlot = selectedLayoutSlot;
     const multi =
@@ -520,6 +571,7 @@ export function ShopFloorMap({
       ...Object.keys(flushedPending),
       ...Object.keys(flushedLabels),
       ...Object.keys(flushedRotations),
+      ...Object.keys(flushedSizes),
       ...multi,
     ]);
     if (slotsToSave.size === 0) return;
@@ -542,8 +594,14 @@ export function ShopFloorMap({
           : defaultSpotSize(slot);
         const baseW = zone?.mapWidth ?? defaults.w ?? MIN_SPOT_SIZE;
         const baseH = zone?.mapHeight ?? defaults.h ?? MIN_SPOT_SIZE;
-        const patchWidth = isPrimary && !shelfUnit ? editWidth : baseW;
-        const patchHeight = isPrimary && !shelfUnit ? editHeight : baseH;
+        const patchWidth = shelfUnit
+          ? baseW
+          : (flushedSizes[slot]?.w ??
+            (isPrimary ? editWidth : baseW));
+        const patchHeight = shelfUnit
+          ? baseH
+          : (flushedSizes[slot]?.h ??
+            (isPrimary ? editHeight : baseH));
         const rotationDeg = normalizeRotationDeg(
           isPrimary && canRotate
             ? editRotationDeg
@@ -567,9 +625,7 @@ export function ShopFloorMap({
           !shelfUnit &&
           patchCode !== (zone?.code ?? formatStagingCodeCanonical(slot));
         const sizeChanged =
-          isPrimary &&
-          !shelfUnit &&
-          (patchWidth !== baseW || patchHeight !== baseH);
+          !shelfUnit && (patchWidth !== baseW || patchHeight !== baseH);
         const rotationChanged = canRotate && rotationDeg !== baseRotation;
         if (
           !offsetChanged &&
@@ -601,6 +657,7 @@ export function ShopFloorMap({
       setPendingOffsets({});
       setPendingLabels({});
       setPendingRotations({});
+      setPendingSizes({});
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -799,6 +856,7 @@ export function ShopFloorMap({
     const flushedPending = { ...pendingOffsets };
     const flushedLabels = { ...pendingLabels };
     const flushedRotations = { ...pendingRotations };
+    const flushedSizes = { ...pendingSizes };
     if (selectedLayoutSlot) {
       flushedPending[selectedLayoutSlot] = {
         ox: editOffsetX,
@@ -806,6 +864,12 @@ export function ShopFloorMap({
       };
       flushedLabels[selectedLayoutSlot] = editLabel;
       flushedRotations[selectedLayoutSlot] = editRotationDeg;
+      if (!isShelfUnitCode(selectedLayoutSlot)) {
+        flushedSizes[selectedLayoutSlot] = {
+          w: editWidth,
+          h: editHeight,
+        };
+      }
     }
     setSelectedSlots(hits);
     setSelectedLayoutSlot(hits[0]);
@@ -819,8 +883,8 @@ export function ShopFloorMap({
     setEditCode("");
     setEditOffsetX(primaryOx);
     setEditOffsetY(primaryOy);
-    setEditWidth(zone?.mapWidth ?? defaults.w);
-    setEditHeight(zone?.mapHeight ?? defaults.h);
+    setEditWidth(flushedSizes[hits[0]]?.w ?? zone?.mapWidth ?? defaults.w);
+    setEditHeight(flushedSizes[hits[0]]?.h ?? zone?.mapHeight ?? defaults.h);
     setEditRotationDeg(
       normalizeRotationDeg(
         flushedRotations[hits[0]] ?? zone?.mapRotationDeg ?? 0,
@@ -839,6 +903,7 @@ export function ShopFloorMap({
     setPendingOffsets({ ...flushedPending, ...seeded });
     setPendingLabels(flushedLabels);
     setPendingRotations(flushedRotations);
+    setPendingSizes(flushedSizes);
     setSaveError(null);
     setHover(null);
   };
@@ -869,18 +934,22 @@ export function ShopFloorMap({
   };
 
   const nudgeSize = (dw: number, dh: number) => {
+    if (!selectedLayoutSlot || isShelfUnitCode(selectedLayoutSlot)) return;
     setSizeInputFocus(null);
-    setEditWidth((w) => Math.max(MIN_SPOT_SIZE, w + dw));
-    setEditHeight((h) => Math.max(MIN_SPOT_SIZE, h + dh));
+    applyPendingSize(selectedLayoutSlot, editWidth + dw, editHeight + dh);
   };
 
   const commitSizeDraft = (dim: "width" | "height", raw: string) => {
+    if (!selectedLayoutSlot || isShelfUnitCode(selectedLayoutSlot)) return;
     const parsed = parseInt(raw.trim(), 10);
     const clamped = Number.isFinite(parsed)
       ? Math.max(MIN_SPOT_SIZE, parsed)
       : MIN_SPOT_SIZE;
-    if (dim === "width") setEditWidth(clamped);
-    else setEditHeight(clamped);
+    if (dim === "width") {
+      applyPendingSize(selectedLayoutSlot, clamped, editHeight);
+    } else {
+      applyPendingSize(selectedLayoutSlot, editWidth, clamped);
+    }
   };
 
   const onResizeHandlePointerDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
@@ -898,12 +967,15 @@ export function ShopFloorMap({
   };
 
   const onResizeHandlePointerMove = (e: ReactPointerEvent<HTMLSpanElement>) => {
-    if (!editMode || !resizeRef.current) return;
+    if (!editMode || !resizeRef.current || !selectedLayoutSlot) return;
     const { startX, startY, baseW, baseH } = resizeRef.current;
     const dw = e.clientX - startX;
     const dh = e.clientY - startY;
-    setEditWidth(Math.max(MIN_SPOT_SIZE, baseW + Math.round(dw)));
-    setEditHeight(Math.max(MIN_SPOT_SIZE, baseH + Math.round(dh)));
+    applyPendingSize(
+      selectedLayoutSlot,
+      baseW + Math.round(dw),
+      baseH + Math.round(dh),
+    );
   };
 
   const onResizeHandlePointerUp = (e: ReactPointerEvent<HTMLSpanElement>) => {
@@ -1590,8 +1662,11 @@ export function ShopFloorMap({
                     !isShelfUnitCode(selectedLayoutSlot)
                   ) {
                     const defaults = defaultSpotSize(selectedLayoutSlot);
-                    setEditWidth(defaults.w);
-                    setEditHeight(defaults.h);
+                    applyPendingSize(
+                      selectedLayoutSlot,
+                      defaults.w,
+                      defaults.h,
+                    );
                   }
                 }}
                 style={nudgeResetBtnStyle}
