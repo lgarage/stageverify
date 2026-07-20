@@ -151,31 +151,6 @@
       "mergedAt": "2026-07-12T04:05:51.662Z",
       "mergedToId": null,
       "sourceTask": "mobile-harness-chore"
-    },
-    {
-      "id": "vfl-016",
-      "scriptName": "verify:shop-map:prod",
-      "fingerprint": "12bc8d5e72cea42a",
-      "exitCode": 1,
-      "category": "repeated failure",
-      "summary": "verify:shop-map:prod prod verify failed — check CF deploy, env, or integration fixture",
-      "triggerTerms": [
-        "shop-map:prod",
-        "integration prod verify",
-        "verify"
-      ],
-      "type": "service-logic",
-      "subtype": "verify",
-      "gateCandidate": false,
-      "domain": "verify",
-      "source": "verify-auto-capture",
-      "taskHint": null,
-      "stderrTail": "FAIL: Error: Done editing should persist offset after reload. expected=8 got=0\n    at main (file:///C:/Projects/stageverify/scripts/verify-shop-map.mjs:695:11)",
-      "stdoutTail": null,
-      "createdAt": "2026-07-20T03:01:11.015Z",
-      "mergedAt": null,
-      "mergedToId": null,
-      "sourceTask": null
     }
   ]
 }
