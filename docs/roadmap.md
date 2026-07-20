@@ -33,7 +33,7 @@
 | **§9** | Opaque, unguessable, revocable, server-validated **pickup token** | **Phase 3 Slice 5 — Pickup link security** | ✅ Shipped (`away-025`…`027`; `away-028` geofence reminder deferred) |
 | **§10** | Pickup list grouped by physical location; PO / item / qty / status lines | **Phase 3 remainder — Technician pickup UI** | 🔵 Shipped (`away-029`…`032`: header, location sections, PO labels, checklist persist) |
 | **§11** | Shop stock on pickup page (vendor + shop in one experience) | **Phase 3 remainder — Shop stock pickup** | 🔵 Shipped (`away-018`, `away-033`…`035`: pull states, Running Low, location group) |
-| **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | 🔵 Model + CF release stub shipped (`away-036`/`037`); real Jake Korb IDs blocked |
+| **§11** | Combination stock locations (e.g. G15–G17); running-low alert | **Phase 3 remainder** + shop map blocker | 🔵 Model + CF release stub shipped (`away-036`/`037`); real shop-map IDs blocked |
 | **§12** | **Order Pickup Complete** submit; server-owned transactional pickup | `recordPickupEvent` CF `b7b817f` | ✅ Shipped (UI says “Done — All Picked Up”) |
 | **§12** | Idempotent / concurrent-safe pickup | `recordPickupEvent` + `pickupOperations` `b7b817f` | ✅ Shipped prod |
 | **§12** | Blocking issue vs pickup behavior (UI says can complete; CF may block) | **Phase 3 bugfix / alignment** | ✅ Aligned (`away-009`) |
