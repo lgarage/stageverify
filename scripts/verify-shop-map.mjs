@@ -74,16 +74,29 @@ async function main() {
     }
   }
 
-  // Floor-plan orientation: vertical shelf units with level-pair labels
+  // Floor-plan orientation: vertical shelf units with rotated level-pair labels
   for (const unit of ["S1", "S2"]) {
     const labels = page.getByTestId(`shop-shelf-${unit}-labels`);
     if (!(await labels.isVisible())) {
       throw new Error(`Missing shelf level labels for ${unit}`);
     }
     const labelText = await labels.innerText();
-    if (!/A\+G/i.test(labelText) || !/F\+L/i.test(labelText)) {
+    if (
+      !new RegExp(`${unit}A/${unit}G`, "i").test(labelText) ||
+      !new RegExp(`${unit}F/${unit}L`, "i").test(labelText)
+    ) {
       throw new Error(
-        `Shelf ${unit} labels missing A+G/F+L pairing. Got: ${labelText}`,
+        `Shelf ${unit} labels missing ${unit}A/${unit}G … ${unit}F/${unit}L. Got: ${labelText}`,
+      );
+    }
+    const bottomLabel = page.getByTestId(`shop-shelf-${unit}-label-AG`);
+    const transform = await bottomLabel.evaluate((el) => {
+      const span = el.querySelector("span");
+      return span ? getComputedStyle(span).transform : "";
+    });
+    if (!transform || transform === "none") {
+      throw new Error(
+        `Shelf ${unit} pair label should be rotated ~90°. Got: ${transform}`,
       );
     }
   }
@@ -97,6 +110,19 @@ async function main() {
   if (s1aBox.y <= s1fBox.y) {
     throw new Error(
       `S1A should be below S1F (vertical unit). S1A.y=${s1aBox.y} S1F.y=${s1fBox.y}`,
+    );
+  }
+
+  // S2 further right — aisle gap between S1 and S2
+  const s1Box = await page.getByTestId("shop-shelf-S1").boundingBox();
+  const s2Box = await page.getByTestId("shop-shelf-S2").boundingBox();
+  if (!s1Box || !s2Box) {
+    throw new Error("Could not measure S1/S2 shelf bounding boxes");
+  }
+  const aisleGap = s2Box.x - (s1Box.x + s1Box.width);
+  if (aisleGap < 80) {
+    throw new Error(
+      `S1–S2 aisle gap too small (want ≥80px). Got: ${aisleGap}`,
     );
   }
 

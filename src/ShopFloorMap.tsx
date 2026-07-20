@@ -243,114 +243,115 @@ export function ShopFloorMap({
             ))}
           </div>
 
-          {/* Shelves S1 / S2 — flat 2D units with level-pair labels */}
-          <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+          {/* Shelves S1 / S2 — flat 2D; wide aisle; rotated level labels on right */}
+          <div
+            style={{
+              display: "flex",
+              gap: 120,
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+            }}
+          >
             {SHOP_MAP_SHELF_UNITS.map((unit) => (
-              <div
-                key={unit}
-                data-testid={`shop-shelf-${unit}`}
-                style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
-              >
+              <div key={unit} data-testid={`shop-shelf-${unit}`}>
+                <div
+                  style={{
+                    fontWeight: 800,
+                    color: NAVY,
+                    marginBottom: 8,
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                >
+                  {unit}
+                </div>
                 <div
                   data-testid={`shop-shelf-${unit}-labels`}
                   style={{
                     display: "flex",
                     flexDirection: "column-reverse",
                     gap: 6,
-                    paddingBottom: 4,
+                    border: "2px solid #cbd5e1",
+                    borderRadius: 6,
+                    padding: 8,
+                    backgroundColor: "rgba(255,255,255,0.85)",
                   }}
                 >
-                  {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => (
-                    <div
-                      key={`${unit}-${a}${b}`}
-                      style={{
-                        height: 36,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "flex-end",
-                        fontWeight: 800,
-                        fontSize: 12,
-                        color: "#475569",
-                        letterSpacing: 0.2,
-                        minWidth: 32,
-                      }}
-                    >
-                      {a}+{b}
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      color: NAVY,
-                      marginBottom: 8,
-                      fontSize: 14,
-                      textAlign: "center",
-                    }}
-                  >
-                    {unit}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column-reverse",
-                      gap: 6,
-                      border: "2px solid #cbd5e1",
-                      borderRadius: 6,
-                      padding: 8,
-                      backgroundColor: "rgba(255,255,255,0.85)",
-                    }}
-                  >
-                    {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
-                      const codeA = shelfSpotCode(unit, a);
-                      const codeB = shelfSpotCode(unit, b);
-                      return (
+                  {SHOP_MAP_SHELF_LEVELS.map(([a, b]) => {
+                    const codeA = shelfSpotCode(unit, a);
+                    const codeB = shelfSpotCode(unit, b);
+                    const pairLabel = `${codeA}/${codeB}`;
+                    return (
+                      <div
+                        key={`${unit}-${a}`}
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          alignItems: "center",
+                          minHeight: 40,
+                        }}
+                      >
                         <div
-                          key={`${unit}-${a}`}
                           style={{
+                            width: 40,
+                            height: 32,
+                            backgroundColor: "#e2e8f0",
+                            borderRadius: 3,
+                            border: "1px solid #94a3b8",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          data-testid={`shop-spot-${codeA}`}
+                          data-spot-color={colorOf(codeA)}
+                          style={spotStyle(colorOf(codeA), false)}
+                          onMouseEnter={() => void onEnter(codeA)}
+                          onMouseLeave={() => setHover(null)}
+                          onClick={() => onClickSpot(codeA)}
+                        >
+                          {codeA}
+                        </button>
+                        <button
+                          type="button"
+                          data-testid={`shop-spot-${codeB}`}
+                          data-spot-color={colorOf(codeB)}
+                          style={spotStyle(colorOf(codeB), false)}
+                          onMouseEnter={() => void onEnter(codeB)}
+                          onMouseLeave={() => setHover(null)}
+                          onClick={() => onClickSpot(codeB)}
+                        >
+                          {codeB}
+                        </button>
+                        {/* Vertical pair label along right of compartment (~90°) */}
+                        <div
+                          data-testid={`shop-shelf-${unit}-label-${a}${b}`}
+                          style={{
+                            width: 22,
+                            height: 40,
                             display: "flex",
-                            gap: 6,
                             alignItems: "center",
-                            minHeight: 36,
+                            justifyContent: "center",
+                            flexShrink: 0,
                           }}
                         >
-                          <div
+                          <span
                             style={{
-                              width: 40,
-                              height: 32,
-                              backgroundColor: "#e2e8f0",
-                              borderRadius: 3,
-                              border: "1px solid #94a3b8",
+                              display: "inline-block",
+                              transform: "rotate(-90deg)",
+                              whiteSpace: "nowrap",
+                              fontWeight: 800,
+                              fontSize: 10,
+                              color: "#475569",
+                              letterSpacing: 0.3,
+                              fontFamily: FONT,
                             }}
-                          />
-                          <button
-                            type="button"
-                            data-testid={`shop-spot-${codeA}`}
-                            data-spot-color={colorOf(codeA)}
-                            style={spotStyle(colorOf(codeA), false)}
-                            onMouseEnter={() => void onEnter(codeA)}
-                            onMouseLeave={() => setHover(null)}
-                            onClick={() => onClickSpot(codeA)}
                           >
-                            {codeA}
-                          </button>
-                          <button
-                            type="button"
-                            data-testid={`shop-spot-${codeB}`}
-                            data-spot-color={colorOf(codeB)}
-                            style={spotStyle(colorOf(codeB), false)}
-                            onMouseEnter={() => void onEnter(codeB)}
-                            onMouseLeave={() => setHover(null)}
-                            onClick={() => onClickSpot(codeB)}
-                          >
-                            {codeB}
-                          </button>
+                            {pairLabel}
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
