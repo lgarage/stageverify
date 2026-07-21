@@ -1,0 +1,1 @@
+import{Gn as e,Hn as t,Nn as n}from"./index-DW16gg5l.js";var r=n();function i(){let{orderId:n}=e(),i=n?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
