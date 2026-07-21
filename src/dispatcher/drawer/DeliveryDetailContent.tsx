@@ -1044,7 +1044,7 @@ export function DetailContent({
               >
                 Email Vendor
               </button>
-              {shopStagingRequired && onNavigateToAssignLocation ? (
+              {onNavigateToAssignLocation ? (
                 <button
                   type="button"
                   data-testid="delivery-basics-assign-location"
