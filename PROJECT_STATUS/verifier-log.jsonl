@@ -58,3 +58,6 @@
 {"date":"2026-07-21","role":"ship","verdict":"PASS","taskId":"c1b05bd2-bef6-4276-8c69-99c9fd77234f","model":"grok-4.5-fast-xhigh","real":"na","note":""}
 {"date":"2026-07-21","role":"repair","verdict":"PASS","taskId":"18028d41-8195-4522-aae0-34453c03f3e5","model":"grok-4.5-fast-xhigh","real":"yes","note":""}
 {"date":"2026-07-21","role":"ship","verdict":"PASS","taskId":"462f63af-7f81-445c-bd0d-fe3ef604fe39","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-21","role":"security","verdict":"PASS","taskId":"9e612f38-6435-43b7-8813-fbdf5562d951","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
+{"date":"2026-07-21","role":"repair","verdict":"PASS","taskId":"f68f2323-9c6d-4241-bf87-cf17d80b8d7b","model":"grok-4.5-fast-xhigh","real":"yes","note":""}
+{"date":"2026-07-21","role":"ship","verdict":"PASS","taskId":"e71f6617-ac07-40bd-9680-0721771149e9","model":"grok-4.5-fast-xhigh","real":"na","note":""}
