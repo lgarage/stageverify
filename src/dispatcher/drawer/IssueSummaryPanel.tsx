@@ -2,10 +2,14 @@ import { useMemo, useState } from "react";
 import type { DeliveryDetails } from "../models";
 import {
   buildIssueSummaryPanelData,
+  isDeliverToSiteFullyReceived,
   ITEM_ISSUE_STATUS_COLOR,
   type ItemIssueDisplayStatus,
 } from "../deliveryDisplayHelpers";
 import { DeliverToSitePanel } from "./DeliverToSitePanel";
+
+/** Option A — editable receipt states written via updateItemQty. */
+export type OrderSummaryEditableStatus = "Not Delivered" | "Delivered";
 
 export function IssueSummaryPanel({
   details,
@@ -13,12 +17,17 @@ export function IssueSummaryPanel({
   font,
   loading = false,
   onSetDeliverToSiteConfirmed,
+  onUpdateItemReceiptStatus,
 }: {
   details: DeliveryDetails;
   navy: string;
   font: string;
   loading?: boolean;
   onSetDeliverToSiteConfirmed?: (confirmed: boolean) => Promise<void>;
+  onUpdateItemReceiptStatus?: (
+    itemId: string,
+    status: OrderSummaryEditableStatus,
+  ) => Promise<void>;
 }) {
   const [receivedExpanded, setReceivedExpanded] = useState(false);
 
@@ -31,6 +40,10 @@ export function IssueSummaryPanel({
       ),
     [details.delivery, details.items, details.materialIssues],
   );
+
+  const siteConfirmed = isDeliverToSiteFullyReceived(details.delivery);
+  const canEditReceipt =
+    Boolean(onUpdateItemReceiptStatus) && !siteConfirmed && !loading;
 
   const statusLines = [
     `Delivery Status: ${summary.deliveryStatusLabel}`,
@@ -62,7 +75,7 @@ export function IssueSummaryPanel({
             flexShrink: 0,
           }}
         />
-        Issue Summary
+        Order Summary
       </h3>
 
       <div
@@ -106,6 +119,21 @@ export function IssueSummaryPanel({
           ))}
         </ul>
 
+        {siteConfirmed && onUpdateItemReceiptStatus && (
+          <p
+            data-testid="order-summary-site-confirmed-hint"
+            style={{
+              margin: "0 0 12px",
+              fontSize: 12,
+              color: "#b45309",
+              lineHeight: 1.4,
+            }}
+          >
+            Line status is locked while site delivery is confirmed. Clear site
+            confirmation above to edit received qty.
+          </p>
+        )}
+
         {summary.issueRows.length > 0 && (
           <div
             data-testid="issue-summary-table"
@@ -137,7 +165,17 @@ export function IssueSummaryPanel({
               <span style={{ textAlign: "right" }}>Status</span>
             </div>
             {summary.issueRows.map((row) => (
-              <IssueTableRow key={row.itemId} row={row} />
+              <IssueTableRow
+                key={row.itemId}
+                row={row}
+                font={font}
+                canEdit={canEditReceipt && row.status === "Not Delivered"}
+                onChangeStatus={
+                  onUpdateItemReceiptStatus
+                    ? (status) => onUpdateItemReceiptStatus(row.itemId, status)
+                    : undefined
+                }
+              />
             ))}
           </div>
         )}
@@ -181,7 +219,7 @@ export function IssueSummaryPanel({
                   listStyle: "none",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 4,
+                  gap: 6,
                 }}
               >
                 {summary.receivedItems.map((item) => (
@@ -191,14 +229,41 @@ export function IssueSummaryPanel({
                       fontSize: 13,
                       color: "#2e7d32",
                       display: "flex",
-                      alignItems: "baseline",
-                      gap: 6,
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
                     }}
                   >
-                    <span aria-hidden>✓</span>
                     <span>
-                      ({item.qty}) {item.description}
+                      <span aria-hidden>✓ </span>({item.qty}) {item.description}
                     </span>
+                    {canEditReceipt && onUpdateItemReceiptStatus ? (
+                      <select
+                        data-testid={`issue-summary-status-${item.itemId}`}
+                        aria-label={`Status for ${item.description}`}
+                        value="Delivered"
+                        disabled={loading}
+                        onChange={(e) => {
+                          const next = e.target.value as OrderSummaryEditableStatus;
+                          if (next === "Delivered") return;
+                          void onUpdateItemReceiptStatus(item.itemId, next);
+                        }}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          fontFamily: font,
+                          color: ITEM_ISSUE_STATUS_COLOR.Delivered,
+                          border: "1px solid #d1d5db",
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                          backgroundColor: "#fff",
+                          maxWidth: 130,
+                        }}
+                      >
+                        <option value="Delivered">Delivered</option>
+                        <option value="Not Delivered">Not Delivered</option>
+                      </select>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -212,6 +277,9 @@ export function IssueSummaryPanel({
 
 function IssueTableRow({
   row,
+  font,
+  canEdit,
+  onChangeStatus,
 }: {
   row: {
     itemId: string;
@@ -219,6 +287,9 @@ function IssueTableRow({
     qty: number;
     status: ItemIssueDisplayStatus;
   };
+  font: string;
+  canEdit: boolean;
+  onChangeStatus?: (status: OrderSummaryEditableStatus) => Promise<void>;
 }) {
   const color = ITEM_ISSUE_STATUS_COLOR[row.status];
   return (
@@ -241,17 +312,45 @@ function IssueTableRow({
       >
         {row.qty}
       </span>
-      <span
-        data-testid={`issue-summary-status-${row.itemId}`}
-        style={{
-          textAlign: "right",
-          fontWeight: 700,
-          fontSize: 12,
-          color,
-        }}
-      >
-        {row.status}
-      </span>
+      {canEdit && onChangeStatus && row.status === "Not Delivered" ? (
+        <select
+          data-testid={`issue-summary-status-${row.itemId}`}
+          aria-label={`Status for ${row.description}`}
+          value="Not Delivered"
+          onChange={(e) => {
+            const next = e.target.value as OrderSummaryEditableStatus;
+            if (next === "Not Delivered") return;
+            void onChangeStatus(next);
+          }}
+          style={{
+            textAlign: "right",
+            fontWeight: 700,
+            fontSize: 12,
+            fontFamily: font,
+            color,
+            border: "1px solid #d1d5db",
+            borderRadius: 4,
+            padding: "2px 4px",
+            backgroundColor: "#fff",
+            width: "100%",
+          }}
+        >
+          <option value="Not Delivered">Not Delivered</option>
+          <option value="Delivered">Delivered</option>
+        </select>
+      ) : (
+        <span
+          data-testid={`issue-summary-status-${row.itemId}`}
+          style={{
+            textAlign: "right",
+            fontWeight: 700,
+            fontSize: 12,
+            color,
+          }}
+        >
+          {row.status}
+        </span>
+      )}
     </div>
   );
 }

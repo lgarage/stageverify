@@ -1256,6 +1256,7 @@ export class FirestoreDataService implements DispatcherDataService {
       updatedAt: now,
     });
     await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
   }
 
   async recordPickupEvent(

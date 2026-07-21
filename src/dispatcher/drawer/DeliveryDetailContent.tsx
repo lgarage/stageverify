@@ -522,6 +522,7 @@ export function DetailContent({
   onMarkShipped,
   onUpdateIssueSummary,
   onSetDeliverToSiteConfirmed,
+  onUpdateItemReceiptStatus,
   onUpdateShopStockPickList,
   stagingLocations,
   onUpdatePlannedStagingLocations,
@@ -545,6 +546,10 @@ export function DetailContent({
   onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onSetDeliverToSiteConfirmed: (confirmed: boolean) => Promise<void>;
+  onUpdateItemReceiptStatus: (
+    itemId: string,
+    status: "Not Delivered" | "Delivered",
+  ) => Promise<void>;
   onUpdateShopStockPickList: (
     items: string[],
     locationNote: string,
@@ -1262,6 +1267,7 @@ export function DetailContent({
           font={font}
           loading={mutationLoading}
           onSetDeliverToSiteConfirmed={onSetDeliverToSiteConfirmed}
+          onUpdateItemReceiptStatus={onUpdateItemReceiptStatus}
         />
         {renderDrawerSection(
           "Readiness Evidence",

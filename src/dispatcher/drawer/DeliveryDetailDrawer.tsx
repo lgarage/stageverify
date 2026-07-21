@@ -348,6 +348,43 @@ export function DeliveryDetailDrawer({
     }
   };
 
+  const handleUpdateItemReceiptStatus = async (
+    itemId: string,
+    status: "Not Delivered" | "Delivered",
+  ): Promise<void> => {
+    if (!deliveryId || !selectedDetails) return;
+    const item = selectedDetails.items.find((i) => i.id === itemId);
+    if (!item) {
+      setMutationError("Item not found on this delivery.");
+      return;
+    }
+    const qtyOrdered = item.qtyOrdered;
+    const qtyReceived = status === "Delivered" ? qtyOrdered : 0;
+    const qtyMissing = Math.max(0, qtyOrdered - qtyReceived);
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      await firestoreDataService.updateItemQty(
+        deliveryId,
+        itemId,
+        qtyOrdered,
+        qtyReceived,
+        qtyMissing,
+      );
+      const updatedDetails =
+        await firestoreDataService.getDeliveryDetails(deliveryId);
+      if (updatedDetails) await refreshAfter(updatedDetails);
+      else setMutationError("Updated item qty but failed to reload delivery.");
+    } catch (err) {
+      setMutationError(
+        err instanceof Error ? err.message : "Failed to update item status.",
+      );
+      console.error(err);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   const handleUpdateShopStockPickList = async (
     items: string[],
     locationNote: string,
@@ -487,6 +524,7 @@ export function DeliveryDetailDrawer({
             onMarkShipped={handleMarkShipped}
             onUpdateIssueSummary={handleUpdateIssueSummary}
             onSetDeliverToSiteConfirmed={handleSetDeliverToSiteConfirmed}
+            onUpdateItemReceiptStatus={handleUpdateItemReceiptStatus}
             onUpdateShopStockPickList={handleUpdateShopStockPickList}
             stagingLocations={stagingLocations}
             onUpdatePlannedStagingLocations={handleUpdatePlannedStagingLocations}

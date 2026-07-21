@@ -841,7 +841,7 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
   const heading = (
     await page.getByTestId("drawer-action-banner-heading").innerText()
   ).trim();
-  const issueIndex = bodyText.indexOf("ISSUE SUMMARY");
+  const issueIndex = bodyText.indexOf("ORDER SUMMARY");
   const actionIndex = bodyText.indexOf(heading);
   const basicsIndex = bodyText.indexOf("DELIVERY BASICS");
   const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
@@ -886,12 +886,12 @@ async function assertDeliveryFirstDrawerOrder(page, record, label) {
   }
 
   record(
-    `${label} — Action banner precedes Issue Summary`,
+    `${label} — Action banner precedes Order Summary`,
     actionIndex >= 0 && issueIndex > actionIndex,
     `action@${actionIndex}, issue@${issueIndex}`,
   );
   record(
-    `${label} — Issue Summary precedes Readiness Evidence`,
+    `${label} — Order Summary precedes Readiness Evidence`,
     issueIndex >= 0 && readinessIndex > issueIndex,
     `issue@${issueIndex}, readiness@${readinessIndex}`,
   );
@@ -1143,6 +1143,15 @@ async function assertOrd006EmailReviewAction(page, record) {
   const issuePanel = page.getByTestId("issue-summary-panel");
   await issuePanel.scrollIntoViewIfNeeded();
   await issuePanel.waitFor({ state: "visible", timeout: 20_000 });
+  const orderSummaryTitle = await issuePanel.evaluate((el) => {
+    const h3 = el.querySelector("h3");
+    return h3?.textContent?.trim() ?? "";
+  });
+  record(
+    "Order Summary panel title",
+    orderSummaryTitle === "Order Summary",
+    `title=${orderSummaryTitle}`,
+  );
   record("Issue Summary panel visible", true);
 
   await assertDeliveryBasicsNoTopNotes(page, record, "Drawer");
@@ -1309,7 +1318,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   }
 
   const bodyText = await page.locator("body").innerText();
-  const issueIndex = bodyText.indexOf("ISSUE SUMMARY");
+  const issueIndex = bodyText.indexOf("ORDER SUMMARY");
   const actionIndex = bodyText.indexOf(heading);
   const basicsIndex = bodyText.indexOf("DELIVERY BASICS");
   const readinessIndex = bodyText.indexOf("READINESS EVIDENCE");
@@ -1356,22 +1365,22 @@ async function assertOrd006EmailReviewAction(page, record) {
   }
 
   record(
-    "Action banner precedes Issue Summary",
+    "Action banner precedes Order Summary",
     actionIndex >= 0 && issueIndex > actionIndex,
     `action@${actionIndex}, issue@${issueIndex}`,
   );
   record(
-    "Issue Summary precedes Readiness Evidence",
+    "Order Summary precedes Readiness Evidence",
     issueIndex >= 0 && readinessIndex > issueIndex,
     `issue@${issueIndex}, readiness@${readinessIndex}`,
   );
 
   const lineCount = await summaryLines.locator("li").count();
-  record("Issue Summary has summary lines", lineCount >= 2, `${lineCount} lines`);
+  record("Order Summary has summary lines", lineCount >= 2, `${lineCount} lines`);
 
   const openIssuesToggle = page.getByTestId("issue-summary-open-issues-toggle");
   record(
-    "Open Issues accordion removed from Issue Summary",
+    "Open Issues accordion removed from Order Summary",
     (await openIssuesToggle.count()) === 0,
   );
 
