@@ -511,24 +511,111 @@ try {
   }
 }
 
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-link-test",
+    action: "link",
+    deliveryOrderId: "delivery-link-test",
+  });
+  fail("link action should be rejected");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (msg.includes("Link removed") || msg.includes("invalid-argument")) {
+    pass("link action rejected");
+  } else {
+    fail("expected link removal error", err?.message);
+  }
+}
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-approve-test",
+    action: "approve",
+    deliveryOrderId: "delivery-approve-test",
+  });
+  fail("approve with deliveryOrderId should be rejected");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (msg.includes("always creates") || msg.includes("invalid-argument")) {
+    pass("approve with deliveryOrderId rejected");
+  } else {
+    fail("expected approve deliveryOrderId rejection", err?.message);
+  }
+}
+
+let approveResult;
+try {
+  approveResult = await approveImport({
+    vendorInvoiceImportId: "vii-approve-test",
+    action: "approve",
+  });
+} catch (err) {
+  fail("approve call failed", err?.message);
+}
+
+const approveShellId = shellDeliveryIdForImport("vii-approve-test");
+const approveData = approveResult?.data ?? {};
+if (
+  approveData.reviewStatus === "approved" &&
+  approveData.itemsApplied === 2 &&
+  approveData.deliveryOrderId === approveShellId &&
+  approveData.shellCreated === true
+) {
+  pass("approve returned approved with shell delivery");
+} else {
+  fail("approve response", approveData);
+}
+
+const deliverySnap = await getDoc(doc(db, "deliveries", approveShellId));
+if (deliverySnap.data()?.vendorInvoiceImportId === "vii-approve-test") {
+  pass("shell delivery linked to import");
+} else {
+  fail("shell delivery link missing", deliverySnap.data());
+}
+
+if (
+  deliverySnap.data()?.stagingLocationId === undefined &&
+  deliverySnap.data()?.readinessStatus === undefined
+) {
+  pass("shell staging/readiness untouched");
+} else {
+  fail("unexpected staging/readiness on shell", deliverySnap.data());
+}
+
+const itemsSnap = await getDocs(
+  query(collection(db, "items"), where("deliveryOrderId", "==", approveShellId)),
+);
+const items = itemsSnap.docs.map((d) => d.data());
+if (items.length === 2 && items.every((i) => i.qtyReceived === 0)) {
+  pass("items created with qtyReceived=0");
+} else {
+  fail("items after approve", items);
+}
+
+console.log("\n=== CF: relink_to_shell moves off shared delivery ===\n");
+
+const sharedDeliveryId = "delivery-shared-non-shell";
+const relinkImportId = "vii-relink-test";
+const relinkShellId = shellDeliveryIdForImport(relinkImportId);
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "deliveries", "delivery-link-test"), {
-    id: "delivery-link-test",
+  await setDoc(doc(adminDb, "deliveries", sharedDeliveryId), {
+    id: sharedDeliveryId,
     jobId: "job-1",
-    vendorId: "vendor-1",
-    orderNumber: "ORD-LINK",
+    vendorId: "vendor-johnstone",
+    orderNumber: "ORD-SHARED",
     status: "pending",
+    vendorInvoiceImportId: relinkImportId,
     deliveryDate: "2026-06-24",
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-link-test"), {
-    id: "vii-link-test",
-    inboundEmailProcessingId: "inbound-link",
-    gmailMessageId: "msg-link",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", relinkImportId), {
+    id: relinkImportId,
+    inboundEmailProcessingId: "inbound-relink",
+    gmailMessageId: "msg-relink",
     importBatchId: "batch-test",
-    pageId: "inv-link",
+    pageId: "inv-relink",
     pageIndexInBatch: 0,
     reviewStatus: "approved",
     importStatus: "pickup_at_vendor",
@@ -536,6 +623,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     confidenceScore: 70,
     humanReviewRequired: true,
     duplicate: false,
+    linkedDeliveryOrderId: sharedDeliveryId,
     parsedHeader: header,
     parsedLines: sampleLines,
     parsedLineCount: 2,
@@ -548,73 +636,55 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   });
 });
 
-let linkResult;
+let relinkResult;
 try {
-  linkResult = await approveImport({
-    vendorInvoiceImportId: "vii-link-test",
-    action: "link",
-    deliveryOrderId: "delivery-link-test",
+  relinkResult = await approveImport({
+    vendorInvoiceImportId: relinkImportId,
+    action: "relink_to_shell",
   });
 } catch (err) {
-  fail("link call failed", err?.message);
+  fail("relink_to_shell call failed", err?.message);
 }
 
-const linkData = linkResult?.data ?? {};
-if (linkData.reviewStatus === "approved" && linkData.deliveryOrderId === "delivery-link-test") {
-  pass("link returned approved with delivery");
-} else {
-  fail("link response", linkData);
-}
-
-const linkedImportSnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-link-test"));
-if (linkedImportSnap.data()?.linkedDeliveryOrderId === "delivery-link-test") {
-  pass("import linked to delivery");
-} else {
-  fail("import link state", linkedImportSnap.data());
-}
-
-let approveResult;
-try {
-  approveResult = await approveImport({
-    vendorInvoiceImportId: "vii-approve-test",
-    action: "approve",
-    deliveryOrderId: "delivery-approve-test",
-  });
-} catch (err) {
-  fail("approve call failed", err?.message);
-}
-
-const approveData = approveResult?.data ?? {};
-if (approveData.reviewStatus === "approved" && approveData.itemsApplied === 2) {
-  pass("approve returned approved with 2 items");
-} else {
-  fail("approve response", approveData);
-}
-
-const deliverySnap = await getDoc(doc(db, "deliveries", "delivery-approve-test"));
-if (deliverySnap.data()?.vendorInvoiceImportId === "vii-approve-test") {
-  pass("delivery linked to import");
-} else {
-  fail("delivery link missing", deliverySnap.data());
-}
-
+const relinkData = relinkResult?.data ?? {};
 if (
-  deliverySnap.data()?.stagingLocationId === undefined &&
-  deliverySnap.data()?.readinessStatus === undefined
+  relinkData.deliveryOrderId === relinkShellId &&
+  relinkData.shellCreated === true &&
+  relinkData.relinked === true
 ) {
-  pass("delivery staging/readiness untouched");
+  pass("relink_to_shell created separate shell");
 } else {
-  fail("unexpected staging/readiness on delivery", deliverySnap.data());
+  fail("relink_to_shell response", relinkData);
 }
 
-const itemsSnap = await getDocs(
-  query(collection(db, "items"), where("deliveryOrderId", "==", "delivery-approve-test")),
-);
-const items = itemsSnap.docs.map((d) => d.data());
-if (items.length === 2 && items.every((i) => i.qtyReceived === 0)) {
-  pass("items created with qtyReceived=0");
+const relinkImportSnap = await getDoc(doc(db, "vendorInvoiceImports", relinkImportId));
+if (relinkImportSnap.data()?.linkedDeliveryOrderId === relinkShellId) {
+  pass("import retargeted to shell");
 } else {
-  fail("items after approve", items);
+  fail("import after relink", relinkImportSnap.data());
+}
+
+const sharedAfter = await getDoc(doc(db, "deliveries", sharedDeliveryId));
+if (!sharedAfter.data()?.vendorInvoiceImportId) {
+  pass("old shared delivery stamp cleared");
+} else {
+  fail("old delivery still stamped", sharedAfter.data());
+}
+
+const relinkShellSnap = await getDoc(doc(db, "deliveries", relinkShellId));
+if (relinkShellSnap.data()?.vendorInvoiceImportId === relinkImportId) {
+  pass("shell stamped with import id");
+} else {
+  fail("relink shell missing stamp", relinkShellSnap.data());
+}
+
+const relinkItems = await getDocs(
+  query(collection(db, "items"), where("deliveryOrderId", "==", relinkShellId)),
+);
+if (relinkItems.docs.length === 2) {
+  pass("relink items on shell");
+} else {
+  fail("relink items count", relinkItems.docs.length);
 }
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {

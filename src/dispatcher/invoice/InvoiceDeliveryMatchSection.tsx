@@ -1,31 +1,27 @@
-import type { DeliveryListRow, InvoiceDeliveryMatchCandidate, InvoiceMatchResult, VendorInvoiceImportReview } from "../models";
-import {
-  formatInvoiceMatchReasonList,
-  formatInvoiceMatchReasons,
-} from "./invoiceMatchReasonLabels";
+import type { InvoiceMatchResult, VendorInvoiceImportReview } from "../models";
+import { formatInvoiceMatchReasons } from "./invoiceMatchReasonLabels";
 import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 
 const NAVY = "#0a3161";
 
+/** Informational only — Approve always creates a new shell; linking was removed. */
 export function InvoiceDeliveryMatchSection({
   importRow,
   matchResult,
   matchLoading,
   matchUnavailable,
   shipDateWarning,
-  selectedDeliveryId,
-  onSelectDelivery,
-  recentDeliveries,
-  recentDeliveriesLoading,
 }: {
   importRow: VendorInvoiceImportReview;
   matchResult: InvoiceMatchResult | null;
   matchLoading: boolean;
   matchUnavailable: string | null;
   shipDateWarning: string | null;
-  selectedDeliveryId: string;
-  onSelectDelivery: (deliveryId: string) => void;
-  recentDeliveries?: DeliveryListRow[];
+  /** @deprecated Linking removed — ignored. */
+  selectedDeliveryId?: string;
+  /** @deprecated Linking removed — ignored. */
+  onSelectDelivery?: (deliveryId: string) => void;
+  recentDeliveries?: unknown;
   recentDeliveriesLoading?: boolean;
 }) {
   if (importRow.reviewStatus !== "pending_review" && importRow.reviewStatus !== "rejected") {
@@ -33,12 +29,6 @@ export function InvoiceDeliveryMatchSection({
   }
 
   const willCreateShellId = shellDeliveryIdForImport(importRow.id);
-  const linkingExisting = Boolean(selectedDeliveryId.trim());
-  const noCandidates =
-    !matchLoading &&
-    !matchUnavailable &&
-    matchResult != null &&
-    matchResult.candidates.length === 0;
 
   return (
     <div
@@ -52,11 +42,27 @@ export function InvoiceDeliveryMatchSection({
       }}
     >
       <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, margin: "0 0 10px" }}>
-        Delivery match
+        Delivery on Approve
       </h3>
-      <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.45 }}>
-        Linking to an existing delivery is optional. Leave the field blank and click Approve —
-        StageVerify creates a new dashboard order automatically.
+      <p
+        data-testid="invoice-delivery-will-create"
+        style={{
+          fontSize: 12,
+          color: NAVY,
+          margin: "0 0 12px",
+          lineHeight: 1.45,
+          padding: "8px 10px",
+          backgroundColor: "#eef2ff",
+          borderRadius: 6,
+          border: "1px solid #c7d2fe",
+        }}
+      >
+        Approve creates a new dashboard delivery{" "}
+        <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
+          {willCreateShellId}
+        </span>
+        {" "}
+        for this invoice (one row per invoice).
       </p>
 
       {shipDateWarning && (
@@ -78,149 +84,19 @@ export function InvoiceDeliveryMatchSection({
       )}
 
       {matchLoading && !matchUnavailable && (
-        <p data-testid="invoice-delivery-match-loading" style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px" }}>
-          Finding candidates…
+        <p data-testid="invoice-delivery-match-loading" style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>
+          Checking related records…
         </p>
       )}
 
       {!matchLoading && !matchUnavailable && matchResult && (
-        <>
-          <p
-            data-testid="invoice-delivery-match-confidence"
-            style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}
-          >
-            {formatInvoiceMatchReasons(matchResult.confidenceReason)}
-          </p>
-          {noCandidates && (
-            <p
-              data-testid="invoice-delivery-match-no-candidates"
-              style={{ fontSize: 12, color: "#b45309", margin: "0 0 10px", lineHeight: 1.45 }}
-            >
-              No existing delivery matched this invoice. That is normal for a new First Supply
-              order — Approve creates a new dashboard delivery (no Delivery ID required).
-            </p>
-          )}
-          {matchResult.candidates.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-              {matchResult.candidates.map((c: InvoiceDeliveryMatchCandidate) => (
-                <label
-                  key={c.deliveryId}
-                  data-testid="invoice-review-match-candidate"
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 8,
-                    padding: "8px 10px",
-                    border:
-                      selectedDeliveryId === c.deliveryId
-                        ? `2px solid ${NAVY}`
-                        : "1px solid #e0e3e8",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    backgroundColor:
-                      selectedDeliveryId === c.deliveryId ? "#eef2ff" : "#fff",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name={`invoice-match-${importRow.id}`}
-                    checked={selectedDeliveryId === c.deliveryId}
-                    onChange={() => onSelectDelivery(c.deliveryId)}
-                    style={{ marginTop: 2 }}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 700, color: NAVY, fontSize: 12 }}>
-                      {c.orderNumber}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#6b7280" }}>
-                      {formatInvoiceMatchReasonList(c.matchReasons)}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          )}
-        </>
+        <p
+          data-testid="invoice-delivery-match-confidence"
+          style={{ fontSize: 12, color: "#6b7280", margin: 0 }}
+        >
+          {formatInvoiceMatchReasons(matchResult.confidenceReason)}
+        </p>
       )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {!linkingExisting && (
-          <p
-            data-testid="invoice-delivery-will-create"
-            style={{
-              fontSize: 12,
-              color: NAVY,
-              margin: 0,
-              lineHeight: 1.45,
-              padding: "8px 10px",
-              backgroundColor: "#eef2ff",
-              borderRadius: 6,
-              border: "1px solid #c7d2fe",
-            }}
-          >
-            On Approve, a new delivery will be created as{" "}
-            <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
-              {willCreateShellId}
-            </span>
-            . Use the field below only if you want to link an existing delivery instead.
-          </p>
-        )}
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>
-            Link to existing delivery (optional)
-          </span>
-          <input
-            type="text"
-            data-testid="invoice-delivery-manual-id"
-            value={selectedDeliveryId}
-            onChange={(e) => onSelectDelivery(e.target.value.trim())}
-            placeholder="Leave blank to create a new order on Approve"
-            style={{
-              fontSize: 13,
-              padding: "8px 10px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontFamily: "inherit",
-            }}
-          />
-        </label>
-
-        {(recentDeliveriesLoading || (recentDeliveries && recentDeliveries.length > 0)) && (
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>
-              Recent deliveries
-            </span>
-            <select
-              data-testid="invoice-delivery-recent-select"
-              value={
-                recentDeliveries?.some((d) => d.deliveryId === selectedDeliveryId)
-                  ? selectedDeliveryId
-                  : ""
-              }
-              disabled={recentDeliveriesLoading}
-              onChange={(e) => {
-                if (e.target.value) onSelectDelivery(e.target.value);
-              }}
-              style={{
-                fontSize: 13,
-                padding: "8px 10px",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                fontFamily: "inherit",
-              }}
-            >
-              <option value="">
-                {recentDeliveriesLoading ? "Loading deliveries…" : "Choose a delivery…"}
-              </option>
-              {(recentDeliveries ?? []).map((d) => (
-                <option key={d.deliveryId} value={d.deliveryId}>
-                  {d.orderNumber} · {d.jobNumber} · {d.vendorName} ({d.deliveryDate})
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
     </div>
   );
 }

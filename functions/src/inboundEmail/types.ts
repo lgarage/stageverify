@@ -117,7 +117,7 @@ export interface VendorInvoiceImportDoc {
   suggestedAction?: string;
   /** Auditable dispatcher decisions — append-only, capped in CF. */
   importDecisionLog?: Array<{
-    action: "approve" | "reject" | "link" | "create_shell" | "reopen";
+    action: "approve" | "reject" | "link" | "create_shell" | "reopen" | "relink_to_shell";
     at: string;
     by: string;
     importDecisionMode: ImportDecisionMode;

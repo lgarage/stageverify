@@ -146,10 +146,11 @@ exports.getVendorInvoicePdf = (0, https_1.onCall)({
     if (!gmailMessageId) {
         throw new https_1.HttpsError("failed-precondition", "Inbound email has no Gmail message id.");
     }
+    // Always return the source/org PDF for the inbound message (full multi-invoice
+    // attachment). pageIndexInBatch is a logical invoice index, not an attachment index.
     const attachments = inbound.pdfAttachments ?? [];
-    const pageIndex = importDoc.pageIndexInBatch ?? 0;
-    const attachment = attachments[pageIndex] ??
-        attachments.find((att) => !att.extractError) ??
+    const attachment = attachments.find((att) => Boolean(att.gmailAttachmentId) && !att.extractError) ??
+        attachments.find((att) => Boolean(att.gmailAttachmentId)) ??
         attachments[0];
     if (!attachment?.gmailAttachmentId) {
         throw new https_1.HttpsError("failed-precondition", "No PDF attachment metadata on this inbound email.");
@@ -173,9 +174,7 @@ exports.getVendorInvoicePdf = (0, https_1.onCall)({
         try {
             const message = await (0, gmailInbound_1.fetchGmailMessage)(accessToken, gmailMessageId);
             const freshPdfs = (0, gmailInbound_1.findPdfAttachments)(message.payload);
-            const freshAttachment = freshPdfs[pageIndex] ??
-                freshPdfs.find((pdf) => pdf.attachmentId) ??
-                freshPdfs[0];
+            const freshAttachment = freshPdfs.find((pdf) => pdf.attachmentId) ?? freshPdfs[0];
             if (!freshAttachment?.attachmentId) {
                 throw new https_1.HttpsError("unavailable", "Gmail attachment download failed. The PDF may have been moved or deleted.");
             }

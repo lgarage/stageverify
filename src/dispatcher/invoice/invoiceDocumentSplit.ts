@@ -48,6 +48,11 @@ export function extractHeaderInvoiceNumber(text: string): string {
         return match[1].trim();
       }
     }
+    // First Supply puts "Invoice # 123" mid-line (e.g. after P.O. Box).
+    const midLine = line.match(/Invoice\s*#\s*:?\s*([\w./-]+)/i);
+    if (midLine && isPlausibleInvoiceNumber(midLine[1])) {
+      return midLine[1].trim();
+    }
   }
   return "";
 }
@@ -192,7 +197,10 @@ export function splitExtractedTextIntoInvoiceDocuments(
 
   if (route.formatId === "first_supply" || /First Supply LLC/i.test(normalized)) {
     const blocks = splitFirstSupplyInvoiceBlocks(normalized);
-    if (blocks.length > 0) return capInvoiceDocuments(blocks);
+    if (blocks.length > 0) {
+      // Same Invoice # across pages = one logical document (mixed with 1-page invoices OK).
+      return capInvoiceDocuments(groupPhysicalChunksByInvoiceNumber(blocks));
+    }
   }
 
   const physicalChunks = splitOnPhysicalBoundaries(normalized);

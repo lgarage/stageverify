@@ -34,7 +34,7 @@ export interface AutoImportEligibilityResult {
 }
 
 export interface ImportDecisionLogEntry {
-  action: "approve" | "reject" | "link" | "create_shell" | "reopen";
+  action: "approve" | "reject" | "link" | "create_shell" | "reopen" | "relink_to_shell";
   at: string;
   by: string;
   importDecisionMode: ImportDecisionMode;

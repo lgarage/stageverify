@@ -1065,7 +1065,7 @@ export interface VendorInvoiceImportReview {
   importDecisionMode?: "suggested_import" | "review_required" | "blocked";
   suggestedAction?: string;
   importDecisionLog?: Array<{
-    action: "approve" | "reject" | "link" | "create_shell" | "reopen";
+    action: "approve" | "reject" | "link" | "create_shell" | "reopen" | "relink_to_shell";
     at: string;
     by: string;
     importDecisionMode: string;
@@ -1115,6 +1115,8 @@ export interface ApproveVendorInvoiceImportResult {
   shellCreated?: boolean;
   /** True when a job was auto-created from invoice P/O hints. */
   jobCreated?: boolean;
+  /** True when relink_to_shell moved off a non-shell delivery. */
+  relinked?: boolean;
   /** Set when shell was expected but could not be created (legacy clients). */
   shellError?: string;
 }

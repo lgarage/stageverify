@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import type {
-  DeliveryListRow,
   InvoiceMatchResult,
   VendorInvoiceImportReview,
 } from "../models";
@@ -50,15 +49,11 @@ export function InvoiceParsedInspectModal({
   onClose,
   matchResult = null,
   matchLoading = false,
-  selectedDeliveryId = "",
-  onSelectDelivery,
-  recentDeliveries,
-  recentDeliveriesLoading = false,
   actionLoading = false,
   onApprove,
   onReject,
   onReopen,
-  onLink,
+  onRelinkToShell,
   onReparse,
   reparseLoading = false,
   reparseMessage = null,
@@ -69,15 +64,12 @@ export function InvoiceParsedInspectModal({
   onClose: () => void;
   matchResult?: InvoiceMatchResult | null;
   matchLoading?: boolean;
-  selectedDeliveryId?: string;
-  onSelectDelivery?: (deliveryId: string) => void;
-  recentDeliveries?: DeliveryListRow[];
-  recentDeliveriesLoading?: boolean;
   actionLoading?: boolean;
   onApprove?: () => void;
   onReject?: () => void;
   onReopen?: () => void;
-  onLink?: () => void;
+  /** Move approved import off a shared/non-shell delivery onto its own shell. */
+  onRelinkToShell?: () => void;
   /** Re-run parser on cached PDF text (pending imports only). */
   onReparse?: () => void;
   reparseLoading?: boolean;
@@ -101,21 +93,17 @@ export function InvoiceParsedInspectModal({
   const lineCount = importRow.parsedLineCount ?? parsedLines.length;
   const isPending = importRow.reviewStatus === "pending_review";
   const isRejected = importRow.reviewStatus === "rejected";
-  const isApprovedUnlinked =
-    importRow.reviewStatus === "approved" && !importRow.linkedDeliveryOrderId?.trim();
   const approveBlocked = importRow.importStatus === "issue";
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
-  const showDeliveryPicker =
-    !readOnly && (isPending || isRejected || isApprovedUnlinked);
+  const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
     !readOnly &&
     ((isPending && (onApprove || onReject)) ||
       (isRejected && (onApprove || onReopen)) ||
-      (isApprovedUnlinked && Boolean(onLink)));
+      Boolean(onRelinkToShell));
   const showReparse = Boolean(onReparse) && isPending && !readOnly;
   const approveDisabled = actionLoading || approveBlocked;
-  const linkDisabled = actionLoading || approveBlocked || !selectedDeliveryId?.trim();
   const invoiceDateLabel = formatInvoiceHeaderField(
     readInvoiceHeaderField(importRow.parsedHeader, "invoiceDate"),
   );
@@ -278,17 +266,13 @@ export function InvoiceParsedInspectModal({
             padding: "16px 28px 24px",
           }}
         >
-        {showDeliveryPicker && onSelectDelivery && (
+        {showDeliveryInfo && (
           <InvoiceDeliveryMatchSection
             importRow={importRow}
             matchResult={matchResult}
             matchLoading={matchLoading}
             matchUnavailable={matchUnavailable}
             shipDateWarning={shipDateWarning}
-            selectedDeliveryId={selectedDeliveryId}
-            onSelectDelivery={onSelectDelivery}
-            recentDeliveries={recentDeliveries}
-            recentDeliveriesLoading={recentDeliveriesLoading}
           />
         )}
 
@@ -655,13 +639,12 @@ export function InvoiceParsedInspectModal({
                 Approve
               </button>
             )}
-            {onLink && isApprovedUnlinked && (
+            {onRelinkToShell && (
               <button
                 type="button"
-                data-testid="invoice-parsed-inspect-link"
-                disabled={linkDisabled}
-                title={!selectedDeliveryId?.trim() ? "Select a delivery to link" : undefined}
-                onClick={onLink}
+                data-testid="invoice-parsed-inspect-relink-shell"
+                disabled={actionLoading || approveBlocked}
+                onClick={onRelinkToShell}
                 style={{
                   backgroundColor: NAVY,
                   color: "#fff",
@@ -670,11 +653,11 @@ export function InvoiceParsedInspectModal({
                   padding: "8px 16px",
                   fontSize: 13,
                   fontWeight: 700,
-                  cursor: linkDisabled ? "not-allowed" : "pointer",
-                  opacity: linkDisabled ? 0.55 : 1,
+                  cursor: actionLoading || approveBlocked ? "not-allowed" : "pointer",
+                  opacity: actionLoading || approveBlocked ? 0.55 : 1,
                 }}
               >
-                Link to delivery
+                Create separate delivery
               </button>
             )}
           </div>

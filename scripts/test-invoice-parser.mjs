@@ -668,6 +668,73 @@ if (splitDocs.length !== 3) {
   );
 }
 
+console.log("\n--- First Supply multi-page same Invoice # + 1-page sibling ---");
+const multiPageSameInvoice = FIRST_SUPPLY_INVOICE_FIXTURES.find(
+  (f) => f.pageId === "inv-firstsupply-15046467-00",
+);
+const singlePageSibling = FIRST_SUPPLY_INVOICE_FIXTURES.find(
+  (f) => f.pageId === "inv-firstsupply-3869488-00",
+);
+if (multiPageSameInvoice && singlePageSibling) {
+  const page2Continuation = multiPageSameInvoice.extractedText
+    .replace("Page # 1 of 1", "Page # 2 of 2")
+    .replace(
+      "1 CON10075130 10.00 0.00 10.00 EA 42.13 421.30\n801-R 2X11/2 PRESS COP REDU CPLG 10075130",
+      "7 EXTRA-PAGE2 1.00 0.00 1.00 EA 1.00 1.00\nEXTRA LINE PAGE TWO",
+    );
+  const mixedBlob = [
+    multiPageSameInvoice.extractedText,
+    page2Continuation,
+    singlePageSibling.extractedText,
+  ].join("\n");
+  const mixedDocs = splitExtractedTextIntoInvoiceDocuments(mixedBlob);
+  if (mixedDocs.length !== 2) {
+    failures.push(
+      `multi-page same # split: expected 2 invoices, got ${mixedDocs.length}`,
+    );
+  } else {
+    const first = processInvoicePage(
+      {
+        pageId: "inv-firstsupply-multipage-a",
+        importBatchId: "batch-firstsupply-multipage",
+        pageIndexInBatch: 0,
+        extractedText: mixedDocs[0],
+      },
+      existing,
+    );
+    const second = processInvoicePage(
+      {
+        pageId: "inv-firstsupply-multipage-b",
+        importBatchId: "batch-firstsupply-multipage",
+        pageIndexInBatch: 1,
+        extractedText: mixedDocs[1],
+      },
+      existing,
+    );
+    if (first.parsed.header.vendorInvoiceNumber !== "15046467-00") {
+      failures.push(
+        `multi-page same #: expected first inv 15046467-00, got ${first.parsed.header.vendorInvoiceNumber}`,
+      );
+    }
+    if (second.parsed.header.vendorInvoiceNumber !== "3869488-00") {
+      failures.push(
+        `multi-page same #: expected second inv 3869488-00, got ${second.parsed.header.vendorInvoiceNumber}`,
+      );
+    }
+    const firstLines = expectedInvoiceLines(first).length;
+    if (firstLines < 6) {
+      failures.push(
+        `multi-page same #: expected merged page lines ≥6 on 15046467-00, got ${firstLines}`,
+      );
+    }
+    console.log(
+      `  PASS multi-page same # → 2 documents (15046467-00 pages merged, 3869488-00 alone); lines=${firstLines}`,
+    );
+  }
+} else {
+  failures.push("multi-page same #: missing First Supply fixtures");
+}
+
 console.log("\n--- Generic multi-invoice document split ---");
 
 const genericTwoInvoiceBlob = [

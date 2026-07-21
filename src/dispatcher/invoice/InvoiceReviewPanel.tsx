@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
-  DeliveryListRow,
   InvoiceMatchResult,
   VendorInvoiceImportReview,
 } from "../models";
 import {
   approveVendorInvoiceImport,
   ensureApprovedUnlinkedInvoiceShells,
-  firestoreDataService,
   listVendorInvoiceImports,
   matchInvoiceToRecords,
   reparseVendorInvoiceImport,
@@ -24,6 +22,7 @@ import {
   readInvoiceHeaderField,
   codPaymentContext,
 } from "./invoiceReviewHeaderHelpers";
+import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
 
 const NAVY = "#0a3161";
@@ -228,7 +227,6 @@ export function InvoiceReviewPanel({
   const [matchUnavailableById, setMatchUnavailableById] = useState<Record<string, string>>(
     {},
   );
-  const [deliveryById, setDeliveryById] = useState<Record<string, string>>({});
   const [matchLoadingId, setMatchLoadingId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [reparseLoadingId, setReparseLoadingId] = useState<string | null>(null);
@@ -239,8 +237,6 @@ export function InvoiceReviewPanel({
   const [filter, setFilter] = useState<QueueFilter>("pending");
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
-  const [recentDeliveries, setRecentDeliveries] = useState<DeliveryListRow[]>([]);
-  const [recentDeliveriesLoading, setRecentDeliveriesLoading] = useState(false);
   const lastAppliedGeneration = useRef(0);
 
   const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
@@ -330,7 +326,6 @@ export function InvoiceReviewPanel({
         delete next[rowId];
         return next;
       });
-      // Do not auto-fill the optional link field — Approve creates a new shell when blank.
     } catch (err) {
       const message = err instanceof Error ? err.message : "Match lookup failed.";
       setMatchUnavailableById((prev) =>
@@ -341,35 +336,15 @@ export function InvoiceReviewPanel({
     }
   }, [imports]);
 
-  const loadRecentDeliveries = useCallback(async () => {
-    setRecentDeliveriesLoading(true);
-    try {
-      const result = await firestoreDataService.listDeliveries({
-        pageSize: 30,
-        sortBy: "deliveryDate",
-        sortDirection: "desc",
-      });
-      setRecentDeliveries(result.items);
-    } catch {
-      setRecentDeliveries([]);
-    } finally {
-      setRecentDeliveriesLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (!inspectImport) return;
-
-    const needsDeliveryPicker =
-      (inspectImport.reviewStatus === "pending_review" ||
-        inspectImport.reviewStatus === "rejected" ||
-        (inspectImport.reviewStatus === "approved" &&
-          !inspectImport.linkedDeliveryOrderId?.trim())) &&
-      inspectImport.importStatus !== "issue";
-
-    if (!needsDeliveryPicker) return;
-
-    void loadRecentDeliveries();
+    if (
+      inspectImport.reviewStatus !== "pending_review" &&
+      inspectImport.reviewStatus !== "rejected"
+    ) {
+      return;
+    }
+    if (inspectImport.importStatus === "issue") return;
 
     const rowId = inspectImport.id;
     const unavailable = matchUnavailableReason(inspectImport);
@@ -394,59 +369,44 @@ export function InvoiceReviewPanel({
     matchLoadingId,
     matchUnavailableById,
     loadMatchForRow,
-    loadRecentDeliveries,
   ]);
 
-  const submitApprove = async (
-    row: VendorInvoiceImportReview,
-    deliveryId?: string,
-  ) => {
+  const submitApprove = async (row: VendorInvoiceImportReview) => {
     if (row.importStatus === "issue") return;
     setActionLoadingId(row.id);
     setError(null);
     setSuccessMessage(null);
     try {
-      const trimmedDeliveryId = deliveryId?.trim() ?? "";
       const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "approve",
-        ...(trimmedDeliveryId ? { deliveryOrderId: trimmedDeliveryId } : {}),
       });
-      if (!trimmedDeliveryId) {
-        if (result.shellError?.trim()) {
-          setError(result.shellError);
-          setInspectImport(null);
-          await loadQueue();
-          if (onApproveSuccess) {
-            await onApproveSuccess();
-          }
-          return;
-        }
-        if (!result.deliveryOrderId?.trim()) {
-          setError(
-            "Approved but no dashboard delivery was created. Use Refresh Now or link a delivery manually.",
-          );
-          setInspectImport(null);
-          await loadQueue();
-          if (onApproveSuccess) {
-            await onApproveSuccess();
-          }
-          return;
-        }
-        const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
-        setSuccessMessage(
-          `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}`,
-        );
+      if (result.shellError?.trim()) {
+        setError(result.shellError);
+        setInspectImport(null);
+        await loadQueue();
         if (onApproveSuccess) {
           await onApproveSuccess();
         }
-      } else {
-        setSuccessMessage(
-          `Approved — linked to existing delivery ${trimmedDeliveryId}.`,
+        return;
+      }
+      if (!result.deliveryOrderId?.trim()) {
+        setError(
+          "Approved but no dashboard delivery was created. Use Refresh Now to retry shell create.",
         );
+        setInspectImport(null);
+        await loadQueue();
         if (onApproveSuccess) {
           await onApproveSuccess();
         }
+        return;
+      }
+      const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
+      setSuccessMessage(
+        `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}`,
+      );
+      if (onApproveSuccess) {
+        await onApproveSuccess();
       }
       setInspectImport(null);
       await loadQueue();
@@ -492,25 +452,29 @@ export function InvoiceReviewPanel({
     }
   };
 
-  const handleLink = async (row: VendorInvoiceImportReview, deliveryId?: string) => {
-    if (row.importStatus === "issue" || row.linkedDeliveryOrderId?.trim()) return;
-    const trimmedDeliveryId = deliveryId?.trim() ?? "";
-    if (!trimmedDeliveryId) {
-      setError("Select a delivery to link.");
-      return;
-    }
+  const handleRelinkToShell = async (row: VendorInvoiceImportReview) => {
+    if (row.reviewStatus !== "approved" || row.importStatus === "issue") return;
+    const linkedId = row.linkedDeliveryOrderId?.trim() ?? "";
+    const shellId = shellDeliveryIdForImport(row.id);
+    if (!linkedId || linkedId === shellId) return;
     setActionLoadingId(row.id);
     setError(null);
+    setSuccessMessage(null);
     try {
-      await approveVendorInvoiceImport({
+      const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
-        action: "link",
-        deliveryOrderId: trimmedDeliveryId,
+        action: "relink_to_shell",
       });
+      setSuccessMessage(
+        `Separate delivery created: ${result.deliveryOrderId ?? shellId}.`,
+      );
       setInspectImport(null);
       await loadQueue();
+      if (onApproveSuccess) {
+        await onApproveSuccess();
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Link failed.");
+      setError(err instanceof Error ? err.message : "Create separate delivery failed.");
     } finally {
       setActionLoadingId(null);
     }
@@ -546,7 +510,14 @@ export function InvoiceReviewPanel({
   };
 
   const inspectRowId = inspectImport?.id ?? null;
-  const inspectSelectedDeliveryId = inspectRowId ? (deliveryById[inspectRowId] ?? "") : "";
+  const inspectNeedsSeparateDelivery = Boolean(
+    inspectImport &&
+      inspectImport.reviewStatus === "approved" &&
+      inspectImport.importStatus !== "issue" &&
+      inspectImport.linkedDeliveryOrderId?.trim() &&
+      inspectImport.linkedDeliveryOrderId.trim() !==
+        shellDeliveryIdForImport(inspectImport.id),
+  );
 
   return (
     <div
@@ -930,19 +901,12 @@ export function InvoiceReviewPanel({
           }
           matchResult={inspectRowId ? (matchById[inspectRowId] ?? null) : null}
           matchLoading={inspectRowId ? matchLoadingId === inspectRowId : false}
-          selectedDeliveryId={inspectSelectedDeliveryId}
-          onSelectDelivery={(deliveryId) => {
-            if (!inspectRowId) return;
-            setDeliveryById((prev) => ({ ...prev, [inspectRowId]: deliveryId }));
-          }}
-          recentDeliveries={recentDeliveries}
-          recentDeliveriesLoading={recentDeliveriesLoading}
           actionLoading={actionLoadingId === inspectImport.id}
           onApprove={
             inspectImport.reviewStatus === "pending_review" ||
             inspectImport.reviewStatus === "rejected"
               ? () => {
-                  void submitApprove(inspectImport, inspectSelectedDeliveryId);
+                  void submitApprove(inspectImport);
                 }
               : undefined
           }
@@ -960,11 +924,10 @@ export function InvoiceReviewPanel({
                 }
               : undefined
           }
-          onLink={
-            inspectImport.reviewStatus === "approved" &&
-            !inspectImport.linkedDeliveryOrderId?.trim()
+          onRelinkToShell={
+            inspectNeedsSeparateDelivery
               ? () => {
-                  void handleLink(inspectImport, inspectSelectedDeliveryId);
+                  void handleRelinkToShell(inspectImport);
                 }
               : undefined
           }

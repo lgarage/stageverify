@@ -2,23 +2,22 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.approveVendorInvoiceImport = void 0;
 /**
- * approveVendorInvoiceImport — explicit approve/reject/reopen/link/create_shell.
- * Approve without deliveryOrderId: creates dashboard shell delivery + expected items.
- * Approve with deliveryOrderId: writes expected items only; does NOT set qtyReceived, staging, or readiness.
+ * approveVendorInvoiceImport — approve/reject/reopen/create_shell/relink_to_shell.
+ * Approve always creates dashboard shell delivery-vii-{importId} + expected items.
+ * Link-to-existing was removed — use relink_to_shell to move a non-shell link onto its shell.
  */
 const admin = require("firebase-admin");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
-const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
 function getDb() {
     return admin.firestore();
 }
-const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 function canApproveReviewStatus(status) {
     return status === "pending_review" || status === "rejected";
 }
@@ -39,29 +38,6 @@ function appendDecisionLogUpdate(doc, entry) {
     const prior = doc.importDecisionLog ?? [];
     return [...prior, entry].slice(-MAX_DECISION_LOG);
 }
-function buildDeliveryLinkContext(importDoc, importId, deliveryOrderId, jobId) {
-    const header = importDoc.parsedHeader;
-    const vendorInvoiceNumber = typeof header.vendorInvoiceNumber === "string" ? header.vendorInvoiceNumber : "";
-    const vendorOrderNumber = typeof header.vendorOrderNumber === "string" ? header.vendorOrderNumber : "";
-    const customerPo = typeof header.customerPoOrReference === "string"
-        ? header.customerPoOrReference
-        : "";
-    const expectedItems = (0, buildExpectedItemsFromImport_1.buildExpectedItemsFromImport)(importId, deliveryOrderId, jobId, importDoc.parsedLines ?? []);
-    if (expectedItems.length === 0) {
-        throw new https_1.HttpsError("failed-precondition", "No expected product lines to apply.");
-    }
-    if (expectedItems.length > 200) {
-        throw new https_1.HttpsError("failed-precondition", "Too many invoice lines to apply.");
-    }
-    const evidenceNote = `Imported from Johnstone invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Review-only apply — no shop receipt.`;
-    return {
-        vendorInvoiceNumber,
-        vendorOrderNumber,
-        customerPo,
-        expectedItems,
-        evidenceNote,
-    };
-}
 exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
@@ -73,11 +49,18 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
-    if (action !== "approve" && action !== "reject" && action !== "reopen" && action !== "link" && action !== "create_shell") {
-        throw new https_1.HttpsError("invalid-argument", "action must be approve, reject, reopen, link, or create_shell.");
+    if (action === "link") {
+        throw new https_1.HttpsError("invalid-argument", "Link removed — Approve creates a separate delivery for each invoice.");
     }
-    if ((action === "approve" || action === "link") && deliveryOrderId.length > 256) {
-        throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is too long.");
+    if (action !== "approve" &&
+        action !== "reject" &&
+        action !== "reopen" &&
+        action !== "create_shell" &&
+        action !== "relink_to_shell") {
+        throw new https_1.HttpsError("invalid-argument", "action must be approve, reject, reopen, create_shell, or relink_to_shell.");
+    }
+    if (action === "approve" && deliveryOrderId) {
+        throw new https_1.HttpsError("invalid-argument", "Approve always creates a new delivery. Linking to an existing delivery was removed.");
     }
     const importRef = getDb().collection(REVIEW_COLLECTION).doc(importId);
     const importSnap = await importRef.get();
@@ -138,36 +121,40 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         });
         return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
     }
-    if (action === "link") {
+    if (action === "relink_to_shell") {
         if (importDoc.reviewStatus !== "approved") {
-            throw new https_1.HttpsError("failed-precondition", "Only approved imports can be linked to a delivery.");
-        }
-        if (importDoc.linkedDeliveryOrderId?.trim()) {
-            throw new https_1.HttpsError("failed-precondition", "Import is already linked to a delivery.");
+            throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a separate delivery.");
         }
         if (importDoc.importStatus === "issue") {
-            throw new https_1.HttpsError("failed-precondition", "Cannot link — import has parse issues.");
+            throw new https_1.HttpsError("failed-precondition", "Cannot create separate delivery — import has parse issues.");
         }
-        if (!deliveryOrderId) {
-            throw new https_1.HttpsError("invalid-argument", "deliveryOrderId is required to link.");
+        const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+        const shellId = shell.deliveryOrderId;
+        const priorLinkedId = importDoc.linkedDeliveryOrderId?.trim() ?? "";
+        if (priorLinkedId === shellId) {
+            const shellRef = getDb().collection("deliveries").doc(shellId);
+            const shellSnap = await shellRef.get();
+            if (!shellSnap.exists) {
+                await shellRef.set((0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, importDoc, now));
+                for (const item of shell.expectedItems) {
+                    await getDb().collection("items").doc(item.id).set(item, { merge: true });
+                }
+            }
+            else {
+                await shellRef.update((0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, importDoc, now));
+                for (const item of shell.expectedItems) {
+                    await getDb().collection("items").doc(item.id).set(item, { merge: true });
+                }
+            }
+            return {
+                vendorInvoiceImportId: importId,
+                reviewStatus: "approved",
+                deliveryOrderId: shellId,
+                itemsApplied: shell.expectedItems.length,
+                shellCreated: !shellSnap.exists,
+                relinked: false,
+            };
         }
-        const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);
-        const deliverySnap = await deliveryRef.get();
-        if (!deliverySnap.exists) {
-            throw new https_1.HttpsError("not-found", "Target delivery not found.");
-        }
-        const delivery = deliverySnap.data();
-        const jobId = typeof delivery.jobId === "string" ? delivery.jobId : "";
-        if (!jobId) {
-            throw new https_1.HttpsError("failed-precondition", "Delivery missing jobId.");
-        }
-        const linkContext = buildDeliveryLinkContext(importDoc, importId, deliveryOrderId, jobId);
-        const priorNotes = typeof delivery.notes === "string" ? delivery.notes : "";
-        const notes = priorNotes.includes(linkContext.evidenceNote)
-            ? priorNotes
-            : priorNotes
-                ? `${priorNotes}\n${linkContext.evidenceNote}`
-                : linkContext.evidenceNote;
         await getDb().runTransaction(async (tx) => {
             const freshImport = await tx.get(importRef);
             if (!freshImport.exists) {
@@ -175,41 +162,53 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             }
             const fresh = freshImport.data();
             if (fresh.reviewStatus !== "approved") {
-                throw new https_1.HttpsError("failed-precondition", "Only approved imports can be linked to a delivery.");
-            }
-            if (fresh.linkedDeliveryOrderId?.trim()) {
-                throw new https_1.HttpsError("failed-precondition", "Import is already linked to a delivery.");
+                throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a separate delivery.");
             }
             if (fresh.importStatus === "issue") {
-                throw new https_1.HttpsError("failed-precondition", "Cannot link — import has parse issues.");
+                throw new https_1.HttpsError("failed-precondition", "Cannot create separate delivery — import has parse issues.");
             }
-            tx.update(importRef, {
-                linkedDeliveryOrderId: deliveryOrderId,
-                updatedAt: now,
-                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("link", uid, now, eligibilityFromDoc(fresh), deliveryOrderId)),
-            });
-            tx.update(deliveryRef, {
-                vendorInvoiceImportId: importId,
-                invoiceImportStatus: importDoc.importStatus,
-                ...(linkContext.vendorInvoiceNumber
-                    ? { vendorInvoiceNumber: linkContext.vendorInvoiceNumber }
-                    : {}),
-                ...(linkContext.vendorOrderNumber
-                    ? { vendorOrderNumber: linkContext.vendorOrderNumber }
-                    : {}),
-                ...(linkContext.customerPo ? { customerPoOrReference: linkContext.customerPo } : {}),
-                notes,
-                updatedAt: now,
-            });
-            for (const item of linkContext.expectedItems) {
+            const freshLinked = fresh.linkedDeliveryOrderId?.trim() ?? "";
+            if (freshLinked === shellId) {
+                return;
+            }
+            const shellRef = getDb().collection("deliveries").doc(shellId);
+            const oldRef = freshLinked && freshLinked !== shellId
+                ? getDb().collection("deliveries").doc(freshLinked)
+                : null;
+            // All reads before writes (Firestore transaction rule).
+            const shellSnap = await tx.get(shellRef);
+            const oldSnap = oldRef ? await tx.get(oldRef) : null;
+            if (!shellSnap.exists) {
+                tx.set(shellRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+            }
+            else {
+                tx.update(shellRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
+            }
+            for (const item of shell.expectedItems) {
                 tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
             }
+            if (oldRef && oldSnap?.exists) {
+                const oldData = oldSnap.data();
+                if (oldData.vendorInvoiceImportId?.trim() === importId) {
+                    tx.update(oldRef, {
+                        vendorInvoiceImportId: firestore_1.FieldValue.delete(),
+                        updatedAt: now,
+                    });
+                }
+            }
+            tx.update(importRef, {
+                linkedDeliveryOrderId: shellId,
+                updatedAt: now,
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("relink_to_shell", uid, now, eligibilityFromDoc(fresh), shellId)),
+            });
         });
         return {
             vendorInvoiceImportId: importId,
             reviewStatus: "approved",
-            deliveryOrderId,
-            itemsApplied: linkContext.expectedItems.length,
+            deliveryOrderId: shellId,
+            itemsApplied: shell.expectedItems.length,
+            shellCreated: true,
+            relinked: priorLinkedId !== "" && priorLinkedId !== shellId,
         };
     }
     if (action === "create_shell") {
@@ -323,102 +322,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             jobCreated: shell.jobCreated,
         };
     }
-    if (!deliveryOrderId) {
-        const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
-        const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
-        await getDb().runTransaction(async (tx) => {
-            const freshImport = await tx.get(importRef);
-            if (!freshImport.exists) {
-                throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
-            }
-            const fresh = freshImport.data();
-            if (!canApproveReviewStatus(fresh.reviewStatus)) {
-                throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
-            }
-            if (fresh.importStatus === "issue") {
-                throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
-            }
-            const linkedId = fresh.linkedDeliveryOrderId?.trim();
-            if (linkedId) {
-                const linkedDeliveryRef = getDb().collection("deliveries").doc(linkedId);
-                const linkedDeliverySnap = await tx.get(linkedDeliveryRef);
-                if (linkedDeliverySnap.exists) {
-                    const linkedData = linkedDeliverySnap.data();
-                    if (!linkedData.vendorInvoiceImportId?.trim()) {
-                        tx.update(linkedDeliveryRef, {
-                            vendorInvoiceImportId: importId,
-                            invoiceImportStatus: fresh.importStatus,
-                            updatedAt: now,
-                        });
-                    }
-                }
-                tx.update(importRef, {
-                    reviewStatus: "approved",
-                    approvedAt: now,
-                    approvedBy: uid,
-                    rejectedAt: firestore_1.FieldValue.delete(),
-                    rejectedBy: firestore_1.FieldValue.delete(),
-                    updatedAt: now,
-                    importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), linkedId)),
-                });
-                return;
-            }
-            const existingDelivery = await tx.get(deliveryRef);
-            const shellWasNew = !existingDelivery.exists;
-            if (shellWasNew) {
-                tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
-            }
-            else {
-                const existingData = existingDelivery.data();
-                const isInvoiceShellSlot = shell.deliveryOrderId === deliveryRef.id ||
-                    existingData.createdFromInvoiceImport === true ||
-                    !existingData.vendorInvoiceImportId?.trim();
-                if (isInvoiceShellSlot) {
-                    tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
-                }
-            }
-            for (const item of shell.expectedItems) {
-                tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
-            }
-            tx.update(importRef, {
-                reviewStatus: "approved",
-                linkedDeliveryOrderId: shell.deliveryOrderId,
-                approvedAt: now,
-                approvedBy: uid,
-                rejectedAt: firestore_1.FieldValue.delete(),
-                rejectedBy: firestore_1.FieldValue.delete(),
-                updatedAt: now,
-                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
-            });
-        });
-        const linkedDeliveryOrderId = importDoc.linkedDeliveryOrderId?.trim() || shell.deliveryOrderId;
-        const hadExistingLink = Boolean(importDoc.linkedDeliveryOrderId?.trim());
-        return {
-            vendorInvoiceImportId: importId,
-            reviewStatus: "approved",
-            deliveryOrderId: linkedDeliveryOrderId,
-            itemsApplied: shell.expectedItems.length,
-            shellCreated: !hadExistingLink,
-            jobCreated: shell.jobCreated,
-        };
-    }
-    const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);
-    const deliverySnap = await deliveryRef.get();
-    if (!deliverySnap.exists) {
-        throw new https_1.HttpsError("not-found", "Target delivery not found.");
-    }
-    const delivery = deliverySnap.data();
-    const jobId = typeof delivery.jobId === "string" ? delivery.jobId : "";
-    if (!jobId) {
-        throw new https_1.HttpsError("failed-precondition", "Delivery missing jobId.");
-    }
-    const linkContext = buildDeliveryLinkContext(importDoc, importId, deliveryOrderId, jobId);
-    const priorNotes = typeof delivery.notes === "string" ? delivery.notes : "";
-    const notes = priorNotes.includes(linkContext.evidenceNote)
-        ? priorNotes
-        : priorNotes
-            ? `${priorNotes}\n${linkContext.evidenceNote}`
-            : linkContext.evidenceNote;
+    // Approve — always create/ensure this import's shell delivery.
+    const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+    const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
     await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -431,38 +337,34 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         if (fresh.importStatus === "issue") {
             throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
         }
+        const existingDelivery = await tx.get(deliveryRef);
+        if (!existingDelivery.exists) {
+            tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+        }
+        else {
+            tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
+        }
+        for (const item of shell.expectedItems) {
+            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+        }
         tx.update(importRef, {
             reviewStatus: "approved",
-            linkedDeliveryOrderId: deliveryOrderId,
+            linkedDeliveryOrderId: shell.deliveryOrderId,
             approvedAt: now,
             approvedBy: uid,
             rejectedAt: firestore_1.FieldValue.delete(),
             rejectedBy: firestore_1.FieldValue.delete(),
             updatedAt: now,
-            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), deliveryOrderId)),
+            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
         });
-        tx.update(deliveryRef, {
-            vendorInvoiceImportId: importId,
-            invoiceImportStatus: importDoc.importStatus,
-            ...(linkContext.vendorInvoiceNumber
-                ? { vendorInvoiceNumber: linkContext.vendorInvoiceNumber }
-                : {}),
-            ...(linkContext.vendorOrderNumber
-                ? { vendorOrderNumber: linkContext.vendorOrderNumber }
-                : {}),
-            ...(linkContext.customerPo ? { customerPoOrReference: linkContext.customerPo } : {}),
-            notes,
-            updatedAt: now,
-        });
-        for (const item of linkContext.expectedItems) {
-            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
-        }
     });
     return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
-        deliveryOrderId,
-        itemsApplied: linkContext.expectedItems.length,
+        deliveryOrderId: shell.deliveryOrderId,
+        itemsApplied: shell.expectedItems.length,
+        shellCreated: true,
+        jobCreated: shell.jobCreated,
     };
 });
 //# sourceMappingURL=approveVendorInvoiceImport.js.map

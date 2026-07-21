@@ -521,7 +521,7 @@
         "invoice match UI",
         "claiming approve fixed"
       ],
-      "warning": "Invoice approve: (1) Identity is OR — vendorOrderNumber OR customerPo; do NOT hard-require S/O alone when parser left SO empty (symptom: Invoice header missing vendorOrderNumber). (2) Match auto-fill links an existing delivery → Approve skips create_shell; prod hideSeedDemoRows hides deliveries without vendorInvoiceImportId — linked historical rows look missing until Refresh Now / create_shell stamps the id. (3) Match UI: humanize snake_case, hide (score N), selection = navy not brand RED, Optional Delivery ID must read optional. Gate: test:approve-vendor-invoice-import + verify:invoice-review."
+      "warning": "Invoice approve (D-39): (1) Identity is OR — vendorOrderNumber OR customerPo; do NOT hard-require S/O alone. (2) Approve always creates shell delivery-vii-{importId}; Link removed — approve+deliveryOrderId and action=link are invalid-argument. Shared/non-shell historical links use Create separate delivery (relink_to_shell), not Refresh Now. (3) Same Invoice # across PDF pages = one logical import (First Supply path groups after Invoice-block split). (4) View original PDF returns the full source attachment (not pageIndex as attachment index). (5) Prod hideSeedDemoRows still needs vendorInvoiceImportId on the delivery. Gate: test:approve-vendor-invoice-import + test:invoice-parser + verify:invoice-review."
     },
     {
       "id": "inbound-email",

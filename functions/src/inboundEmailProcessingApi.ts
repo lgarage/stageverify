@@ -195,11 +195,12 @@ export const getVendorInvoicePdf = onCall(
       throw new HttpsError("failed-precondition", "Inbound email has no Gmail message id.");
     }
 
+    // Always return the source/org PDF for the inbound message (full multi-invoice
+    // attachment). pageIndexInBatch is a logical invoice index, not an attachment index.
     const attachments = inbound.pdfAttachments ?? [];
-    const pageIndex = importDoc.pageIndexInBatch ?? 0;
     const attachment =
-      attachments[pageIndex] ??
-      attachments.find((att) => !att.extractError) ??
+      attachments.find((att) => Boolean(att.gmailAttachmentId) && !att.extractError) ??
+      attachments.find((att) => Boolean(att.gmailAttachmentId)) ??
       attachments[0];
     if (!attachment?.gmailAttachmentId) {
       throw new HttpsError(
@@ -234,9 +235,7 @@ export const getVendorInvoicePdf = onCall(
         const message = await fetchGmailMessage(accessToken, gmailMessageId);
         const freshPdfs = findPdfAttachments(message.payload);
         const freshAttachment =
-          freshPdfs[pageIndex] ??
-          freshPdfs.find((pdf) => pdf.attachmentId) ??
-          freshPdfs[0];
+          freshPdfs.find((pdf) => pdf.attachmentId) ?? freshPdfs[0];
         if (!freshAttachment?.attachmentId) {
           throw new HttpsError(
             "unavailable",
