@@ -9,8 +9,10 @@ import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
+  assertDeliveryDrawerOpen,
   ensureAuthenticated,
   loadEnvLocal,
+  openDeliveryDrawerForNavVerify,
 } from "./dispatcherVerifyHelpers.mjs";
 
 const baseUrl =
@@ -241,6 +243,96 @@ async function main() {
       "WARN: no occupied spots to click — drawer click path skipped (env may be empty)",
     );
   }
+
+  // Assign location: dashboard drawer → Staging Map assign mode → Cancel/Exit
+  await page.goto(`${appBase}/#/dispatcher`, {
+    waitUntil: "domcontentloaded",
+  });
+  await openDeliveryDrawerForNavVerify(page);
+  await assertDeliveryDrawerOpen(page);
+  const assignDrawer = page.getByTestId("delivery-detail-drawer");
+  await assignDrawer.waitFor({ state: "visible", timeout: 20000 });
+  await page
+    .getByTestId("delivery-basics-email-vendor")
+    .waitFor({ state: "visible", timeout: 15000 })
+    .catch(() => {});
+  const drawerDeliveryId = await assignDrawer.getAttribute("data-delivery-id");
+  if (!drawerDeliveryId) {
+    throw new Error("Assign flow: drawer missing data-delivery-id");
+  }
+  const assignBasics = page.getByTestId("delivery-basics-assign-location");
+  const assignBannerBtn = page.getByTestId("drawer-staging-location-assign");
+  await assignBasics
+    .waitFor({ state: "visible", timeout: 8000 })
+    .catch(() => {});
+  if ((await assignBasics.count()) > 0) {
+    await assignBasics.click();
+  } else if ((await assignBannerBtn.count()) > 0) {
+    await assignBannerBtn.click();
+  } else {
+    await page.goto(
+      `${appBase}/#/zones?assignDelivery=${encodeURIComponent(drawerDeliveryId)}`,
+      { waitUntil: "domcontentloaded" },
+    );
+  }
+  await page.waitForURL(/assignDelivery=/, { timeout: 15000 });
+  const assignBanner = page.getByTestId("assign-mode-banner");
+  await assignBanner.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="assign-mode-banner"]')
+        ?.getAttribute("data-assign-ready") === "true",
+    undefined,
+    { timeout: 20000 },
+  );
+  await page.getByTestId("shop-floor-map").waitFor({
+    state: "visible",
+    timeout: 15000,
+  });
+  const greenSpots = page.locator(
+    '[data-testid^="shop-spot-"][data-spot-color="green"]',
+  );
+  const greenCount = await greenSpots.count();
+  let pendingOk = false;
+  for (let i = 0; i < Math.min(greenCount, 12); i++) {
+    await page
+      .getByTestId("shop-map-hover-card")
+      .waitFor({ state: "hidden", timeout: 2000 })
+      .catch(() => {});
+    await greenSpots.nth(i).click({ force: true });
+    const pending = page.getByTestId("assign-mode-pending-code");
+    try {
+      await pending.waitFor({ state: "visible", timeout: 2500 });
+      pendingOk = true;
+      break;
+    } catch {
+      // shop-stock / resolve failure — try next available spot
+    }
+  }
+  if (!pendingOk) {
+    const toast = (
+      await page.getByTestId("assign-location-toast").innerText().catch(() => "")
+    ).trim();
+    throw new Error(
+      `Assign flow: no open spot entered pendingConfirm (greenCount=${greenCount}). toast=${toast || "(none)"}`,
+    );
+  }
+  await page.getByTestId("assign-mode-confirm").waitFor({
+    state: "visible",
+    timeout: 5000,
+  });
+  await page.getByTestId("assign-mode-cancel").click();
+  await page
+    .getByTestId("assign-mode-pending-code")
+    .waitFor({ state: "detached", timeout: 5000 })
+    .catch(() => {});
+  await page.getByTestId("assign-mode-exit").click();
+  await page.waitForFunction(
+    () => !window.location.href.includes("assignDelivery="),
+    undefined,
+    { timeout: 10000 },
+  );
 
   // Edit mode: drag persists before save, cancel reverts, code rename on chip, input contrast
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");

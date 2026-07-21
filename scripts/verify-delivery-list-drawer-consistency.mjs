@@ -305,28 +305,22 @@ async function assertStagingLocationBanner(page, record, label, expectVisible) {
 
     await assignBtn.click();
     await page.waitForTimeout(800);
-    const assignment = page.getByTestId("staging-location-assignment");
-    await assignment.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    const assignmentVisible = await assignment.evaluate((el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.top >= -40 && rect.top < window.innerHeight * 0.9;
-    });
+    const urlAfterAssign = page.url();
     record(
-      `${label} — Assign Location scrolls assignment section into view`,
-      assignmentVisible && (await assignment.count()) > 0,
+      `${label} — Assign Location navigates to Staging Map with assignDelivery`,
+      /assignDelivery=/.test(urlAfterAssign) &&
+        (/\/#\/zones/.test(urlAfterAssign) || /\/zones/.test(urlAfterAssign)),
+      urlAfterAssign,
     );
-    const planned = page.getByTestId("planned-staging-assignment");
-    const focusedCheckbox = await planned
-      .locator('input[type="checkbox"]:not(:disabled)')
-      .first()
-      .evaluate((el) => el === document.activeElement)
-      .catch(() => false);
+    const assignBanner = page.getByTestId("assign-mode-banner");
     record(
-      `${label} — Assign Location focuses planned staging checkbox`,
-      focusedCheckbox,
-      `focused=${focusedCheckbox}`,
+      `${label} — assign mode banner visible after Assign Location`,
+      (await assignBanner.count()) > 0,
     );
+    if ((await assignBanner.count()) > 0) {
+      await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
   } else {
     record(
       `${label} — no staging location banner when assigned`,

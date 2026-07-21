@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.104** — One Deliveries row per logical invoice (Approve always shells; Link removed; multi-page same Invoice # coalesced; View original PDF = full source PDF; Create separate delivery for shared links).
+- Last shipped: **v0.0.105** — Assign Location from delivery drawer opens Staging Map assign mode (pick open spot → Confirm/Cancel → merge planned spots; toast only).
 - Active Phase: **Location-first Phase 4 complete** — MVP done; queue empty except blocked away-069.
 - **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

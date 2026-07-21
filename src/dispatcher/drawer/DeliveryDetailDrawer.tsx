@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
   markDeliveryShipped,
@@ -36,6 +37,7 @@ export function DeliveryDetailDrawer({
   onDataChanged,
   onOpenDelivery,
 }: Props) {
+  const navigate = useNavigate();
   const { emailProviderConnected } = useDispatcherPortal();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -422,11 +424,20 @@ export function DeliveryDetailDrawer({
     }
   };
 
+  const handleNavigateToAssignLocation = useCallback(
+    (id: string) => {
+      onClose();
+      navigate(`/zones?assignDelivery=${encodeURIComponent(id)}`);
+    },
+    [navigate, onClose],
+  );
+
   if (!deliveryId) return null;
 
   return (
     <div
       data-testid="delivery-detail-drawer"
+      data-delivery-id={deliveryId}
       style={{
         position: "fixed",
         inset: 0,
@@ -542,6 +553,7 @@ export function DeliveryDetailDrawer({
             }}
             onResolveMaterialIssue={handleResolveMaterialIssue}
             emailProviderConnected={emailProviderConnected}
+            onNavigateToAssignLocation={handleNavigateToAssignLocation}
           />
         </div>
       </div>

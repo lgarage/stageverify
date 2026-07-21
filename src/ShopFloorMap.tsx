@@ -104,6 +104,13 @@ type Props = {
   onPersistLayoutExtras?: (next: ShopMapLayoutExtras) => Promise<void>;
   /** Deactivate zone docs for deleted layout slots after Save. */
   onDeactivateSlots?: (slots: string[]) => Promise<void>;
+  /** Assign-location mode — click open spots to plan staging (mutex with editMode). */
+  assignMode?: boolean;
+  assignDeliveryId?: string;
+  pendingAssignLayoutSlot?: string | null;
+  selfPlannedLayoutSlots?: ReadonlySet<string>;
+  onAssignSpotClick?: (layoutSlot: string) => void;
+  onAssignSpotRefused?: (message: string) => void;
 };
 
 export type ShopFloorMapHandle = {
@@ -281,6 +288,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       onAddSpotToShelf,
       onPersistLayoutExtras,
       onDeactivateSlots,
+      assignMode = false,
+      assignDeliveryId,
+      pendingAssignLayoutSlot = null,
+      selfPlannedLayoutSlots,
+      onAssignSpotClick,
+      onAssignSpotRefused,
     },
     ref,
   ) {
@@ -1873,6 +1886,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       editMode &&
       selectedSlots.length <= 1 &&
       selectedLayoutSlot === layoutSlot;
+    const pendingAssign = assignMode && pendingAssignLayoutSlot === layoutSlot;
+    const selfPlanned =
+      assignMode && selfPlannedLayoutSlots?.has(layoutSlot) === true;
     return (
       <>
         <button
@@ -1899,9 +1915,19 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 }
               : {}),
             ...spotEditChrome(layoutSlot),
+            ...(pendingAssign
+              ? {
+                  outline: "3px solid #ea580c",
+                  outlineOffset: 2,
+                  boxShadow: "0 0 0 2px #fff7ed",
+                }
+              : {}),
+            ...(assignMode && !editMode
+              ? { flexDirection: "column", gap: 1 }
+              : {}),
           }}
-          onMouseEnter={() => !editMode && void onEnter(layoutSlot)}
-          onMouseLeave={() => !editMode && setHover(null)}
+          onMouseEnter={() => !editMode && !assignMode && void onEnter(layoutSlot)}
+          onMouseLeave={() => !editMode && !assignMode && setHover(null)}
           onClick={() => onClickSpot(layoutSlot)}
           onPointerDown={(e) => onSpotPointerDown(e, layoutSlot)}
           onPointerMove={onDragPointerMove}
@@ -1921,6 +1947,22 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           ) : (
             spotLabel
           )}
+          {selfPlanned ? (
+            <span
+              data-testid="map-spot-also-assigned-note"
+              style={{
+                fontSize: 7,
+                fontWeight: 600,
+                lineHeight: 1.1,
+                color: "#9a3412",
+                textAlign: "center",
+                maxWidth: "100%",
+                overflow: "hidden",
+              }}
+            >
+              Also assigned to this job
+            </span>
+          ) : null}
         </button>
         {selected && (
           <span
@@ -2042,6 +2084,29 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         return;
       }
       selectSpotForEdit(layoutSlot);
+      return;
+    }
+    if (assignMode && assignDeliveryId) {
+      if (selfPlannedLayoutSlots?.has(layoutSlot)) {
+        return;
+      }
+      const displayCode = displayCodeForSlot(layoutSlot);
+      const key = normalizeStagingCodeKey(displayCode);
+      const stock = shopStockByCode[key];
+      if (stock) {
+        onAssignSpotRefused?.(
+          `${displayCode} is reserved for shop stock (${stock.stockItemLabel}).`,
+        );
+        return;
+      }
+      const occ = occupancyByZoneCode[key];
+      if (occ && occ.deliveryId !== assignDeliveryId) {
+        onAssignSpotRefused?.(
+          `${displayCode} is assigned to another delivery (${occ.orderNumber}).`,
+        );
+        return;
+      }
+      onAssignSpotClick?.(layoutSlot);
       return;
     }
     const displayCode = displayCodeForSlot(layoutSlot);

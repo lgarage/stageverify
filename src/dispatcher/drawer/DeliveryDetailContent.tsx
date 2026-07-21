@@ -532,6 +532,7 @@ export function DetailContent({
   onDeliveryOrderUpdated,
   onResolveMaterialIssue,
   emailProviderConnected,
+  onNavigateToAssignLocation,
 }: {
   loading: boolean;
   error: string | null;
@@ -567,6 +568,7 @@ export function DetailContent({
     resolutionNote: string,
   ) => Promise<void>;
   emailProviderConnected: boolean;
+  onNavigateToAssignLocation?: (deliveryId: string) => void;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
   const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
@@ -811,6 +813,18 @@ export function DetailContent({
   };
   const linkedInvoiceImportId = delivery.vendorInvoiceImportId?.trim() ?? "";
   const shopStagingRequired = !isInvoiceShellNoShopStaging(delivery);
+  const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
+  const actualStagingCodes = formatActualStagingCodes(delivery, locById);
+  const plannedStagingCodes = formatPlannedStagingCodes(delivery, locById);
+  const hasStagingCodesDisplay =
+    Boolean(actualStagingCodes) ||
+    (plannedStagingCodes !== "—" && plannedStagingCodes.length > 0);
+
+  const handleAssignLocationNavigate = () => {
+    if (onNavigateToAssignLocation) {
+      onNavigateToAssignLocation(delivery.id);
+    }
+  };
 
   const openLinkedInvoiceInspect = async () => {
     if (!linkedInvoiceImportId) return;
@@ -936,25 +950,44 @@ export function DetailContent({
                 },
                 {
                   label: "Staging",
-                  value: details.stagingLocation ? (
-                    <>
-                      <span
-                        style={{
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          backgroundColor: "#eef2ff",
-                          padding: "2px 7px",
-                          borderRadius: 4,
-                          color: navy,
-                          border: "1px solid #c7d2fe",
-                        }}
-                      >
-                        {details.stagingLocation.code}
-                      </span>{" "}
-                      <span style={{ color: "#9ca3af", fontSize: 12 }}>
-                        {details.stagingLocation.label}
-                      </span>
-                    </>
+                  value: hasStagingCodesDisplay ? (
+                    <span
+                      data-testid="delivery-basics-staging-codes"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: 4,
+                      }}
+                    >
+                      {actualStagingCodes ? (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontWeight: 800,
+                            fontSize: 16,
+                            color: navy,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {actualStagingCodes}
+                        </span>
+                      ) : null}
+                      {plannedStagingCodes !== "—" ? (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontWeight: actualStagingCodes ? 600 : 800,
+                            fontSize: actualStagingCodes ? 13 : 16,
+                            color: actualStagingCodes ? "#c2410c" : navy,
+                          }}
+                        >
+                          {actualStagingCodes
+                            ? `Planned: ${plannedStagingCodes}`
+                            : plannedStagingCodes}
+                        </span>
+                      ) : null}
+                    </span>
                   ) : (
                     <span
                       data-testid="delivery-basics-staging-unassigned"
@@ -1011,6 +1044,29 @@ export function DetailContent({
               >
                 Email Vendor
               </button>
+              {shopStagingRequired && onNavigateToAssignLocation ? (
+                <button
+                  type="button"
+                  data-testid="delivery-basics-assign-location"
+                  onClick={handleAssignLocationNavigate}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                    border: "2px solid #ea580c",
+                    backgroundColor: "#ea580c",
+                    color: "#fff",
+                    fontSize: 15,
+                    fontWeight: 800,
+                    letterSpacing: "0.03em",
+                    cursor: "pointer",
+                    fontFamily: font,
+                    boxShadow: "0 2px 8px rgba(234, 88, 12, 0.25)",
+                  }}
+                >
+                  Assign Location
+                </button>
+              ) : null}
               {!emailProviderConnected ? (
                 <p
                   data-testid="delivery-basics-email-vendor-hint"
@@ -1229,20 +1285,11 @@ export function DetailContent({
         {!details.stagingLocation && shopStagingRequired ? (
           <StagingLocationBanner
             font={font}
-            onAssignLocation={() => {
-              const target = document.querySelector(
-                '[data-testid="planned-staging-assignment"]',
-              );
-              if (target instanceof HTMLElement) {
-                target.scrollIntoView({ behavior: "smooth", block: "center" });
-                const firstAvailable = target.querySelector(
-                  'input[type="checkbox"]:not(:disabled)',
-                );
-                if (firstAvailable instanceof HTMLInputElement) {
-                  firstAvailable.focus({ preventScroll: true });
-                }
-              }
-            }}
+            onAssignLocation={
+              onNavigateToAssignLocation
+                ? handleAssignLocationNavigate
+                : () => {}
+            }
           />
         ) : null}
         <DrawerActionBanner

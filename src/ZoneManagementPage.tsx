@@ -7,8 +7,9 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react";
-import type { LocationStatus, StagingLocation, ShopStockLocationMapping } from "./dispatcher/models";
-import { isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
+import { useLocation, useNavigate } from "react-router-dom";
+import type { LocationStatus, StagingLocation, ShopStockLocationMapping, DeliveryDetails } from "./dispatcher/models";
+import { getAllStagingLocationIds, isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
 import {
   formatStagingCodeCanonical,
   normalizeStagingCodeKey,
@@ -22,8 +23,10 @@ import {
   listShopStockMappings,
   getAppSettings,
   updateAppSettings,
+  firestoreDataService,
   type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
+import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { mapActiveShopStockReservationsByCode } from "./dispatcher/shopStockMapping";
 import {
   buildZoneEslQrUrl,
@@ -45,6 +48,7 @@ import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupan
 import {
   SHOP_MAP_GROUND_SPOT_H,
   SHOP_MAP_GROUND_SPOT_W,
+  allShopMapSpotCodes,
   defaultLabelForSpotCode,
   inferSpotZoneType,
   nextGroundSpotCode,
@@ -256,6 +260,13 @@ function typeBadgeStyle(type: ZoneType): CSSProperties {
 }
 
 export function ZoneManagementPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const assignDeliveryId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("assignDelivery")?.trim() || null;
+  }, [location.search]);
+
   const lastRefreshGeneration = useRef(0);
   const {
     refreshBusy,
@@ -290,6 +301,61 @@ export function ZoneManagementPage() {
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
   const liveOccupancy = useLiveZoneOccupancy(true);
+  const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
+    null,
+  );
+  const [pendingAssignSpot, setPendingAssignSpot] = useState<{
+    layoutSlot: string;
+    zoneId: string;
+    code: string;
+  } | null>(null);
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [assignToast, setAssignToast] = useState<string | null>(null);
+
+  const assignMode = Boolean(assignDeliveryId) && !mapEditMode;
+  /** Spots render from layout before Firestore zones hydrate — block picks until both are ready. */
+  const assignReady =
+    assignMode && zones.length > 0 && assignDetails !== null;
+
+  const exitAssignMode = useCallback(() => {
+    setPendingAssignSpot(null);
+    const params = new URLSearchParams(location.search);
+    params.delete("assignDelivery");
+    const search = params.toString();
+    navigate(
+      { pathname: "/zones", search: search ? `?${search}` : "" },
+      { replace: true },
+    );
+  }, [location.search, navigate]);
+
+  useEffect(() => {
+    setPendingAssignSpot(null);
+    if (!assignDeliveryId || mapEditMode) {
+      if (!assignDeliveryId) {
+        setAssignDetails(null);
+      }
+      return;
+    }
+    let cancelled = false;
+    setAssignDetails(null);
+    void firestoreDataService
+      .getDeliveryDetails(assignDeliveryId)
+      .then((detail) => {
+        if (!cancelled) setAssignDetails(detail);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignDetails(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignDeliveryId, mapEditMode]);
+
+  useEffect(() => {
+    if (mapEditMode && assignDeliveryId) {
+      exitAssignMode();
+    }
+  }, [mapEditMode, assignDeliveryId, exitAssignMode]);
 
   const mapLayout = useMemo(
     () => resolveShopMapLayout(layoutExtras),
@@ -540,6 +606,143 @@ export function ZoneManagementPage() {
     }
   }, [zonesSnapshot, refreshGeneration, loadZones]);
 
+  const selfPlannedLayoutSlots = useMemo(() => {
+    const slots = new Set<string>();
+    if (!assignDetails) return slots;
+    const plannedIds = new Set([
+      ...(assignDetails.delivery.plannedStagingLocationIds ?? []),
+      ...getAllStagingLocationIds(assignDetails.delivery),
+    ]);
+    for (const layoutSlot of allShopMapSpotCodes(mapLayout)) {
+      const key = normalizeStagingCodeKey(layoutSlot);
+      const zone =
+        zonesByLayoutSlot[key] ??
+        zones.find(
+          (z) =>
+            normalizeStagingCodeKey(z.code) === key ||
+            (z.mapLayoutSlot &&
+              normalizeStagingCodeKey(z.mapLayoutSlot) === key),
+        );
+      if (zone && plannedIds.has(zone.id)) {
+        slots.add(layoutSlot);
+      }
+    }
+    return slots;
+  }, [assignDetails, mapLayout, zones, zonesByLayoutSlot]);
+
+  const zoneForLayoutSlot = useCallback(
+    (layoutSlot: string): StagingLocation | undefined => {
+      const key = normalizeStagingCodeKey(layoutSlot);
+      return (
+        zonesByLayoutSlot[key] ??
+        zonesByLayoutSlot[layoutSlot] ??
+        zones.find(
+          (z) =>
+            normalizeStagingCodeKey(z.code) === key ||
+            (z.mapLayoutSlot &&
+              normalizeStagingCodeKey(z.mapLayoutSlot) === key),
+        )
+      );
+    },
+    [zones, zonesByLayoutSlot],
+  );
+
+  const displayCodeForLayoutSlot = useCallback(
+    (layoutSlot: string): string => {
+      const zone = zoneForLayoutSlot(layoutSlot);
+      return zone?.code ?? formatStagingCodeCanonical(layoutSlot);
+    },
+    [zoneForLayoutSlot],
+  );
+
+  const showAssignToast = useCallback((message: string) => {
+    setAssignToast(message);
+    window.setTimeout(() => setAssignToast(null), 3500);
+  }, []);
+
+  const handleAssignSpotClick = useCallback(
+    (layoutSlot: string) => {
+      if (!assignDeliveryId) return;
+      const zone = zoneForLayoutSlot(layoutSlot);
+      if (!zone?.id) {
+        showAssignToast("Could not resolve that spot — try another.");
+        return;
+      }
+      const code = displayCodeForLayoutSlot(layoutSlot);
+      // Set stores raw layoutSlot keys from allShopMapSpotCodes (same as ShopFloorMap).
+      if (selfPlannedLayoutSlots.has(layoutSlot)) {
+        return;
+      }
+      setPendingAssignSpot({ layoutSlot, zoneId: zone.id, code });
+    },
+    [
+      assignDeliveryId,
+      displayCodeForLayoutSlot,
+      selfPlannedLayoutSlots,
+      showAssignToast,
+      zoneForLayoutSlot,
+    ],
+  );
+
+  const handleAssignConfirm = useCallback(async () => {
+    if (!assignDeliveryId || !pendingAssignSpot || !assignDetails || assignSaving) {
+      return;
+    }
+    setAssignSaving(true);
+    try {
+      const existing = assignDetails.delivery.plannedStagingLocationIds ?? [];
+      const merged = [...new Set([...existing, pendingAssignSpot.zoneId])];
+      const updated = await firestoreDataService.updatePlannedStagingLocations(
+        assignDeliveryId,
+        merged,
+      );
+      if (updated) {
+        setAssignDetails(updated);
+        const jobLabel =
+          updated.job?.jobNumber ??
+          resolveDeliveryPoNumber(
+            updated.delivery.customerPoOrReference,
+            updated.purchaseOrder?.poNumber,
+          ) ??
+          updated.delivery.orderNumber;
+        showAssignToast(
+          `${pendingAssignSpot.code} planned for ${jobLabel}`,
+        );
+        setPendingAssignSpot(null);
+        await loadZones();
+      } else {
+        showAssignToast("Failed to save planned location.");
+      }
+    } catch {
+      showAssignToast("Failed to save planned location.");
+    } finally {
+      setAssignSaving(false);
+    }
+  }, [
+    assignDeliveryId,
+    assignDetails,
+    assignSaving,
+    loadZones,
+    pendingAssignSpot,
+    showAssignToast,
+  ]);
+
+  const assignIdentityLabel = useMemo(() => {
+    if (!assignDetails) return "this delivery";
+    const po = resolveDeliveryPoNumber(
+      assignDetails.delivery.customerPoOrReference,
+      assignDetails.purchaseOrder?.poNumber,
+    );
+    if (assignDetails.job?.jobNumber) {
+      return po
+        ? `${assignDetails.job.jobNumber} / PO ${po}`
+        : assignDetails.job.jobNumber;
+    }
+    return po ?? assignDetails.delivery.orderNumber;
+  }, [assignDetails]);
+
+  const pendingAssignLayoutSlot = pendingAssignSpot?.layoutSlot ?? null;
+
   const visibleZones = useMemo(
     () => (showInactive ? zones : zones.filter(isLocationActive)),
     [zones, showInactive],
@@ -759,6 +962,10 @@ export function ZoneManagementPage() {
                       setSelectedDeliveryId(null);
                       setMapEditMode(false);
                     })();
+                  } else if (assignMode) {
+                    showAssignToast(
+                      "Exit assign mode before editing map locations.",
+                    );
                   } else {
                     setMapEditMode(true);
                   }
@@ -813,6 +1020,148 @@ export function ZoneManagementPage() {
             </div>
           )}
 
+          {assignToast ? (
+            <div
+              data-testid="assign-location-toast"
+              role="status"
+              style={{
+                ...cardStyle,
+                padding: "12px 16px",
+                backgroundColor: "#ecfdf5",
+                borderColor: "#86efac",
+                color: "#166534",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {assignToast}
+            </div>
+          ) : null}
+
+          {assignMode ? (
+            <div
+              data-testid="assign-mode-banner"
+              data-assign-ready={assignReady ? "true" : "false"}
+              style={{
+                ...cardStyle,
+                position: "sticky",
+                top: 0,
+                zIndex: 20,
+                padding: "14px 18px",
+                border: "2px solid #ea580c",
+                backgroundColor: "#fff7ed",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 200 }}>
+                {pendingAssignSpot ? (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "#9a3412",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Assign {assignIdentityLabel} to{" "}
+                    <strong
+                      data-testid="assign-mode-pending-code"
+                      style={{ fontFamily: "monospace", fontSize: 20 }}
+                    >
+                      {pendingAssignSpot.code}
+                    </strong>
+                    ?
+                  </p>
+                ) : (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "#9a3412",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {assignReady
+                      ? "Click an open spot to assign "
+                      : "Loading job and spots for "}
+                    <span style={{ fontFamily: "monospace" }}>
+                      {assignIdentityLabel}
+                    </span>
+                  </p>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {pendingAssignSpot ? (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="assign-mode-confirm"
+                      disabled={assignSaving}
+                      onClick={() => void handleAssignConfirm()}
+                      style={{
+                        padding: "10px 18px",
+                        borderRadius: 6,
+                        border: "none",
+                        backgroundColor: assignSaving ? "#fdba74" : "#ea580c",
+                        color: "#fff",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        cursor: assignSaving ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {assignSaving ? "Saving…" : "Confirm"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="assign-mode-cancel"
+                      disabled={assignSaving}
+                      onClick={() => setPendingAssignSpot(null)}
+                      style={{
+                        padding: "10px 18px",
+                        borderRadius: 6,
+                        border: "1.5px solid #ea580c",
+                        backgroundColor: "#fff",
+                        color: "#9a3412",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        cursor: assignSaving ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  data-testid="assign-mode-exit"
+                  aria-label="Exit assign mode"
+                  onClick={exitAssignMode}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 6,
+                    border: "1.5px solid #ccd0d7",
+                    backgroundColor: "#fff",
+                    color: "#6b7280",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="shop-floor-map-host" style={{ ...cardStyle, padding: 16 }}>
             <ShopFloorMap
               ref={mapRef}
@@ -837,6 +1186,12 @@ export function ZoneManagementPage() {
               onAddSpotToShelf={handleAddSpotToShelf}
               onPersistLayoutExtras={persistLayoutExtras}
               onDeactivateSlots={handleDeactivateSlots}
+              assignMode={assignReady}
+              assignDeliveryId={assignDeliveryId ?? undefined}
+              pendingAssignLayoutSlot={pendingAssignLayoutSlot}
+              selfPlannedLayoutSlots={selfPlannedLayoutSlots}
+              onAssignSpotClick={handleAssignSpotClick}
+              onAssignSpotRefused={showAssignToast}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
