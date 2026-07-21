@@ -53,3 +53,5 @@
 {"date":"2026-07-20","role":"ship","verdict":"PASS","taskId":"bcaef2f9-5d8e-46a0-9afe-7290ce871040","model":"grok-4.5-fast-xhigh","real":"na","note":""}
 {"date":"2026-07-21","role":"security","verdict":"PASS","taskId":"afd3af02-752e-4cbf-8a15-ee32929b67bb","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
 {"date":"2026-07-21","role":"ship","verdict":"PASS","taskId":"799a8719-dd6f-41dd-9f46-291d9ea18bf5","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-21","role":"security","verdict":"PASS","taskId":"0d4f0118-cca6-4ef9-9d19-ab237a8370f3","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
+{"date":"2026-07-21","role":"ship","verdict":"PASS","taskId":"8fda9528-ef47-47bf-977f-9bdcfe6123e8","model":"grok-4.5-fast-xhigh","real":"na","note":""}
