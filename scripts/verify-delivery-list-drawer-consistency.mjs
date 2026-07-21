@@ -331,17 +331,24 @@ async function assertStagingLocationBanner(page, record, label, expectVisible) {
 }
 
 async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned) {
+  const heading = page.getByTestId("delivery-basics-staging-locations-heading");
+  record(
+    `${label} — Delivery Basics shows Staging Locations heading`,
+    (await heading.count()) > 0 &&
+      (await heading.innerText()).trim().toUpperCase() === "STAGING LOCATIONS",
+  );
   const unassigned = page.getByTestId("delivery-basics-staging-unassigned");
   if (expectUnassigned) {
     record(
-      `${label} — Delivery Basics shows Staging: Not Assigned`,
+      `${label} — Delivery Basics shows Staging Locations: Not Assigned`,
       (await unassigned.count()) > 0 &&
         (await unassigned.innerText()).trim() === "Not Assigned",
     );
   } else {
+    const chips = page.locator('[data-testid^="delivery-basics-staging-chip-"]');
     record(
-      `${label} — Delivery Basics shows assigned staging (not unassigned)`,
-      (await unassigned.count()) === 0,
+      `${label} — Delivery Basics shows map-style staging chips`,
+      (await unassigned.count()) === 0 && (await chips.count()) > 0,
     );
   }
 }

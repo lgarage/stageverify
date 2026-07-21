@@ -54,7 +54,9 @@ import {
 import { ReadinessEvidencePanel } from "../email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./DrawerActionBanner";
 import { StagingLocationBanner } from "./StagingLocationBanner";
+import { DrawerStagingLocationChips } from "./DrawerStagingLocationChips";
 import { IssueSummaryPanel } from "./IssueSummaryPanel";
+import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
 import {
   shouldShowPickupSummaryPanel,
   selectTopActivityHistoryEvents,
@@ -606,6 +608,7 @@ export function DetailContent({
   const [inspectImportError, setInspectImportError] = useState<string | null>(null);
   const [drawerEmailModalOpen, setDrawerEmailModalOpen] = useState(false);
   const { vendors: portalVendors } = useDispatcherPortal();
+  const liveOccupancy = useLiveZoneOccupancy(Boolean(details));
 
   useEffect(() => {
     setActivityHistoryExpanded(false);
@@ -813,12 +816,6 @@ export function DetailContent({
   };
   const linkedInvoiceImportId = delivery.vendorInvoiceImportId?.trim() ?? "";
   const shopStagingRequired = !isInvoiceShellNoShopStaging(delivery);
-  const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
-  const actualStagingCodes = formatActualStagingCodes(delivery, locById);
-  const plannedStagingCodes = formatPlannedStagingCodes(delivery, locById);
-  const hasStagingCodesDisplay =
-    Boolean(actualStagingCodes) ||
-    (plannedStagingCodes !== "—" && plannedStagingCodes.length > 0);
 
   const handleAssignLocationNavigate = () => {
     if (onNavigateToAssignLocation) {
@@ -948,55 +945,6 @@ export function DetailContent({
                     </span>
                   ),
                 },
-                {
-                  label: "Staging",
-                  value: hasStagingCodesDisplay ? (
-                    <span
-                      data-testid="delivery-basics-staging-codes"
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-end",
-                        gap: 4,
-                      }}
-                    >
-                      {actualStagingCodes ? (
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: 800,
-                            fontSize: 16,
-                            color: navy,
-                            letterSpacing: "0.02em",
-                          }}
-                        >
-                          {actualStagingCodes}
-                        </span>
-                      ) : null}
-                      {plannedStagingCodes !== "—" ? (
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: actualStagingCodes ? 600 : 800,
-                            fontSize: actualStagingCodes ? 13 : 16,
-                            color: actualStagingCodes ? "#c2410c" : navy,
-                          }}
-                        >
-                          {actualStagingCodes
-                            ? `Planned: ${plannedStagingCodes}`
-                            : plannedStagingCodes}
-                        </span>
-                      ) : null}
-                    </span>
-                  ) : (
-                    <span
-                      data-testid="delivery-basics-staging-unassigned"
-                      style={{ color: "#9ca3af", fontStyle: "italic" }}
-                    >
-                      Not Assigned
-                    </span>
-                  ),
-                },
               ].map(({ label, value }) => (
                 <div
                   key={label}
@@ -1019,6 +967,37 @@ export function DetailContent({
                   <span style={{ color: "#333", textAlign: "right" }}>{value}</span>
                 </div>
               ))}
+              <div
+                data-testid="delivery-basics-staging-locations"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  paddingTop: 4,
+                  borderTop: "1px solid #e5e7eb",
+                }}
+              >
+                <span
+                  data-testid="delivery-basics-staging-locations-heading"
+                  style={{
+                    color: "#6b7280",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Staging Locations
+                </span>
+                <DrawerStagingLocationChips
+                  delivery={delivery}
+                  stagingLocations={stagingLocations}
+                  occupancyByZoneCode={liveOccupancy.occupancyByZoneCode}
+                  shopStockByCode={liveOccupancy.shopStockByCode}
+                  occupancyReady={liveOccupancy.ready}
+                  font={font}
+                />
+              </div>
               <button
                 type="button"
                 data-testid="delivery-basics-email-vendor"

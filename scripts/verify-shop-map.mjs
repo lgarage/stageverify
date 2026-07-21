@@ -256,6 +256,34 @@ async function main() {
     .getByTestId("delivery-basics-email-vendor")
     .waitFor({ state: "visible", timeout: 15000 })
     .catch(() => {});
+  const stagingHeading = page.getByTestId(
+    "delivery-basics-staging-locations-heading",
+  );
+  await stagingHeading.waitFor({ state: "visible", timeout: 10000 });
+  const stagingHeadingText = (await stagingHeading.innerText()).trim();
+  if (stagingHeadingText.toUpperCase() !== "STAGING LOCATIONS") {
+    throw new Error(
+      `Expected Staging Locations heading, got: ${stagingHeadingText}`,
+    );
+  }
+  const stagingChips = page.locator(
+    '[data-testid^="delivery-basics-staging-chip-"]',
+  );
+  const stagingUnassigned = page.getByTestId(
+    "delivery-basics-staging-unassigned",
+  );
+  if ((await stagingChips.count()) > 0) {
+    const chipColor = await stagingChips.first().getAttribute("data-spot-color");
+    if (!chipColor || !/^(green|orange|red|gray)$/.test(chipColor)) {
+      throw new Error(
+        `Staging chip missing map color attribute: ${chipColor ?? "(null)"}`,
+      );
+    }
+  } else if ((await stagingUnassigned.count()) === 0) {
+    throw new Error(
+      "Staging Locations: expected map chips or Not Assigned",
+    );
+  }
   const drawerDeliveryId = await assignDrawer.getAttribute("data-delivery-id");
   if (!drawerDeliveryId) {
     throw new Error("Assign flow: drawer missing data-delivery-id");
