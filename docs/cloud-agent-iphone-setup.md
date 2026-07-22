@@ -55,3 +55,7 @@ Cloud and iPhone Composer sessions read the same `.cursor/rules/` from the repo.
 Repair requests (fix/debug/try again/correct this) follow the same repair loop as desktop — `repair-verifier:` + `fix-verified:` required; Composer never self-closes.
 
 Planning questions ("what's next", "what else can be worked on", ranked options, away planning) follow the same planning verify loop as desktop — `planning-verifier:` + verdict PASS required before present; Composer never self-closes.
+
+## Client ownership + parallel git sync
+
+See **`AGENTS.md` § Client ownership modes**. When Dan declares **parallel** in the conversation, run `npm run session:sync-main` before every substantive action for the rest of that session (sticky mid-conv, not session-start only).
