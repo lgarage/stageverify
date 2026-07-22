@@ -354,6 +354,47 @@ export interface VerifyVendorPinResult {
   expiresAt?: string;
 }
 
+export interface Technician {
+  id: string;
+  name: string;
+  pinCode?: string;
+  pinHash?: string;
+  active?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface VerifyTechnicianPinInput {
+  pin: string;
+  stagingLocationCode: string;
+}
+
+export interface VerifyTechnicianPinResult {
+  success: boolean;
+  message?: string;
+  technicianId?: string;
+  technicianName?: string;
+  sessionToken?: string;
+  expiresAt?: string;
+  scannedStagingLocationCode?: string;
+}
+
+export interface TechnicianReleasedJobSummary {
+  jobId: string;
+  jobName: string;
+  stagingLocationCodes: string[];
+  deliveryCount: number;
+  readyForPickupCount: number;
+}
+
+export interface TechnicianDayRelease {
+  id: string;
+  technicianId: string;
+  releaseDate: string;
+  jobIds: string[];
+  updatedAt?: string;
+}
+
 export interface JobVendorDeliverySummary {
   deliveryId: string;
   orderNumber: string;

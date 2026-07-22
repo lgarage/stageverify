@@ -69,7 +69,8 @@ export async function resolveReceiveZoneLookupClient(
 }
 
 export async function getPickupPortalDataClient(input: {
-  token: string;
+  token?: string;
+  technicianSessionToken?: string;
   jobId: string;
   includeDeliveryId?: string;
 }): Promise<{
@@ -77,6 +78,30 @@ export async function getPickupPortalDataClient(input: {
   stagingLocations: StagingLocation[];
 }> {
   return callCallable("getPickupPortalData", input);
+}
+
+export async function getTechnicianReleasedJobsClient(input: {
+  sessionToken: string;
+}): Promise<{
+  jobs: import("./dispatcher/models").TechnicianReleasedJobSummary[];
+  releaseDate: string;
+  scannedStagingLocationCode: string | null;
+  technicianName: string;
+}> {
+  return callCallable("getTechnicianReleasedJobs", input);
+}
+
+export async function releaseJobsToTechnicianClient(input: {
+  technicianId: string;
+  jobIds: string[];
+  releaseDate?: string;
+}): Promise<{
+  success: boolean;
+  technicianId: string;
+  releaseDate: string;
+  jobIds: string[];
+}> {
+  return callCallable("releaseJobsToTechnician", input);
 }
 
 export async function getVendorStagingOccupancyClient(input: {
@@ -126,7 +151,8 @@ export async function updateVendorDeliveryStatusClient(input: {
 export async function markPickupDeliveryInstalledClient(input: {
   deliveryId: string;
   jobId: string;
-  pickupToken: string;
+  pickupToken?: string;
+  technicianSessionToken?: string;
 }): Promise<{ details: DeliveryDetails | null }> {
   return callCallable("markPickupDeliveryInstalled", input);
 }

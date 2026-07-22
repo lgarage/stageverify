@@ -92,9 +92,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /technicianPinAttempts/{attemptId} {
+      allow read, write: if false;
+    }
+
     // Vendor PIN sessions — CF Admin SDK only; clients hold opaque token locally.
     match /vendorSessions/{sessionId} {
       allow read, write: if false;
+    }
+
+    match /technicianSessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /technicians/{technicianId} {
+      allow read: if isDispatcher();
+      allow create, update: if isDispatcher();
+      allow delete: if false;
+    }
+
+    match /technicianDayReleases/{releaseId} {
+      allow read: if isDispatcher();
+      allow create, update, delete: if false;
     }
 
     // Pickup tokens — CF Admin SDK only; opaque token shown once at generation.

@@ -6,7 +6,7 @@ import {
   type DeliveryDoc,
   type ItemDoc,
 } from "./deliveryReadiness";
-import { asPickupToken, verifyPickupTokenForJob } from "./pickupTokenValidation";
+import { assertPickupAccessForJob } from "./pickupAccessValidation";
 
 function getDb() {
   return admin.firestore();
@@ -35,6 +35,7 @@ interface RecordPickupRequest {
   clientOperationId?: string;
   stagingLocationIds?: string[];
   pickupToken?: string;
+  technicianSessionToken?: string;
 }
 
 interface ShopStockLineRecord {
@@ -146,15 +147,18 @@ export const recordPickupEvent = onCall(
     }
 
     const db = getDb();
+    let technicianIdentityName = technicianName;
     if (!request.auth) {
-      const pickupToken = asPickupToken(data.pickupToken);
-      if (!pickupToken) {
-        throw new HttpsError(
-          "permission-denied",
-          "Pickup token is required for technician pickup.",
-        );
+      const access = await assertPickupAccessForJob(db, jobId, {
+        pickupToken: data.pickupToken,
+        technicianSessionToken: data.technicianSessionToken,
+      });
+      if (
+        access.kind === "technicianSession" &&
+        access.technicianSession?.technicianName
+      ) {
+        technicianIdentityName = access.technicianSession.technicianName;
       }
-      await verifyPickupTokenForJob(db, pickupToken, jobId);
     }
 
     const stagingLocationIds =
@@ -356,7 +360,7 @@ export const recordPickupEvent = onCall(
         id: pickupEventId,
         deliveryOrderId,
         jobId,
-        technicianName,
+        technicianName: technicianIdentityName,
         pickedUpAt: now,
         itemsPickedSummary,
         ...(notes ? { notes } : {}),
@@ -374,7 +378,7 @@ export const recordPickupEvent = onCall(
           fromStatus: delivery.status,
           toStatus: "picked_up",
           actorType: "technician",
-          actorName: technicianName,
+          actorName: technicianIdentityName,
           createdAt: now,
         });
 

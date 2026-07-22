@@ -1,9 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import {
-  asPickupToken,
-  verifyPickupTokenForJob,
-} from "./pickupTokenValidation";
+import { assertPickupAccessForJob } from "./pickupAccessValidation";
 import { hydratePublicDeliveryDetails } from "./deliveryDetailsResponse";
 
 function getDb() {
@@ -14,6 +11,7 @@ interface MarkPickupDeliveryInstalledRequest {
   deliveryId?: string;
   jobId?: string;
   pickupToken?: string;
+  technicianSessionToken?: string;
 }
 
 function asJobId(value: unknown): string | null {
@@ -42,14 +40,20 @@ export const markPickupDeliveryInstalled = onCall(
     const data = (request.data ?? {}) as MarkPickupDeliveryInstalledRequest;
     const deliveryId = asDeliveryId(data.deliveryId);
     const jobId = asJobId(data.jobId);
-    const pickupToken = asPickupToken(data.pickupToken);
 
-    if (!deliveryId || !jobId || !pickupToken) {
+    if (
+      !deliveryId ||
+      !jobId ||
+      (!data.pickupToken && !data.technicianSessionToken)
+    ) {
       throw new HttpsError("invalid-argument", "Invalid pickup link.");
     }
 
     const db = getDb();
-    await verifyPickupTokenForJob(db, pickupToken, jobId);
+    await assertPickupAccessForJob(db, jobId, {
+      pickupToken: data.pickupToken,
+      technicianSessionToken: data.technicianSessionToken,
+    });
 
     const deliveryRef = db.collection("deliveries").doc(deliveryId);
     const deliverySnap = await deliveryRef.get();

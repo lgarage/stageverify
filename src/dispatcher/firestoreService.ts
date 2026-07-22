@@ -52,6 +52,7 @@ import type {
   StagingLocation,
   StatusHistoryEvent,
   Vendor,
+  Technician,
   AppSettings,
   EmailProviderConnection,
   EmailProviderConnectionStatus,
@@ -1267,6 +1268,7 @@ export class FirestoreDataService implements DispatcherDataService {
     clientOperationId?: string,
     stagingLocationIds?: string[],
     pickupToken?: string,
+    technicianSessionToken?: string,
   ): Promise<void> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) {
@@ -1288,6 +1290,7 @@ export class FirestoreDataService implements DispatcherDataService {
       clientOperationId: operationId,
       stagingLocationIds,
       ...(pickupToken ? { pickupToken } : {}),
+      ...(technicianSessionToken ? { technicianSessionToken } : {}),
     });
   }
 
@@ -1295,18 +1298,22 @@ export class FirestoreDataService implements DispatcherDataService {
     deliveryId: string,
     jobId: string,
     pickupCheckedItemIds: string[],
-    pickupToken: string,
+    credentials: { pickupToken?: string; technicianSessionToken?: string },
   ): Promise<void> {
-    const token = pickupToken.trim();
-    if (!token) {
-      throw new Error("pickupToken is required for pickup checklist.");
+    if (!credentials.pickupToken && !credentials.technicianSessionToken) {
+      throw new Error("Pickup credentials are required for pickup checklist.");
     }
     const callable = httpsCallable(functions, "updatePickupChecklist");
     await callable({
       deliveryOrderId: deliveryId,
       jobId,
       pickupCheckedItemIds,
-      pickupToken: token,
+      ...(credentials.pickupToken
+        ? { pickupToken: credentials.pickupToken }
+        : {}),
+      ...(credentials.technicianSessionToken
+        ? { technicianSessionToken: credentials.technicianSessionToken }
+        : {}),
     });
   }
 }
@@ -1923,6 +1930,18 @@ export async function updateVendor(vendor: Vendor): Promise<void> {
   await setDoc(doc(db, "vendors", vendor.id), vendor, { merge: true });
 }
 
+export async function listTechnicians(): Promise<Technician[]> {
+  return fetchAll<Technician>("technicians");
+}
+
+export async function createTechnician(technician: Technician): Promise<void> {
+  await setDoc(doc(db, "technicians", technician.id), technician);
+}
+
+export async function updateTechnician(technician: Technician): Promise<void> {
+  await setDoc(doc(db, "technicians", technician.id), technician, { merge: true });
+}
+
 export async function listShopStockMappings(): Promise<
   ShopStockLocationMapping[]
 > {
@@ -2189,18 +2208,24 @@ export async function listMaterialIssuesForDelivery(
 
 export async function markDeliveryInstalled(
   deliveryId: string,
-  options?: { jobId?: string; pickupToken?: string },
+  options?: {
+    jobId?: string;
+    pickupToken?: string;
+    technicianSessionToken?: string;
+  },
 ): Promise<void> {
   if (!getAuth().currentUser) {
     const jobId = options?.jobId;
     const pickupToken = options?.pickupToken;
-    if (!jobId || !pickupToken) {
+    const technicianSessionToken = options?.technicianSessionToken;
+    if (!jobId || (!pickupToken && !technicianSessionToken)) {
       throw new Error("Pickup link required to mark installed.");
     }
     await markPickupDeliveryInstalledClient({
       deliveryId,
       jobId,
       pickupToken,
+      technicianSessionToken,
     });
     return;
   }

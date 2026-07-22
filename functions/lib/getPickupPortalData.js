@@ -5,6 +5,7 @@ const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const deliveryDetailsResponse_1 = require("./deliveryDetailsResponse");
 const pickupTokenValidation_1 = require("./pickupTokenValidation");
+const pickupAccessValidation_1 = require("./pickupAccessValidation");
 function getDb() {
     return admin.firestore();
 }
@@ -33,11 +34,14 @@ exports.getPickupPortalData = (0, https_1.onCall)({
     const token = (0, pickupTokenValidation_1.asPickupToken)(data.token);
     const jobId = asJobId(data.jobId);
     const includeDeliveryId = asOptionalDeliveryId(data.includeDeliveryId);
-    if (!token || !jobId) {
+    if (!jobId || (!token && !data.technicianSessionToken)) {
         throw new https_1.HttpsError("invalid-argument", "Invalid pickup link.");
     }
     const db = getDb();
-    await (0, pickupTokenValidation_1.verifyPickupTokenForJob)(db, token, jobId);
+    await (0, pickupAccessValidation_1.assertPickupAccessForJob)(db, jobId, {
+        pickupToken: token ?? undefined,
+        technicianSessionToken: data.technicianSessionToken,
+    });
     const deliveriesSnap = await db
         .collection("deliveries")
         .where("jobId", "==", jobId)

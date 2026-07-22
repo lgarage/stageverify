@@ -27,6 +27,16 @@ import type {
   VendorRunDeliverySummary,
 } from "./dispatcher/models";
 import { VendorPinGate } from "./VendorPinGate";
+import { TechnicianPinGate } from "./TechnicianPinGate";
+import {
+  bindTechnicianSessionToJob,
+  clearTechnicianPinSession,
+  getTechnicianSessionToken,
+  isTechnicianPinSessionValid,
+  touchTechnicianPinSession,
+} from "./technicianPinSession";
+import { getTechnicianReleasedJobsClient } from "./phase2CallableClients";
+import type { TechnicianReleasedJobSummary } from "./dispatcher/models";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import {
   bridgeJobSessionToDelivery,
@@ -45,8 +55,17 @@ import { useVendorPinActivity } from "./useVendorPinActivity";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 
-type Step = "loading" | "missing" | "pin" | "list" | "vendor-list" | "hub" | "done";
+type Step =
+  | "loading"
+  | "missing"
+  | "pin"
+  | "list"
+  | "vendor-list"
+  | "tech-list"
+  | "hub"
+  | "done";
 type SessionScope = "job" | "vendor" | null;
+type PinRole = "vendor" | "technician";
 
 interface LocationBranding {
   code: string;
@@ -96,6 +115,12 @@ export function LocationScanPage() {
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
+  const [pinRole, setPinRole] = useState<PinRole>("vendor");
+  const [technicianId, setTechnicianId] = useState<string | null>(null);
+  const [technicianName, setTechnicianName] = useState<string | null>(null);
+  const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
+    [],
+  );
 
   const activeVendorRun = useMemo(() => {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
@@ -304,6 +329,52 @@ export function LocationScanPage() {
     [loadJobDeliveries, loadVendorRunDeliveries],
   );
 
+  const loadTechnicianReleasedJobs = useCallback(
+    async (resolvedTechnicianId: string) => {
+      const token = getTechnicianSessionToken(resolvedTechnicianId);
+      if (!token) {
+        setStep("pin");
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await getTechnicianReleasedJobsClient({
+          sessionToken: token,
+        });
+        setTechnicianId(resolvedTechnicianId);
+        setTechnicianName(result.technicianName);
+        setReleasedJobs(result.jobs);
+        setScannedCode(result.scannedStagingLocationCode);
+        setStep("tech-list");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not load released jobs.",
+        );
+        clearTechnicianPinSession(resolvedTechnicianId);
+        setStep("pin");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const handleTechnicianPinVerified = useCallback(
+    (payload: { technicianId: string; technicianName: string }) => {
+      setTechnicianId(payload.technicianId);
+      setTechnicianName(payload.technicianName);
+      void loadTechnicianReleasedJobs(payload.technicianId);
+    },
+    [loadTechnicianReleasedJobs],
+  );
+
+  const openTechnicianJobPickup = useCallback((jobId: string) => {
+    if (!technicianId) return;
+    bindTechnicianSessionToJob(jobId);
+    window.location.hash = `#/pickup?job=${encodeURIComponent(jobId)}&door=tech`;
+  }, [technicianId]);
+
   const handlePinSessionExpired = useCallback(() => {
     setDeliveryDetails(null);
     setDeliveries([]);
@@ -311,11 +382,15 @@ export function LocationScanPage() {
     setCheckedDeliveryIds(new Set());
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
+    if (technicianId) clearTechnicianPinSession(technicianId);
     setJobId(null);
     setVendorId(null);
+    setTechnicianId(null);
+    setTechnicianName(null);
+    setReleasedJobs([]);
     setSessionScope(null);
     setStep("pin");
-  }, [jobId, vendorId]);
+  }, [jobId, vendorId, technicianId]);
 
   const activityKey =
     deliveryDetails?.delivery.id ?? jobId ?? vendorId ?? locationCode;
@@ -334,6 +409,16 @@ export function LocationScanPage() {
     }, 30_000);
     return () => window.clearInterval(interval);
   }, [vendorId]);
+
+  useEffect(() => {
+    if (!technicianId) return;
+    const interval = window.setInterval(() => {
+      if (isTechnicianPinSessionValid(technicianId)) {
+        touchTechnicianPinSession(technicianId);
+      }
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [technicianId]);
 
   const toggleChecked = (deliveryId: string, enabled: boolean) => {
     if (!enabled) return;
@@ -462,8 +547,12 @@ export function LocationScanPage() {
   const resetFlow = () => {
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
+    if (technicianId) clearTechnicianPinSession(technicianId);
     setJobId(null);
     setVendorId(null);
+    setTechnicianId(null);
+    setTechnicianName(null);
+    setReleasedJobs([]);
     setSessionScope(null);
     setDeliveries([]);
     setVendorRunDeliveries([]);
@@ -511,13 +600,116 @@ export function LocationScanPage() {
             {branding.code}
           </p>
           <p className="text-sm text-text-secondary mt-1">{branding.label}</p>
+          <div className="mt-4 inline-flex rounded-lg border border-border overflow-hidden">
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium ${
+                pinRole === "vendor"
+                  ? "bg-accent-blue text-white"
+                  : "bg-bg-card text-text-secondary"
+              }`}
+              onClick={() => setPinRole("vendor")}
+            >
+              Vendor
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium ${
+                pinRole === "technician"
+                  ? "bg-accent-blue text-white"
+                  : "bg-bg-card text-text-secondary"
+              }`}
+              onClick={() => setPinRole("technician")}
+            >
+              Technician
+            </button>
+          </div>
         </div>
-        <VendorPinGate
-          stagingLocationCode={locationCode}
-          title="Enter Job or Company PIN"
-          subtitle="Job PIN for one job, or company PIN when dispatch enabled multi-site run."
-          onVerified={handlePinVerified}
-        />
+        {pinRole === "vendor" ? (
+          <VendorPinGate
+            stagingLocationCode={locationCode}
+            title="Enter Job or Company PIN"
+            subtitle="Job PIN for one job, or company PIN when dispatch enabled multi-site run."
+            onVerified={handlePinVerified}
+          />
+        ) : (
+          <TechnicianPinGate
+            stagingLocationCode={locationCode}
+            technicianIdForActivity={technicianId ?? undefined}
+            onVerified={handleTechnicianPinVerified}
+            onBack={() => setPinRole("vendor")}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (step === "tech-list" && branding) {
+    return (
+      <div
+        className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden"
+        data-testid="technician-released-jobs"
+      >
+        <div className="shrink-0 px-6 py-4 border-b border-border bg-bg-surface">
+          <p className="text-xs uppercase tracking-widest text-text-secondary">
+            {scannedCode ? `You're at ${scannedCode}` : `Scanned ${branding.code}`}
+            {technicianName ? ` · ${technicianName}` : ""}
+          </p>
+          <h1 className="text-lg font-bold text-text-primary mt-1">
+            Pick up today
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Jobs dispatch released for you — tap to open pickup.
+          </p>
+        </div>
+
+        {error && (
+          <p className="px-6 py-2 text-sm text-accent-red" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {releasedJobs.map((row) => (
+            <button
+              key={row.jobId}
+              type="button"
+              disabled={loading}
+              onClick={() => openTechnicianJobPickup(row.jobId)}
+              className="w-full text-left rounded-xl border border-border bg-bg-surface p-4 active:scale-[0.99] transition-transform"
+              data-testid={`tech-released-job-${row.jobId}`}
+            >
+              <p className="font-semibold text-text-primary">{row.jobName}</p>
+              <p className="text-sm text-text-secondary mt-1">
+                Go to:{" "}
+                {row.stagingLocationCodes.length > 0
+                  ? row.stagingLocationCodes.join(", ")
+                  : "Spots not assigned yet"}
+              </p>
+              <p className="text-xs text-text-secondary mt-1">
+                {row.readyForPickupCount} ready · {row.deliveryCount} deliveries
+              </p>
+            </button>
+          ))}
+          {releasedJobs.length === 0 && (
+            <p
+              className="text-sm text-text-secondary text-center py-8"
+              data-testid="technician-empty-released"
+            >
+              Nothing released for you yet
+            </p>
+          )}
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-border">
+          <button
+            type="button"
+            onClick={resetFlow}
+            className="action-btn action-btn-secondary w-full"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -841,7 +1033,7 @@ export function LocationScanPage() {
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary items-center justify-center px-6">
       <p className="text-sm text-text-secondary">
-        {loading ? "Loading…" : "Technician and management tiers coming soon."}
+        {loading ? "Loading…" : "Select vendor or technician to continue."}
       </p>
     </div>
   );

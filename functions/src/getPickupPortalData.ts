@@ -5,10 +5,8 @@ import {
   PICKUP_PORTAL_DELIVERY_STATUSES,
   PICKUP_PORTAL_NOT_READY_DETAIL_STATUSES,
 } from "./deliveryDetailsResponse";
-import {
-  asPickupToken,
-  verifyPickupTokenForJob,
-} from "./pickupTokenValidation";
+import { asPickupToken } from "./pickupTokenValidation";
+import { assertPickupAccessForJob } from "./pickupAccessValidation";
 
 function getDb() {
   return admin.firestore();
@@ -16,6 +14,7 @@ function getDb() {
 
 interface GetPickupPortalDataRequest {
   token?: string;
+  technicianSessionToken?: string;
   jobId?: string;
   includeDeliveryId?: string;
 }
@@ -48,12 +47,15 @@ export const getPickupPortalData = onCall(
     const jobId = asJobId(data.jobId);
     const includeDeliveryId = asOptionalDeliveryId(data.includeDeliveryId);
 
-    if (!token || !jobId) {
+    if (!jobId || (!token && !data.technicianSessionToken)) {
       throw new HttpsError("invalid-argument", "Invalid pickup link.");
     }
 
     const db = getDb();
-    await verifyPickupTokenForJob(db, token, jobId);
+    await assertPickupAccessForJob(db, jobId, {
+      pickupToken: token ?? undefined,
+      technicianSessionToken: data.technicianSessionToken,
+    });
 
     const deliveriesSnap = await db
       .collection("deliveries")

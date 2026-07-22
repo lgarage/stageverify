@@ -3,11 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
-  loadPickupReadyDeliveriesPublic,
   markDeliveryInstalled,
   reportMaterialIssue,
 } from "./dispatcher/firestoreService";
 import { getPickupPortalDataClient } from "./phase2CallableClients";
+import {
+  getTechnicianSessionForJob,
+} from "./technicianPinSession";
 import {
   getAllStagingLocationIds,
   ISSUE_RESOLUTION_TYPE_LABEL,
@@ -629,14 +631,41 @@ function PickupMaterialIssuePanel({
   );
 }
 
+function hasPickupCredential(input: {
+  pickupToken?: string | null;
+  technicianSessionToken?: string | null;
+}): boolean {
+  return Boolean(input.pickupToken || input.technicianSessionToken);
+}
+
+function pickupPortalDataInput(input: {
+  jobId: string;
+  pickupToken?: string | null;
+  technicianSessionToken?: string | null;
+  includeDeliveryId?: string;
+}) {
+  return {
+    jobId: input.jobId,
+    includeDeliveryId: input.includeDeliveryId,
+    ...(input.pickupToken ? { token: input.pickupToken } : {}),
+    ...(input.technicianSessionToken
+      ? { technicianSessionToken: input.technicianSessionToken }
+      : {}),
+  };
+}
+
 function JobPickupScreen({
   jobId,
   pickupToken = null,
+  technicianSessionToken = null,
+  technicianDisplayName = "Technician",
   highlightDeliveryId = null,
   onStartOver,
 }: {
   jobId: string;
   pickupToken?: string | null;
+  technicianSessionToken?: string | null;
+  technicianDisplayName?: string;
   highlightDeliveryId?: string | null;
   onStartOver: () => void;
 }) {
@@ -688,7 +717,7 @@ function JobPickupScreen({
   checkedRef.current = checked;
 
   const loadJobDeliveries = useCallback(async () => {
-    if (!pickupToken) {
+    if (!hasPickupCredential({ pickupToken, technicianSessionToken })) {
       setError("Invalid or expired pickup link.");
       setLoading(false);
       return;
@@ -700,11 +729,14 @@ function JobPickupScreen({
     try {
       const [settings, portalData] = await Promise.all([
         getAppSettings(),
-        getPickupPortalDataClient({
-          token: pickupToken,
-          jobId,
-          includeDeliveryId: highlightDeliveryId ?? undefined,
-        }),
+        getPickupPortalDataClient(
+          pickupPortalDataInput({
+            jobId,
+            pickupToken,
+            technicianSessionToken,
+            includeDeliveryId: highlightDeliveryId ?? undefined,
+          }),
+        ),
       ]);
       const loaded = portalData.deliveries;
       setAllStagingLocations(portalData.stagingLocations);
@@ -745,19 +777,24 @@ function JobPickupScreen({
     } finally {
       setLoading(false);
     }
-  }, [jobId, highlightDeliveryId, pickupToken]);
+  }, [jobId, highlightDeliveryId, pickupToken, technicianSessionToken]);
 
   const refreshPickupDelivery = useCallback(
     async (deliveryId: string) => {
-      if (!pickupToken) return null;
-      const { deliveries } = await getPickupPortalDataClient({
-        token: pickupToken,
-        jobId,
-        includeDeliveryId: deliveryId,
-      });
+      if (!hasPickupCredential({ pickupToken, technicianSessionToken })) {
+        return null;
+      }
+      const { deliveries } = await getPickupPortalDataClient(
+        pickupPortalDataInput({
+          jobId,
+          pickupToken,
+          technicianSessionToken,
+          includeDeliveryId: deliveryId,
+        }),
+      );
       return deliveries.find((d) => d.delivery.id === deliveryId) ?? null;
     },
-    [jobId, pickupToken],
+    [jobId, pickupToken, technicianSessionToken],
   );
 
   const highlightCard = useCallback((deliveryId: string) => {
@@ -805,12 +842,13 @@ function JobPickupScreen({
       try {
         await firestoreDataService.recordPickupEvent(
           deliveryId,
-          "Technician",
+          technicianDisplayName,
           `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
           undefined,
           pickupToken ?? undefined,
+          technicianSessionToken ?? undefined,
         );
         setChecked((prev) => new Set([...prev, deliveryId]));
         const refreshed = await refreshPickupDelivery(deliveryId);
@@ -833,7 +871,7 @@ function JobPickupScreen({
         });
       }
     },
-    [notes, pickupToken, refreshPickupDelivery],
+    [notes, pickupToken, technicianSessionToken, technicianDisplayName, refreshPickupDelivery],
   );
 
   const handleMarkInstalled = useCallback(async (deliveryId: string) => {
@@ -845,7 +883,11 @@ function JobPickupScreen({
     });
 
     try {
-      await markDeliveryInstalled(deliveryId, { jobId, pickupToken: pickupToken ?? undefined });
+      await markDeliveryInstalled(deliveryId, {
+        jobId,
+        pickupToken: pickupToken ?? undefined,
+        technicianSessionToken: technicianSessionToken ?? undefined,
+      });
       const refreshed = await refreshPickupDelivery(deliveryId);
       if (refreshed) {
         setDeliveries((prev) =>
@@ -868,7 +910,7 @@ function JobPickupScreen({
         return next;
       });
     }
-  }, [jobId, pickupToken, refreshPickupDelivery]);
+  }, [jobId, pickupToken, technicianSessionToken, refreshPickupDelivery]);
 
   const toggleShopStockItem = useCallback((key: string) => {
     setCheckedShopStockKeys((prev) => {
@@ -932,12 +974,13 @@ function JobPickupScreen({
         }
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
-          "Technician",
+          technicianDisplayName,
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
           undefined,
           pickupToken ?? undefined,
+          technicianSessionToken ?? undefined,
         );
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
@@ -948,7 +991,15 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, notes, pickupToken, readyToFinish, submitting]);
+  }, [
+    deliveries,
+    notes,
+    pickupToken,
+    technicianSessionToken,
+    technicianDisplayName,
+    readyToFinish,
+    submitting,
+  ]);
 
   const handleAutoSubmit = useCallback(async () => {
     if (submittedRef.current || submitting) return;
@@ -987,12 +1038,13 @@ function JobPickupScreen({
         }
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
-          "Technician",
+          technicianDisplayName,
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
           undefined,
           pickupToken ?? undefined,
+          technicianSessionToken ?? undefined,
         );
       }
       setChecked(new Set(deliveries.map((d) => d.delivery.id)));
@@ -1003,7 +1055,15 @@ function JobPickupScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [deliveries, notes, pickupToken, submitting, isDeliveryChecklistComplete]);
+  }, [
+    deliveries,
+    notes,
+    pickupToken,
+    technicianSessionToken,
+    technicianDisplayName,
+    submitting,
+    isDeliveryChecklistComplete,
+  ]);
 
   useEffect(() => {
     if (
@@ -1081,7 +1141,7 @@ function JobPickupScreen({
         .map((item) => item.id)
         .filter((id) => nextChecked.has(id));
 
-      if (!pickupToken) return;
+      if (!hasPickupCredential({ pickupToken, technicianSessionToken })) return;
 
       setCheckedItemIds(nextChecked);
       setDeliveries((prev) =>
@@ -1099,12 +1159,10 @@ function JobPickupScreen({
       );
 
       void firestoreDataService
-        .updatePickupChecklist(
-          deliveryId,
-          jobId,
-          nextArray,
-          pickupToken,
-        )
+        .updatePickupChecklist(deliveryId, jobId, nextArray, {
+          pickupToken: pickupToken ?? undefined,
+          technicianSessionToken: technicianSessionToken ?? undefined,
+        })
         .catch(() => {
           setCheckedItemIds(previousChecked);
           setDeliveries((prev) =>
@@ -1122,18 +1180,22 @@ function JobPickupScreen({
           );
         });
     },
-    [checkedItemIds, deliveries, jobId, pickupToken],
+    [checkedItemIds, deliveries, jobId, pickupToken, technicianSessionToken],
   );
 
   const reloadDeliveries = useCallback(async () => {
-    if (!pickupToken) return [];
-    const loaded = await loadPickupReadyDeliveriesPublic(jobId, {
-      pickupToken,
-      includeDeliveryId: highlightDeliveryId ?? undefined,
-    });
+    if (!hasPickupCredential({ pickupToken, technicianSessionToken })) return [];
+    const { deliveries: loaded } = await getPickupPortalDataClient(
+      pickupPortalDataInput({
+        jobId,
+        pickupToken,
+        technicianSessionToken,
+        includeDeliveryId: highlightDeliveryId ?? undefined,
+      }),
+    );
     setDeliveries(loaded);
     return loaded;
-  }, [jobId, highlightDeliveryId, pickupToken]);
+  }, [jobId, highlightDeliveryId, pickupToken, technicianSessionToken]);
 
   const openIssueModal = useCallback((deliveryId: string) => {
     setIssueModalDeliveryId(deliveryId);
@@ -1958,12 +2020,17 @@ export default function PickupPortalPage() {
   const tokenFromUrl = pickupParams.token;
   const deliveryFromUrl = pickupParams.delivery;
   const zoneFromUrl = pickupParams.zone;
+  const techDoor = searchParams.get("door") === "tech";
+  const techSessionForJob =
+    jobIdFromUrl && techDoor
+      ? getTechnicianSessionForJob(jobIdFromUrl)
+      : null;
   const [discoveredJobId, setDiscoveredJobId] = useState<string | null>(null);
   const [tokenResolvedJobId, setTokenResolvedJobId] = useState<string | null>(
     null,
   );
   const [tokenValidating, setTokenValidating] = useState(
-    Boolean(tokenFromUrl && !jobIdFromUrl),
+    Boolean(tokenFromUrl && !jobIdFromUrl && !techDoor),
   );
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [highlightDeliveryId, setHighlightDeliveryId] = useState<
@@ -1979,12 +2046,17 @@ export default function PickupPortalPage() {
   const activeJobId =
     jobIdFromUrl ?? tokenResolvedJobId ?? discoveredJobId;
 
+  const activeTechnicianSession =
+    techDoor && activeJobId
+      ? getTechnicianSessionForJob(activeJobId)
+      : techSessionForJob;
+
   useEffect(() => {
     normalizePickupHash();
   }, []);
 
   useEffect(() => {
-    if (!tokenFromUrl || jobIdFromUrl) return;
+    if (techDoor || !tokenFromUrl || jobIdFromUrl) return;
     let cancelled = false;
     void (async () => {
       setTokenValidating(true);
@@ -2007,7 +2079,7 @@ export default function PickupPortalPage() {
     return () => {
       cancelled = true;
     };
-  }, [tokenFromUrl, jobIdFromUrl]);
+  }, [tokenFromUrl, jobIdFromUrl, techDoor]);
 
   useEffect(() => {
     if (!zoneFromUrl || jobIdFromUrl || tokenFromUrl) return;
@@ -2090,11 +2162,26 @@ export default function PickupPortalPage() {
         <div className="flex flex-1 items-center justify-center text-text-secondary text-sm">
           Loading pickup for zone {zoneFromUrl}…
         </div>
+      ) : techDoor && activeJobId && !activeTechnicianSession ? (
+        <div
+          className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
+          data-testid="pickup-tech-session-error"
+        >
+          <p className="text-accent-red text-sm font-semibold">
+            Technician session expired. Scan a location QR and enter your PIN again.
+          </p>
+        </div>
       ) : activeJobId ? (
         <JobPickupScreen
           key={`${activeJobId}-${highlightDeliveryId ?? "link"}`}
           jobId={activeJobId}
-          pickupToken={tokenFromUrl}
+          pickupToken={techDoor ? null : tokenFromUrl}
+          technicianSessionToken={
+            techDoor ? activeTechnicianSession?.sessionToken ?? null : null
+          }
+          technicianDisplayName={
+            activeTechnicianSession?.technicianName ?? "Technician"
+          }
           highlightDeliveryId={highlightDeliveryId}
           onStartOver={handleStartOver}
         />

@@ -1,9 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import {
-  asPickupToken,
-  verifyPickupTokenForJob,
-} from "./pickupTokenValidation";
+import { assertPickupAccessForJob } from "./pickupAccessValidation";
 
 function getDb() {
   return admin.firestore();
@@ -17,6 +14,7 @@ interface UpdatePickupChecklistRequest {
   jobId?: string;
   pickupCheckedItemIds?: string[];
   pickupToken?: string;
+  technicianSessionToken?: string;
 }
 
 interface DeliveryRecord {
@@ -61,23 +59,25 @@ export const updatePickupChecklist = onCall(
 
     const deliveryOrderId = asNonEmptyString(data.deliveryOrderId, 128);
     const jobId = asNonEmptyString(data.jobId, 128);
-    const pickupToken = asPickupToken(data.pickupToken);
     const pickupCheckedItemIds = asItemIdArray(data.pickupCheckedItemIds);
 
     if (
       !deliveryOrderId ||
       !jobId ||
-      !pickupToken ||
-      pickupCheckedItemIds === null
+      pickupCheckedItemIds === null ||
+      (!data.pickupToken && !data.technicianSessionToken)
     ) {
       throw new HttpsError(
         "invalid-argument",
-        "deliveryOrderId, jobId, pickupCheckedItemIds, and pickupToken are required.",
+        "deliveryOrderId, jobId, pickupCheckedItemIds, and pickup credentials are required.",
       );
     }
 
     const db = getDb();
-    await verifyPickupTokenForJob(db, pickupToken, jobId);
+    await assertPickupAccessForJob(db, jobId, {
+      pickupToken: data.pickupToken,
+      technicianSessionToken: data.technicianSessionToken,
+    });
 
     return db.runTransaction(async (tx) => {
       const deliveryRef = db.collection("deliveries").doc(deliveryOrderId);

@@ -6,9 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.107** — Drawer Staging Locations header + live map-color spot chips (planned/actual).
-- Active Phase: **Location-first Phase 4 complete** — MVP done; queue empty except blocked away-069.
-- **Verify:** `verify:mvp-core-regression:prod` PASS 2026-07-17; `verify:phase14-e2e:prod` PASS 2026-07-17; vendor-delivered leg skipped without STAGEVERIFY_* env.
+- Last shipped: **v0.0.108** — Phase 5 Slice A: technician PIN door on `#/s?loc=`, always-strict day-release, shared JobPickupScreen.
+- Active Phase: **Location-first Phase 5 Slice A shipped** — Slice B (pickup v2 polish) next.
+- **Verify:** `verify:technician-door` / `:prod` after CF deploy; `verify:pickup` unchanged for token door.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -16,7 +16,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Phase 5 (D-40 locked):** Fable work-verifier on Phase 4→5 boundary, then Slice A (any QR → tech PIN → directed spots; always-strict day-release). Spec: `docs/location-first-transition-spec.md` § Phase 5.
+- **Phase 5 Slice B:** pickup verification v2 (per-location confirms, exception flags) per `docs/location-first-transition-spec.md` § Phase 5.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

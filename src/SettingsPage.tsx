@@ -32,6 +32,7 @@ import { portalNavFocus } from "./dispatcherPortalNav";
 import { PortalSidebar } from "./PortalSidebar";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
+import { TechnicianSettingsPanel } from "./TechnicianSettingsPanel";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -1233,6 +1234,8 @@ export function SettingsPage() {
               )}
             </div>
           </div>
+
+          <TechnicianSettingsPanel />
 
           {/* Staging spots */}
           <div style={{ ...cardStyle, overflow: "hidden" }}>

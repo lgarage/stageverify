@@ -4,7 +4,7 @@ exports.recordPickupEvent = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const deliveryReadiness_1 = require("./deliveryReadiness");
-const pickupTokenValidation_1 = require("./pickupTokenValidation");
+const pickupAccessValidation_1 = require("./pickupAccessValidation");
 function getDb() {
     return admin.firestore();
 }
@@ -91,12 +91,16 @@ exports.recordPickupEvent = (0, https_1.onCall)({
         throw new https_1.HttpsError("invalid-argument", "Notes are too long.");
     }
     const db = getDb();
+    let technicianIdentityName = technicianName;
     if (!request.auth) {
-        const pickupToken = (0, pickupTokenValidation_1.asPickupToken)(data.pickupToken);
-        if (!pickupToken) {
-            throw new https_1.HttpsError("permission-denied", "Pickup token is required for technician pickup.");
+        const access = await (0, pickupAccessValidation_1.assertPickupAccessForJob)(db, jobId, {
+            pickupToken: data.pickupToken,
+            technicianSessionToken: data.technicianSessionToken,
+        });
+        if (access.kind === "technicianSession" &&
+            access.technicianSession?.technicianName) {
+            technicianIdentityName = access.technicianSession.technicianName;
         }
-        await (0, pickupTokenValidation_1.verifyPickupTokenForJob)(db, pickupToken, jobId);
     }
     const stagingLocationIds = data.stagingLocationIds === undefined
         ? null
@@ -230,7 +234,7 @@ exports.recordPickupEvent = (0, https_1.onCall)({
             id: pickupEventId,
             deliveryOrderId,
             jobId,
-            technicianName,
+            technicianName: technicianIdentityName,
             pickedUpAt: now,
             itemsPickedSummary,
             ...(notes ? { notes } : {}),
@@ -246,7 +250,7 @@ exports.recordPickupEvent = (0, https_1.onCall)({
                 fromStatus: delivery.status,
                 toStatus: "picked_up",
                 actorType: "technician",
-                actorName: technicianName,
+                actorName: technicianIdentityName,
                 createdAt: now,
             });
             for (const mappingSnap of mappingSnaps) {

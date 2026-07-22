@@ -52,6 +52,9 @@ import { getJobVendorDeliveries } from "./getJobVendorDeliveries";
 import { getVendorRunDeliveries } from "./getVendorRunDeliveries";
 import { markVendorDeliveriesBulk } from "./markVendorDeliveriesBulk";
 import { recordVendorLocationScan } from "./recordVendorLocationScan";
+import { verifyTechnicianPin } from "./verifyTechnicianPin";
+import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
+import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -193,6 +196,9 @@ export {
   getVendorRunDeliveries,
   markVendorDeliveriesBulk,
   recordVendorLocationScan,
+  verifyTechnicianPin,
+  getTechnicianReleasedJobs,
+  releaseJobsToTechnician,
   processInboundVendorEmail,
   initiateGmailOAuth,
   completeGmailOAuth,
