@@ -18,6 +18,9 @@
 ## Immediate Next Step
 - **Phase 5 Slice B:** pickup verification v2 (per-location confirms, exception flags) per `docs/location-first-transition-spec.md` § Phase 5.
 
+## Queued product (deferred)
+- **Phase 6 Slice A — catch-all intake + parcel ID (D-41):** office marks received from packing-slip checkmark at dispatcher-assigned catch-all spot; after Phase 5 Slice A (landed `v0.0.108`) — implement when Slice B queue clears; spec § Phase 6 Slice A.
+
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
 - Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`

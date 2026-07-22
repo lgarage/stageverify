@@ -18,6 +18,8 @@
 > **REVISION (Dan 2026-07-08):** Vendor PIN is now **job-scoped**, not vendor/company-scoped — read **§ Job-scoped vendor PIN (D14)** before implementing Phases 2–4. The original vendor-scoped D3 visibility model is REJECTED.
 >
 > **REVISION (Dan 2026-07-22 — D-40):** Technician door inverted — any location QR is entry-only; after tech PIN show **directed spots to pick up** for day-released jobs (**always-strict**). Supersedes "jobs at the scanned spot" job-picker wording below.
+>
+> **REVISION (Dan 2026-07-22 — D-41):** Phase 6 adds **Slice A — catch-all intake + parcel identification** (door phone out of SV); packing-slip checkmark may **direct mark-received** via gated logged CF — narrow exception to capture/flag-only. Sequenced **after Phase 5 Slice A**; see § Phase 6 Slice A.
 
 | Phase | Name | Status | Started | Completed | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -26,7 +28,7 @@
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `complete` | 2026-07-08 | 2026-07-11 | UI slices (away-113..117); verify hardening (away-118..121); `releasePlannedStagingLocation` CF; `verify:location-phase4` 15/15 local + prod (`v0.0.33`) |
 | 5 | Technician door two + pickup verification v2 | `in_progress` | 2026-07-22 | — | **Slice A v0.0.108:** any QR→PIN→directed spots; always-strict day-release; Sonnet MEDIUM (dispatcher gate fixed pre-deploy) |
-| 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | Sonnet-gated; shared shop PIN; highest-sensitivity surface after Phase 2 |
+| 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | **Slice A (D-41):** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark (after Phase 5 Slice A); **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN) |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
 **Current phase: Phase 5 Slice A shipped (`v0.0.108`) — technician PIN door + day-release + shared JobPickupScreen. Next: Slice B (pickup verification v2 polish).**
@@ -379,16 +381,36 @@ Open pickup checklist:
 
 **Goal:** Enforce "nothing in an SV zone is untracked" — the audit walk replaces the physical cards (D9).
 
+**Sequencing:** **Slice A (D-41)** ships after **Phase 5 Slice A** lands; **Slice B** (audit walk) follows Slice A or in parallel once management PIN infrastructure exists — do not block in-flight Phase 5 Slice B work.
+
+### Slice A — Catch-all intake + parcel identification (D-41)
+
+**Goal:** Replace door-phone parcel handoff — office identifies and receives expected parts at a dispatcher-assigned catch-all spot without dispatcher round-trip.
+
 **Scope:**
 
-1. **Shared management PIN** (Settings, hashed — `managementPinHash`; `managementSessionMinutes`) (D5, D10).
+1. **Door phone out of SV** — no intercom/door-phone product surface; catch-all QR + management PIN is the office intake path.
+2. **Dispatcher setup:** assign a dedicated **catch-all staging location** and enable **parcel intake** for that spot (dispatcher-controlled; not self-service).
+3. **Office flow:** scan catch-all location QR (`#/s?loc=`) → **shared management PIN** (same hash/session model as Slice B) → **jobs waiting for parts** list (expected deliveries not yet received).
+4. **Packing-slip checkmark → direct mark-received:** tapping the checkmark on a matched expected delivery **marks it received** via a **gated, logged CF** — this is the **narrow D-41 exception** to flag-only (not a broad status-edit power; one explicit action per identified parcel).
+5. **Unidentifiable parcel:** explicit capture → **flagged shell** (`reviewFlag` set); **never auto-created from weak signals** (unchanged principle).
+
+**Out of scope (Slice A):** full shop audit walk (Slice B); broad release/reassign; enum changes; door phone.
+
+**Acceptance criteria (Playwright):** catch-all QR + management PIN → waiting-parts list → checkmark → delivery shows received dispatcher-side; unidentifiable path → flagged shell; negative: no broad status edits beyond the checkmark action.
+
+### Slice B — Management audit walk + flag-only resolution
+
+**Scope:**
+
+1. **Shared management PIN** (Settings, hashed — `managementPinHash`; `managementSessionMinutes`) (D5, D10) — shared with Slice A.
 2. **Audit view (mobile-first):** all locations in "(X) G1 – PF-Wausau" style — occupancy mark, code, short contents descriptor; tap → job, vendor, PO, order, expected vs current status, actual locations.
 3. **Resolution actions — ALL via gated CFs, ALL logged:**
    1. **Capture unexpected delivery** — explicit form (vendor, description, location, optional photo) → creates a **FLAGGED shell** (`reviewFlag` set), modeled on the `approveVendorInvoiceImport` pattern; **never auto-created from weak signals**.
    2. **Flag mismatch** — "SV says occupied, spot empty" (or vice versa) → `stagingAuditFlags` entry surfacing on the dispatcher dashboard; management does **NOT** silently release or reassign.
    3. **Mark needs review** — sets the D11 `reviewFlag` on the delivery.
 
-**Out of scope / boundaries:** **NO broad edit powers** for management (D5) — capture/flag only; no direct release/reassign; no status edits; no enum changes.
+**Out of scope / boundaries:** **NO broad edit powers** for management (D5) — capture/flag only **except Slice A packing-slip checkmark direct mark-received (D-41)**; no direct release/reassign; no other status edits; no enum changes.
 
 **Data model:** `AppSettings.managementPinHash` + `managementSessionMinutes`; `stagingAuditFlags` collection (CF-written); flagged shells via `reviewFlag`.
 
@@ -407,7 +429,7 @@ Open pickup checklist:
 
 **Security review requirement:** Sonnet gate **mandatory** (shared PIN on a public wall + shell creation = the highest-sensitivity surface after Phase 2); explicit Dan approval before any rules/CF deploy.
 
-**Drift review requirement:** Resolution stayed narrow (capture/flag only) per D5.
+**Drift review requirement:** Resolution stayed narrow (capture/flag only) per D5 — **except** Slice A packing-slip checkmark direct mark-received (D-41); flag any other management status-edit creep.
 
 ---
 
@@ -459,7 +481,7 @@ Fable 5 reviews each phase's diff summary against this spec **before the next ph
 - **Vendor PIN visibility widening back to vendor/company scope** — any UI or resolver that shows a vendor's other-job orders/spots after PIN violates D14 (§ Job-scoped vendor PIN).
 - Planned/actual conflation.
 - Pickup logic forking between the two doors.
-- Management scope creep beyond capture/flag.
+- Management scope creep beyond capture/flag **except D-41 Slice A packing-slip checkmark direct mark-received**.
 - New status enum values.
 
 ---
@@ -477,7 +499,7 @@ Fable 5 reviews each phase's diff summary against this spec **before the next ph
 
 1. **D11/D12 defaults** (review-flag overlay; derived Reserved state) were adopted without explicit Dan confirmation — open to veto.
 2. **Exact permanent URL path** — **decided Phase 1:** `#/s?loc={code}` (see § Permanent URL scheme). Permanent once signs print.
-3. **Phase 6 "SV occupied / spot empty":** MVP flags for the dispatcher rather than direct management release; escalate later if the flag loop proves too slow.
+3. **Phase 6 "SV occupied / spot empty":** MVP flags for the dispatcher rather than direct management release; escalate later if the flag loop proves too slow. **D-41 exception:** packing-slip checkmark at catch-all may direct mark-received (Slice A only).
 4. **Physical shop map / shelving decision (Jake Korb)** blocks Phase 3 sign *printing*; Phases 1–2 unaffected.
 
 ---
