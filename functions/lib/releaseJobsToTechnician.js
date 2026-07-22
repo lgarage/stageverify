@@ -53,8 +53,8 @@ exports.releaseJobsToTechnician = (0, https_1.onCall)({
     const technicianId = asTechnicianId(data.technicianId);
     const jobIds = asJobIdArray(data.jobIds);
     const releaseDate = asReleaseDate(data.releaseDate) ?? (0, technicianSessionValidation_1.todayReleaseDateUtc)();
-    if (!technicianId || !jobIds) {
-        throw new https_1.HttpsError("invalid-argument", "technicianId and jobIds are required.");
+    if (!technicianId || jobIds === null) {
+        throw new https_1.HttpsError("invalid-argument", "technicianId and jobIds array are required.");
     }
     const techSnap = await getDb()
         .collection("technicians")

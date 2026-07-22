@@ -58,10 +58,10 @@ export const releaseJobsToTechnician = onCall(
     const releaseDate =
       asReleaseDate(data.releaseDate) ?? todayReleaseDateUtc();
 
-    if (!technicianId || !jobIds) {
+    if (!technicianId || jobIds === null) {
       throw new HttpsError(
         "invalid-argument",
-        "technicianId and jobIds are required.",
+        "technicianId and jobIds array are required.",
       );
     }
 

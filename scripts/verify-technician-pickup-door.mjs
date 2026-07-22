@@ -18,7 +18,6 @@ import {
   doc,
   getFirestore,
   setDoc,
-  deleteDoc,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
@@ -87,11 +86,13 @@ async function setupTechnicianDocOnly() {
     active: true,
     createdAt: now,
     updatedAt: now,
+  }).catch((err) => {
+    console.warn("technician doc write:", err?.message ?? err);
   });
 
-  await deleteDoc(
-    doc(db, "technicianDayReleases", `${techId}_${releaseDate}`),
-  ).catch(() => {});
+  const functions = getFunctions(app);
+  const release = httpsCallable(functions, "releaseJobsToTechnician");
+  await release({ technicianId: techId, jobIds: [] });
 
   return { app, releaseDate };
 }
@@ -100,6 +101,14 @@ async function releaseJobForToday(app, jobId) {
   const functions = getFunctions(app);
   const release = httpsCallable(functions, "releaseJobsToTechnician");
   await release({ technicianId: techId, jobIds: [jobId] });
+}
+
+async function openTechnicianPinFlow(page) {
+  await page.goto(`${appBase}/#/s?loc=${encodeURIComponent(locCode)}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.getByRole("button", { name: "Technician" }).click();
 }
 
 async function main() {
@@ -114,11 +123,7 @@ async function main() {
   try {
     const { app } = await setupTechnicianDocOnly();
 
-    await page.goto(`${appBase}/#/s?loc=${encodeURIComponent(locCode)}`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
-    await page.getByRole("button", { name: "Technician" }).click();
+    await openTechnicianPinFlow(page);
     record("technician role toggle", true);
 
     await enterPin(page, techPin.split(""));
@@ -133,10 +138,7 @@ async function main() {
 
     await releaseJobForToday(app, verifyJobId);
 
-    await page.goto(`${appBase}/#/s?loc=${encodeURIComponent(locCode)}`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.getByRole("button", { name: "Technician" }).click();
+    await openTechnicianPinFlow(page);
     await enterPin(page, techPin.split(""));
     await page
       .getByTestId(`tech-released-job-${verifyJobId}`)
