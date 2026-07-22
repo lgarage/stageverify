@@ -16,7 +16,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **Phase 5 (D-40 locked):** Fable work-verifier on Phase 4→5 boundary, then Slice A (any QR → tech PIN → directed spots; always-strict day-release). Spec: `docs/location-first-transition-spec.md` § Phase 5.
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

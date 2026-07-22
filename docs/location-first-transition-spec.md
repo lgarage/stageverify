@@ -16,6 +16,8 @@
 > **Approved next action: Phase 5** (technician door + pickup v2) — **Fable work-verifier** on Phase 4 boundary before implement. Phase 4 prod verify gate closed 2026-07-11 (`v0.0.33`).
 >
 > **REVISION (Dan 2026-07-08):** Vendor PIN is now **job-scoped**, not vendor/company-scoped — read **§ Job-scoped vendor PIN (D14)** before implementing Phases 2–4. The original vendor-scoped D3 visibility model is REJECTED.
+>
+> **REVISION (Dan 2026-07-22 — D-40):** Technician door inverted — any location QR is entry-only; after tech PIN show **directed spots to pick up** for day-released jobs (**always-strict**). Supersedes "jobs at the scanned spot" job-picker wording below.
 
 | Phase | Name | Status | Started | Completed | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -23,11 +25,11 @@
 | 2 | Privacy hardening (backend) | `complete` | 2026-07-08 | 2026-07-08 | Rules auth-only reads; session/token CF mediation; vendorPinVerifier removed; verify:privacy |
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `complete` | 2026-07-08 | 2026-07-11 | UI slices (away-113..117); verify hardening (away-118..121); `releasePlannedStagingLocation` CF; `verify:location-phase4` 15/15 local + prod (`v0.0.33`) |
-| 5 | Technician door two + pickup verification v2 | `not_started` | — | — | **Fable work-verifier** gate before implement; Sonnet-gated; per-tech PINs |
+| 5 | Technician door two + pickup verification v2 | `not_started` | — | — | **D-40:** any QR→PIN→directed spots; always-strict day-release; Fable work-verifier then Sonnet-gated |
 | 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | Sonnet-gated; shared shop PIN; highest-sensitivity surface after Phase 2 |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
-**Current phase: Phase 4 — complete (prod verify gate closed `v0.0.33`). Next action: Phase 5 — dispatch Fable work-verifier, then implement per spec.**
+**Current phase: Phase 4 — complete (prod verify gate closed `v0.0.33`). Next action: Phase 5 per D-40 — dispatch Fable work-verifier, then implement Slice A (PIN + directed spots + always-strict day-release).**
 
 > **Phase-boundary gate:** after each phase ships and before the next phase starts, dispatch the Fable 5 work-verifier (`MODEL_DOSSIER.md` tag `work-verifier`; trigger spec `.cursor/rules/model-gates.mdc`) to verify scope fidelity + semantic tripwires (D14 job-scoping, PIN visibility, legacy-route stability). Phase N+1 is blocked until the verifier returns PASS or Dan waives. *(Phase 3 shipped 2026-07-08, commit `783b703`, with verification run retroactively.)*
 
@@ -42,7 +44,7 @@
 - Every staging location (G1–G6 ground, S1A… shelf) gets **one static QR** encoding a **location-only URL that never changes**.
 - Scanning that QR lands on a **role gate**:
   - **Vendor PIN (job-scoped)** → that **JOB's** staging context only — never the vendor's other jobs (REVISED Dan 2026-07-08; see § Job-scoped vendor PIN).
-  - **Technician PIN** → full job pickup package.
+  - **Technician PIN** → directed spot/job list for **day-released** pickups (D-40); then the same job pickup package as the token door.
   - **Management PIN** → shop-wide audit view.
 - Deliveries are **dynamically assigned** to locations in **three distinct roles** — never conflated:
   - **Planned** — the dispatcher's instruction ("put it in G1").
@@ -332,40 +334,44 @@ Open pickup checklist:
 
 ## § Phase 5 — Technician door two + pickup verification v2
 
-**Goal:** Location QR + per-tech PIN as a **second door into the SAME job-scoped pickup package**; two-level verification.
+**Goal:** Any permanent location QR + per-tech PIN as a **second door** into the **SAME job-scoped pickup package** the token link opens; phone shows **where to go** (directed spots), then two-level pickup verification. **D-40 (Dan 2026-07-22).**
 
 **Scope:**
 
 1. **Per-technician PIN model** + Settings management UI + `verifyTechnicianPin` CF + session storage — mirror the vendor pattern: hashing, rate limiting, `technicianSessionMinutes` (D6, D10).
-2. **Landing route tech path:** PIN → jobs with actual locations at the scanned spot → job picker if >1 → the **same `JobPickupScreen` package** the token link opens (**single source of truth** — no forked pickup logic).
-3. **Pickup verification v2** in `PickupPortalPage.tsx`:
+2. **Landing route tech path (D-40 invert):** scan **any** `#/s?loc=` QR (role gate only) → tech PIN → **directed spot/job list** for jobs dispatch **day-released** to that technician → tap → the **same `JobPickupScreen` package** the token link opens (**single source of truth** — no forked pickup logic). Scanned location code is a **badge / sort hint only** ("You're at G1"), never a content filter. Tech path differs from vendor (D14): vendors are job/spot-scoped for delivery-in; techs get navigation **to** their released spots.
+3. **Dispatcher day-release (always-strict):** dispatch releases specific job(s) to a tech for a day (BuildOps-friendly field path when pasted pickup URLs are untappable). **If zero jobs released for that tech+day → empty state "Nothing released for you yet"** — never fail-open to all `ready_for_pickup` jobs. When releases exist, list = those jobs → their actual/planned staging spots (empty intersection at a walk → clear empty + preferably where released jobs are staged).
+4. **Pickup verification v2** in `PickupPortalPage.tsx`:
    - **Level 1** = per-location confirm checkboxes ("Picked up supplies @ [x] G2 [x] S1A [x] G4,G5,G6") — wire the `stagingLocationIds` param that `recordPickupEvent` already accepts.
    - **Level 2** = expected-parts drop-down with **exception-only** flags: missing / wrong / damaged / could-not-find / partial / do-not-pick-up (extend `ReportIssueModal` types; add inline partial).
    - **"Complete Pickup"** enabled only when all locations confirmed.
    - **Per-tech identity** recorded on `pickupEvents`.
 
-**Out of scope / boundaries:** No management tier; no changes to the token door's behavior (both doors must share one data path); no status enum changes (`picked_up` still only via `recordPickupEvent`).
+**Ship slices:** **A** — PIN door + directed list bound by day-release (empty when none) + same JobPickupScreen. **B** — dispatcher day-release UI + verification polish if not in A. Token/clipboard URL remains fallback when a link is usable.
 
-**Data model:** New technician PIN/session collection (CF-written only); `pickedUpStagingLocationIds` driven by per-location confirms; per-tech identity on `pickupEvents`; `AppSettings.technicianSessionMinutes`.
+**Out of scope / boundaries:** No management tier; no changes to the token door's behavior (both doors must share one data path); no status enum changes (`picked_up` still only via `recordPickupEvent`); tech PIN must **not** dump shop-wide all jobs (bounded by day-release).
 
-**UI behavior:** Tech path on the landing route (PIN → job picker → JobPickupScreen); per-location checkboxes; exception-only parts flags; gated Complete Pickup.
+**Data model:** New technician PIN/session collection (CF-written only); day-release assignment records (tech + day + jobIds, CF-mediated); `pickedUpStagingLocationIds` driven by per-location confirms; per-tech identity on `pickupEvents`; `AppSettings.technicianSessionMinutes`.
 
-**Access control:** Per-technician PIN sessions (hashed, rate-limited, expiring per D10); pickup writes via `recordPickupEvent` CF only.
+**UI behavior:** Tech path on the landing route (any QR → PIN → directed spots / empty-released state → JobPickupScreen); per-location checkboxes; exception-only parts flags; gated Complete Pickup.
+
+**Access control:** Per-technician PIN sessions (hashed, rate-limited, expiring per D10); list visibility always-strict on day-release; pickup writes via `recordPickupEvent` CF only.
 
 **Acceptance criteria:**
 
 - Extend `scripts/verify-pickup-portal.mjs` — **both doors reach identical packages**.
+- Any location QR + valid tech PIN with releases → spot list for those jobs; with **zero** releases → empty "Nothing released for you yet" (not all ready jobs).
 - Per-location confirm drives `pickedUpStagingLocationIds`.
 - `picked_up` only when **all** spots confirmed.
 - Exception flags persist and surface to the dispatcher.
 
-**Test plan:** Extended `verify:pickup` (+ `:prod`); both-doors equivalence; per-location confirm assertions; exception-flag persistence.
+**Test plan:** Extended `verify:pickup` (+ `:prod`); both-doors equivalence; any-QR → directed list; always-strict empty state; per-location confirm assertions; exception-flag persistence.
 
 **Rollback:** One revertible commit-set; token door unaffected by revert of the PIN door.
 
 **Security review requirement:** Sonnet gate **mandatory** (new PIN/auth surface + CFs); **explicit Dan approval before CF deploy**.
 
-**Drift review requirement:** Token door and PIN door share **ONE** data path — no forked pickup logic.
+**Drift review requirement:** Token door and PIN door share **ONE** data path — no forked pickup logic. Do not reintroduce "jobs at scanned spot" as the primary tech filter (superseded by D-40).
 
 ---
 
