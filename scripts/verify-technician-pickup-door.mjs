@@ -104,9 +104,13 @@ async function releaseJobForToday(app, jobId) {
 }
 
 async function openTechnicianPinFlow(page) {
-  await page.goto(`${appBase}/#/s?loc=${encodeURIComponent(locCode)}`, {
+  const url = `${appBase}/#/s?loc=${encodeURIComponent(locCode)}&_t=${Date.now()}`;
+  await page.goto(url, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
+  });
+  await page.getByRole("button", { name: "Technician" }).waitFor({
+    timeout: 30_000,
   });
   await page.getByRole("button", { name: "Technician" }).click();
 }
@@ -138,7 +142,8 @@ async function main() {
 
     await releaseJobForToday(app, verifyJobId);
 
-    await openTechnicianPinFlow(page);
+    await page.getByRole("button", { name: "← Back" }).click();
+    await page.getByRole("button", { name: "Technician" }).click();
     await enterPin(page, techPin.split(""));
     await page
       .getByTestId(`tech-released-job-${verifyJobId}`)
