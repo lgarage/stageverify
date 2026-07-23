@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import type { Job, Technician } from "./dispatcher/models";
 import {
   createTechnician,
@@ -10,6 +10,18 @@ import { releaseJobsToTechnicianClient } from "./phase2CallableClients";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const TEXT = "#333";
+const MUTED = "#6b7280";
+
+const inputStyle: CSSProperties = {
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #ccd0d7",
+  fontSize: 14,
+  color: TEXT,
+  backgroundColor: "#fff",
+  fontFamily: FONT,
+};
 
 export function TechnicianSettingsPanel() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -123,11 +135,13 @@ export function TechnicianSettingsPanel() {
 
   return (
     <div
+      data-testid="technician-settings-panel"
       style={{
         border: "1.5px solid #ccd0d7",
         borderRadius: 8,
         backgroundColor: "#fff",
         marginBottom: 24,
+        color: TEXT,
       }}
     >
       <div
@@ -147,7 +161,7 @@ export function TechnicianSettingsPanel() {
           <p style={{ fontSize: 14, color: "#6b7280" }}>Loading…</p>
         ) : (
           <>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: MUTED, marginBottom: 12 }}>
               Per-tech PINs unlock the technician door on any location QR.
               Release jobs for today so techs see directed spots (always-strict).
             </p>
@@ -162,6 +176,7 @@ export function TechnicianSettingsPanel() {
                     padding: "8px 0",
                     borderBottom: "1px solid #f3f4f6",
                     fontSize: 14,
+                    color: TEXT,
                   }}
                 >
                   <span>
@@ -185,7 +200,7 @@ export function TechnicianSettingsPanel() {
                 </li>
               ))}
               {technicians.length === 0 && (
-                <li style={{ fontSize: 14, color: "#6b7280" }}>
+                <li style={{ fontSize: 14, color: MUTED }}>
                   No technicians yet.
                 </li>
               )}
@@ -203,7 +218,7 @@ export function TechnicianSettingsPanel() {
                 placeholder="Technician name"
                 value={techName}
                 onChange={(e) => setTechName(e.target.value)}
-                style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #ccd0d7" }}
+                style={inputStyle}
               />
               <input
                 type="text"
@@ -212,7 +227,7 @@ export function TechnicianSettingsPanel() {
                 placeholder="4-digit PIN"
                 value={techPin}
                 onChange={(e) => setTechPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                style={{ width: 100, padding: "8px 10px", borderRadius: 6, border: "1px solid #ccd0d7" }}
+                style={{ ...inputStyle, width: 100 }}
               />
               <button
                 type="button"
@@ -235,19 +250,24 @@ export function TechnicianSettingsPanel() {
               <p style={{ color: "#bf0a30", fontSize: 13 }}>{techError}</p>
             )}
 
-            <h3 style={{ fontSize: 15, fontWeight: 700, margin: "24px 0 8px" }}>
+            <h3
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                margin: "24px 0 8px",
+                color: NAVY,
+              }}
+            >
               Release jobs for today
             </h3>
             <select
               value={releaseTechnicianId}
               onChange={(e) => setReleaseTechnicianId(e.target.value)}
               style={{
+                ...inputStyle,
                 width: "100%",
                 maxWidth: 320,
-                padding: "8px 10px",
                 marginBottom: 12,
-                borderRadius: 6,
-                border: "1px solid #ccd0d7",
               }}
             >
               <option value="">Select technician…</option>
@@ -278,6 +298,8 @@ export function TechnicianSettingsPanel() {
                     alignItems: "center",
                     fontSize: 13,
                     padding: "4px 0",
+                    color: TEXT,
+                    cursor: "pointer",
                   }}
                 >
                   <input

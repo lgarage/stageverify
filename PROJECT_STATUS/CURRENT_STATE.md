@@ -6,9 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.108** — Phase 5 Slice A: technician PIN door on `#/s?loc=`, always-strict day-release, shared JobPickupScreen.
+- Last shipped: **v0.0.109** — Settings Technicians panel contrast fix + D-42 Playwright readable-text check (`verify:settings-technicians`).
 - Active Phase: **Location-first Phase 5 Slice A shipped** — Slice B (pickup v2 polish) next.
-- **Verify:** `verify:technician-door` / `:prod` after CF deploy; `verify:pickup` unchanged for token door.
+- **Verify:** `verify:settings-technicians` / `:prod` on Settings technician UI; `verify:technician-door` / `:prod` after CF deploy.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers

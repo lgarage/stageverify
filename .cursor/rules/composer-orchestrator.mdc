@@ -72,7 +72,8 @@ For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affect
 
 1. **Build** — `npm run build` clean.
 2. **Playwright** — exercise the changed UI (see below). Must pass locally; run `:prod` after `npm run deploy` when the fix is user-facing on gh-pages.
-3. **Only then** — commit, push, deploy, and report success.
+3. **Readable text / contrast (D-42)** — every visible UI edit must include a mechanical assert that affected text is readable (WCAG contrast + fail on white-on-white), not screenshot-only. Reuse `scripts/lib/ui-text-contrast-lib.mjs` (`assertReadableTextContrast`) in route verifies; Settings Technicians: `npm run verify:settings-technicians`.
+4. **Only then** — commit, push, deploy, and report success.
 
 If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify first.
 
@@ -80,7 +81,7 @@ If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify f
 
 | Change type | Playwright requirement |
 |-------------|------------------------|
-| Layout, colors, copy, visibility | Before/after screenshots on every affected route (steps below) |
+| Layout, colors, copy, visibility | Route verify with `assertReadableTextContrast` (D-42) on changed selectors; screenshots optional supplement |
 | Buttons, forms, checkboxes, multi-step flows | **Interactive script** — click/type through the real flow; assert end state (not screenshot-only) |
 | Pickup portal | `npm run verify:pickup` (+ `verify:pickup:prod` after deploy) |
 | Other routes (no script yet) | Add or extend a `scripts/verify-<route>.mjs` that performs the critical clicks; run it before declaring done |
