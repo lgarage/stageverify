@@ -164,11 +164,25 @@ export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
       name: "technician select",
       selector: '[data-testid="job-release-technician-select"]',
       large: false,
+      optional: true,
     },
     {
       name: "release button",
       selector: '[data-testid="job-release-submit"]',
       large: false,
+      optional: true,
+    },
+    {
+      name: "edit button",
+      selector: '[data-testid="job-release-edit-btn"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "cancel edit button",
+      selector: '[data-testid="job-release-cancel-edit"]',
+      large: false,
+      optional: true,
     },
     {
       name: "current release badge",

@@ -8,6 +8,7 @@ import { resolveTechnicianBadgeStyle } from "../technicianBadgeColors";
 import {
   buildJobReleasedToEntries,
   type ReleasedToEntry,
+  reassignJobToTechnicianForToday,
   releaseJobToTechnicianForToday,
   technicianCanReceiveReleases,
   todayReleaseDateUtc,
@@ -42,6 +43,7 @@ export function JobReleaseToTechnicianPanel({
 }: Props) {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
   const [selectedTechId, setSelectedTechId] = useState("");
   const [releasing, setReleasing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -54,6 +56,9 @@ export function JobReleaseToTechnicianPanel({
     () => new Map(technicians.map((t) => [t.id, t])),
     [technicians],
   );
+
+  const isAssigned = releasedEntries.length > 0;
+  const showPicker = !loading && (!isAssigned || editMode);
 
   const reloadReleasedEntries = useCallback(async () => {
     const [techs, releases] = await Promise.all([
@@ -94,12 +99,36 @@ export function JobReleaseToTechnicianPanel({
     setMessage(null);
     try {
       const tech = technicians.find((t) => t.id === selectedTechId);
-      await releaseJobToTechnicianForToday(selectedTechId, jobId);
-      setMessage(
-        tech
-          ? `Released to ${tech.name} for today.`
-          : "Job released for today.",
-      );
+      if (isAssigned && editMode) {
+        const previousIds = releasedEntries.map((e) => e.technicianId);
+        if (previousIds.includes(selectedTechId)) {
+          setEditMode(false);
+          setSelectedTechId("");
+          setMessage(
+            tech ? `Still released to ${tech.name} for today.` : null,
+          );
+          return;
+        }
+        await reassignJobToTechnicianForToday(
+          jobId,
+          selectedTechId,
+          previousIds,
+        );
+        setMessage(
+          tech
+            ? `Reassigned to ${tech.name} for today.`
+            : "Job reassigned for today.",
+        );
+      } else {
+        await releaseJobToTechnicianForToday(selectedTechId, jobId);
+        setMessage(
+          tech
+            ? `Released to ${tech.name} for today.`
+            : "Job released for today.",
+        );
+      }
+      setEditMode(false);
+      setSelectedTechId("");
       await reloadReleasedEntries();
       await onReleased?.();
     } catch (err) {
@@ -107,6 +136,13 @@ export function JobReleaseToTechnicianPanel({
     } finally {
       setReleasing(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setSelectedTechId("");
+    setError(null);
+    setMessage(null);
   };
 
   const panelBorder =
@@ -154,41 +190,74 @@ export function JobReleaseToTechnicianPanel({
         >
           Release to technician
         </span>
-        {releasedEntries.length > 0 ? (
+        {isAssigned ? (
           <span
-            data-testid="job-release-current-badge"
             style={{
               display: "inline-flex",
               flexWrap: "wrap",
-              gap: 4,
+              gap: 6,
               alignItems: "center",
             }}
           >
-            {releasedEntries.map((entry) => {
-              const tech = techById.get(entry.technicianId);
-              const badgeStyle = resolveTechnicianBadgeStyle(
-                tech ?? { id: entry.technicianId },
-              );
-              return (
-                <span
-                  key={entry.technicianId}
-                  data-testid={`job-release-current-badge-${entry.technicianId}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "3px 10px",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    backgroundColor: badgeStyle.bg,
-                    color: badgeStyle.text,
-                    border: `1px solid ${badgeStyle.border}`,
-                  }}
-                >
-                  {entry.name}
-                </span>
-              );
-            })}
+            <span
+              data-testid="job-release-current-badge"
+              style={{
+                display: "inline-flex",
+                flexWrap: "wrap",
+                gap: 4,
+                alignItems: "center",
+              }}
+            >
+              {releasedEntries.map((entry) => {
+                const tech = techById.get(entry.technicianId);
+                const badgeStyle = resolveTechnicianBadgeStyle(
+                  tech ?? { id: entry.technicianId },
+                );
+                return (
+                  <span
+                    key={entry.technicianId}
+                    data-testid={`job-release-current-badge-${entry.technicianId}`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      backgroundColor: badgeStyle.bg,
+                      color: badgeStyle.text,
+                      border: `1px solid ${badgeStyle.border}`,
+                    }}
+                  >
+                    {entry.name}
+                  </span>
+                );
+              })}
+            </span>
+            {!editMode ? (
+              <button
+                type="button"
+                data-testid="job-release-edit-btn"
+                onClick={() => {
+                  setEditMode(true);
+                  setMessage(null);
+                  setError(null);
+                }}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${NAVY}`,
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Edit
+              </button>
+            ) : null}
           </span>
         ) : (
           <span
@@ -202,7 +271,7 @@ export function JobReleaseToTechnicianPanel({
 
       {loading ? (
         <p style={{ margin: 0, fontSize: 13, color: MUTED }}>Loading…</p>
-      ) : (
+      ) : showPicker ? (
         <>
           <select
             data-testid="job-release-technician-select"
@@ -222,32 +291,66 @@ export function JobReleaseToTechnicianPanel({
               Add an active technician in Settings first.
             </p>
           ) : null}
-          <button
-            type="button"
-            data-testid="job-release-submit"
-            disabled={releasing || !selectedTechId}
-            onClick={() => void handleRelease()}
+          <div
             style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              border:
-                releasing || !selectedTechId
-                  ? "2px solid #6b7280"
-                  : "2px solid transparent",
-              backgroundColor:
-                releasing || !selectedTechId ? "#fff" : NAVY,
-              color: releasing || !selectedTechId ? "#374151" : "#fff",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor:
-                releasing || !selectedTechId ? "not-allowed" : "pointer",
-              fontFamily: font,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              alignItems: "center",
             }}
           >
-            {releasing ? "Releasing…" : "Release to technician"}
-          </button>
+            <button
+              type="button"
+              data-testid="job-release-submit"
+              disabled={releasing || !selectedTechId}
+              onClick={() => void handleRelease()}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 8,
+                border:
+                  releasing || !selectedTechId
+                    ? "2px solid #6b7280"
+                    : "2px solid transparent",
+                backgroundColor:
+                  releasing || !selectedTechId ? "#fff" : NAVY,
+                color: releasing || !selectedTechId ? "#374151" : "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor:
+                  releasing || !selectedTechId ? "not-allowed" : "pointer",
+                fontFamily: font,
+              }}
+            >
+              {releasing
+                ? "Saving…"
+                : isAssigned && editMode
+                  ? "Release"
+                  : "Release to technician"}
+            </button>
+            {isAssigned && editMode ? (
+              <button
+                type="button"
+                data-testid="job-release-cancel-edit"
+                disabled={releasing}
+                onClick={handleCancelEdit}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #ccd0d7",
+                  backgroundColor: "#fff",
+                  color: TEXT,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: releasing ? "not-allowed" : "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
         </>
-      )}
+      ) : null}
 
       {message ? (
         <p

@@ -66,6 +66,23 @@ async function openDrawerForJobReleaseVerify(page) {
   return { method: "search+view" };
 }
 
+async function assertAssignedView(page) {
+  const editBtn = page.getByTestId("job-release-edit-btn");
+  await editBtn.waitFor({ state: "visible", timeout: 10_000 });
+  const select = page.getByTestId("job-release-technician-select");
+  if ((await select.count()) > 0 && (await select.isVisible())) {
+    throw new Error(
+      "Assigned view must hide technician select — Edit + badge only.",
+    );
+  }
+  const submit = page.getByTestId("job-release-submit");
+  if ((await submit.count()) > 0 && (await submit.isVisible())) {
+    throw new Error(
+      "Assigned view must hide Release button — Edit + badge only.",
+    );
+  }
+}
+
 (async () => {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
@@ -94,33 +111,52 @@ async function openDrawerForJobReleaseVerify(page) {
     .getByTestId("job-release-to-technician-panel")
     .waitFor({ timeout: 20_000 });
   await page.getByTestId("job-release-panel-heading").waitFor({ timeout: 10_000 });
-  await page
-    .getByTestId("job-release-technician-select")
-    .waitFor({ state: "visible", timeout: 20_000 });
 
-  await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
-  console.log(
-    `PASS: Job release panel contrast (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
-  );
-
+  const editBtn = page.getByTestId("job-release-edit-btn");
   const techSelect = page.getByTestId("job-release-technician-select");
-  const options = techSelect.locator("option:not([value=''])");
-  const optionCount = await options.count();
-  if (optionCount === 0) {
-    throw new Error(
-      "No eligible technicians — add an active technician in Settings first.",
+  const alreadyAssigned =
+    (await editBtn.count()) > 0 && (await editBtn.isVisible());
+
+  if (alreadyAssigned) {
+    console.log("PASS: Job already released — assigned view (badge + Edit)");
+    await assertAssignedView(page);
+    await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
+    console.log(
+      `PASS: Assigned panel contrast (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
     );
+  } else {
+    await techSelect.waitFor({ state: "visible", timeout: 20_000 });
+    await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
+    console.log(
+      `PASS: Unassigned panel contrast (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
+    );
+
+    const options = techSelect.locator("option:not([value=''])");
+    const optionCount = await options.count();
+    if (optionCount === 0) {
+      throw new Error(
+        "No eligible technicians — add an active technician in Settings first.",
+      );
+    }
+    const firstTechValue = await options.first().getAttribute("value");
+    await techSelect.selectOption(firstTechValue ?? "");
+    await page.getByTestId("job-release-submit").click();
+    await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
+    const errorBanner = page.getByTestId("job-release-error");
+    if ((await errorBanner.count()) > 0 && (await errorBanner.isVisible())) {
+      const msg = (await errorBanner.innerText()).trim();
+      throw new Error(`Release failed in UI: ${msg}`);
+    }
+    console.log("PASS: Release to technician callable succeeded");
+    await assertAssignedView(page);
+    console.log("PASS: Post-release assigned view hides picker");
   }
-  const firstTechValue = await options.first().getAttribute("value");
-  await techSelect.selectOption(firstTechValue ?? "");
-  await page.getByTestId("job-release-submit").click();
-  await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
-  const errorBanner = page.getByTestId("job-release-error");
-  if ((await errorBanner.count()) > 0 && (await errorBanner.isVisible())) {
-    const msg = (await errorBanner.innerText()).trim();
-    throw new Error(`Release failed in UI: ${msg}`);
-  }
-  console.log("PASS: Release to technician callable succeeded");
+
+  await page.getByTestId("job-release-edit-btn").click();
+  await techSelect.waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByTestId("job-release-cancel-edit").click();
+  await assertAssignedView(page);
+  console.log("PASS: Edit → Cancel returns to badge + Edit view");
 
   const badgeCount = await page
     .locator('[data-testid^="released-to-badge-"]')
