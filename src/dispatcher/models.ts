@@ -398,6 +398,34 @@ export interface TechnicianReleasedJobSummary {
   readyForPickupCount: number;
 }
 
+export interface VerifyManagementPinInput {
+  pin: string;
+  stagingLocationCode: string;
+}
+
+export interface VerifyManagementPinResult {
+  success: boolean;
+  message?: string;
+  sessionToken?: string;
+  expiresAt?: string;
+  scannedStagingLocationCode?: string;
+}
+
+export interface ManagementWaitingDeliverySummary {
+  deliveryId: string;
+  orderNumber: string;
+  vendorName: string;
+  poNumber?: string;
+  vendorInvoiceNumber?: string;
+  status: DeliveryStatus;
+}
+
+export interface ManagementWaitingPartsJobSummary {
+  jobId: string;
+  jobName: string;
+  deliveries: ManagementWaitingDeliverySummary[];
+}
+
 export interface TechnicianDayRelease {
   id: string;
   technicianId: string;
@@ -634,7 +662,12 @@ export interface DeliveryOrder {
   vendorPhysicalDropoffConfirmedAt?: string;
   /** When vendor pressed DELIVERED (exception-only hub). */
   deliveredAt?: string;
-  physicalDropoffSource?: "vendor_email" | "physical_checkin" | "dispatcher" | "system";
+  physicalDropoffSource?:
+    | "vendor_email"
+    | "physical_checkin"
+    | "dispatcher"
+    | "system"
+    | "catch_all_intake";
   /** Two-source gate: physical check-in confirms drop-off quantities. */
   physicalDropoffComplete?: boolean;
   physicalDropoffCompleteAt?: string;
@@ -696,8 +729,14 @@ export interface AppSettings {
   technicianSessionMinutes?: number;
   /** Minutes before management PIN session expires (location-first Phase 1 types only). */
   managementSessionMinutes?: number;
-  /** Hashed shared shop PIN for management audit tier (location-first Phase 1 types only). */
+  /** Hashed shared shop PIN — legacy field; prefer CF-only managementPinSecrets. */
   managementPinHash?: string;
+  /** Public UI hint only — hash lives in managementPinSecrets (CF-only). */
+  managementPinConfigured?: boolean;
+  /** Staging location doc id for catch-all parcel intake (Phase 6 Slice A). */
+  catchAllStagingLocationId?: string;
+  /** When true, catch-all QR opens management PIN + waiting-parts flow. */
+  parcelIntakeEnabled?: boolean;
   /**
    * Staging Map layout additions beyond default constants (extra ground / shelf units / shelf letters)
    * plus optional hiddenSlots. Written by authenticated dispatcher map edit; public-readable via appSettings.

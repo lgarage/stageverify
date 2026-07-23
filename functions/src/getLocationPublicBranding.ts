@@ -46,6 +46,16 @@ export const getLocationPublicBranding = onCall(
 
     const doc = snap.docs[0];
     const data = doc.data();
+
+    const settingsSnap = await getDb().collection("appSettings").doc("config").get();
+    const settings = settingsSnap.data() as {
+      catchAllStagingLocationId?: string;
+      parcelIntakeEnabled?: boolean;
+    } | undefined;
+    const isCatchAllParcelIntake =
+      settings?.parcelIntakeEnabled === true &&
+      settings?.catchAllStagingLocationId?.trim() === doc.id;
+
     return {
       found: true as const,
       locationId: doc.id,
@@ -58,6 +68,7 @@ export const getLocationPublicBranding = onCall(
         typeof data.type === "string" && data.type.trim()
           ? data.type.trim()
           : "other",
+      isCatchAllParcelIntake,
     };
   },
 );

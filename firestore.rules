@@ -96,6 +96,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /managementPinAttempts/{attemptId} {
+      allow read, write: if false;
+    }
+
+    match /managementSessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /managementPinSecrets/{docId} {
+      allow read, write: if false;
+    }
+
     // Vendor PIN sessions — CF Admin SDK only; clients hold opaque token locally.
     match /vendorSessions/{sessionId} {
       allow read, write: if false;

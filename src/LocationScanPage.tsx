@@ -28,6 +28,8 @@ import type {
 } from "./dispatcher/models";
 import { VendorPinGate } from "./VendorPinGate";
 import { TechnicianPinGate } from "./TechnicianPinGate";
+import { ManagementPinGate } from "./ManagementPinGate";
+import { ManagementCatchAllHub } from "./ManagementCatchAllHub";
 import {
   bindTechnicianSessionToJob,
   clearTechnicianPinSession,
@@ -35,6 +37,10 @@ import {
   isTechnicianPinSessionValid,
   touchTechnicianPinSession,
 } from "./technicianPinSession";
+import {
+  clearManagementPinSession,
+  isManagementPinSessionValid,
+} from "./managementPinSession";
 import { getTechnicianReleasedJobsClient } from "./phase2CallableClients";
 import type { TechnicianReleasedJobSummary } from "./dispatcher/models";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
@@ -62,6 +68,8 @@ type Step =
   | "list"
   | "vendor-list"
   | "tech-list"
+  | "mgmt-pin"
+  | "mgmt-hub"
   | "hub"
   | "done";
 type SessionScope = "job" | "vendor" | null;
@@ -121,6 +129,7 @@ export function LocationScanPage() {
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
     [],
   );
+  const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
 
   const activeVendorRun = useMemo(() => {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
@@ -147,7 +156,13 @@ export function LocationScanPage() {
         label: result.label,
         type: result.type,
       });
-      setStep("pin");
+      const catchAll = result.isCatchAllParcelIntake === true;
+      setIsCatchAllParcelIntake(catchAll);
+      if (catchAll) {
+        setStep(isManagementPinSessionValid() ? "mgmt-hub" : "mgmt-pin");
+      } else {
+        setStep("pin");
+      }
     } catch {
       setError("Could not load location. Check your connection.");
       setStep("missing");
@@ -383,14 +398,24 @@ export function LocationScanPage() {
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
     if (technicianId) clearTechnicianPinSession(technicianId);
+    clearManagementPinSession();
     setJobId(null);
     setVendorId(null);
     setTechnicianId(null);
     setTechnicianName(null);
     setReleasedJobs([]);
     setSessionScope(null);
-    setStep("pin");
-  }, [jobId, vendorId, technicianId]);
+    setStep(isCatchAllParcelIntake ? "mgmt-pin" : "pin");
+  }, [jobId, vendorId, technicianId, isCatchAllParcelIntake]);
+
+  const handleManagementPinVerified = useCallback(() => {
+    setStep("mgmt-hub");
+  }, []);
+
+  const handleManagementSessionExpired = useCallback(() => {
+    clearManagementPinSession();
+    setStep("mgmt-pin");
+  }, []);
 
   const activityKey =
     deliveryDetails?.delivery.id ?? jobId ?? vendorId ?? locationCode;
@@ -548,6 +573,7 @@ export function LocationScanPage() {
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
     if (technicianId) clearTechnicianPinSession(technicianId);
+    clearManagementPinSession();
     setJobId(null);
     setVendorId(null);
     setTechnicianId(null);
@@ -560,7 +586,7 @@ export function LocationScanPage() {
     setExpandedDeliveryIds(new Set());
     setDeliveryDetails(null);
     setError(null);
-    setStep("pin");
+    setStep(isCatchAllParcelIntake ? "mgmt-pin" : "pin");
   };
 
   if (step === "loading") {
@@ -586,6 +612,37 @@ export function LocationScanPage() {
           <PublicNetworkErrorPanel message={error} onRetry={() => void loadBranding()} />
         )}
       </div>
+    );
+  }
+
+  if (step === "mgmt-pin" && branding && locationCode) {
+    return (
+      <div className="flex flex-col h-screen h-dvh">
+        <div className="shrink-0 px-6 py-5 border-b border-border bg-bg-surface text-center">
+          <p className="text-xs uppercase tracking-widest text-text-secondary mb-1">
+            Catch-all intake
+          </p>
+          <p className="text-3xl font-bold font-mono text-text-primary">
+            {branding.code}
+          </p>
+          <p className="text-sm text-text-secondary mt-1">{branding.label}</p>
+        </div>
+        <ManagementPinGate
+          stagingLocationCode={locationCode}
+          onVerified={handleManagementPinVerified}
+        />
+      </div>
+    );
+  }
+
+  if (step === "mgmt-hub" && branding && locationCode) {
+    return (
+      <ManagementCatchAllHub
+        locationCode={branding.code}
+        locationLabel={branding.label}
+        onSessionExpired={handleManagementSessionExpired}
+        onBack={() => setStep("mgmt-pin")}
+      />
     );
   }
 

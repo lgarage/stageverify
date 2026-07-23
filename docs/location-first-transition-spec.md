@@ -28,7 +28,7 @@
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `complete` | 2026-07-08 | 2026-07-11 | UI slices (away-113..117); verify hardening (away-118..121); `releasePlannedStagingLocation` CF; `verify:location-phase4` 15/15 local + prod (`v0.0.33`) |
 | 5 | Technician door two + pickup verification v2 | `in_progress` | 2026-07-22 | — | **Slice A v0.0.108:** any QR→PIN→directed spots; always-strict day-release; Sonnet MEDIUM (dispatcher gate fixed pre-deploy) |
-| 6 | Management audit walk + unexpected-delivery resolution | `not_started` | — | — | **Slice A (D-41):** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark (after Phase 5 Slice A); **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN) |
+| 6 | Management audit walk + unexpected-delivery resolution | `in_progress` | Slice A | v0.0.115 | **Slice A (D-41) shipped:** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark; **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN) |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
 **Current phase: Phase 5 Slice A shipped (`v0.0.108`) — technician PIN door + day-release + shared JobPickupScreen. Next: Slice B (pickup verification v2 polish).**

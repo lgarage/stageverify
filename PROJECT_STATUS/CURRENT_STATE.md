@@ -6,9 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.114** — drawer staging location chips open Staging Map (`?focusSpot=`) with spot highlighted.
-- Active Phase: **Location-first Phase 5 Slice A shipped** — Slice B (pickup v2 polish) next.
-- **Verify:** `verify:dispatcher-job-release` / `:prod`; `verify:settings-technicians` / `:prod`; `verify:technician-door` / `:prod` after CF deploy.
+- Last shipped: **v0.0.115** (WIP) — Phase 6 Slice A catch-all parcel intake + management PIN (D-41).
+- Active Phase: **Location-first Phase 6 Slice A** — catch-all intake shipped; Slice B audit walk next.
+- **Verify:** `verify:management-catch-all` / `:prod`; `verify:technician-door` / `:prod` after CF deploy.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -16,10 +16,10 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Phase 5 Slice B:** pickup verification v2 (per-location confirms, exception flags) per `docs/location-first-transition-spec.md` § Phase 5.
+- **Phase 6 Slice B:** management audit walk + flag-only resolution per `docs/location-first-transition-spec.md` § Phase 6 Slice B.
 
 ## Queued product (deferred)
-- **Phase 6 Slice A — catch-all intake + parcel ID (D-41):** office marks received from packing-slip checkmark at dispatcher-assigned catch-all spot; after Phase 5 Slice A (landed `v0.0.108`) — implement when Slice B queue clears; spec § Phase 6 Slice A.
+- **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

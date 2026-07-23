@@ -61,3 +61,14 @@
 {"date":"2026-07-21","role":"security","verdict":"PASS","taskId":"9e612f38-6435-43b7-8813-fbdf5562d951","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
 {"date":"2026-07-21","role":"repair","verdict":"PASS","taskId":"f68f2323-9c6d-4241-bf87-cf17d80b8d7b","model":"grok-4.5-fast-xhigh","real":"yes","note":""}
 {"date":"2026-07-21","role":"ship","verdict":"PASS","taskId":"e71f6617-ac07-40bd-9680-0721771149e9","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-22","role":"planning","verdict":"PASS","taskId":"a45a09e0-d026-4400-a6a6-d48d93a248ce","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-22","role":"planning","verdict":"PASS","taskId":"d632d725-d787-49ac-b432-2e235c69952f","model":"grok-4.5-fast-xhigh","real":"na","note":"fix-verified re-verify"}
+{"date":"2026-07-22","role":"qa","verdict":"PASS","taskId":"591e4467-cfcd-49a2-b69d-9886b203f736","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-22","role":"work","verdict":"PASS","taskId":"d7d21501-6d4e-4761-b64e-c5da7ec30866","model":"claude-fable-5-thinking-high","real":"na","note":"Phase5 hybrid day-release deliberation"}
+{"date":"2026-07-23","role":"security","verdict":"PASS","taskId":"fb75550d-759d-4f16-aa50-992330ce322c","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":"restore verify:location-scan package.json scripts"}
+{"date":"2026-07-23","role":"ship","verdict":"PASS","taskId":"4aa6707f-9e01-479b-85bc-6194077167ac","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-closure re-verify prior FAIL 759f132f commit 890234e"}
+{"date":"2026-07-23","role":"security","verdict":"PASS","taskId":"e511b6b5-f4d6-45c1-a5c6-14cd49e20633","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":"package.json scripts gate e073bd5"}
+{"date":"2026-07-23","role":"repair","verdict":"PASS","taskId":"c59b4b9c-a027-4a9d-b41b-cbd5912705be","model":"cursor-grok-4.5-high-fast","real":"na","note":"Settings Technicians contrast D-42"}
+{"date":"2026-07-23","role":"ship","verdict":"PASS","taskId":"d9efaee5-54ee-43f3-a080-254316ffafe6","model":"cursor-grok-4.5-high-fast","real":"na","note":"e073bd5 contrast ship"}
+{"date":"2026-07-23","role":"repair","verdict":"PASS","taskId":"19962b61-5790-4143-8193-1cf8bdbdc781","model":"grok-4.5-fast-xhigh","real":"na","note":""}
+{"date":"2026-07-23","role":"ship","verdict":"PASS","taskId":"1bb1de30-453f-401c-955b-a929486c1ea2","model":"grok-4.5-fast-xhigh","real":"na","note":""}

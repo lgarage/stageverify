@@ -53,6 +53,11 @@ import { getVendorRunDeliveries } from "./getVendorRunDeliveries";
 import { markVendorDeliveriesBulk } from "./markVendorDeliveriesBulk";
 import { recordVendorLocationScan } from "./recordVendorLocationScan";
 import { verifyTechnicianPin } from "./verifyTechnicianPin";
+import { verifyManagementPin } from "./verifyManagementPin";
+import { getManagementWaitingParts } from "./getManagementWaitingParts";
+import { markCatchAllDeliveryReceived } from "./markCatchAllDeliveryReceived";
+import { captureUnidentifiableParcel } from "./captureUnidentifiableParcel";
+import { setManagementPin } from "./setManagementPin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 
@@ -197,6 +202,11 @@ export {
   markVendorDeliveriesBulk,
   recordVendorLocationScan,
   verifyTechnicianPin,
+  verifyManagementPin,
+  getManagementWaitingParts,
+  markCatchAllDeliveryReceived,
+  captureUnidentifiableParcel,
+  setManagementPin,
   getTechnicianReleasedJobs,
   releaseJobsToTechnician,
   processInboundVendorEmail,

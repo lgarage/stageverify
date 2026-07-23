@@ -180,9 +180,48 @@ export async function getLocationPublicBrandingClient(
       code: string;
       label: string;
       type: string;
+      isCatchAllParcelIntake?: boolean;
     }
 > {
   return callCallable("getLocationPublicBranding", { locationCode });
+}
+
+export async function setManagementPinClient(input: {
+  pin: string;
+}): Promise<{ success: boolean }> {
+  return callCallable("setManagementPin", input);
+}
+
+export async function getManagementWaitingPartsClient(input: {
+  sessionToken: string;
+}): Promise<{
+  jobs: import("./dispatcher/models").ManagementWaitingPartsJobSummary[];
+}> {
+  return callCallable("getManagementWaitingParts", input);
+}
+
+export async function markCatchAllDeliveryReceivedClient(input: {
+  sessionToken: string;
+  deliveryId: string;
+}): Promise<{
+  deliveryId: string;
+  status: string;
+  idempotent?: boolean;
+}> {
+  return callCallable("markCatchAllDeliveryReceived", input);
+}
+
+export async function captureUnidentifiableParcelClient(input: {
+  sessionToken: string;
+  vendorDescription: string;
+  parcelDescription: string;
+  jobId?: string;
+}): Promise<{
+  deliveryId: string;
+  orderNumber: string;
+  reviewFlagged: boolean;
+}> {
+  return callCallable("captureUnidentifiableParcel", input);
 }
 
 export async function getJobVendorDeliveriesClient(input: {

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.114",
+  "version": "0.0.115",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -80,6 +80,8 @@
     "verify:privacy:prod": "node scripts/run-verify-with-learning.mjs --script verify:privacy:prod scripts/verify-privacy-negative.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:technician-door": "node scripts/verify-technician-pickup-door.mjs",
     "verify:technician-door:prod": "node scripts/run-verify-with-learning.mjs --script verify:technician-door:prod scripts/verify-technician-pickup-door.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:management-catch-all": "node scripts/verify-management-catch-all.mjs",
+    "verify:management-catch-all:prod": "node scripts/run-verify-with-learning.mjs --script verify:management-catch-all:prod scripts/verify-management-catch-all.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:location-scan": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs",
     "verify:location-scan:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:vendor-run-checklist": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-run-checklist.mjs",
