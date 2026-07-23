@@ -137,6 +137,12 @@ export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
       optional: true,
     },
     {
+      name: "badge preview",
+      selector: '[data-testid^="technician-badge-preview-"]',
+      large: false,
+      optional: true,
+    },
+    {
       name: "permission checkbox label",
       selector: 'label:has(input[data-testid^="technician-perm-"])',
       large: false,
@@ -166,7 +172,7 @@ export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
     },
     {
       name: "current release badge",
-      selector: '[data-testid="job-release-current-badge"]',
+      selector: '[data-testid^="job-release-current-badge-"]',
       large: false,
       optional: true,
     },

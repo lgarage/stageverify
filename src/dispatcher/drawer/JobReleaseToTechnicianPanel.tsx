@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Technician } from "../models";
 import {
   listTechnicianDayReleasesForDate,
   listTechnicians,
 } from "../firestoreService";
+import { resolveTechnicianBadgeStyle } from "../technicianBadgeColors";
 import {
-  releasedTechnicianNamesForJob,
+  buildJobReleasedToEntries,
+  type ReleasedToEntry,
   releaseJobToTechnicianForToday,
   technicianCanReceiveReleases,
   todayReleaseDateUtc,
@@ -15,9 +17,6 @@ const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
 const MUTED = "#6b7280";
-const RELEASE_BADGE_BG = "#ede9fe";
-const RELEASE_BADGE_TEXT = "#5b21b6";
-const RELEASE_BADGE_BORDER = "#c4b5fd";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
@@ -47,9 +46,16 @@ export function JobReleaseToTechnicianPanel({
   const [releasing, setReleasing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [releasedToLabel, setReleasedToLabel] = useState("");
+  const [releasedEntries, setReleasedEntries] = useState<ReleasedToEntry[]>(
+    [],
+  );
 
-  const reloadReleasedLabel = useCallback(async () => {
+  const techById = useMemo(
+    () => new Map(technicians.map((t) => [t.id, t])),
+    [technicians],
+  );
+
+  const reloadReleasedEntries = useCallback(async () => {
     const [techs, releases] = await Promise.all([
       listTechnicians(),
       listTechnicianDayReleasesForDate(todayReleaseDateUtc()),
@@ -57,15 +63,14 @@ export function JobReleaseToTechnicianPanel({
     setTechnicians(
       [...techs].sort((a, b) => a.name.localeCompare(b.name)),
     );
-    setReleasedToLabel(
-      releasedTechnicianNamesForJob(jobId, releases, techs),
-    );
+    const entriesMap = buildJobReleasedToEntries(releases, techs);
+    setReleasedEntries(entriesMap.get(jobId) ?? []);
   }, [jobId]);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    void reloadReleasedLabel()
+    void reloadReleasedEntries()
       .catch(() => {
         if (mounted) setError("Could not load technician release data.");
       })
@@ -75,7 +80,7 @@ export function JobReleaseToTechnicianPanel({
     return () => {
       mounted = false;
     };
-  }, [reloadReleasedLabel]);
+  }, [reloadReleasedEntries]);
 
   const eligibleTechnicians = technicians.filter(technicianCanReceiveReleases);
 
@@ -95,7 +100,7 @@ export function JobReleaseToTechnicianPanel({
           ? `Released to ${tech.name} for today.`
           : "Job released for today.",
       );
-      await reloadReleasedLabel();
+      await reloadReleasedEntries();
       await onReleased?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Release failed.");
@@ -104,11 +109,20 @@ export function JobReleaseToTechnicianPanel({
     }
   };
 
+  const panelBorder =
+    releasedEntries.length > 0
+      ? resolveTechnicianBadgeStyle(
+          techById.get(releasedEntries[0].technicianId) ?? {
+            id: releasedEntries[0].technicianId,
+          },
+        ).border
+      : "#c4b5fd";
+
   return (
     <div
       data-testid="job-release-to-technician-panel"
       style={{
-        border: `1px solid ${RELEASE_BADGE_BORDER}`,
+        border: `1px solid ${panelBorder}`,
         borderRadius: 8,
         backgroundColor: "#faf5ff",
         padding: "12px 14px",
@@ -133,29 +147,48 @@ export function JobReleaseToTechnicianPanel({
           style={{
             fontSize: 12,
             fontWeight: 700,
-            color: RELEASE_BADGE_TEXT,
+            color: NAVY,
             letterSpacing: "0.04em",
             textTransform: "uppercase",
           }}
         >
           Release to technician
         </span>
-        {releasedToLabel ? (
+        {releasedEntries.length > 0 ? (
           <span
             data-testid="job-release-current-badge"
             style={{
               display: "inline-flex",
+              flexWrap: "wrap",
+              gap: 4,
               alignItems: "center",
-              padding: "3px 10px",
-              borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 700,
-              backgroundColor: RELEASE_BADGE_BG,
-              color: RELEASE_BADGE_TEXT,
-              border: `1px solid ${RELEASE_BADGE_BORDER}`,
             }}
           >
-            {releasedToLabel}
+            {releasedEntries.map((entry) => {
+              const tech = techById.get(entry.technicianId);
+              const badgeStyle = resolveTechnicianBadgeStyle(
+                tech ?? { id: entry.technicianId },
+              );
+              return (
+                <span
+                  key={entry.technicianId}
+                  data-testid={`job-release-current-badge-${entry.technicianId}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    backgroundColor: badgeStyle.bg,
+                    color: badgeStyle.text,
+                    border: `1px solid ${badgeStyle.border}`,
+                  }}
+                >
+                  {entry.name}
+                </span>
+              );
+            })}
           </span>
         ) : (
           <span
@@ -235,9 +268,3 @@ export function JobReleaseToTechnicianPanel({
     </div>
   );
 }
-
-export const RELEASED_TO_TABLE_BADGE = {
-  bg: RELEASE_BADGE_BG,
-  text: RELEASE_BADGE_TEXT,
-  border: RELEASE_BADGE_BORDER,
-} as const;

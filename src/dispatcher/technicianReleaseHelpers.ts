@@ -17,26 +17,50 @@ export function technicianCanReceiveReleases(tech: Technician): boolean {
   return tech.active !== false && tech.permissions?.receiveReleases !== false;
 }
 
+export interface ReleasedToEntry {
+  technicianId: string;
+  name: string;
+}
+
+/** jobId → released technicians for that day (sorted by name). */
+export function buildJobReleasedToEntries(
+  releases: TechnicianDayRelease[],
+  technicians: Technician[],
+): Map<string, ReleasedToEntry[]> {
+  const techById = new Map(technicians.map((t) => [t.id, t]));
+  const jobToEntries = new Map<string, ReleasedToEntry[]>();
+
+  for (const release of releases) {
+    const tech = techById.get(release.technicianId);
+    const name = tech?.name ?? release.technicianId;
+    for (const jobId of release.jobIds ?? []) {
+      const list = jobToEntries.get(jobId) ?? [];
+      if (!list.some((e) => e.technicianId === release.technicianId)) {
+        list.push({ technicianId: release.technicianId, name });
+      }
+      jobToEntries.set(jobId, list);
+    }
+  }
+
+  const result = new Map<string, ReleasedToEntry[]>();
+  for (const [jobId, entries] of jobToEntries) {
+    result.set(
+      jobId,
+      [...entries].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  }
+  return result;
+}
+
 /** jobId → comma-separated technician names released for that day. */
 export function buildJobReleasedToMap(
   releases: TechnicianDayRelease[],
   technicians: Technician[],
 ): Map<string, string> {
-  const techById = new Map(technicians.map((t) => [t.id, t.name]));
-  const jobToNames = new Map<string, string[]>();
-
-  for (const release of releases) {
-    const name = techById.get(release.technicianId) ?? release.technicianId;
-    for (const jobId of release.jobIds ?? []) {
-      const list = jobToNames.get(jobId) ?? [];
-      if (!list.includes(name)) list.push(name);
-      jobToNames.set(jobId, list);
-    }
-  }
-
+  const entries = buildJobReleasedToEntries(releases, technicians);
   const result = new Map<string, string>();
-  for (const [jobId, names] of jobToNames) {
-    result.set(jobId, [...names].sort((a, b) => a.localeCompare(b)).join(", "));
+  for (const [jobId, list] of entries) {
+    result.set(jobId, list.map((e) => e.name).join(", "));
   }
   return result;
 }
@@ -47,6 +71,14 @@ export async function loadTodayJobReleasedToMap(
   const releaseDate = todayReleaseDateUtc();
   const releases = await listTechnicianDayReleasesForDate(releaseDate);
   return buildJobReleasedToMap(releases, technicians);
+}
+
+export async function loadTodayJobReleasedToEntries(
+  technicians: Technician[],
+): Promise<Map<string, ReleasedToEntry[]>> {
+  const releaseDate = todayReleaseDateUtc();
+  const releases = await listTechnicianDayReleasesForDate(releaseDate);
+  return buildJobReleasedToEntries(releases, technicians);
 }
 
 /** Merge job into technician's day-release doc (CF unions by default). */

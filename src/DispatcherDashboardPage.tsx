@@ -4,9 +4,11 @@ import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { firestoreDataService, listTechnicians } from "./dispatcher/firestoreService";
 import {
-  loadTodayJobReleasedToMap,
+  loadTodayJobReleasedToEntries,
+  type ReleasedToEntry,
 } from "./dispatcher/technicianReleaseHelpers";
-import { RELEASED_TO_TABLE_BADGE } from "./dispatcher/drawer/JobReleaseToTechnicianPanel";
+import { resolveTechnicianBadgeStyle } from "./dispatcher/technicianBadgeColors";
+import type { Technician } from "./dispatcher/models";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import {
   type DeliveryListRow,
@@ -198,9 +200,10 @@ export function DispatcherDashboardPage() {
   const [allRows, setAllRows] = useState<DeliveryListRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
-  const [jobReleasedToMap, setJobReleasedToMap] = useState<Map<string, string>>(
-    new Map(),
-  );
+  const [jobReleasedToEntries, setJobReleasedToEntries] = useState<
+    Map<string, ReleasedToEntry[]>
+  >(new Map());
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
 
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
     null,
@@ -235,13 +238,20 @@ export function DispatcherDashboardPage() {
     return counts;
   }, [allRows]);
 
+  const techById = useMemo(
+    () => new Map(technicians.map((t) => [t.id, t])),
+    [technicians],
+  );
+
   const fetchReleaseMap = useCallback(async () => {
     try {
       const techs = await listTechnicians();
-      const map = await loadTodayJobReleasedToMap(techs);
-      setJobReleasedToMap(map);
+      const map = await loadTodayJobReleasedToEntries(techs);
+      setTechnicians(techs);
+      setJobReleasedToEntries(map);
     } catch {
-      setJobReleasedToMap(new Map());
+      setTechnicians([]);
+      setJobReleasedToEntries(new Map());
     }
   }, []);
 
@@ -1152,9 +1162,9 @@ export function DispatcherDashboardPage() {
                           }}
                         >
                           {(() => {
-                            const releasedTo =
-                              jobReleasedToMap.get(row.jobId) ?? "";
-                            if (!releasedTo) {
+                            const entries =
+                              jobReleasedToEntries.get(row.jobId) ?? [];
+                            if (entries.length === 0) {
                               return (
                                 <span
                                   style={{
@@ -1169,31 +1179,50 @@ export function DispatcherDashboardPage() {
                             }
                             return (
                               <span
-                                data-testid={`released-to-badge-${row.deliveryId}`}
                                 style={{
                                   display: "inline-flex",
+                                  flexWrap: "wrap",
+                                  gap: 4,
                                   alignItems: "center",
-                                  padding: "3px 10px",
-                                  borderRadius: 999,
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                  maxWidth: 160,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  backgroundColor: actionRequired
-                                    ? "rgba(255,255,255,0.2)"
-                                    : RELEASED_TO_TABLE_BADGE.bg,
-                                  color: actionRequired
-                                    ? "#fff"
-                                    : RELEASED_TO_TABLE_BADGE.text,
-                                  border: actionRequired
-                                    ? "1px solid rgba(255,255,255,0.45)"
-                                    : `1px solid ${RELEASED_TO_TABLE_BADGE.border}`,
+                                  maxWidth: 200,
                                 }}
-                                title={releasedTo}
                               >
-                                {releasedTo}
+                                {entries.map((entry) => {
+                                  const tech = techById.get(entry.technicianId);
+                                  const badgeStyle = resolveTechnicianBadgeStyle(
+                                    tech ?? { id: entry.technicianId },
+                                  );
+                                  return (
+                                    <span
+                                      key={entry.technicianId}
+                                      data-testid={`released-to-badge-${row.deliveryId}-${entry.technicianId}`}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        padding: "3px 10px",
+                                        borderRadius: 999,
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        whiteSpace: "nowrap",
+                                        maxWidth: 160,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        backgroundColor: actionRequired
+                                          ? "rgba(255,255,255,0.2)"
+                                          : badgeStyle.bg,
+                                        color: actionRequired
+                                          ? "#fff"
+                                          : badgeStyle.text,
+                                        border: actionRequired
+                                          ? "1px solid rgba(255,255,255,0.45)"
+                                          : `1px solid ${badgeStyle.border}`,
+                                      }}
+                                      title={entry.name}
+                                    >
+                                      {entry.name}
+                                    </span>
+                                  );
+                                })}
                               </span>
                             );
                           })()}

@@ -13,6 +13,12 @@ import {
   technicianCanUseDoor,
   todayReleaseDateUtc,
 } from "./dispatcher/technicianReleaseHelpers";
+import {
+  defaultBadgeColorHex,
+  resolveTechnicianBadgeStyle,
+  SWATCH_OPTIONS,
+  TECHNICIAN_BADGE_PALETTE,
+} from "./dispatcher/technicianBadgeColors";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -57,6 +63,7 @@ export function TechnicianSettingsPanel() {
   const [releaseMessage, setReleaseMessage] = useState<string | null>(null);
   const [pinEdits, setPinEdits] = useState<Record<string, string>>({});
   const [pinSavingId, setPinSavingId] = useState<string | null>(null);
+  const [colorSavingId, setColorSavingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -122,6 +129,7 @@ export function TechnicianSettingsPanel() {
         pinCode: pin,
         active: true,
         permissions: defaultPermissions(),
+        badgeColor: defaultBadgeColorHex(id),
         createdAt: now,
         updatedAt: now,
       });
@@ -222,6 +230,23 @@ export function TechnicianSettingsPanel() {
     }
   };
 
+  const saveTechnicianBadgeColor = async (tech: Technician, bgHex: string) => {
+    setColorSavingId(tech.id);
+    setTechError(null);
+    try {
+      await updateTechnician({
+        ...tech,
+        badgeColor: bgHex,
+        updatedAt: new Date().toISOString(),
+      });
+      await reload();
+    } catch {
+      setTechError("Could not update badge color.");
+    } finally {
+      setColorSavingId(null);
+    }
+  };
+
   return (
     <div
       data-testid="technician-settings-panel"
@@ -259,6 +284,11 @@ export function TechnicianSettingsPanel() {
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px" }}>
               {technicians.map((tech) => {
                 const permissions = normalizePermissions(tech.permissions);
+                const badgeStyle = resolveTechnicianBadgeStyle(tech);
+                const currentBg =
+                  tech.badgeColor && SWATCH_OPTIONS.includes(tech.badgeColor)
+                    ? tech.badgeColor
+                    : defaultBadgeColorHex(tech.id);
                 return (
                   <li
                     key={tech.id}
@@ -283,6 +313,23 @@ export function TechnicianSettingsPanel() {
                         <strong>{tech.name}</strong>
                         {tech.active === false ? " (inactive)" : ""}
                         {tech.pinCode || tech.pinHash ? " · PIN configured" : ""}
+                        <span
+                          data-testid={`technician-badge-preview-${tech.id}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            marginLeft: 8,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            backgroundColor: badgeStyle.bg,
+                            color: badgeStyle.text,
+                            border: `1px solid ${badgeStyle.border}`,
+                          }}
+                        >
+                          Released To
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -297,6 +344,55 @@ export function TechnicianSettingsPanel() {
                       >
                         {tech.active === false ? "Activate" : "Deactivate"}
                       </button>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginTop: 8,
+                        alignItems: "center",
+                      }}
+                      data-testid={`technician-badge-color-${tech.id}`}
+                    >
+                      <span style={{ fontSize: 12, color: MUTED, marginRight: 4 }}>
+                        Badge color:
+                      </span>
+                      {TECHNICIAN_BADGE_PALETTE.map((swatch) => {
+                        const selected = currentBg === swatch.bg;
+                        return (
+                          <button
+                            key={swatch.bg}
+                            type="button"
+                            aria-label={`Badge color ${swatch.bg}`}
+                            title={swatch.bg}
+                            disabled={
+                              tech.active === false || colorSavingId === tech.id
+                            }
+                            data-testid={`technician-badge-swatch-${tech.id}-${swatch.bg.replace("#", "")}`}
+                            onClick={() =>
+                              void saveTechnicianBadgeColor(tech, swatch.bg)
+                            }
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 4,
+                              border: selected
+                                ? `2px solid ${NAVY}`
+                                : `1px solid ${swatch.border}`,
+                              backgroundColor: swatch.bg,
+                              cursor:
+                                tech.active === false || colorSavingId === tech.id
+                                  ? "not-allowed"
+                                  : "pointer",
+                              padding: 0,
+                              boxShadow: selected
+                                ? "0 0 0 1px #fff inset"
+                                : undefined,
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                     <div
                       style={{

@@ -369,6 +369,8 @@ export interface Technician {
   pinHash?: string;
   active?: boolean;
   permissions?: TechnicianPermissions;
+  /** Light palette bg hex for Released To badges — must match TECHNICIAN_BADGE_PALETTE. */
+  badgeColor?: string;
   createdAt: string;
   updatedAt?: string;
 }

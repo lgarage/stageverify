@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.111** — fix job release callable auth (Bearer ID token on phase2 CF fetch); verify asserts release succeeds.
+- Last shipped: **v0.0.112** — per-tech Released To badge colors (Settings swatch picker + distinct table/drawer badges).
 - Active Phase: **Location-first Phase 5 Slice A shipped** — Slice B (pickup v2 polish) next.
 - **Verify:** `verify:dispatcher-job-release` / `:prod`; `verify:settings-technicians` / `:prod`; `verify:technician-door` / `:prod` after CF deploy.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
