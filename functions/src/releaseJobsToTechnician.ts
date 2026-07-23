@@ -11,6 +11,8 @@ interface ReleaseJobsToTechnicianRequest {
   technicianId?: string;
   jobIds?: unknown;
   releaseDate?: string;
+  /** When true, replace day list exactly (Settings / clear). Default: union merge. */
+  replace?: boolean;
 }
 
 function asTechnicianId(value: unknown): string | null {
@@ -72,6 +74,16 @@ export const releaseJobsToTechnician = onCall(
     if (!techSnap.exists || techSnap.data()?.active === false) {
       throw new HttpsError("not-found", "Technician not found.");
     }
+    const techData = techSnap.data() as {
+      active?: boolean;
+      permissions?: { receiveReleases?: boolean };
+    };
+    if (techData.permissions?.receiveReleases === false) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This technician cannot receive job releases.",
+      );
+    }
 
     for (const jobId of jobIds) {
       const jobSnap = await getDb().collection("jobs").doc(jobId).get();
@@ -87,6 +99,14 @@ export const releaseJobsToTechnician = onCall(
       .doc(docId)
       .get();
 
+    const existingJobIds = existing.exists
+      ? ((existing.data()?.jobIds as string[] | undefined) ?? [])
+      : [];
+    const replace = data.replace === true;
+    const finalJobIds = replace
+      ? jobIds
+      : [...new Set([...existingJobIds, ...jobIds])];
+
     await getDb()
       .collection("technicianDayReleases")
       .doc(docId)
@@ -95,7 +115,7 @@ export const releaseJobsToTechnician = onCall(
           id: docId,
           technicianId,
           releaseDate,
-          jobIds,
+          jobIds: finalJobIds,
           updatedAt: now,
           updatedBy: uid,
           createdAt: existing.exists
@@ -109,7 +129,7 @@ export const releaseJobsToTechnician = onCall(
       success: true,
       technicianId,
       releaseDate,
-      jobIds,
+      jobIds: finalJobIds,
     };
   },
 );

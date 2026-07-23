@@ -54,6 +54,7 @@ import {
 import { ReadinessEvidencePanel } from "../email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./DrawerActionBanner";
 import { StagingLocationBanner } from "./StagingLocationBanner";
+import { JobReleaseToTechnicianPanel } from "./JobReleaseToTechnicianPanel";
 import { DrawerStagingLocationChips } from "./DrawerStagingLocationChips";
 import { IssueSummaryPanel } from "./IssueSummaryPanel";
 import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
@@ -535,6 +536,7 @@ export function DetailContent({
   onResolveMaterialIssue,
   emailProviderConnected,
   onNavigateToAssignLocation,
+  onJobReleased,
 }: {
   loading: boolean;
   error: string | null;
@@ -571,6 +573,7 @@ export function DetailContent({
   ) => Promise<void>;
   emailProviderConnected: boolean;
   onNavigateToAssignLocation?: (deliveryId: string) => void;
+  onJobReleased?: () => void | Promise<void>;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
   const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
@@ -793,6 +796,7 @@ export function DetailContent({
   );
   const drawerDeliveryRow: DeliveryListRow = {
     deliveryId: delivery.id,
+    jobId: delivery.jobId,
     status: delivery.status,
     statusDisplayLabel:
       DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status,
@@ -998,6 +1002,11 @@ export function DetailContent({
                   font={font}
                 />
               </div>
+              <JobReleaseToTechnicianPanel
+                jobId={job.id}
+                font={font}
+                onReleased={onJobReleased}
+              />
               <button
                 type="button"
                 data-testid="delivery-basics-email-vendor"

@@ -554,6 +554,7 @@ export function DeliveryDetailDrawer({
             onResolveMaterialIssue={handleResolveMaterialIssue}
             emailProviderConnected={emailProviderConnected}
             onNavigateToAssignLocation={handleNavigateToAssignLocation}
+            onJobReleased={() => void onDataChanged?.()}
           />
         </div>
       </div>

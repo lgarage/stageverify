@@ -95,6 +95,7 @@ export async function releaseJobsToTechnicianClient(input: {
   technicianId: string;
   jobIds: string[];
   releaseDate?: string;
+  replace?: boolean;
 }): Promise<{
   success: boolean;
   technicianId: string;

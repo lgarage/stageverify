@@ -22,6 +22,10 @@ interface TechnicianDoc {
   pinCode?: string;
   pinHash?: string;
   active?: boolean;
+  permissions?: {
+    doorScan?: boolean;
+    receiveReleases?: boolean;
+  };
 }
 
 interface PinAttemptDoc {
@@ -115,6 +119,7 @@ async function findTechnicianByPin(
     const doc = pinCodeSnap.docs[0];
     const data = doc.data() as TechnicianDoc;
     if (data.active === false) return null;
+    if (data.permissions?.doorScan === false) return null;
     return { id: doc.id, data };
   }
   if (pinCodeSnap.size > 1) return null;
@@ -123,6 +128,7 @@ async function findTechnicianByPin(
   for (const doc of all.docs) {
     const tech = doc.data() as TechnicianDoc;
     if (tech.active === false) continue;
+    if (tech.permissions?.doorScan === false) continue;
     if (pinMatches(tech, pin)) {
       return { id: doc.id, data: tech };
     }

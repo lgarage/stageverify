@@ -92,7 +92,7 @@ async function setupTechnicianDocOnly() {
 
   const functions = getFunctions(app);
   const release = httpsCallable(functions, "releaseJobsToTechnician");
-  await release({ technicianId: techId, jobIds: [] });
+  await release({ technicianId: techId, jobIds: [], replace: true });
 
   return { app, releaseDate };
 }

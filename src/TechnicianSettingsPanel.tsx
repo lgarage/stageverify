@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import type { Job, Technician } from "./dispatcher/models";
+import type { Job, Technician, TechnicianPermissions } from "./dispatcher/models";
 import {
   createTechnician,
+  getTechnicianDayReleaseForDate,
   listJobs,
   listTechnicians,
   updateTechnician,
 } from "./dispatcher/firestoreService";
 import { releaseJobsToTechnicianClient } from "./phase2CallableClients";
+import {
+  technicianCanReceiveReleases,
+  technicianCanUseDoor,
+  todayReleaseDateUtc,
+} from "./dispatcher/technicianReleaseHelpers";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -23,6 +29,20 @@ const inputStyle: CSSProperties = {
   fontFamily: FONT,
 };
 
+const defaultPermissions = (): TechnicianPermissions => ({
+  doorScan: true,
+  receiveReleases: true,
+});
+
+function normalizePermissions(
+  permissions?: TechnicianPermissions,
+): TechnicianPermissions {
+  return {
+    doorScan: permissions?.doorScan !== false,
+    receiveReleases: permissions?.receiveReleases !== false,
+  };
+}
+
 export function TechnicianSettingsPanel() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -35,6 +55,8 @@ export function TechnicianSettingsPanel() {
   const [releaseJobIds, setReleaseJobIds] = useState<Set<string>>(new Set());
   const [releasing, setReleasing] = useState(false);
   const [releaseMessage, setReleaseMessage] = useState<string | null>(null);
+  const [pinEdits, setPinEdits] = useState<Record<string, string>>({});
+  const [pinSavingId, setPinSavingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -60,6 +82,28 @@ export function TechnicianSettingsPanel() {
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    if (!releaseTechnicianId) {
+      setReleaseJobIds(new Set());
+      return;
+    }
+    let mounted = true;
+    void getTechnicianDayReleaseForDate(
+      releaseTechnicianId,
+      todayReleaseDateUtc(),
+    )
+      .then((release) => {
+        if (!mounted) return;
+        setReleaseJobIds(new Set(release?.jobIds ?? []));
+      })
+      .catch(() => {
+        if (mounted) setReleaseJobIds(new Set());
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [releaseTechnicianId]);
+
   const handleAddTechnician = async () => {
     const name = techName.trim();
     const pin = techPin.trim();
@@ -77,6 +121,7 @@ export function TechnicianSettingsPanel() {
         name,
         pinCode: pin,
         active: true,
+        permissions: defaultPermissions(),
         createdAt: now,
         updatedAt: now,
       });
@@ -100,21 +145,25 @@ export function TechnicianSettingsPanel() {
   };
 
   const handleReleaseJobs = async () => {
-    if (!releaseTechnicianId || releaseJobIds.size === 0) {
-      setReleaseMessage("Select a technician and at least one job.");
+    if (!releaseTechnicianId) {
+      setReleaseMessage("Select a technician.");
       return;
     }
     setReleasing(true);
     setReleaseMessage(null);
     try {
+      const jobIds = [...releaseJobIds];
       const result = await releaseJobsToTechnicianClient({
         technicianId: releaseTechnicianId,
-        jobIds: [...releaseJobIds],
+        jobIds,
+        releaseDate: todayReleaseDateUtc(),
+        replace: true,
       });
       setReleaseMessage(
-        `Released ${result.jobIds.length} job(s) for today (${result.releaseDate}).`,
+        result.jobIds.length === 0
+          ? `Cleared today's release list (${result.releaseDate}).`
+          : `Set ${result.jobIds.length} job(s) for today (${result.releaseDate}).`,
       );
-      setReleaseJobIds(new Set());
     } catch (err) {
       setReleaseMessage(
         err instanceof Error ? err.message : "Release failed.",
@@ -131,6 +180,46 @@ export function TechnicianSettingsPanel() {
       updatedAt: new Date().toISOString(),
     });
     await reload();
+  };
+
+  const updateTechnicianPermissions = async (
+    tech: Technician,
+    patch: Partial<TechnicianPermissions>,
+  ) => {
+    const permissions = normalizePermissions(tech.permissions);
+    await updateTechnician({
+      ...tech,
+      permissions: { ...permissions, ...patch },
+      updatedAt: new Date().toISOString(),
+    });
+    await reload();
+  };
+
+  const saveTechnicianPin = async (tech: Technician) => {
+    const pin = (pinEdits[tech.id] ?? "").trim();
+    if (!/^\d{4}$/.test(pin)) {
+      setTechError("PIN must be exactly 4 digits.");
+      return;
+    }
+    setPinSavingId(tech.id);
+    setTechError(null);
+    try {
+      await updateTechnician({
+        ...tech,
+        pinCode: pin,
+        updatedAt: new Date().toISOString(),
+      });
+      setPinEdits((prev) => {
+        const next = { ...prev };
+        delete next[tech.id];
+        return next;
+      });
+      await reload();
+    } catch {
+      setTechError("Could not update PIN.");
+    } finally {
+      setPinSavingId(null);
+    }
   };
 
   return (
@@ -158,47 +247,177 @@ export function TechnicianSettingsPanel() {
       </div>
       <div style={{ padding: 20, fontFamily: FONT }}>
         {loading ? (
-          <p style={{ fontSize: 14, color: "#6b7280" }}>Loading…</p>
+          <p style={{ fontSize: 14, color: MUTED }}>Loading…</p>
         ) : (
           <>
             <p style={{ fontSize: 13, color: MUTED, marginBottom: 12 }}>
               Per-tech PINs unlock the technician door on any location QR.
-              Release jobs for today so techs see directed spots (always-strict).
+              Permissions control door scan and whether jobs can be released
+              to them. Release jobs for today so techs see directed spots
+              (always-strict).
             </p>
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px" }}>
-              {technicians.map((tech) => (
-                <li
-                  key={tech.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 0",
-                    borderBottom: "1px solid #f3f4f6",
-                    fontSize: 14,
-                    color: TEXT,
-                  }}
-                >
-                  <span>
-                    {tech.name}
-                    {tech.active === false ? " (inactive)" : ""}
-                    {tech.pinCode || tech.pinHash ? " · PIN configured" : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void toggleTechnicianActive(tech)}
+              {technicians.map((tech) => {
+                const permissions = normalizePermissions(tech.permissions);
+                return (
+                  <li
+                    key={tech.id}
+                    data-testid={`technician-row-${tech.id}`}
                     style={{
-                      fontSize: 12,
-                      color: NAVY,
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
+                      padding: "12px 0",
+                      borderBottom: "1px solid #f3f4f6",
+                      fontSize: 14,
+                      color: TEXT,
                     }}
                   >
-                    {tech.active === false ? "Activate" : "Deactivate"}
-                  </button>
-                </li>
-              ))}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div>
+                        <strong>{tech.name}</strong>
+                        {tech.active === false ? " (inactive)" : ""}
+                        {tech.pinCode || tech.pinHash ? " · PIN configured" : ""}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void toggleTechnicianActive(tech)}
+                        style={{
+                          fontSize: 12,
+                          color: NAVY,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {tech.active === false ? "Activate" : "Deactivate"}
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 12,
+                        marginTop: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          alignItems: "center",
+                          fontSize: 13,
+                          color: TEXT,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          data-testid={`technician-perm-door-${tech.id}`}
+                          checked={permissions.doorScan !== false}
+                          disabled={tech.active === false}
+                          onChange={(e) =>
+                            void updateTechnicianPermissions(tech, {
+                              doorScan: e.target.checked,
+                            })
+                          }
+                        />
+                        Door scan
+                      </label>
+                      <label
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          alignItems: "center",
+                          fontSize: 13,
+                          color: TEXT,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          data-testid={`technician-perm-release-${tech.id}`}
+                          checked={permissions.receiveReleases !== false}
+                          disabled={tech.active === false}
+                          onChange={(e) =>
+                            void updateTechnicianPermissions(tech, {
+                              receiveReleases: e.target.checked,
+                            })
+                          }
+                        />
+                        Receive releases
+                      </label>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="New 4-digit PIN"
+                        data-testid={`technician-pin-input-${tech.id}`}
+                        value={pinEdits[tech.id] ?? ""}
+                        onChange={(e) =>
+                          setPinEdits((prev) => ({
+                            ...prev,
+                            [tech.id]: e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 4),
+                          }))
+                        }
+                        style={{ ...inputStyle, width: 120 }}
+                      />
+                      <button
+                        type="button"
+                        data-testid={`technician-pin-save-${tech.id}`}
+                        disabled={
+                          pinSavingId === tech.id ||
+                          !/^\d{4}$/.test((pinEdits[tech.id] ?? "").trim())
+                        }
+                        onClick={() => void saveTechnicianPin(tech)}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 6,
+                          border: "none",
+                          backgroundColor: NAVY,
+                          color: "#fff",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          opacity:
+                            pinSavingId === tech.id ||
+                            !/^\d{4}$/.test((pinEdits[tech.id] ?? "").trim())
+                              ? 0.6
+                              : 1,
+                        }}
+                      >
+                        {pinSavingId === tech.id ? "Saving…" : "Update PIN"}
+                      </button>
+                    </div>
+                    {!technicianCanUseDoor(tech) ? (
+                      <p style={{ margin: "6px 0 0", fontSize: 12, color: MUTED }}>
+                        Door scan disabled — PIN will not unlock the tech door.
+                      </p>
+                    ) : null}
+                    {!technicianCanReceiveReleases(tech) ? (
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: MUTED }}>
+                        Receive releases disabled — hidden from release lists.
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
               {technicians.length === 0 && (
                 <li style={{ fontSize: 14, color: MUTED }}>
                   No technicians yet.
@@ -226,7 +445,9 @@ export function TechnicianSettingsPanel() {
                 maxLength={4}
                 placeholder="4-digit PIN"
                 value={techPin}
-                onChange={(e) => setTechPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                onChange={(e) =>
+                  setTechPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                }
                 style={{ ...inputStyle, width: 100 }}
               />
               <button
@@ -260,6 +481,10 @@ export function TechnicianSettingsPanel() {
             >
               Release jobs for today
             </h3>
+            <p style={{ fontSize: 12, color: MUTED, margin: "0 0 10px" }}>
+              Checked jobs are released for the selected technician today.
+              Unchecked jobs are removed when you save.
+            </p>
             <select
               value={releaseTechnicianId}
               onChange={(e) => setReleaseTechnicianId(e.target.value)}
@@ -272,7 +497,7 @@ export function TechnicianSettingsPanel() {
             >
               <option value="">Select technician…</option>
               {technicians
-                .filter((t) => t.active !== false)
+                .filter(technicianCanReceiveReleases)
                 .map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -325,7 +550,7 @@ export function TechnicianSettingsPanel() {
                 cursor: "pointer",
               }}
             >
-              {releasing ? "Releasing…" : "Release selected for today"}
+              {releasing ? "Saving…" : "Save today's release list"}
             </button>
             {releaseMessage && (
               <p style={{ fontSize: 13, marginTop: 8, color: "#374151" }}>

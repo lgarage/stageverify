@@ -63,6 +63,10 @@ exports.releaseJobsToTechnician = (0, https_1.onCall)({
     if (!techSnap.exists || techSnap.data()?.active === false) {
         throw new https_1.HttpsError("not-found", "Technician not found.");
     }
+    const techData = techSnap.data();
+    if (techData.permissions?.receiveReleases === false) {
+        throw new https_1.HttpsError("failed-precondition", "This technician cannot receive job releases.");
+    }
     for (const jobId of jobIds) {
         const jobSnap = await getDb().collection("jobs").doc(jobId).get();
         if (!jobSnap.exists) {
@@ -75,6 +79,13 @@ exports.releaseJobsToTechnician = (0, https_1.onCall)({
         .collection("technicianDayReleases")
         .doc(docId)
         .get();
+    const existingJobIds = existing.exists
+        ? (existing.data()?.jobIds ?? [])
+        : [];
+    const replace = data.replace === true;
+    const finalJobIds = replace
+        ? jobIds
+        : [...new Set([...existingJobIds, ...jobIds])];
     await getDb()
         .collection("technicianDayReleases")
         .doc(docId)
@@ -82,7 +93,7 @@ exports.releaseJobsToTechnician = (0, https_1.onCall)({
         id: docId,
         technicianId,
         releaseDate,
-        jobIds,
+        jobIds: finalJobIds,
         updatedAt: now,
         updatedBy: uid,
         createdAt: existing.exists
@@ -93,7 +104,7 @@ exports.releaseJobsToTechnician = (0, https_1.onCall)({
         success: true,
         technicianId,
         releaseDate,
-        jobIds,
+        jobIds: finalJobIds,
     };
 });
 //# sourceMappingURL=releaseJobsToTechnician.js.map

@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
-import { firestoreDataService } from "./dispatcher/firestoreService";
+import { firestoreDataService, listTechnicians } from "./dispatcher/firestoreService";
+import {
+  loadTodayJobReleasedToMap,
+} from "./dispatcher/technicianReleaseHelpers";
+import { RELEASED_TO_TABLE_BADGE } from "./dispatcher/drawer/JobReleaseToTechnicianPanel";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import {
   type DeliveryListRow,
@@ -154,6 +158,7 @@ const SORT_COLUMNS: Array<{
   { label: "Staging Loc.", key: "stagingLocationCode" },
   { label: "Items Recv.", key: "itemsReceivedLabel" },
   { label: "Issue Summary", key: "issueSummary" },
+  { label: "Released To" },
   { label: "Action", className: "text-right" },
 ];
 
@@ -193,6 +198,9 @@ export function DispatcherDashboardPage() {
   const [allRows, setAllRows] = useState<DeliveryListRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  const [jobReleasedToMap, setJobReleasedToMap] = useState<Map<string, string>>(
+    new Map(),
+  );
 
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
     null,
@@ -227,6 +235,16 @@ export function DispatcherDashboardPage() {
     return counts;
   }, [allRows]);
 
+  const fetchReleaseMap = useCallback(async () => {
+    try {
+      const techs = await listTechnicians();
+      const map = await loadTodayJobReleasedToMap(techs);
+      setJobReleasedToMap(map);
+    } catch {
+      setJobReleasedToMap(new Map());
+    }
+  }, []);
+
   /* ── Data fetching ── */
   const fetchAllData = useCallback(async () => {
     setListLoading(true);
@@ -246,12 +264,13 @@ export function DispatcherDashboardPage() {
       setAllRows(allResult.items);
       setLastUpdated(new Date().toLocaleString());
       setListError(null);
+      await fetchReleaseMap();
     } catch {
       setListError("Could not load deliveries. Please try again.");
     } finally {
       setListLoading(false);
     }
-  }, [query]);
+  }, [query, fetchReleaseMap]);
 
   useEffect(() => {
     fetchAllDataRef.current = fetchAllData;
@@ -1122,6 +1141,62 @@ export function DispatcherDashboardPage() {
                           ) : row.openIssueCount > 0 ? null : (
                             "—"
                           )}
+                        </td>
+                        <td
+                          data-testid={`released-to-${row.deliveryId}`}
+                          style={{
+                            padding: "14px 12px",
+                            borderBottom: actionRequired
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid #eaecf0",
+                          }}
+                        >
+                          {(() => {
+                            const releasedTo =
+                              jobReleasedToMap.get(row.jobId) ?? "";
+                            if (!releasedTo) {
+                              return (
+                                <span
+                                  style={{
+                                    color: actionRequired
+                                      ? "rgba(255,255,255,0.75)"
+                                      : "#9ca3af",
+                                  }}
+                                >
+                                  —
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                data-testid={`released-to-badge-${row.deliveryId}`}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  padding: "3px 10px",
+                                  borderRadius: 999,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                  maxWidth: 160,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  backgroundColor: actionRequired
+                                    ? "rgba(255,255,255,0.2)"
+                                    : RELEASED_TO_TABLE_BADGE.bg,
+                                  color: actionRequired
+                                    ? "#fff"
+                                    : RELEASED_TO_TABLE_BADGE.text,
+                                  border: actionRequired
+                                    ? "1px solid rgba(255,255,255,0.45)"
+                                    : `1px solid ${RELEASED_TO_TABLE_BADGE.border}`,
+                                }}
+                                title={releasedTo}
+                              >
+                                {releasedTo}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td
                           style={{

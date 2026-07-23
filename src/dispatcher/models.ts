@@ -354,12 +354,21 @@ export interface VerifyVendorPinResult {
   expiresAt?: string;
 }
 
+/** Minimal technician permissions — not full RBAC (D-40 Slice A). */
+export interface TechnicianPermissions {
+  /** PIN login at location QR door. Default true when active. */
+  doorScan?: boolean;
+  /** Dispatcher may release jobs to this tech for day pickup. Default true when active. */
+  receiveReleases?: boolean;
+}
+
 export interface Technician {
   id: string;
   name: string;
   pinCode?: string;
   pinHash?: string;
   active?: boolean;
+  permissions?: TechnicianPermissions;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1197,6 +1206,7 @@ export const getAllStagingLocationIds = (delivery: DeliveryOrder): string[] => {
 
 export interface DeliveryListRow {
   deliveryId: string;
+  jobId: string;
   status: DeliveryStatus;
   /** Readiness-aware label aligned with drawer / job readiness panel. */
   statusDisplayLabel: string;

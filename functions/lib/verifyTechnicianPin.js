@@ -79,6 +79,8 @@ async function findTechnicianByPin(pin) {
         const data = doc.data();
         if (data.active === false)
             return null;
+        if (data.permissions?.doorScan === false)
+            return null;
         return { id: doc.id, data };
     }
     if (pinCodeSnap.size > 1)
@@ -87,6 +89,8 @@ async function findTechnicianByPin(pin) {
     for (const doc of all.docs) {
         const tech = doc.data();
         if (tech.active === false)
+            continue;
+        if (tech.permissions?.doorScan === false)
             continue;
         if ((0, pinMatching_1.pinMatches)(tech, pin)) {
             return { id: doc.id, data: tech };

@@ -136,5 +136,58 @@ export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
       large: false,
       optional: true,
     },
+    {
+      name: "permission checkbox label",
+      selector: 'label:has(input[data-testid^="technician-perm-"])',
+      large: false,
+      optional: true,
+    },
+  ],
+};
+
+/** Drawer job-release panel — dispatcher per-job release (D-40 UI). */
+export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="job-release-to-technician-panel"]',
+  elements: [
+    {
+      name: "panel heading",
+      selector: '[data-testid="job-release-panel-heading"]',
+      large: true,
+    },
+    {
+      name: "technician select",
+      selector: '[data-testid="job-release-technician-select"]',
+      large: false,
+    },
+    {
+      name: "release button",
+      selector: '[data-testid="job-release-submit"]',
+      large: false,
+    },
+    {
+      name: "current release badge",
+      selector: '[data-testid="job-release-current-badge"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "not released hint",
+      selector: '[data-testid="job-release-current-empty"]',
+      large: false,
+      optional: true,
+    },
+  ],
+};
+
+/** Deliveries table Released To badge. */
+export const RELEASED_TO_BADGE_CONTRAST_SPEC = {
+  rootSelector: "table tbody tr",
+  elements: [
+    {
+      name: "released to badge",
+      selector: '[data-testid^="released-to-badge-"]',
+      large: false,
+      optional: true,
+    },
   ],
 };

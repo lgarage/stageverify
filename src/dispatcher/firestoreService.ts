@@ -53,6 +53,7 @@ import type {
   StatusHistoryEvent,
   Vendor,
   Technician,
+  TechnicianDayRelease,
   AppSettings,
   EmailProviderConnection,
   EmailProviderConnectionStatus,
@@ -403,6 +404,7 @@ export class FirestoreDataService implements DispatcherDataService {
 
       rows.push({
         deliveryId: delivery.id,
+        jobId: delivery.jobId,
         // Authoritative for list filter chips / counts — matches statusDisplayLabel.
         status: display.readiness.deliveryStatus,
         statusDisplayLabel: display.statusDisplayLabel,
@@ -1940,6 +1942,23 @@ export async function createTechnician(technician: Technician): Promise<void> {
 
 export async function updateTechnician(technician: Technician): Promise<void> {
   await setDoc(doc(db, "technicians", technician.id), technician, { merge: true });
+}
+
+export async function listTechnicianDayReleasesForDate(
+  releaseDate: string,
+): Promise<TechnicianDayRelease[]> {
+  const all = await fetchAll<TechnicianDayRelease>("technicianDayReleases");
+  return all.filter((r) => r.releaseDate === releaseDate);
+}
+
+export async function getTechnicianDayReleaseForDate(
+  technicianId: string,
+  releaseDate: string,
+): Promise<TechnicianDayRelease | null> {
+  const docId = `${technicianId}_${releaseDate}`;
+  const snap = await getDoc(doc(db, "technicianDayReleases", docId));
+  if (!snap.exists()) return null;
+  return snap.data() as TechnicianDayRelease;
 }
 
 export async function listShopStockMappings(): Promise<
