@@ -1,5 +1,6 @@
 import type { DeliveryDetails, StagingLocation } from "./dispatcher/models";
 import type { StagingLocationOccupant } from "./dispatcher/firestoreService";
+import { auth } from "./firebase";
 
 const CF_BASE =
   "https://us-central1-stageverify-db.cloudfunctions.net";
@@ -11,6 +12,16 @@ type CallableBody<T> = {
   error?: { message?: string };
 };
 
+async function callCallableAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function callCallable<T>(
   functionName: string,
   data: Record<string, unknown>,
@@ -18,9 +29,10 @@ async function callCallable<T>(
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), CALLABLE_TIMEOUT_MS);
   try {
+    const headers = await callCallableAuthHeaders();
     const response = await fetch(`${CF_BASE}/${functionName}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ data }),
       signal: controller.signal,
     });

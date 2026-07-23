@@ -103,6 +103,25 @@ async function openDrawerForJobReleaseVerify(page) {
     `PASS: Job release panel contrast (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
   );
 
+  const techSelect = page.getByTestId("job-release-technician-select");
+  const options = techSelect.locator("option:not([value=''])");
+  const optionCount = await options.count();
+  if (optionCount === 0) {
+    throw new Error(
+      "No eligible technicians — add an active technician in Settings first.",
+    );
+  }
+  const firstTechValue = await options.first().getAttribute("value");
+  await techSelect.selectOption(firstTechValue ?? "");
+  await page.getByTestId("job-release-submit").click();
+  await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
+  const errorBanner = page.getByTestId("job-release-error");
+  if ((await errorBanner.count()) > 0 && (await errorBanner.isVisible())) {
+    const msg = (await errorBanner.innerText()).trim();
+    throw new Error(`Release failed in UI: ${msg}`);
+  }
+  console.log("PASS: Release to technician callable succeeded");
+
   const badgeCount = await page
     .locator('[data-testid^="released-to-badge-"]')
     .count();
