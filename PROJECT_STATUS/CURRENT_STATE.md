@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.116** @ *(pending push)* — Staging Map: click assigned spot → navy focus chrome + Delivery Details drawer.
+- Last shipped: **v0.0.116** @ `c677569` — Staging Map: click assigned spot → navy focus chrome + Delivery Details drawer; verify:shop-map PASS.
 - Active Phase: **Location-first Phase 6 Slice A** — catch-all intake shipped; Slice B audit walk next.
 - **Verify:** `verify:management-catch-all` / `:prod`; `verify:technician-door` / `:prod` after CF deploy.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
