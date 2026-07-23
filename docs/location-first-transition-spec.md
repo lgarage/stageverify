@@ -28,7 +28,7 @@
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `complete` | 2026-07-08 | 2026-07-11 | UI slices (away-113..117); verify hardening (away-118..121); `releasePlannedStagingLocation` CF; `verify:location-phase4` 15/15 local + prod (`v0.0.33`) |
 | 5 | Technician door two + pickup verification v2 | `in_progress` | 2026-07-22 | — | **Slice A v0.0.108:** any QR→PIN→directed spots; always-strict day-release; Sonnet MEDIUM (dispatcher gate fixed pre-deploy) |
-| 6 | Management audit walk + unexpected-delivery resolution | `in_progress` | Slice A | v0.0.115 | **Slice A (D-41) shipped:** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark; **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN) |
+| 6 | Management audit walk + unexpected-delivery resolution | `in_progress` | Slice A | v0.0.115 | **Slice A (D-41) shipped:** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark; **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN); **Slice C (D-44):** dispatcher Notify → email catch-all checkers → `#/s?loc=` deep link (email-first; SMS deferred) |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
 **Current phase: Phase 5 Slice A shipped (`v0.0.108`) — technician PIN door + day-release + shared JobPickupScreen. Next: Slice B (pickup verification v2 polish).**
@@ -430,6 +430,27 @@ Open pickup checklist:
 **Security review requirement:** Sonnet gate **mandatory** (shared PIN on a public wall + shell creation = the highest-sensitivity surface after Phase 2); explicit Dan approval before any rules/CF deploy.
 
 **Drift review requirement:** Resolution stayed narrow (capture/flag only) per D5 — **except** Slice A packing-slip checkmark direct mark-received (D-41); flag any other management status-edit creep.
+
+### Slice C — Catch-all arrival notify (D-44)
+
+**Goal:** After a box is physically at the catch-all spot (door phone → dispatcher, outside SV), dispatcher signals office checkers to start the existing Slice A intake flow — without a door-phone product surface.
+
+**Scope:**
+
+1. **Dispatcher Notify action** — authenticated dispatcher only; UI on Settings Management section and/or dashboard catch-all card when `parcelIntakeEnabled`; **not** on office-side `ManagementCatchAllHub`.
+2. **Recipients** — `officeReceivers` collection (dispatcher-only rules, parallel to `technicians`); provisioned in Settings **Office receivers** panel with `catchAllCheckInEnabled` + channel prefs; check-in still uses **shared management PIN** (notify targets ≠ auth identities).
+3. **MVP channel** — email via connected Gmail (`sendGmailMessage` pattern); generic message (spot label/code, timestamp, `#/s?loc={code}` deep link); Notify disabled when Gmail not connected; 15-min shop cooldown via CF-only `catchAllNotifyLog`.
+4. **Recipient flow** — tap link → `#/s?loc=` → management PIN → Slice A waiting-parts hub (unchanged).
+
+**Out of scope (Slice C):** SMS/Twilio send (store phone + disabled SMS toggle OK); per-receiver management PIN; changes to `ManagementCatchAllHub` / `getManagementWaitingParts`; optional dispatcher note (later); Firebase Auth accounts for office staff.
+
+**Distinction:** **Notify** = “box landed, come check in.” **Arrived** (Slice A hub) = matched packing slip marked received via `markCatchAllDeliveryReceived`.
+
+**Acceptance criteria (Playwright):** provision office receiver → dispatcher Notify → audit log row + email path exercised (fixture or connected Gmail); deep link opens catch-all PIN gate; negative: no notify when intake off / no checkers / cooldown active / Gmail disconnected.
+
+**Security review requirement:** Sonnet gate **mandatory** (new collection + outbound email CF); explicit Dan approval before rules/CF deploy. Twilio/SMS requires separate Dan approval for secrets.
+
+**Sequencing:** May ship in parallel with Slice B once Slice A is live; do not block Slice B audit walk.
 
 ---
 
