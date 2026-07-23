@@ -1,1 +1,0 @@
-import{Un as e,er as t,rr as n}from"./index-Df61gJjv.js";var r=e();function i(){let{orderId:e}=n(),i=e?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
