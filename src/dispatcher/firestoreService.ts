@@ -53,6 +53,8 @@ import type {
   StatusHistoryEvent,
   Vendor,
   Technician,
+  OfficeReceiver,
+  NotifyCatchAllCheckersResult,
   TechnicianDayRelease,
   AppSettings,
   EmailProviderConnection,
@@ -1942,6 +1944,28 @@ export async function createTechnician(technician: Technician): Promise<void> {
 
 export async function updateTechnician(technician: Technician): Promise<void> {
   await setDoc(doc(db, "technicians", technician.id), technician, { merge: true });
+}
+
+export async function listOfficeReceivers(): Promise<OfficeReceiver[]> {
+  return fetchAll<OfficeReceiver>("officeReceivers");
+}
+
+export async function createOfficeReceiver(receiver: OfficeReceiver): Promise<void> {
+  await setDoc(doc(db, "officeReceivers", receiver.id), receiver);
+}
+
+export async function updateOfficeReceiver(receiver: OfficeReceiver): Promise<void> {
+  await setDoc(doc(db, "officeReceivers", receiver.id), receiver, { merge: true });
+}
+
+const notifyCatchAllCheckersCallable = httpsCallable<
+  object,
+  NotifyCatchAllCheckersResult
+>(functions, "notifyCatchAllCheckers");
+
+export async function notifyCatchAllCheckers(): Promise<NotifyCatchAllCheckersResult> {
+  const response = await notifyCatchAllCheckersCallable({});
+  return response.data;
 }
 
 export async function listTechnicianDayReleasesForDate(

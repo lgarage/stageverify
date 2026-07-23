@@ -375,6 +375,40 @@ export interface Technician {
   updatedAt?: string;
 }
 
+/** Office staff notified for catch-all parcel check-in (D-44) — not Firebase Auth users. */
+export interface OfficeReceiver {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  active?: boolean;
+  /** When true, included in catch-all notify emails. */
+  catchAllCheckInEnabled?: boolean;
+  notifyEmail?: boolean;
+  /** Store-only until Twilio approved — SMS send deferred. */
+  notifySms?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** Append-only audit row — CF writes only (`catchAllNotifyLog`). */
+export interface CatchAllNotifyLogEntry {
+  id: string;
+  createdAt: string;
+  triggeredByUid: string;
+  catchAllStagingLocationId: string;
+  spotCode: string;
+  spotLabel?: string;
+  recipientCount: number;
+  emailsSent: number;
+}
+
+export interface NotifyCatchAllCheckersResult {
+  logId: string;
+  recipientCount: number;
+  emailsSent: number;
+}
+
 export interface VerifyTechnicianPinInput {
   pin: string;
   stagingLocationCode: string;

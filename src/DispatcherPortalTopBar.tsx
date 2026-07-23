@@ -4,6 +4,7 @@ import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { DispatcherPortalLinks } from "./PortalNavBar";
 import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
+import { CatchAllDeliveryTopBarEntry } from "./dispatcher/CatchAllDeliveryTopBarEntry";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
 
 const NAVY = "#0a3161";
@@ -77,6 +78,7 @@ export function DispatcherPortalTopBar({
         ) : null}
       </div>
       <VendorCommunicationsTopBarEntry />
+      <CatchAllDeliveryTopBarEntry />
       <div style={{ minWidth: 0, display: "flex", alignItems: "center" }}>{headerExtra}</div>
       <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
         <DispatcherPortalLinks />

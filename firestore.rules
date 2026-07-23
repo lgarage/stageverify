@@ -123,6 +123,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /officeReceivers/{receiverId} {
+      allow read: if isDispatcher();
+      allow create, update: if isDispatcher();
+      allow delete: if false;
+    }
+
+    // D-44 catch-all notify audit — CF Admin SDK write only.
+    match /catchAllNotifyLog/{logId} {
+      allow read: if isDispatcher();
+      allow create, update, delete: if false;
+    }
+
     match /technicianDayReleases/{releaseId} {
       allow read: if isDispatcher();
       allow create, update, delete: if false;

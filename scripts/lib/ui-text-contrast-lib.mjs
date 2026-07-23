@@ -151,6 +151,42 @@ export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
   ],
 };
 
+/** Office receivers Settings panel (D-44 Slice C). */
+export const OFFICE_RECEIVER_PANEL_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="office-receivers-settings-panel"]',
+  elements: [
+    { name: "section title", selector: "div > div:first-child", large: true },
+    { name: "helper paragraph", selector: "p", large: false },
+    {
+      name: "name input",
+      selector: '[data-testid="office-receiver-name-input"]',
+      large: false,
+    },
+    {
+      name: "email input",
+      selector: '[data-testid="office-receiver-email-input"]',
+      large: false,
+    },
+    {
+      name: "add button",
+      selector: '[data-testid="office-receiver-add-btn"]',
+      large: false,
+    },
+    {
+      name: "receiver row",
+      selector: "li strong",
+      large: false,
+      optional: true,
+    },
+    {
+      name: "catch-all checkbox label",
+      selector: 'label:has(input[data-testid^="office-receiver-catchall-"])',
+      large: false,
+      optional: true,
+    },
+  ],
+};
+
 /** Drawer job-release panel — dispatcher per-job release (D-40 UI). */
 export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
   rootSelector: '[data-testid="job-release-to-technician-panel"]',

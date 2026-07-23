@@ -6,9 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.118** — any location QR → Office PIN → **Catch-all check-in** button → waiting-parts hub (D-44 entry path amended; notify = alert only).
-- Active Phase: **Location-first Phase 6 Slice A** — catch-all intake polish shipped; Slice B audit walk next.
-- **Verify:** `verify:management-catch-all` / `:prod`; `verify:technician-door` / `:prod` after CF deploy.
+- Last shipped: **v0.0.119** — dispatcher **Catch-all delivery** top-bar button → confirm → `notifyCatchAllCheckers` email alert + append-only `catchAllNotifyLog` (D-44 Slice C C1).
+- Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
+- **Verify:** `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -20,6 +20,7 @@
 
 ## Queued product (deferred)
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
+- **D-44 G5:** phone chips / persist office receiver UX (deferred).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

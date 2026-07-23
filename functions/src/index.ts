@@ -56,6 +56,7 @@ import { verifyTechnicianPin } from "./verifyTechnicianPin";
 import { verifyManagementPin } from "./verifyManagementPin";
 import { getManagementWaitingParts } from "./getManagementWaitingParts";
 import { markCatchAllDeliveryReceived } from "./markCatchAllDeliveryReceived";
+import { notifyCatchAllCheckers } from "./notifyCatchAllCheckers";
 import { captureUnidentifiableParcel } from "./captureUnidentifiableParcel";
 import { setManagementPin } from "./setManagementPin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
@@ -205,6 +206,7 @@ export {
   verifyManagementPin,
   getManagementWaitingParts,
   markCatchAllDeliveryReceived,
+  notifyCatchAllCheckers,
   captureUnidentifiableParcel,
   setManagementPin,
   getTechnicianReleasedJobs,

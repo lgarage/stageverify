@@ -33,6 +33,7 @@ import { PortalSidebar } from "./PortalSidebar";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { TechnicianSettingsPanel } from "./TechnicianSettingsPanel";
+import { OfficeReceiversSettingsPanel } from "./OfficeReceiversSettingsPanel";
 import { ManagementSettingsPanel } from "./ManagementSettingsPanel";
 
 const NAVY = "#0a3161";
@@ -1237,6 +1238,8 @@ export function SettingsPage() {
           </div>
 
           <TechnicianSettingsPanel />
+
+          <OfficeReceiversSettingsPanel />
 
           <div style={{ ...cardStyle, overflow: "hidden", marginTop: 16 }}>
             <ManagementSettingsPanel />
