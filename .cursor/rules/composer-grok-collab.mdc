@@ -1,0 +1,29 @@
+---
+description: Dan standing default — Composer proposes, Grok deliberates, Composer codes, Grok verifies.
+alwaysApply: true
+---
+
+# Composer ↔ Grok collaboration (D-43)
+
+**Dan standing preference (default for real feature work):** Composer and Grok **collaborate on the best code edits before any implementation**, then Composer writes the code, then Grok verifies. This is the plan going forward — not optional for substantive work.
+
+## Three-phase loop (one ladder — no duplicate gates)
+
+| Phase | Who | What |
+|-------|-----|------|
+| **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Peer-deliberate (adopt/rebut until agreement) per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
+| **2 — Implement** | **Composer only** | Code, build, verify scripts, ship loop. Grok never implements. |
+| **3 — Verify** | Grok | **Ship Verifier** post-push (scope vs agreed solution); **Repair Verifier** on Dan repair intent. Sonnet security gate unchanged for high-risk paths. |
+
+## When this applies
+
+- **Default:** Dan work directives / planned code changes that are substantive (T1+ feature work, multi-file, branching approach) — see D-36 trigger in `model-gates.mdc`.
+- **Skips (unchanged):** T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed decisions. Label skips with `solution-verifier: N/A (<reason>)`.
+
+## Evidence (mandatory)
+
+`solution-verifier:` + `ship-verifier:` (or `repair-verifier:`) lines per `model-gates.mdc`. Missing when trigger fired = **NOT RUN**.
+
+## Authority
+
+Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder.

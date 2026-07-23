@@ -247,11 +247,17 @@ Task({
 - **Unresolved after max cycles:** the orchestrator presents **both positions** with a `Caveat:` line — never silent compliance, never silent dismissal.
 - Platform parity automatic per D-32 default (desktop Windows PC, mobile Cursor, cloud VM).
 
-### Solution deliberation (D-36 — Dan 2026-07-13)
+### Solution deliberation (D-36 — Dan 2026-07-13; standing default D-43)
 
-**Trigger:** Dan gives a direct **work directive** ("build X", "change Y", "add Z") whose diff would qualify as a **substantive ship** under the Ship Verifier path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`) **and** the work is T1+, multi-file, or has a branching approach — i.e. a real solution choice exists. Symmetric with the post-ship gate.
+**Standing default (D-43):** For substantive work / real feature code, Composer and Grok **iterate on the best edits before implementation** — Composer proposes, Grok Solution Verifier peer-deliberates until agreement, **then** Composer implements, **then** Grok verifies (Ship Verifier post-ship; Repair Verifier on repair intent). Dan's standing preference; see also `.cursor/rules/composer-grok-collab.mdc`.
 
-**Flow:** BEFORE the first edit, Composer drafts a brief **solution proposal** (approach, files to touch, risks, alternative considered) → dispatches one read-only Grok **Solution Verifier** → peer deliberation per § Peer deliberation (D-30) / § Question deliberation (D-33) mechanics (adopt/rebut/explicit accept-reject) → **implement only the AGREED solution**. **Max 2 cycles**; still unresolved → **stop and present BOTH positions to Dan** (per § Peer deliberation — never implement through unresolved disagreement); architectural disagreement → escalate per the ladder (Sonnet/Fable). Post-ship Ship Verifier unchanged — its prompt now includes the agreed-solution summary so it verifies execution matched agreement, **and** it must flag any `solution-verifier: N/A (T0 single-file unambiguous)` claim whose final diff is multi-file or clearly branching (post-hoc falsifiable skip — a dodge is a FAIL finding).
+**Trigger:** Dan gives a direct **work directive** ("build X", "change Y", "add Z") whose diff would qualify as a **substantive ship** under the Ship Verifier path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`) **and** the work is T1+, multi-file, or has a branching approach — i.e. a real solution choice exists. Symmetric with the post-ship gate. **When in doubt on real feature work, run Solution Verifier — do not skip by default.**
+
+**Flow (three phases — one ladder):**
+
+1. **Agree (pre-edit):** Composer drafts a brief **solution proposal** (approach, files to touch, risks, alternative considered) → dispatches one read-only Grok **Solution Verifier** → peer deliberation per § Peer deliberation (D-30) / § Question deliberation (D-33) mechanics (adopt/rebut/explicit accept-reject) → **implement only the AGREED solution**. **Max 2 cycles**; still unresolved → **stop and present BOTH positions to Dan** (per § Peer deliberation — never implement through unresolved disagreement); architectural disagreement → escalate per the ladder (Sonnet/Fable).
+2. **Implement:** Composer only — code, build, local verify, ship loop. Grok never implements.
+3. **Verify (post-ship / repair):** Ship Verifier after push (prompt includes agreed-solution summary; verifies execution matched agreement); Repair Verifier on Dan repair intent. Ship Verifier must flag any `solution-verifier: N/A (T0 single-file unambiguous)` claim whose final diff is multi-file or clearly branching (post-hoc falsifiable skip — a dodge is a FAIL finding).
 
 **Skips** (`solution-verifier: N/A (<reason>)` — trust judgments, no double-dispatch):
 
