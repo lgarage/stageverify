@@ -24,7 +24,12 @@ import {
   openDeliveryDrawerForNavVerify,
 } from "./dispatcherVerifyHelpers.mjs";
 
-const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
+const args = process.argv.slice(2);
+const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
+const baseUrl =
+  (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
+  process.env.STAGEVERIFY_BASE_URL ??
+  "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 const outDir = resolve(process.cwd(), "screenshots/dispatcher-job-release");
