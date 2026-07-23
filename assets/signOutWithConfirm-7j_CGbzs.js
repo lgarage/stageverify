@@ -1,0 +1,1 @@
+import{Jn as e}from"./index-DZ3t0b-9.js";function t(t,n){window.confirm(`Are you sure you want to sign out?`)&&e(t).then(()=>{n(`/login`,{replace:!0})})}export{t};
