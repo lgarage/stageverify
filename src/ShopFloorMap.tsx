@@ -111,6 +111,8 @@ type Props = {
   selfPlannedLayoutSlots?: ReadonlySet<string>;
   onAssignSpotClick?: (layoutSlot: string) => void;
   onAssignSpotRefused?: (message: string) => void;
+  /** Deep-link highlight — scroll to and outline matching spot (e.g. from drawer chip). */
+  focusSpotCode?: string | null;
 };
 
 export type ShopFloorMapHandle = {
@@ -294,6 +296,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       selfPlannedLayoutSlots,
       onAssignSpotClick,
       onAssignSpotRefused,
+      focusSpotCode = null,
     },
     ref,
   ) {
@@ -473,6 +476,28 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     },
     [zoneForLayoutSlot],
   );
+
+  const focusLayoutSlot = useMemo(() => {
+    const raw = focusSpotCode?.trim();
+    if (!raw) return null;
+    const key = normalizeStagingCodeKey(raw);
+    for (const slot of allShopMapSpotCodes(layout)) {
+      if (normalizeStagingCodeKey(displayCodeForSlot(slot)) === key) {
+        return slot;
+      }
+    }
+    return null;
+  }, [focusSpotCode, layout, displayCodeForSlot]);
+
+  useEffect(() => {
+    if (!focusLayoutSlot) return;
+    const el = spotElRefs.current[focusLayoutSlot];
+    if (!el) return;
+    const timer = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [focusLayoutSlot]);
 
   const cancelActiveDrag = () => {
     dragRef.current = null;
@@ -1889,6 +1914,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const pendingAssign = assignMode && pendingAssignLayoutSlot === layoutSlot;
     const selfPlanned =
       assignMode && selfPlannedLayoutSlots?.has(layoutSlot) === true;
+    const spotFocused = focusLayoutSlot === layoutSlot;
     return (
       <>
         <button
@@ -1898,6 +1924,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           }}
           data-testid={`shop-spot-${layoutSlot}`}
           data-spot-color={colorOf(layoutSlot)}
+          data-spot-focused={spotFocused ? "true" : undefined}
           data-map-offset-x={ox}
           data-map-offset-y={oy}
           data-map-width={width}
@@ -1920,6 +1947,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   outline: "3px solid #ea580c",
                   outlineOffset: 2,
                   boxShadow: "0 0 0 2px #fff7ed",
+                }
+              : {}),
+            ...(spotFocused && !pendingAssign
+              ? {
+                  outline: "3px solid #0a3161",
+                  outlineOffset: 2,
+                  boxShadow: "0 0 0 2px #dbeafe",
                 }
               : {}),
             ...(assignMode && !editMode

@@ -432,6 +432,14 @@ export function DeliveryDetailDrawer({
     [navigate, onClose],
   );
 
+  const handleNavigateToStagingMap = useCallback(
+    (spotCode: string) => {
+      onClose();
+      navigate(`/zones?focusSpot=${encodeURIComponent(spotCode)}`);
+    },
+    [navigate, onClose],
+  );
+
   if (!deliveryId) return null;
 
   return (
@@ -554,6 +562,7 @@ export function DeliveryDetailDrawer({
             onResolveMaterialIssue={handleResolveMaterialIssue}
             emailProviderConnected={emailProviderConnected}
             onNavigateToAssignLocation={handleNavigateToAssignLocation}
+            onNavigateToStagingMap={handleNavigateToStagingMap}
             onJobReleased={() => void onDataChanged?.()}
           />
         </div>

@@ -267,6 +267,11 @@ export function ZoneManagementPage() {
     return params.get("assignDelivery")?.trim() || null;
   }, [location.search]);
 
+  const focusSpotCode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("focusSpot")?.trim() || null;
+  }, [location.search]);
+
   const lastRefreshGeneration = useRef(0);
   const {
     refreshBusy,
@@ -1192,6 +1197,7 @@ export function ZoneManagementPage() {
               selfPlannedLayoutSlots={selfPlannedLayoutSlots}
               onAssignSpotClick={handleAssignSpotClick}
               onAssignSpotRefused={showAssignToast}
+              focusSpotCode={focusSpotCode}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>

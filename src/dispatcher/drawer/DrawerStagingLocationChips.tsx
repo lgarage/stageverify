@@ -62,6 +62,8 @@ type Props = {
   shopStockByCode: Record<string, ShopStockLocationMapping>;
   occupancyReady: boolean;
   font: string;
+  /** Navigate to Staging Map focused on this spot code (e.g. G4). */
+  onNavigateToStagingMap?: (spotCode: string) => void;
 };
 
 /** Map-matching spot chips for Delivery Basics — colors track live floor map status. */
@@ -72,6 +74,7 @@ export function DrawerStagingLocationChips({
   shopStockByCode,
   occupancyReady,
   font,
+  onNavigateToStagingMap,
 }: Props) {
   const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
   const codes = collectDeliveryStagingCodes(delivery, locById);
@@ -101,22 +104,42 @@ export function DrawerStagingLocationChips({
         const color: SpotMapColor = occupancyReady
           ? resolveSpotColor(code, occupancyByZoneCode, shopStockByCode)
           : "orange";
+        const statusTitle =
+          color === "red"
+            ? "Ready for pickup"
+            : color === "orange"
+              ? "Assigned / planned"
+              : color === "gray"
+                ? "Shop stock"
+                : "Available";
+        const mapTitle = onNavigateToStagingMap
+          ? `${statusTitle} — open on Staging Map`
+          : statusTitle;
+        const sharedProps = {
+          "data-testid": `delivery-basics-staging-chip-${code}`,
+          "data-spot-color": color,
+          title: mapTitle,
+        };
+        if (onNavigateToStagingMap) {
+          return (
+            <button
+              key={code}
+              type="button"
+              {...sharedProps}
+              aria-label={`View ${code} on Staging Map`}
+              onClick={() => onNavigateToStagingMap(code)}
+              style={{
+                ...chipStyle(color),
+                cursor: "pointer",
+                fontFamily: "monospace",
+              }}
+            >
+              {code}
+            </button>
+          );
+        }
         return (
-          <span
-            key={code}
-            data-testid={`delivery-basics-staging-chip-${code}`}
-            data-spot-color={color}
-            style={chipStyle(color)}
-            title={
-              color === "red"
-                ? "Ready for pickup"
-                : color === "orange"
-                  ? "Assigned / planned"
-                  : color === "gray"
-                    ? "Shop stock"
-                    : "Available"
-            }
-          >
+          <span key={code} {...sharedProps} style={chipStyle(color)}>
             {code}
           </span>
         );

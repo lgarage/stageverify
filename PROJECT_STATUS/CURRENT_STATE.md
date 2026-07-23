@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.113** — per-tech Released To badge colors + assigned drawer UX (badge+Edit; reassign on Edit).
+- Last shipped: **v0.0.114** — drawer staging location chips open Staging Map (`?focusSpot=`) with spot highlighted.
 - Active Phase: **Location-first Phase 5 Slice A shipped** — Slice B (pickup v2 polish) next.
 - **Verify:** `verify:dispatcher-job-release` / `:prod`; `verify:settings-technicians` / `:prod`; `verify:technician-door` / `:prod` after CF deploy.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

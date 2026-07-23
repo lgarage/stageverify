@@ -536,6 +536,7 @@ export function DetailContent({
   onResolveMaterialIssue,
   emailProviderConnected,
   onNavigateToAssignLocation,
+  onNavigateToStagingMap,
   onJobReleased,
 }: {
   loading: boolean;
@@ -573,6 +574,7 @@ export function DetailContent({
   ) => Promise<void>;
   emailProviderConnected: boolean;
   onNavigateToAssignLocation?: (deliveryId: string) => void;
+  onNavigateToStagingMap?: (spotCode: string) => void;
   onJobReleased?: () => void | Promise<void>;
 }) {
   const [showPrintLabel, setShowPrintLabel] = useState(false);
@@ -1000,6 +1002,7 @@ export function DetailContent({
                   shopStockByCode={liveOccupancy.shopStockByCode}
                   occupancyReady={liveOccupancy.ready}
                   font={font}
+                  onNavigateToStagingMap={onNavigateToStagingMap}
                 />
               </div>
               <JobReleaseToTechnicianPanel

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.113",
+  "version": "0.0.114",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {

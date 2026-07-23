@@ -272,6 +272,10 @@ async function main() {
   const stagingUnassigned = page.getByTestId(
     "delivery-basics-staging-unassigned",
   );
+  const drawerDeliveryId = await assignDrawer.getAttribute("data-delivery-id");
+  if (!drawerDeliveryId) {
+    throw new Error("Assign flow: drawer missing data-delivery-id");
+  }
   if ((await stagingChips.count()) > 0) {
     const chipColor = await stagingChips.first().getAttribute("data-spot-color");
     if (!chipColor || !/^(green|orange|red|gray)$/.test(chipColor)) {
@@ -279,14 +283,45 @@ async function main() {
         `Staging chip missing map color attribute: ${chipColor ?? "(null)"}`,
       );
     }
+    const firstChip = stagingChips.first();
+    const chipTestId = await firstChip.getAttribute("data-testid");
+    const spotCode =
+      chipTestId?.replace("delivery-basics-staging-chip-", "") ?? "";
+    if (!spotCode) {
+      throw new Error("Staging chip missing spot code in data-testid");
+    }
+    await firstChip.click();
+    await page.waitForURL(/focusSpot=/, { timeout: 15000 });
+    const focusUrl = page.url();
+    if (!focusUrl.includes(`focusSpot=${encodeURIComponent(spotCode)}`)) {
+      throw new Error(
+        `Staging chip click: expected focusSpot=${spotCode} in URL, got ${focusUrl}`,
+      );
+    }
+    await page.getByTestId("shop-floor-map").waitFor({
+      state: "visible",
+      timeout: 15000,
+    });
+    const focusedSpot = page.locator('[data-spot-focused="true"]');
+    await focusedSpot.waitFor({ state: "visible", timeout: 10000 });
+    const focusedLabel = (await focusedSpot.innerText()).trim();
+    if (!focusedLabel.includes(spotCode)) {
+      throw new Error(
+        `Focused map spot expected ${spotCode}, got label: ${focusedLabel}`,
+      );
+    }
+    console.log(
+      `PASS: staging chip ${spotCode} navigates to Staging Map with focus.`,
+    );
+    await page.goto(`${appBase}/#/dispatcher`, {
+      waitUntil: "domcontentloaded",
+    });
+    await openDeliveryDrawerForNavVerify(page);
+    await assertDeliveryDrawerOpen(page);
   } else if ((await stagingUnassigned.count()) === 0) {
     throw new Error(
       "Staging Locations: expected map chips or Not Assigned",
     );
-  }
-  const drawerDeliveryId = await assignDrawer.getAttribute("data-delivery-id");
-  if (!drawerDeliveryId) {
-    throw new Error("Assign flow: drawer missing data-delivery-id");
   }
   const assignBasics = page.getByTestId("delivery-basics-assign-location");
   const assignBannerBtn = page.getByTestId("drawer-staging-location-assign");
