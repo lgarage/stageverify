@@ -1,29 +1,48 @@
 ---
-description: Dan standing default — Composer proposes, Grok deliberates, Composer codes, Grok verifies.
+description: Dan standing default — Composer proposes, Grok agrees, Composer codes, Grok pre-commit checks, Grok ship-verifies.
 alwaysApply: true
 ---
 
 # Composer ↔ Grok collaboration (D-43)
 
-**Dan standing preference (default for real feature work):** Composer and Grok **collaborate on the best code edits before any implementation**, then Composer writes the code, then Grok verifies. This is the plan going forward — not optional for substantive work.
+**Dan standing preference (every session / new conv — alwaysApply):** For substantive feature builds, Composer and Grok **deliberate before any implementation**, Grok **agrees** the solution, **Composer alone** writes the code, Grok **checks the uncommitted diff before commit**, then Grok **Ship-Verifies** after push. Not optional for real feature work. Platform parity (D-20/D-32).
 
-## Three-phase loop (one ladder — no duplicate gates)
+## Four-phase loop (one ladder — no duplicate gates)
 
 | Phase | Who | What |
 |-------|-----|------|
-| **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Peer-deliberate (adopt/rebut until agreement) per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
-| **2 — Implement** | **Composer only** | Code, build, verify scripts, ship loop. Grok never implements. |
-| **3 — Verify** | Grok | **Ship Verifier** post-push (scope vs agreed solution); **Repair Verifier** on Dan repair intent. Sonnet security gate unchanged for high-risk paths. |
+| **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
+| **2 — Implement** | **Composer only** | Code, local build, `verify:*` / Playwright. Grok never implements. |
+| **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
+| **4 — Verify** | Grok | **Ship Verifier** post-push (scope vs agreed solution); **Repair Verifier** on Dan repair intent. Sonnet security gate unchanged for high-risk paths. |
+
+Plain language: **deliberate → Grok agrees → Composer builds → Grok checks before commit → commit/push → Ship Verifier.**
+
+## Implementer lock (hard STOP — Dan 2026-07-23)
+
+Pain: a Grok parent forked itself (`resume: "self"`) and started implementing product code.
+
+- **Composer owns all product/code implementation** (`src/`, `functions/src/`, `public/`, behavior-bearing `scripts/*.mjs`, and any ship that would trigger Ship Verifier paths).
+- When the **session parent is not Composer** (e.g. Grok orchestrator), it **MUST** dispatch implementation via `Task({ subagent_type: "generalPurpose", model: "composer-2.5-fast", … })` — **never** implement inline and **never** `resume: "self"` for a product build.
+- When the parent **is** already Composer 2.5, it may implement inline after Phase 1 agreement (no nested Composer→Composer required).
+- Cross-link: strengthens **D-37** (dispatcher never edits when Composer is available).
 
 ## When this applies
 
 - **Default:** Dan work directives / planned code changes that are substantive (T1+ feature work, multi-file, branching approach) — see D-36 trigger in `model-gates.mdc`.
-- **Skips (unchanged):** T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed decisions. Label skips with `solution-verifier: N/A (<reason>)`.
+- **Skips for Phase 1 Solution Verifier** (unchanged — do not erase): T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed. Label with `solution-verifier: N/A (<reason>)`.
+- **Phase 3 Pre-commit check** still runs on substantive ships even when Phase 1 was skipped for T0 **if** the final uncommitted diff is multi-file or clearly branching (same post-hoc falsifiability as Ship Verifier). Pure T0 single-file unambiguous → `build-checker: N/A (T0 single-file unambiguous)`.
 
 ## Evidence (mandatory)
 
-`solution-verifier:` + `ship-verifier:` (or `repair-verifier:`) lines per `model-gates.mdc`. Missing when trigger fired = **NOT RUN**.
+| Phase | Report line |
+|-------|-------------|
+| 1 | `solution-verifier: <task-id>` or `solution-verifier: N/A (<reason>)` |
+| 3 | `build-checker: <task-id>` + verdict **PASS** before commit — or `build-checker: N/A (<skip reason>)` |
+| 4 | `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` |
+
+Missing a required line when its trigger fired = **NOT RUN**. Do **not** commit while Phase 3 is NOT RUN or FAIL.
 
 ## Authority
 
-Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder.
+Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § Build Checker (pre-commit), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder beyond the phases above.

@@ -194,6 +194,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 - Inconsistent repo state
 - Playwright on same dev server port
 - `backend-write-critical` **implementation**
+- **Grok (or any non-Composer parent) implementing product code** via inline edits or `resume: "self"` — dispatch `composer-2.5-fast` instead (D-43 / D-37)
 
 ## Sonnet 4.6 — rare escalation only
 

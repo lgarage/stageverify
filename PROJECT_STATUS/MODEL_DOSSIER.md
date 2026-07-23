@@ -26,6 +26,7 @@
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
 | `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
 | `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
+| `build-checker` | pre-commit check that Composer’s uncommitted diff matches agreed solution | **§ Build Checker — Grok 4.5 Fast** (tier 1g) — SSOT in `model-gates.mdc` § Solution deliberation Phase 3 / D-43; PASS before `git commit` |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
