@@ -245,6 +245,7 @@ export const notifyCatchAllCheckers = onCall(
     }
 
     if (emailsSent === 0) {
+      await db.collection("catchAllNotifyLog").doc(logId).delete();
       throw new HttpsError(
         "internal",
         "Could not send catch-all alert emails. Check Gmail connection.",

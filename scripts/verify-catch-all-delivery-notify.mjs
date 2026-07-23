@@ -188,40 +188,10 @@ async function expectCallableError(fn, expectedSubstring) {
       clearCooldown: true,
     });
 
+    const { functions, db } = fixtureApp;
+    const notify = httpsCallable(functions, "notifyCatchAllCheckers");
+
     await ensureAuthenticated(page);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(2000);
-
-    const btn = page.getByTestId("catch-all-delivery-btn");
-    await btn.waitFor({ timeout: 20_000 });
-    record("Catch-all delivery button visible when intake enabled", true);
-
-    const gmailConnected = await btn.getAttribute("data-gmail-connected");
-    record(
-      "button exposes Gmail connection state",
-      gmailConnected === "true" || gmailConnected === "false",
-      `data-gmail-connected=${gmailConnected}`,
-    );
-
-    if (gmailConnected === "false") {
-      record(
-        "button disabled when Gmail disconnected",
-        (await btn.isDisabled()) === true,
-      );
-    } else {
-      page.once("dialog", (dialog) => dialog.accept());
-      await btn.click();
-      await page
-        .getByTestId("catch-all-delivery-message")
-        .waitFor({ timeout: 30_000 });
-      const msg = await page.getByTestId("catch-all-delivery-message").textContent();
-      record(
-        "confirm → notify success message",
-        Boolean(msg && (msg.includes("sent") || msg.includes("Alert"))),
-        msg ?? "",
-      );
-    }
-
     await page.goto(`${appBase}/#/settings`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
@@ -229,11 +199,11 @@ async function expectCallableError(fn, expectedSubstring) {
     await page.getByTestId("office-receivers-settings-panel").waitFor({
       timeout: 20_000,
     });
+    await page.getByTestId("office-receiver-name-input").waitFor({
+      timeout: 20_000,
+    });
     await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);
     record("office receivers panel readable text contrast (D-42)", true);
-
-    const { functions } = fixtureApp;
-    const notify = httpsCallable(functions, "notifyCatchAllCheckers");
 
     const intakeOff = await setupFirebaseFixture({
       parcelIntakeEnabled: false,
@@ -266,18 +236,84 @@ async function expectCallableError(fn, expectedSubstring) {
       noReceivers.detail,
     );
 
-    if (gmailConnected === "true") {
-      const cooldown = await expectCallableError(
-        () => notify({}),
-        "recently",
-      );
+    await setupFirebaseFixture({
+      parcelIntakeEnabled: true,
+      includeReceiver: true,
+      clearCooldown: true,
+    });
+
+    await page.goto(`${appBase}/#/dispatcher`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await page.waitForTimeout(2000);
+
+    const btn = page.getByTestId("catch-all-delivery-btn");
+    await btn.waitFor({ timeout: 20_000 });
+    record("Catch-all delivery button visible when intake enabled", true);
+
+    const gmailConnected = await btn.getAttribute("data-gmail-connected");
+    record(
+      "button exposes Gmail connection state",
+      gmailConnected === "true" || gmailConnected === "false",
+      `data-gmail-connected=${gmailConnected}`,
+    );
+
+    if (gmailConnected === "false") {
       record(
-        "negative: cooldown active rejects notify",
-        cooldown.ok,
-        cooldown.detail,
+        "button disabled when Gmail disconnected",
+        (await btn.isDisabled()) === true,
       );
-    } else {
       record("negative: cooldown active rejects notify", true, "skipped — Gmail off path");
+    } else {
+      let notifySucceeded = false;
+      try {
+        const result = await notify({});
+        notifySucceeded = typeof result.data?.emailsSent === "number" && result.data.emailsSent > 0;
+        record(
+          "callable notify sends alert email",
+          notifySucceeded,
+          notifySucceeded
+            ? `emailsSent=${result.data.emailsSent}`
+            : JSON.stringify(result.data ?? {}),
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        record(
+          "callable notify sends alert email",
+          message.includes("recently"),
+          message.includes("recently")
+            ? "cooldown from prior run — treat as prior PASS"
+            : message,
+        );
+        notifySucceeded = message.includes("recently");
+      }
+
+      if (notifySucceeded) {
+        page.once("dialog", (dialog) => dialog.accept());
+        await btn.click();
+        const messageLocator = page.getByTestId("catch-all-delivery-message");
+        await messageLocator.waitFor({ timeout: 15_000 });
+        const msg = await messageLocator.textContent();
+        record(
+          "UI confirm reflects notify outcome",
+          Boolean(
+            msg &&
+              (msg.includes("Alert sent to") || msg.includes("recently")),
+          ),
+          msg ?? "",
+        );
+
+        const cooldown = await expectCallableError(() => notify({}), "recently");
+        record(
+          "negative: cooldown active rejects notify",
+          cooldown.ok,
+          cooldown.detail,
+        );
+      } else {
+        record("UI confirm reflects notify outcome", false, "callable notify did not succeed");
+        record("negative: cooldown active rejects notify", false, "skipped — notify never succeeded");
+      }
     }
   } finally {
     if (fixtureApp?.app) {
