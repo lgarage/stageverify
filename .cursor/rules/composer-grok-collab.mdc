@@ -14,9 +14,11 @@ alwaysApply: true
 | **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
 | **2 — Implement** | **Composer only** | Code, local build, `verify:*` / Playwright. Grok never implements. |
 | **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
-| **4 — Verify** | Grok | **Ship Verifier** post-push (scope vs agreed solution); **Repair Verifier** on Dan repair intent. Sonnet security gate unchanged for high-risk paths. |
+| **4 — Ship + verify** | **Composer only** → Grok | After Build Checker PASS: **Composer** runs commit + push + deploy (`ship-loop.mdc`); then Grok **Ship Verifier** post-push (+ **Repair Verifier** on repair intent). Sonnet security gate unchanged for high-risk paths. |
 
-Plain language: **deliberate → Grok agrees → Composer builds → Grok checks before commit → commit/push → Ship Verifier.**
+Plain language: **deliberate → Grok agrees → Composer builds → Grok checks before commit → Composer commit/push/deploy → Grok Ship Verifier.**
+
+**Ship lock (hard STOP):** Grok **never** commits, pushes, deploys, or runs the ship loop — read-only verify lanes only.
 
 ## Implementer lock (hard STOP — Dan 2026-07-23)
 
