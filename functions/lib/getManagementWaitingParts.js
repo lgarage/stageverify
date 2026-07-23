@@ -4,8 +4,12 @@ exports.getManagementWaitingParts = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const managementSessionValidation_1 = require("./managementSessionValidation");
+const vendorDeliverySpotUtils_1 = require("./vendorDeliverySpotUtils");
 function getDb() {
     return admin.firestore();
+}
+function uniqueSortedCodes(codes) {
+    return [...new Set(codes.filter((c) => c.trim().length > 0))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 const WAITING_STATUSES = new Set(["pending", "shipped"]);
 /** Jobs with expected deliveries not yet physically received (Phase 6 Slice A). */
@@ -28,6 +32,7 @@ exports.getManagementWaitingParts = (0, https_1.onCall)({
         .where("status", "in", ["pending", "shipped"])
         .limit(300)
         .get();
+    const db = getDb();
     const byJob = new Map();
     for (const doc of deliveriesSnap.docs) {
         const delivery = doc.data();
@@ -43,6 +48,8 @@ exports.getManagementWaitingParts = (0, https_1.onCall)({
         const jobId = delivery.jobId?.trim();
         if (!jobId)
             continue;
+        const locationIds = (0, vendorDeliverySpotUtils_1.collectLocationIds)(delivery);
+        const stagingLocationCodes = await (0, vendorDeliverySpotUtils_1.resolveLocationCodes)(db, locationIds);
         const row = {
             deliveryId: doc.id,
             orderNumber: delivery.orderNumber?.trim() || doc.id,
@@ -50,6 +57,7 @@ exports.getManagementWaitingParts = (0, https_1.onCall)({
             poNumber: delivery.customerPoOrReference?.trim() || undefined,
             vendorInvoiceNumber: delivery.vendorInvoiceNumber?.trim() || undefined,
             status,
+            stagingLocationCodes,
         };
         const list = byJob.get(jobId) ?? [];
         list.push(row);
@@ -57,13 +65,21 @@ exports.getManagementWaitingParts = (0, https_1.onCall)({
     }
     const jobs = [];
     for (const [jobId, deliveries] of byJob.entries()) {
-        const jobSnap = await getDb().collection("jobs").doc(jobId).get();
+        const jobSnap = await db.collection("jobs").doc(jobId).get();
         const jobData = jobSnap.exists ? jobSnap.data() : {};
         if (jobData.status === "closed")
             continue;
         const jobName = jobData.jobName?.trim() || jobData.name?.trim() || jobId;
+        const jobNumber = jobData.jobNumber?.trim() || undefined;
         deliveries.sort((a, b) => a.orderNumber.localeCompare(b.orderNumber, undefined, { numeric: true }));
-        jobs.push({ jobId, jobName, deliveries });
+        const jobSpotCodes = uniqueSortedCodes(deliveries.flatMap((d) => d.stagingLocationCodes));
+        jobs.push({
+            jobId,
+            jobNumber,
+            jobName,
+            stagingLocationCodes: jobSpotCodes,
+            deliveries,
+        });
     }
     jobs.sort((a, b) => a.jobName.localeCompare(b.jobName));
     return { jobs };

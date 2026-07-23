@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import type {
-  ManagementWaitingPartsJobSummary,
-} from "./dispatcher/models";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ManagementWaitingPartsJobSummary } from "./dispatcher/models";
 import {
   captureUnidentifiableParcelClient,
   getManagementWaitingPartsClient,
@@ -21,6 +19,34 @@ interface ManagementCatchAllHubProps {
   onBack: () => void;
 }
 
+function formatSpotLine(codes: string[] | undefined): string {
+  if (!codes || codes.length === 0) return "Spot not assigned — ask dispatch";
+  return codes.join(", ");
+}
+
+function jobMatchesQuery(
+  job: ManagementWaitingPartsJobSummary,
+  normalizedQuery: string,
+): boolean {
+  if (!normalizedQuery) return true;
+  const haystacks = [
+    job.jobName,
+    job.jobNumber,
+    job.jobId,
+    ...job.deliveries.flatMap((d) => [
+      d.orderNumber,
+      d.poNumber,
+      d.vendorInvoiceNumber,
+      d.vendorName,
+    ]),
+  ];
+  return haystacks.some(
+    (value) =>
+      typeof value === "string" &&
+      value.trim().toLowerCase().includes(normalizedQuery),
+  );
+}
+
 export function ManagementCatchAllHub({
   locationCode,
   locationLabel,
@@ -32,6 +58,7 @@ export function ManagementCatchAllHub({
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [showUnidentForm, setShowUnidentForm] = useState(false);
   const [vendorDescription, setVendorDescription] = useState("");
   const [parcelDescription, setParcelDescription] = useState("");
@@ -76,6 +103,13 @@ export function ManagementCatchAllHub({
     return () => window.clearInterval(interval);
   }, [onSessionExpired]);
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredJobs = useMemo(
+    () => jobs.filter((job) => jobMatchesQuery(job, normalizedQuery)),
+    [jobs, normalizedQuery],
+  );
+
   const handleMarkReceived = async (deliveryId: string) => {
     const token = getManagementSessionToken();
     if (!token) {
@@ -91,15 +125,23 @@ export function ManagementCatchAllHub({
       });
       setJobs((prev) =>
         prev
-          .map((job) => ({
-            ...job,
-            deliveries: job.deliveries.filter((d) => d.deliveryId !== deliveryId),
-          }))
-          .filter((job) => job.deliveries.length > 0),
+          .map((job) => {
+            const deliveries = job.deliveries.filter(
+              (d) => d.deliveryId !== deliveryId,
+            );
+            if (deliveries.length === 0) return null;
+            const stagingLocationCodes = [
+              ...new Set(
+                deliveries.flatMap((d) => d.stagingLocationCodes ?? []),
+              ),
+            ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            return { ...job, deliveries, stagingLocationCodes };
+          })
+          .filter((job): job is ManagementWaitingPartsJobSummary => job !== null),
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Could not mark received.",
+        err instanceof Error ? err.message : "Could not mark part arrived.",
       );
     } finally {
       setMarkingId(null);
@@ -158,9 +200,23 @@ export function ManagementCatchAllHub({
           Catch-all · {locationCode}
         </p>
         <h1 className="text-lg font-bold text-text-primary mt-1">
-          Jobs waiting for parts
+          Match slip → put at spot
         </h1>
-        <p className="text-sm text-text-secondary mt-1">{locationLabel}</p>
+        <p className="text-sm text-text-secondary mt-1">
+          {locationLabel} — find the job on your packing slip, walk the part to
+          its spot, then mark arrived.
+        </p>
+        <label className="block mt-4">
+          <span className="sr-only">Search waiting jobs</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Job name, job #, PO, or invoice on slip"
+            className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-[#333] text-sm"
+            data-testid="mgmt-waiting-search"
+          />
+        </label>
       </div>
 
       {error && (
@@ -177,11 +233,11 @@ export function ManagementCatchAllHub({
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
         {loading && (
           <p className="text-sm text-text-secondary text-center py-8">
-            Loading…
+            Loading expected jobs…
           </p>
         )}
         {!loading &&
-          jobs.map((job) => (
+          filteredJobs.map((job) => (
             <div
               key={job.jobId}
               className="rounded-xl border border-border bg-bg-surface overflow-hidden"
@@ -190,14 +246,29 @@ export function ManagementCatchAllHub({
               <button
                 type="button"
                 onClick={() => toggleJob(job.jobId)}
-                className="w-full text-left px-4 py-3 flex items-center justify-between"
+                className="w-full text-left px-4 py-3"
               >
-                <span className="font-semibold text-text-primary">
-                  {job.jobName}
-                </span>
-                <span className="text-xs text-text-secondary">
-                  {job.deliveries.length} expected
-                </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-text-primary truncate">
+                      {job.jobName}
+                    </p>
+                    {job.jobNumber && (
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Job #{job.jobNumber}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-xs text-text-secondary shrink-0">
+                    {job.deliveries.length} expected
+                  </span>
+                </div>
+                <p
+                  className="text-sm font-semibold text-accent-blue mt-2"
+                  data-testid={`mgmt-job-spots-${job.jobId}`}
+                >
+                  Put at: {formatSpotLine(job.stagingLocationCodes)}
+                </p>
               </button>
               {expandedJobs.has(job.jobId) && (
                 <ul className="border-t border-border divide-y divide-border">
@@ -211,11 +282,16 @@ export function ManagementCatchAllHub({
                         type="button"
                         disabled={markingId === row.deliveryId}
                         onClick={() => void handleMarkReceived(row.deliveryId)}
-                        className="shrink-0 size-10 rounded-lg border-2 border-accent-green text-accent-green flex items-center justify-center active:scale-95 disabled:opacity-40"
-                        aria-label={`Mark ${row.orderNumber} received`}
+                        className="shrink-0 min-w-[4.5rem] px-2 py-2 rounded-lg border-2 border-accent-green text-accent-green flex flex-col items-center justify-center gap-0.5 active:scale-95 disabled:opacity-40"
+                        aria-label={`Mark ${row.orderNumber} part arrived`}
                         data-testid={`mgmt-mark-received-${row.deliveryId}`}
                       >
-                        {markingId === row.deliveryId ? "…" : "✓"}
+                        <span className="text-lg leading-none">
+                          {markingId === row.deliveryId ? "…" : "✓"}
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide">
+                          Arrived
+                        </span>
                       </button>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-text-primary truncate">
@@ -224,6 +300,12 @@ export function ManagementCatchAllHub({
                         <p className="text-sm text-text-secondary truncate">
                           Inv {row.vendorInvoiceNumber ?? row.orderNumber}
                           {row.poNumber ? ` · PO ${row.poNumber}` : ""}
+                        </p>
+                        <p
+                          className="text-xs font-medium text-accent-blue mt-1"
+                          data-testid={`mgmt-delivery-spots-${row.deliveryId}`}
+                        >
+                          Walk to: {formatSpotLine(row.stagingLocationCodes)}
                         </p>
                       </div>
                     </li>
@@ -238,6 +320,15 @@ export function ManagementCatchAllHub({
             data-testid="mgmt-waiting-empty"
           >
             No jobs waiting for parts right now
+          </p>
+        )}
+        {!loading && jobs.length > 0 && filteredJobs.length === 0 && (
+          <p
+            className="text-sm text-text-secondary text-center py-8"
+            data-testid="mgmt-waiting-no-match"
+          >
+            No match for that slip — check spelling or flag an unidentifiable
+            parcel below.
           </p>
         )}
       </div>

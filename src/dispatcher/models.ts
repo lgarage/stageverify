@@ -418,11 +418,16 @@ export interface ManagementWaitingDeliverySummary {
   poNumber?: string;
   vendorInvoiceNumber?: string;
   status: DeliveryStatus;
+  /** Assigned staging spot codes — where office walks the parcel. */
+  stagingLocationCodes: string[];
 }
 
 export interface ManagementWaitingPartsJobSummary {
   jobId: string;
+  jobNumber?: string;
   jobName: string;
+  /** Union of delivery spot codes for directed placement at job level. */
+  stagingLocationCodes: string[];
   deliveries: ManagementWaitingDeliverySummary[];
 }
 

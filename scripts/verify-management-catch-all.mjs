@@ -1,6 +1,6 @@
 /**
  * Phase 6 Slice A — catch-all parcel intake E2E.
- * Catch-all QR → management PIN → waiting parts → checkmark mark received;
+ * Catch-all QR → management PIN → match slip → spot guidance → mark arrived;
  * unidentifiable → flagged shell (not in waiting list).
  *
  * Usage:
@@ -56,6 +56,9 @@ const appBase = resolveAppBase(baseUrl);
 const locCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G1";
 const mgmtPin = "9012";
 const fixtureJobId = process.env.STAGEVERIFY_PICKUP_JOB ?? "job-1";
+const fixtureJobNumber = "VERIFY-CA-99";
+const fixturePo = "PO-VERIFY-CA";
+const fixtureInvoice = "INV-VERIFY-CA";
 const fixtureDeliveryId = `delivery-mgmt-catchall-${Date.now().toString(36)}`;
 const outDir = resolve(process.cwd(), "screenshots", "management-catch-all");
 mkdirSync(outDir, { recursive: true });
@@ -81,6 +84,18 @@ async function resolveStagingLocationId(db, code) {
   return snap.docs[0].id;
 }
 
+async function resolvePlacementSpot(db, excludeLocationId) {
+  const snap = await getDocs(collection(db, "stagingLocations"));
+  for (const docSnap of snap.docs) {
+    if (docSnap.id === excludeLocationId) continue;
+    const code = docSnap.data().code;
+    if (typeof code === "string" && code.trim()) {
+      return { id: docSnap.id, code: code.trim() };
+    }
+  }
+  throw new Error("No staging location found for placement spot fixture");
+}
+
 async function setupFixture() {
   if (!email || !password) {
     throw new Error("STAGEVERIFY_TEST_EMAIL/PASSWORD required for fixture");
@@ -92,6 +107,7 @@ async function setupFixture() {
   const functions = getFunctions(app);
 
   const locationId = await resolveStagingLocationId(db, locCode);
+  const placementSpot = await resolvePlacementSpot(db, locationId);
   const now = new Date().toISOString();
 
   await setDoc(
@@ -113,6 +129,7 @@ async function setupFixture() {
     {
       id: fixtureJobId,
       jobName: "Verify Catch-all Job",
+      jobNumber: fixtureJobNumber,
       status: "active",
       updatedAt: now,
     },
@@ -125,6 +142,9 @@ async function setupFixture() {
     jobId: fixtureJobId,
     vendorId: "vendor-verify",
     vendorName: "Verify Carrier",
+    customerPoOrReference: fixturePo,
+    vendorInvoiceNumber: fixtureInvoice,
+    stagingLocationId: placementSpot.id,
     deliveryDate: now.slice(0, 10),
     status: "pending",
     availabilityStatus: "expected",
@@ -144,13 +164,14 @@ async function setupFixture() {
     status: "pending",
   });
 
-  return { app, locationId, fixtureDeliveryId };
+  return { app, locationId, fixtureDeliveryId, placementSpotCode: placementSpot.code };
 }
 
 async function main() {
   console.log(`Management catch-all verify — ${appBase}`);
 
-  const { fixtureDeliveryId: seededDeliveryId } = await setupFixture();
+  const { fixtureDeliveryId: seededDeliveryId, placementSpotCode } =
+    await setupFixture();
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -170,6 +191,47 @@ async function main() {
     await page.getByTestId("management-catch-all-hub").waitFor({ timeout: 30_000 });
     record("management PIN → waiting parts hub", true);
 
+    await page.getByTestId("mgmt-waiting-search").waitFor({ timeout: 10_000 });
+    record("packing-slip search field visible", true);
+
+    const jobSpots = page.getByTestId(`mgmt-job-spots-${fixtureJobId}`);
+    await jobSpots.waitFor({ timeout: 15_000 });
+    const jobSpotText = (await jobSpots.textContent()) ?? "";
+    if (!jobSpotText.includes(placementSpotCode)) {
+      record(
+        "job row shows destination spot",
+        false,
+        `expected ${placementSpotCode} in "${jobSpotText}"`,
+      );
+    } else {
+      record("job row shows destination spot", true, placementSpotCode);
+    }
+
+    const deliverySpots = page.getByTestId(`mgmt-delivery-spots-${seededDeliveryId}`);
+    await deliverySpots.waitFor({ timeout: 10_000 });
+    const deliverySpotText = (await deliverySpots.textContent()) ?? "";
+    if (!deliverySpotText.includes(placementSpotCode)) {
+      record(
+        "delivery row shows walk-to spot",
+        false,
+        `expected ${placementSpotCode} in "${deliverySpotText}"`,
+      );
+    } else {
+      record("delivery row shows walk-to spot", true, placementSpotCode);
+    }
+
+    await page.getByTestId("mgmt-waiting-search").fill(fixturePo);
+    await page.getByTestId(`mgmt-waiting-job-${fixtureJobId}`).waitFor({
+      timeout: 10_000,
+    });
+    record("search filters by PO on packing slip", true, fixturePo);
+
+    await page.getByTestId("mgmt-waiting-search").fill("NO-SUCH-SLIP-XYZ");
+    await page.getByTestId("mgmt-waiting-no-match").waitFor({ timeout: 10_000 });
+    record("no-match message when slip not in system", true);
+
+    await page.getByTestId("mgmt-waiting-search").fill("");
+
     const deliveryRow = page.getByTestId(`mgmt-waiting-delivery-${seededDeliveryId}`);
     await deliveryRow.waitFor({ timeout: 30_000 });
     record("fixture delivery in waiting list", true, seededDeliveryId);
@@ -185,7 +247,7 @@ async function main() {
 
     await page.getByTestId(`mgmt-mark-received-${seededDeliveryId}`).click();
     await deliveryRow.waitFor({ state: "hidden", timeout: 20_000 });
-    record("checkmark mark received removes row", true);
+    record("part arrived removes delivery row", true);
 
     await page.getByTestId("mgmt-unident-open").click();
     await page.getByTestId("mgmt-unident-form").waitFor({ timeout: 10_000 });
