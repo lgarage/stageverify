@@ -136,10 +136,10 @@ export const verifyManagementPin = onCall(
     }
 
     const location = await resolveStagingLocation(stagingLocationCode);
-    if (!location || location.id !== config.catchAllStagingLocationId) {
+    if (!location) {
       throw new HttpsError(
         "failed-precondition",
-        "This location is not configured for parcel intake.",
+        "Unknown staging location.",
       );
     }
 

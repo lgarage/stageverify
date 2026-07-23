@@ -68,12 +68,12 @@ type Step =
   | "list"
   | "vendor-list"
   | "tech-list"
-  | "mgmt-pin"
+  | "mgmt-landing"
   | "mgmt-hub"
   | "hub"
   | "done";
 type SessionScope = "job" | "vendor" | null;
-type PinRole = "vendor" | "technician";
+type PinRole = "vendor" | "technician" | "management";
 
 interface LocationBranding {
   code: string;
@@ -130,6 +130,7 @@ export function LocationScanPage() {
     [],
   );
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
+  const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
 
   const activeVendorRun = useMemo(() => {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
@@ -156,10 +157,14 @@ export function LocationScanPage() {
         label: result.label,
         type: result.type,
       });
-      const catchAll = result.isCatchAllParcelIntake === true;
-      setIsCatchAllParcelIntake(catchAll);
-      if (catchAll) {
-        setStep(isManagementPinSessionValid() ? "mgmt-hub" : "mgmt-pin");
+      const settings = await getAppSettings().catch(() => null);
+      const intakeEnabled =
+        result.parcelIntakeEnabled === true ||
+        settings?.parcelIntakeEnabled === true;
+      setParcelIntakeEnabled(intakeEnabled);
+      setIsCatchAllParcelIntake(result.isCatchAllParcelIntake === true);
+      if (intakeEnabled && isManagementPinSessionValid()) {
+        setStep("mgmt-landing");
       } else {
         setStep("pin");
       }
@@ -405,16 +410,18 @@ export function LocationScanPage() {
     setTechnicianName(null);
     setReleasedJobs([]);
     setSessionScope(null);
-    setStep(isCatchAllParcelIntake ? "mgmt-pin" : "pin");
-  }, [jobId, vendorId, technicianId, isCatchAllParcelIntake]);
+    setStep("pin");
+    setPinRole("management");
+  }, [jobId, vendorId, technicianId]);
 
   const handleManagementPinVerified = useCallback(() => {
-    setStep("mgmt-hub");
+    setStep("mgmt-landing");
   }, []);
 
   const handleManagementSessionExpired = useCallback(() => {
     clearManagementPinSession();
-    setStep("mgmt-pin");
+    setPinRole("management");
+    setStep("pin");
   }, []);
 
   const activityKey =
@@ -586,7 +593,8 @@ export function LocationScanPage() {
     setExpandedDeliveryIds(new Set());
     setDeliveryDetails(null);
     setError(null);
-    setStep(isCatchAllParcelIntake ? "mgmt-pin" : "pin");
+    setStep("pin");
+    setPinRole("vendor");
   };
 
   if (step === "loading") {
@@ -615,22 +623,43 @@ export function LocationScanPage() {
     );
   }
 
-  if (step === "mgmt-pin" && branding && locationCode) {
+  if (step === "mgmt-landing" && branding && locationCode) {
     return (
       <div className="flex flex-col h-screen h-dvh">
         <div className="shrink-0 px-6 py-5 border-b border-border bg-bg-surface text-center">
           <p className="text-xs uppercase tracking-widest text-text-secondary mb-1">
-            Catch-all intake
+            {isCatchAllParcelIntake ? "Catch-all intake" : "Staging location"}
           </p>
           <p className="text-3xl font-bold font-mono text-text-primary">
             {branding.code}
           </p>
           <p className="text-sm text-text-secondary mt-1">{branding.label}</p>
         </div>
-        <ManagementPinGate
-          stagingLocationCode={locationCode}
-          onVerified={handleManagementPinVerified}
-        />
+        <div className="flex flex-1 flex-col px-6 py-8">
+          <button
+            type="button"
+            data-testid="mgmt-catch-all-checkin-cta"
+            onClick={() => setStep("mgmt-hub")}
+            className="action-btn action-btn-delivered w-full text-lg py-5 mb-4"
+          >
+            Catch-all check-in
+          </button>
+          <p className="text-sm text-text-secondary text-center mb-8">
+            Match packing slips to jobs waiting for parts. Walk parcels to the
+            assigned spots after check-in.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              clearManagementPinSession();
+              setPinRole("management");
+              setStep("pin");
+            }}
+            className="action-btn action-btn-secondary w-full mt-auto"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -641,7 +670,7 @@ export function LocationScanPage() {
         locationCode={branding.code}
         locationLabel={branding.label}
         onSessionExpired={handleManagementSessionExpired}
-        onBack={() => setStep("mgmt-pin")}
+        onBack={() => setStep("mgmt-landing")}
       />
     );
   }
@@ -680,9 +709,28 @@ export function LocationScanPage() {
             >
               Technician
             </button>
+            {parcelIntakeEnabled && (
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-medium ${
+                  pinRole === "management"
+                    ? "bg-accent-blue text-white"
+                    : "bg-bg-card text-text-secondary"
+                }`}
+                onClick={() => setPinRole("management")}
+                data-testid="pin-role-management"
+              >
+                Office
+              </button>
+            )}
           </div>
         </div>
-        {pinRole === "vendor" ? (
+        {pinRole === "management" ? (
+          <ManagementPinGate
+            stagingLocationCode={locationCode}
+            onVerified={handleManagementPinVerified}
+          />
+        ) : pinRole === "vendor" ? (
           <VendorPinGate
             stagingLocationCode={locationCode}
             title="Enter Job or Company PIN"

@@ -120,7 +120,7 @@ export function ManagementPinGate({
           Enter Management PIN
         </h1>
         <p className="text-sm text-center text-text-secondary mb-8">
-          Shared shop PIN to identify and receive parcels at this catch-all spot.
+          Shared shop PIN — scan any location QR, then open catch-all check-in.
         </p>
 
         <div

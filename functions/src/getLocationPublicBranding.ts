@@ -52,8 +52,9 @@ export const getLocationPublicBranding = onCall(
       catchAllStagingLocationId?: string;
       parcelIntakeEnabled?: boolean;
     } | undefined;
+    const parcelIntakeEnabled = settings?.parcelIntakeEnabled === true;
     const isCatchAllParcelIntake =
-      settings?.parcelIntakeEnabled === true &&
+      parcelIntakeEnabled &&
       settings?.catchAllStagingLocationId?.trim() === doc.id;
 
     return {
@@ -68,6 +69,7 @@ export const getLocationPublicBranding = onCall(
         typeof data.type === "string" && data.type.trim()
           ? data.type.trim()
           : "other",
+      parcelIntakeEnabled,
       isCatchAllParcelIntake,
     };
   },

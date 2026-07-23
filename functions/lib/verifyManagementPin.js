@@ -98,8 +98,8 @@ exports.verifyManagementPin = (0, https_1.onCall)({
         throw new https_1.HttpsError("failed-precondition", "Catch-all parcel intake is not enabled.");
     }
     const location = await resolveStagingLocation(stagingLocationCode);
-    if (!location || location.id !== config.catchAllStagingLocationId) {
-        throw new https_1.HttpsError("failed-precondition", "This location is not configured for parcel intake.");
+    if (!location) {
+        throw new https_1.HttpsError("failed-precondition", "Unknown staging location.");
     }
     const settingsSnap = await getDb().collection("appSettings").doc("config").get();
     const settings = settingsSnap.data();

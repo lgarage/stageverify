@@ -39,7 +39,8 @@ exports.getLocationPublicBranding = (0, https_1.onCall)({
     const data = doc.data();
     const settingsSnap = await getDb().collection("appSettings").doc("config").get();
     const settings = settingsSnap.data();
-    const isCatchAllParcelIntake = settings?.parcelIntakeEnabled === true &&
+    const parcelIntakeEnabled = settings?.parcelIntakeEnabled === true;
+    const isCatchAllParcelIntake = parcelIntakeEnabled &&
         settings?.catchAllStagingLocationId?.trim() === doc.id;
     return {
         found: true,
@@ -51,6 +52,7 @@ exports.getLocationPublicBranding = (0, https_1.onCall)({
         type: typeof data.type === "string" && data.type.trim()
             ? data.type.trim()
             : "other",
+        parcelIntakeEnabled,
         isCatchAllParcelIntake,
     };
 });

@@ -45,7 +45,7 @@ async function loadCatchAllConfig() {
         parcelIntakeEnabled: true,
     };
 }
-/** Validates management session and catch-all location binding (Phase 6 Slice A). */
+/** Validates management session when parcel intake is enabled (any location QR). */
 async function assertManagementCatchAllSession(sessionToken) {
     const session = await loadSession(sessionToken);
     if (!session) {
@@ -55,9 +55,6 @@ async function assertManagementCatchAllSession(sessionToken) {
     const config = await loadCatchAllConfig();
     if (!config) {
         throw new https_1.HttpsError("failed-precondition", "Catch-all parcel intake is not configured.");
-    }
-    if (session.scannedStagingLocationId !== config.catchAllStagingLocationId) {
-        throw new https_1.HttpsError("permission-denied", "Session is not valid for this catch-all location.");
     }
     return session;
 }

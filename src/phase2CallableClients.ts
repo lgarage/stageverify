@@ -180,6 +180,7 @@ export async function getLocationPublicBrandingClient(
       code: string;
       label: string;
       type: string;
+      parcelIntakeEnabled?: boolean;
       isCatchAllParcelIntake?: boolean;
     }
 > {

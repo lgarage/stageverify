@@ -28,7 +28,7 @@
 | 3 | Permanent location entry + vendor scan v2 | `complete` | 2026-07-08 | 2026-07-08 | Core software slice shipped v0.0.27; sign **printing** blocked on shop map (Jake Korb) |
 | 4 | Vendor exception flows + dispatcher planning | `complete` | 2026-07-08 | 2026-07-11 | UI slices (away-113..117); verify hardening (away-118..121); `releasePlannedStagingLocation` CF; `verify:location-phase4` 15/15 local + prod (`v0.0.33`) |
 | 5 | Technician door two + pickup verification v2 | `in_progress` | 2026-07-22 | — | **Slice A v0.0.108:** any QR→PIN→directed spots; always-strict day-release; Sonnet MEDIUM (dispatcher gate fixed pre-deploy) |
-| 6 | Management audit walk + unexpected-delivery resolution | `in_progress` | Slice A | v0.0.115 | **Slice A (D-41) shipped:** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark; **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN); **Slice C (D-44):** dispatcher Notify → email catch-all checkers → `#/s?loc=` deep link (email-first; SMS deferred) |
+| 6 | Management audit walk + unexpected-delivery resolution | `in_progress` | Slice A | v0.0.118 | **Slice A (D-41) shipped:** catch-all intake + parcel ID + direct mark-received via packing-slip checkmark; any-QR → management PIN → Catch-all check-in → waiting-parts hub; **Slice B:** audit walk + flag-only resolution (Sonnet-gated; shared shop PIN); **Slice C (D-44):** dispatcher Notify → email alert (optional link; primary entry = any QR + PIN + Catch-all button) |
 | Future | E-tag premium layer | `not_started` | — | — | Unscheduled; blocked on Minew creds regardless |
 
 **Current phase: Phase 5 Slice A shipped (`v0.0.108`) — technician PIN door + day-release + shared JobPickupScreen. Next: Slice B (pickup verification v2 polish).**
@@ -391,13 +391,13 @@ Open pickup checklist:
 
 1. **Door phone out of SV** — no intercom/door-phone product surface; catch-all QR + management PIN is the office intake path.
 2. **Dispatcher setup:** assign a dedicated **catch-all staging location** and enable **parcel intake** for that spot (dispatcher-controlled; not self-service).
-3. **Office flow:** scan catch-all location QR (`#/s?loc=`) → **shared management PIN** (same hash/session model as Slice B) → **jobs waiting for parts** list (expected deliveries not yet received).
+3. **Office flow:** scan **any** location QR (`#/s?loc=`) → **shared management PIN** → **Catch-all check-in** button → **jobs waiting for parts** list (expected deliveries not yet received). Designated catch-all spot remains for physical drop location and notify copy; checkers do not depend on notify deep links.
 4. **Packing-slip checkmark → direct mark-received:** tapping the checkmark on a matched expected delivery **marks it received** via a **gated, logged CF** — this is the **narrow D-41 exception** to flag-only (not a broad status-edit power; one explicit action per identified parcel).
 5. **Unidentifiable parcel:** explicit capture → **flagged shell** (`reviewFlag` set); **never auto-created from weak signals** (unchanged principle).
 
 **Out of scope (Slice A):** full shop audit walk (Slice B); broad release/reassign; enum changes; door phone.
 
-**Acceptance criteria (Playwright):** catch-all QR + management PIN → waiting-parts list → checkmark → delivery shows received dispatcher-side; unidentifiable path → flagged shell; negative: no broad status edits beyond the checkmark action.
+**Acceptance criteria (Playwright):** any location QR + management PIN + Catch-all check-in → waiting-parts list → checkmark → delivery shows received dispatcher-side; unidentifiable path → flagged shell; negative: no broad status edits beyond the checkmark action.
 
 ### Slice B — Management audit walk + flag-only resolution
 
@@ -439,14 +439,14 @@ Open pickup checklist:
 
 1. **Dispatcher Notify action** — authenticated dispatcher only; UI on Settings Management section and/or dashboard catch-all card when `parcelIntakeEnabled`; **not** on office-side `ManagementCatchAllHub`.
 2. **Recipients** — `officeReceivers` collection (dispatcher-only rules, parallel to `technicians`); provisioned in Settings **Office receivers** panel with `catchAllCheckInEnabled` + channel prefs; check-in still uses **shared management PIN** (notify targets ≠ auth identities).
-3. **MVP channel** — email via connected Gmail (`sendGmailMessage` pattern); generic message (spot label/code, timestamp, `#/s?loc={code}` deep link); Notify disabled when Gmail not connected; 15-min shop cooldown via CF-only `catchAllNotifyLog`.
-4. **Recipient flow** — tap link → `#/s?loc=` → management PIN → Slice A waiting-parts hub (unchanged).
+3. **MVP channel** — email via connected Gmail (`sendGmailMessage` pattern); generic **alert** message (spot label/code, timestamp); optional `#/s?loc=` convenience link — **not** the required check-in entry path; Notify disabled when Gmail not connected; 15-min shop cooldown via CF-only `catchAllNotifyLog`.
+4. **Recipient flow** — scan **any** location QR → management PIN → **Catch-all check-in** button → Slice A waiting-parts hub (notify link optional convenience only).
 
 **Out of scope (Slice C):** SMS/Twilio send (store phone + disabled SMS toggle OK); per-receiver management PIN; changes to `ManagementCatchAllHub` / `getManagementWaitingParts`; optional dispatcher note (later); Firebase Auth accounts for office staff.
 
 **Distinction:** **Notify** = “box landed, come check in.” **Arrived** (Slice A hub) = matched packing slip marked received via `markCatchAllDeliveryReceived`.
 
-**Acceptance criteria (Playwright):** provision office receiver → dispatcher Notify → audit log row + email path exercised (fixture or connected Gmail); deep link opens catch-all PIN gate; negative: no notify when intake off / no checkers / cooldown active / Gmail disconnected.
+**Acceptance criteria (Playwright):** provision office receiver → dispatcher Notify → audit log row + email path exercised (fixture or connected Gmail); any-QR + PIN + Catch-all check-in opens waiting-parts hub; negative: no notify when intake off / no checkers / cooldown active / Gmail disconnected.
 
 **Security review requirement:** Sonnet gate **mandatory** (new collection + outbound email CF); explicit Dan approval before rules/CF deploy. Twilio/SMS requires separate Dan approval for secrets.
 

@@ -1,6 +1,6 @@
 /**
  * Phase 6 Slice A — catch-all parcel intake E2E.
- * Catch-all QR → management PIN → match slip → spot guidance → mark arrived;
+ * Any location QR → Office PIN → Catch-all check-in → match slip → spot guidance → mark arrived;
  * unidentifiable → flagged shell (not in waiting list).
  *
  * Usage:
@@ -164,13 +164,13 @@ async function setupFixture() {
     status: "pending",
   });
 
-  return { app, locationId, fixtureDeliveryId, placementSpotCode: placementSpot.code };
+  return { app, locationId, fixtureDeliveryId, placementSpotCode: placementSpot.code, scanCode: placementSpot.code };
 }
 
 async function main() {
   console.log(`Management catch-all verify — ${appBase}`);
 
-  const { fixtureDeliveryId: seededDeliveryId, placementSpotCode } =
+  const { fixtureDeliveryId: seededDeliveryId, placementSpotCode, scanCode } =
     await setupFixture();
 
   const browser = await chromium.launch({ headless: true });
@@ -180,16 +180,21 @@ async function main() {
   const page = await context.newPage();
 
   try {
-    const url = `${appBase}/#/s?loc=${encodeURIComponent(locCode)}&_t=${Date.now()}`;
+    const url = `${appBase}/#/s?loc=${encodeURIComponent(scanCode)}&_t=${Date.now()}`;
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-    await page.getByText("Catch-all intake").waitFor({ timeout: 30_000 });
-    record("catch-all route (no vendor/tech toggle)", true);
+    await page.getByTestId("pin-role-management").waitFor({ timeout: 30_000 });
+    record("any-QR shows Office role toggle", true);
 
+    await page.getByTestId("pin-role-management").click();
     await page.getByText("Enter Management PIN").waitFor({ timeout: 15_000 });
     await enterPin(page, mgmtPin.split(""));
+    await page.getByTestId("mgmt-catch-all-checkin-cta").waitFor({ timeout: 30_000 });
+    record("management PIN → Catch-all check-in landing", true);
+
+    await page.getByTestId("mgmt-catch-all-checkin-cta").click();
     await page.getByTestId("management-catch-all-hub").waitFor({ timeout: 30_000 });
-    record("management PIN → waiting parts hub", true);
+    record("Catch-all check-in → waiting parts hub", true);
 
     await page.getByTestId("mgmt-waiting-search").waitFor({ timeout: 10_000 });
     record("packing-slip search field visible", true);
