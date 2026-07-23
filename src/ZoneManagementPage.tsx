@@ -272,6 +272,14 @@ export function ZoneManagementPage() {
     return params.get("focusSpot")?.trim() || null;
   }, [location.search]);
 
+  const [mapFocusSpotCode, setMapFocusSpotCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMapFocusSpotCode(null);
+  }, [focusSpotCode]);
+
+  const effectiveFocusSpotCode = mapFocusSpotCode ?? focusSpotCode;
+
   const lastRefreshGeneration = useRef(0);
   const {
     refreshBusy,
@@ -321,6 +329,17 @@ export function ZoneManagementPage() {
   /** Spots render from layout before Firestore zones hydrate — block picks until both are ready. */
   const assignReady =
     assignMode && zones.length > 0 && assignDetails !== null;
+
+  const handleMapOpenDelivery = useCallback(
+    (deliveryId: string, spotCode?: string) => {
+      setSelectedDeliveryId(deliveryId);
+      const code = spotCode?.trim();
+      if (code && !mapEditMode && !assignMode) {
+        setMapFocusSpotCode(code);
+      }
+    },
+    [mapEditMode, assignMode],
+  );
 
   const exitAssignMode = useCallback(() => {
     setPendingAssignSpot(null);
@@ -1180,7 +1199,7 @@ export function ZoneManagementPage() {
                   ? liveOccupancy.shopStockByCode
                   : shopStockByCode
               }
-              onOpenDelivery={(id) => setSelectedDeliveryId(id)}
+              onOpenDelivery={handleMapOpenDelivery}
               editMode={mapEditMode}
               vendorView={vendorView}
               zonesByLayoutSlot={zonesByLayoutSlot}
@@ -1197,7 +1216,7 @@ export function ZoneManagementPage() {
               selfPlannedLayoutSlots={selfPlannedLayoutSlots}
               onAssignSpotClick={handleAssignSpotClick}
               onAssignSpotRefused={showAssignToast}
-              focusSpotCode={focusSpotCode}
+              focusSpotCode={effectiveFocusSpotCode}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>

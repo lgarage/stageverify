@@ -85,7 +85,7 @@ export type MapZoneSavePayload = {
 type Props = {
   occupancyByZoneCode: Record<string, ZoneOccupancySummaryWithReadiness>;
   shopStockByCode: Record<string, ShopStockLocationMapping>;
-  onOpenDelivery: (deliveryId: string) => void;
+  onOpenDelivery: (deliveryId: string, spotCode?: string) => void;
   /** Dispatcher map edit — rename label and nudge/drag spot position. */
   editMode?: boolean;
   /**
@@ -2145,7 +2145,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     }
     const displayCode = displayCodeForSlot(layoutSlot);
     const occ = occupancyByZoneCode[normalizeStagingCodeKey(displayCode)];
-    if (occ) onOpenDelivery(occ.deliveryId);
+    if (occ) onOpenDelivery(occ.deliveryId, displayCode);
   };
 
   return (

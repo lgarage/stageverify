@@ -209,15 +209,36 @@ async function main() {
     throw new Error(`Unexpected hover card content: ${hoverText}`);
   }
 
-  // If any orange/red spot exists, click opens shared drawer
+  // If any orange/red spot exists, click opens shared drawer + focus chrome
   const occupied = page.locator(
     '[data-testid^="shop-spot-"][data-spot-color="orange"], [data-testid^="shop-spot-"][data-spot-color="red"]',
   );
   const occupiedCount = await occupied.count();
   if (occupiedCount > 0) {
-    const spotTestId = await occupied.first().getAttribute("data-testid");
+    const spot = occupied.first();
+    const spotTestId = await spot.getAttribute("data-testid");
+    const spotCode = spotTestId?.replace("shop-spot-", "") ?? "";
     await page.getByTestId("shop-map-hover-card").waitFor({ state: "hidden", timeout: 2000 }).catch(() => {});
-    await occupied.first().click({ force: true });
+    await spot.click({ force: true });
+    await page.waitForFunction(
+      (testId) =>
+        document
+          .querySelector(`[data-testid="${testId}"]`)
+          ?.getAttribute("data-spot-focused") === "true",
+      spotTestId,
+      { timeout: 10000 },
+    );
+    const focusedSpot = page.locator('[data-spot-focused="true"]');
+    await focusedSpot.waitFor({ state: "visible", timeout: 5000 });
+    const focusOutline = await focusedSpot.evaluate(
+      (el) => getComputedStyle(el).outlineColor,
+    );
+    // navy #0a3161 → rgb(10, 49, 97)
+    if (!/rgb\(\s*10\s*,\s*49\s*,\s*97\s*\)/i.test(focusOutline)) {
+      throw new Error(
+        `Focused spot should have navy outline. got outlineColor=${focusOutline}`,
+      );
+    }
     const drawer = page.getByTestId("delivery-detail-drawer");
     try {
       await drawer.waitFor({ state: "visible", timeout: 20000 });
@@ -231,13 +252,16 @@ async function main() {
     await page.getByRole("heading", { name: "Delivery Details" }).waitFor({
       timeout: 10000,
     });
-    // Wait for detail body (shared DetailContent) — not just the shell
-    await page
-      .getByText(/DELIVERY BASICS|Job #|Order #|Staging Location/i)
-      .first()
-      .waitFor({ timeout: 15000 });
+    await assertDeliveryDrawerOpen(page);
+    const drawerDeliveryId = await drawer.getAttribute("data-delivery-id");
+    if (!drawerDeliveryId) {
+      throw new Error("Drawer missing data-delivery-id after map spot click");
+    }
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "detached", timeout: 10000 });
+    console.log(
+      `PASS: occupied spot ${spotCode || spotTestId} opens drawer with focus chrome.`,
+    );
   } else {
     console.log(
       "WARN: no occupied spots to click — drawer click path skipped (env may be empty)",
@@ -1183,15 +1207,28 @@ async function main() {
     );
   }
 
-  // Delete (pending hide) + Undo — do not Save (avoid mutating prod layout)
-  await page.getByTestId("shop-map-edit-delete").click();
-  await page.waitForTimeout(150);
-  if ((await page.getByTestId("shop-spot-G1").count()) !== 0) {
-    throw new Error("Delete should hide G1 from the map (pending)");
+  // Delete (pending hide) + Undo — use a free spot (occupied spots cannot be deleted)
+  const deleteCandidates = page.locator(
+    '[data-testid^="shop-spot-"][data-spot-color="green"]',
+  );
+  const deleteCandidateCount = await deleteCandidates.count();
+  if (deleteCandidateCount === 0) {
+    console.log("WARN: no free spots for delete test — skipped");
+  } else {
+    const deleteSpot = deleteCandidates.first();
+    const deleteTestId = await deleteSpot.getAttribute("data-testid");
+    const deleteSlot = deleteTestId?.replace("shop-spot-", "") ?? "G1";
+    await deleteSpot.click();
+    await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
+    await page.getByTestId("shop-map-edit-delete").click();
+    await page.waitForTimeout(150);
+    if ((await page.getByTestId(`shop-spot-${deleteSlot}`).count()) !== 0) {
+      throw new Error(`Delete should hide ${deleteSlot} from the map (pending)`);
+    }
+    await page.getByTestId("shop-map-undo").click();
+    await page.waitForTimeout(150);
+    await page.getByTestId(`shop-spot-${deleteSlot}`).waitFor({ state: "visible" });
   }
-  await page.getByTestId("shop-map-undo").click();
-  await page.waitForTimeout(150);
-  await page.getByTestId("shop-spot-G1").waitFor({ state: "visible" });
 
   // Rename code + Cancel restores code field on reselect
   await g1.click();
