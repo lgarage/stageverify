@@ -108,6 +108,17 @@ async function setupFixture() {
   const setPin = httpsCallable(functions, "setManagementPin");
   await setPin({ pin: mgmtPin });
 
+  await setDoc(
+    doc(db, "jobs", fixtureJobId),
+    {
+      id: fixtureJobId,
+      jobName: "Verify Catch-all Job",
+      status: "active",
+      updatedAt: now,
+    },
+    { merge: true },
+  );
+
   await setDoc(doc(db, "deliveries", fixtureDeliveryId), {
     id: fixtureDeliveryId,
     orderNumber: `MGMT-VERIFY-${fixtureDeliveryId.slice(-6)}`,
@@ -121,13 +132,25 @@ async function setupFixture() {
     updatedAt: now,
   });
 
-  return { app, locationId };
+  await setDoc(doc(db, "items", `${fixtureDeliveryId}-item`), {
+    id: `${fixtureDeliveryId}-item`,
+    deliveryOrderId: fixtureDeliveryId,
+    description: "Verify catch-all line",
+    qtyOrdered: 1,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "pending",
+  });
+
+  return { app, locationId, fixtureDeliveryId };
 }
 
 async function main() {
   console.log(`Management catch-all verify — ${appBase}`);
 
-  await setupFixture();
+  const { fixtureDeliveryId: seededDeliveryId } = await setupFixture();
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -147,6 +170,10 @@ async function main() {
     await page.getByTestId("management-catch-all-hub").waitFor({ timeout: 30_000 });
     record("management PIN → waiting parts hub", true);
 
+    const deliveryRow = page.getByTestId(`mgmt-waiting-delivery-${seededDeliveryId}`);
+    await deliveryRow.waitFor({ timeout: 30_000 });
+    record("fixture delivery in waiting list", true, seededDeliveryId);
+
     await assertReadableTextContrast(page, {
       rootSelector: '[data-testid="management-catch-all-hub"]',
       elements: [
@@ -156,11 +183,7 @@ async function main() {
     });
     record("D-42 readable text contrast", true);
 
-    const deliveryRow = page.getByTestId(`mgmt-waiting-delivery-${fixtureDeliveryId}`);
-    await deliveryRow.waitFor({ timeout: 30_000 });
-    record("fixture delivery in waiting list", true, fixtureDeliveryId);
-
-    await page.getByTestId(`mgmt-mark-received-${fixtureDeliveryId}`).click();
+    await page.getByTestId(`mgmt-mark-received-${seededDeliveryId}`).click();
     await deliveryRow.waitFor({ state: "hidden", timeout: 20_000 });
     record("checkmark mark received removes row", true);
 
