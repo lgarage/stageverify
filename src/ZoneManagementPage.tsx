@@ -681,14 +681,14 @@ export function ZoneManagementPage() {
         );
         if (onSlot) {
           if (normalizeStagingCodeKey(onSlot.code) === caKey) {
+            // Keep CA identity — never remap a catch-all zone onto G*.
             await updateZone(onSlot.id, {
-              code: slot,
-              mapLayoutSlot: slot,
-              label: onSlot.label?.trim() || defaultLabelForSpotCode(slot),
+              code: CATCH_ALL_ZONE_CODE,
+              mapLayoutSlot: CATCH_ALL_ZONE_CODE,
             });
             patchZoneLocal(onSlot.id, {
-              code: slot,
-              mapLayoutSlot: slot,
+              code: CATCH_ALL_ZONE_CODE,
+              mapLayoutSlot: CATCH_ALL_ZONE_CODE,
             });
           } else if (
             !onSlot.mapLayoutSlot ||

@@ -32,6 +32,7 @@ import {
   withDoor,
   defaultCatchAllMarker,
   withCatchAllMarker,
+  withoutCatchAllMarker,
   resolveCatchAllMarker,
   resolveYouAreHereMarker,
   resolveDoorMarker,
@@ -325,10 +326,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       catchAllPendingCount = 0,
       onAddCatchAllSpot,
       onRemoveCatchAllSpot,
-      onSpotDeliveryUnavailable,
+      onSpotDeliveryUnavailable: _onSpotDeliveryUnavailable,
     },
     ref,
   ) {
+    void _onSpotDeliveryUnavailable;
   const [pendingHidden, setPendingHidden] = useState<string[]>([]);
   /** null = use persisted extras; object = pending drag/resize in this edit session. */
   const [pendingYouAreHere, setPendingYouAreHere] =
@@ -448,6 +450,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const catchAllSessionSnapshotRef = useRef<CatchAllSessionSnapshot | null>(
     null,
   );
+  /** True after Delete catch-all in this edit session — Done/Save must strip extras.catchAll. */
+  const [catchAllRemovedInSession, setCatchAllRemovedInSession] =
+    useState(false);
   const undoStackRef = useRef<UndoFrame[]>([]);
   const [undoDepth, setUndoDepth] = useState(0);
   const labelFocusSnapshotRef = useRef("");
@@ -556,6 +561,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingCatchAll(null);
       setSelectedCatchAll(false);
       catchAllSessionSnapshotRef.current = null;
+      setCatchAllRemovedInSession(false);
       yahDragRef.current = null;
       yahResizeRef.current = null;
       doorDragRef.current = null;
@@ -1393,6 +1399,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingCatchAll(
       frame.pendingCatchAll ? { ...frame.pendingCatchAll } : null,
     );
+    if (frame.pendingCatchAll) {
+      setCatchAllRemovedInSession(false);
+    }
     setEditLabel(frame.editLabel);
     setEditCode(frame.editCode);
     setEditOffsetX(frame.editOffsetX);
@@ -1632,7 +1641,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       pendingHidden.length === 0 &&
       !yahPending &&
       !doorPending &&
-      !catchAllShouldPersist
+      !catchAllShouldPersist &&
+      !catchAllRemovedInSession
     ) {
       return true;
     }
@@ -1652,6 +1662,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         ...(layoutProp?.extras ?? layout.extras ?? {}),
       };
       let shouldPersistExtras = false;
+      if (catchAllRemovedInSession && onPersistLayoutExtras) {
+        workingExtras = withoutCatchAllMarker(workingExtras);
+        shouldPersistExtras = true;
+      }
       if (catchAllShouldPersist && onPersistLayoutExtras) {
         const marker: CatchAllMarker =
           selectedCatchAll && pendingCatchAll
@@ -1663,6 +1677,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               }
             : pendingCatchAll!;
         workingExtras = withCatchAllMarker(workingExtras, marker);
+        setCatchAllRemovedInSession(false);
         shouldPersistExtras = true;
         setPendingCatchAll(marker);
         const patchLabel = (
@@ -1730,6 +1745,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       }
       if (shouldPersistExtras && onPersistLayoutExtras) {
         await onPersistLayoutExtras(workingExtras);
+        if (catchAllRemovedInSession && !catchAllShouldPersist) {
+          setCatchAllRemovedInSession(false);
+        }
         if (pendingHidden.length > 0 && onDeactivateSlots) {
           await onDeactivateSlots(pendingHidden);
         }
@@ -1880,6 +1898,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     selectedCatchAll,
     pendingCatchAll,
     catchAllZone,
+    catchAllRemovedInSession,
     applyCatchAllGeometry,
     onSaveZone,
     onPersistLayoutExtras,
@@ -1897,22 +1916,29 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     [persistEdit],
   );
 
-  const markCatchAllDeleted = () => {
+  const markCatchAllDeleted = async () => {
     if (!selectedCatchAll || !pendingCatchAll) {
       setSaveError("Select the catch-all overlay to delete.");
       return;
     }
     pushUndo();
+    setCatchAllRemovedInSession(true);
     setPendingCatchAll(null);
     setSelectedCatchAll(false);
     catchAllSessionSnapshotRef.current = null;
     setSaveError(null);
-    void onRemoveCatchAllSpot?.();
+    try {
+      await onRemoveCatchAllSpot?.();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not remove catch-all.";
+      setSaveError(message);
+    }
   };
 
   const markSelectionDeleted = () => {
     if (selectedCatchAll) {
-      markCatchAllDeleted();
+      void markCatchAllDeleted();
       return;
     }
     const slot = selectedLayoutSlot;
@@ -2633,13 +2659,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             onOpenDelivery(occ.deliveryId, displayCode);
             return;
           }
-          onSpotDeliveryUnavailable?.(
-            `${displayCode} is marked occupied but delivery details are unavailable.`,
-          );
+          // Stale occupancy (e.g. CA dual-key bleed / deleted delivery) — no scary banner.
+          return;
         } catch {
-          onSpotDeliveryUnavailable?.(
-            `${displayCode} is marked occupied but delivery details could not be loaded.`,
-          );
+          // Same: avoid toast spam when map color is ahead of readable delivery docs.
+          return;
         }
       })();
     }
@@ -2772,6 +2796,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               onClick={() =>
                 void runAdd(async () => {
                   await onAddCatchAllSpot!();
+                  setCatchAllRemovedInSession(false);
                   const marker = defaultCatchAllMarker();
                   setPendingCatchAll(marker);
                   selectCatchAllForEdit(marker);
@@ -3829,7 +3854,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   !(pendingHidden.length > 0 && onPersistLayoutExtras) &&
                   pendingYouAreHere === null &&
                   pendingDoor === null &&
-                  !(pendingCatchAll && catchAllZone && onPersistLayoutExtras))
+                  !(pendingCatchAll && catchAllZone && onPersistLayoutExtras) &&
+                  !catchAllRemovedInSession)
               }
               onClick={() => void persistEdit()}
               style={{

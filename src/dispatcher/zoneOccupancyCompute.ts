@@ -5,7 +5,10 @@ import {
   getAllStagingLocationIds,
 } from "./models";
 import { normalizeStagingCodeKey } from "./stagingCode";
+import { CATCH_ALL_ZONE_CODE } from "./shopMapLayout";
 import type { ZoneOccupancySummary } from "./firestoreService";
+
+const CATCH_ALL_KEY = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
 
 export type ZoneOccupancySummaryWithReadiness = ZoneOccupancySummary & {
   readyForPickup: boolean;
@@ -57,12 +60,20 @@ export function computeZoneOccupancyByCode(
     for (const locId of locationIdsForMapColor(delivery)) {
       const location = locById.get(locId);
       if (!location) continue;
-      const keys = new Set<string>([
-        normalizeStagingCodeKey(location.code),
-      ]);
-      const layoutSlot = location.mapLayoutSlot?.trim();
-      if (layoutSlot) {
-        keys.add(normalizeStagingCodeKey(layoutSlot));
+      const codeKey = normalizeStagingCodeKey(location.code);
+      // Catch-all must never dual-key onto G1–G12 via a stale mapLayoutSlot.
+      const keys = new Set<string>();
+      if (codeKey === CATCH_ALL_KEY) {
+        keys.add(CATCH_ALL_KEY);
+      } else {
+        keys.add(codeKey);
+        const layoutSlot = location.mapLayoutSlot?.trim();
+        if (layoutSlot) {
+          const slotKey = normalizeStagingCodeKey(layoutSlot);
+          if (slotKey !== CATCH_ALL_KEY) {
+            keys.add(slotKey);
+          }
+        }
       }
       const candidate: ZoneOccupancySummaryWithReadiness = {
         ...summaryBase,
