@@ -1,0 +1,1 @@
+import{Mr as e,kr as t,vr as n}from"./index-DyyPbnT5.js";var r=n();function i(){let{orderId:n}=e(),i=n?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
