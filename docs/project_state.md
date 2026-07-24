@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **away-132** — D-44 G5 office receiver phone chips + persist (no SMS).
+1. **away-133** — Phase 5 Slice B Level 1 per-location confirms via stagingLocationIds.
 2. **Post-queue:** refill via `npm run away:plan` when ready.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.

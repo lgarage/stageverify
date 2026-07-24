@@ -202,8 +202,42 @@ async function expectCallableError(fn, expectedSubstring) {
     await page.getByTestId("office-receiver-name-input").waitFor({
       timeout: 20_000,
     });
+    await page.getByTestId("office-receiver-add-phone-input").waitFor({
+      timeout: 20_000,
+    });
     await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);
     record("office receivers panel readable text contrast (D-42)", true);
+
+    const phoneInput = page.getByTestId(
+      `office-receiver-phone-input-${fixtureReceiverId}`,
+    );
+    await phoneInput.waitFor({ timeout: 15_000 });
+    await phoneInput.fill("5559876543");
+    await page
+      .getByTestId(`office-receiver-phone-save-${fixtureReceiverId}`)
+      .click();
+    const chip = page.getByTestId(
+      `office-receiver-phone-chip-${fixtureReceiverId}`,
+    );
+    await chip.waitFor({ timeout: 15_000 });
+    const chipText = (await chip.textContent()) ?? "";
+    record(
+      "office receiver phone persists as chip",
+      chipText.includes("555") && chipText.includes("987-6543"),
+      chipText.trim(),
+    );
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("office-receivers-settings-panel").waitFor({
+      timeout: 20_000,
+    });
+    await page
+      .getByTestId(`office-receiver-phone-chip-${fixtureReceiverId}`)
+      .waitFor({ timeout: 15_000 });
+    record("office receiver phone survives reload", true);
+
+    await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);
+    record("phone chip readable text contrast (D-42)", true);
 
     const intakeOff = await setupFirebaseFixture({
       parcelIntakeEnabled: false,

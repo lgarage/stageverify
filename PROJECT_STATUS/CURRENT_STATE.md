@@ -6,8 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Prior ship: **v0.0.132** — Shop map catch-all single-flush persistEdit (YAH/door/hidden).
-- Last shipped: **away-131** — Bold Release-to-technician CTA to match Email Vendor / Assign Location
+- Prior ship: **v0.0.134** — dispatcher job release panel polish.
+- Last shipped: **away-132** — D-44 G5 office receiver phone chips + persist (no SMS) — verify:catch-all-delivery-notify PASS
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:catch-all-map` / `:prod`; `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
@@ -17,11 +17,10 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **away-132** — D-44 G5 office receiver phone chips + persist (no SMS) (offline; `npm run away:next`). ESL/shop map do not block unless scope says otherwise.
+- **away-133** — Phase 5 Slice B Level 1 per-location confirms via stagingLocationIds (`npm run away:next`). ESL/shop map do not block unless scope says otherwise.
 
 ## Queued product (deferred)
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
-- **D-44 G5:** phone chips / persist office receiver UX (deferred).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

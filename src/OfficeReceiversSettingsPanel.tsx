@@ -26,11 +26,25 @@ function isValidEmail(value: string): boolean {
   return trimmed.includes("@") && trimmed.length <= 254;
 }
 
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 10);
+  if (digits.length < 4) return digits.length ? `(${digits}` : "";
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function isValidPhone(value: string): boolean {
+  return value.replace(/\D/g, "").length === 10;
+}
+
 export function OfficeReceiversSettingsPanel() {
   const [receivers, setReceivers] = useState<OfficeReceiver[]>([]);
   const [loading, setLoading] = useState(true);
   const [receiverName, setReceiverName] = useState("");
   const [receiverEmail, setReceiverEmail] = useState("");
+  const [receiverPhone, setReceiverPhone] = useState("");
+  const [phoneDrafts, setPhoneDrafts] = useState<Record<string, string>>({});
+  const [phoneSavingId, setPhoneSavingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,8 +65,13 @@ export function OfficeReceiversSettingsPanel() {
   const handleAddReceiver = async () => {
     const name = receiverName.trim();
     const email = receiverEmail.trim();
+    const phoneRaw = receiverPhone.trim();
     if (!name || !isValidEmail(email)) {
       setError("Name and a valid email are required.");
+      return;
+    }
+    if (phoneRaw && !isValidPhone(phoneRaw)) {
+      setError("Phone must be a 10-digit US number when provided.");
       return;
     }
     setSaving(true);
@@ -64,6 +83,7 @@ export function OfficeReceiversSettingsPanel() {
         id,
         name,
         email: email.toLowerCase(),
+        ...(phoneRaw ? { phone: formatPhone(phoneRaw) } : {}),
         active: true,
         catchAllCheckInEnabled: true,
         notifyEmail: true,
@@ -73,6 +93,7 @@ export function OfficeReceiversSettingsPanel() {
       });
       setReceiverName("");
       setReceiverEmail("");
+      setReceiverPhone("");
       await reload();
     } catch {
       setError("Could not save office receiver.");
@@ -106,6 +127,50 @@ export function OfficeReceiversSettingsPanel() {
       updatedAt: new Date().toISOString(),
     });
     await reload();
+  };
+
+  const saveReceiverPhone = async (receiver: OfficeReceiver) => {
+    const draft = (phoneDrafts[receiver.id] ?? "").trim();
+    if (!isValidPhone(draft)) {
+      setError("Phone must be a 10-digit US number.");
+      return;
+    }
+    setPhoneSavingId(receiver.id);
+    setError(null);
+    try {
+      await updateOfficeReceiver({
+        ...receiver,
+        phone: formatPhone(draft),
+        updatedAt: new Date().toISOString(),
+      });
+      setPhoneDrafts((prev) => {
+        const next = { ...prev };
+        delete next[receiver.id];
+        return next;
+      });
+      await reload();
+    } catch {
+      setError("Could not save phone number.");
+    } finally {
+      setPhoneSavingId(null);
+    }
+  };
+
+  const clearReceiverPhone = async (receiver: OfficeReceiver) => {
+    setPhoneSavingId(receiver.id);
+    setError(null);
+    try {
+      await updateOfficeReceiver({
+        ...receiver,
+        phone: "",
+        updatedAt: new Date().toISOString(),
+      });
+      await reload();
+    } catch {
+      setError("Could not remove phone number.");
+    } finally {
+      setPhoneSavingId(null);
+    }
   };
 
   return (
@@ -245,6 +310,93 @@ export function OfficeReceiversSettingsPanel() {
                       SMS (coming soon)
                     </label>
                   </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginTop: 10,
+                      alignItems: "center",
+                    }}
+                  >
+                    {receiver.phone?.trim() ? (
+                      <span
+                        data-testid={`office-receiver-phone-chip-${receiver.id}`}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          backgroundColor: "#e5e7eb",
+                          color: TEXT,
+                          fontSize: 13,
+                          fontFamily: FONT,
+                        }}
+                      >
+                        {receiver.phone}
+                        <button
+                          type="button"
+                          aria-label="Remove phone"
+                          disabled={
+                            receiver.active === false || phoneSavingId === receiver.id
+                          }
+                          data-testid={`office-receiver-phone-remove-${receiver.id}`}
+                          onClick={() => void clearReceiverPhone(receiver)}
+                          style={{
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            color: MUTED,
+                            fontSize: 16,
+                            lineHeight: 1,
+                            padding: 0,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ) : (
+                      <>
+                        <input
+                          type="tel"
+                          placeholder="Mobile phone"
+                          value={phoneDrafts[receiver.id] ?? ""}
+                          disabled={receiver.active === false}
+                          onChange={(e) =>
+                            setPhoneDrafts((prev) => ({
+                              ...prev,
+                              [receiver.id]: formatPhone(e.target.value),
+                            }))
+                          }
+                          data-testid={`office-receiver-phone-input-${receiver.id}`}
+                          style={{ ...inputStyle, minWidth: 160 }}
+                        />
+                        <button
+                          type="button"
+                          disabled={
+                            receiver.active === false ||
+                            phoneSavingId === receiver.id ||
+                            !isValidPhone(phoneDrafts[receiver.id] ?? "")
+                          }
+                          data-testid={`office-receiver-phone-save-${receiver.id}`}
+                          onClick={() => void saveReceiverPhone(receiver)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 6,
+                            border: `1px solid ${NAVY}`,
+                            backgroundColor: "#fff",
+                            color: NAVY,
+                            fontWeight: 600,
+                            fontSize: 13,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Save phone
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </li>
               ))}
               {receivers.length === 0 && (
@@ -276,6 +428,14 @@ export function OfficeReceiversSettingsPanel() {
                 onChange={(e) => setReceiverEmail(e.target.value)}
                 data-testid="office-receiver-email-input"
                 style={{ ...inputStyle, minWidth: 220 }}
+              />
+              <input
+                type="tel"
+                placeholder="Mobile phone (optional)"
+                value={receiverPhone}
+                onChange={(e) => setReceiverPhone(formatPhone(e.target.value))}
+                data-testid="office-receiver-add-phone-input"
+                style={{ ...inputStyle, minWidth: 160 }}
               />
               <button
                 type="button"

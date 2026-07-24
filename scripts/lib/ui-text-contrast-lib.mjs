@@ -168,9 +168,32 @@ export const OFFICE_RECEIVER_PANEL_CONTRAST_SPEC = {
       large: false,
     },
     {
+      name: "add phone input",
+      selector: '[data-testid="office-receiver-add-phone-input"]',
+      large: false,
+    },
+    {
       name: "add button",
       selector: '[data-testid="office-receiver-add-btn"]',
       large: false,
+    },
+    {
+      name: "phone chip",
+      selector: '[data-testid^="office-receiver-phone-chip-"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "row phone input",
+      selector: '[data-testid^="office-receiver-phone-input-"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "save phone button",
+      selector: '[data-testid^="office-receiver-phone-save-"]',
+      large: false,
+      optional: true,
     },
     {
       name: "receiver row",
