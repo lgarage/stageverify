@@ -1,5 +1,6 @@
 /**
  * Playwright: Staging Map catch-all overlay + G1 not catch-all (D-44 map repair).
+ * Catch-all is edit-session only — never on view/reload until Add in edit mode.
  *
  *   npm run dev
  *   npm run verify:catch-all-map
@@ -52,45 +53,46 @@ async function assertNoCatchAllOverlay(page, context) {
   const catchAll = page.locator('[data-testid="shop-map-catch-all"]');
   if ((await catchAll.count()) > 0) {
     throw new Error(
-      `${context}: catch-all overlay must not appear until Add Catch-all Location is clicked`,
+      `${context}: catch-all overlay must not appear until Add Catch All Location is clicked in edit mode`,
     );
   }
 }
 
-async function waitForPersistedCatchAll(page, timeoutMs = 10000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const catchAll = page.locator('[data-testid="shop-map-catch-all"]');
-    if ((await catchAll.count()) > 0) {
-      return catchAll.first();
-    }
-    await page.waitForTimeout(400);
-  }
-  return null;
+async function waitForZonesMap(page) {
+  await page.waitForSelector('[data-testid="shop-floor-map"]', {
+    timeout: 30000,
+  });
+  await page
+    .getByText("Loading zones…")
+    .waitFor({ state: "hidden", timeout: 30000 })
+    .catch(() => {});
 }
 
-async function ensureCatchAllOverlayViaMap(page) {
-  const persisted = await waitForPersistedCatchAll(page);
-  if (persisted) {
-    console.log("PASS: catch-all overlay already present — skip Add flow");
-    return persisted;
-  }
-
-  await assertNoCatchAllOverlay(page, "Before edit mode");
-
+async function enterEditMode(page) {
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({
     state: "visible",
     timeout: 5000,
   });
+}
 
-  await assertNoCatchAllOverlay(page, "Edit mode entry");
+async function exitEditMode(page) {
+  const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "hidden",
+    timeout: 15000,
+  });
+}
+
+async function addCatchAllInEdit(page) {
+  await assertNoCatchAllOverlay(page, "Edit mode before Add");
 
   const addBtn = page.getByTestId("shop-map-add-catch-all");
   if (!(await addBtn.isVisible())) {
     throw new Error(
-      "Missing shop-map-add-catch-all — enable Edit Locations and add catch-all location",
+      "Missing shop-map-add-catch-all — enable Edit Locations and click Add Catch All Location",
     );
   }
   await addBtn.click();
@@ -99,76 +101,13 @@ async function ensureCatchAllOverlayViaMap(page) {
   const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
   if ((await catchAll.count()) === 0) {
     throw new Error(
-      "Add Catch-all Location did not create shop-map-catch-all overlay",
+      "Add Catch All Location did not create shop-map-catch-all overlay",
     );
   }
-
-  // Done editing persists pending catch-all via withCatchAllMarker (no spot panel required).
-  await editToggle.click();
-  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
-    state: "hidden",
-    timeout: 15000,
-  });
-  await page.waitForTimeout(1000);
-
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-testid="shop-floor-map"]', {
-    timeout: 30000,
-  });
-  await page
-    .getByText("Loading zones…")
-    .waitFor({ state: "hidden", timeout: 30000 })
-    .catch(() => {});
-
-  const catchAllAfterReload = page
-    .locator('[data-testid="shop-map-catch-all"]')
-    .first();
-  if ((await catchAllAfterReload.count()) === 0) {
-    throw new Error(
-      "Catch-all overlay must persist after Save layout and reload #/zones",
-    );
-  }
-
-  return catchAllAfterReload;
+  return catchAll;
 }
 
-async function main() {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext(
-    existsSync(resolve(process.cwd(), "playwright/.auth/state.json"))
-      ? {
-          storageState: resolve(process.cwd(), "playwright/.auth/state.json"),
-        }
-      : {},
-  );
-  const page = await context.newPage();
-  await ensureAuthenticated(page, appBase);
-
-  await page.goto(`${appBase}/#/zones`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-testid="shop-floor-map"]', {
-    timeout: 30000,
-  });
-  await page.getByText("Loading zones…").waitFor({
-    state: "hidden",
-    timeout: 30000,
-  }).catch(() => {});
-
-  const lastUpdatedEl = page.getByTestId("dispatcher-topbar-last-updated");
-  await lastUpdatedEl.waitFor({ state: "visible", timeout: 10000 });
-  const lastUpdatedText = (await lastUpdatedEl.innerText()).trim();
-  if (/Loading…/i.test(lastUpdatedText)) {
-    throw new Error(
-      `Staging Map top bar stuck on Loading after zones load: "${lastUpdatedText}"`,
-    );
-  }
-  if (!/Last updated:/i.test(lastUpdatedText)) {
-    throw new Error(`Missing Last updated label: "${lastUpdatedText}"`);
-  }
-
-  await assertG1NotCatchAll(page);
-  await assertNoCatchAllOverlay(page, "Initial zones map load");
-
-  const catchAllSpot = await ensureCatchAllOverlayViaMap(page);
+async function assertCatchAllOverlayContent(page, catchAllSpot) {
   await catchAllSpot.scrollIntoViewIfNeeded();
 
   const label = catchAllSpot.getByTestId("shop-spot-catch-all-label");
@@ -223,17 +162,43 @@ async function main() {
   console.log(
     `PASS: catch-all overlay shows "${labelText}" + count ${countText}`,
   );
-  console.log("PASS: catch-all overlay persisted after Save + reload");
+}
 
-  // Edit mode: catch-all is draggable (resize handle present)
-  const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
-  await editToggle.click();
-  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
-    state: "visible",
-    timeout: 5000,
-  });
+async function main() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext(
+    existsSync(resolve(process.cwd(), "playwright/.auth/state.json"))
+      ? {
+          storageState: resolve(process.cwd(), "playwright/.auth/state.json"),
+        }
+      : {},
+  );
+  const page = await context.newPage();
+  await ensureAuthenticated(page, appBase);
+
+  await page.goto(`${appBase}/#/zones`, { waitUntil: "domcontentloaded" });
+  await waitForZonesMap(page);
+
+  const lastUpdatedEl = page.getByTestId("dispatcher-topbar-last-updated");
+  await lastUpdatedEl.waitFor({ state: "visible", timeout: 10000 });
+  const lastUpdatedText = (await lastUpdatedEl.innerText()).trim();
+  if (/Loading…/i.test(lastUpdatedText)) {
+    throw new Error(
+      `Staging Map top bar stuck on Loading after zones load: "${lastUpdatedText}"`,
+    );
+  }
+  if (!/Last updated:/i.test(lastUpdatedText)) {
+    throw new Error(`Missing Last updated label: "${lastUpdatedText}"`);
+  }
 
   await assertG1NotCatchAll(page);
+  await assertNoCatchAllOverlay(page, "Initial zones map load (view mode)");
+
+  await enterEditMode(page);
+  await assertNoCatchAllOverlay(page, "Edit mode entry");
+
+  const catchAllSpot = await addCatchAllInEdit(page);
+  await assertCatchAllOverlayContent(page, catchAllSpot);
 
   const resizeHandle = page.getByTestId("shop-map-catch-all-resize-handle");
   if (!(await resizeHandle.isVisible())) {
@@ -243,12 +208,24 @@ async function main() {
   const addCatchAll = page.getByTestId("shop-map-add-catch-all");
   if (await addCatchAll.count()) {
     throw new Error(
-      "Add Catch-all Location should be hidden when overlay already exists",
+      "Add Catch All Location should be hidden when overlay already exists in edit",
     );
   }
 
-  await editToggle.click();
-  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
+  await exitEditMode(page);
+  await assertNoCatchAllOverlay(page, "View mode after Done editing");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForZonesMap(page);
+  await assertG1NotCatchAll(page);
+  await assertNoCatchAllOverlay(page, "After reload in view mode");
+  console.log("PASS: catch-all hidden after reload in view mode");
+
+  await enterEditMode(page);
+  await assertNoCatchAllOverlay(page, "Re-enter edit without Add");
+  await addCatchAllInEdit(page);
+  await exitEditMode(page);
+  await assertNoCatchAllOverlay(page, "View after second Add + Done editing");
 
   await page.screenshot({
     path: resolve(screenshotDir, "catch-all-map-verify.png"),

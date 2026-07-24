@@ -31,10 +31,9 @@ import {
   withYouAreHere,
   withDoor,
   defaultCatchAllMarker,
-  withCatchAllMarker,
+  withoutCatchAllMarker,
   resolveYouAreHereMarker,
   resolveDoorMarker,
-  resolveCatchAllMarker,
   doorHeightFromWidth,
   CATCH_ALL_MIN_SIZE,
   DOOR_DEFAULT_SIZE_PX,
@@ -356,9 +355,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       rotationDeg: 0,
     };
   const door = pendingDoor ?? persistedDoor;
-  const persistedCatchAll: CatchAllMarker | undefined =
-    resolveCatchAllMarker(layout.extras);
-  const catchAllMarker = pendingCatchAll ?? persistedCatchAll;
+  /** Edit-session only — never shown in view mode or restored from Firestore (D-44). */
+  const catchAllMarker = editMode && pendingCatchAll ? pendingCatchAll : null;
   const doorHeightPx = doorHeightFromWidth(door.sizePx);
   /** Drag/resize only while editing inside Vendor view (marker visibility is CSS). */
   const canEditYouAreHere = editMode && vendorView;
@@ -1423,18 +1421,16 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ]);
     const yahPending = pendingYouAreHere !== null;
     const doorPending = pendingDoor !== null;
-    const catchAllPending = pendingCatchAll !== null;
     if (
       slotsToSave.size === 0 &&
       pendingHidden.length === 0 &&
       !yahPending &&
-      !doorPending &&
-      !catchAllPending
+      !doorPending
     ) {
       return true;
     }
     if (
-      (pendingHidden.length > 0 || yahPending || doorPending || catchAllPending) &&
+      (pendingHidden.length > 0 || yahPending || doorPending) &&
       !onPersistLayoutExtras
     ) {
       return false;
@@ -1444,12 +1440,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setSaveError(null);
     try {
       if (
-        (pendingHidden.length > 0 || yahPending || doorPending || catchAllPending) &&
+        (pendingHidden.length > 0 || yahPending || doorPending) &&
         onPersistLayoutExtras
       ) {
-        let nextExtras: ShopMapLayoutExtras = layoutProp?.extras ??
-          layout.extras ??
-          {};
+        let nextExtras: ShopMapLayoutExtras = withoutCatchAllMarker(
+          layoutProp?.extras ?? layout.extras ?? {},
+        );
         if (pendingHidden.length > 0) {
           const baseLayout = resolveShopMapLayout(nextExtras);
           for (const slot of pendingHidden) {
@@ -1472,9 +1468,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         }
         if (doorPending && pendingDoor) {
           nextExtras = withDoor(nextExtras, pendingDoor);
-        }
-        if (catchAllPending && pendingCatchAll) {
-          nextExtras = withCatchAllMarker(nextExtras, pendingCatchAll);
         }
         await onPersistLayoutExtras(nextExtras);
         if (pendingHidden.length > 0 && onDeactivateSlots) {
@@ -2410,6 +2403,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               Add ground spot
             </button>
           )}
+          {onAddShelf && (
+            <button
+              type="button"
+              data-testid="shop-map-add-shelf"
+              disabled={addingLayout || !onSaveZone}
+              onClick={() => void runAdd(onAddShelf)}
+              style={addLayoutBtnStyle}
+            >
+              Add shelf
+            </button>
+          )}
           {onAddCatchAllSpot && !catchAllMarker && (
             <button
               type="button"
@@ -2423,18 +2427,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               }
               style={addLayoutBtnStyle}
             >
-              Add Catch-all Location
-            </button>
-          )}
-          {onAddShelf && (
-            <button
-              type="button"
-              data-testid="shop-map-add-shelf"
-              disabled={addingLayout || !onSaveZone}
-              onClick={() => void runAdd(onAddShelf)}
-              style={addLayoutBtnStyle}
-            >
-              Add shelf
+              Add Catch All Location
             </button>
           )}
           {onAddSpotToShelf && selectedShelfUnit && (
@@ -3458,7 +3451,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 saving ||
                 (!onSaveZone &&
                   !(pendingHidden.length > 0 && onPersistLayoutExtras) &&
-                  pendingCatchAll === null &&
                   pendingYouAreHere === null &&
                   pendingDoor === null)
               }

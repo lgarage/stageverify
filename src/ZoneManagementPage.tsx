@@ -319,8 +319,6 @@ export function ZoneManagementPage() {
   const [vendorView, setVendorView] = useState(false);
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
-  /** After loadZones + catch-all migrate — then show persisted map catch-all box. */
-  const [layoutHydrated, setLayoutHydrated] = useState(false);
   const [catchAllPendingCount, setCatchAllPendingCount] = useState(0);
   const liveOccupancy = useLiveZoneOccupancy(true);
   const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
@@ -390,13 +388,10 @@ export function ZoneManagementPage() {
     }
   }, [mapEditMode, assignDeliveryId, exitAssignMode]);
 
-  const mapLayout = useMemo(() => {
-    const extras =
-      layoutHydrated && !loading
-        ? layoutExtras
-        : withoutCatchAllMarker(layoutExtras);
-    return resolveShopMapLayout(extras);
-  }, [layoutExtras, layoutHydrated, loading]);
+  const mapLayout = useMemo(
+    () => resolveShopMapLayout(withoutCatchAllMarker(layoutExtras)),
+    [layoutExtras],
+  );
 
   const zonesByLayoutSlot = useMemo(
     () =>
@@ -602,15 +597,16 @@ export function ZoneManagementPage() {
           };
         }
       }
+      if (resolveCatchAllMarker(extras)) {
+        extras = withoutCatchAllMarker(extras);
+        await updateAppSettings({ shopMapLayoutExtras: extras });
+      }
       return { settings, extras };
     },
     [],
   );
 
   const handleAddCatchAllSpot = useCallback(async () => {
-    if (resolveCatchAllMarker(layoutExtras)) {
-      return;
-    }
     const caKey = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
     let caZone = zones.find(
       (z) => normalizeStagingCodeKey(z.code) === caKey,
@@ -633,7 +629,7 @@ export function ZoneManagementPage() {
       setZones((prev) => [...prev, caZone!]);
     }
     await handleDesignateCatchAll(zoneId);
-  }, [layoutExtras, zones, handleDesignateCatchAll]);
+  }, [zones, handleDesignateCatchAll]);
 
   const handleDeactivateSlots = useCallback(
     async (slots: string[]) => {
@@ -677,7 +673,6 @@ export function ZoneManagementPage() {
       );
       setZones(loaded);
       setLayoutExtras(extras);
-      setLayoutHydrated(true);
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
       setOccupancyByZoneCode(occupancy);
       setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
@@ -697,7 +692,7 @@ export function ZoneManagementPage() {
   useEffect(() => {
     return subscribeAppSettings((settings) => {
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
-      setLayoutExtras(settings.shopMapLayoutExtras ?? {});
+      setLayoutExtras(withoutCatchAllMarker(settings.shopMapLayoutExtras ?? {}));
     });
   }, []);
 
