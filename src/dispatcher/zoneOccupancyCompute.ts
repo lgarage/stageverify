@@ -57,14 +57,22 @@ export function computeZoneOccupancyByCode(
     for (const locId of locationIdsForMapColor(delivery)) {
       const location = locById.get(locId);
       if (!location) continue;
-      const key = normalizeStagingCodeKey(location.code);
+      const keys = new Set<string>([
+        normalizeStagingCodeKey(location.code),
+      ]);
+      const layoutSlot = location.mapLayoutSlot?.trim();
+      if (layoutSlot) {
+        keys.add(normalizeStagingCodeKey(layoutSlot));
+      }
       const candidate: ZoneOccupancySummaryWithReadiness = {
         ...summaryBase,
         plannedOnly: !actualIds.has(locId),
       };
-      const existing = byCode[key];
-      if (!existing || shouldReplace(existing, delivery)) {
-        byCode[key] = candidate;
+      for (const key of keys) {
+        const existing = byCode[key];
+        if (!existing || shouldReplace(existing, delivery)) {
+          byCode[key] = candidate;
+        }
       }
     }
   }

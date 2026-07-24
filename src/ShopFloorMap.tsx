@@ -31,7 +31,8 @@ import {
   withYouAreHere,
   withDoor,
   defaultCatchAllMarker,
-  withoutCatchAllMarker,
+  withCatchAllMarker,
+  resolveCatchAllMarker,
   resolveYouAreHereMarker,
   resolveDoorMarker,
   doorHeightFromWidth,
@@ -127,6 +128,8 @@ type Props = {
   onAddCatchAllSpot?: () => Promise<void>;
   /** Clear catch-all designation when overlay is deleted in edit session. */
   onRemoveCatchAllSpot?: () => Promise<void>;
+  /** View-mode spot click could not open delivery (stale assignment, etc.). */
+  onSpotDeliveryUnavailable?: (message: string) => void;
 };
 
 export type ShopFloorMapHandle = {
@@ -322,6 +325,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       catchAllPendingCount = 0,
       onAddCatchAllSpot,
       onRemoveCatchAllSpot,
+      onSpotDeliveryUnavailable,
     },
     ref,
   ) {
@@ -411,7 +415,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   >({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  /** Edit-session only — never shown in view mode or restored from Firestore (D-44). */
+  /** Edit-session overlay — hidden in view mode; hydrates from saved extras in edit. */
   const catchAllMarker = useMemo(() => {
     if (!editMode || !pendingCatchAll) return null;
     if (selectedCatchAll) {
@@ -515,21 +519,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     baseOy: number;
     undoPushed: boolean;
   } | null>(null);
-  useEffect(() => {
-    if (!editMode) {
-      setPendingYouAreHere(null);
-      setPendingDoor(null);
-      setPendingCatchAll(null);
-      setSelectedCatchAll(false);
-      catchAllSessionSnapshotRef.current = null;
-      yahDragRef.current = null;
-      yahResizeRef.current = null;
-      doorDragRef.current = null;
-      doorResizeRef.current = null;
-      catchAllDragRef.current = null;
-      catchAllResizeRef.current = null;
-    }
-  }, [editMode]);
   const marqueeRef = useRef<{
     startX: number;
     startY: number;
@@ -550,6 +539,32 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     () => zoneForLayoutSlot(CATCH_ALL_ZONE_CODE),
     [zoneForLayoutSlot],
   );
+
+  const prevEditModeRef = useRef(false);
+  useEffect(() => {
+    if (editMode && !prevEditModeRef.current) {
+      if (catchAllZone) {
+        const saved = resolveCatchAllMarker(layout.extras);
+        if (saved) {
+          setPendingCatchAll(saved);
+        }
+      }
+    }
+    if (!editMode) {
+      setPendingYouAreHere(null);
+      setPendingDoor(null);
+      setPendingCatchAll(null);
+      setSelectedCatchAll(false);
+      catchAllSessionSnapshotRef.current = null;
+      yahDragRef.current = null;
+      yahResizeRef.current = null;
+      doorDragRef.current = null;
+      doorResizeRef.current = null;
+      catchAllDragRef.current = null;
+      catchAllResizeRef.current = null;
+    }
+    prevEditModeRef.current = editMode;
+  }, [editMode, catchAllZone, layout.extras]);
 
   const applyCatchAllGeometry = useCallback(
     (ox: number, oy: number, width: number, height: number) => {
@@ -1611,12 +1626,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const yahPending = pendingYouAreHere !== null;
     const doorPending = pendingDoor !== null;
     const catchAllPending = pendingCatchAll !== null;
+    const catchAllShouldPersist = catchAllPending && !!catchAllZone;
     if (
       slotsToSave.size === 0 &&
       pendingHidden.length === 0 &&
       !yahPending &&
       !doorPending &&
-      !(selectedCatchAll && catchAllPending)
+      !catchAllShouldPersist
     ) {
       return true;
     }
@@ -1626,38 +1642,54 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ) {
       return false;
     }
+    if (catchAllShouldPersist && !onPersistLayoutExtras) return false;
     if (slotsToSave.size > 0 && !onSaveZone) return false;
     if (selectedCatchAll && catchAllPending && !onSaveZone) return false;
     setSaving(true);
     setSaveError(null);
     try {
-      if (selectedCatchAll && catchAllPending && onSaveZone) {
-        const patchLabel = editLabel.trim() || "Catch-all";
+      const extrasBase = layoutProp?.extras ?? layout.extras ?? {};
+      if (catchAllShouldPersist && onPersistLayoutExtras) {
+        const marker: CatchAllMarker =
+          selectedCatchAll && pendingCatchAll
+            ? {
+                ox: Math.round(editOffsetX),
+                oy: Math.round(editOffsetY),
+                width: Math.max(CATCH_ALL_MIN_SIZE, Math.round(editWidth)),
+                height: Math.max(CATCH_ALL_MIN_SIZE, Math.round(editHeight)),
+              }
+            : pendingCatchAll!;
+        await onPersistLayoutExtras(withCatchAllMarker(extrasBase, marker));
+        setPendingCatchAll(marker);
+        const patchLabel = (
+          selectedCatchAll
+            ? editLabel.trim()
+            : (catchAllZone?.label ?? "Catch-all")
+        ) || "Catch-all";
         const patchCode = formatStagingCodeCanonical(
-          editCode.trim() || CATCH_ALL_ZONE_CODE,
+          selectedCatchAll
+            ? editCode.trim() || CATCH_ALL_ZONE_CODE
+            : (catchAllZone?.code ?? CATCH_ALL_ZONE_CODE),
         );
-        const zone = catchAllZone;
-        const labelChanged = patchLabel !== (zone?.label ?? "Catch-all");
-        const codeChanged =
-          patchCode !==
-          formatStagingCodeCanonical(zone?.code ?? CATCH_ALL_ZONE_CODE);
-        if (labelChanged || codeChanged) {
-          await onSaveZone({
-            code: CATCH_ALL_ZONE_CODE,
-            zoneId: zone?.id,
-            patch: {
-              code: patchCode,
-              label: patchLabel,
-            },
-          });
+        if (selectedCatchAll && onSaveZone) {
+          const zone = catchAllZone;
+          const labelChanged = patchLabel !== (zone?.label ?? "Catch-all");
+          const codeChanged =
+            patchCode !==
+            formatStagingCodeCanonical(zone?.code ?? CATCH_ALL_ZONE_CODE);
+          if (labelChanged || codeChanged) {
+            await onSaveZone({
+              code: CATCH_ALL_ZONE_CODE,
+              zoneId: zone?.id,
+              patch: {
+                code: patchCode,
+                label: patchLabel,
+              },
+            });
+          }
         }
         catchAllSessionSnapshotRef.current = {
-          marker: {
-            ox: editOffsetX,
-            oy: editOffsetY,
-            width: editWidth,
-            height: editHeight,
-          },
+          marker: { ...marker },
           label: patchLabel,
           code: patchCode,
         };
@@ -1667,9 +1699,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         (pendingHidden.length > 0 || yahPending || doorPending) &&
         onPersistLayoutExtras
       ) {
-        let nextExtras: ShopMapLayoutExtras = withoutCatchAllMarker(
-          layoutProp?.extras ?? layout.extras ?? {},
-        );
+        let nextExtras: ShopMapLayoutExtras = {
+          ...extrasBase,
+        };
         if (pendingHidden.length > 0) {
           const baseLayout = resolveShopMapLayout(nextExtras);
           for (const slot of pendingHidden) {
@@ -1698,11 +1730,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           await onDeactivateSlots(pendingHidden);
         }
       }
-      if (!onSaveZone && slotsToSave.size === 0) {
+      if (!onSaveZone && slotsToSave.size === 0 && !catchAllShouldPersist) {
         setPendingHidden([]);
         setPendingYouAreHere(null);
         setPendingDoor(null);
-        setPendingCatchAll(null);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
         return true;
@@ -1843,6 +1874,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     editLabelRotationDeg,
     selectedSlots,
     selectedCatchAll,
+    pendingCatchAll,
     catchAllZone,
     applyCatchAllGeometry,
     onSaveZone,
@@ -2484,13 +2516,19 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
 
   const runAdd = async (action: () => Promise<void>) => {
     if (addingLayout) return;
+    if (selectedCatchAll && pendingCatchAll) {
+      applyCatchAllGeometry(editOffsetX, editOffsetY, editWidth, editHeight);
+      setSelectedCatchAll(false);
+    }
     pushUndo();
     setAddingLayout(true);
     setSaveError(null);
     try {
       await action();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Add failed");
+      const msg = err instanceof Error ? err.message : "Add failed";
+      setSaveError(msg);
+      throw err;
     } finally {
       setAddingLayout(false);
     }
@@ -2577,8 +2615,30 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       return;
     }
     const displayCode = displayCodeForSlot(layoutSlot);
-    const occ = occupancyByZoneCode[normalizeStagingCodeKey(displayCode)];
-    if (occ) onOpenDelivery(occ.deliveryId, displayCode);
+    const occKey = normalizeStagingCodeKey(displayCode);
+    const slotKey = normalizeStagingCodeKey(layoutSlot);
+    const occ =
+      occupancyByZoneCode[occKey] ?? occupancyByZoneCode[slotKey];
+    if (occ) {
+      void (async () => {
+        try {
+          const detail = await firestoreDataService.getDeliveryDetails(
+            occ.deliveryId,
+          );
+          if (detail) {
+            onOpenDelivery(occ.deliveryId, displayCode);
+            return;
+          }
+          onSpotDeliveryUnavailable?.(
+            `${displayCode} is marked occupied but delivery details are unavailable.`,
+          );
+        } catch {
+          onSpotDeliveryUnavailable?.(
+            `${displayCode} is marked occupied but delivery details could not be loaded.`,
+          );
+        }
+      })();
+    }
   };
 
   return (
@@ -2657,6 +2717,14 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             alignItems: "center",
           }}
         >
+          {saveError && (
+            <span
+              data-testid="shop-map-add-error"
+              style={{ color: "#991b1b", fontSize: 12, fontWeight: 700 }}
+            >
+              {saveError}
+            </span>
+          )}
           <button
             type="button"
             data-testid="shop-map-undo"
@@ -3757,7 +3825,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   !(pendingHidden.length > 0 && onPersistLayoutExtras) &&
                   pendingYouAreHere === null &&
                   pendingDoor === null &&
-                  !(selectedCatchAll && pendingCatchAll))
+                  !(pendingCatchAll && catchAllZone && onPersistLayoutExtras))
               }
               onClick={() => void persistEdit()}
               style={{

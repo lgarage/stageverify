@@ -47,6 +47,7 @@ import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { useLiveZoneOccupancy } from "./dispatcher/useLiveZoneOccupancy";
 import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupancyCompute";
 import {
+  SHOP_MAP_GROUND_CODES,
   SHOP_MAP_GROUND_SPOT_H,
   SHOP_MAP_GROUND_SPOT_W,
   allShopMapSpotCodes,
@@ -56,7 +57,6 @@ import {
   nextShelfSpotLetter,
   nextShelfUnitCode,
   resolveShopMapLayout,
-  resolveCatchAllMarker,
   withoutCatchAllMarker,
   isDefaultGroundLayoutSlot,
   CATCH_ALL_ZONE_CODE,
@@ -64,6 +64,7 @@ import {
   withExtraGroundSpot,
   withExtraShelfSpot,
   withExtraShelfUnit,
+  withoutHiddenSlots,
   type ShopMapLayoutExtras,
 } from "./dispatcher/shopMapLayout";
 import type { MapZoneSavePayload, ShopFloorMapHandle } from "./ShopFloorMap";
@@ -389,7 +390,7 @@ export function ZoneManagementPage() {
   }, [mapEditMode, assignDeliveryId, exitAssignMode]);
 
   const mapLayout = useMemo(
-    () => resolveShopMapLayout(withoutCatchAllMarker(layoutExtras)),
+    () => resolveShopMapLayout(layoutExtras),
     [layoutExtras],
   );
 
@@ -504,8 +505,26 @@ export function ZoneManagementPage() {
   const handleAddGroundSpot = useCallback(async () => {
     const layout = resolveShopMapLayout(layoutExtras);
     const code = nextGroundSpotCode(layout);
-    const nextExtras = withExtraGroundSpot(layoutExtras, code);
+    const codeKey = normalizeStagingCodeKey(code);
+    const existing = zones.find(
+      (z) => normalizeStagingCodeKey(z.code) === codeKey,
+    );
+    const nextExtras = withoutHiddenSlots(
+      withExtraGroundSpot(layoutExtras, code),
+      [code],
+    );
     await persistLayoutExtras(nextExtras);
+    if (existing) {
+      if (!isLocationActive(existing)) {
+        await updateZone(existing.id, { status: "Active" });
+        setZones((prev) =>
+          prev.map((z) =>
+            z.id === existing.id ? { ...z, status: "Active" as LocationStatus } : z,
+          ),
+        );
+      }
+      return;
+    }
     await handleMapZoneSave({
       code,
       patch: {
@@ -518,13 +537,31 @@ export function ZoneManagementPage() {
         mapRotationDeg: 0,
       },
     });
-  }, [handleMapZoneSave, layoutExtras, persistLayoutExtras]);
+  }, [handleMapZoneSave, layoutExtras, persistLayoutExtras, zones]);
 
   const handleAddShelf = useCallback(async () => {
     const layout = resolveShopMapLayout(layoutExtras);
     const unit = nextShelfUnitCode(layout);
-    const nextExtras = withExtraShelfUnit(layoutExtras, unit);
+    const unitKey = normalizeStagingCodeKey(unit);
+    const existing = zones.find(
+      (z) => normalizeStagingCodeKey(z.code) === unitKey,
+    );
+    const nextExtras = withoutHiddenSlots(
+      withExtraShelfUnit(layoutExtras, unit),
+      [unit],
+    );
     await persistLayoutExtras(nextExtras);
+    if (existing) {
+      if (!isLocationActive(existing)) {
+        await updateZone(existing.id, { status: "Active" });
+        setZones((prev) =>
+          prev.map((z) =>
+            z.id === existing.id ? { ...z, status: "Active" as LocationStatus } : z,
+          ),
+        );
+      }
+      return;
+    }
     await handleMapZoneSave({
       code: unit,
       patch: {
@@ -535,7 +572,7 @@ export function ZoneManagementPage() {
         mapRotationDeg: 0,
       },
     });
-  }, [handleMapZoneSave, layoutExtras, persistLayoutExtras]);
+  }, [handleMapZoneSave, layoutExtras, persistLayoutExtras, zones]);
 
   const handleAddSpotToShelf = useCallback(
     async (unit: string) => {
@@ -576,11 +613,19 @@ export function ZoneManagementPage() {
     ): Promise<{
       settings: Awaited<ReturnType<typeof getAppSettings>>;
       extras: ShopMapLayoutExtras;
+      zones: StagingLocation[];
     }> => {
       let extras = settings.shopMapLayoutExtras ?? {};
+      let zones = [...loadedZones];
+      const caKey = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
+
+      const patchZoneLocal = (id: string, patch: Partial<StagingLocation>) => {
+        zones = zones.map((z) => (z.id === id ? { ...z, ...patch } : z));
+      };
+
       const caId = settings.catchAllStagingLocationId?.trim();
       if (caId) {
-        const designated = loadedZones.find((z) => z.id === caId);
+        const designated = zones.find((z) => z.id === caId);
         const slot =
           designated?.mapLayoutSlot?.trim() ||
           designated?.code?.trim() ||
@@ -595,23 +640,90 @@ export function ZoneManagementPage() {
             catchAllStagingLocationId: undefined,
             parcelIntakeEnabled: false,
           };
+          if (designated) {
+            await updateZone(designated.id, {
+              code: CATCH_ALL_ZONE_CODE,
+              mapLayoutSlot: CATCH_ALL_ZONE_CODE,
+            });
+            patchZoneLocal(designated.id, {
+              code: CATCH_ALL_ZONE_CODE,
+              mapLayoutSlot: CATCH_ALL_ZONE_CODE,
+            });
+          }
         }
       }
-      if (resolveCatchAllMarker(extras)) {
-        extras = withoutCatchAllMarker(extras);
-        await updateAppSettings({ shopMapLayoutExtras: extras });
+
+      for (const zone of zones) {
+        const slot = zone.mapLayoutSlot?.trim();
+        if (
+          !slot ||
+          !isDefaultGroundLayoutSlot(slot) ||
+          normalizeStagingCodeKey(zone.code) !== caKey
+        ) {
+          continue;
+        }
+        await updateZone(zone.id, {
+          code: CATCH_ALL_ZONE_CODE,
+          mapLayoutSlot: CATCH_ALL_ZONE_CODE,
+        });
+        patchZoneLocal(zone.id, {
+          code: CATCH_ALL_ZONE_CODE,
+          mapLayoutSlot: CATCH_ALL_ZONE_CODE,
+        });
       }
-      return { settings, extras };
+
+      for (const slot of SHOP_MAP_GROUND_CODES) {
+        const slotKey = normalizeStagingCodeKey(slot);
+        const onSlot = zones.find(
+          (z) =>
+            isLocationActive(z) &&
+            normalizeStagingCodeKey(z.mapLayoutSlot ?? z.code) === slotKey,
+        );
+        if (onSlot) {
+          if (normalizeStagingCodeKey(onSlot.code) === caKey) {
+            await updateZone(onSlot.id, {
+              code: slot,
+              mapLayoutSlot: slot,
+              label: onSlot.label?.trim() || defaultLabelForSpotCode(slot),
+            });
+            patchZoneLocal(onSlot.id, {
+              code: slot,
+              mapLayoutSlot: slot,
+            });
+          } else if (
+            !onSlot.mapLayoutSlot ||
+            normalizeStagingCodeKey(onSlot.mapLayoutSlot) !== slotKey
+          ) {
+            await updateZone(onSlot.id, { mapLayoutSlot: slot });
+            patchZoneLocal(onSlot.id, { mapLayoutSlot: slot });
+          }
+          continue;
+        }
+        const byCode = zones.find(
+          (z) =>
+            isLocationActive(z) &&
+            normalizeStagingCodeKey(z.code) === slotKey,
+        );
+        if (byCode) {
+          await updateZone(byCode.id, { mapLayoutSlot: slot });
+          patchZoneLocal(byCode.id, { mapLayoutSlot: slot });
+        }
+      }
+
+      return { settings, extras, zones };
     },
     [],
   );
 
   const handleRemoveCatchAllSpot = useCallback(async () => {
+    const nextExtras = withoutCatchAllMarker(layoutExtras);
     await updateAppSettings({
       catchAllStagingLocationId: undefined,
       parcelIntakeEnabled: false,
+      shopMapLayoutExtras: nextExtras,
     });
-  }, []);
+    setLayoutExtras(nextExtras);
+  }, [layoutExtras]);
 
   const handleAddCatchAllSpot = useCallback(async () => {
     const caKey = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
@@ -674,11 +786,12 @@ export function ZoneManagementPage() {
         listShopStockMappings(),
         getAppSettings(),
       ]);
-      const { settings, extras } = await migrateCatchAllFromDefaultGround(
+      const { settings, extras, zones: repairedZones } =
+        await migrateCatchAllFromDefaultGround(
         settingsRaw,
         loaded,
       );
-      setZones(loaded);
+      setZones(repairedZones);
       setLayoutExtras(extras);
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
       setOccupancyByZoneCode(occupancy);
@@ -699,7 +812,7 @@ export function ZoneManagementPage() {
   useEffect(() => {
     return subscribeAppSettings((settings) => {
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
-      setLayoutExtras(withoutCatchAllMarker(settings.shopMapLayoutExtras ?? {}));
+      setLayoutExtras(settings.shopMapLayoutExtras ?? {});
     });
   }, []);
 
@@ -1316,6 +1429,7 @@ export function ZoneManagementPage() {
               catchAllPendingCount={catchAllPendingCount}
               onAddCatchAllSpot={handleAddCatchAllSpot}
               onRemoveCatchAllSpot={handleRemoveCatchAllSpot}
+              onSpotDeliveryUnavailable={showAssignToast}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
