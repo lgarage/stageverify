@@ -926,6 +926,148 @@
       "warning": "Staging Map edit: a pending drag can leave a spot under another chip. Playwright normal click then times out (observed: `… intercepts pointer events`). Not a product bug. Workarounds: `{ force: true }`, Undo to clear pending, or Cancel while still selected. Also: Cancel is per-object only — other spots’ pending maps stay; verify that expects full-session Cancel will fail (v0.0.87, 2026-07-19)."
     },
     {
+      "id": "shop-map-verify-extras-pollution",
+      "match": [
+        "extra ground spots",
+        "extra shelves",
+        "spots appeared on reload",
+        "shopMapLayoutExtras",
+        "extraGround",
+        "extraShelfUnits",
+        "G13",
+        "G20",
+        "Shelf 8",
+        "verify pollution",
+        "Add ground spot",
+        "Add shelf"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "src/dispatcher/shopMapLayout.ts",
+        "src/ZoneManagementPage.tsx",
+        "scripts/verify-catch-all-map.mjs",
+        "scripts/verify-shop-map.mjs"
+      ],
+      "rules": [],
+      "commands": [
+        "npm run verify:catch-all-map",
+        "npm run verify:shop-map"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "Staging Map mysterious extra spots",
+        "verify Add ground/shelf",
+        "shopMapLayoutExtras edits"
+      ],
+      "warning": "Mystery shelves/G spots after reload are usually persisted `appSettings.shopMapLayoutExtras` (`extraGround` / `extraShelfUnits`) from verify Add without cleanup — not a render/reload adder. Always Add→Delete (or skip create). Unoccupied extras are pruned on Staging Map load via `pruneUnoccupiedVerifyLayoutExtras` / `pruneVerifyMapPollution` (v0.0.139, 2026-07-24)."
+    },
+    {
+      "id": "shop-map-size-on-label-save",
+      "match": [
+        "G2 gets bigger",
+        "spot grows each edit",
+        "mapWidth",
+        "mapHeight",
+        "label-only Save",
+        "groundSlotStyle",
+        "sizeForSpot",
+        "assignPendingGroundSizeIfChanged"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": ["src/ShopFloorMap.tsx", "scripts/verify-shop-map.mjs"],
+      "rules": [],
+      "commands": ["npm run verify:shop-map"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "Staging Map Save geometry",
+        "ground spot resize",
+        "verify:shop-map edit Saves"
+      ],
+      "warning": "Staging Map ground spots: never rewrite `mapWidth`/`mapHeight` on every Save — only when size actually changed (`assignPendingGroundSizeIfChanged` + `sizeChanged` gate). Do not fall back to live `editWidth`/`editHeight` when `flushedSizes` lacks the slot (label/offset Saves were stacking accidental resize bumps; G2 grew each edit). Keep ground slot wrapper and chip on the same `sizeForSpot` source — hard-coded 52×52 chrome vs painted size makes growth look worse. Inflated G* sizes reset on load via `isInflatedGroundSpotSize` (v0.0.139, 2026-07-24)."
+    },
+    {
+      "id": "shop-map-catchall-ground-size-bleed",
+      "match": [
+        "catch-all size bleed",
+        "pendingSizes catch-all",
+        "selectCatchAllForEdit",
+        "selectSpotForEdit catch-all",
+        "catch-all to ground",
+        "editHeight catch-all"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": ["src/ShopFloorMap.tsx"],
+      "rules": [],
+      "commands": ["npm run verify:catch-all-map", "npm run verify:shop-map"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "catch-all edit then ground spot",
+        "Staging Map catch-all resize"
+      ],
+      "warning": "Catch-all edit W/H can bleed into ground `pendingSizes` when switching selection. `setState` is async — resetting edit W/H then flushing in the same tick still sees old closure values. Flush catch-all geometry first, clear catch-all selection, then load ground zone size from zone/`sizeForSpot` (hardened v0.0.139, 2026-07-24)."
+    },
+    {
+      "id": "shop-map-load-hydrate-wait",
+      "match": [
+        "Done editing should persist offset after reload",
+        "data-map-offset-x",
+        "expected=8 got=0",
+        "loadZones hydrate",
+        "pruneVerifyMapPollution",
+        "shop-floor-map first paint"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "src/ZoneManagementPage.tsx",
+        "scripts/verify-shop-map.mjs"
+      ],
+      "rules": [],
+      "commands": ["npm run verify:shop-map"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "verify:shop-map after reload",
+        "Staging Map Done editing persist"
+      ],
+      "warning": "`loadZones` (+ migrate/prune) hydrates zone offsets after first paint — `shop-floor-map` visible with `data-map-offset-*` still 0. After reload, `waitForFunction` until the expected `data-map-*` attr matches (or wait until loading finished); never assert first paint. Prune lengthens that window (observed v0.0.139 UI Playwright FAIL → hydrate wait, 2026-07-24)."
+    },
+    {
+      "id": "shop-map-verify-soft-warn-sync",
+      "match": [
+        "catch-all delivery button",
+        "designation sync",
+        "occupied spot focus",
+        "data-spot-focused",
+        "unloadable delivery",
+        "verify soft-WARN"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "scripts/verify-catch-all-map.mjs",
+        "scripts/verify-shop-map.mjs"
+      ],
+      "rules": [],
+      "commands": [
+        "npm run verify:catch-all-map",
+        "npm run verify:shop-map"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "verify:catch-all-map delivery button",
+        "verify:shop-map occupied drawer"
+      ],
+      "warning": "Soft-WARN only for known flaky sync (e.g. catch-all delivery top-bar after Add — designation lag). Do not soft-WARN away hard gates for real unloadable-delivery / broken-drawer regressions unless product says occupancy data is known-noisy. Occupied-spot focus timeout may WARN so unrelated geometry asserts still run (v0.0.139, 2026-07-24)."
+    },
+    {
       "id": "task-model-slug-grok",
       "match": [
         "grok-4.5-fast-xhigh",
