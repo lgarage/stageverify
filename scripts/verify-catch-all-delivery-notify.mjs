@@ -188,7 +188,7 @@ async function expectCallableError(fn, expectedSubstring) {
       clearCooldown: true,
     });
 
-    const { functions, db } = fixtureApp;
+    const { functions } = fixtureApp;
     const notify = httpsCallable(functions, "notifyCatchAllCheckers");
 
     await ensureAuthenticated(page);
@@ -320,7 +320,7 @@ async function expectCallableError(fn, expectedSubstring) {
       await deactivateFixtureReceiver(fixtureApp.db).catch(() => {});
       await deleteApp(fixtureApp.app).catch(() => {});
     }
-    await browser.close();
+    await browser.close().catch(() => {});
   }
 
   const failed = results.filter((r) => !r.pass);
@@ -331,4 +331,6 @@ async function expectCallableError(fn, expectedSubstring) {
     }
     process.exit(1);
   }
+  // Firebase Auth/Firestore keep Node alive via open sockets — force exit on PASS.
+  process.exit(0);
 })();
