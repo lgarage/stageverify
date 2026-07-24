@@ -183,7 +183,7 @@ Phase details and gates: `docs/roadmap.md` (NEXT), `docs/stageverify_v2_architec
 
 ## Immediate Next Steps
 
-1. **Post-queue:** see `docs/roadmap.md` NOW bucket and `PROJECT_STATUS/CURRENT_STATE.md` — refill queue via `away-list.json` when ready.
+1. **away-132** — D-44 G5 office receiver phone chips + persist (no SMS).
 2. **Post-queue:** refill via `npm run away:plan` when ready.
 3. **Deploy inbound Gmail ingestion** ? `firebase deploy --only functions,firestore:rules` after Pub/Sub setup.
 4. **Post-deploy:** reconnect Gmail if needed; watch registers on OAuth connect. Fallback poll: `syncInboundGmail` every 30 min.

@@ -23,6 +23,7 @@
 9. **Gmail sync banner:** Sync processed/skipped counts = `inboundEmailProcessing` docs, NOT `vendorInvoiceImports` rows. Banner distinguishes scanned vs queued (`invoicesQueued`, `skippedByStatus`). Empty Invoice Review after sync → check `no_pdf`, parse fail, pending filter, GCP Pub/Sub blocker #4, **and dead OAuth token** (Settings Connected but CF `token refresh failed: 400` — Disconnect/Reconnect; gotcha `gmail-connected-dead-token`).
 10. **Johnstone header grid vs line table:** pdf.js wide header row is `Customer # | Order Date | Sales Order # | Buyer | Customer P/O # | Ship Via | Salesman` — P/O must not bleed Ship Via (`PICKUP`, `TRUCK DELIVE`, `WILL CALL`) or Salesman codes (`SAD`, `BBTO`, `RML`, …). Fulfillment may come from `shipViaRaw` when P/O no longer contains `PICKUP`. Line descriptions stop before invoice footer (`Signature Proof of Delivery`, `Remit To`, `Taxable`, totals) — not product text. Gate: `npm run test:invoice-parser` + fixture `inv-6166261`. Gotcha: `johnstone-invoice-parser`.
 11. **Approve → one shell per invoice (D-39):** Identity OR (`vendorOrderNumber` OR `customerPo`). Approve always creates `delivery-vii-{importId}`; Link removed. Shared non-shell links → Create separate delivery (`relink_to_shell`). Same Invoice # across pages = one import. View original PDF = full source attachment. Prod `hideSeedDemoRows` still needs `vendorInvoiceImportId`. Gotchas: `invoice-import`, `prod-verify-hide-seed-demo`.
+- verify:catch-all-delivery-notify failed — dev server not running (npm run dev on 5173)
 
 ## Process / agents
 

@@ -9,7 +9,11 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": ["away-131", "away-132", "away-133", "away-135"],
+    "sequence": [
+      "away-132",
+      "away-133",
+      "away-135"
+    ],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -28,18 +32,6 @@
       "verifyBeforeNext": []
     },
     {
-      "id": "away-131",
-      "title": "Bold Release-to-technician CTA to match Email Vendor / Assign Location",
-      "status": "queued",
-      "scope": "JobReleaseToTechnicianPanel.tsx — make Release to technician button full-width solid high-contrast like Email Vendor / Assign Location below it. No logic changes.",
-      "acceptance": "Button visually matches sibling CTAs; npm run verify:dispatcher-job-release PASS (+ :prod after deploy).",
-      "tier": "T0",
-      "riskTier": "fast-safe",
-      "files": ["src/dispatcher/drawer/JobReleaseToTechnicianPanel.tsx"],
-      "verifyBeforeNext": ["npm run build", "npm run verify:dispatcher-job-release"],
-      "preApproved": true
-    },
-    {
       "id": "away-132",
       "title": "D-44 G5 office receiver phone chips + persist (no SMS)",
       "status": "queued",
@@ -47,7 +39,10 @@
       "acceptance": "Phone persists on office receiver; verify:catch-all-delivery-notify PASS with D-42 asserts on new fields.",
       "tier": "T1",
       "riskTier": "fast-safe",
-      "verifyBeforeNext": ["npm run build", "npm run verify:catch-all-delivery-notify"],
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:catch-all-delivery-notify"
+      ],
       "preApproved": true
     },
     {
@@ -58,7 +53,10 @@
       "acceptance": "Per-location confirm gates Complete Pickup; npm run verify:pickup PASS (+ :prod after deploy).",
       "tier": "T1",
       "riskTier": "fast-safe",
-      "verifyBeforeNext": ["npm run build", "npm run verify:pickup"],
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run verify:pickup"
+      ],
       "preApproved": true
     },
     {

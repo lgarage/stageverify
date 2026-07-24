@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-17",
+  "lastRun": "2026-07-24",
   "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
     {
@@ -201,6 +201,13 @@
       "status": "built",
       "commit": "6c08ad8",
       "note": "§14 E2E residual prod PASS post v0.0.44; Windows verify:dispatcher-nav:prod --base-url fix; MVP 99.60%"
+    },
+    {
+      "id": "away-131",
+      "title": "Bold Release-to-technician CTA to match Email Vendor / Assign Location",
+      "status": "built",
+      "commit": "c733cad",
+      "note": "bold release-to-tech CTA"
     }
   ],
   "summary": "away-130 shipped 2026-07-17; queue empty except blocked away-069; MVP 99.60%"
