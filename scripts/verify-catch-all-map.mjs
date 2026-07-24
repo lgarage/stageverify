@@ -164,6 +164,59 @@ async function assertCatchAllOverlayContent(page, catchAllSpot) {
   );
 }
 
+async function assertCatchAllEditPanel(page, catchAllSpot) {
+  const g1 = page.getByTestId("shop-spot-G1");
+  if (await g1.count()) {
+    await g1.click({ force: true });
+    await page.waitForTimeout(200);
+    const g1Title = page.getByTestId("shop-map-edit-panel-title");
+    if (await g1Title.count()) {
+      const g1TitleText = (await g1Title.innerText()).trim();
+      if (!/^Edit G1$/i.test(g1TitleText)) {
+        throw new Error(`Expected Edit G1 after G1 click, got "${g1TitleText}"`);
+      }
+    }
+  }
+
+  await catchAllSpot.click({ force: true });
+  const title = page.getByTestId("shop-map-edit-panel-title");
+  await title.waitFor({ state: "visible", timeout: 5000 });
+  const titleText = (await title.innerText()).trim();
+  if (!/^Edit Catch-all$/i.test(titleText)) {
+    throw new Error(
+      `Expected "Edit Catch-all" panel title after clicking overlay, got "${titleText}"`,
+    );
+  }
+
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="shop-map-edit-panel"]',
+    elements: [
+      {
+        name: "Edit panel title",
+        selector: '[data-testid="shop-map-edit-panel-title"]',
+        large: true,
+      },
+      {
+        name: "Display name input",
+        selector: '[data-testid="shop-map-edit-label"]',
+      },
+      {
+        name: "Spot code input",
+        selector: '[data-testid="shop-map-edit-code"]',
+      },
+    ],
+  });
+
+  const catchAllBtn = page.getByTestId("catch-all-delivery-btn");
+  if (!(await catchAllBtn.count())) {
+    throw new Error(
+      "Catch-all delivery top bar button missing after Add Catch All Location (designation not synced)",
+    );
+  }
+
+  console.log("PASS: Catch-all click opens Edit Catch-all panel + delivery button visible");
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext(
@@ -199,6 +252,7 @@ async function main() {
 
   const catchAllSpot = await addCatchAllInEdit(page);
   await assertCatchAllOverlayContent(page, catchAllSpot);
+  await assertCatchAllEditPanel(page, catchAllSpot);
 
   const resizeHandle = page.getByTestId("shop-map-catch-all-resize-handle");
   if (!(await resizeHandle.isVisible())) {

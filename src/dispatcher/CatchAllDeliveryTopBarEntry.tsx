@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatcherPortal } from "./DispatcherPortalContext";
-import { getAppSettings, notifyCatchAllCheckers } from "./firestoreService";
+import { notifyCatchAllCheckers, subscribeAppSettings } from "./firestoreService";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -12,22 +12,12 @@ export function CatchAllDeliveryTopBarEntry() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    void getAppSettings()
-      .then((settings) => {
-        if (!cancelled) {
-          setParcelIntakeEnabled(
-            settings.parcelIntakeEnabled === true &&
-              Boolean(settings.catchAllStagingLocationId?.trim()),
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setParcelIntakeEnabled(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    return subscribeAppSettings((settings) => {
+      setParcelIntakeEnabled(
+        settings.parcelIntakeEnabled === true &&
+          Boolean(settings.catchAllStagingLocationId?.trim()),
+      );
+    });
   }, []);
 
   if (!parcelIntakeEnabled) {

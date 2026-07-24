@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.126** — Staging Map catch-all: edit-session overlay only (Add Catch All Location); wiped persisted `shopMapLayoutExtras.catchAll`; never shown on view/reload.
+- Last shipped: **v0.0.127** — Staging Map catch-all: Edit Catch-all side panel (click overlay); designation sync for dashboard **Catch-all delivery** button; delete clears intake; edit-session overlay policy unchanged.
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:catch-all-map` / `:prod`; `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

@@ -606,6 +606,13 @@ export function ZoneManagementPage() {
     [],
   );
 
+  const handleRemoveCatchAllSpot = useCallback(async () => {
+    await updateAppSettings({
+      catchAllStagingLocationId: undefined,
+      parcelIntakeEnabled: false,
+    });
+  }, []);
+
   const handleAddCatchAllSpot = useCallback(async () => {
     const caKey = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
     let caZone = zones.find(
@@ -1308,6 +1315,7 @@ export function ZoneManagementPage() {
               focusSpotCode={effectiveFocusSpotCode}
               catchAllPendingCount={catchAllPendingCount}
               onAddCatchAllSpot={handleAddCatchAllSpot}
+              onRemoveCatchAllSpot={handleRemoveCatchAllSpot}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
