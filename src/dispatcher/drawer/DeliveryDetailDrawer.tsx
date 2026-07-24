@@ -35,8 +35,9 @@ export function DeliveryDetailDrawer({
   deliveryId,
   onClose,
   onDataChanged,
-  onOpenDelivery,
+  onOpenDelivery: _onOpenDelivery,
 }: Props) {
+  void _onOpenDelivery;
   const navigate = useNavigate();
   const { emailProviderConnected } = useDispatcherPortal();
   const [detailLoading, setDetailLoading] = useState(false);
@@ -100,86 +101,6 @@ export function DeliveryDetailDrawer({
   const refreshAfter = async (details: DeliveryDetails | null) => {
     if (details) setSelectedDetails(details);
     await onDataChanged?.();
-  };
-
-  const handleUpdateStagingLocation = async (
-    stagingLocationId: string,
-  ): Promise<void> => {
-    if (!deliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updated = await firestoreDataService.updateStagingLocation(
-        deliveryId,
-        stagingLocationId,
-      );
-      if (updated) await refreshAfter(updated);
-      else setMutationError("Failed to move order to that spot.");
-    } catch (e) {
-      setMutationError(
-        "An unexpected error occurred while moving this order.",
-      );
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
-  const handleUpdatePlannedStagingLocations = async (
-    plannedIds: string[],
-  ): Promise<void> => {
-    if (!deliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updated = await firestoreDataService.updatePlannedStagingLocations(
-        deliveryId,
-        plannedIds,
-      );
-      if (updated) await refreshAfter(updated);
-      else setMutationError("Failed to update planned staging locations.");
-    } catch (e) {
-      setMutationError(
-        "An unexpected error occurred while updating planned locations.",
-      );
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
-  const handleUpdateJobPickupScheduled = async (
-    scheduled: boolean,
-  ): Promise<void> => {
-    const jobId = selectedDetails?.job?.id;
-    if (!jobId || !deliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updatedJob = await firestoreDataService.updateJobPickupScheduled(
-        jobId,
-        scheduled,
-      );
-      if (updatedJob) {
-        const refreshed =
-          await firestoreDataService.getDeliveryDetails(deliveryId);
-        await refreshAfter(
-          refreshed ??
-            (selectedDetails
-              ? { ...selectedDetails, job: updatedJob }
-              : null),
-        );
-      } else {
-        setMutationError("Failed to update Pickup Scheduled.");
-      }
-    } catch (e) {
-      setMutationError(
-        "An unexpected error occurred while updating Pickup Scheduled.",
-      );
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
   };
 
   const handleUpdateStatus = async (
@@ -546,19 +467,6 @@ export function DeliveryDetailDrawer({
             onUpdateItemReceiptStatus={handleUpdateItemReceiptStatus}
             onUpdateShopStockPickList={handleUpdateShopStockPickList}
             stagingLocations={stagingLocations}
-            onUpdatePlannedStagingLocations={handleUpdatePlannedStagingLocations}
-            onUpdateStagingLocation={handleUpdateStagingLocation}
-            onOpenDelivery={(id) => {
-              if (onOpenDelivery) onOpenDelivery(id);
-              else onClose();
-            }}
-            onUpdateJobPickupScheduled={handleUpdateJobPickupScheduled}
-            onDeliveryOrderUpdated={(delivery) => {
-              setSelectedDetails((prev) =>
-                prev ? { ...prev, delivery } : prev,
-              );
-              void onDataChanged?.();
-            }}
             onResolveMaterialIssue={handleResolveMaterialIssue}
             emailProviderConnected={emailProviderConnected}
             onNavigateToAssignLocation={handleNavigateToAssignLocation}

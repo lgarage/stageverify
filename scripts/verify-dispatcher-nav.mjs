@@ -633,74 +633,52 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await assertDeliveryDrawerOpen(page);
   console.log("PASS: delivery drawer opened.");
 
-  const hasCopyPickup = await page
-    .getByTestId("copy-pickup-information")
-    .isVisible()
-    .catch(() => false);
-
-  if (hasCopyPickup) {
-    const qrBtn = page.getByTestId("show-vendor-checkin-qr");
-    if (await qrBtn.isVisible().catch(() => false)) {
-      const qrLabel = (await qrBtn.innerText()).trim();
-      if (qrLabel !== "Show Vendor Check-In QR") {
-        throw new Error(`Expected Show Vendor Check-In QR button, got: ${qrLabel}`);
-      }
-      console.log("PASS: Show Vendor Check-In QR label.");
+  console.log("Delivery drawer legacy action buttons removed…");
+  for (const testId of [
+    "copy-pickup-information",
+    "show-vendor-checkin-qr",
+    "drawer-review-parsed-invoice",
+  ]) {
+    if ((await page.getByTestId(testId).count()) > 0) {
+      throw new Error(`Legacy drawer control ${testId} must be removed`);
     }
+  }
+  if ((await page.getByRole("button", { name: "Mark Pickup Scheduled" }).count()) > 0) {
+    throw new Error("Mark Pickup Scheduled must be removed from drawer actions");
+  }
+  if ((await page.getByRole("button", { name: "Clear Pickup Scheduled" }).count()) > 0) {
+    throw new Error("Clear Pickup Scheduled must be removed from drawer actions");
+  }
+  console.log("PASS: legacy drawer action buttons removed.");
 
-    if ((await page.getByTestId("job-readiness-panel").count()) > 0) {
-      throw new Error("Job Status / job-readiness-panel must be removed from drawer");
+  for (const testId of [
+    "planned-staging-assignment",
+    "assign-staging-location-heading",
+    "save-planned-staging",
+    "drawer-items-section",
+  ]) {
+    if ((await page.getByTestId(testId).count()) > 0) {
+      throw new Error(`Removed drawer section ${testId} must not appear`);
     }
-    console.log("PASS: Job Status section removed.");
+  }
+  console.log("PASS: Planned Staging and Items sections removed.");
 
-    if ((await page.getByTestId("generate-pickup-link").count()) > 0) {
-      throw new Error("Generate Pickup Link must be removed from main action area");
-    }
-    console.log("PASS: Generate Pickup Link removed from drawer actions.");
+  if ((await page.getByTestId("job-readiness-panel").count()) > 0) {
+    throw new Error("Job Status / job-readiness-panel must be removed from drawer");
+  }
+  console.log("PASS: Job Status section removed.");
 
-    if (shouldRunPickupTokenVerify()) {
-      console.log("Slice 5: pickup copy auto secure link…");
-      let clipboardText = "";
-      for (let attempt = 0; attempt < 2; attempt++) {
-        await page.getByTestId("copy-pickup-information").click();
-        await page.waitForTimeout(2000);
-        clipboardText = await page
-          .evaluate(async () => navigator.clipboard.readText())
-          .catch(() => "");
-        if (/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) break;
-      }
-      if (!/#\/pickup\?t=[a-f0-9]{64}/.test(clipboardText)) {
-        throw new Error(
-          `Copy Pickup Information expected token URL in clipboard, got: ${clipboardText.slice(0, 120)}`,
-        );
-      }
-      if (!clipboardText.includes("Staging Location(s):")) {
-        throw new Error("Copy Pickup Information expected Staging Location(s): line");
-      }
-      console.log("Slice 5 PASS: clipboard contains opaque pickup token URL.");
+  if ((await page.getByTestId("generate-pickup-link").count()) > 0) {
+    throw new Error("Generate Pickup Link must be removed from main action area");
+  }
+  console.log("PASS: Generate Pickup Link removed from drawer actions.");
 
-      const pickupFixtureOrder =
-        process.env.STAGEVERIFY_PICKUP_ORDER ?? "ORD-005";
-      await runPickupTokenValidityFlow(page, browser, appBase, pickupFixtureOrder);
-    } else {
-      console.log(
-        "SKIP pickup token validity: set STAGEVERIFY_VERIFY_PICKUP_TOKEN=1 with local ORD fixture.",
-      );
-    }
-
-    console.log("Mark Pickup Scheduled wiring…");
-    const markBtn = page.getByRole("button", { name: "Mark Pickup Scheduled" });
-    if (await markBtn.isVisible().catch(() => false)) {
-      await markBtn.click();
-      await page.getByTestId("pickup-scheduled-badge").waitFor({ timeout: 15_000 });
-      console.log("PASS: Mark Pickup Scheduled updates drawer badge.");
-    } else {
-      console.log("Note: job already Pickup Scheduled — skipping toggle test.");
-    }
-  } else {
-    console.log(
-      "SKIP copy-pickup / pickup-token drawer checks: copy-pickup-information not on this delivery.",
-    );
+  if ((await page.getByTestId("delivery-basics-card").count()) > 0) {
+    await assertReadableTextContrast(page, {
+      rootSelector: '[data-testid="delivery-basics-card"]',
+      elements: [{ name: "Delivery basics", selector: "div" }],
+    });
+    console.log("PASS: delivery basics readable contrast (D-42).");
   }
 
   if (await page.getByTestId("drawer-action-banner").isVisible().catch(() => false)) {

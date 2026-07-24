@@ -20,6 +20,7 @@ import {
   isDispatcherTableStagingActionRequired,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 import { isInvoiceShellNoShopStaging } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
+import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
 
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
@@ -175,72 +176,28 @@ function assertOfflineStagingActionRules() {
 assertOfflineStagingActionRules();
 
 async function assertStagingLocationCard(page, record, label, expectAssigned) {
-  const card = page.getByTestId("staging-location-assignment");
-  if ((await card.count()) === 0) {
-    record(`${label} — staging assignment card present`, false);
-    return;
-  }
-
-  const cardState = await card.getAttribute("data-staging-card-state");
+  const basicsStaging = page.getByTestId("delivery-basics-staging-locations");
   record(
-    `${label} — staging card state attribute`,
-    cardState === (expectAssigned ? "assigned" : "unassigned"),
-    cardState ?? "",
+    `${label} — Delivery Basics staging locations block`,
+    (await basicsStaging.count()) > 0,
   );
-
-  const bgColor = await card.evaluate((el) => getComputedStyle(el).backgroundColor);
-  const borderColor = await card.evaluate(
-    (el) => getComputedStyle(el).borderTopColor,
-  );
+  if ((await basicsStaging.count()) === 0) return;
 
   if (expectAssigned) {
     record(
-      `${label} — assigned staging card green background`,
-      /rgb\(232,\s*245,\s*233\)|#e8f5e9/i.test(bgColor),
-      bgColor,
+      `${label} — assigned staging shown in Delivery Basics`,
+      (await page.getByTestId("delivery-basics-staging-unassigned").count()) === 0,
     );
+    const basicsText = (await basicsStaging.innerText()).trim();
     record(
-      `${label} — assigned staging card green border (no orange)`,
-      /rgb\(165,\s*214,\s*167\)|#a5d6a7/i.test(borderColor) &&
-        !/rgb\(253,\s*186,\s*116\)|#fdba74/i.test(borderColor),
-      borderColor,
-    );
-
-    const assignedCode = page.getByTestId("staging-assigned-code");
-    record(
-      `${label} — assigned location code shown`,
-      (await assignedCode.count()) > 0 && (await assignedCode.innerText()).trim().length > 0,
-      (await assignedCode.count()) > 0
-        ? (await assignedCode.innerText()).trim()
-        : "missing",
-    );
-
-    const currentLine = page.getByTestId("staging-current-location");
-    const currentText = (await currentLine.innerText()).trim();
-    record(
-      `${label} — current location line not orange warning text`,
-      !/^Current:\s*Not Assigned$/i.test(currentText),
-      currentText.slice(0, 80),
+      `${label} — staging basics has location content`,
+      basicsText.length > 20,
+      basicsText.slice(0, 80),
     );
   } else {
     record(
-      `${label} — unassigned staging card warning background`,
-      /rgb\(255,\s*251,\s*235\)|#fffbeb/i.test(bgColor),
-      bgColor,
-    );
-    record(
-      `${label} — unassigned staging card orange border`,
-      /rgb\(253,\s*186,\s*116\)|#fdba74/i.test(borderColor),
-      borderColor,
-    );
-    record(
-      `${label} — unassigned shows Not Assigned`,
-      (await page.getByTestId("staging-current-location").innerText()).trim() ===
-        "Current: Not Assigned",
-    );
-    record(
-      `${label} — no assigned code badge when unassigned`,
-      (await page.getByTestId("staging-assigned-code").count()) === 0,
+      `${label} — unassigned staging in Delivery Basics`,
+      (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0,
     );
   }
 }
@@ -511,35 +468,60 @@ async function getActionButtonRows(page) {
   });
 }
 
-async function assertStagingOccupiedDropdown(page, record, label) {
-  const planned = page.getByTestId("planned-staging-assignment");
-  if ((await planned.count()) === 0) {
-    record(`${label} — planned staging assignment present`, false, "section missing");
-    return;
-  }
-
-  const unavailableRows = planned.locator('[data-staging-unavailable="true"]');
-  const unavailableCount = await unavailableRows.count();
+async function assertLegacyDrawerActionsRemoved(page, record, label) {
   record(
-    `${label} — at least one unavailable planned staging spot`,
-    unavailableCount > 0,
-    `${unavailableCount} unavailable`,
+    `${label} — Review parsed invoice removed`,
+    (await page.getByTestId("drawer-review-parsed-invoice").count()) === 0,
   );
+  record(
+    `${label} — Show Vendor Check-In QR removed`,
+    (await page.getByTestId("show-vendor-checkin-qr").count()) === 0,
+  );
+  record(
+    `${label} — Copy Pickup Information removed`,
+    (await page.getByTestId("copy-pickup-information").count()) === 0,
+  );
+  record(
+    `${label} — Mark Pickup Scheduled removed`,
+    (await page.getByRole("button", { name: "Mark Pickup Scheduled" }).count()) ===
+      0 &&
+      (await page.getByRole("button", { name: "Clear Pickup Scheduled" }).count()) ===
+        0,
+  );
+  record(
+    `${label} — Planned Staging section removed`,
+    (await page.getByTestId("planned-staging-assignment").count()) === 0 &&
+      (await page.getByTestId("assign-staging-location-heading").count()) === 0 &&
+      (await page.getByTestId("save-planned-staging").count()) === 0,
+  );
+  record(
+    `${label} — Items section removed`,
+    (await page.getByTestId("drawer-items-section").count()) === 0,
+  );
+}
 
-  if (unavailableCount > 0) {
-    const firstBadge = planned.locator('[data-testid^="planned-staging-unavailable-"]').first();
-    const badgeText = (await firstBadge.innerText()).trim();
+async function assertDeliveryDrawerReadableContrast(page, record, label) {
+  const spec = {
+    rootSelector: '[data-testid="delivery-basics-card"]',
+    elements: [{ name: "Delivery basics body", selector: "div", large: false }],
+  };
+  try {
+    await assertReadableTextContrast(page, spec);
+    record(`${label} — delivery basics readable contrast (D-42)`, true);
+  } catch (err) {
     record(
-      `${label} — unavailable spot shows in-use label`,
-      badgeText.includes("Not available") && badgeText.includes("in use:"),
-      badgeText,
-    );
-    const firstCheckbox = unavailableRows.first().locator('input[type="checkbox"]');
-    record(
-      `${label} — unavailable spot checkbox disabled`,
-      await firstCheckbox.isDisabled(),
+      `${label} — delivery basics readable contrast (D-42)`,
+      false,
+      err instanceof Error ? err.message : String(err),
     );
   }
+}
+
+async function assertStagingOccupiedDropdown(page, record, label) {
+  record(
+    `${label} — planned staging UI removed (no occupied dropdown)`,
+    (await page.getByTestId("planned-staging-assignment").count()) === 0,
+  );
 }
 
 async function assertLowerDrawerLayout(page, record, label) {
@@ -548,8 +530,8 @@ async function assertLowerDrawerLayout(page, record, label) {
   const stockToggle = page.getByTestId("experimental-stock-tools-toggle");
 
   record(
-    `${label} — Assign Staging Location section present`,
-    (await stagingAssignment.count()) > 0,
+    `${label} — cream Assign Staging card removed (combination-only optional)`,
+    (await page.getByTestId("assign-staging-location-heading").count()) === 0,
   );
 
   const assignHeading = page.getByTestId("assign-staging-location-heading");
@@ -558,9 +540,9 @@ async function assertLowerDrawerLayout(page, record, label) {
       ? (await assignHeading.innerText()).trim()
       : "";
   record(
-    `${label} — Assign Staging Location heading`,
-    assignHeadingText === "Planned Staging (dispatcher instruction)",
-    assignHeadingText,
+    `${label} — no Planned Staging heading`,
+    assignHeadingText !== "Planned Staging (dispatcher instruction)",
+    assignHeadingText || "(absent)",
   );
 
   const stagingBox = await stagingAssignment.boundingBox();
@@ -917,21 +899,7 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
   await assertDeliveryBasicsNoTopNotes(page, record, orderNumber);
   await assertDeliveryFirstDrawerOrder(page, record, orderNumber);
 
-  record(
-    `${orderNumber} — Assign Staging Location section present`,
-    (await page.getByTestId("staging-location-assignment").count()) > 0,
-  );
-
-  const assignHeadingEl = page.getByTestId("assign-staging-location-heading");
-  const assignHeadingText =
-    (await assignHeadingEl.count()) > 0
-      ? (await assignHeadingEl.innerText()).trim()
-      : "";
-  record(
-    `${orderNumber} — Assign Staging Location heading`,
-    assignHeadingText === "Planned Staging (dispatcher instruction)",
-    assignHeadingText,
-  );
+  await assertLegacyDrawerActionsRemoved(page, record, orderNumber);
 
   const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
   record(
@@ -1005,8 +973,8 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
   );
 
   record(
-    `${orderNumber} — Items section present`,
-    (await page.getByTestId("drawer-items-section").count()) > 0,
+    `${orderNumber} — Items section removed`,
+    (await page.getByTestId("drawer-items-section").count()) === 0,
   );
 
   const bodyText = await page.locator("body").innerText();
@@ -1404,24 +1372,7 @@ async function assertOrd006EmailReviewAction(page, record) {
       (await page.getByTestId("drawer-action-call-vendor").count()) === 0,
     );
 
-    const qrBtn = page.getByTestId("show-vendor-checkin-qr");
-    record(
-      "ORD-005 Show Vendor Check-In QR label",
-      (await qrBtn.count()) > 0 &&
-        (await qrBtn.innerText()).trim() === "Show Vendor Check-In QR",
-    );
-
-    const copyBtn = page.getByTestId("copy-pickup-information");
-    record(
-      "ORD-005 Copy Pickup Information enabled when unreceived",
-      (await copyBtn.count()) > 0 &&
-        (await copyBtn.innerText()).trim() === "Copy Pickup Information" &&
-        (await copyBtn.isEnabled()),
-    );
-    record(
-      "ORD-005 copy enabled when 0 received (identifying info present)",
-      (await copyBtn.count()) > 0 && (await copyBtn.isEnabled()),
-    );
+    await assertLegacyDrawerActionsRemoved(page, record, "ORD-005");
 
     const revokeBtn = page.getByTestId("revoke-pickup-link");
     if ((await revokeBtn.count()) > 0) {
@@ -1438,9 +1389,10 @@ async function assertOrd006EmailReviewAction(page, record) {
       (await page.getByTestId("revoke-pickup-link").count()) === 0,
     );
 
-    await assertActionButtonGridBalance(page, record, "ORD-005 (no link)", 3);
+    await assertActionButtonGridBalance(page, record, "ORD-005 (no link)", 0);
     await assertPickupStatusInGrid(page, record, "ORD-005 (no link)");
     await assertSeparatePickupPills(page, record, "ORD-005 (no link)");
+    await assertDeliveryDrawerReadableContrast(page, record, "ORD-005");
 
     record(
       "ORD-005 Job Status panel removed",
@@ -1451,17 +1403,6 @@ async function assertOrd006EmailReviewAction(page, record) {
       "ORD-005 Generate Pickup Link removed",
       (await page.getByTestId("generate-pickup-link").count()) === 0,
     );
-
-    let ord005Clipboard = await clickCopyPickupAndRead(page, copyBtn);
-    record(
-      "ORD-005 copy runs when unreceived (enabled + clipboard)",
-      /#\/pickup\?t=[a-f0-9]{64}/.test(ord005Clipboard) &&
-        /Staging location:/i.test(ord005Clipboard) &&
-        /Vendor:/i.test(ord005Clipboard) &&
-        /Order #:/i.test(ord005Clipboard),
-      ord005Clipboard.slice(0, 80),
-    );
-    recordShortPickupClipboard(record, "ORD-005", ord005Clipboard);
 
     const manualHeading = page.getByTestId("manual-controls-heading");
     await page.getByTestId("staging-location-assignment").scrollIntoViewIfNeeded();
@@ -1476,24 +1417,24 @@ async function assertOrd006EmailReviewAction(page, record) {
       !ord005StagingUnassigned,
     );
     if (!ord005StagingUnassigned) {
-      const ord005Code = (
-        await page.getByTestId("staging-assigned-code").innerText()
-      ).trim();
+      const basicsStaging = page.getByTestId("delivery-basics-staging-locations");
+      const basicsText =
+        (await basicsStaging.count()) > 0
+          ? (await basicsStaging.innerText()).trim()
+          : "";
       record(
-        "ORD-005 Riverside — assigned location code visible in card",
-        ord005Code.length > 0,
-        ord005Code,
+        "ORD-005 Riverside — assigned location visible in Delivery Basics",
+        basicsText.length > 0,
+        basicsText.slice(0, 80),
       );
     }
 
     record(
-      "ORD-005 Planned Staging heading present",
-      (await page.getByTestId("assign-staging-location-heading").count()) > 0 &&
-        (await page.getByTestId("assign-staging-location-heading").innerText()).trim() ===
-          "Planned Staging (dispatcher instruction)",
+      "ORD-005 Planned Staging section removed",
+      (await page.getByTestId("assign-staging-location-heading").count()) === 0 &&
+        (await page.getByTestId("planned-staging-assignment").count()) === 0,
     );
 
-    await assertLowerDrawerLayout(page, record, "ORD-005");
     await assertStagingOccupiedDropdown(page, record, "ORD-005");
 
     record(
@@ -1534,26 +1475,12 @@ async function assertOrd006EmailReviewAction(page, record) {
       (await page.getByTestId("pickup-summary-panel").count()) === 0,
     );
 
-    const itemsSection = page.getByTestId("drawer-items-section");
+    await assertLowerDrawerLayout(page, record, "ORD-005");
+
     record(
-      "ORD-005 Items section present",
-      (await itemsSection.count()) > 0,
+      "ORD-005 Items section removed",
+      (await page.getByTestId("drawer-items-section").count()) === 0,
     );
-    if ((await itemsSection.count()) > 0) {
-      const itemsText = (await itemsSection.innerText()).trim();
-      record(
-        "ORD-005 Items show Not received yet (not pickup-ready green)",
-        /Not received yet/i.test(itemsText),
-        itemsText.slice(0, 120),
-      );
-      record(
-        "ORD-005 Items still show ordered/received/missing counts",
-        /\bOrdered\b/i.test(itemsText) &&
-          /\bMissing\b/i.test(itemsText) &&
-          /\b0\b/.test(itemsText),
-        itemsText.slice(0, 120),
-      );
-    }
 
     record(
       "ORD-005 Status History renamed to Activity History",
@@ -1616,60 +1543,18 @@ async function assertOrd006EmailReviewAction(page, record) {
     await page.waitForTimeout(1200);
     await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
 
-    const ord002CopyBtn = page.getByTestId("copy-pickup-information");
-    record(
-      "ORD-002 Copy Pickup Information enabled when received",
-      (await ord002CopyBtn.count()) > 0 &&
-        (await ord002CopyBtn.innerText()).trim() === "Copy Pickup Information" &&
-        (await ord002CopyBtn.isEnabled()),
-    );
+    await assertLegacyDrawerActionsRemoved(page, record, "ORD-002");
 
     const ord002Revoke = page.getByTestId("revoke-pickup-link");
     if ((await ord002Revoke.count()) > 0) {
-      await ord002Revoke.click();
-      await page.waitForTimeout(2000);
-    }
-
-    const ord002Clipboard = await clickCopyPickupAndRead(page, ord002CopyBtn);
-    record(
-      "ORD-002 Copy Pickup uses secure token URL",
-      /#\/pickup\?t=[a-f0-9]{64}/.test(ord002Clipboard),
-      ord002Clipboard.slice(0, 80),
-    );
-    recordShortPickupClipboard(record, "ORD-002", ord002Clipboard);
-
-    await page.waitForTimeout(1500);
-    const revokeAfterCopy = page.getByTestId("revoke-pickup-link");
-    const tokenActive = page.getByTestId("pickup-token-active");
-    if ((await tokenActive.count()) > 0) {
-      const tokenText = (await tokenActive.innerText()).trim();
-      record(
-        "ORD-002 pickup status includes link expiry after copy",
-        /expires/i.test(tokenText),
-        tokenText.slice(0, 80),
-      );
-    } else {
-      record(
-        "ORD-002 pickup status includes link expiry after copy",
-        false,
-        "pickup-token-active missing after copy",
-      );
-    }
-    await assertPickupStatusInGrid(page, record, "ORD-002 (after copy)");
-    await assertSeparatePickupPills(page, record, "ORD-002 (after copy)");
-    if ((await revokeAfterCopy.count()) > 0) {
       await assertActionButtonGridBalance(
         page,
         record,
-        "ORD-002 (after copy)",
-        4,
+        "ORD-002 (active link)",
+        1,
       );
     } else {
-      record(
-        "ORD-002 Revoke visible after copy (for 2x2 check)",
-        false,
-        "revoke not shown after token generation",
-      );
+      await assertActionButtonGridBalance(page, record, "ORD-002", 0);
     }
 
     await page.keyboard.press("Escape");
@@ -1689,13 +1574,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     await page.waitForTimeout(1200);
     await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
 
-    const ord001CopyBtn = page.getByTestId("copy-pickup-information");
-    record(
-      "ORD-001 Copy Pickup Information enabled when unreceived",
-      (await ord001CopyBtn.count()) > 0 &&
-        (await ord001CopyBtn.innerText()).trim() === "Copy Pickup Information" &&
-        (await ord001CopyBtn.isEnabled()),
-    );
+    await assertLegacyDrawerActionsRemoved(page, record, "ORD-001");
   } else {
     record("ORD-001 row present for unreceived copy test", false);
   }
@@ -1874,17 +1753,7 @@ async function assertOrd006EmailReviewAction(page, record) {
       await assertOrd006EmailReviewAction(page, record);
     }
 
-    const demoCopyBtn = page.getByTestId("copy-pickup-information");
-    record(
-      `${orderNumber} — Copy Pickup Information enabled`,
-      (await demoCopyBtn.count()) > 0 &&
-        (await demoCopyBtn.innerText()).trim() === "Copy Pickup Information" &&
-        (await demoCopyBtn.isEnabled()),
-    );
-    if ((await demoCopyBtn.count()) > 0 && (await demoCopyBtn.isEnabled())) {
-      const demoClipboard = await clickCopyPickupAndRead(page, demoCopyBtn);
-      recordShortPickupClipboard(record, orderNumber, demoClipboard);
-    }
+    await assertLegacyDrawerActionsRemoved(page, record, orderNumber);
   }
 
   await page.screenshot({

@@ -5,24 +5,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { buildEslTagQrUrl } from "../../receiveQrUrls";
-import {
-  buildPickupTokenUrl,
-  clearPickupTokenForJob,
-  readPickupTokenForJob,
-  storePickupTokenForJob,
-} from "../../pickupTokenSession";
-import { validatePickupTokenClient } from "../../validatePickupTokenClient";
-import { EslQrCode } from "../../EslQrCode";
-import { NeedMoreSpaceButton } from "../../NeedMoreSpaceButton";
+import { clearPickupTokenForJob } from "../../pickupTokenSession";
 import {
   firestoreDataService,
-  getVendorInvoiceImport,
-  mapOccupancyByLocationId,
   sendVendorEmail,
   listVendorEmailEventsForDelivery,
   listShopStockMappings,
-  type StagingLocationOccupant,
 } from "../firestoreService";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
 import {
@@ -35,21 +23,18 @@ import {
   VALID_TRANSITIONS,
   type DeliveryDetails,
   type DeliveryListRow,
-  type DeliveryOrder,
   type DeliveryStatus,
   type Item,
   type PickupEvent,
   type StagingLocation,
 } from "../index";
 import {
-  getAllStagingLocationIds,
   ISSUE_RESOLUTION_TYPE_LABEL,
   MATERIAL_ISSUE_TYPE_LABEL,
   DELIVERY_STATUS_LABEL,
   type IssueResolutionType,
   type MaterialIssue,
   type ShopStockLocationMapping,
-  type VendorInvoiceImportReview,
 } from "../models";
 import { ReadinessEvidencePanel } from "../email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./DrawerActionBanner";
@@ -65,21 +50,11 @@ import {
   sortActivityHistoryNewestFirst,
   formatActivityHistoryHeadline,
   formatActivityHistoryMeta,
-  deliveryHasCopyPickupIdentifyingInfo,
-  buildPickupInformationClipboardText,
-  effectiveItemQtyReceived,
-  formatActualStagingCodes,
-  formatPlannedStagingCodes,
-  hasPlannedActualDivergence,
-  STAGING_PLAN_MISMATCH_HELPER,
-  STAGING_PLAN_MISMATCH_LABEL,
-  STAGING_PLAN_MISMATCH_TITLE,
 } from "../deliveryDisplayHelpers";
 import {
   isInvoiceShellNoShopStaging,
   resolveDeliveryPoNumber,
 } from "../invoice/invoiceShellDisplayHelpers";
-import { InvoiceParsedInspectModal } from "../invoice/InvoiceParsedInspectModal";
 import {
   buildNeedMoreInfoEmailBody,
   buildNeedMoreInfoEmailSubject,
@@ -99,13 +74,9 @@ import {
   defaultResolutionTypeForIssue,
 } from "./resolveIssueDefaults";
 
-const NAVY = "#0a3161";
-const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-
 /** Drawer UI simplification (away-080) — sections hidden pending redesign; logic preserved. */
 const DRAWER_HIDE_VENDOR_COMMUNICATIONS = false;
 const DRAWER_HIDE_RESOLVED_MATERIAL_ISSUES = true;
-const DRAWER_HIDE_NEED_MORE_SPACE = true;
 
 const DRAWER_ACTION_BTN_BASE = {
   borderRadius: 4,
@@ -118,40 +89,6 @@ const DRAWER_ACTION_BTN_BASE = {
   textAlign: "center" as const,
   boxSizing: "border-box" as const,
 };
-
-function drawerActionBtnMarkPickup(font: string, disabled: boolean) {
-  return {
-    ...DRAWER_ACTION_BTN_BASE,
-    fontFamily: font,
-    backgroundColor: "#e3f2fd",
-    color: "#1565c0",
-    border: "1.5px solid #90caf9",
-    cursor: disabled ? "wait" : "pointer",
-    opacity: disabled ? 0.7 : 1,
-  };
-}
-
-function drawerActionBtnClearPickup(font: string, disabled: boolean) {
-  return {
-    ...DRAWER_ACTION_BTN_BASE,
-    fontFamily: font,
-    backgroundColor: "#e3f2fd",
-    color: "#1565c0",
-    border: "1.5px solid #90caf9",
-    cursor: disabled ? "wait" : "pointer",
-    opacity: disabled ? 0.7 : 1,
-  };
-}
-
-function drawerActionBtnVendorQr(font: string) {
-  return {
-    ...DRAWER_ACTION_BTN_BASE,
-    fontFamily: font,
-    backgroundColor: "#f5f3ff",
-    color: "#5b21b6",
-    border: "1.5px solid #c4b5fd",
-  };
-}
 
 function drawerActionBtnRevoke(font: string, disabled: boolean) {
   return {
@@ -252,251 +189,6 @@ function PickupTokenControls({
   );
 }
 
-/* ─── Copy Pickup Link ───────────────────────────────────────────────────── */
-
-function CopyPickupLinkButton({
-  details,
-  font,
-  stagingLocations,
-  onTokenGenerated,
-}: {
-  details: DeliveryDetails;
-  font: string;
-  stagingLocations: StagingLocation[];
-  onTokenGenerated?: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [copyError, setCopyError] = useState<string | null>(null);
-  const job = details.job;
-  const jobId = job?.id ?? details.delivery.jobId;
-
-  const resolveSecurePickupLink = async (): Promise<string> => {
-    const storedToken = readPickupTokenForJob(jobId);
-    if (storedToken) {
-      try {
-        const validated = await validatePickupTokenClient(storedToken);
-        if (validated.jobId === jobId) {
-          return buildPickupTokenUrl(storedToken);
-        }
-      } catch {
-        clearPickupTokenForJob(jobId);
-      }
-    }
-
-    const result = await firestoreDataService.generatePickupToken(jobId);
-    storePickupTokenForJob(jobId, result.token);
-    onTokenGenerated?.();
-    await validatePickupTokenClient(result.token);
-    return buildPickupTokenUrl(result.token);
-  };
-
-  const handleCopy = async () => {
-    setBusy(true);
-    setCopyError(null);
-    try {
-      const link = await resolveSecurePickupLink();
-      const breakdown = await firestoreDataService.getJobReadinessBreakdown(jobId);
-      const text = buildPickupInformationClipboardText(details, link, {
-        jobDeliveries: breakdown?.deliveries ?? [details.delivery],
-        jobPurchaseOrders: breakdown?.purchaseOrders ?? [],
-        stagingLocations,
-      });
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
-    } catch (err) {
-      setCopyError(
-        err instanceof Error ? err.message : "Failed to copy pickup information.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const canCopy = deliveryHasCopyPickupIdentifyingInfo(details);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-      <button
-        type="button"
-        data-testid="copy-pickup-information"
-        disabled={!canCopy || busy}
-        aria-disabled={!canCopy || busy}
-        onClick={() => {
-          if (canCopy) void handleCopy();
-        }}
-        style={{
-          ...DRAWER_ACTION_BTN_BASE,
-          fontFamily: font,
-          ...(canCopy
-            ? {
-                backgroundColor: copied ? "#e8f5e9" : "#fff",
-                color: "#2e7d32",
-                border: `1.5px solid ${copied ? "#a5d6a7" : "#2e7d32"}`,
-                cursor: busy ? "wait" : "pointer",
-                opacity: busy ? 0.7 : 1,
-              }
-            : {
-                backgroundColor: "#f3f4f6",
-                color: "#9ca3af",
-                border: "1.5px solid #d1d5db",
-                cursor: "not-allowed",
-                opacity: 1,
-              }),
-        }}
-      >
-        {!canCopy
-          ? "Insufficient order info"
-          : busy
-            ? "Preparing…"
-            : copied
-              ? "Pickup information copied with secure pickup link."
-              : "Copy Pickup Information"}
-      </button>
-      {copyError ? (
-        <span style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}>
-          {copyError}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-/* ─── Print Label Modal ──────────────────────────────────────────────────── */
-
-function PrintLabelModal({
-  qrUrl,
-  orderNumber,
-  vendorName,
-  zoneCode,
-  onClose,
-}: {
-  qrUrl: string;
-  orderNumber: string;
-  vendorName: string;
-  zoneCode: string | null;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(15, 23, 42, 0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        zIndex: 1000,
-      }}
-    >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
-          width: "100%",
-          maxWidth: 380,
-          padding: 20,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          alignItems: "center",
-          fontFamily: FONT,
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 800,
-            color: "#111827",
-          }}
-        >
-          Delivery Label
-        </h2>
-        <div
-          style={{
-            backgroundColor: "#fff",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <EslQrCode value={qrUrl} variant="print" />
-        </div>
-        <div
-          style={{
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>
-            {orderNumber}
-          </div>
-          <div style={{ fontSize: 14, color: "#4b5563" }}>{vendorName}</div>
-          {zoneCode ? (
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
-              Staging {zoneCode} — same QR as the zone e-tag sign
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
-              Assign a staging spot for a shorter zone QR (like e-tags)
-            </div>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 10, width: "100%", justifyContent: "center" }}>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 6,
-              border: `1px solid ${NAVY}`,
-              backgroundColor: NAVY,
-              color: "#fff",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: FONT,
-            }}
-          >
-            Push to E-Tag
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              backgroundColor: "#fff",
-              color: "#374151",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: FONT,
-            }}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Detail Content ─────────────────────────────────────────────────────── */
 
 function latestPickupEvent(events: PickupEvent[]): PickupEvent | null {
@@ -528,11 +220,6 @@ export function DetailContent({
   onUpdateItemReceiptStatus,
   onUpdateShopStockPickList,
   stagingLocations,
-  onUpdatePlannedStagingLocations,
-  onUpdateStagingLocation,
-  onOpenDelivery,
-  onUpdateJobPickupScheduled,
-  onDeliveryOrderUpdated,
   onResolveMaterialIssue,
   emailProviderConnected,
   onNavigateToAssignLocation,
@@ -562,11 +249,6 @@ export function DetailContent({
     linkedMappingId?: string,
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
-  onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
-  onUpdateStagingLocation: (stagingLocationId: string) => Promise<void>;
-  onOpenDelivery: (deliveryId: string) => void;
-  onUpdateJobPickupScheduled: (scheduled: boolean) => Promise<void>;
-  onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   onResolveMaterialIssue: (
     issueId: string,
     resolutionType: IssueResolutionType,
@@ -577,7 +259,6 @@ export function DetailContent({
   onNavigateToStagingMap?: (spotCode: string) => void;
   onJobReleased?: () => void | Promise<void>;
 }) {
-  const [showPrintLabel, setShowPrintLabel] = useState(false);
   const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
   const [resolutionType, setResolutionType] =
     useState<IssueResolutionType>("found_in_shop");
@@ -600,17 +281,11 @@ export function DetailContent({
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
   const [vendorCommsExpandSignal, setVendorCommsExpandSignal] = useState(0);
   const [emailEvidenceExpandSignal, setEmailEvidenceExpandSignal] = useState(0);
-  const [pickupTokenRefreshKey, setPickupTokenRefreshKey] = useState(0);
   const [activityHistoryExpanded, setActivityHistoryExpanded] = useState(false);
   const [activityHistoryFullView, setActivityHistoryFullView] = useState(false);
   const [expandedResolvedIssueIds, setExpandedResolvedIssueIds] = useState<
     Set<string>
   >(new Set());
-  const [inspectImport, setInspectImport] = useState<VendorInvoiceImportReview | null>(
-    null,
-  );
-  const [inspectImportLoading, setInspectImportLoading] = useState(false);
-  const [inspectImportError, setInspectImportError] = useState<string | null>(null);
   const [drawerEmailModalOpen, setDrawerEmailModalOpen] = useState(false);
   const { vendors: portalVendors } = useDispatcherPortal();
   const liveOccupancy = useLiveZoneOccupancy(Boolean(details));
@@ -618,8 +293,6 @@ export function DetailContent({
   useEffect(() => {
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
-    setInspectImport(null);
-    setInspectImportError(null);
     setDrawerEmailModalOpen(false);
   }, [details?.delivery.id]);
 
@@ -820,28 +493,11 @@ export function DetailContent({
     ).length,
     missingStagingAssignment: !details.stagingLocation,
   };
-  const linkedInvoiceImportId = delivery.vendorInvoiceImportId?.trim() ?? "";
   const shopStagingRequired = !isInvoiceShellNoShopStaging(delivery);
 
   const handleAssignLocationNavigate = () => {
     if (onNavigateToAssignLocation) {
       onNavigateToAssignLocation(delivery.id);
-    }
-  };
-
-  const openLinkedInvoiceInspect = async () => {
-    if (!linkedInvoiceImportId) return;
-    setInspectImportLoading(true);
-    setInspectImportError(null);
-    try {
-      const row = await getVendorInvoiceImport(linkedInvoiceImportId);
-      setInspectImport(row);
-    } catch (err) {
-      setInspectImportError(
-        err instanceof Error ? err.message : "Could not load parsed invoice data.",
-      );
-    } finally {
-      setInspectImportLoading(false);
     }
   };
 
@@ -883,17 +539,6 @@ export function DetailContent({
     </section>
   );
 
-  const STATUS_BADGE_LOCAL: Record<
-    string,
-    { bg: string; text: string; border: string }
-  > = {
-    pending: { bg: "#f8f9fa", text: "#495057", border: "#ced4da" },
-    received: { bg: "#e8f5e9", text: "#2e7d32", border: "#a5d6a7" },
-    partial: { bg: "#f3e5f5", text: "#6a1b9a", border: "#ce93d8" },
-    backordered: { bg: "#fff8e1", text: "#f57c00", border: "#ffcc02" },
-    damaged: { bg: "#ffebee", text: "#c62828", border: "#ef9a9a" },
-  };
-
   return (
     <>
       <div
@@ -915,6 +560,7 @@ export function DetailContent({
                 border: "1px solid #e0e3e8",
                 borderRadius: 8,
                 padding: "15px",
+                color: "#333",
                 display: "flex",
                 flexDirection: "column" as const,
                 gap: 10,
@@ -1074,11 +720,7 @@ export function DetailContent({
             </div>
           </>,
         )}
-        <PickupTokenControls
-          jobId={job.id}
-          font={font}
-          refreshKey={pickupTokenRefreshKey}
-        >
+        <PickupTokenControls jobId={job.id} font={font}>
           {({
             hasActiveToken,
             tokenBusy,
@@ -1112,21 +754,6 @@ export function DetailContent({
               data-testid="drawer-action-buttons"
               className="drawer-action-buttons-grid"
             >
-              {linkedInvoiceImportId ? (
-                <>
-                  <button
-                    type="button"
-                    data-testid="drawer-review-parsed-invoice"
-                    disabled={inspectImportLoading}
-                    onClick={() => void openLinkedInvoiceInspect()}
-                    style={drawerActionBtnVendorQr(font)}
-                  >
-                    {inspectImportLoading
-                      ? "Loading parsed data…"
-                      : "Review parsed invoice data"}
-                  </button>
-                </>
-              ) : null}
               {showPickupStatus ? (
                 <div
                   data-testid="pickup-token-controls"
@@ -1197,18 +824,6 @@ export function DetailContent({
                           ) : null}
                         </div>
                       ) : null}
-                      {hasActiveToken && !readPickupTokenForJob(job.id) ? (
-                        <span
-                          data-testid="pickup-token-copy-regen-hint"
-                          style={{
-                            fontSize: 11,
-                            color: "#6b7280",
-                            fontFamily: font,
-                          }}
-                        >
-                          Copy will generate a fresh secure link
-                        </span>
-                      ) : null}
                     </>
                   )}
                   {tokenError ? (
@@ -1220,40 +835,6 @@ export function DetailContent({
                   ) : null}
                 </div>
               ) : null}
-              <button
-                type="button"
-                disabled={mutationLoading}
-                onClick={() =>
-                  void onUpdateJobPickupScheduled(!job.pickupScheduledAt)
-                }
-                style={
-                  job.pickupScheduledAt
-                    ? drawerActionBtnClearPickup(font, mutationLoading)
-                    : drawerActionBtnMarkPickup(font, mutationLoading)
-                }
-              >
-                {job.pickupScheduledAt
-                  ? "Clear Pickup Scheduled"
-                  : "Mark Pickup Scheduled"}
-              </button>
-              <button
-                type="button"
-                data-testid="show-vendor-checkin-qr"
-                onClick={() => setShowPrintLabel(true)}
-                style={drawerActionBtnVendorQr(font)}
-              >
-                Show Vendor Check-In QR
-              </button>
-              <div style={{ minWidth: 0 }}>
-                <CopyPickupLinkButton
-                  details={details}
-                  font={font}
-                  stagingLocations={stagingLocations}
-                  onTokenGenerated={() =>
-                    setPickupTokenRefreshKey((value) => value + 1)
-                  }
-                />
-              </div>
               {hasActiveToken ? (
                 <button
                   type="button"
@@ -1596,10 +1177,6 @@ export function DetailContent({
           onMarkShipped={onMarkShipped}
           onUpdateIssueSummary={onUpdateIssueSummary}
           onUpdateShopStockPickList={onUpdateShopStockPickList}
-          onUpdatePlannedStagingLocations={onUpdatePlannedStagingLocations}
-          onUpdateStagingLocation={onUpdateStagingLocation}
-          onOpenDelivery={onOpenDelivery}
-          onDeliveryOrderUpdated={onDeliveryOrderUpdated}
           stagingLocations={stagingLocations}
           navy={navy}
           font={font}
@@ -1643,161 +1220,6 @@ export function DetailContent({
           })(),
         )
           : null}
-        {renderDrawerSection(
-          `Items (${details.items.length})`,
-          <div
-            data-testid="drawer-items-section"
-            style={{
-              display: "flex",
-              flexDirection: "column" as const,
-              gap: 8,
-            }}
-          >
-            {details.items.map((item) => {
-              const qtyReceived = effectiveItemQtyReceived(
-                details.delivery,
-                item,
-              );
-              const notReceivedYet = qtyReceived === 0;
-              const sb = notReceivedYet
-                ? { bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db" }
-                : (STATUS_BADGE_LOCAL[item.status] ?? {
-                    bg: "#f8f9fa",
-                    text: "#495057",
-                    border: "#ced4da",
-                  });
-              const statusLabel = notReceivedYet ? "Not received yet" : item.status;
-              return (
-                <div
-                  key={item.id}
-                  data-testid={`drawer-item-row-${item.id}`}
-                  style={{
-                    border: "1px solid #e0e3e8",
-                    borderRadius: 8,
-                    padding: "12px",
-                    backgroundColor: "#fff",
-                    boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 8,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <div>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontWeight: 700,
-                          color: "#111",
-                        }}
-                      >
-                        {item.description}
-                      </p>
-                      <p
-                        style={{
-                          margin: "3px 0 0",
-                          fontSize: 11,
-                          color: "#9ca3af",
-                          fontFamily: "monospace",
-                        }}
-                      >
-                        SKU: {item.sku ?? "—"}
-                      </p>
-                    </div>
-                    <span
-                      data-testid={`drawer-item-status-${item.id}`}
-                      style={{
-                        flexShrink: 0,
-                        padding: "3px 8px",
-                        borderRadius: 4,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        textTransform: notReceivedYet ? "none" : "uppercase",
-                        letterSpacing: notReceivedYet ? "0" : "0.06em",
-                        backgroundColor: sb.bg,
-                        color: sb.text,
-                        border: `1px solid ${sb.border}`,
-                      }}
-                    >
-                      {statusLabel}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      gap: 8,
-                    }}
-                  >
-                    {[
-                      {
-                        label: "Ordered",
-                        value: String(item.qtyOrdered),
-                        bg: "#f8f9fa",
-                        text: "#333",
-                        border: "#e0e3e8",
-                      },
-                      {
-                        label: notReceivedYet ? "Not received yet" : "Received",
-                        value: notReceivedYet ? "0" : String(qtyReceived),
-                        bg: notReceivedYet ? "#f3f4f6" : "#e8f5e9",
-                        text: notReceivedYet ? "#6b7280" : "#2e7d32",
-                        border: notReceivedYet ? "#d1d5db" : "#a5d6a7",
-                      },
-                      {
-                        label: "Missing",
-                        value: String(item.qtyMissing),
-                        bg: item.qtyMissing > 0 ? "#ffebee" : "#f8f9fa",
-                        text: item.qtyMissing > 0 ? "#c62828" : "#333",
-                        border: item.qtyMissing > 0 ? "#ef9a9a" : "#e0e3e8",
-                      },
-                    ].map(({ label, value, bg, text, border }) => (
-                      <div
-                        key={label}
-                        style={{
-                          backgroundColor: bg,
-                          border: `1px solid ${border}`,
-                          borderRadius: 4,
-                          padding: "8px 4px",
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: text,
-                            marginBottom: 2,
-                            textTransform: label === "Not received yet" ? "none" : "uppercase",
-                            letterSpacing: label === "Not received yet" ? "0" : "0.06em",
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {label}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 16,
-                            fontWeight: 700,
-                            fontFamily: "monospace",
-                            color: text,
-                          }}
-                        >
-                          {value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>,
-        )}
         <section data-testid="activity-history-section">
           <button
             type="button"
@@ -2149,51 +1571,6 @@ export function DetailContent({
           await sendVendorEmail(input);
         }}
       />
-      {showPrintLabel && (
-        <PrintLabelModal
-          qrUrl={buildEslTagQrUrl({
-            zoneCode: details.stagingLocation?.code ?? null,
-            occupancy: details.stagingLocation
-              ? {
-                  deliveryId: details.delivery.id,
-                  orderNumber: details.delivery.orderNumber ?? "",
-                  vendorName: details.vendor.name,
-                  jobId: details.job.id,
-                  status: details.delivery.status,
-                }
-              : null,
-            deliveryId: details.delivery.id,
-            options: { forPrint: true },
-          })}
-          orderNumber={details.delivery.orderNumber ?? ""}
-          vendorName={details.vendor.name}
-          zoneCode={details.stagingLocation?.code ?? null}
-          onClose={() => setShowPrintLabel(false)}
-        />
-      )}
-      {inspectImportError ? (
-        <div
-          data-testid="drawer-invoice-import-error"
-          style={{
-            marginTop: 8,
-            padding: "8px 10px",
-            backgroundColor: "#fef2f2",
-            color: "#991b1b",
-            borderRadius: 6,
-            fontSize: 12,
-          }}
-        >
-          {inspectImportError}
-        </div>
-      ) : null}
-      {inspectImport ? (
-        <InvoiceParsedInspectModal
-          importRow={inspectImport}
-          readOnly
-          deliverToSiteConfirmed={details.delivery.invoiceDeliverToSiteConfirmed === true}
-          onClose={() => setInspectImport(null)}
-        />
-      ) : null}
     </>
   );
 }
@@ -2210,10 +1587,6 @@ function StatusActionPanel({
   onMarkShipped,
   onUpdateIssueSummary,
   onUpdateShopStockPickList,
-  onUpdatePlannedStagingLocations,
-  onUpdateStagingLocation,
-  onOpenDelivery,
-  onDeliveryOrderUpdated,
   stagingLocations,
   navy,
   font,
@@ -2231,10 +1604,6 @@ function StatusActionPanel({
     locationNote: string,
     linkedMappingId?: string,
   ) => Promise<void>;
-  onUpdatePlannedStagingLocations: (ids: string[]) => Promise<void>;
-  onUpdateStagingLocation: (stagingLocationId: string) => Promise<void>;
-  onOpenDelivery: (deliveryId: string) => void;
-  onDeliveryOrderUpdated: (delivery: DeliveryOrder) => void;
   stagingLocations: StagingLocation[];
   navy: string;
   font: string;
@@ -2248,20 +1617,11 @@ function StatusActionPanel({
   const [editingIssue, setEditingIssue] = useState(false);
   const [editReason, setEditReason] = useState("");
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [pendingPlannedIds, setPendingPlannedIds] = useState<string[]>(
-    () => details.delivery.plannedStagingLocationIds ?? [],
-  );
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [stockToolsExpanded, setStockToolsExpanded] = useState(false);
-  const [zoneOccupancy, setZoneOccupancy] = useState<
-    Record<string, StagingLocationOccupant>
-  >({});
   const [stockMappings, setStockMappings] = useState<ShopStockLocationMapping[]>([]);
   const [linkedMappingId, setLinkedMappingId] = useState("");
 
-  useEffect(() => {
-    void mapOccupancyByLocationId(details.delivery.id).then(setZoneOccupancy);
-  }, [details.delivery.id]);
   useEffect(() => {
     void listShopStockMappings().then(setStockMappings);
   }, [details.delivery.id]);
@@ -2271,11 +1631,6 @@ function StatusActionPanel({
   const [shopStockLocationNote, setShopStockLocationNote] = useState(
     details.delivery.shopStockLocationNote ?? "",
   );
-  const plannedDirty =
-    [...pendingPlannedIds].sort().join(",") !==
-    [...(details.delivery.plannedStagingLocationIds ?? [])].sort().join(",");
-  const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
-  const plannedDivergence = hasPlannedActualDivergence(details.delivery);
   const savedShopStockLocationNote =
     details.delivery.shopStockLocationNote ?? "";
   const parsedPickList = parseShopStockPickListLines(pickListText);
@@ -2284,10 +1639,6 @@ function StatusActionPanel({
     parsedPickList.length !== savedPickList.length ||
     parsedPickList.some((line, i) => line !== savedPickList[i]) ||
     shopStockLocationNote.trim() !== savedShopStockLocationNote.trim();
-
-  useEffect(() => {
-    setPendingPlannedIds(details.delivery.plannedStagingLocationIds ?? []);
-  }, [details.delivery.plannedStagingLocationIds, details.delivery.id]);
 
   useEffect(() => {
     setPickListText(
@@ -2379,31 +1730,25 @@ function StatusActionPanel({
         marginBottom: 20,
       }}
     >
-      {/* ── 1. Assign Staging Location (prominent) ── */}
-      <div
-        data-testid="staging-location-assignment"
-        data-staging-card-state={
-          details.stagingLocation ? "assigned" : "unassigned"
-        }
-        style={{
-          padding: "14px 16px",
-          borderRadius: 8,
-          border: `1.5px solid ${
-            details.stagingLocation ? "#a5d6a7" : "#fdba74"
-          }`,
-          backgroundColor: details.stagingLocation ? "#e8f5e9" : "#fffbeb",
-        }}
-      >
-        {(details.delivery.combinationStagingGroupId ||
-          (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0) && (
+      {(details.delivery.combinationStagingGroupId ||
+        (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0) && (
+        <div
+          data-testid="staging-location-assignment"
+          style={{
+            padding: "14px 16px",
+            borderRadius: 8,
+            border: "1px solid #e0e3e8",
+            backgroundColor: "#f9fafb",
+            marginBottom: 16,
+          }}
+        >
           <div
             data-testid="combination-staging-group-label"
             style={{
-              marginBottom: 12,
               padding: "10px 12px",
               borderRadius: 8,
               border: "1px solid #e0e3e8",
-              backgroundColor: "#f9fafb",
+              backgroundColor: "#fff",
             }}
           >
             <p
@@ -2433,324 +1778,8 @@ function StatusActionPanel({
               </p>
             )}
           </div>
-        )}
-
-        <div
-          data-testid="planned-staging-assignment"
-          style={{ marginTop: (details.delivery.combinationStagingGroupId ||
-            (details.delivery.combinationMemberLocationIds?.length ?? 0) > 0)
-            ? 0
-            : undefined }}
-        >
-          <h3
-            data-testid="assign-staging-location-heading"
-            style={{
-              margin: "0 0 6px",
-              fontSize: 14,
-              fontWeight: 700,
-              color: navy,
-              letterSpacing: "0.02em",
-            }}
-          >
-            Planned Staging (dispatcher instruction)
-          </h3>
-          <p
-            style={{
-              margin: "0 0 10px",
-              fontSize: 13,
-              color: "#6b7280",
-              lineHeight: 1.45,
-              fontFamily: font,
-            }}
-          >
-            Choose one or more spots for receiving and pickup (e.g. G4+G5+G6 for
-            pipe). {STAGING_PLAN_MISMATCH_HELPER} Click an order number on a
-            blocked spot to open it, then use <strong>Move here</strong> on an
-            open spot for this order.
-          </p>
-          {plannedDivergence ? (
-            <p
-              data-testid="staging-actual-location"
-              style={{
-                margin: "0 0 10px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#9a3412",
-                fontFamily: font,
-              }}
-            >
-              Actually at:{" "}
-              <span style={{ fontFamily: "monospace" }}>
-                {formatActualStagingCodes(details.delivery, locById) ?? "—"}
-              </span>
-            </p>
-          ) : null}
-          <p
-            data-testid="staging-current-location"
-            style={{
-              margin: "0 0 12px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: details.stagingLocation ? "#2e7d32" : "#ea580c",
-              fontFamily: font,
-              lineHeight: 1.5,
-            }}
-          >
-            {details.stagingLocation ? (
-              <>
-                Current:{" "}
-                <span
-                  data-testid="staging-assigned-code"
-                  style={{
-                    fontFamily: "monospace",
-                    fontWeight: 700,
-                    backgroundColor: "#fff",
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    color: "#2e7d32",
-                    border: "1px solid #a5d6a7",
-                  }}
-                >
-                  {details.stagingLocation.code}
-                </span>
-                <span style={{ color: "#4b5563", fontWeight: 500 }}>
-                  {" "}
-                  {details.stagingLocation.label}
-                </span>
-              </>
-            ) : (
-              <>Current: Not Assigned</>
-            )}
-          </p>
-          <p
-            data-testid="planned-staging-current"
-            style={{
-              margin: "0 0 10px",
-              fontSize: 12,
-              fontWeight: 600,
-              color: plannedDivergence ? "#9a3412" : "#4b5563",
-              fontFamily: font,
-            }}
-          >
-            Planned:{" "}
-            <span style={{ fontFamily: "monospace" }}>
-              {formatPlannedStagingCodes(details.delivery, locById)}
-            </span>
-            {plannedDivergence ? (
-              <span
-                data-testid="drawer-planned-divergence-badge"
-                title={STAGING_PLAN_MISMATCH_TITLE}
-                style={{
-                  marginLeft: 8,
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  backgroundColor: "#fff7ed",
-                  color: "#9a3412",
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  border: "1px solid #fdba74",
-                }}
-              >
-                {STAGING_PLAN_MISMATCH_LABEL}
-              </span>
-            ) : null}
-          </p>
-          {(details.delivery.plannedLocationReleases ?? []).length > 0 ? (
-            <div
-              data-testid="planned-location-releases"
-              style={{
-                margin: "0 0 10px",
-                padding: "8px 10px",
-                borderRadius: 6,
-                backgroundColor: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                fontSize: 11,
-                color: "#475569",
-                fontFamily: font,
-              }}
-            >
-              <p style={{ margin: "0 0 6px", fontWeight: 700, fontSize: 10 }}>
-                Planned-spot releases
-              </p>
-              {(details.delivery.plannedLocationReleases ?? []).map((entry) => (
-                <p key={`${entry.locationId}-${entry.releasedAt}`} style={{ margin: "0 0 4px" }}>
-                  {locById.get(entry.locationId)?.code ?? entry.locationId} released{" "}
-                  {entry.releasedAt.slice(0, 10)}
-                  {entry.reason ? ` — ${entry.reason}` : ""}
-                </p>
-              ))}
-            </div>
-          ) : null}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              maxHeight: 180,
-              overflowY: "auto",
-              marginBottom: 10,
-            }}
-          >
-            {stagingLocations.map((loc) => {
-              const checked = pendingPlannedIds.includes(loc.id);
-              const occupant = zoneOccupancy[loc.id];
-              const unavailable = Boolean(occupant);
-              return (
-                <label
-                  key={loc.id}
-                  data-testid={`planned-staging-option-${loc.code}`}
-                  data-staging-unavailable={unavailable ? "true" : undefined}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 13,
-                    color: unavailable ? "#9ca3af" : "#333",
-                    fontFamily: font,
-                    cursor: loading || unavailable ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={loading || unavailable}
-                    onChange={(e) => {
-                      setPendingPlannedIds((prev) =>
-                        e.target.checked
-                          ? [...prev, loc.id]
-                          : prev.filter((id) => id !== loc.id),
-                      );
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: unavailable ? "#bf0a30" : "#333",
-                    }}
-                  >
-                    {loc.code}
-                  </span>
-                  <span style={{ color: unavailable ? "#9ca3af" : "#6b7280" }}>
-                    {loc.label}
-                  </span>
-                  {unavailable && occupant ? (
-                    <span
-                      data-testid={`planned-staging-unavailable-${loc.code}`}
-                      style={{
-                        marginLeft: "auto",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#bf0a30",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Not available (in use:{" "}
-                      <button
-                        type="button"
-                        data-testid={`open-occupant-${occupant.orderNumber}`}
-                        disabled={loading}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onOpenDelivery(occupant.deliveryId);
-                        }}
-                        style={{
-                          padding: 0,
-                          border: "none",
-                          background: "none",
-                          color: navy,
-                          fontWeight: 800,
-                          fontSize: 11,
-                          cursor: loading ? "not-allowed" : "pointer",
-                          textDecoration: "underline",
-                          fontFamily: font,
-                        }}
-                      >
-                        {occupant.orderNumber}
-                      </button>
-                      )
-                    </span>
-                  ) : !unavailable ? (
-                    details.stagingLocation?.id === loc.id ? (
-                      <span
-                        data-testid={`staging-current-spot-${loc.code}`}
-                        style={{
-                          marginLeft: "auto",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#2e7d32",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Current spot
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        data-testid={`move-staging-${loc.code}`}
-                        disabled={loading}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          void onUpdateStagingLocation(loc.id);
-                        }}
-                        style={{
-                          marginLeft: "auto",
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          fontFamily: font,
-                          cursor: loading ? "not-allowed" : "pointer",
-                          backgroundColor: loading ? "#f3f4f6" : "#fff",
-                          color: loading ? "#9ca3af" : navy,
-                          border: `1px solid ${loading ? "#d1d5db" : navy}`,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Move here
-                      </button>
-                    )
-                  ) : null}
-                </label>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            data-testid="save-planned-staging"
-            disabled={loading || !plannedDirty}
-            onClick={() => void onUpdatePlannedStagingLocations(pendingPlannedIds)}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: font,
-              cursor: loading || !plannedDirty ? "not-allowed" : "pointer",
-              backgroundColor: loading || !plannedDirty ? "#f3f4f6" : navy,
-              color: loading || !plannedDirty ? "#9ca3af" : "#fff",
-              border: `1.5px solid ${loading || !plannedDirty ? "#d1d5db" : navy}`,
-            }}
-          >
-            {loading ? "Saving…" : "Save Planned Spots"}
-          </button>
         </div>
-
-        {!DRAWER_HIDE_NEED_MORE_SPACE &&
-          getAllStagingLocationIds(details.delivery).length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <NeedMoreSpaceButton
-                delivery={details.delivery}
-                onDeliveryUpdated={(updated) => {
-                  onDeliveryOrderUpdated(updated);
-                  void mapOccupancyByLocationId(updated.id).then(setZoneOccupancy);
-                }}
-              />
-            </div>
-          )}
-      </div>
+      )}
 
       {/* ── 2. Advanced Manual Controls (collapsed default) ── */}
       <div style={{ marginTop: 16 }}>
