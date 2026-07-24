@@ -240,20 +240,51 @@ async function assertDoneFlushKeepsCatchAllWithYah(page) {
 async function addCatchAllInEdit(page) {
   const addBtn = page.getByTestId("shop-map-add-catch-all");
   const existing = page.locator('[data-testid="shop-map-catch-all"]').first();
-  for (let attempt = 0; attempt < 24; attempt++) {
+  // Prefer restored overlay before clicking Add (hydrate can lag behind the Add button).
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (await existing.isVisible().catch(() => false)) {
+      return existing;
+    }
+    await page.waitForTimeout(250);
+  }
+  for (let attempt = 0; attempt < 8; attempt++) {
     if (await existing.isVisible().catch(() => false)) {
       return existing;
     }
     if (await addBtn.isVisible().catch(() => false)) {
-      await addBtn.click();
-      await existing.waitFor({ state: "visible", timeout: 10000 });
-      return existing;
+      try {
+        await addBtn.click({ force: true, timeout: 5000 });
+        await existing.waitFor({ state: "visible", timeout: 10000 });
+        return existing;
+      } catch {
+        await page.waitForTimeout(400);
+      }
+    } else {
+      await page.waitForTimeout(400);
     }
-    await page.waitForTimeout(500);
   }
   throw new Error(
     "Missing shop-map-add-catch-all and no restored catch-all overlay (timed out waiting for hydration)",
   );
+}
+
+/** Remove leftover CA from a prior verify so initial view assert stays deterministic. */
+async function clearCatchAllIfPresent(page) {
+  const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
+  if (!(await catchAll.isVisible().catch(() => false))) return;
+  await enterEditMode(page);
+  const inEdit = page.locator('[data-testid="shop-map-catch-all"]').first();
+  await inEdit.waitFor({ state: "visible", timeout: 8000 });
+  await inEdit.click({ force: true });
+  await page.getByTestId("shop-map-edit-panel-title").waitFor({
+    state: "visible",
+    timeout: 5000,
+  });
+  await page.getByTestId("shop-map-edit-delete").click();
+  await page.waitForTimeout(800);
+  await exitEditMode(page);
+  await assertNoCatchAllOverlay(page, "Cleanup leftover catch-all before suite");
+  console.log("PASS: cleared leftover catch-all before suite");
 }
 
 async function assertCatchAllOverlayContent(page, catchAllSpot) {
@@ -506,6 +537,7 @@ async function main() {
   await lastUpdatedEl.waitFor({ state: "visible", timeout: 10000 });
 
   await assertG1NotCatchAll(page);
+  await clearCatchAllIfPresent(page);
   await assertNoCatchAllOverlay(page, "Initial zones map load (view mode)");
   await assertG1ClickNoBrokenDrawer(page);
 
