@@ -738,3 +738,85 @@ export function removeShelfUnitFromExtras(
     slotsToHideForDelete(u, layout),
   );
 }
+
+/**
+ * Drop verify-harness pollution (extra G13+ / S3+) when nothing occupies those slots.
+ * Does not touch default G1–G12 / S1–S2.
+ */
+export function pruneUnoccupiedVerifyLayoutExtras(
+  extras: ShopMapLayoutExtras | null | undefined,
+  isOccupied: (layoutSlotOrCode: string) => boolean,
+): { extras: ShopMapLayoutExtras; removedSlots: string[]; changed: boolean } {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const removedSlots: string[] = [];
+  const layout = resolveShopMapLayout(normalized);
+
+  const nextGround = (normalized.extraGround ?? []).filter((g) => {
+    if (isOccupied(g)) return true;
+    removedSlots.push(g);
+    return false;
+  });
+
+  const nextShelfUnits = (normalized.extraShelfUnits ?? []).filter((u) => {
+    const chips = spotsForShelfUnit(u, layout);
+    if (isOccupied(u) || chips.some((c) => isOccupied(c))) return true;
+    removedSlots.push(u, ...chips);
+    return false;
+  });
+
+  const nextSpots: Record<string, string[]> = {};
+  for (const [unit, letters] of Object.entries(
+    normalized.extraShelfSpots ?? {},
+  )) {
+    if (!nextShelfUnits.includes(unit) && !(SHOP_MAP_SHELF_UNITS as readonly string[]).includes(unit)) {
+      continue;
+    }
+    nextSpots[unit] = letters;
+  }
+
+  const changed =
+    nextGround.length !== (normalized.extraGround ?? []).length ||
+    nextShelfUnits.length !== (normalized.extraShelfUnits ?? []).length ||
+    Object.keys(nextSpots).length !==
+      Object.keys(normalized.extraShelfSpots ?? {}).length;
+
+  if (!changed) {
+    return { extras: normalized, removedSlots: [], changed: false };
+  }
+
+  const cleanedHidden = (normalized.hiddenSlots ?? []).filter((slot) => {
+    const g = canonGround(slot);
+    if (g && !(SHOP_MAP_GROUND_CODES as readonly string[]).includes(g)) {
+      return nextGround.includes(g) || isOccupied(g);
+    }
+    const u = canonShelfUnit(slot);
+    if (u && !(SHOP_MAP_SHELF_UNITS as readonly string[]).includes(u)) {
+      return nextShelfUnits.includes(u) || isOccupied(u);
+    }
+    return true;
+  });
+
+  return {
+    extras: {
+      ...normalized,
+      extraGround: nextGround,
+      extraShelfUnits: nextShelfUnits,
+      extraShelfSpots: nextSpots,
+      hiddenSlots: cleanedHidden,
+    },
+    removedSlots: [...new Set(removedSlots)],
+    changed: true,
+  };
+}
+
+/** True when persisted ground chip size is clearly inflated vs default (bug residue). */
+export function isInflatedGroundSpotSize(
+  mapWidth: number | undefined,
+  mapHeight: number | undefined,
+): boolean {
+  const w = mapWidth ?? SHOP_MAP_GROUND_SPOT_W;
+  const h = mapHeight ?? SHOP_MAP_GROUND_SPOT_H;
+  return (
+    w > SHOP_MAP_GROUND_SPOT_W * 1.25 || h > SHOP_MAP_GROUND_SPOT_H * 1.25
+  );
+}

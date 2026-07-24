@@ -231,6 +231,23 @@ function defaultSpotSize(layoutSlot: string): { w: number; h: number } {
     : { w: SHOP_MAP_SHELF_SPOT_W, h: SHOP_MAP_SHELF_SPOT_H };
 }
 
+/** Queue ground size into pendingSizes only when it differs from the edit baseline. */
+function assignPendingGroundSizeIfChanged(
+  flushedSizes: Record<string, { w: number; h: number }>,
+  layoutSlot: string,
+  editWidth: number,
+  editHeight: number,
+  baseW: number,
+  baseH: number,
+): void {
+  if (!isGroundLayoutSlot(layoutSlot)) return;
+  if (editWidth !== baseW || editHeight !== baseH) {
+    flushedSizes[layoutSlot] = { w: editWidth, h: editHeight };
+  } else {
+    delete flushedSizes[layoutSlot];
+  }
+}
+
 const editInputStyle: CSSProperties = {
   display: "block",
   width: "100%",
@@ -1103,12 +1120,18 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         flushedRotations[selectedLayoutSlot] = editRotationDeg;
         if (isShelfUnitCode(selectedLayoutSlot)) {
           flushedLabelRotations[selectedLayoutSlot] = editLabelRotationDeg;
-        }
-        if (!isShelfUnitCode(selectedLayoutSlot)) {
-          flushedSizes[selectedLayoutSlot] = {
-            w: editWidth,
-            h: editHeight,
-          };
+        } else {
+          const zone = zoneForLayoutSlot(selectedLayoutSlot);
+          const defaults = defaultSpotSize(selectedLayoutSlot);
+          const snap = editSessionBySlotRef.current[selectedLayoutSlot];
+          assignPendingGroundSizeIfChanged(
+            flushedSizes,
+            selectedLayoutSlot,
+            editWidth,
+            editHeight,
+            snap?.width ?? zone?.mapWidth ?? defaults.w,
+            snap?.height ?? zone?.mapHeight ?? defaults.h,
+          );
         }
         setPendingOffsets(flushedPending);
         setPendingLabels(flushedLabels);
@@ -1159,6 +1182,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       editRotationDeg,
       editLabelRotationDeg,
       catchAllZone,
+      zoneForLayoutSlot,
     ],
   );
 
@@ -1166,6 +1190,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     (layoutSlot: string, additive = false) => {
       cancelActiveDrag();
       if (selectedCatchAll && pendingCatchAll) {
+        // Clear catch-all selection before reading edit W/H for the ground spot
+        // so catch-all geometry never bleeds into pendingSizes / G* height.
         applyCatchAllGeometry(
           editOffsetX,
           editOffsetY,
@@ -1173,6 +1199,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           editHeight,
         );
         setSelectedCatchAll(false);
+        setEditWidth(SHOP_MAP_GROUND_SPOT_W);
+        setEditHeight(SHOP_MAP_GROUND_SPOT_H);
       }
       const zone = zoneForLayoutSlot(layoutSlot);
       const flushedPending = { ...pendingOffsets };
@@ -1189,12 +1217,18 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         flushedRotations[selectedLayoutSlot] = editRotationDeg;
         if (isShelfUnitCode(selectedLayoutSlot)) {
           flushedLabelRotations[selectedLayoutSlot] = editLabelRotationDeg;
-        }
-        if (!isShelfUnitCode(selectedLayoutSlot)) {
-          flushedSizes[selectedLayoutSlot] = {
-            w: editWidth,
-            h: editHeight,
-          };
+        } else {
+          const prevZone = zoneForLayoutSlot(selectedLayoutSlot);
+          const defaultsPrev = defaultSpotSize(selectedLayoutSlot);
+          const snap = editSessionBySlotRef.current[selectedLayoutSlot];
+          assignPendingGroundSizeIfChanged(
+            flushedSizes,
+            selectedLayoutSlot,
+            editWidth,
+            editHeight,
+            snap?.width ?? prevZone?.mapWidth ?? defaultsPrev.w,
+            snap?.height ?? prevZone?.mapHeight ?? defaultsPrev.h,
+          );
         }
       }
       setPendingOffsets(flushedPending);
@@ -1610,11 +1644,20 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       if (isShelfUnitCode(selectedLayoutSlot)) {
         flushedLabelRotations[selectedLayoutSlot] = editLabelRotationDeg;
       }
+      // Only queue size when it actually differs from session/zone baseline —
+      // otherwise label/offset Saves rewrite accidental resize-handle bumps.
       if (!isShelfUnitCode(selectedLayoutSlot)) {
-        flushedSizes[selectedLayoutSlot] = {
-          w: editWidth,
-          h: editHeight,
-        };
+        const zone = zoneForLayoutSlot(selectedLayoutSlot);
+        const defaults = defaultSpotSize(selectedLayoutSlot);
+        const snap = editSessionBySlotRef.current[selectedLayoutSlot];
+        assignPendingGroundSizeIfChanged(
+          flushedSizes,
+          selectedLayoutSlot,
+          editWidth,
+          editHeight,
+          snap?.width ?? zone?.mapWidth ?? defaults.w,
+          snap?.height ?? zone?.mapHeight ?? defaults.h,
+        );
       }
     }
     const primarySlot = selectedLayoutSlot;
@@ -1779,14 +1822,14 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           : defaultSpotSize(slot);
         const baseW = zone?.mapWidth ?? defaults.w ?? MIN_SPOT_SIZE;
         const baseH = zone?.mapHeight ?? defaults.h ?? MIN_SPOT_SIZE;
+        // Prefer pendingSizes only — never fall back to live edit W/H for
+        // primary (that re-persisted accidental bumps on every label Save).
         const patchWidth = shelfUnit
           ? baseW
-          : (flushedSizes[slot]?.w ??
-            (isPrimary ? editWidth : baseW));
+          : (flushedSizes[slot]?.w ?? baseW);
         const patchHeight = shelfUnit
           ? baseH
-          : (flushedSizes[slot]?.h ??
-            (isPrimary ? editHeight : baseH));
+          : (flushedSizes[slot]?.h ?? baseH);
         const rotationDeg = normalizeRotationDeg(
           isPrimary && canRotate
             ? editRotationDeg
@@ -1846,7 +1889,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             mapOffsetY: oy,
             ...(shelfUnit
               ? { mapLabelRotationDeg: labelRotationDeg }
-              : { mapWidth: patchWidth, mapHeight: patchHeight }),
+              : sizeChanged
+                ? { mapWidth: patchWidth, mapHeight: patchHeight }
+                : {}),
             ...(canRotate ? { mapRotationDeg: rotationDeg } : {}),
           },
         });
@@ -2190,10 +2235,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       flushedLabels[selectedLayoutSlot] = editLabel;
       flushedRotations[selectedLayoutSlot] = editRotationDeg;
       if (!isShelfUnitCode(selectedLayoutSlot)) {
-        flushedSizes[selectedLayoutSlot] = {
-          w: editWidth,
-          h: editHeight,
-        };
+        const prevZone = zoneForLayoutSlot(selectedLayoutSlot);
+        const defaultsPrev = defaultSpotSize(selectedLayoutSlot);
+        const snap = editSessionBySlotRef.current[selectedLayoutSlot];
+        assignPendingGroundSizeIfChanged(
+          flushedSizes,
+          selectedLayoutSlot,
+          editWidth,
+          editHeight,
+          snap?.width ?? prevZone?.mapWidth ?? defaultsPrev.w,
+          snap?.height ?? prevZone?.mapHeight ?? defaultsPrev.h,
+        );
       }
     }
     setSelectedSlots(hits);
@@ -2520,11 +2572,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   };
 
   const groundSlotStyle = (layoutSlot: string): CSSProperties => {
+    const { width, height } = sizeForSpot(layoutSlot);
     const defaults = defaultSpotSize(layoutSlot);
     return {
       position: "relative",
-      width: defaults.w,
-      height: defaults.h,
+      width: width || defaults.w,
+      height: height || defaults.h,
       flexShrink: 0,
     };
   };

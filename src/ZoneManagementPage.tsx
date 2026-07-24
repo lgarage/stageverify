@@ -53,9 +53,11 @@ import {
   allShopMapSpotCodes,
   defaultLabelForSpotCode,
   inferSpotZoneType,
+  isInflatedGroundSpotSize,
   nextGroundSpotCode,
   nextShelfSpotLetter,
   nextShelfUnitCode,
+  pruneUnoccupiedVerifyLayoutExtras,
   resolveShopMapLayout,
   withoutCatchAllMarker,
   isDefaultGroundLayoutSlot,
@@ -715,6 +717,75 @@ export function ZoneManagementPage() {
     [],
   );
 
+  /** One-time cleanup: verify-harness extra G/S spots + inflated G* chip sizes. */
+  const pruneVerifyMapPollution = useCallback(
+    async (
+      extras: ShopMapLayoutExtras,
+      loadedZones: StagingLocation[],
+      occupancy: Record<string, ZoneOccupancySummary>,
+    ): Promise<{ extras: ShopMapLayoutExtras; zones: StagingLocation[] }> => {
+      const occupiedKeys = new Set(
+        Object.keys(occupancy).map((k) => normalizeStagingCodeKey(k)),
+      );
+      const isOccupied = (slotOrCode: string) =>
+        occupiedKeys.has(normalizeStagingCodeKey(slotOrCode));
+
+      const pruned = pruneUnoccupiedVerifyLayoutExtras(extras, isOccupied);
+      let nextExtras = pruned.extras;
+      let zones = [...loadedZones];
+
+      if (pruned.changed) {
+        await updateAppSettings({ shopMapLayoutExtras: nextExtras });
+        const removeKeys = new Set(
+          pruned.removedSlots.map((s) => normalizeStagingCodeKey(s)),
+        );
+        for (const zone of zones) {
+          if (!isLocationActive(zone)) continue;
+          const slotKey = normalizeStagingCodeKey(
+            zone.mapLayoutSlot?.trim() || zone.code,
+          );
+          const codeKey = normalizeStagingCodeKey(zone.code);
+          if (!removeKeys.has(slotKey) && !removeKeys.has(codeKey)) continue;
+          // Never deactivate occupied (safety) or catch-all.
+          if (
+            isOccupied(slotKey) ||
+            isOccupied(codeKey) ||
+            codeKey === normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE)
+          ) {
+            continue;
+          }
+          await deactivateZone(zone.id);
+          zones = zones.map((z) =>
+            z.id === zone.id ? { ...z, status: "Planned" as const } : z,
+          );
+        }
+      }
+
+      for (const zone of zones) {
+        if (!isLocationActive(zone)) continue;
+        const slot = (zone.mapLayoutSlot ?? zone.code).trim();
+        if (!/^G\d+$/i.test(slot)) continue;
+        if (!isInflatedGroundSpotSize(zone.mapWidth, zone.mapHeight)) continue;
+        await updateZone(zone.id, {
+          mapWidth: SHOP_MAP_GROUND_SPOT_W,
+          mapHeight: SHOP_MAP_GROUND_SPOT_H,
+        });
+        zones = zones.map((z) =>
+          z.id === zone.id
+            ? {
+                ...z,
+                mapWidth: SHOP_MAP_GROUND_SPOT_W,
+                mapHeight: SHOP_MAP_GROUND_SPOT_H,
+              }
+            : z,
+        );
+      }
+
+      return { extras: nextExtras, zones };
+    },
+    [],
+  );
+
   const handleRemoveCatchAllSpot = useCallback(async () => {
     const nextExtras = withoutCatchAllMarker(layoutExtras);
     await updateAppSettings({
@@ -791,8 +862,10 @@ export function ZoneManagementPage() {
         settingsRaw,
         loaded,
       );
-      setZones(repairedZones);
-      setLayoutExtras(extras);
+      const { extras: prunedExtras, zones: prunedZones } =
+        await pruneVerifyMapPollution(extras, repairedZones, occupancy);
+      setZones(prunedZones);
+      setLayoutExtras(prunedExtras);
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
       setOccupancyByZoneCode(occupancy);
       setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
@@ -807,7 +880,7 @@ export function ZoneManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [migrateCatchAllFromDefaultGround, setLastUpdated]);
+  }, [migrateCatchAllFromDefaultGround, pruneVerifyMapPollution, setLastUpdated]);
 
   useEffect(() => {
     return subscribeAppSettings((settings) => {

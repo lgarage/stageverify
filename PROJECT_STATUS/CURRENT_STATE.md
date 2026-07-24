@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **away-135** — D-42 contrast backfill on pickup / receive / vendor-delivered verifies
+- Last shipped: **v0.0.139** — Staging Map: stop G2 size growth on label Saves; prune verify-pollution extra G/S spots + reset inflated G* sizes
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:pickup` / `:prod`; `verify:receive` / `:prod`; `verify:vendor-delivered` / `:prod`; catch-all scripts unchanged.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
