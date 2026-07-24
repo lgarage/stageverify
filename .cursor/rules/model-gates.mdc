@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Pre-edit dispatch (announce-and-go — Dan-nonblocking, not Grok-skip)
 
-**BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc`. "Announce-and-go" means **never wait for Dan's go-ahead** — it does NOT skip verifier gates: substantive work directives require Grok solution agreement **before the first edit** per § Solution deliberation (D-36).
+**BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc` (5) **conf** per `confidence-gate.mdc` (D-46) on substantive product work. "Announce-and-go" means **never wait for Dan's go-ahead** — it does NOT skip verifier gates: substantive work directives require **conf ≥ 97%** and Grok solution agreement **before the first edit** per § Solution deliberation (D-36) + D-46.
 
 > **Quota (constraint, not purpose — see § Trust over cost, D-34):** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
 

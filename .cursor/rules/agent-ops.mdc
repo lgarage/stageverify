@@ -12,7 +12,7 @@ This repo uses the **agent-ops** skill (`~/.cursor/skills/agent-ops`, git `C:\Pr
 - **Profile:** `composer-default` (overrides SKILL.md §10 Sonnet-default)
 - **Trials:** `.cursor/trials.json` (per-project)
 - **Authority:** This file wins on orchestration; SKILL.md wins on outcome schema and tier table.
-- **Session start / pre-edit / model routing:** `composer-orchestrator.mdc` + `model-gates.mdc` — do not duplicate here.
+- **Session start / pre-edit / model routing:** `composer-orchestrator.mdc` + `model-gates.mdc` + `confidence-gate.mdc` (D-46 conf ≥ 97% before product edits) — do not duplicate here.
 
 ## During work
 

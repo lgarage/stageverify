@@ -1,0 +1,27 @@
+---
+description: Pre-implement confidence bar (≥97%) + session conf log before substantive product work (D-46).
+alwaysApply: true
+---
+
+# Confidence gate (D-46 — pre-implement)
+
+**Dan standing preference:** Before **any product/code edit** on a substantive work directive, reach **conf ≥ 97%** and **Solution Verifier PASS** (or documented N/A per D-36/D-43). Platform parity automatic (D-32).
+
+## When it applies
+
+Substantive work directives whose diff would hit Ship Verifier path class (`src/`, `functions/src/`, `public/`, behavior-bearing `scripts/*.mjs`) — same class as D-36 Solution deliberation. Runs **after** announce-and-go classification, **before** Phase 1 edits in `composer-grok-collab.mdc`.
+
+## Sequence
+
+1. **Classify** — `PROJECT_STATUS/MODEL_DOSSIER.md` + agent-ops skill → archetype, tier, cheapest model, **confStart** (state in reply).
+2. **If conf < 97%** — no product edits yet: parallel scouts / targeted reads; lock root cause, files, acceptance; one focused Dan question when UX/scope is ambiguous; refresh Composer plan lock → **Grok Solution Verifier** until agreed (D-36/D-43 Phase 1).
+3. **Implement only when** conf ≥ 97% **and** `solution-verifier:` PASS or N/A (valid skip reasons unchanged).
+4. **Session log** — each substantive task: record archetype, model, conf as it rises (completion report or brain `outcomes/*.jsonl` per `agent-ops.mdc`).
+
+## Skips (trust judgments)
+
+Trivial typos; single-fact lookups; docs/rules/PROJECT_STATUS with no product build; repair/planning/Q&A loops with their own gates; away items with **approved approach-level specs** (spec = agreed solution).
+
+## Relation
+
+Does not replace D-36/D-43 (Build Checker, UI Playwright, Ship Verifier). Adds a **confidence floor** symmetric with Dan's pre-build deliberation — misclassifying down skips = failure mode.

@@ -11,7 +11,7 @@ alwaysApply: true
 
 | Phase | Who | What |
 |-------|-----|------|
-| **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
+| **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Raise conf to **≥ 97%** per `confidence-gate.mdc` (D-46); peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
 | **2 — Implement** | **Composer only** | Code, local build. Grok never implements. |
 | **2b — UI verify** | Grok **UI Playwright Verifier** | On visible UI edits (`src/`): Grok runs (or re-runs) the affected route `verify:*` + D-42 contrast/overlap asserts; **PASS required before commit**. FAIL → Grok returns **file:line fix list** → Composer fixes → **same Grok** re-verifies (fix-closure, max 3 cycles). Distinct from Build Checker (diff-vs-scope). |
 | **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
