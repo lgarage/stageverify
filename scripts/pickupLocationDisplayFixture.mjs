@@ -92,6 +92,19 @@ export async function applyFullLocationDisplay(deliveryId) {
   await ensureVerifyStagingZones();
   const db = await getDb();
   const now = new Date().toISOString();
+  await setDoc(
+    doc(db, "stagingLocations", PRIMARY_STAGING_ID),
+    {
+      id: PRIMARY_STAGING_ID,
+      code: "G1",
+      label: "Ground Spot 1",
+      type: "ground",
+      status: "Active",
+      sortOrder: 1,
+      updatedAt: now,
+    },
+    { merge: true },
+  );
   await updateDoc(doc(db, "deliveries", deliveryId), {
     stagingLocationId: PRIMARY_STAGING_ID,
     additionalStagingLocationIds: [VERIFY_STAGING_G4, VERIFY_STAGING_G5],

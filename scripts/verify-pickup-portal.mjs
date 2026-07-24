@@ -118,6 +118,43 @@ async function waitForDoneEnabled(page, timeoutMs = 30_000) {
   );
 }
 
+async function confirmAllPickupLocations(page) {
+  const confirms = page.getByTestId("pickup-location-confirm");
+  const count = await confirms.count();
+  if (count === 0) {
+    console.log("SKIP Level 1: no pickup-location-confirm rows on fixture.");
+    return;
+  }
+  for (let i = 0; i < count; i++) {
+    const row = confirms.nth(i);
+    if ((await row.getAttribute("data-confirmed")) !== "true") {
+      await row.click();
+      await page.waitForTimeout(100);
+    }
+  }
+  console.log(`Level 1 PASS: confirmed ${count} pickup spot(s).`);
+}
+
+async function assertLevel1CompletePickupGate(page) {
+  const completeBtn = page.getByRole("button", {
+    name: /Order Pickup Complete/,
+  });
+  await completeBtn.waitFor({ state: "visible", timeout: 15_000 });
+  if (!(await completeBtn.isDisabled())) {
+    throw new Error(
+      "Level 1 FAIL: Order Pickup Complete should stay disabled until all spots are confirmed.",
+    );
+  }
+  const confirms = page.getByTestId("pickup-location-confirm");
+  const count = await confirms.count();
+  if (count < 1) {
+    throw new Error("Level 1 FAIL: expected pickup-location-confirm rows.");
+  }
+  console.log(
+    `Level 1 PASS: Complete Pickup gated (${count} spot confirm row(s)).`,
+  );
+}
+
 async function runScenarioB(page) {
   console.log("Scenario B: Report Issue…");
   const issueType = await pickFreshBlockingIssueType(deliveryId);
@@ -255,6 +292,7 @@ async function runScenarioA(page, pickupToken) {
     }
 
     await page.waitForTimeout(400);
+    await confirmAllPickupLocations(page);
     const cardBtn = page
       .getByTestId("pickup-at-primary")
       .first()
@@ -285,6 +323,7 @@ async function runScenarioA(page, pickupToken) {
     console.log("Shop stock PASS: Pulled → Staged after delivery card check-off.");
   }
 
+  await confirmAllPickupLocations(page);
   await waitForDoneEnabled(page);
   await page.getByRole("button", { name: /Order Pickup Complete/ }).click();
 
@@ -737,6 +776,7 @@ async function runDashboardBadgeCheck(browser) {
     await assertPickupItemPoLabels(page);
     await assertPickupChecklistPersists(page, appBase, pickupToken);
     await assertShopStockPullState(page);
+    await assertLevel1CompletePickupGate(page);
     await assertNotReadyRowVisible(page);
     await assertNoProblemQtyDetails(page);
     await assertPublicStatusHidden(page);

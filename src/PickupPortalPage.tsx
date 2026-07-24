@@ -128,6 +128,54 @@ function zoneSummary(deliveries: DeliveryDetails[]): string {
   return `${zones} · ${vendors}`;
 }
 
+function collectJobStagingLocationEntries(
+  deliveries: DeliveryDetails[],
+  allLocations: StagingLocation[],
+): { id: string; code: string; label: string }[] {
+  const seen = new Set<string>();
+  const entries: { id: string; code: string; label: string }[] = [];
+  for (const d of deliveries) {
+    if (!isPickupReady(d.delivery.status)) continue;
+    for (const id of getAllStagingLocationIds(d.delivery)) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const loc =
+        allLocations.find((l) => l.id === id) ??
+        (d.stagingLocation?.id === id ? d.stagingLocation : undefined);
+      entries.push({
+        id,
+        code: loc?.code ?? id,
+        label: loc?.label ?? loc?.code ?? id,
+      });
+    }
+  }
+  return entries.sort((a, b) =>
+    a.code.localeCompare(b.code, undefined, { sensitivity: "base" }),
+  );
+}
+
+function assignedStagingLocationsConfirmed(
+  delivery: DeliveryDetails,
+  confirmedLocationIds: Set<string>,
+): boolean {
+  const assigned = getAllStagingLocationIds(delivery.delivery);
+  if (assigned.length === 0) return true;
+  return assigned.every((id) => confirmedLocationIds.has(id));
+}
+
+function pickupStagingLocationIdsForDelivery(
+  delivery: DeliveryDetails,
+  confirmedLocationIds: Set<string>,
+): string[] | undefined {
+  const assigned = getAllStagingLocationIds(delivery.delivery);
+  if (assigned.length === 0) return undefined;
+  const picked = new Set(delivery.delivery.pickedUpStagingLocationIds ?? []);
+  const toPick = assigned.filter(
+    (id) => !picked.has(id) && confirmedLocationIds.has(id),
+  );
+  return toPick.length > 0 ? toPick : undefined;
+}
+
 function resolveStagingLocations(
   delivery: DeliveryDetails,
   allLocations: StagingLocation[],
@@ -693,6 +741,8 @@ function JobPickupScreen({
   const [checkedShopStockKeys, setCheckedShopStockKeys] = useState<Set<string>>(
     () => new Set(),
   );
+  const [confirmedStagingLocationIds, setConfirmedStagingLocationIds] =
+    useState<Set<string>>(() => new Set());
   const [cardErrors, setCardErrors] = useState<Map<string, string>>(
     () => new Map(),
   );
@@ -761,6 +811,15 @@ function JobPickupScreen({
         return initial;
       });
       setCheckedShopStockKeys(new Set());
+      setConfirmedStagingLocationIds(() => {
+        const initial = new Set<string>();
+        for (const d of loaded) {
+          for (const locId of d.delivery.pickedUpStagingLocationIds ?? []) {
+            initial.add(locId);
+          }
+        }
+        return initial;
+      });
       setChecked(
         new Set(
           loaded
@@ -840,13 +899,17 @@ function JobPickupScreen({
       });
 
       try {
+        const stagingLocationIds = pickupStagingLocationIdsForDelivery(
+          delivery,
+          confirmedStagingLocationIds,
+        );
         await firestoreDataService.recordPickupEvent(
           deliveryId,
           technicianDisplayName,
           `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
-          undefined,
+          stagingLocationIds,
           pickupToken ?? undefined,
           technicianSessionToken ?? undefined,
         );
@@ -871,7 +934,14 @@ function JobPickupScreen({
         });
       }
     },
-    [notes, pickupToken, technicianSessionToken, technicianDisplayName, refreshPickupDelivery],
+    [
+      notes,
+      pickupToken,
+      technicianSessionToken,
+      technicianDisplayName,
+      refreshPickupDelivery,
+      confirmedStagingLocationIds,
+    ],
   );
 
   const handleMarkInstalled = useCallback(async (deliveryId: string) => {
@@ -947,9 +1017,30 @@ function JobPickupScreen({
     isPickupReady(d.delivery.status),
   );
 
+  const jobStagingLocationEntries = collectJobStagingLocationEntries(
+    pickupQueueDeliveries,
+    allStagingLocations,
+  );
+
+  const allStagingLocationsConfirmed =
+    jobStagingLocationEntries.length === 0 ||
+    jobStagingLocationEntries.every((loc) =>
+      confirmedStagingLocationIds.has(loc.id),
+    );
+
   const readyToFinish =
     pickupQueueDeliveries.length > 0 &&
-    pickupQueueDeliveries.every(isDeliveryChecklistComplete);
+    pickupQueueDeliveries.every(isDeliveryChecklistComplete) &&
+    allStagingLocationsConfirmed;
+
+  const toggleConfirmedStagingLocation = useCallback((locationId: string) => {
+    setConfirmedStagingLocationIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(locationId)) next.delete(locationId);
+      else next.add(locationId);
+      return next;
+    });
+  }, []);
 
   const handleDone = useCallback(async () => {
     if (submittedRef.current || submitting || !readyToFinish) return;
@@ -972,13 +1063,17 @@ function JobPickupScreen({
           operationId = `pickup-${d.delivery.id}-${crypto.randomUUID()}`;
           pickupOperationIds.current.set(d.delivery.id, operationId);
         }
+        const stagingLocationIds = pickupStagingLocationIdsForDelivery(
+          d,
+          confirmedStagingLocationIds,
+        );
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
           technicianDisplayName,
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
-          undefined,
+          stagingLocationIds,
           pickupToken ?? undefined,
           technicianSessionToken ?? undefined,
         );
@@ -999,20 +1094,24 @@ function JobPickupScreen({
     technicianDisplayName,
     readyToFinish,
     submitting,
+    confirmedStagingLocationIds,
   ]);
 
   const handleAutoSubmit = useCallback(async () => {
     if (submittedRef.current || submitting) return;
 
-    const blockedByChecklist = deliveries.some(
-      (d) =>
-        isPickupReady(d.delivery.status) &&
-        !checkedRef.current.has(d.delivery.id) &&
-        !isDeliveryChecklistComplete(d),
-    );
+    const blockedByChecklist =
+      deliveries.some(
+        (d) =>
+          isPickupReady(d.delivery.status) &&
+          !checkedRef.current.has(d.delivery.id) &&
+          !isDeliveryChecklistComplete(d),
+      ) || !allStagingLocationsConfirmed;
     if (blockedByChecklist) {
       setError(
-        "Auto-submit cancelled — check off all staged items and shop stock first.",
+        allStagingLocationsConfirmed
+          ? "Auto-submit cancelled — check off all staged items and shop stock first."
+          : "Auto-submit cancelled — confirm every pickup spot first.",
       );
       setAutoSubmitSecondsLeft(null);
       return;
@@ -1036,13 +1135,17 @@ function JobPickupScreen({
           operationId = `pickup-${d.delivery.id}-${crypto.randomUUID()}`;
           pickupOperationIds.current.set(d.delivery.id, operationId);
         }
+        const stagingLocationIds = pickupStagingLocationIdsForDelivery(
+          d,
+          confirmedStagingLocationIds,
+        );
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
           technicianDisplayName,
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
           operationId,
-          undefined,
+          stagingLocationIds,
           pickupToken ?? undefined,
           technicianSessionToken ?? undefined,
         );
@@ -1063,6 +1166,8 @@ function JobPickupScreen({
     technicianDisplayName,
     submitting,
     isDeliveryChecklistComplete,
+    confirmedStagingLocationIds,
+    allStagingLocationsConfirmed,
   ]);
 
   useEffect(() => {
@@ -1525,7 +1630,8 @@ function JobPickupScreen({
             const canCheckOff =
               isPickupReady(deliveryStatus) &&
               !isChecked &&
-              shopStockComplete;
+              shopStockComplete &&
+              assignedStagingLocationsConfirmed(d, confirmedStagingLocationIds);
 
             return (
               <div
@@ -1974,6 +2080,65 @@ function JobPickupScreen({
         {error && (
           <div className="mb-4 rounded-xl border border-accent-red/30 bg-accent-red/10 px-4 py-3 text-accent-red text-sm">
             {error}
+          </div>
+        )}
+
+        {jobStagingLocationEntries.length > 0 && (
+          <div
+            className="mb-4 rounded-xl border border-border bg-bg-surface px-4 py-3"
+            data-testid="pickup-location-confirm-block"
+          >
+            <p className="mb-3 text-sm font-semibold text-text-primary">
+              Picked up supplies @
+            </p>
+            <div className="space-y-2">
+              {jobStagingLocationEntries.map((loc) => {
+                const confirmed = confirmedStagingLocationIds.has(loc.id);
+                return (
+                  <button
+                    key={loc.id}
+                    type="button"
+                    data-testid="pickup-location-confirm"
+                    data-location-id={loc.id}
+                    data-location-code={loc.code}
+                    data-confirmed={confirmed ? "true" : "false"}
+                    onClick={() => toggleConfirmedStagingLocation(loc.id)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-bg-primary px-3 py-2.5 text-left"
+                  >
+                    <span
+                      className={`shrink-0 ${
+                        confirmed ? "text-accent-green" : "text-text-secondary"
+                      }`}
+                    >
+                      <Svg
+                        d={confirmed ? icons.checkSquare : icons.square}
+                        size={22}
+                      />
+                    </span>
+                    <span
+                      className={`text-sm font-semibold ${
+                        confirmed ? "text-accent-green" : "text-text-primary"
+                      }`}
+                    >
+                      {loc.code}
+                    </span>
+                    {loc.label !== loc.code ? (
+                      <span className="text-xs text-text-secondary truncate">
+                        {loc.label}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            {!allStagingLocationsConfirmed && (
+              <p
+                className="mt-3 text-xs text-text-secondary"
+                data-testid="pickup-location-confirm-hint"
+              >
+                Confirm every pickup spot above before completing pickup.
+              </p>
+            )}
           </div>
         )}
       </div>
