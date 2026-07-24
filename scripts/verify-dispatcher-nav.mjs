@@ -23,6 +23,12 @@ import {
   getEmailReviewHeadlines,
 } from "../src/dispatcher/email/emailReviewHelpers.ts";
 import {
+  assertNoElementOverlap,
+  assertReadableTextContrast,
+  DISPATCHER_TOPBAR_CONTRAST_SPEC,
+  DISPATCHER_TOPBAR_OVERLAP_SPEC,
+} from "./lib/ui-text-contrast-lib.mjs";
+import {
   assertDeliveryDrawerOpen,
   ensureAuthenticated,
   loadEnvLocal,
@@ -365,6 +371,11 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     .waitFor({ timeout: 30_000 });
   await logDeliveryTableDiagnostics(page, { authOutcome });
 
+  console.log("Dispatcher top bar layout + contrast (D-42/D-45)…");
+  await assertNoElementOverlap(page, DISPATCHER_TOPBAR_OVERLAP_SPEC);
+  await assertReadableTextContrast(page, DISPATCHER_TOPBAR_CONTRAST_SPEC);
+  console.log("PASS: dispatcher top bar — no overlap; readable text.");
+
   console.log("Delivery Overview: Delivered summary tile…");
   await assertDeliveredOverviewTiles(page);
 
@@ -414,6 +425,11 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.getByRole("heading", { name: "Staging Map" }).waitFor({
     timeout: 15_000,
   });
+
+  console.log("Staging Map top bar layout + contrast…");
+  await assertNoElementOverlap(page, DISPATCHER_TOPBAR_OVERLAP_SPEC);
+  await assertReadableTextContrast(page, DISPATCHER_TOPBAR_CONTRAST_SPEC);
+  console.log("PASS: Staging Map top bar — no overlap; readable text.");
 
   console.log("Vendor Communications persistent on Staging Map…");
   const vendorCommsOnZones = page.getByTestId("vendor-communications-entry");

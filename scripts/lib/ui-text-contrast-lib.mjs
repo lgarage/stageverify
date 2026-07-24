@@ -247,3 +247,168 @@ export const RELEASED_TO_BADGE_CONTRAST_SPEC = {
     },
   ],
 };
+
+/** Dispatcher portal top bar — breadcrumb, actions, catch-all (D-42/D-45). */
+export const DISPATCHER_TOPBAR_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="dispatcher-portal-topbar"]',
+  elements: [
+    {
+      name: "breadcrumb title",
+      selector: '[data-testid="dispatcher-topbar-breadcrumb"] span:first-child',
+      large: false,
+    },
+    {
+      name: "breadcrumb subtitle",
+      selector: '[data-testid="dispatcher-topbar-breadcrumb"] span:last-child',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "catch-all button",
+      selector: '[data-testid="catch-all-delivery-btn"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "new delivery button",
+      selector: '[data-testid="dispatcher-new-delivery"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "refresh button",
+      selector: '[data-testid="dispatcher-refresh-now"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "last updated",
+      selector: '[data-testid="dispatcher-topbar-last-updated"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "sign out button",
+      selector: '[data-testid="dispatcher-sign-out"]',
+      large: false,
+    },
+  ],
+};
+
+/**
+ * Fail when visible elements' bounding boxes overlap beyond tolerance (layout collisions).
+ * @param {import('playwright').Page} page
+ * @param {{
+ *   containerSelector: string;
+ *   elementSelectors: Array<{ name: string; selector: string; optional?: boolean }>;
+ *   tolerancePx?: number;
+ * }} spec
+ */
+export async function assertNoElementOverlap(page, spec) {
+  const { containerSelector, elementSelectors, tolerancePx = 2 } = spec;
+
+  const result = await page.evaluate(
+    ({ containerSelector, elementSelectors, tolerancePx }) => {
+      const container = document.querySelector(containerSelector);
+      if (!container) return { ok: false, error: `${containerSelector} missing` };
+
+      const boxes = [];
+      for (const item of elementSelectors) {
+        const el = container.querySelector(item.selector);
+        if (!el) {
+          if (item.optional) continue;
+          return { ok: false, error: `${item.name}: element not found (${item.selector})` };
+        }
+        const rect = el.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+          if (item.optional) continue;
+          return { ok: false, error: `${item.name}: zero-size box` };
+        }
+        const style = window.getComputedStyle(el);
+        if (style.visibility === "hidden" || style.display === "none") {
+          if (item.optional) continue;
+        }
+        boxes.push({
+          name: item.name,
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+        });
+      }
+
+      const overlaps = [];
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i];
+          const b = boxes[j];
+          const aContainsB =
+            b.left >= a.left - tolerancePx &&
+            b.right <= a.right + tolerancePx &&
+            b.top >= a.top - tolerancePx &&
+            b.bottom <= a.bottom + tolerancePx;
+          const bContainsA =
+            a.left >= b.left - tolerancePx &&
+            a.right <= b.right + tolerancePx &&
+            a.top >= b.top - tolerancePx &&
+            a.bottom <= b.bottom + tolerancePx;
+          if (aContainsB || bContainsA) continue;
+          const overlapX =
+            Math.min(a.right, b.right) - Math.max(a.left, b.left) > tolerancePx;
+          const overlapY =
+            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > tolerancePx;
+          if (overlapX && overlapY) {
+            overlaps.push(`${a.name} ∩ ${b.name}`);
+          }
+        }
+      }
+
+      if (overlaps.length) {
+        return { ok: false, error: `overlapping elements: ${overlaps.join("; ")}` };
+      }
+      return { ok: true };
+    },
+    { containerSelector, elementSelectors, tolerancePx },
+  );
+
+  if (!result.ok) {
+    throw new Error(`assertNoElementOverlap: ${result.error}`);
+  }
+}
+
+/** Top bar layout — no clipped/overlapping controls on dispatcher + zones. */
+export const DISPATCHER_TOPBAR_OVERLAP_SPEC = {
+  containerSelector: '[data-testid="dispatcher-portal-topbar"]',
+  elementSelectors: [
+    { name: "breadcrumb", selector: '[data-testid="dispatcher-topbar-breadcrumb"]' },
+    {
+      name: "vendor comms",
+      selector: '[data-testid="vendor-communications-entry"]',
+      optional: true,
+    },
+    {
+      name: "catch-all button",
+      selector: '[data-testid="catch-all-delivery-btn"]',
+      optional: true,
+    },
+    {
+      name: "new delivery",
+      selector: '[data-testid="dispatcher-new-delivery"]',
+      optional: true,
+    },
+    {
+      name: "refresh",
+      selector: '[data-testid="dispatcher-refresh-now"]',
+      optional: true,
+    },
+    {
+      name: "last updated",
+      selector: '[data-testid="dispatcher-topbar-last-updated"]',
+      optional: true,
+    },
+    {
+      name: "sign out",
+      selector: '[data-testid="dispatcher-sign-out"]',
+    },
+  ],
+};

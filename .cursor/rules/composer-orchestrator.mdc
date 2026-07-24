@@ -64,16 +64,17 @@ Fix all TypeScript errors before declaring the task done. Never report success w
 
 ## UI Verification Protocol (visible UI changes) — MANDATORY
 
-**Never tell Dan a UI/UX fix is done until Playwright verification passes.** `npm run build` alone is not enough.
+**Never tell Dan a UI/UX fix is done until Playwright verification passes AND Grok UI Playwright Verifier returns PASS (D-45).** `npm run build` alone is not enough. Composer runs verify scripts to iterate; Grok owns Playwright judgment + file:line fix instructions on FAIL; same Grok re-verifies until PASS (fix-closure).
 
 For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affects what the user sees in the browser, run Playwright verification **in addition to** the build gate.
 
 ### Completion gate (required before "fixed" / commit / deploy)
 
 1. **Build** — `npm run build` clean.
-2. **Playwright** — exercise the changed UI (see below). Must pass locally; run `:prod` after `npm run deploy` when the fix is user-facing on gh-pages.
-3. **Readable text / contrast (D-42)** — every visible UI edit must include a mechanical assert that affected text is readable (WCAG contrast + fail on white-on-white), not screenshot-only. Reuse `scripts/lib/ui-text-contrast-lib.mjs` (`assertReadableTextContrast`) in route verifies; Settings Technicians: `npm run verify:settings-technicians`.
-4. **Only then** — commit, push, deploy, and report success.
+2. **Playwright** — Composer runs the affected route `verify:*` (see below). Must pass locally; run `:prod` after `npm run deploy` when the fix is user-facing on gh-pages.
+3. **Grok UI Playwright Verifier (D-45)** — Grok runs/re-runs the same verify script(s), confirms D-42 contrast/overlap asserts, returns PASS or file:line fix list. Composer fixes on FAIL; same Grok re-verifies (max 3 cycles). **PASS required before commit.**
+4. **Readable text / contrast (D-42)** — every visible UI edit must include a mechanical assert that affected text is readable (WCAG contrast + fail on white-on-white) and layout overlap asserts where header/toolbar collisions are plausible. Reuse `scripts/lib/ui-text-contrast-lib.mjs` (`assertReadableTextContrast`, `assertNoElementOverlap`) in route verifies; Settings Technicians: `npm run verify:settings-technicians`; dispatcher top bar: `verify:dispatcher-nav`.
+5. **Only then** — Grok Build Checker PASS → commit, push, deploy, and report success.
 
 If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify first.
 
@@ -81,7 +82,7 @@ If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify f
 
 | Change type | Playwright requirement |
 |-------------|------------------------|
-| Layout, colors, copy, visibility | Route verify with `assertReadableTextContrast` (D-42) on changed selectors; screenshots optional supplement |
+| Layout, colors, copy, visibility | Route verify with `assertReadableTextContrast` + `assertNoElementOverlap` (D-42/D-45) on changed selectors; Grok UI Playwright Verifier PASS before commit |
 | Buttons, forms, checkboxes, multi-step flows | **Interactive script** — click/type through the real flow; assert end state (not screenshot-only) |
 | Pickup portal | `npm run verify:pickup` (+ `verify:pickup:prod` after deploy) |
 | Other routes (no script yet) | Add or extend a `scripts/verify-<route>.mjs` that performs the critical clicks; run it before declaring done |

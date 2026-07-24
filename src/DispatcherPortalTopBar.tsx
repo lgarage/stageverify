@@ -57,10 +57,12 @@ export function DispatcherPortalTopBar({
         padding: "0 20px",
         boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
         display: "grid",
-        gridTemplateColumns: "360px max-content minmax(0, 1fr) auto",
+        gridTemplateColumns:
+          "minmax(120px, 220px) max-content minmax(0, 1fr) max-content",
         alignItems: "center",
         columnGap: 12,
         minWidth: 0,
+        overflow: "hidden",
       }}
     >
       <div
@@ -74,14 +76,35 @@ export function DispatcherPortalTopBar({
       >
         <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>{title}</span>
         {subtitle ? (
-          <span style={{ color: "#9ca3af", fontSize: 13 }}> / {subtitle}</span>
+          <span style={{ color: "#6b7280", fontSize: 13 }}> / {subtitle}</span>
         ) : null}
       </div>
-      <VendorCommunicationsTopBarEntry />
-      <CatchAllDeliveryTopBarEntry />
-      <div style={{ minWidth: 0, display: "flex", alignItems: "center" }}>{headerExtra}</div>
-      <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
+      <div
+        data-testid="dispatcher-topbar-middle"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
+        <VendorCommunicationsTopBarEntry />
+        {headerExtra}
+      </div>
+      <div aria-hidden="true" style={{ minWidth: 0 }} />
+      <div
+        data-testid="dispatcher-topbar-actions"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 8,
+          flexShrink: 0,
+          flexWrap: "nowrap",
+        }}
+      >
         <DispatcherPortalLinks />
+        <CatchAllDeliveryTopBarEntry />
         {showNewDelivery ? (
           <button
             type="button"
@@ -114,7 +137,7 @@ export function DispatcherPortalTopBar({
               borderRadius: 4,
               border: `1.5px solid ${NAVY}`,
               backgroundColor: refreshBusy || refreshDisabled ? "#f3f4f6" : "#fff",
-              color: refreshBusy || refreshDisabled ? "#9ca3af" : NAVY,
+              color: refreshBusy || refreshDisabled ? "#374151" : NAVY,
               fontWeight: 700,
               fontSize: 12,
               cursor: refreshBusy || refreshDisabled ? "not-allowed" : "pointer",
@@ -139,7 +162,19 @@ export function DispatcherPortalTopBar({
           </span>
         ) : null}
         {lastUpdated !== undefined ? (
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
+          <div
+            data-testid="dispatcher-topbar-last-updated"
+            style={{
+              fontSize: 12,
+              color: "#6b7280",
+              whiteSpace: "nowrap",
+              flexShrink: 1,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: 180,
+            }}
+          >
             Last updated:{" "}
             <span style={{ fontWeight: 600, color: "#374151" }}>
               {lastUpdated ?? "Loading…"}
@@ -148,6 +183,7 @@ export function DispatcherPortalTopBar({
         ) : null}
         <button
           type="button"
+          data-testid="dispatcher-sign-out"
           onClick={() => signOutWithConfirm(auth, navigate)}
           style={{
             padding: "5px 12px",

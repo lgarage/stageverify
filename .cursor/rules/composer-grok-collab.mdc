@@ -12,11 +12,12 @@ alwaysApply: true
 | Phase | Who | What |
 |-------|-----|------|
 | **1 — Agree** | Composer proposes → Grok **Solution Verifier** | Peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
-| **2 — Implement** | **Composer only** | Code, local build, `verify:*` / Playwright. Grok never implements. |
+| **2 — Implement** | **Composer only** | Code, local build. Grok never implements. |
+| **2b — UI verify** | Grok **UI Playwright Verifier** | On visible UI edits (`src/`): Grok runs (or re-runs) the affected route `verify:*` + D-42 contrast/overlap asserts; **PASS required before commit**. FAIL → Grok returns **file:line fix list** → Composer fixes → **same Grok** re-verifies (fix-closure, max 3 cycles). Distinct from Build Checker (diff-vs-scope). |
 | **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
 | **4 — Ship + verify** | **Composer only** → Grok | After Build Checker PASS: **Composer** runs commit + push + deploy (`ship-loop.mdc`); then Grok **Ship Verifier** post-push (+ **Repair Verifier** on repair intent). Sonnet security gate unchanged for high-risk paths. |
 
-Plain language: **deliberate → Grok agrees → Composer builds → Grok checks before commit → Composer commit/push/deploy → Grok Ship Verifier.**
+Plain language: **deliberate → Grok agrees → Composer builds → Grok UI Playwright PASS (UI only) → Grok Build Checker PASS → Composer commit/push/deploy → Grok Ship Verifier.**
 
 **Ship lock (hard STOP):** Grok **never** commits, pushes, deploys, or runs the ship loop — read-only verify lanes only.
 
@@ -34,17 +35,19 @@ Pain: a Grok parent forked itself (`resume: "self"`) and started implementing pr
 - **Default:** Dan work directives / planned code changes that are substantive (T1+ feature work, multi-file, branching approach) — see D-36 trigger in `model-gates.mdc`.
 - **Skips for Phase 1 Solution Verifier** (unchanged — do not erase): T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed. Label with `solution-verifier: N/A (<reason>)`.
 - **Phase 3 Pre-commit check** still runs on substantive ships even when Phase 1 was skipped for T0 **if** the final uncommitted diff is multi-file or clearly branching (same post-hoc falsifiability as Ship Verifier). Pure T0 single-file unambiguous → `build-checker: N/A (T0 single-file unambiguous)`.
+- **Phase 2b UI Playwright Verifier** runs on any visible UI edit in `src/` (same trigger as D-42/D-45) — even when Solution Verifier was skipped for T0. Non-UI ships → `ui-playwright-verifier: N/A (no visible UI)`.
 
 ## Evidence (mandatory)
 
 | Phase | Report line |
 |-------|-------------|
 | 1 | `solution-verifier: <task-id>` or `solution-verifier: N/A (<reason>)` |
+| 2b | `ui-playwright-verifier: <task-id>` + verdict **PASS** before commit — or `ui-playwright-verifier: N/A (<skip reason>)` |
 | 3 | `build-checker: <task-id>` + verdict **PASS** before commit — or `build-checker: N/A (<skip reason>)` |
 | 4 | `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` |
 
-Missing a required line when its trigger fired = **NOT RUN**. Do **not** commit while Phase 3 is NOT RUN or FAIL.
+Missing a required line when its trigger fired = **NOT RUN**. Do **not** commit while Phase 2b or Phase 3 is NOT RUN or FAIL.
 
 ## Authority
 
-Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § Build Checker (pre-commit), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder beyond the phases above.
+Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § UI Playwright Verifier (D-45), § Build Checker (pre-commit), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder beyond the phases above.

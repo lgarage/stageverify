@@ -30,7 +30,7 @@ alwaysApply: true
 
 ## Platform parity (D-20 — all Composer sessions)
 
-`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A/Solution/Build-Checker verifiers (§ Solution deliberation, D-36/D-43), evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
+`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A/Solution/Build-Checker/**UI-Playwright** verifiers (§ Solution deliberation, D-36/D-43/D-45), evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
 
 Mechanical evidence gate identical across clients — CI gate-check on PRs; local pre-push hook auto-installed by npm `prepare` blocks high-risk direct-to-main pushes without commit-message evidence (D-28/D-29).
 
@@ -130,6 +130,7 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 1e (cheap) | Grok 4.5 Fast — **Q&A Verifier** | Pre-present accuracy of non-trivial Q&A answers | Non-trivial Q&A (§ Q&A verify loop); Dan standing preference |
 | 1f (cheap) | Grok 4.5 Fast — **Solution Verifier** | Pre-implementation solution/approach agreement on Dan work directives | Substantive work directive (§ Solution deliberation, D-36) |
 | 1g (cheap) | Grok 4.5 Fast — **Build Checker** | Pre-commit check that Composer's uncommitted diff matches agreed solution + scope | After Composer implement, **before** `git commit` (§ Solution deliberation Phase 3 / D-43) |
+| 1h (cheap) | Grok 4.5 Fast — **UI Playwright Verifier** | Pre-commit Playwright judgment on visible UI edits — runs/re-runs route verify + D-42 contrast/overlap; FAIL → file:line fix list for Composer | Any visible UI edit in `src/` before commit (§ UI Playwright Verifier, D-45) |
 | 2 (security) | Sonnet 4.6 | Security gate per `security-review-gate.mdc` — unchanged | Existing triggers, PLUS Ship Verifier flags a security-relevant diff shipped without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 
@@ -139,7 +140,7 @@ Evidence standard (every tier): Task id + model line in the report, else **NOT R
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
-When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, Solution Verifier/Grok, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, Solution Verifier/Grok, **UI Playwright Verifier/Grok**, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
 
 ### Peer deliberation (D-30 — Dan 2026-07-12)
 
@@ -250,16 +251,17 @@ Task({
 
 ### Solution deliberation (D-36 — Dan 2026-07-13; standing default D-43)
 
-**Standing default (D-43, amended 2026-07-23):** For substantive work / real feature code: Composer proposes → Grok Solution Verifier agrees → **Composer only** implements → Grok **Build Checker** PASSes on the **uncommitted** diff **before commit** → **Composer only** commit + push + deploy → Grok Ship Verifier post-push. Grok **never** commits, pushes, or deploys. See `.cursor/rules/composer-grok-collab.mdc`.
+**Standing default (D-43, amended 2026-07-23):** For substantive work / real feature code: Composer proposes → Grok Solution Verifier agrees → **Composer only** implements → Grok **UI Playwright Verifier** PASS (visible UI only, D-45) → Grok **Build Checker** PASSes on the **uncommitted** diff **before commit** → **Composer only** commit + push + deploy → Grok Ship Verifier post-push. Grok **never** commits, pushes, or deploys. See `.cursor/rules/composer-grok-collab.mdc`.
 
 **Implementer lock:** Non-Composer parents MUST `Task` Composer (`model: "composer-2.5-fast"`) for product/code implementation — never inline edits and never `resume: "self"` for a build (D-37 / D-43). Composer parents may implement inline after Agree.
 
 **Trigger:** Dan gives a direct **work directive** ("build X", "change Y", "add Z") whose diff would qualify as a **substantive ship** under the Ship Verifier path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`) **and** the work is T1+, multi-file, or has a branching approach — i.e. a real solution choice exists. Symmetric with the post-ship gate. **When in doubt on real feature work, run Solution Verifier — do not skip by default.**
 
-**Flow (four phases — one ladder):**
+**Flow (one ladder — phases 1–4 plus 2b for UI):**
 
 1. **Agree (pre-edit):** Composer drafts a brief **solution proposal** (approach, files to touch, risks, alternative considered) → dispatches one read-only Grok **Solution Verifier** → peer deliberation per § Peer deliberation (D-30) / § Question deliberation (D-33) mechanics (adopt/rebut/explicit accept-reject) → **implement only the AGREED solution**. **Max 2 cycles**; still unresolved → **stop and present BOTH positions to Dan** (per § Peer deliberation — never implement through unresolved disagreement); architectural disagreement → escalate per the ladder (Sonnet/Fable).
-2. **Implement:** Composer only — code, build, local verify. Grok never implements.
+2. **Implement:** Composer only — code, build. Grok never implements. Composer may run `verify:*` locally to iterate; **Composer never self-closes UI Playwright findings** (D-45).
+2b. **UI Playwright check (UI Playwright Verifier — D-45):** When diff includes visible UI in `src/`, dispatch one Grok Task that **runs or re-runs** the affected route `verify:*` (Playwright + D-42 `assertReadableTextContrast` / layout overlap asserts). **PASS required before commit.** FAIL → Grok returns **file:line fix list** (exact change, why) → Composer fixes only → **same Grok** re-verifies (max 3 cycles) per § Fix-closure. Orthogonal to Build Checker (Playwright judgment vs diff-vs-scope). Skip when no visible UI → `ui-playwright-verifier: N/A (no visible UI)`.
 3. **Pre-commit check (Build Checker):** Before `git commit`, Composer dispatches one read-only Grok Task on the **uncommitted** diff vs agreed solution + scope. **PASS required to commit.** FAIL → Composer fixes → same Grok re-checks (max 2 cycles) per § Fix-closure; still FAIL → Dan. Missing `build-checker:` when triggered = **NOT RUN** — do not commit.
 4. **Ship + verify:** After Build Checker PASS, **Composer only** runs commit + push + deploy per `ship-loop.mdc` (Grok never ships); then Grok **Ship Verifier** post-push (prompt includes agreed-solution summary; verifies execution matched agreement); Repair Verifier on Dan repair intent. Ship Verifier must flag any `solution-verifier: N/A (T0 single-file unambiguous)` claim whose final diff is multi-file or clearly branching (post-hoc falsifiable skip — a dodge is a FAIL finding).
 
@@ -273,7 +275,7 @@ Task({
 
 **Build Checker skips** (`build-checker: N/A (<reason>)`): same T0 single-file unambiguous / excluded-paths / repair-owned as above; if Phase 1 was skipped as T0 but the uncommitted diff is multi-file or branching → Build Checker **must** run (falsify the skip).
 
-**Evidence (mandatory on substantive work completions):** `solution-verifier:` + `build-checker:` (or N/A reasons) + `ship-verifier:` (or N/A). Missing a required line when its trigger fired = **NOT RUN**.
+**Evidence (mandatory on substantive work completions):** `solution-verifier:` + `ui-playwright-verifier:` (or N/A) + `build-checker:` (or N/A reasons) + `ship-verifier:` (or N/A). Missing a required line when its trigger fired = **NOT RUN**.
 
 **Dispatch (Solution Verifier):**
 
@@ -298,6 +300,32 @@ Task({
   prompt: "…agreed solution summary, git status/diff (uncommitted), verify script names PASS… Diff matches agreed solution + scope? Extra files? Missing pieces? PASS | FAIL + exact fix list."
 })
 ```
+
+### UI Playwright Verifier (D-45 — Dan 2026-07-23)
+
+**Trigger:** any ship-cycle diff with **visible UI** edits in `src/` (layout, copy, colors, components users see) — same surface class as D-42. Extends D-42: mechanical Playwright is necessary but **not sufficient**; Grok owns PASS/FAIL judgment and fix instructions.
+
+**Flow:** Composer implements + build → Grok **UI Playwright Verifier** runs (or re-runs) the affected route `verify:*` script(s) including D-42 contrast and layout overlap asserts where applicable → PASS → proceed to Build Checker → commit. FAIL → Grok returns **specific fix list** (`file:line`, exact change, why) → **Composer only** fixes → **same Grok** re-runs verify until PASS (max 3 cycles) per § Fix-closure. Composer never self-closes UI Playwright findings.
+
+**Distinct from Build Checker (1g):** UI Playwright = **did Playwright prove the UI is correct?** Build Checker = **does uncommitted diff match agreed solution + scope?** Distinct from Ship Verifier (post-push scope). Distinct from Repair Verifier unless Dan repair intent on UI.
+
+**Skips:** no visible UI in diff → `ui-playwright-verifier: N/A (no visible UI)`; docs/rules-only ships.
+
+**Dispatch:**
+
+```text
+Task({
+  subagent_type: "generalPurpose",
+  model: "cursor-grok-4.5-high-fast",
+  readonly: true,
+  description: "UI Playwright verifier",
+  prompt: "…visible UI change summary, affected verify script names… Run npm run verify:<route> (and :prod when post-deploy). On FAIL: return file:line fix list for Composer — no implementation. On PASS: confirm D-42 contrast/overlap asserts ran. PASS | FAIL + exact fix list."
+})
+```
+
+**Evidence (mandatory on UI ships before commit):** `ui-playwright-verifier: <task-id>` + `model: cursor-grok-4.5-high-fast` + verdict **PASS**; `fix-verified: <re-verify task-id>` when Grok flagged issues and Composer revised. Missing Task id when trigger fired = **NOT RUN** — do not commit UI ships.
+
+**Platform parity:** D-20/D-32 — identical on desktop, mobile Cursor, cloud VM.
 
 ## Ship Verifier auto-invoke (Grok — Dan 2026-07-08)
 
