@@ -30,9 +30,12 @@ import {
   withHiddenSlots,
   withYouAreHere,
   withDoor,
+  withCatchAllMarker,
   resolveYouAreHereMarker,
   resolveDoorMarker,
+  resolveCatchAllMarker,
   doorHeightFromWidth,
+  CATCH_ALL_MIN_SIZE,
   DOOR_DEFAULT_SIZE_PX,
   DOOR_MIN_SIZE_PX,
   DOOR_MAX_SIZE_PX,
@@ -44,6 +47,7 @@ import {
   type ShopMapShelfUnit,
   type YouAreHereMarker,
   type DoorMarker,
+  type CatchAllMarker,
 } from "./dispatcher/shopMapLayout";
 import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
 import {
@@ -116,13 +120,9 @@ type Props = {
   onAssignSpotRefused?: (message: string) => void;
   /** Deep-link highlight — scroll to and outline matching spot (e.g. from drawer chip). */
   focusSpotCode?: string | null;
-  /** Designated catch-all staging location doc id (appSettings). */
-  catchAllStagingLocationId?: string | null;
   /** Packages awaiting management check-in at catch-all. */
   catchAllPendingCount?: number;
-  /** Set catch-all spot from map edit (syncs Settings). */
-  onDesignateCatchAll?: (zoneId: string) => Promise<void>;
-  /** Add ground spot + designate as catch-all intake. */
+  /** Add catch-all map box + backend zone (Settings sync). */
   onAddCatchAllSpot?: () => Promise<void>;
 };
 
@@ -152,6 +152,7 @@ type UndoFrame = {
   pendingHidden: string[];
   pendingYouAreHere: YouAreHereMarker | null;
   pendingDoor: DoorMarker | null;
+  pendingCatchAll: CatchAllMarker | null;
   editLabel: string;
   editCode: string;
   editOffsetX: number;
@@ -308,9 +309,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       onAssignSpotClick,
       onAssignSpotRefused,
       focusSpotCode = null,
-      catchAllStagingLocationId = null,
       catchAllPendingCount = 0,
-      onDesignateCatchAll,
       onAddCatchAllSpot,
     },
     ref,
@@ -320,6 +319,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const [pendingYouAreHere, setPendingYouAreHere] =
     useState<YouAreHereMarker | null>(null);
   const [pendingDoor, setPendingDoor] = useState<DoorMarker | null>(null);
+  const [pendingCatchAll, setPendingCatchAll] =
+    useState<CatchAllMarker | null>(null);
   const formatLastEdited = () =>
     new Date().toLocaleString(undefined, {
       dateStyle: "short",
@@ -354,6 +355,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       rotationDeg: 0,
     };
   const door = pendingDoor ?? persistedDoor;
+  const persistedCatchAll: CatchAllMarker | undefined =
+    resolveCatchAllMarker(layout.extras);
+  const catchAllMarker = pendingCatchAll ?? persistedCatchAll;
   const doorHeightPx = doorHeightFromWidth(door.sizePx);
   /** Drag/resize only while editing inside Vendor view (marker visibility is CSS). */
   const canEditYouAreHere = editMode && vendorView;
@@ -389,9 +393,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const [sizeInputDraft, setSizeInputDraft] = useState("");
   const [editRotationDeg, setEditRotationDeg] = useState(0);
   const [editLabelRotationDeg, setEditLabelRotationDeg] = useState(0);
-  const [editCatchAllChecked, setEditCatchAllChecked] = useState(false);
-  const [catchAllDesignationDirty, setCatchAllDesignationDirty] =
-    useState(false);
   const [pendingRotations, setPendingRotations] = useState<
     Record<string, number>
   >({});
@@ -461,14 +462,35 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     baseRotationDeg: number;
     undoPushed: boolean;
   } | null>(null);
+  const catchAllDragRef = useRef<{
+    startX: number;
+    startY: number;
+    baseOx: number;
+    baseOy: number;
+    baseWidth: number;
+    baseHeight: number;
+    undoPushed: boolean;
+  } | null>(null);
+  const catchAllResizeRef = useRef<{
+    startX: number;
+    startY: number;
+    baseWidth: number;
+    baseHeight: number;
+    baseOx: number;
+    baseOy: number;
+    undoPushed: boolean;
+  } | null>(null);
   useEffect(() => {
     if (!editMode) {
       setPendingYouAreHere(null);
       setPendingDoor(null);
+      setPendingCatchAll(null);
       yahDragRef.current = null;
       yahResizeRef.current = null;
       doorDragRef.current = null;
       doorResizeRef.current = null;
+      catchAllDragRef.current = null;
+      catchAllResizeRef.current = null;
     }
   }, [editMode]);
   const marqueeRef = useRef<{
@@ -485,15 +507,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     (layoutSlot: string) =>
       zonesByLayoutSlot[normalizeStagingCodeKey(layoutSlot)],
     [zonesByLayoutSlot],
-  );
-
-  const isCatchAllLayoutSlot = useCallback(
-    (layoutSlot: string): boolean => {
-      if (!catchAllStagingLocationId) return false;
-      const zone = zoneForLayoutSlot(layoutSlot);
-      return zone?.id === catchAllStagingLocationId;
-    },
-    [catchAllStagingLocationId, zoneForLayoutSlot],
   );
 
   const displayCodeForSlot = useCallback(
@@ -533,6 +546,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     yahResizeRef.current = null;
     doorDragRef.current = null;
     doorResizeRef.current = null;
+    catchAllDragRef.current = null;
+    catchAllResizeRef.current = null;
     marqueeRef.current = null;
   };
 
@@ -750,6 +765,110 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     doorResizeRef.current = null;
   };
 
+  const onCatchAllPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editMode || !catchAllMarker) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-testid="shop-map-catch-all-resize-handle"]')) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    catchAllDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseOx: catchAllMarker.ox,
+      baseOy: catchAllMarker.oy,
+      baseWidth: catchAllMarker.width,
+      baseHeight: catchAllMarker.height,
+      undoPushed: false,
+    };
+  };
+
+  const onCatchAllPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editMode || !catchAllDragRef.current) return;
+    const { startX, startY, baseOx, baseOy, baseWidth, baseHeight } =
+      catchAllDragRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (
+      !catchAllDragRef.current.undoPushed &&
+      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+    ) {
+      pushUndo();
+      catchAllDragRef.current.undoPushed = true;
+    }
+    setPendingCatchAll({
+      ox: baseOx + Math.round(dx),
+      oy: baseOy + Math.round(dy),
+      width: baseWidth,
+      height: baseHeight,
+    });
+  };
+
+  const onCatchAllPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!catchAllDragRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    catchAllDragRef.current = null;
+  };
+
+  const onCatchAllResizePointerDown = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!editMode || !catchAllMarker) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    catchAllResizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseWidth: catchAllMarker.width,
+      baseHeight: catchAllMarker.height,
+      baseOx: catchAllMarker.ox,
+      baseOy: catchAllMarker.oy,
+      undoPushed: false,
+    };
+  };
+
+  const onCatchAllResizePointerMove = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!editMode || !catchAllResizeRef.current) return;
+    const { startX, startY, baseWidth, baseHeight, baseOx, baseOy } =
+      catchAllResizeRef.current;
+    const dw = e.clientX - startX;
+    const dh = e.clientY - startY;
+    if (
+      !catchAllResizeRef.current.undoPushed &&
+      (dw !== 0 || dh !== 0)
+    ) {
+      pushUndo();
+      catchAllResizeRef.current.undoPushed = true;
+    }
+    setPendingCatchAll({
+      ox: baseOx,
+      oy: baseOy,
+      width: Math.max(CATCH_ALL_MIN_SIZE, baseWidth + Math.round(dw)),
+      height: Math.max(CATCH_ALL_MIN_SIZE, baseHeight + Math.round(dh)),
+    });
+  };
+
+  const onCatchAllResizePointerUp = (
+    e: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!catchAllResizeRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    catchAllResizeRef.current = null;
+  };
+
   const readOffset = useCallback(
     (layoutSlot: string): { ox: number; oy: number } => {
       const pending = pendingOffsets[layoutSlot];
@@ -949,13 +1068,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setEditHeight(height);
       setEditRotationDeg(rotationDeg);
       setEditLabelRotationDeg(labelRotationDeg);
-      setEditCatchAllChecked(
-        Boolean(
-          catchAllStagingLocationId &&
-            zone?.id === catchAllStagingLocationId,
-        ),
-      );
-      setCatchAllDesignationDirty(false);
       setSizeInputFocus(null);
       // Snapshot displayed state once when edit starts on this slot (Cancel baseline).
       if (!editSessionBySlotRef.current[layoutSlot]) {
@@ -989,7 +1101,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       editLabel,
       editRotationDeg,
       editLabelRotationDeg,
-      catchAllStagingLocationId,
     ],
   );
 
@@ -1027,6 +1138,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         ? { ...pendingYouAreHere }
         : null,
       pendingDoor: pendingDoor ? { ...pendingDoor } : null,
+      pendingCatchAll: pendingCatchAll ? { ...pendingCatchAll } : null,
       editLabel,
       editCode,
       editOffsetX,
@@ -1047,6 +1159,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingHidden,
     pendingYouAreHere,
     pendingDoor,
+    pendingCatchAll,
     selectedLayoutSlot,
     selectedSlots,
     editLabel,
@@ -1094,6 +1207,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       frame.pendingYouAreHere ? { ...frame.pendingYouAreHere } : null,
     );
     setPendingDoor(frame.pendingDoor ? { ...frame.pendingDoor } : null);
+    setPendingCatchAll(
+      frame.pendingCatchAll ? { ...frame.pendingCatchAll } : null,
+    );
     setEditLabel(frame.editLabel);
     setEditCode(frame.editCode);
     setEditOffsetX(frame.editOffsetX);
@@ -1306,17 +1422,18 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ]);
     const yahPending = pendingYouAreHere !== null;
     const doorPending = pendingDoor !== null;
+    const catchAllPending = pendingCatchAll !== null;
     if (
       slotsToSave.size === 0 &&
       pendingHidden.length === 0 &&
       !yahPending &&
       !doorPending &&
-      !catchAllDesignationDirty
+      !catchAllPending
     ) {
       return true;
     }
     if (
-      (pendingHidden.length > 0 || yahPending || doorPending) &&
+      (pendingHidden.length > 0 || yahPending || doorPending || catchAllPending) &&
       !onPersistLayoutExtras
     ) {
       return false;
@@ -1326,7 +1443,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setSaveError(null);
     try {
       if (
-        (pendingHidden.length > 0 || yahPending || doorPending) &&
+        (pendingHidden.length > 0 || yahPending || doorPending || catchAllPending) &&
         onPersistLayoutExtras
       ) {
         let nextExtras: ShopMapLayoutExtras = layoutProp?.extras ??
@@ -1355,31 +1472,21 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         if (doorPending && pendingDoor) {
           nextExtras = withDoor(nextExtras, pendingDoor);
         }
+        if (catchAllPending && pendingCatchAll) {
+          nextExtras = withCatchAllMarker(nextExtras, pendingCatchAll);
+        }
         await onPersistLayoutExtras(nextExtras);
         if (pendingHidden.length > 0 && onDeactivateSlots) {
           await onDeactivateSlots(pendingHidden);
         }
       }
       if (!onSaveZone && slotsToSave.size === 0) {
-        if (
-          catchAllDesignationDirty &&
-          onDesignateCatchAll &&
-          primarySlot &&
-          selectedSlots.length <= 1 &&
-          !isShelfUnitCode(primarySlot) &&
-          editCatchAllChecked
-        ) {
-          const zone = zoneForLayoutSlot(primarySlot);
-          if (zone?.id) {
-            await onDesignateCatchAll(zone.id);
-          }
-        }
         setPendingHidden([]);
         setPendingYouAreHere(null);
         setPendingDoor(null);
+        setPendingCatchAll(null);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
-        setCatchAllDesignationDirty(false);
         return true;
       }
       if (slotsToSave.size > 0 && !onSaveZone) return false;
@@ -1474,20 +1581,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         });
         }
       }
-      if (
-        catchAllDesignationDirty &&
-        onDesignateCatchAll &&
-        primarySlot &&
-        selectedSlots.length <= 1 &&
-        !isShelfUnitCode(primarySlot) &&
-        editCatchAllChecked
-      ) {
-        const zone = zoneForLayoutSlot(primarySlot);
-        if (zone?.id) {
-          await onDesignateCatchAll(zone.id);
-        }
-        setCatchAllDesignationDirty(false);
-      }
       for (const slot of slotsToSave) {
         delete editSessionBySlotRef.current[slot];
       }
@@ -1501,6 +1594,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingHidden([]);
       setPendingYouAreHere(null);
       setPendingDoor(null);
+      setPendingCatchAll(null);
       undoStackRef.current = [];
       setUndoDepth(0);
       return true;
@@ -1536,9 +1630,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     layoutProp,
     layout,
     zoneForLayoutSlot,
-    catchAllDesignationDirty,
-    editCatchAllChecked,
-    onDesignateCatchAll,
   ]);
 
   useImperativeHandle(
@@ -1975,7 +2066,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const shelfUnit = !ground ? shelfUnitForSpot(layoutSlot) : null;
     const labelRot = shelfUnit ? readLabelRotation(shelfUnit) : 0;
     const spotLabel = displayCodeForSlot(layoutSlot);
-    const catchAllSpot = isCatchAllLayoutSlot(layoutSlot);
     const offset = absoluteBase
       ? { left: absoluteBase.left + ox, top: absoluteBase.top + oy }
       : { left: ox, top: oy };
@@ -1995,10 +2085,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             spotElRefs.current[layoutSlot] = el;
           }}
           data-testid={`shop-spot-${layoutSlot}`}
-          data-spot-color={catchAllSpot ? "catch-all" : colorOf(layoutSlot)}
-          data-spot-catch-all={catchAllSpot ? "true" : undefined}
-          data-catch-all-count={catchAllSpot ? catchAllPendingCount : undefined}
-          data-spot-focused={spotFocused ? "true" : undefined}
+          data-spot-color={colorOf(layoutSlot)}
           data-map-offset-x={ox}
           data-map-offset-y={oy}
           data-map-width={width}
@@ -2006,13 +2093,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           data-map-rotation-deg={rotationDeg}
           style={{
             ...spotStyle(colorOf(layoutSlot), ground, width, height),
-            ...(catchAllSpot
-              ? {
-                  backgroundColor: CATCH_ALL_SPOT_BG,
-                  color: CATCH_ALL_SPOT_FG,
-                  border: `2px solid ${CATCH_ALL_SPOT_BORDER}`,
-                }
-              : {}),
             position: "absolute",
             zIndex,
             ...offset,
@@ -2048,40 +2128,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           onPointerMove={onDragPointerMove}
           onPointerUp={onDragPointerUp}
         >
-          {catchAllSpot && !editMode ? (
-            <span
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                lineHeight: 1.05,
-                gap: 1,
-                maxWidth: "100%",
-              }}
-            >
-              <span
-                data-testid="shop-spot-catch-all-label"
-                style={{
-                  fontSize: ground ? 9 : 8,
-                  fontWeight: 700,
-                  color: CATCH_ALL_SPOT_FG,
-                }}
-              >
-                Catch-all
-              </span>
-              <span
-                data-testid="catch-all-pending-count"
-                style={{
-                  fontSize: ground ? 13 : 11,
-                  fontWeight: 800,
-                  color: CATCH_ALL_SPOT_FG,
-                }}
-              >
-                {catchAllPendingCount}
-              </span>
-            </span>
-          ) : shelfUnit ? (
+          {shelfUnit ? (
             <span
               data-map-label-rotation-deg={labelRot}
               style={{
@@ -2362,7 +2409,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               Add ground spot
             </button>
           )}
-          {onAddCatchAllSpot && (
+          {onAddCatchAllSpot && !catchAllMarker && (
             <button
               type="button"
               data-testid="shop-map-add-catch-all"
@@ -2370,7 +2417,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               onClick={() => void runAdd(onAddCatchAllSpot)}
               style={addLayoutBtnStyle}
             >
-              Add catch-all spot
+              Add catch-all location
             </button>
           )}
           {onAddShelf && (
@@ -2436,6 +2483,93 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               zIndex: 20,
             }}
           />
+        )}
+        {catchAllMarker && (
+          <div
+            className="shop-map-catch-all"
+            data-testid="shop-map-catch-all"
+            data-spot-catch-all="true"
+            data-map-offset-x={catchAllMarker.ox}
+            data-map-offset-y={catchAllMarker.oy}
+            data-map-width={catchAllMarker.width}
+            data-map-height={catchAllMarker.height}
+            title={
+              editMode
+                ? "Drag to place catch-all intake; drag blue corner to resize; then Save"
+                : undefined
+            }
+            onPointerDown={onCatchAllPointerDown}
+            onPointerMove={onCatchAllPointerMove}
+            onPointerUp={onCatchAllPointerUp}
+            style={{
+              position: "absolute",
+              left: catchAllMarker.ox,
+              top: catchAllMarker.oy,
+              width: catchAllMarker.width,
+              height: catchAllMarker.height,
+              boxSizing: "border-box",
+              backgroundColor: CATCH_ALL_SPOT_BG,
+              color: CATCH_ALL_SPOT_FG,
+              border: `2px solid ${CATCH_ALL_SPOT_BORDER}`,
+              borderRadius: 4,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1.05,
+              gap: 1,
+              fontFamily: FONT,
+              userSelect: "none",
+              cursor: editMode ? "grab" : "default",
+              touchAction: "none",
+              outline: editMode ? "2px dashed #2563eb" : undefined,
+              outlineOffset: 2,
+              zIndex: 6,
+            }}
+          >
+            <span
+              data-testid="shop-spot-catch-all-label"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: CATCH_ALL_SPOT_FG,
+              }}
+            >
+              Catch-all
+            </span>
+            <span
+              data-testid="catch-all-pending-count"
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: CATCH_ALL_SPOT_FG,
+              }}
+            >
+              {catchAllPendingCount}
+            </span>
+            {editMode && (
+              <span
+                data-testid="shop-map-catch-all-resize-handle"
+                onPointerDown={onCatchAllResizePointerDown}
+                onPointerMove={onCatchAllResizePointerMove}
+                onPointerUp={onCatchAllResizePointerUp}
+                style={{
+                  position: "absolute",
+                  right: 2,
+                  bottom: 2,
+                  width: 14,
+                  height: 14,
+                  borderRadius: 2,
+                  backgroundColor: "#2563eb",
+                  border: "2px solid #fff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  cursor: "nwse-resize",
+                  zIndex: 7,
+                  touchAction: "none",
+                }}
+              />
+            )}
+          </div>
         )}
         {/* Left ground column G1–G4 (visual bottom→top) + entrance markers */}
         <div
@@ -2974,37 +3108,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   </span>
                 </label>
               )}
-              {onDesignateCatchAll &&
-                selectedLayoutSlot &&
-                !isShelfUnitCode(selectedLayoutSlot) && (
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 8,
-                      marginBottom: 10,
-                      cursor: "pointer",
-                      color: "#374151",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      data-testid="shop-map-edit-catch-all"
-                      checked={editCatchAllChecked}
-                      onChange={(e) => {
-                        setEditCatchAllChecked(e.target.checked);
-                        setCatchAllDesignationDirty(true);
-                      }}
-                      style={{ marginTop: 2 }}
-                    />
-                    <span style={{ fontSize: 12, color: "#374151", lineHeight: 1.35 }}>
-                      <strong style={{ color: NAVY }}>Catch-all intake spot</strong>
-                      <br />
-                      Shows pending check-in count on the map. Syncs with Settings →
-                      Management.
-                    </span>
-                  </label>
-                )}
             </>
           )}
           {selectedSlots.length > 1 && (
@@ -3349,7 +3452,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 saving ||
                 (!onSaveZone &&
                   !(pendingHidden.length > 0 && onPersistLayoutExtras) &&
-                  !catchAllDesignationDirty)
+                  pendingCatchAll === null &&
+                  pendingYouAreHere === null &&
+                  pendingDoor === null)
               }
               onClick={() => void persistEdit()}
               style={{

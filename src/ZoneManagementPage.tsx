@@ -56,6 +56,11 @@ import {
   nextShelfSpotLetter,
   nextShelfUnitCode,
   resolveShopMapLayout,
+  resolveCatchAllMarker,
+  defaultCatchAllMarker,
+  withCatchAllMarker,
+  isDefaultGroundLayoutSlot,
+  CATCH_ALL_ZONE_CODE,
   shelfSpotCode,
   withExtraGroundSpot,
   withExtraShelfSpot,
@@ -314,9 +319,6 @@ export function ZoneManagementPage() {
   const [vendorView, setVendorView] = useState(false);
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
-  const [catchAllStagingLocationId, setCatchAllStagingLocationId] = useState<
-    string | null
-  >(null);
   const [catchAllPendingCount, setCatchAllPendingCount] = useState(0);
   const liveOccupancy = useLiveZoneOccupancy(true);
   const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
@@ -565,42 +567,74 @@ export function ZoneManagementPage() {
       catchAllStagingLocationId: zoneId,
       parcelIntakeEnabled: true,
     });
-    setCatchAllStagingLocationId(zoneId);
   }, []);
 
+  const migrateCatchAllFromDefaultGround = useCallback(
+    async (
+      settings: Awaited<ReturnType<typeof getAppSettings>>,
+      loadedZones: StagingLocation[],
+    ): Promise<{
+      settings: Awaited<ReturnType<typeof getAppSettings>>;
+      extras: ShopMapLayoutExtras;
+    }> => {
+      let extras = settings.shopMapLayoutExtras ?? {};
+      const caId = settings.catchAllStagingLocationId?.trim();
+      if (caId) {
+        const designated = loadedZones.find((z) => z.id === caId);
+        const slot =
+          designated?.mapLayoutSlot?.trim() ||
+          designated?.code?.trim() ||
+          "";
+        if (slot && isDefaultGroundLayoutSlot(slot)) {
+          await updateAppSettings({
+            catchAllStagingLocationId: undefined,
+            parcelIntakeEnabled: false,
+          });
+          settings = {
+            ...settings,
+            catchAllStagingLocationId: undefined,
+            parcelIntakeEnabled: false,
+          };
+        }
+      }
+      if (!resolveCatchAllMarker(extras) && settings.catchAllStagingLocationId?.trim()) {
+        extras = withCatchAllMarker(extras, defaultCatchAllMarker());
+        await updateAppSettings({ shopMapLayoutExtras: extras });
+      }
+      return { settings, extras };
+    },
+    [],
+  );
+
   const handleAddCatchAllSpot = useCallback(async () => {
-    const layout = resolveShopMapLayout(layoutExtras);
-    const code = nextGroundSpotCode(layout);
-    const nextExtras = withExtraGroundSpot(layoutExtras, code);
+    if (resolveCatchAllMarker(layoutExtras)) {
+      return;
+    }
+    const caKey = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
+    let caZone = zones.find(
+      (z) => normalizeStagingCodeKey(z.code) === caKey,
+    );
+    let zoneId = caZone?.id;
+    if (!zoneId) {
+      zoneId = await createZone({
+        code: CATCH_ALL_ZONE_CODE,
+        label: "Catch-all intake",
+        type: "ground",
+        status: "Active",
+      });
+      caZone = {
+        id: zoneId,
+        code: CATCH_ALL_ZONE_CODE,
+        label: "Catch-all intake",
+        type: "ground",
+        status: "Active",
+      };
+      setZones((prev) => [...prev, caZone!]);
+    }
+    const nextExtras = withCatchAllMarker(layoutExtras, defaultCatchAllMarker());
     await persistLayoutExtras(nextExtras);
-    const id = await createZone({
-      code,
-      label: "Catch-all intake",
-      type: "ground",
-      status: "Active",
-      mapLayoutSlot: formatStagingCodeCanonical(code),
-      mapOffsetX: 0,
-      mapOffsetY: 0,
-      mapWidth: SHOP_MAP_GROUND_SPOT_W,
-      mapHeight: SHOP_MAP_GROUND_SPOT_H,
-      mapRotationDeg: 0,
-    });
-    const newZone: StagingLocation = {
-      id,
-      code: formatStagingCodeCanonical(code),
-      label: "Catch-all intake",
-      type: "ground",
-      status: "Active",
-      mapLayoutSlot: formatStagingCodeCanonical(code),
-      mapOffsetX: 0,
-      mapOffsetY: 0,
-      mapWidth: SHOP_MAP_GROUND_SPOT_W,
-      mapHeight: SHOP_MAP_GROUND_SPOT_H,
-      mapRotationDeg: 0,
-    };
-    setZones((prev) => [...prev, newZone]);
-    await handleDesignateCatchAll(id);
-  }, [layoutExtras, persistLayoutExtras, handleDesignateCatchAll]);
+    await handleDesignateCatchAll(zoneId);
+  }, [layoutExtras, zones, persistLayoutExtras, handleDesignateCatchAll]);
 
   const handleDeactivateSlots = useCallback(
     async (slots: string[]) => {
@@ -632,17 +666,18 @@ export function ZoneManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const [loaded, occupancy, mappings, settings] = await Promise.all([
+      const [loaded, occupancy, mappings, settingsRaw] = await Promise.all([
         listAllZones(),
         mapActiveZoneOccupancyByCode(),
         listShopStockMappings(),
         getAppSettings(),
       ]);
-      setZones(loaded);
-      setLayoutExtras(settings.shopMapLayoutExtras ?? {});
-      setCatchAllStagingLocationId(
-        settings.catchAllStagingLocationId?.trim() || null,
+      const { settings, extras } = await migrateCatchAllFromDefaultGround(
+        settingsRaw,
+        loaded,
       );
+      setZones(loaded);
+      setLayoutExtras(extras);
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
       setOccupancyByZoneCode(occupancy);
       setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
@@ -656,13 +691,10 @@ export function ZoneManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [migrateCatchAllFromDefaultGround]);
 
   useEffect(() => {
     return subscribeAppSettings((settings) => {
-      setCatchAllStagingLocationId(
-        settings.catchAllStagingLocationId?.trim() || null,
-      );
       setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
       setLayoutExtras(settings.shopMapLayoutExtras ?? {});
     });
@@ -1278,9 +1310,7 @@ export function ZoneManagementPage() {
               onAssignSpotClick={handleAssignSpotClick}
               onAssignSpotRefused={showAssignToast}
               focusSpotCode={effectiveFocusSpotCode}
-              catchAllStagingLocationId={catchAllStagingLocationId}
               catchAllPendingCount={catchAllPendingCount}
-              onDesignateCatchAll={handleDesignateCatchAll}
               onAddCatchAllSpot={handleAddCatchAllSpot}
             />
             {!liveOccupancy.ready && (

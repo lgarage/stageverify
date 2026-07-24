@@ -795,6 +795,8 @@ export interface AppSettings {
     door?: { ox: number; oy: number; sizePx: number; rotationDeg: number };
     /** @deprecated Prefer door. */
     doorOffset?: { ox: number; oy: number };
+    /** Catch-all intake box — offset + size from map canvas origin. */
+    catchAll?: { ox: number; oy: number; width: number; height: number };
   };
 }
 

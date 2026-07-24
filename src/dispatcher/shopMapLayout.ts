@@ -85,6 +85,11 @@ export type ShopMapLayoutExtras = {
    * @deprecated Prefer door — kept for migrate-on-read.
    */
   doorOffset?: { ox: number; oy: number };
+  /**
+   * Catch-all intake box on Staging Map — offset + size (px) from map canvas origin.
+   * Separate from ground spots (G1…); movable/resizable in Edit Locations mode.
+   */
+  catchAll?: { ox: number; oy: number; width: number; height: number };
 };
 
 export const DOOR_DEFAULT_SIZE_PX = 72;
@@ -106,6 +111,22 @@ export type YouAreHereMarker = {
   ox: number;
   oy: number;
   sizePx: number;
+};
+
+export const CATCH_ALL_DEFAULT_WIDTH = SHOP_MAP_GROUND_SPOT_W;
+export const CATCH_ALL_DEFAULT_HEIGHT = SHOP_MAP_GROUND_SPOT_H;
+export const CATCH_ALL_MIN_SIZE = 24;
+export const CATCH_ALL_DEFAULT_OX = 180;
+export const CATCH_ALL_DEFAULT_OY = 72;
+
+/** Dedicated zone code — not a default G1–G12 layout slot. */
+export const CATCH_ALL_ZONE_CODE = "CA";
+
+export type CatchAllMarker = {
+  ox: number;
+  oy: number;
+  width: number;
+  height: number;
 };
 
 export type ResolvedShopMapLayout = {
@@ -190,6 +211,7 @@ export function normalizeShopMapLayoutExtras(
 
   const youAreHere = resolveYouAreHereMarker(raw);
   const door = resolveDoorMarker(raw);
+  const catchAll = resolveCatchAllMarker(raw);
 
   return {
     extraGround,
@@ -198,6 +220,7 @@ export function normalizeShopMapLayoutExtras(
     hiddenSlots,
     ...(youAreHere ? { youAreHere } : {}),
     ...(door ? { door } : {}),
+    ...(catchAll ? { catchAll } : {}),
   };
 }
 
@@ -354,6 +377,76 @@ export function withDoorOffset(
     sizePx: prev?.sizePx ?? DOOR_DEFAULT_SIZE_PX,
     rotationDeg: prev?.rotationDeg ?? 0,
   });
+}
+
+function clampCatchAllSize(size: number): number {
+  return Math.max(CATCH_ALL_MIN_SIZE, Math.round(size));
+}
+
+/** Resolve catch-all intake box marker from extras. */
+export function resolveCatchAllMarker(
+  raw: ShopMapLayoutExtras | null | undefined,
+): CatchAllMarker | undefined {
+  const modern = raw?.catchAll;
+  if (
+    modern &&
+    Number.isFinite(modern.ox) &&
+    Number.isFinite(modern.oy)
+  ) {
+    return {
+      ox: Math.round(modern.ox),
+      oy: Math.round(modern.oy),
+      width: Number.isFinite(modern.width)
+        ? clampCatchAllSize(modern.width)
+        : CATCH_ALL_DEFAULT_WIDTH,
+      height: Number.isFinite(modern.height)
+        ? clampCatchAllSize(modern.height)
+        : CATCH_ALL_DEFAULT_HEIGHT,
+    };
+  }
+  return undefined;
+}
+
+/** Default catch-all marker placement on the map canvas. */
+export function defaultCatchAllMarker(): CatchAllMarker {
+  return {
+    ox: CATCH_ALL_DEFAULT_OX,
+    oy: CATCH_ALL_DEFAULT_OY,
+    width: CATCH_ALL_DEFAULT_WIDTH,
+    height: CATCH_ALL_DEFAULT_HEIGHT,
+  };
+}
+
+/** True when code is a built-in default ground slot G1–G12 (not CA / extras). */
+export function isDefaultGroundLayoutSlot(code: string): boolean {
+  const key = code.trim().toUpperCase();
+  return (SHOP_MAP_GROUND_CODES as readonly string[]).includes(key);
+}
+
+/** Persist / update the catch-all intake box on the Staging Map. */
+export function withCatchAllMarker(
+  extras: ShopMapLayoutExtras | null | undefined,
+  marker: CatchAllMarker,
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  return {
+    ...normalized,
+    catchAll: {
+      ox: Math.round(marker.ox),
+      oy: Math.round(marker.oy),
+      width: clampCatchAllSize(marker.width),
+      height: clampCatchAllSize(marker.height),
+    },
+  };
+}
+
+/** Remove catch-all marker from layout extras. */
+export function withoutCatchAllMarker(
+  extras: ShopMapLayoutExtras | null | undefined,
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  const { catchAll: _drop, ...rest } = normalized;
+  return rest;
 }
 
 function formatLayoutSlotKey(code: string): string | null {

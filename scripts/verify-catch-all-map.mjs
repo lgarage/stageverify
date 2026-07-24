@@ -1,5 +1,5 @@
 /**
- * Playwright: Staging Map catch-all spot label + pending check-in count (D-44 map).
+ * Playwright: Staging Map catch-all overlay + G1 not catch-all (D-44 map repair).
  *
  *   npm run dev
  *   npm run verify:catch-all-map
@@ -27,8 +27,29 @@ loadEnvLocal();
 const screenshotDir = resolve(process.cwd(), "screenshots");
 mkdirSync(screenshotDir, { recursive: true });
 
-async function ensureCatchAllSpotViaMap(page) {
-  let catchAll = page.locator('[data-spot-catch-all="true"]').first();
+const CATCH_ALL_BLUE = /rgb\(\s*219\s*,\s*234\s*,\s*254\s*\)/i;
+
+async function assertG1NotCatchAll(page) {
+  const g1 = page.getByTestId("shop-spot-G1");
+  if (!(await g1.count())) return;
+  const isCatchAllAttr = await g1.getAttribute("data-spot-catch-all");
+  if (isCatchAllAttr === "true") {
+    throw new Error("G1 must not be styled as catch-all");
+  }
+  const g1Bg = await g1.evaluate((el) => getComputedStyle(el).backgroundColor);
+  if (CATCH_ALL_BLUE.test(g1Bg)) {
+    throw new Error(
+      `G1 must use normal occupancy colors, not catch-all blue. got ${g1Bg}`,
+    );
+  }
+  const g1Text = (await g1.innerText()).trim();
+  if (/^Catch-all$/i.test(g1Text)) {
+    throw new Error(`G1 label must be G1, not "${g1Text}"`);
+  }
+}
+
+async function ensureCatchAllOverlayViaMap(page) {
+  let catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
   if ((await catchAll.count()) > 0) return catchAll;
 
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
@@ -38,38 +59,23 @@ async function ensureCatchAllSpotViaMap(page) {
     timeout: 5000,
   });
 
-  const g1 = page.getByTestId("shop-spot-G1");
-  if (await g1.count()) {
-    await g1.click();
-    await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
-    const caCheckbox = page.getByTestId("shop-map-edit-catch-all");
-    if (await caCheckbox.isVisible()) {
-      if (!(await caCheckbox.isChecked())) {
-        await caCheckbox.check();
-      }
-      await page.getByTestId("shop-map-edit-save").click();
-      await page.waitForTimeout(1500);
-    }
-  }
-
-  await editToggle.click();
-  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
-
-  catchAll = page.locator('[data-spot-catch-all="true"]').first();
-  if ((await catchAll.count()) > 0) return catchAll;
-
-  await editToggle.click();
-  await page.getByTestId("shop-map-add-catch-all").click();
-  await page.waitForTimeout(2500);
-  await editToggle.click();
-  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
-
-  catchAll = page.locator('[data-spot-catch-all="true"]').first();
-  if ((await catchAll.count()) === 0) {
+  const addBtn = page.getByTestId("shop-map-add-catch-all");
+  if (!(await addBtn.isVisible())) {
     throw new Error(
-      "Could not create or designate catch-all spot on Staging Map",
+      "Missing shop-map-add-catch-all — enable Edit Locations and add catch-all location",
     );
   }
+  await addBtn.click();
+  await page.waitForTimeout(2500);
+
+  catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
+  if ((await catchAll.count()) === 0) {
+    throw new Error("Add catch-all location did not create shop-map-catch-all overlay");
+  }
+
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
+
   return catchAll;
 }
 
@@ -90,7 +96,9 @@ async function main() {
     timeout: 30000,
   });
 
-  const catchAllSpot = await ensureCatchAllSpotViaMap(page);
+  await assertG1NotCatchAll(page);
+
+  const catchAllSpot = await ensureCatchAllOverlayViaMap(page);
   await catchAllSpot.scrollIntoViewIfNeeded();
 
   const label = catchAllSpot.getByTestId("shop-spot-catch-all-label");
@@ -110,16 +118,14 @@ async function main() {
   const spotBg = await catchAllSpot.evaluate(
     (el) => getComputedStyle(el).backgroundColor,
   );
-  // #dbeafe → rgb(219, 234, 254)
-  if (!/rgb\(\s*219\s*,\s*234\s*,\s*254\s*\)/i.test(spotBg)) {
+  if (!CATCH_ALL_BLUE.test(spotBg)) {
     throw new Error(
-      `Catch-all spot should be light blue (#dbeafe). got backgroundColor=${spotBg}`,
+      `Catch-all overlay should be light blue (#dbeafe). got backgroundColor=${spotBg}`,
     );
   }
 
-  const spotTestId = await catchAllSpot.getAttribute("data-testid");
   await assertReadableTextContrast(page, {
-    rootSelector: `[data-testid="${spotTestId}"]`,
+    rootSelector: '[data-testid="shop-map-catch-all"]',
     elements: [
       {
         name: "Catch-all label",
@@ -138,16 +144,17 @@ async function main() {
   if (await topBar.count()) {
     await assertNoElementOverlap(page, {
       a: '[data-testid="dispatcher-portal-top-bar"]',
-      b: `[data-testid="${spotTestId}"]`,
-      label: "Catch-all map spot vs top bar",
+      b: '[data-testid="shop-map-catch-all"]',
+      label: "Catch-all map overlay vs top bar",
       optional: true,
     });
   }
 
   console.log(
-    `PASS: catch-all spot ${spotTestId} shows "${labelText}" + count ${countText}`,
+    `PASS: catch-all overlay shows "${labelText}" + count ${countText}`,
   );
 
+  // Edit mode: catch-all is draggable (resize handle present)
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({
@@ -155,33 +162,18 @@ async function main() {
     timeout: 5000,
   });
 
-  const addCatchAll = page.getByTestId("shop-map-add-catch-all");
-  if (!(await addCatchAll.isVisible())) {
-    throw new Error("Missing shop-map-add-catch-all in edit mode");
+  await assertG1NotCatchAll(page);
+
+  const resizeHandle = page.getByTestId("shop-map-catch-all-resize-handle");
+  if (!(await resizeHandle.isVisible())) {
+    throw new Error("Missing shop-map-catch-all-resize-handle in edit mode");
   }
 
-  const g1 = page.getByTestId("shop-spot-G1");
-  if (await g1.count()) {
-    await g1.click();
-    await page.getByTestId("shop-map-edit-panel").waitFor({ state: "visible" });
-    const caCheckbox = page.getByTestId("shop-map-edit-catch-all");
-    if (!(await caCheckbox.isVisible())) {
-      throw new Error("Missing shop-map-edit-catch-all checkbox on ground spot");
-    }
-    const checkboxColor = await page
-      .getByTestId("shop-map-edit-catch-all")
-      .locator("xpath=ancestor::label[1]")
-      .evaluate((el) => getComputedStyle(el).color);
-    const lum = await page.evaluate((color) => {
-      const m = color.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
-      return 0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2];
-    }, checkboxColor);
-    if (lum > 200) {
-      throw new Error(
-        `Catch-all checkbox label too light. color=${checkboxColor}`,
-      );
-    }
-    await page.getByTestId("shop-map-edit-cancel").click();
+  const addCatchAll = page.getByTestId("shop-map-add-catch-all");
+  if (await addCatchAll.count()) {
+    throw new Error(
+      "Add catch-all location should be hidden when overlay already exists",
+    );
   }
 
   await editToggle.click();
