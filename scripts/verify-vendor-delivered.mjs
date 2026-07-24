@@ -25,6 +25,12 @@ import {
   openDeliveryDrawer,
   openDeliveryDrawerByDeepLink,
 } from "./dispatcherVerifyHelpers.mjs";
+import {
+  assertNoElementOverlap,
+  assertReadableTextContrast,
+  VENDOR_DELIVERED_HUB_CONTRAST_SPEC,
+  VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC,
+} from "./lib/ui-text-contrast-lib.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -137,6 +143,9 @@ async function runDeliveredFlow(page) {
   await unlockWithPin(page);
   record("PIN unlocks Delivered hub", true);
   await assertFooterInViewport(page, "Hub after PIN");
+  await assertReadableTextContrast(page, VENDOR_DELIVERED_HUB_CONTRAST_SPEC);
+  await assertNoElementOverlap(page, VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC);
+  record("D-42 hub text contrast", true);
   await shot(page, "02-delivered-hub");
 
   record(

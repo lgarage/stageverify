@@ -14,6 +14,49 @@ import { execSync } from "node:child_process";
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import { loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getFirestore, updateDoc } from "firebase/firestore";
+import {
+  assertNoElementOverlap,
+  assertReadableTextContrast,
+  RECEIVE_ADJUST_MODAL_CONTRAST_SPEC,
+  RECEIVE_CHECKIN_CONTRAST_SPEC,
+  RECEIVE_PIN_GATE_CONTRAST_SPEC,
+  VENDOR_DELIVERED_HUB_CONTRAST_SPEC,
+  VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC,
+} from "./lib/ui-text-contrast-lib.mjs";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
+  authDomain: "stageverify-db.firebaseapp.com",
+  projectId: "stageverify-db",
+  storageBucket: "stageverify-db.firebasestorage.app",
+  messagingSenderId: "784751243681",
+  appId: "1:784751243681:web:31fa71762b94f878fd1be0",
+};
+
+async function ensureReceiveEligibleDelivery(deliveryId) {
+  const email = process.env.STAGEVERIFY_TEST_EMAIL;
+  const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+  if (!email || !password) {
+    console.warn(
+      "SKIP receive Firestore fixture: set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
+    );
+    return;
+  }
+  const app = initializeApp(firebaseConfig, "verify-receive-fixture");
+  const auth = getAuth(app);
+  await signInWithEmailAndPassword(auth, email, password);
+  const db = getFirestore(app);
+  await updateDoc(doc(db, "deliveries", deliveryId), {
+    status: "arrived",
+    readinessStatus: "not_ready",
+    updatedAt: new Date().toISOString(),
+  });
+  console.log(`Seeded ${deliveryId} as arrived for receive verify.`);
+}
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -23,10 +66,13 @@ const baseUrl =
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 
-const deliveryId = process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-3";
+const deliveryId =
+  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
 
 const outDir = resolve(process.cwd(), "screenshots");
 mkdirSync(outDir, { recursive: true });
+
+loadEnvLocal();
 
 (async () => {
   try {
@@ -34,6 +80,8 @@ mkdirSync(outDir, { recursive: true });
   } catch {
     console.warn("SKIP vendor PIN seed (ADC unavailable)");
   }
+
+  await ensureReceiveEligibleDelivery(deliveryId);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -46,27 +94,68 @@ mkdirSync(outDir, { recursive: true });
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
+  await page.waitForFunction(
+    () => {
+      const t = document.body.innerText;
+      return (
+        t.includes("Enter Vendor PIN") ||
+        t.includes("Mark Delivered") ||
+        t.includes("Check off items as delivered")
+      );
+    },
+    { timeout: 45_000 },
+  );
+
   const pinHeading = page.getByText("Enter Vendor PIN").first();
   if (await pinHeading.isVisible().catch(() => false)) {
+    await assertReadableTextContrast(page, RECEIVE_PIN_GATE_CONTRAST_SPEC);
+    console.log("D-42 PASS: receive PIN gate text contrast.");
     for (const digit of "1234") {
       await page.getByRole("button", { name: digit, exact: true }).click();
     }
-    await page.waitForTimeout(2000);
+    await page
+      .getByText("Mark Delivered")
+      .or(page.getByText("Check off items as delivered"))
+      .first()
+      .waitFor({ state: "visible", timeout: 90_000 });
+  } else {
+    await page
+      .getByText("Mark Delivered")
+      .or(page.getByText("Check off items as delivered"))
+      .first()
+      .waitFor({ state: "visible", timeout: 90_000 });
   }
-
-  await page
-    .getByText(/Receive Delivery|Check off items as delivered/)
-    .first()
-    .waitFor({ state: "visible", timeout: 45_000 });
   await page.screenshot({
     path: resolve(outDir, "receive-verify-loaded.png"),
     fullPage: true,
   });
 
+  const onDeliveredHub = await page
+    .locator(".vendor-hub-layout")
+    .isVisible()
+    .catch(() => false);
+  if (onDeliveredHub) {
+    await assertReadableTextContrast(page, VENDOR_DELIVERED_HUB_CONTRAST_SPEC);
+    await assertNoElementOverlap(page, VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC);
+    console.log(
+      "D-42 PASS: receive route (exception-only hub) text contrast + header layout.",
+    );
+    console.log(
+      "SKIP legacy adjust flow: app settings use exception_only vendor mode.",
+    );
+    await browser.close();
+    return;
+  }
+
+  await assertReadableTextContrast(page, RECEIVE_CHECKIN_CONTRAST_SPEC);
+  console.log("D-42 PASS: receive check-in text contrast on loaded surface.");
+
   const adjustButtons = page.getByRole("button", { name: "Adjust" });
   await adjustButtons.nth(1).click();
 
   await page.waitForSelector("text=Adjust Quantity", { timeout: 10_000 });
+  await assertReadableTextContrast(page, RECEIVE_ADJUST_MODAL_CONTRAST_SPEC);
+  console.log("D-42 PASS: receive adjust modal text contrast.");
 
   const minusBtn = page.locator(".stepper-btn").first();
   await minusBtn.click();

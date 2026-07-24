@@ -24,6 +24,11 @@ import {
   applyFullLocationDisplay,
   applyMinimalLocationDisplay,
 } from "./pickupLocationDisplayFixture.mjs";
+import {
+  assertReadableTextContrast,
+  PICKUP_PORTAL_CARD_CONTRAST_SPEC,
+  PICKUP_PORTAL_JOB_HEADER_CONTRAST_SPEC,
+} from "./lib/ui-text-contrast-lib.mjs";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -554,6 +559,12 @@ async function assertShopStockPullState(page) {
   console.log("Shop stock PASS: Not Pulled → Pulled after tap.");
 }
 
+async function assertPickupPortalContrast(page) {
+  await assertReadableTextContrast(page, PICKUP_PORTAL_JOB_HEADER_CONTRAST_SPEC);
+  await assertReadableTextContrast(page, PICKUP_PORTAL_CARD_CONTRAST_SPEC);
+  console.log("D-42 PASS: pickup portal text contrast on job header + card.");
+}
+
 async function assertPickupJobHeader(page) {
   const header = page.getByTestId("pickup-job-header");
   await header.waitFor({ state: "visible", timeout: 15_000 });
@@ -770,6 +781,7 @@ async function runDashboardBadgeCheck(browser) {
   console.log("Slice 2: full location display…");
   try {
     await assertLocationDisplayFull(page);
+    await assertPickupPortalContrast(page);
     await assertPickupJobHeader(page);
     await assertPickupLocationSections(page);
     await assertExpectedMaterials(page);

@@ -399,6 +399,128 @@ export async function assertNoElementOverlap(page, spec) {
   }
 }
 
+/** Public pickup portal — job header + primary card (D-42 backfill away-135). */
+export const PICKUP_PORTAL_JOB_HEADER_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="pickup-job-header"]',
+  elements: [
+    {
+      name: "primary value",
+      selector: "span.text-text-primary.font-medium",
+      large: false,
+    },
+  ],
+};
+
+export const PICKUP_PORTAL_CARD_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="pickup-location-section"]',
+  elements: [
+    {
+      name: "expected materials",
+      selector: '[data-testid="expected-materials"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "pickup item row",
+      selector: '[data-testid="pickup-item-row"]',
+      large: false,
+      optional: true,
+    },
+  ],
+};
+
+/** Vendor PIN gate on /#/receive (public mobile). */
+export const RECEIVE_PIN_GATE_CONTRAST_SPEC = {
+  rootSelector: ".max-w-sm.rounded-2xl.border-border",
+  elements: [
+    {
+      name: "pin title",
+      selector: "h1.text-text-primary",
+      large: true,
+    },
+    {
+      name: "keypad digit",
+      selector: "button.text-text-primary",
+      large: false,
+    },
+  ],
+};
+
+/** Legacy receive check-in (items step) — vendor receive route. */
+export const RECEIVE_CHECKIN_CONTRAST_SPEC = {
+  rootSelector: "body",
+  elements: [
+    {
+      name: "vendor heading",
+      selector: ".rounded-2xl.border .font-bold.text-text-primary",
+      large: true,
+    },
+    {
+      name: "item description",
+      selector: ".rounded-xl.border.border-border .text-sm.font-medium.text-text-primary",
+      large: false,
+      optional: true,
+    },
+  ],
+};
+
+export const RECEIVE_ADJUST_MODAL_CONTRAST_SPEC = {
+  rootSelector: ".bg-bg-surface.rounded-xl.p-6",
+  elements: [
+    {
+      name: "modal title",
+      selector: "h3.text-xl.font-bold.text-text-primary",
+      large: true,
+    },
+    {
+      name: "qty display",
+      selector: "span.text-3xl.font-bold.text-text-primary",
+      large: true,
+    },
+    {
+      name: "damaged label",
+      selector: "label.text-text-secondary",
+      large: false,
+      optional: true,
+    },
+    {
+      name: "damaged input",
+      selector: "input.text-text-primary",
+      large: false,
+    },
+    {
+      name: "save button",
+      selector: "button.action-btn-delivered",
+      large: false,
+    },
+  ],
+};
+
+/** Exception-only vendor Delivered hub (mobile). */
+export const VENDOR_DELIVERED_HUB_CONTRAST_SPEC = {
+  rootSelector: ".vendor-hub-layout",
+  elements: [
+    {
+      name: "location value",
+      selector: ".vendor-hub-scroll p.text-base.font-medium.text-text-primary",
+      large: true,
+    },
+    {
+      name: "context row value",
+      selector: ".vendor-hub-scroll .flex span.text-text-primary",
+      large: false,
+    },
+  ],
+};
+
+export const VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC = {
+  containerSelector: ".vendor-hub-header",
+  elementSelectors: [
+    { name: "need more space", selector: "button:first-of-type" },
+    { name: "issue", selector: "button:last-of-type" },
+  ],
+};
+
 /** Top bar layout — no clipped/overlapping controls on dispatcher + zones. */
 export const DISPATCHER_TOPBAR_OVERLAP_SPEC = {
   containerSelector: '[data-testid="dispatcher-portal-topbar"]',
