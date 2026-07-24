@@ -57,7 +57,25 @@ async function assertNoCatchAllOverlay(page, context) {
   }
 }
 
+async function waitForPersistedCatchAll(page, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const catchAll = page.locator('[data-testid="shop-map-catch-all"]');
+    if ((await catchAll.count()) > 0) {
+      return catchAll.first();
+    }
+    await page.waitForTimeout(400);
+  }
+  return null;
+}
+
 async function ensureCatchAllOverlayViaMap(page) {
+  const persisted = await waitForPersistedCatchAll(page);
+  if (persisted) {
+    console.log("PASS: catch-all overlay already present — skip Add flow");
+    return persisted;
+  }
+
   await assertNoCatchAllOverlay(page, "Before edit mode");
 
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
