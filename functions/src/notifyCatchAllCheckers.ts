@@ -13,6 +13,7 @@ import {
   sendGmailMessage,
 } from "./gmailApi";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
+import { incrementCatchAllPendingCount } from "./catchAllPendingCount";
 import { loadCatchAllConfig } from "./managementSessionValidation";
 
 const PROVIDER_ID = "gmail";
@@ -262,6 +263,8 @@ export const notifyCatchAllCheckers = onCall(
       recipientCount: recipients.length,
       emailsSent,
     });
+
+    await incrementCatchAllPendingCount(db);
 
     return {
       logId,

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.120",
+  "version": "0.0.121",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -54,6 +54,8 @@
     "verify:dispatcher-nav:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav:prod --runner tsx scripts/verify-dispatcher-nav.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:shop-map": "node scripts/run-verify-with-learning.mjs --script verify:shop-map scripts/verify-shop-map.mjs",
     "verify:shop-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map:prod scripts/verify-shop-map.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
+    "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
     "repair:invoice-shells": "node scripts/repair-invoice-separate-shells.mjs",

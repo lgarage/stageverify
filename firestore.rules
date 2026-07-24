@@ -227,7 +227,10 @@ service cloud.firestore {
 
     match /appSettings/{docId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && !('catchAllPendingCheckInCount' in request.resource.data);
+      allow update: if isAuthenticated()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['catchAllPendingCheckInCount']);
     }
 
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.

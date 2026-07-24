@@ -10,6 +10,7 @@ const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
 const gmailApi_1 = require("./gmailApi");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
+const catchAllPendingCount_1 = require("./catchAllPendingCount");
 const managementSessionValidation_1 = require("./managementSessionValidation");
 const PROVIDER_ID = "gmail";
 const COOLDOWN_MS = 15 * 60 * 1000;
@@ -185,6 +186,7 @@ exports.notifyCatchAllCheckers = (0, https_1.onCall)({
         recipientCount: recipients.length,
         emailsSent,
     });
+    await (0, catchAllPendingCount_1.incrementCatchAllPendingCount)(db);
     return {
         logId,
         recipientCount: recipients.length,

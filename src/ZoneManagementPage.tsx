@@ -23,6 +23,7 @@ import {
   listShopStockMappings,
   getAppSettings,
   updateAppSettings,
+  subscribeAppSettings,
   firestoreDataService,
   type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
@@ -313,6 +314,10 @@ export function ZoneManagementPage() {
   const [vendorView, setVendorView] = useState(false);
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
+  const [catchAllStagingLocationId, setCatchAllStagingLocationId] = useState<
+    string | null
+  >(null);
+  const [catchAllPendingCount, setCatchAllPendingCount] = useState(0);
   const liveOccupancy = useLiveZoneOccupancy(true);
   const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
     null,
@@ -555,6 +560,48 @@ export function ZoneManagementPage() {
     [handleMapZoneSave, layoutExtras, persistLayoutExtras],
   );
 
+  const handleDesignateCatchAll = useCallback(async (zoneId: string) => {
+    await updateAppSettings({
+      catchAllStagingLocationId: zoneId,
+      parcelIntakeEnabled: true,
+    });
+    setCatchAllStagingLocationId(zoneId);
+  }, []);
+
+  const handleAddCatchAllSpot = useCallback(async () => {
+    const layout = resolveShopMapLayout(layoutExtras);
+    const code = nextGroundSpotCode(layout);
+    const nextExtras = withExtraGroundSpot(layoutExtras, code);
+    await persistLayoutExtras(nextExtras);
+    const id = await createZone({
+      code,
+      label: "Catch-all intake",
+      type: "ground",
+      status: "Active",
+      mapLayoutSlot: formatStagingCodeCanonical(code),
+      mapOffsetX: 0,
+      mapOffsetY: 0,
+      mapWidth: SHOP_MAP_GROUND_SPOT_W,
+      mapHeight: SHOP_MAP_GROUND_SPOT_H,
+      mapRotationDeg: 0,
+    });
+    const newZone: StagingLocation = {
+      id,
+      code: formatStagingCodeCanonical(code),
+      label: "Catch-all intake",
+      type: "ground",
+      status: "Active",
+      mapLayoutSlot: formatStagingCodeCanonical(code),
+      mapOffsetX: 0,
+      mapOffsetY: 0,
+      mapWidth: SHOP_MAP_GROUND_SPOT_W,
+      mapHeight: SHOP_MAP_GROUND_SPOT_H,
+      mapRotationDeg: 0,
+    };
+    setZones((prev) => [...prev, newZone]);
+    await handleDesignateCatchAll(id);
+  }, [layoutExtras, persistLayoutExtras, handleDesignateCatchAll]);
+
   const handleDeactivateSlots = useCallback(
     async (slots: string[]) => {
       const byKey = new Map(
@@ -593,6 +640,10 @@ export function ZoneManagementPage() {
       ]);
       setZones(loaded);
       setLayoutExtras(settings.shopMapLayoutExtras ?? {});
+      setCatchAllStagingLocationId(
+        settings.catchAllStagingLocationId?.trim() || null,
+      );
+      setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
       setOccupancyByZoneCode(occupancy);
       setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
       setEslDrafts(
@@ -605,6 +656,16 @@ export function ZoneManagementPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    return subscribeAppSettings((settings) => {
+      setCatchAllStagingLocationId(
+        settings.catchAllStagingLocationId?.trim() || null,
+      );
+      setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
+      setLayoutExtras(settings.shopMapLayoutExtras ?? {});
+    });
   }, []);
 
   useEffect(() => {
@@ -1217,6 +1278,10 @@ export function ZoneManagementPage() {
               onAssignSpotClick={handleAssignSpotClick}
               onAssignSpotRefused={showAssignToast}
               focusSpotCode={effectiveFocusSpotCode}
+              catchAllStagingLocationId={catchAllStagingLocationId}
+              catchAllPendingCount={catchAllPendingCount}
+              onDesignateCatchAll={handleDesignateCatchAll}
+              onAddCatchAllSpot={handleAddCatchAllSpot}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>

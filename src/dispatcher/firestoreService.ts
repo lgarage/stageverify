@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   setDoc,
   writeBatch,
   query,
@@ -1343,6 +1344,21 @@ export async function updateAppSettings(
 ): Promise<AppSettings> {
   await setDoc(APP_SETTINGS_DOC, settings, { merge: true });
   return getAppSettings();
+}
+
+export function subscribeAppSettings(
+  onChange: (settings: AppSettings) => void,
+): () => void {
+  return onSnapshot(APP_SETTINGS_DOC, (snap) => {
+    if (!snap.exists()) {
+      onChange({ ...DEFAULT_APP_SETTINGS });
+      return;
+    }
+    onChange({
+      ...DEFAULT_APP_SETTINGS,
+      ...(snap.data() as Partial<AppSettings>),
+    });
+  });
 }
 
 const EMAIL_PROVIDER_DOC = doc(db, "emailProviderConnections", "gmail");

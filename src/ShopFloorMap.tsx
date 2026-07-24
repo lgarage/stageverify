@@ -49,6 +49,9 @@ import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
 import {
   SPOT_MAP_COLORS,
   SPOT_MAP_FG,
+  CATCH_ALL_SPOT_BG,
+  CATCH_ALL_SPOT_FG,
+  CATCH_ALL_SPOT_BORDER,
   resolveSpotColor,
   type SpotMapColor,
 } from "./dispatcher/resolveSpotColor";
@@ -113,6 +116,14 @@ type Props = {
   onAssignSpotRefused?: (message: string) => void;
   /** Deep-link highlight — scroll to and outline matching spot (e.g. from drawer chip). */
   focusSpotCode?: string | null;
+  /** Designated catch-all staging location doc id (appSettings). */
+  catchAllStagingLocationId?: string | null;
+  /** Packages awaiting management check-in at catch-all. */
+  catchAllPendingCount?: number;
+  /** Set catch-all spot from map edit (syncs Settings). */
+  onDesignateCatchAll?: (zoneId: string) => Promise<void>;
+  /** Add ground spot + designate as catch-all intake. */
+  onAddCatchAllSpot?: () => Promise<void>;
 };
 
 export type ShopFloorMapHandle = {
@@ -297,6 +308,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       onAssignSpotClick,
       onAssignSpotRefused,
       focusSpotCode = null,
+      catchAllStagingLocationId = null,
+      catchAllPendingCount = 0,
+      onDesignateCatchAll,
+      onAddCatchAllSpot,
     },
     ref,
   ) {
@@ -374,6 +389,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const [sizeInputDraft, setSizeInputDraft] = useState("");
   const [editRotationDeg, setEditRotationDeg] = useState(0);
   const [editLabelRotationDeg, setEditLabelRotationDeg] = useState(0);
+  const [editCatchAllChecked, setEditCatchAllChecked] = useState(false);
+  const [catchAllDesignationDirty, setCatchAllDesignationDirty] =
+    useState(false);
   const [pendingRotations, setPendingRotations] = useState<
     Record<string, number>
   >({});
@@ -467,6 +485,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     (layoutSlot: string) =>
       zonesByLayoutSlot[normalizeStagingCodeKey(layoutSlot)],
     [zonesByLayoutSlot],
+  );
+
+  const isCatchAllLayoutSlot = useCallback(
+    (layoutSlot: string): boolean => {
+      if (!catchAllStagingLocationId) return false;
+      const zone = zoneForLayoutSlot(layoutSlot);
+      return zone?.id === catchAllStagingLocationId;
+    },
+    [catchAllStagingLocationId, zoneForLayoutSlot],
   );
 
   const displayCodeForSlot = useCallback(
@@ -922,6 +949,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setEditHeight(height);
       setEditRotationDeg(rotationDeg);
       setEditLabelRotationDeg(labelRotationDeg);
+      setEditCatchAllChecked(
+        Boolean(
+          catchAllStagingLocationId &&
+            zone?.id === catchAllStagingLocationId,
+        ),
+      );
+      setCatchAllDesignationDirty(false);
       setSizeInputFocus(null);
       // Snapshot displayed state once when edit starts on this slot (Cancel baseline).
       if (!editSessionBySlotRef.current[layoutSlot]) {
@@ -955,6 +989,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       editLabel,
       editRotationDeg,
       editLabelRotationDeg,
+      catchAllStagingLocationId,
     ],
   );
 
@@ -1275,7 +1310,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       slotsToSave.size === 0 &&
       pendingHidden.length === 0 &&
       !yahPending &&
-      !doorPending
+      !doorPending &&
+      !catchAllDesignationDirty
     ) {
       return true;
     }
@@ -1324,15 +1360,32 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           await onDeactivateSlots(pendingHidden);
         }
       }
-      if (!onSaveZone) {
+      if (!onSaveZone && slotsToSave.size === 0) {
+        if (
+          catchAllDesignationDirty &&
+          onDesignateCatchAll &&
+          primarySlot &&
+          selectedSlots.length <= 1 &&
+          !isShelfUnitCode(primarySlot) &&
+          editCatchAllChecked
+        ) {
+          const zone = zoneForLayoutSlot(primarySlot);
+          if (zone?.id) {
+            await onDesignateCatchAll(zone.id);
+          }
+        }
         setPendingHidden([]);
         setPendingYouAreHere(null);
         setPendingDoor(null);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
+        setCatchAllDesignationDirty(false);
         return true;
       }
-      for (const slot of slotsToSave) {
+      if (slotsToSave.size > 0 && !onSaveZone) return false;
+      const saveZone = onSaveZone;
+      if (saveZone) {
+        for (const slot of slotsToSave) {
         const zone = zoneForLayoutSlot(slot);
         const { ox, oy } = flushedPending[slot] ?? {
           ox: zone?.mapOffsetX ?? 0,
@@ -1405,7 +1458,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         ) {
           continue;
         }
-        await onSaveZone({
+        await saveZone({
           code: slot,
           zoneId: zone?.id,
           patch: {
@@ -1419,6 +1472,21 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             ...(canRotate ? { mapRotationDeg: rotationDeg } : {}),
           },
         });
+        }
+      }
+      if (
+        catchAllDesignationDirty &&
+        onDesignateCatchAll &&
+        primarySlot &&
+        selectedSlots.length <= 1 &&
+        !isShelfUnitCode(primarySlot) &&
+        editCatchAllChecked
+      ) {
+        const zone = zoneForLayoutSlot(primarySlot);
+        if (zone?.id) {
+          await onDesignateCatchAll(zone.id);
+        }
+        setCatchAllDesignationDirty(false);
       }
       for (const slot of slotsToSave) {
         delete editSessionBySlotRef.current[slot];
@@ -1468,6 +1536,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     layoutProp,
     layout,
     zoneForLayoutSlot,
+    catchAllDesignationDirty,
+    editCatchAllChecked,
+    onDesignateCatchAll,
   ]);
 
   useImperativeHandle(
@@ -1904,6 +1975,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const shelfUnit = !ground ? shelfUnitForSpot(layoutSlot) : null;
     const labelRot = shelfUnit ? readLabelRotation(shelfUnit) : 0;
     const spotLabel = displayCodeForSlot(layoutSlot);
+    const catchAllSpot = isCatchAllLayoutSlot(layoutSlot);
     const offset = absoluteBase
       ? { left: absoluteBase.left + ox, top: absoluteBase.top + oy }
       : { left: ox, top: oy };
@@ -1923,7 +1995,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             spotElRefs.current[layoutSlot] = el;
           }}
           data-testid={`shop-spot-${layoutSlot}`}
-          data-spot-color={colorOf(layoutSlot)}
+          data-spot-color={catchAllSpot ? "catch-all" : colorOf(layoutSlot)}
+          data-spot-catch-all={catchAllSpot ? "true" : undefined}
+          data-catch-all-count={catchAllSpot ? catchAllPendingCount : undefined}
           data-spot-focused={spotFocused ? "true" : undefined}
           data-map-offset-x={ox}
           data-map-offset-y={oy}
@@ -1932,6 +2006,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           data-map-rotation-deg={rotationDeg}
           style={{
             ...spotStyle(colorOf(layoutSlot), ground, width, height),
+            ...(catchAllSpot
+              ? {
+                  backgroundColor: CATCH_ALL_SPOT_BG,
+                  color: CATCH_ALL_SPOT_FG,
+                  border: `2px solid ${CATCH_ALL_SPOT_BORDER}`,
+                }
+              : {}),
             position: "absolute",
             zIndex,
             ...offset,
@@ -1967,7 +2048,40 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           onPointerMove={onDragPointerMove}
           onPointerUp={onDragPointerUp}
         >
-          {shelfUnit ? (
+          {catchAllSpot && !editMode ? (
+            <span
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                lineHeight: 1.05,
+                gap: 1,
+                maxWidth: "100%",
+              }}
+            >
+              <span
+                data-testid="shop-spot-catch-all-label"
+                style={{
+                  fontSize: ground ? 9 : 8,
+                  fontWeight: 700,
+                  color: CATCH_ALL_SPOT_FG,
+                }}
+              >
+                Catch-all
+              </span>
+              <span
+                data-testid="catch-all-pending-count"
+                style={{
+                  fontSize: ground ? 13 : 11,
+                  fontWeight: 800,
+                  color: CATCH_ALL_SPOT_FG,
+                }}
+              >
+                {catchAllPendingCount}
+              </span>
+            </span>
+          ) : shelfUnit ? (
             <span
               data-map-label-rotation-deg={labelRot}
               style={{
@@ -2213,7 +2327,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         )}
       </div>
 
-      {editMode && (onAddGroundSpot || onAddShelf || onSaveZone) && (
+      {editMode && (onAddGroundSpot || onAddShelf || onAddCatchAllSpot || onSaveZone) && (
         <div
           data-testid="shop-map-add-bar"
           style={{
@@ -2246,6 +2360,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               style={addLayoutBtnStyle}
             >
               Add ground spot
+            </button>
+          )}
+          {onAddCatchAllSpot && (
+            <button
+              type="button"
+              data-testid="shop-map-add-catch-all"
+              disabled={addingLayout || !onSaveZone}
+              onClick={() => void runAdd(onAddCatchAllSpot)}
+              style={addLayoutBtnStyle}
+            >
+              Add catch-all spot
             </button>
           )}
           {onAddShelf && (
@@ -2849,6 +2974,37 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   </span>
                 </label>
               )}
+              {onDesignateCatchAll &&
+                selectedLayoutSlot &&
+                !isShelfUnitCode(selectedLayoutSlot) && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
+                      marginBottom: 10,
+                      cursor: "pointer",
+                      color: "#374151",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      data-testid="shop-map-edit-catch-all"
+                      checked={editCatchAllChecked}
+                      onChange={(e) => {
+                        setEditCatchAllChecked(e.target.checked);
+                        setCatchAllDesignationDirty(true);
+                      }}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span style={{ fontSize: 12, color: "#374151", lineHeight: 1.35 }}>
+                      <strong style={{ color: NAVY }}>Catch-all intake spot</strong>
+                      <br />
+                      Shows pending check-in count on the map. Syncs with Settings →
+                      Management.
+                    </span>
+                  </label>
+                )}
             </>
           )}
           {selectedSlots.length > 1 && (
@@ -3192,7 +3348,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               disabled={
                 saving ||
                 (!onSaveZone &&
-                  !(pendingHidden.length > 0 && onPersistLayoutExtras))
+                  !(pendingHidden.length > 0 && onPersistLayoutExtras) &&
+                  !catchAllDesignationDirty)
               }
               onClick={() => void persistEdit()}
               style={{

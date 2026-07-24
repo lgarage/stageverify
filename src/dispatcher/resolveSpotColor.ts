@@ -19,6 +19,11 @@ export const SPOT_MAP_FG: Record<SpotMapColor, string> = {
   gray: "#ffffff",
 };
 
+/** Catch-all intake spot on Staging Map — light blue fill, navy label (D-42). */
+export const CATCH_ALL_SPOT_BG = "#dbeafe";
+export const CATCH_ALL_SPOT_FG = "#0a3161";
+export const CATCH_ALL_SPOT_BORDER = "#3b82f6";
+
 /**
  * Color priority: red (ready) > orange (assigned/planned) > gray (shop stock) > green (free).
  */

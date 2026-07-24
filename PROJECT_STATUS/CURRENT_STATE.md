@@ -6,9 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.120** — dispatcher top-bar layout fix (Catch-all + actions no overlap) + D-45 **UI Playwright Verifier** harness lock.
+- Last shipped: **v0.0.121** — Staging Map catch-all spot (light blue tile, pending check-in count, map edit designate) + CF counter on notify/check-in.
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
-- **Verify:** `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
+- **Verify:** `verify:catch-all-map` / `:prod`; `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers

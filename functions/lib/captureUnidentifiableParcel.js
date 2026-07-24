@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.captureUnidentifiableParcel = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const catchAllPendingCount_1 = require("./catchAllPendingCount");
 const managementSessionValidation_1 = require("./managementSessionValidation");
 function getDb() {
     return admin.firestore();
@@ -82,6 +83,7 @@ exports.captureUnidentifiableParcel = (0, https_1.onCall)({
         createdAt: now,
         stagingLocationCode: session.scannedStagingLocationCode,
     });
+    await (0, catchAllPendingCount_1.decrementCatchAllPendingCount)(getDb());
     return {
         deliveryId,
         orderNumber,

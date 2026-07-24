@@ -776,6 +776,8 @@ export interface AppSettings {
   catchAllStagingLocationId?: string;
   /** When true, catch-all QR opens management PIN + waiting-parts flow. */
   parcelIntakeEnabled?: boolean;
+  /** CF-only — packages at catch-all awaiting management check-in (map tile count). */
+  catchAllPendingCheckInCount?: number;
   /**
    * Staging Map layout additions beyond default constants (extra ground / shelf units / shelf letters)
    * plus optional hiddenSlots. Written by authenticated dispatcher map edit; public-readable via appSettings.

@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
+import { decrementCatchAllPendingCount } from "./catchAllPendingCount";
 import {
   asManagementSessionToken,
   assertManagementCatchAllSession,
@@ -155,6 +156,8 @@ export const markCatchAllDeliveryReceived = onCall(
     });
 
     await batch.commit();
+
+    await decrementCatchAllPendingCount(getDb());
 
     const readiness = await applyDeliveryReadinessTransaction(
       getDb(),

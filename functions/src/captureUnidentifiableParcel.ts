@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { decrementCatchAllPendingCount } from "./catchAllPendingCount";
 import {
   asManagementSessionToken,
   assertManagementCatchAllSession,
@@ -98,6 +99,8 @@ export const captureUnidentifiableParcel = onCall(
       createdAt: now,
       stagingLocationCode: session.scannedStagingLocationCode,
     });
+
+    await decrementCatchAllPendingCount(getDb());
 
     return {
       deliveryId,

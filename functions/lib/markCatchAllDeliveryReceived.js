@@ -4,6 +4,7 @@ exports.markCatchAllDeliveryReceived = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
+const catchAllPendingCount_1 = require("./catchAllPendingCount");
 const managementSessionValidation_1 = require("./managementSessionValidation");
 function getDb() {
     return admin.firestore();
@@ -101,6 +102,7 @@ exports.markCatchAllDeliveryReceived = (0, https_1.onCall)({
         stagingLocationCode: session.scannedStagingLocationCode,
     });
     await batch.commit();
+    await (0, catchAllPendingCount_1.decrementCatchAllPendingCount)(getDb());
     const readiness = await (0, applyDeliveryReadiness_1.applyDeliveryReadinessTransaction)(getDb(), deliveryId, { historyReason: "Catch-all mark-received readiness recalculation" });
     return {
         deliveryId,
