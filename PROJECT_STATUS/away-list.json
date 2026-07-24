@@ -10,7 +10,6 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "sequence": [
-      "away-132",
       "away-133",
       "away-135"
     ],
@@ -30,20 +29,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-132",
-      "title": "D-44 G5 office receiver phone chips + persist (no SMS)",
-      "status": "queued",
-      "scope": "OfficeReceiversSettingsPanel — add phone field/chips and persist; store phone only; no Twilio/SMS. Extend verify:catch-all-delivery-notify with D-42 on phone/chip selectors.",
-      "acceptance": "Phone persists on office receiver; verify:catch-all-delivery-notify PASS with D-42 asserts on new fields.",
-      "tier": "T1",
-      "riskTier": "fast-safe",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:catch-all-delivery-notify"
-      ],
-      "preApproved": true
     },
     {
       "id": "away-133",

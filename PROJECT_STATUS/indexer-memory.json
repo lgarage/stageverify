@@ -359,6 +359,66 @@
       "gateCandidate": false,
       "notes": "Merged from learning-pending during away-124 ship; G1 release CF may already be deployed — re-check before treating as open.",
       "createdAt": "2026-07-11T04:56:21.232Z"
+    },
+    {
+      "id": "idx-011",
+      "category": "repeated failure",
+      "summary": "verify:catch-all-map failed (exit 1)",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": "away-132",
+      "sourceCommit": null,
+      "tags": [
+        "verify",
+        "verify-failure",
+        "verify-auto-capture"
+      ],
+      "triggerTerms": [
+        "catch-all-map",
+        "verify",
+        "verify failure"
+      ],
+      "type": "service-logic",
+      "subtype": "verify",
+      "slice": null,
+      "relatedFiles": [
+        "package.json#verify:catch-all-map"
+      ],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": true,
+      "gateCandidate": false,
+      "notes": null,
+      "createdAt": "2026-07-24T03:01:50.041Z"
+    },
+    {
+      "id": "idx-012",
+      "category": "repeated failure",
+      "summary": "verify:catch-all-map failed (exit 1)",
+      "canonicalLocation": "PROJECT_STATUS/indexer-memory.json",
+      "sourceTask": "away-132",
+      "sourceCommit": null,
+      "tags": [
+        "verify",
+        "verify-failure",
+        "verify-auto-capture"
+      ],
+      "triggerTerms": [
+        "catch-all-map",
+        "verify",
+        "verify failure"
+      ],
+      "type": "service-logic",
+      "subtype": "verify",
+      "slice": null,
+      "relatedFiles": [
+        "package.json#verify:catch-all-map"
+      ],
+      "confidence": 0.85,
+      "injectBeforeWork": true,
+      "promotionCandidate": true,
+      "gateCandidate": false,
+      "notes": null,
+      "createdAt": "2026-07-24T03:01:50.044Z"
     }
   ]
 }

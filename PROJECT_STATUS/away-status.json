@@ -208,6 +208,13 @@
       "status": "built",
       "commit": "c733cad",
       "note": "bold release-to-tech CTA"
+    },
+    {
+      "id": "away-132",
+      "title": "D-44 G5 office receiver phone chips + persist (no SMS)",
+      "status": "built",
+      "commit": "0bc093c",
+      "note": "D-44 G5: office receiver phone field/chips persist; verify:catch-all-delivery-notify local+prod PASS with D-42"
     }
   ],
   "summary": "away-130 shipped 2026-07-17; queue empty except blocked away-069; MVP 99.60%"
