@@ -30,6 +30,29 @@ const inputStyle: CSSProperties = {
   width: "100%",
 };
 
+const fullWidthActionBase = (
+  font: string,
+): Pick<
+  CSSProperties,
+  | "width"
+  | "padding"
+  | "borderRadius"
+  | "fontSize"
+  | "fontWeight"
+  | "letterSpacing"
+  | "fontFamily"
+  | "boxSizing"
+> => ({
+  width: "100%",
+  padding: "12px 16px",
+  borderRadius: 8,
+  fontSize: 15,
+  fontWeight: 800,
+  letterSpacing: "0.03em",
+  fontFamily: font,
+  boxSizing: "border-box",
+});
+
 type Props = {
   jobId: string;
   font: string;
@@ -59,6 +82,7 @@ export function JobReleaseToTechnicianPanel({
 
   const isAssigned = releasedEntries.length > 0;
   const showPicker = !loading && (!isAssigned || editMode);
+  const showAssignedBar = !loading && isAssigned && !editMode;
 
   const reloadReleasedEntries = useCallback(async () => {
     const [techs, releases] = await Promise.all([
@@ -145,58 +169,56 @@ export function JobReleaseToTechnicianPanel({
     setMessage(null);
   };
 
-  const panelBorder =
-    releasedEntries.length > 0
-      ? resolveTechnicianBadgeStyle(
-          techById.get(releasedEntries[0].technicianId) ?? {
-            id: releasedEntries[0].technicianId,
-          },
-        ).border
-      : "#c4b5fd";
+  const actionBase = fullWidthActionBase(font);
+  const releaseDisabled = releasing || !selectedTechId;
 
   return (
     <div
       data-testid="job-release-to-technician-panel"
       style={{
-        border: `1px solid ${panelBorder}`,
-        borderRadius: 8,
-        backgroundColor: "#faf5ff",
-        padding: "12px 14px",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 8,
+        width: "100%",
         color: TEXT,
         fontFamily: font,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <span
-          data-testid="job-release-panel-heading"
+      {showAssignedBar ? (
+        <div
+          data-testid="job-release-assigned-bar"
           style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: NAVY,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
+            ...actionBase,
+            border: `2px solid ${NAVY}`,
+            backgroundColor: NAVY,
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            flexWrap: "wrap",
+            boxShadow: "0 2px 8px rgba(10, 49, 97, 0.25)",
           }}
         >
-          Release to technician
-        </span>
-        {isAssigned ? (
+          <span
+            data-testid="job-release-panel-heading"
+            style={{
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: "0.03em",
+              textTransform: "uppercase",
+              color: "#fff",
+            }}
+          >
+            Release to technician
+          </span>
           <span
             style={{
               display: "inline-flex",
               flexWrap: "wrap",
               gap: 6,
               alignItems: "center",
+              marginLeft: "auto",
             }}
           >
             <span
@@ -234,45 +256,50 @@ export function JobReleaseToTechnicianPanel({
                 );
               })}
             </span>
-            {!editMode ? (
-              <button
-                type="button"
-                data-testid="job-release-edit-btn"
-                onClick={() => {
-                  setEditMode(true);
-                  setMessage(null);
-                  setError(null);
-                }}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  border: `1px solid ${NAVY}`,
-                  backgroundColor: "#fff",
-                  color: NAVY,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: font,
-                }}
-              >
-                Edit
-              </button>
-            ) : null}
+            <button
+              type="button"
+              data-testid="job-release-edit-btn"
+              onClick={() => {
+                setEditMode(true);
+                setMessage(null);
+                setError(null);
+              }}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.55)",
+                backgroundColor: "rgba(255,255,255,0.14)",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Edit
+            </button>
           </span>
-        ) : (
-          <span
-            data-testid="job-release-current-empty"
-            style={{ fontSize: 12, color: MUTED }}
-          >
-            Not released today
-          </span>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <p style={{ margin: 0, fontSize: 13, color: MUTED }}>Loading…</p>
       ) : showPicker ? (
         <>
+          {isAssigned && editMode ? (
+            <span
+              data-testid="job-release-panel-heading"
+              style={{
+                margin: 0,
+                fontSize: 13,
+                fontWeight: 700,
+                color: NAVY,
+                letterSpacing: "0.02em",
+              }}
+            >
+              Change technician
+            </span>
+          ) : null}
           <select
             data-testid="job-release-technician-select"
             value={selectedTechId}
@@ -302,26 +329,17 @@ export function JobReleaseToTechnicianPanel({
             <button
               type="button"
               data-testid="job-release-submit"
-              disabled={releasing || !selectedTechId}
+              disabled={releaseDisabled}
               onClick={() => void handleRelease()}
               style={{
-                width: "100%",
-                padding: "12px 16px",
-                borderRadius: 8,
+                ...actionBase,
                 border: `2px solid ${NAVY}`,
-                backgroundColor:
-                  releasing || !selectedTechId ? "#e5e7eb" : NAVY,
-                color: releasing || !selectedTechId ? "#9ca3af" : "#fff",
-                fontSize: 15,
-                fontWeight: 800,
-                letterSpacing: "0.03em",
-                cursor:
-                  releasing || !selectedTechId ? "not-allowed" : "pointer",
-                fontFamily: font,
-                boxShadow:
-                  releasing || !selectedTechId
-                    ? "none"
-                    : "0 2px 8px rgba(10, 49, 97, 0.25)",
+                backgroundColor: releaseDisabled ? "#e5e7eb" : NAVY,
+                color: releaseDisabled ? "#9ca3af" : "#fff",
+                cursor: releaseDisabled ? "not-allowed" : "pointer",
+                boxShadow: releaseDisabled
+                  ? "none"
+                  : "0 2px 8px rgba(10, 49, 97, 0.25)",
                 opacity: 1,
                 transition: "transform 0.1s ease, box-shadow 0.15s ease",
               }}
@@ -339,15 +357,15 @@ export function JobReleaseToTechnicianPanel({
                 disabled={releasing}
                 onClick={handleCancelEdit}
                 style={{
+                  ...actionBase,
                   padding: "10px 14px",
-                  borderRadius: 8,
                   border: "1px solid #ccd0d7",
                   backgroundColor: "#fff",
                   color: TEXT,
-                  fontSize: 14,
                   fontWeight: 600,
+                  fontSize: 14,
                   cursor: releasing ? "not-allowed" : "pointer",
-                  fontFamily: font,
+                  boxShadow: "none",
                 }}
               >
                 Cancel

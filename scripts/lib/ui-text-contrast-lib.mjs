@@ -218,6 +218,13 @@ export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
       name: "panel heading",
       selector: '[data-testid="job-release-panel-heading"]',
       large: true,
+      optional: true,
+    },
+    {
+      name: "assigned navy bar",
+      selector: '[data-testid="job-release-assigned-bar"]',
+      large: true,
+      optional: true,
     },
     {
       name: "technician select",
@@ -246,12 +253,6 @@ export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
     {
       name: "current release badge",
       selector: '[data-testid^="job-release-current-badge-"]',
-      large: false,
-      optional: true,
-    },
-    {
-      name: "not released hint",
-      selector: '[data-testid="job-release-current-empty"]',
       large: false,
       optional: true,
     },

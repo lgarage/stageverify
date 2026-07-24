@@ -110,8 +110,6 @@ async function assertAssignedView(page) {
   await page
     .getByTestId("job-release-to-technician-panel")
     .waitFor({ timeout: 20_000 });
-  await page.getByTestId("job-release-panel-heading").waitFor({ timeout: 10_000 });
-
   const editBtn = page.getByTestId("job-release-edit-btn");
   const techSelect = page.getByTestId("job-release-technician-select");
   const alreadyAssigned =
@@ -119,6 +117,17 @@ async function assertAssignedView(page) {
 
   if (alreadyAssigned) {
     console.log("PASS: Job already released — assigned view (badge + Edit)");
+    const assignedBar = page.getByTestId("job-release-assigned-bar");
+    await assignedBar.waitFor({ state: "visible", timeout: 10_000 });
+    const barBg = await assignedBar.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    if (barBg !== "rgb(10, 49, 97)") {
+      throw new Error(
+        `Assigned release bar must use navy fill — got ${barBg}`,
+      );
+    }
+    console.log("PASS: Assigned release bar navy styling");
     await assertAssignedView(page);
     await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
     console.log(
