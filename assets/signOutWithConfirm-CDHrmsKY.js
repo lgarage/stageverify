@@ -1,1 +1,0 @@
-import{rr as e}from"./index-D-40C885.js";function t(t,n){window.confirm(`Are you sure you want to sign out?`)&&e(t).then(()=>{n(`/login`,{replace:!0})})}export{t};
