@@ -205,7 +205,7 @@ export const JOB_RELEASE_PANEL_CONTRAST_SPEC = {
     {
       name: "release button",
       selector: '[data-testid="job-release-submit"]',
-      large: false,
+      large: true,
       optional: true,
     },
     {

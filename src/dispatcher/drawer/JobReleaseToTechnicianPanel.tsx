@@ -294,9 +294,9 @@ export function JobReleaseToTechnicianPanel({
           <div
             style={{
               display: "flex",
-              flexWrap: "wrap",
+              flexDirection: "column",
               gap: 8,
-              alignItems: "center",
+              width: "100%",
             }}
           >
             <button
@@ -305,20 +305,25 @@ export function JobReleaseToTechnicianPanel({
               disabled={releasing || !selectedTechId}
               onClick={() => void handleRelease()}
               style={{
-                padding: "10px 14px",
+                width: "100%",
+                padding: "12px 16px",
                 borderRadius: 8,
-                border:
-                  releasing || !selectedTechId
-                    ? "2px solid #6b7280"
-                    : "2px solid transparent",
+                border: `2px solid ${NAVY}`,
                 backgroundColor:
-                  releasing || !selectedTechId ? "#fff" : NAVY,
-                color: releasing || !selectedTechId ? "#374151" : "#fff",
-                fontSize: 14,
-                fontWeight: 700,
+                  releasing || !selectedTechId ? "#e5e7eb" : NAVY,
+                color: releasing || !selectedTechId ? "#9ca3af" : "#fff",
+                fontSize: 15,
+                fontWeight: 800,
+                letterSpacing: "0.03em",
                 cursor:
                   releasing || !selectedTechId ? "not-allowed" : "pointer",
                 fontFamily: font,
+                boxShadow:
+                  releasing || !selectedTechId
+                    ? "none"
+                    : "0 2px 8px rgba(10, 49, 97, 0.25)",
+                opacity: 1,
+                transition: "transform 0.1s ease, box-shadow 0.15s ease",
               }}
             >
               {releasing

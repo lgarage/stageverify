@@ -126,10 +126,6 @@ async function assertAssignedView(page) {
     );
   } else {
     await techSelect.waitFor({ state: "visible", timeout: 20_000 });
-    await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
-    console.log(
-      `PASS: Unassigned panel contrast (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
-    );
 
     const options = techSelect.locator("option:not([value=''])");
     const optionCount = await options.count();
@@ -140,6 +136,19 @@ async function assertAssignedView(page) {
     }
     const firstTechValue = await options.first().getAttribute("value");
     await techSelect.selectOption(firstTechValue ?? "");
+    await page.waitForFunction(() => {
+      const btn = document.querySelector(
+        '[data-testid="job-release-submit"]',
+      );
+      if (!(btn instanceof HTMLButtonElement) || btn.disabled) return false;
+      const bg = getComputedStyle(btn).backgroundColor;
+      return bg === "rgb(10, 49, 97)";
+    });
+    await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
+    console.log(
+      `PASS: Unassigned panel contrast (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
+    );
+
     await page.getByTestId("job-release-submit").click();
     await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
     const errorBanner = page.getByTestId("job-release-error");
