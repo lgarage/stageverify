@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.132** — Shop map `persistEdit`: single extras object + one `onPersistLayoutExtras` flush (catch-all + YAH/door/hidden); `verify:catch-all-map` Done+YAH regression.
+- Last shipped: **v0.0.131** — Delivery drawer (UI only): removed four drawer action buttons, Planned Staging section, and Items section; Firestore item data unchanged.
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:catch-all-map` / `:prod`; `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
