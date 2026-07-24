@@ -30,6 +30,7 @@ import {
   withHiddenSlots,
   withYouAreHere,
   withDoor,
+  defaultCatchAllMarker,
   withCatchAllMarker,
   resolveYouAreHereMarker,
   resolveDoorMarker,
@@ -2414,10 +2415,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               type="button"
               data-testid="shop-map-add-catch-all"
               disabled={addingLayout || !onSaveZone}
-              onClick={() => void runAdd(onAddCatchAllSpot)}
+              onClick={() =>
+                void runAdd(async () => {
+                  await onAddCatchAllSpot!();
+                  setPendingCatchAll(defaultCatchAllMarker());
+                })
+              }
               style={addLayoutBtnStyle}
             >
-              Add catch-all location
+              Add Catch-all Location
             </button>
           )}
           {onAddShelf && (

@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.122** — Catch-all map repair: separate overlay entity (not G1); Add catch-all location; G1 default-ground undesignate migration.
+- Last shipped: **v0.0.123** — Catch-all map: no auto overlay on load; **Add Catch-all Location** toolbar button; overlay only after click + Save.
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:catch-all-map` / `:prod`; `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

@@ -48,9 +48,17 @@ async function assertG1NotCatchAll(page) {
   }
 }
 
+async function assertNoCatchAllOverlay(page, context) {
+  const catchAll = page.locator('[data-testid="shop-map-catch-all"]');
+  if ((await catchAll.count()) > 0) {
+    throw new Error(
+      `${context}: catch-all overlay must not appear until Add Catch-all Location is clicked`,
+    );
+  }
+}
+
 async function ensureCatchAllOverlayViaMap(page) {
-  let catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
-  if ((await catchAll.count()) > 0) return catchAll;
+  await assertNoCatchAllOverlay(page, "Before edit mode");
 
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
   await editToggle.click();
@@ -58,6 +66,8 @@ async function ensureCatchAllOverlayViaMap(page) {
     state: "visible",
     timeout: 5000,
   });
+
+  await assertNoCatchAllOverlay(page, "Edit mode entry");
 
   const addBtn = page.getByTestId("shop-map-add-catch-all");
   if (!(await addBtn.isVisible())) {
@@ -68,9 +78,11 @@ async function ensureCatchAllOverlayViaMap(page) {
   await addBtn.click();
   await page.waitForTimeout(2500);
 
-  catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
+  const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
   if ((await catchAll.count()) === 0) {
-    throw new Error("Add catch-all location did not create shop-map-catch-all overlay");
+    throw new Error(
+      "Add Catch-all Location did not create shop-map-catch-all overlay",
+    );
   }
 
   await editToggle.click();
@@ -95,8 +107,13 @@ async function main() {
   await page.waitForSelector('[data-testid="shop-floor-map"]', {
     timeout: 30000,
   });
+  await page.getByText("Loading zones…").waitFor({
+    state: "hidden",
+    timeout: 30000,
+  }).catch(() => {});
 
   await assertG1NotCatchAll(page);
+  await assertNoCatchAllOverlay(page, "Initial zones map load");
 
   const catchAllSpot = await ensureCatchAllOverlayViaMap(page);
   await catchAllSpot.scrollIntoViewIfNeeded();
@@ -172,7 +189,7 @@ async function main() {
   const addCatchAll = page.getByTestId("shop-map-add-catch-all");
   if (await addCatchAll.count()) {
     throw new Error(
-      "Add catch-all location should be hidden when overlay already exists",
+      "Add Catch-all Location should be hidden when overlay already exists",
     );
   }
 
