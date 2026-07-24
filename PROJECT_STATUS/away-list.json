@@ -10,7 +10,6 @@
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
     "sequence": [
-      "away-133",
       "away-135"
     ],
     "commandInterface": {
@@ -29,20 +28,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-133",
-      "title": "Phase 5 Slice B Level 1 — per-location confirms via stagingLocationIds",
-      "status": "queued",
-      "scope": "PickupPortalPage — Level 1 only: per-location confirms using existing recordPickupEvent.stagingLocationIds + gate Complete Pickup. No new exception types; no CF allowlist changes.",
-      "acceptance": "Per-location confirm gates Complete Pickup; npm run verify:pickup PASS (+ :prod after deploy).",
-      "tier": "T1",
-      "riskTier": "fast-safe",
-      "verifyBeforeNext": [
-        "npm run build",
-        "npm run verify:pickup"
-      ],
-      "preApproved": true
     },
     {
       "id": "away-135",
