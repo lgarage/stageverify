@@ -85,3 +85,6 @@
 {"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"f2630a69-a003-4f5e-871c-c330fdeaede6","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"040cce1a-e52c-423c-b8e4-c7238f61d7d7","model":"cursor-grok-4.5-high-fast","real":"na","note":"G2 size + prune pollution v0.0.139"}
 {"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"19093145-70c6-4a13-87e9-744f17da7736","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-24","role":"ship","verdict":"FAIL","taskId":"ship-verifier-ffbdfe1-unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":"ui-playwright/build-checker NOT RUN on multi-file UI ship ffbdfe1"}
+{"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":"ffbdfe1 fix-closure: ui-playwright PASS (local+prod:dispatcher-job-release D-42), build-checker PASS (navy bar/Edit/no logic), ship-verifier PASS re-verify closes 98c7a07e; parent stamp actual Task id"}
+{"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"9c47e17b-e90c-431e-b929-3ac4cc99d28b","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-closure"}
