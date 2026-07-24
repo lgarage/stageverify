@@ -500,18 +500,32 @@ export function resolveShopMapLayout(
   };
 }
 
-/** Next ground code (G13, G14, …) not already in layout. */
-export function nextGroundSpotCode(layout: ResolvedShopMapLayout): string {
+/** Next ground code (G13, G14, …) not already in layout or hiddenSlots. */
+export function nextGroundSpotCode(
+  layout: ResolvedShopMapLayout,
+  extras?: ShopMapLayoutExtras | null,
+): string {
   let n = 1;
   const existing = new Set(layout.groundCodes.map((c) => c.toUpperCase()));
+  for (const slot of extras?.hiddenSlots ?? []) {
+    const key = slot.trim().toUpperCase();
+    if (/^G\d+$/.test(key)) existing.add(key);
+  }
   while (existing.has(`G${n}`)) n += 1;
   return `G${n}`;
 }
 
-/** Next shelf unit (S3, S4, …) not already in layout. */
-export function nextShelfUnitCode(layout: ResolvedShopMapLayout): string {
+/** Next shelf unit (S3, S4, …) not already in layout or hiddenSlots. */
+export function nextShelfUnitCode(
+  layout: ResolvedShopMapLayout,
+  extras?: ShopMapLayoutExtras | null,
+): string {
   let n = 1;
   const existing = new Set(layout.shelfUnits.map((c) => c.toUpperCase()));
+  for (const slot of extras?.hiddenSlots ?? []) {
+    const key = slot.trim().toUpperCase();
+    if (/^S\d+$/.test(key)) existing.add(key);
+  }
   while (existing.has(`S${n}`)) n += 1;
   return `S${n}`;
 }

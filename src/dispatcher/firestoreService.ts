@@ -7,6 +7,7 @@ import {
   getDocs,
   onSnapshot,
   setDoc,
+  updateDoc,
   writeBatch,
   query,
   where,
@@ -1342,7 +1343,20 @@ export async function getAppSettings(): Promise<AppSettings> {
 export async function updateAppSettings(
   settings: Partial<AppSettings>,
 ): Promise<AppSettings> {
-  await setDoc(APP_SETTINGS_DOC, settings, { merge: true });
+  // Firestore rejects `undefined`. Map those keys to deleteField via updateDoc
+  // so catch-all clear / migration can remove optional fields. Plain updates
+  // keep setDoc merge (create-or-merge) for docs that may not exist yet.
+  const entries = Object.entries(settings);
+  const hasDeletes = entries.some(([, value]) => value === undefined);
+  if (!hasDeletes) {
+    await setDoc(APP_SETTINGS_DOC, settings, { merge: true });
+    return getAppSettings();
+  }
+  const payload: Record<string, unknown> = {};
+  for (const [key, value] of entries) {
+    payload[key] = value === undefined ? deleteField() : value;
+  }
+  await updateDoc(APP_SETTINGS_DOC, payload);
   return getAppSettings();
 }
 

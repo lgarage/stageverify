@@ -504,7 +504,7 @@ export function ZoneManagementPage() {
 
   const handleAddGroundSpot = useCallback(async () => {
     const layout = resolveShopMapLayout(layoutExtras);
-    const code = nextGroundSpotCode(layout);
+    const code = nextGroundSpotCode(layout, layoutExtras);
     const codeKey = normalizeStagingCodeKey(code);
     const existing = zones.find(
       (z) => normalizeStagingCodeKey(z.code) === codeKey,
@@ -541,7 +541,7 @@ export function ZoneManagementPage() {
 
   const handleAddShelf = useCallback(async () => {
     const layout = resolveShopMapLayout(layoutExtras);
-    const unit = nextShelfUnitCode(layout);
+    const unit = nextShelfUnitCode(layout, layoutExtras);
     const unitKey = normalizeStagingCodeKey(unit);
     const existing = zones.find(
       (z) => normalizeStagingCodeKey(z.code) === unitKey,

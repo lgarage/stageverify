@@ -6,8 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Prior ship: **v0.0.134** — dispatcher job release panel polish.
-- Last shipped: **away-132** — D-44 G5 office receiver phone chips + persist (no SMS) — verify:catch-all-delivery-notify PASS
+- Prior ship: **away-132** — D-44 G5 office receiver phone chips + persist (no SMS).
+- Last shipped: **v0.0.136** — Fable follow-up: `updateAppSettings` clears undefined via `deleteField`; Add ground/shelf skips hidden codes (no resurrect).
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:catch-all-map` / `:prod`; `verify:catch-all-delivery-notify` / `:prod`; `verify:management-catch-all` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
