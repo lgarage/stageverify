@@ -4,7 +4,7 @@
 > Hot-tier agents: read `PROJECT_STATUS/CURRENT_STATE.md` first; load this file for phase/roadmap decisions.
 > **Product vision authority:** `PROJECT_STATUS/svscope_simple.md` ? end-to-end product design; all features and agent work must align with scope � there. Roadmap and phase status trace to it; when this file and scope disagree, **scope wins**.
 > **Maintained by:** Composer 2.5 (update after major milestones)
-> **Last reviewed:** 2026-07-12
+> **Last reviewed:** 2026-07-24
 
 ---
 
@@ -208,6 +208,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 ---
 
 ## Recently shipped (away)
+
+**Catch-all view-mode tile + top-bar badge (2026-07-24, v0.0.140)** — Staging Map shows persisted catch-all overlay in view after Done (read-only); top-bar Catch-all delivery shows live `catchAllPendingCheckInCount` badge including 0. CF notify/check-in decrement unchanged. Verify: `verify:catch-all-map` (+ `:prod`).
 
 **Vendor Communications hub (2026-07-06, v0.0.16)** — Dispatcher Dashboard top bar **Vendor Communications** button opens compose modal (to/subject/body, optional vendor + delivery association). Calls `sendVendorEmail` with optional `deliveryOrderId`/`vendorId` (general path allows any recipient for dispatcher testing). Stage 1 tracking preserved ([SV-*] tag, Reply-To, outbound `vendorEmailEvents`). Resolve Issue flow unchanged. Verify: `verify:dispatcher-nav`, `test:send-vendor-email`.
 

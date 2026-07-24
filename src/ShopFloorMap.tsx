@@ -434,27 +434,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   >({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  /** Edit-session overlay — hidden in view mode; hydrates from saved extras in edit. */
-  const catchAllMarker = useMemo(() => {
-    if (!editMode || !pendingCatchAll) return null;
-    if (selectedCatchAll) {
-      return {
-        ox: editOffsetX,
-        oy: editOffsetY,
-        width: editWidth,
-        height: editHeight,
-      };
-    }
-    return pendingCatchAll;
-  }, [
-    editMode,
-    pendingCatchAll,
-    selectedCatchAll,
-    editOffsetX,
-    editOffsetY,
-    editWidth,
-    editHeight,
-  ]);
   const [marquee, setMarquee] = useState<{
     x0: number;
     y0: number;
@@ -561,6 +540,34 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     () => zoneForLayoutSlot(CATCH_ALL_ZONE_CODE),
     [zoneForLayoutSlot],
   );
+
+  /** Edit: pending overlay; view: persisted marker from layout.extras when catch-all zone exists. */
+  const catchAllMarker = useMemo(() => {
+    if (!catchAllZone) return null;
+    if (editMode) {
+      if (!pendingCatchAll) return null;
+      if (selectedCatchAll) {
+        return {
+          ox: editOffsetX,
+          oy: editOffsetY,
+          width: editWidth,
+          height: editHeight,
+        };
+      }
+      return pendingCatchAll;
+    }
+    return resolveCatchAllMarker(layout.extras);
+  }, [
+    catchAllZone,
+    editMode,
+    layout.extras,
+    pendingCatchAll,
+    selectedCatchAll,
+    editOffsetX,
+    editOffsetY,
+    editWidth,
+    editHeight,
+  ]);
 
   const prevEditModeRef = useRef(false);
   useEffect(() => {
@@ -2927,9 +2934,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 ? "Drag to place catch-all intake; drag blue corner to resize; then Save"
                 : undefined
             }
-            onPointerDown={onCatchAllPointerDown}
-            onPointerMove={onCatchAllPointerMove}
-            onPointerUp={onCatchAllPointerUp}
+            onPointerDown={editMode ? onCatchAllPointerDown : undefined}
+            onPointerMove={editMode ? onCatchAllPointerMove : undefined}
+            onPointerUp={editMode ? onCatchAllPointerUp : undefined}
             style={{
               position: "absolute",
               left: catchAllMarker.ox,
@@ -2950,7 +2957,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               fontFamily: FONT,
               userSelect: "none",
               cursor: editMode ? "grab" : "default",
-              touchAction: "none",
+              pointerEvents: editMode ? "auto" : "none",
+              touchAction: editMode ? "none" : "auto",
               outline: editMode
                 ? selectedCatchAll
                   ? "3px solid #2563eb"

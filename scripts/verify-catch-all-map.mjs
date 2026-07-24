@@ -1,6 +1,6 @@
 /**
  * Playwright: Staging Map catch-all overlay + add ground/shelf (D-44/D-45 repair).
- * Catch-all overlay: edit-only; persists marker on Save / Done editing; hidden in view.
+ * Catch-all overlay: editable in edit mode; persists on Done; visible read-only in view when saved.
  *
  *   npm run dev
  *   npm run verify:catch-all-map
@@ -53,9 +53,46 @@ async function assertNoCatchAllOverlay(page, context) {
   const catchAll = page.locator('[data-testid="shop-map-catch-all"]');
   if ((await catchAll.count()) > 0) {
     throw new Error(
-      `${context}: catch-all overlay must not appear in view mode`,
+      `${context}: catch-all overlay must not appear (no saved marker)`,
     );
   }
+}
+
+async function assertCatchAllOverlayInView(page, context) {
+  const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
+  await catchAll.waitFor({ state: "visible", timeout: 10000 });
+  await assertCatchAllOverlayContent(page, catchAll);
+  console.log(`PASS: ${context} — catch-all overlay visible in view mode`);
+}
+
+async function assertTopBarCatchAllBadge(page) {
+  const btn = page.getByTestId("catch-all-delivery-btn");
+  if (!(await btn.isVisible().catch(() => false))) {
+    console.log(
+      "SKIP: catch-all-delivery-btn not visible — top-bar badge assert skipped",
+    );
+    return;
+  }
+  const badge = page.getByTestId("catch-all-delivery-count-badge");
+  await badge.waitFor({ state: "visible", timeout: 8000 });
+  const text = (await badge.innerText()).trim();
+  if (!/^\d+$/.test(text)) {
+    throw new Error(`Expected numeric top-bar catch-all badge, got "${text}"`);
+  }
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="catch-all-delivery-topbar-slot"]',
+    elements: [
+      {
+        name: "Catch-all delivery count badge",
+        selector: '[data-testid="catch-all-delivery-count-badge"]',
+      },
+      {
+        name: "Catch-all delivery button",
+        selector: '[data-testid="catch-all-delivery-btn"]',
+      },
+    ],
+  });
+  console.log(`PASS: top-bar catch-all badge shows ${text}`);
 }
 
 async function waitForZonesMap(page) {
@@ -513,12 +550,13 @@ async function main() {
   }
 
   await exitEditMode(page);
-  await assertNoCatchAllOverlay(page, "View mode after Done editing");
+  await assertCatchAllOverlayInView(page, "View mode after Done editing");
+  await assertTopBarCatchAllBadge(page);
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await waitForZonesMap(page);
-  await assertNoCatchAllOverlay(page, "After reload in view mode");
-  console.log("PASS: catch-all hidden after reload in view mode");
+  await assertCatchAllOverlayInView(page, "After reload in view mode");
+  await assertTopBarCatchAllBadge(page);
 
   await enterEditMode(page);
   const restored = page.locator('[data-testid="shop-map-catch-all"]').first();
@@ -538,7 +576,8 @@ async function main() {
 
   await assertDoneFlushKeepsCatchAllWithYah(page);
 
-  await assertNoCatchAllOverlay(page, "View after Done+YAH flush test");
+  await assertCatchAllOverlayInView(page, "View after Done+YAH flush test");
+  await assertTopBarCatchAllBadge(page);
 
   await assertDeleteCatchAllSurvivesDone(page);
   await assertG1ClickNoBrokenDrawer(page);

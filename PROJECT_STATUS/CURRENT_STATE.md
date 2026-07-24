@@ -6,9 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.139** — Staging Map: stop G2 size growth on label Saves; prune verify-pollution extra G/S spots + reset inflated G* sizes
+- Last shipped: **v0.0.140** — Staging Map catch-all visible in view after Done; top-bar Catch-all delivery count badge (incl. 0); `verify:catch-all-map` PASS
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
-- **Verify:** `verify:pickup` / `:prod`; `verify:receive` / `:prod`; `verify:vendor-delivered` / `:prod`; catch-all scripts unchanged.
+- **Verify:** `verify:pickup` / `:prod`; `verify:receive` / `:prod`; `verify:vendor-delivered` / `:prod`; `verify:catch-all-map` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers

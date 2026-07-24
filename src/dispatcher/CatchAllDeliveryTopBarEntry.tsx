@@ -8,6 +8,8 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 export function CatchAllDeliveryTopBarEntry() {
   const { emailProviderConnected } = useDispatcherPortal();
   const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
+  const [catchAllPendingCheckInCount, setCatchAllPendingCheckInCount] =
+    useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -17,6 +19,7 @@ export function CatchAllDeliveryTopBarEntry() {
         settings.parcelIntakeEnabled === true &&
           Boolean(settings.catchAllStagingLocationId?.trim()),
       );
+      setCatchAllPendingCheckInCount(settings.catchAllPendingCheckInCount ?? 0);
     });
   }, []);
 
@@ -76,33 +79,58 @@ export function CatchAllDeliveryTopBarEntry() {
           {message}
         </span>
       ) : null}
-      <button
-        type="button"
-        data-testid="catch-all-delivery-btn"
-        data-gmail-connected={emailProviderConnected ? "true" : "false"}
-        disabled={disabled}
-        title={
-          !emailProviderConnected
-            ? "Connect Gmail in Settings to send catch-all alerts."
-            : undefined
-        }
-        onClick={handleClick}
-        style={{
-          padding: "4px 10px",
-          borderRadius: 4,
-          border: `1.5px solid ${NAVY}`,
-          backgroundColor: disabled ? "#f3f4f6" : "#fff",
-          color: disabled ? "#9ca3af" : NAVY,
-          fontWeight: 700,
-          fontSize: 12,
-          cursor: disabled ? "not-allowed" : "pointer",
-          fontFamily: FONT,
-          outline: "none",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {busy ? "Sending…" : "Catch-all delivery"}
-      </button>
+      <div style={{ position: "relative", display: "inline-flex" }}>
+        <button
+          type="button"
+          data-testid="catch-all-delivery-btn"
+          data-gmail-connected={emailProviderConnected ? "true" : "false"}
+          disabled={disabled}
+          title={
+            !emailProviderConnected
+              ? "Connect Gmail in Settings to send catch-all alerts."
+              : undefined
+          }
+          onClick={handleClick}
+          style={{
+            padding: "4px 22px 4px 10px",
+            borderRadius: 4,
+            border: `1.5px solid ${NAVY}`,
+            backgroundColor: disabled ? "#f3f4f6" : "#fff",
+            color: disabled ? "#9ca3af" : NAVY,
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: disabled ? "not-allowed" : "pointer",
+            fontFamily: FONT,
+            outline: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {busy ? "Sending…" : "Catch-all delivery"}
+        </button>
+        <span
+          data-testid="catch-all-delivery-count-badge"
+          aria-label={`${catchAllPendingCheckInCount} pending catch-all check-in${catchAllPendingCheckInCount === 1 ? "" : "s"}`}
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -4,
+            minWidth: 18,
+            height: 18,
+            padding: "0 4px",
+            borderRadius: 999,
+            backgroundColor: NAVY,
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 800,
+            lineHeight: "18px",
+            textAlign: "center",
+            fontFamily: FONT,
+            pointerEvents: "none",
+          }}
+        >
+          {catchAllPendingCheckInCount}
+        </span>
+      </div>
     </div>
   );
 }
