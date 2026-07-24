@@ -290,6 +290,7 @@ export function ZoneManagementPage() {
     refreshBusy,
     gmailSyncMessage,
     lastUpdated,
+    setLastUpdated,
     handleRefreshNow,
     zonesSnapshot,
     refreshGeneration,
@@ -685,12 +686,13 @@ export function ZoneManagementPage() {
           loaded.map((z) => [z.id, z.eslTagId ?? ""]),
         ),
       );
+      setLastUpdated(new Date().toLocaleString());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load zones");
     } finally {
       setLoading(false);
     }
-  }, [migrateCatchAllFromDefaultGround]);
+  }, [migrateCatchAllFromDefaultGround, setLastUpdated]);
 
   useEffect(() => {
     return subscribeAppSettings((settings) => {

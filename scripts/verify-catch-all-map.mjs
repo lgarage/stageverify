@@ -135,6 +135,18 @@ async function main() {
     timeout: 30000,
   }).catch(() => {});
 
+  const lastUpdatedEl = page.getByTestId("dispatcher-topbar-last-updated");
+  await lastUpdatedEl.waitFor({ state: "visible", timeout: 10000 });
+  const lastUpdatedText = (await lastUpdatedEl.innerText()).trim();
+  if (/Loading…/i.test(lastUpdatedText)) {
+    throw new Error(
+      `Staging Map top bar stuck on Loading after zones load: "${lastUpdatedText}"`,
+    );
+  }
+  if (!/Last updated:/i.test(lastUpdatedText)) {
+    throw new Error(`Missing Last updated label: "${lastUpdatedText}"`);
+  }
+
   await assertG1NotCatchAll(page);
   await assertNoCatchAllOverlay(page, "Initial zones map load");
 
