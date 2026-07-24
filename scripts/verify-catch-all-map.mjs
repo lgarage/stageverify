@@ -94,27 +94,123 @@ async function readCatchAllGeometry(catchAll) {
   return { ox, oy, w, h };
 }
 
+/** Done editing must persist catch-all marker and YAH in one extras write. Caller must already be in edit mode. */
+async function assertDoneFlushKeepsCatchAllWithYah(page) {
+  const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
+  await catchAll.waitFor({ state: "visible", timeout: 8000 });
+
+  const resizeHandle = page.getByTestId("shop-map-catch-all-resize-handle");
+  const box = await catchAll.boundingBox();
+  if (!box) throw new Error("Catch-all missing box for Done+YAH flush test");
+  await page.mouse.move(box.x + box.width - 4, box.y + box.height - 4);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width + 24, box.y + box.height + 18, {
+    steps: 6,
+  });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const catchAllGeomBeforeDone = await readCatchAllGeometry(catchAll);
+
+  const vendorToggle = page.getByTestId("shop-map-vendor-view-toggle");
+  await vendorToggle.scrollIntoViewIfNeeded();
+  if ((await vendorToggle.getAttribute("aria-pressed")) !== "true") {
+    await vendorToggle.click();
+  }
+  for (let i = 0; i < 15; i++) {
+    if ((await vendorToggle.getAttribute("aria-pressed")) === "true") break;
+    await page.waitForTimeout(200);
+  }
+  if ((await vendorToggle.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Vendor view toggle did not turn on for Done+YAH flush test");
+  }
+  const yah = page.getByTestId("shop-map-you-are-here");
+  await yah.waitFor({ state: "visible", timeout: 8000 });
+  const yahOxBefore = Number((await yah.getAttribute("data-map-offset-x")) ?? "0");
+  const yahBox = await yah.boundingBox();
+  if (!yahBox) throw new Error("YOU ARE HERE missing box for Done+YAH flush test");
+  await page.mouse.move(
+    yahBox.x + yahBox.width / 2,
+    yahBox.y + yahBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    yahBox.x + yahBox.width / 2 + 32,
+    yahBox.y + yahBox.height / 2 + 20,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const yahOxPending = Number((await yah.getAttribute("data-map-offset-x")) ?? "0");
+  if (yahOxPending === yahOxBefore) {
+    throw new Error(
+      `YAH drag should change offset before Done flush. before=${yahOxBefore} after=${yahOxPending}`,
+    );
+  }
+
+  const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
+  await editToggle.click();
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "hidden",
+    timeout: 15000,
+  });
+  await page.waitForTimeout(2000);
+
+  await enterEditMode(page);
+  await vendorToggle.scrollIntoViewIfNeeded();
+  if ((await vendorToggle.getAttribute("aria-pressed")) !== "true") {
+    await vendorToggle.click();
+  }
+  for (let i = 0; i < 15; i++) {
+    if ((await vendorToggle.getAttribute("aria-pressed")) === "true") break;
+    await page.waitForTimeout(200);
+  }
+  const catchAllAfter = page.locator('[data-testid="shop-map-catch-all"]').first();
+  await catchAllAfter.waitFor({ state: "visible", timeout: 8000 });
+  const catchAllGeomAfterDone = await readCatchAllGeometry(catchAllAfter);
+  if (
+    catchAllGeomAfterDone.w !== catchAllGeomBeforeDone.w ||
+    catchAllGeomAfterDone.h !== catchAllGeomBeforeDone.h
+  ) {
+    throw new Error(
+      `Done flush dropped catch-all size: before ${JSON.stringify(catchAllGeomBeforeDone)} after ${JSON.stringify(catchAllGeomAfterDone)}`,
+    );
+  }
+
+  const yahAfter = page.getByTestId("shop-map-you-are-here");
+  await yahAfter.waitFor({ state: "visible", timeout: 5000 });
+  const yahOxPersisted = Number(
+    (await yahAfter.getAttribute("data-map-offset-x")) ?? "0",
+  );
+  if (yahOxPersisted !== yahOxPending) {
+    throw new Error(
+      `Done flush dropped YAH offset: pending=${yahOxPending} persisted=${yahOxPersisted}`,
+    );
+  }
+  console.log("PASS: Done editing flush kept catch-all marker and YAH together");
+
+  if ((await vendorToggle.getAttribute("aria-pressed")) === "true") {
+    await vendorToggle.click();
+  }
+  await exitEditMode(page);
+}
+
 async function addCatchAllInEdit(page) {
   const addBtn = page.getByTestId("shop-map-add-catch-all");
-  if (!(await addBtn.isVisible())) {
-    const existing = page.locator('[data-testid="shop-map-catch-all"]').first();
-    if ((await existing.count()) > 0) {
+  const existing = page.locator('[data-testid="shop-map-catch-all"]').first();
+  for (let attempt = 0; attempt < 24; attempt++) {
+    if (await existing.isVisible().catch(() => false)) {
       return existing;
     }
-    throw new Error(
-      "Missing shop-map-add-catch-all and no restored catch-all overlay",
-    );
+    if (await addBtn.isVisible().catch(() => false)) {
+      await addBtn.click();
+      await existing.waitFor({ state: "visible", timeout: 10000 });
+      return existing;
+    }
+    await page.waitForTimeout(500);
   }
-  await addBtn.click();
-  await page.waitForTimeout(1500);
-
-  const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
-  if ((await catchAll.count()) === 0) {
-    throw new Error(
-      "Add Catch All Location did not create shop-map-catch-all overlay",
-    );
-  }
-  return catchAll;
+  throw new Error(
+    "Missing shop-map-add-catch-all and no restored catch-all overlay (timed out waiting for hydration)",
+  );
 }
 
 async function assertCatchAllOverlayContent(page, catchAllSpot) {
@@ -387,8 +483,9 @@ async function main() {
   }
   console.log("PASS: catch-all restored at saved position after re-enter edit");
 
-  await exitEditMode(page);
-  await assertNoCatchAllOverlay(page, "View after restore test");
+  await assertDoneFlushKeepsCatchAllWithYah(page);
+
+  await assertNoCatchAllOverlay(page, "View after Done+YAH flush test");
 
   await page.screenshot({
     path: resolve(screenshotDir, "catch-all-map-verify.png"),

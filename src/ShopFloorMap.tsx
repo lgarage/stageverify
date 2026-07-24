@@ -1648,7 +1648,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setSaving(true);
     setSaveError(null);
     try {
-      const extrasBase = layoutProp?.extras ?? layout.extras ?? {};
+      let workingExtras: ShopMapLayoutExtras = {
+        ...(layoutProp?.extras ?? layout.extras ?? {}),
+      };
+      let shouldPersistExtras = false;
       if (catchAllShouldPersist && onPersistLayoutExtras) {
         const marker: CatchAllMarker =
           selectedCatchAll && pendingCatchAll
@@ -1659,7 +1662,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 height: Math.max(CATCH_ALL_MIN_SIZE, Math.round(editHeight)),
               }
             : pendingCatchAll!;
-        await onPersistLayoutExtras(withCatchAllMarker(extrasBase, marker));
+        workingExtras = withCatchAllMarker(workingExtras, marker);
+        shouldPersistExtras = true;
         setPendingCatchAll(marker);
         const patchLabel = (
           selectedCatchAll
@@ -1699,33 +1703,33 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         (pendingHidden.length > 0 || yahPending || doorPending) &&
         onPersistLayoutExtras
       ) {
-        let nextExtras: ShopMapLayoutExtras = {
-          ...extrasBase,
-        };
         if (pendingHidden.length > 0) {
-          const baseLayout = resolveShopMapLayout(nextExtras);
+          const baseLayout = resolveShopMapLayout(workingExtras);
           for (const slot of pendingHidden) {
             if (isShelfUnitCode(slot)) {
-              nextExtras = removeShelfUnitFromExtras(
-                nextExtras,
+              workingExtras = removeShelfUnitFromExtras(
+                workingExtras,
                 slot,
                 baseLayout,
               );
             } else if (isGroundLayoutSlot(slot)) {
-              nextExtras = removeGroundSpotFromExtras(nextExtras, slot);
+              workingExtras = removeGroundSpotFromExtras(workingExtras, slot);
             } else {
-              nextExtras = withHiddenSlots(nextExtras, [slot]);
+              workingExtras = withHiddenSlots(workingExtras, [slot]);
             }
           }
-          nextExtras = withHiddenSlots(nextExtras, pendingHidden);
+          workingExtras = withHiddenSlots(workingExtras, pendingHidden);
         }
         if (yahPending && pendingYouAreHere) {
-          nextExtras = withYouAreHere(nextExtras, pendingYouAreHere);
+          workingExtras = withYouAreHere(workingExtras, pendingYouAreHere);
         }
         if (doorPending && pendingDoor) {
-          nextExtras = withDoor(nextExtras, pendingDoor);
+          workingExtras = withDoor(workingExtras, pendingDoor);
         }
-        await onPersistLayoutExtras(nextExtras);
+        shouldPersistExtras = true;
+      }
+      if (shouldPersistExtras && onPersistLayoutExtras) {
+        await onPersistLayoutExtras(workingExtras);
         if (pendingHidden.length > 0 && onDeactivateSlots) {
           await onDeactivateSlots(pendingHidden);
         }
