@@ -39,6 +39,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-13: direct work directives to Composer went straight to implementation (announce-and-go) with solution-level Grok review only post-ship — Dan wanted propose → deliberate → agree BEFORE building, not verification after the fact (D-36; Dan-directed reopen).
 - 2026-07-17: orchestrating agent (Fable) edited rule files directly during the 2026-07-12/13 governance sessions instead of dispatching Composer — Dan directed: work is Composer's; the dispatching agent verifies the returned work (D-37, additive only).
 - 2026-07-18: security gate slug `claude-4.6-sonnet-medium-thinking` not dispatchable on cloud VM (live probe) — gate would return NOT RUN on any cloud T3 ship; 2nd slug drift after Grok 2026-07-13 — locked allowlist with proven fallback (D-38); Sonnet 5 deferred behind calibration.
+- 2026-07-24: Dan-directed every-edit ≥97% confidence before any file write (D-47 widens D-46 from substantive-only to all repo writes; classify + agreed Critical clarifications on scope persistence and verifier-lane vs conf-bar separation).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

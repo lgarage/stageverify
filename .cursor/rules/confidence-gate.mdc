@@ -13,10 +13,14 @@ alwaysApply: true
 
 ## Sequence
 
-1. **Classify** — `PROJECT_STATUS/MODEL_DOSSIER.md` + agent-ops skill → archetype, tier, cheapest model, **confStart** (state in reply).
+1. **Classify** — `PROJECT_STATUS/MODEL_DOSSIER.md` + agent-ops skill → archetype, tier, cheapest model, **confStart** (state in reply). **Classify alone may yield ≥97%** for unambiguous T0 edits, typos, or docs-only clarifications with an explicit fix list — no scout fan-out required when classification already locks files, acceptance, and approach.
 2. **If conf < 97%** — **no edits** (any path): parallel scouts / targeted reads; lock root cause, files, acceptance; one focused Dan question when UX/scope is ambiguous; for substantive product work also **Grok Solution Verifier** until agreed (D-36/D-43 Phase 1).
-3. **Edit only when** conf ≥ 97%. Substantive product work **also** requires `solution-verifier:` PASS or N/A (D-36 skip reasons unchanged).
+3. **Edit only when** conf ≥ 97%. Substantive product work **also** requires `solution-verifier:` PASS or N/A (D-36 skip reasons unchanged). **`solution-verifier: N/A` and away items with approved approach-level specs do not skip the conf bar** — they skip Phase 1 Solution Verifier only; conf ≥ 97% still required before the first edit.
 4. **Session log** — record archetype, model, conf as it rises (completion report or brain `outcomes/*.jsonl` per `agent-ops.mdc`).
+
+## Scope persistence
+
+Once conf ≥ 97% for the **current task scope**, that confidence **holds for subsequent edits in the same scope** until scope materially widens, acceptance becomes ambiguous, or a failed verify/build drops conf below 97% — then re-raise before the next edit.
 
 ## Skips (confidence bar only — tiny)
 
