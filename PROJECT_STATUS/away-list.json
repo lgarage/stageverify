@@ -9,9 +9,7 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": [
-      "away-135"
-    ],
+    "sequence": [],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
@@ -28,20 +26,6 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
-    },
-    {
-      "id": "away-135",
-      "title": "D-42 contrast backfill on pickup / receive / vendor-delivered verifies",
-      "status": "queued",
-      "scope": "Add assertReadableTextContrast (and overlap where needed) to verify-pickup-portal.mjs, verify-receive.mjs, verify-vendor-delivered.mjs — asserts only; no product UI redesign.",
-      "acceptance": "Those three verify scripts PASS with D-42 asserts on primary surfaces.",
-      "tier": "T0",
-      "riskTier": "fast-safe",
-      "verifyBeforeNext": [
-        "npm run verify:pickup",
-        "npm run verify:vendor-delivered"
-      ],
-      "preApproved": true
     }
   ]
 }

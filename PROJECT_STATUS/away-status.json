@@ -222,6 +222,13 @@
       "status": "built",
       "commit": "6d5b0af",
       "note": "Phase 5 Slice B Level 1: job-level Picked up supplies @ checkboxes gate Order Pickup Complete; recordPickupEvent passes stagingLocationIds. verify:pickup + :prod PASS at v0.0.137."
+    },
+    {
+      "id": "away-135",
+      "title": "D-42 contrast backfill on pickup / receive / vendor-delivered verifies",
+      "status": "built",
+      "commit": "361fd81",
+      "note": "D-42 contrast backfill pickup/receive/vendor"
     }
   ],
   "summary": "away-130 shipped 2026-07-17; queue empty except blocked away-069; MVP 99.60%"
