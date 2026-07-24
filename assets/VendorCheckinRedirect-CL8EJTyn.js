@@ -1,1 +1,0 @@
-import{ir as e,qn as t,sr as n}from"./index-BwCvhmm7.js";var r=t();function i(){let{orderId:t}=n(),i=t?.trim()??``;return(0,r.jsx)(e,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
