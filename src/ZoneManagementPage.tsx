@@ -601,11 +601,6 @@ export function ZoneManagementPage() {
           };
         }
       }
-      const persistedCatchAll = resolveCatchAllMarker(extras);
-      if (persistedCatchAll) {
-        extras = withoutCatchAllMarker(extras);
-        await updateAppSettings({ shopMapLayoutExtras: extras });
-      }
       return { settings, extras };
     },
     [],

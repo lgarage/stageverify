@@ -85,10 +85,33 @@ async function ensureCatchAllOverlayViaMap(page) {
     );
   }
 
+  // Done editing persists pending catch-all via withCatchAllMarker (no spot panel required).
   await editToggle.click();
-  await page.getByTestId("shop-map-edit-mode-banner").waitFor({ state: "hidden" });
+  await page.getByTestId("shop-map-edit-mode-banner").waitFor({
+    state: "hidden",
+    timeout: 15000,
+  });
+  await page.waitForTimeout(1000);
 
-  return catchAll;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-testid="shop-floor-map"]', {
+    timeout: 30000,
+  });
+  await page
+    .getByText("Loading zones…")
+    .waitFor({ state: "hidden", timeout: 30000 })
+    .catch(() => {});
+
+  const catchAllAfterReload = page
+    .locator('[data-testid="shop-map-catch-all"]')
+    .first();
+  if ((await catchAllAfterReload.count()) === 0) {
+    throw new Error(
+      "Catch-all overlay must persist after Save layout and reload #/zones",
+    );
+  }
+
+  return catchAllAfterReload;
 }
 
 async function main() {
@@ -170,6 +193,7 @@ async function main() {
   console.log(
     `PASS: catch-all overlay shows "${labelText}" + count ${countText}`,
   );
+  console.log("PASS: catch-all overlay persisted after Save + reload");
 
   // Edit mode: catch-all is draggable (resize handle present)
   const editToggle = page.getByTestId("shop-map-edit-mode-toggle");
