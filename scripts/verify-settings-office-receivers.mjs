@@ -88,6 +88,22 @@ async function ensureAuthenticated(page) {
     timeout: 15_000,
   });
 
+  const seedNameInPanel = panel.getByText("Verify Office Receiver", {
+    exact: true,
+  });
+  if ((await seedNameInPanel.count()) > 0) {
+    throw new Error(
+      "Verify seed placeholder receiver must not appear in Settings UI",
+    );
+  }
+  const seedEmailInPanel = panel.locator("text=/catchall-verify\\+/i");
+  if ((await seedEmailInPanel.count()) > 0) {
+    throw new Error(
+      "catchall-verify+ seed emails must not appear in Settings UI",
+    );
+  }
+  console.log("PASS: no verify seed Catch-All receiver cards visible");
+
   const signupForms = page.locator('[data-testid^="office-receiver-signup-form-"]');
   const formCount = await signupForms.count();
   if (formCount !== 1) {
@@ -98,10 +114,26 @@ async function ensureAuthenticated(page) {
   console.log("PASS: one default Catch-All signup form");
 
   await page.getByTestId("office-receiver-name-input").waitFor({ timeout: 10_000 });
-  await page.getByTestId("office-receiver-email-input").waitFor({ timeout: 10_000 });
-  await page.getByTestId("office-receiver-sms-coming-soon-input").waitFor({
-    timeout: 10_000,
-  });
+  const emailInput = page.getByTestId("office-receiver-email-input");
+  await emailInput.waitFor({ timeout: 10_000 });
+  const smsInput = page.getByTestId("office-receiver-sms-coming-soon-input");
+  await smsInput.waitFor({ timeout: 10_000 });
+
+  if (await emailInput.isDisabled()) {
+    throw new Error("Signup form email field must be an editable text input");
+  }
+  const emailBox = await emailInput.boundingBox();
+  const smsBox = await smsInput.boundingBox();
+  if (!emailBox || !smsBox) {
+    throw new Error("Could not measure email vs SMS field positions");
+  }
+  if (emailBox.y >= smsBox.y) {
+    throw new Error(
+      "Email input must appear directly above SMS (coming soon) on the signup form",
+    );
+  }
+  console.log("PASS: editable email input above SMS (coming soon)");
+
   console.log("PASS: name, email, and SMS (coming soon) fields visible");
 
   const addBtn = page.getByTestId("office-receiver-add-additional-btn");

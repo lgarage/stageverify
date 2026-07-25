@@ -5,6 +5,7 @@ import {
   listOfficeReceivers,
   updateOfficeReceiver,
 } from "./dispatcher/firestoreService";
+import { isVerifySeedOfficeReceiver } from "./lib/isVerifySeedOfficeReceiver";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -87,6 +88,10 @@ export function OfficeReceiversSettingsPanel() {
     void reload();
   }, [reload]);
 
+  const displayReceivers = receivers.filter(
+    (r) => !isVerifySeedOfficeReceiver(r),
+  );
+
   const saveDraft = async (draft: ReceiverDraft) => {
     const name = draft.name.trim();
     const email = draft.email.trim();
@@ -103,7 +108,7 @@ export function OfficeReceiversSettingsPanel() {
         id,
         name,
         email: email.toLowerCase(),
-        active: false,
+        active: true,
         catchAllCheckInEnabled: draft.catchAllCheckInEnabled,
         notifyEmail: draft.notifyEmail,
         notifySms: false,
@@ -284,9 +289,9 @@ export function OfficeReceiversSettingsPanel() {
               alert recipients only.
             </p>
 
-            {receivers.length > 0 ? (
+            {displayReceivers.length > 0 ? (
               <div style={{ marginBottom: 20 }}>
-                {receivers.map((receiver) => {
+                {displayReceivers.map((receiver) => {
                   const isActive = receiver.active !== false;
                   const note = statusNoteFor(receiver);
                   return (
@@ -443,7 +448,7 @@ export function OfficeReceiversSettingsPanel() {
                   marginBottom: 12,
                 }}
               >
-                {receivers.length === 0
+                {displayReceivers.length === 0
                   ? "Add a Catch-All receiver"
                   : "Add another Catch-All receiver"}
               </p>
@@ -457,58 +462,49 @@ export function OfficeReceiversSettingsPanel() {
                     marginBottom: 8,
                   }}
                 >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 12,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <div>
-                      <label style={labelStyle} htmlFor={`draft-name-${draft.localId}`}>
-                        Name
-                      </label>
-                      <input
-                        id={`draft-name-${draft.localId}`}
-                        type="text"
-                        placeholder="Full name"
-                        value={draft.name}
-                        onChange={(e) =>
-                          updateDraftField(draft.localId, {
-                            name: e.target.value,
-                          })
-                        }
-                        data-testid={
-                          index === 0
-                            ? "office-receiver-name-input"
-                            : `office-receiver-name-input-${index}`
-                        }
-                        style={{ ...inputStyle, width: "100%" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle} htmlFor={`draft-email-${draft.localId}`}>
-                        Email
-                      </label>
-                      <input
-                        id={`draft-email-${draft.localId}`}
-                        type="email"
-                        placeholder="name@company.com"
-                        value={draft.email}
-                        onChange={(e) =>
-                          updateDraftField(draft.localId, {
-                            email: e.target.value,
-                          })
-                        }
-                        data-testid={
-                          index === 0
-                            ? "office-receiver-email-input"
-                            : `office-receiver-email-input-${index}`
-                        }
-                        style={{ ...inputStyle, width: "100%" }}
-                      />
-                    </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={labelStyle} htmlFor={`draft-name-${draft.localId}`}>
+                      Name
+                    </label>
+                    <input
+                      id={`draft-name-${draft.localId}`}
+                      type="text"
+                      placeholder="Full name"
+                      value={draft.name}
+                      onChange={(e) =>
+                        updateDraftField(draft.localId, {
+                          name: e.target.value,
+                        })
+                      }
+                      data-testid={
+                        index === 0
+                          ? "office-receiver-name-input"
+                          : `office-receiver-name-input-${index}`
+                      }
+                      style={{ ...inputStyle, width: "100%", maxWidth: 480 }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={labelStyle} htmlFor={`draft-email-${draft.localId}`}>
+                      Email
+                    </label>
+                    <input
+                      id={`draft-email-${draft.localId}`}
+                      type="email"
+                      placeholder="name@company.com"
+                      value={draft.email}
+                      onChange={(e) =>
+                        updateDraftField(draft.localId, {
+                          email: e.target.value,
+                        })
+                      }
+                      data-testid={
+                        index === 0
+                          ? "office-receiver-email-input"
+                          : `office-receiver-email-input-${index}`
+                      }
+                      style={{ ...inputStyle, width: "100%", maxWidth: 480 }}
+                    />
                   </div>
                   <div style={{ marginBottom: 12 }}>
                     <span style={labelStyle}>SMS (coming soon)</span>
@@ -552,29 +548,30 @@ export function OfficeReceiversSettingsPanel() {
                           notifyEmail: !draft.notifyEmail,
                         }),
                     })}
+                    <button
+                      type="button"
+                      disabled={savingDraftId === draft.localId}
+                      data-testid={
+                        index === 0
+                          ? "office-receiver-add-btn"
+                          : `office-receiver-save-draft-${index}`
+                      }
+                      onClick={() => void saveDraft(draft)}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: 6,
+                        border: `1px solid ${NAVY}`,
+                        backgroundColor: "#fff",
+                        color: NAVY,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      Activate
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    disabled={savingDraftId === draft.localId}
-                    data-testid={
-                      index === 0
-                        ? "office-receiver-add-btn"
-                        : `office-receiver-save-draft-${index}`
-                    }
-                    onClick={() => void saveDraft(draft)}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 6,
-                      border: "none",
-                      backgroundColor: NAVY,
-                      color: "#fff",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: FONT,
-                    }}
-                  >
-                    Save receiver
-                  </button>
                 </div>
               ))}
               <button
