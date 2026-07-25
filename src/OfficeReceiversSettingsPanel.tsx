@@ -10,6 +10,7 @@ const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
 const MUTED = "#6b7280";
+const ACTIVE_GREEN = "#2e7d32";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
@@ -21,31 +22,55 @@ const inputStyle: CSSProperties = {
   fontFamily: FONT,
 };
 
+const labelStyle: CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  color: MUTED,
+  marginBottom: 4,
+  fontFamily: FONT,
+};
+
 function isValidEmail(value: string): boolean {
   const trimmed = value.trim();
   return trimmed.includes("@") && trimmed.length <= 254;
 }
 
-function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 10);
-  if (digits.length < 4) return digits.length ? `(${digits}` : "";
-  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+type ReceiverDraft = {
+  localId: string;
+  name: string;
+  email: string;
+  catchAllCheckInEnabled: boolean;
+  notifyEmail: boolean;
+};
+
+function newDraft(): ReceiverDraft {
+  return {
+    localId: crypto.randomUUID(),
+    name: "",
+    email: "",
+    catchAllCheckInEnabled: true,
+    notifyEmail: true,
+  };
 }
 
-function isValidPhone(value: string): boolean {
-  return value.replace(/\D/g, "").length === 10;
+function statusNoteFor(receiver: OfficeReceiver): string {
+  if (receiver.active === false) return "";
+  const parts: string[] = [];
+  if (receiver.notifyEmail !== false && receiver.email?.trim()) {
+    parts.push("email notifications active");
+  }
+  if (receiver.notifySms === true && receiver.phone?.trim()) {
+    parts.push("SMS notifications active");
+  }
+  return parts.join(" · ");
 }
 
 export function OfficeReceiversSettingsPanel() {
   const [receivers, setReceivers] = useState<OfficeReceiver[]>([]);
   const [loading, setLoading] = useState(true);
-  const [receiverName, setReceiverName] = useState("");
-  const [receiverEmail, setReceiverEmail] = useState("");
-  const [receiverPhone, setReceiverPhone] = useState("");
-  const [phoneDrafts, setPhoneDrafts] = useState<Record<string, string>>({});
-  const [phoneSavingId, setPhoneSavingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [drafts, setDrafts] = useState<ReceiverDraft[]>(() => [newDraft()]);
+  const [savingDraftId, setSavingDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -62,19 +87,14 @@ export function OfficeReceiversSettingsPanel() {
     void reload();
   }, [reload]);
 
-  const handleAddReceiver = async () => {
-    const name = receiverName.trim();
-    const email = receiverEmail.trim();
-    const phoneRaw = receiverPhone.trim();
+  const saveDraft = async (draft: ReceiverDraft) => {
+    const name = draft.name.trim();
+    const email = draft.email.trim();
     if (!name || !isValidEmail(email)) {
       setError("Name and a valid email are required.");
       return;
     }
-    if (phoneRaw && !isValidPhone(phoneRaw)) {
-      setError("Phone must be a 10-digit US number when provided.");
-      return;
-    }
-    setSaving(true);
+    setSavingDraftId(draft.localId);
     setError(null);
     try {
       const id = `office-${crypto.randomUUID().slice(0, 8)}`;
@@ -83,29 +103,40 @@ export function OfficeReceiversSettingsPanel() {
         id,
         name,
         email: email.toLowerCase(),
-        ...(phoneRaw ? { phone: formatPhone(phoneRaw) } : {}),
-        active: true,
-        catchAllCheckInEnabled: true,
-        notifyEmail: true,
+        active: false,
+        catchAllCheckInEnabled: draft.catchAllCheckInEnabled,
+        notifyEmail: draft.notifyEmail,
         notifySms: false,
         createdAt: now,
         updatedAt: now,
       });
-      setReceiverName("");
-      setReceiverEmail("");
-      setReceiverPhone("");
+      setDrafts((prev) => {
+        const next = prev.filter((d) => d.localId !== draft.localId);
+        if (next.length === 0) return [newDraft()];
+        return next;
+      });
       await reload();
     } catch {
-      setError("Could not save office receiver.");
+      setError("Could not save Catch-All receiver.");
     } finally {
-      setSaving(false);
+      setSavingDraftId(null);
     }
   };
 
   const toggleActive = async (receiver: OfficeReceiver) => {
+    if (receiver.active !== false) return;
     await updateOfficeReceiver({
       ...receiver,
-      active: receiver.active === false,
+      active: true,
+      updatedAt: new Date().toISOString(),
+    });
+    await reload();
+  };
+
+  const deactivateReceiver = async (receiver: OfficeReceiver) => {
+    await updateOfficeReceiver({
+      ...receiver,
+      active: false,
       updatedAt: new Date().toISOString(),
     });
     await reload();
@@ -129,49 +160,94 @@ export function OfficeReceiversSettingsPanel() {
     await reload();
   };
 
-  const saveReceiverPhone = async (receiver: OfficeReceiver) => {
-    const draft = (phoneDrafts[receiver.id] ?? "").trim();
-    if (!isValidPhone(draft)) {
-      setError("Phone must be a 10-digit US number.");
-      return;
-    }
-    setPhoneSavingId(receiver.id);
-    setError(null);
-    try {
-      await updateOfficeReceiver({
-        ...receiver,
-        phone: formatPhone(draft),
-        updatedAt: new Date().toISOString(),
-      });
-      setPhoneDrafts((prev) => {
-        const next = { ...prev };
-        delete next[receiver.id];
-        return next;
-      });
-      await reload();
-    } catch {
-      setError("Could not save phone number.");
-    } finally {
-      setPhoneSavingId(null);
-    }
+  const updateDraftField = (
+    localId: string,
+    patch: Partial<Omit<ReceiverDraft, "localId">>,
+  ) => {
+    setDrafts((prev) =>
+      prev.map((d) => (d.localId === localId ? { ...d, ...patch } : d)),
+    );
   };
 
-  const clearReceiverPhone = async (receiver: OfficeReceiver) => {
-    setPhoneSavingId(receiver.id);
-    setError(null);
-    try {
-      await updateOfficeReceiver({
-        ...receiver,
-        phone: "",
-        updatedAt: new Date().toISOString(),
-      });
-      await reload();
-    } catch {
-      setError("Could not remove phone number.");
-    } finally {
-      setPhoneSavingId(null);
-    }
+  const addDraftForm = () => {
+    setDrafts((prev) => [...prev, newDraft()]);
   };
+
+  const checkboxRow = (
+    idPrefix: string,
+    opts: {
+      catchAll: boolean;
+      email: boolean;
+      catchAllDisabled?: boolean;
+      emailDisabled?: boolean;
+      onCatchAllChange?: () => void;
+      onEmailChange?: () => void;
+    },
+  ) => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 12,
+        alignItems: "center",
+      }}
+    >
+      <label
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          fontSize: 13,
+          color: TEXT,
+        }}
+      >
+        <input
+          type="checkbox"
+          data-testid={`office-receiver-catchall-${idPrefix}`}
+          checked={opts.catchAll}
+          disabled={opts.catchAllDisabled}
+          onChange={opts.onCatchAllChange}
+        />
+        Catch-all check-in alerts
+      </label>
+      <label
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          fontSize: 13,
+          color: TEXT,
+        }}
+      >
+        <input
+          type="checkbox"
+          data-testid={`office-receiver-email-${idPrefix}`}
+          checked={opts.email}
+          disabled={opts.emailDisabled}
+          onChange={opts.onEmailChange}
+        />
+        Email notify
+      </label>
+      <label
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          fontSize: 13,
+          color: MUTED,
+        }}
+        title="SMS deferred until Twilio is approved"
+      >
+        <input
+          type="checkbox"
+          data-testid={`office-receiver-sms-${idPrefix}`}
+          checked={false}
+          disabled
+        />
+        SMS (coming soon)
+      </label>
+    </div>
+  );
 
   return (
     <div
@@ -194,269 +270,338 @@ export function OfficeReceiversSettingsPanel() {
           fontFamily: FONT,
         }}
       >
-        Office receivers
+        Catch-All receivers
       </div>
       <div style={{ padding: 20, fontFamily: FONT }}>
         {loading ? (
           <p style={{ fontSize: 14, color: MUTED }}>Loading…</p>
         ) : (
           <>
-            <p style={{ fontSize: 13, color: MUTED, marginBottom: 12 }}>
-              Staff who receive catch-all delivery alert emails. Check-in still
-              uses a management PIN (capabilities set under Management) at any
-              location QR — these contacts are notify targets only.
+            <p style={{ fontSize: 13, color: MUTED, marginBottom: 16 }}>
+              Notify targets for Catch-All delivery alerts — staff who receive
+              email when a catch-all parcel needs check-in. On-site check-in
+              still uses a management PIN (under Management); these contacts are
+              alert recipients only.
             </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px" }}>
-              {receivers.map((receiver) => (
-                <li
-                  key={receiver.id}
-                  data-testid={`office-receiver-row-${receiver.id}`}
+
+            {receivers.length > 0 ? (
+              <div style={{ marginBottom: 20 }}>
+                {receivers.map((receiver) => {
+                  const isActive = receiver.active !== false;
+                  const note = statusNoteFor(receiver);
+                  return (
+                    <div
+                      key={receiver.id}
+                      data-testid={`office-receiver-row-${receiver.id}`}
+                      style={{
+                        padding: "16px 0",
+                        borderBottom: "1px solid #f3f4f6",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 12,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <div>
+                          <span style={labelStyle}>Name</span>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 600,
+                              color: TEXT,
+                            }}
+                          >
+                            {receiver.name}
+                          </div>
+                        </div>
+                        <div>
+                          <span style={labelStyle}>Email</span>
+                          <div style={{ fontSize: 14, color: TEXT }}>
+                            {receiver.email ?? "—"}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <span style={labelStyle}>SMS (coming soon)</span>
+                        <input
+                          type="text"
+                          value=""
+                          disabled
+                          placeholder="Not available yet"
+                          data-testid={`office-receiver-sms-coming-soon-${receiver.id}`}
+                          style={{
+                            ...inputStyle,
+                            width: "100%",
+                            maxWidth: 280,
+                            opacity: 0.75,
+                            cursor: "not-allowed",
+                          }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        {checkboxRow(receiver.id, {
+                          catchAll: receiver.catchAllCheckInEnabled !== false,
+                          email: receiver.notifyEmail !== false,
+                          catchAllDisabled: !isActive,
+                          emailDisabled: !isActive || !receiver.email,
+                          onCatchAllChange: () =>
+                            void toggleCatchAllEnabled(receiver),
+                          onEmailChange: () => void toggleNotifyEmail(receiver),
+                        })}
+                        {isActive ? (
+                          <button
+                            type="button"
+                            disabled
+                            data-testid={`office-receiver-active-status-${receiver.id}`}
+                            style={{
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              border: "none",
+                              backgroundColor: ACTIVE_GREEN,
+                              color: "#fff",
+                              fontWeight: 700,
+                              fontSize: 13,
+                              cursor: "default",
+                              fontFamily: FONT,
+                            }}
+                          >
+                            Active
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            data-testid={`office-receiver-activate-${receiver.id}`}
+                            onClick={() => void toggleActive(receiver)}
+                            style={{
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              border: `1px solid ${NAVY}`,
+                              backgroundColor: "#fff",
+                              color: NAVY,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              cursor: "pointer",
+                              fontFamily: FONT,
+                            }}
+                          >
+                            Activate
+                          </button>
+                        )}
+                        {note ? (
+                          <span
+                            data-testid={`office-receiver-status-note-${receiver.id}`}
+                            style={{
+                              fontSize: 13,
+                              color: ACTIVE_GREEN,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {note}
+                          </span>
+                        ) : null}
+                        {isActive ? (
+                          <button
+                            type="button"
+                            onClick={() => void deactivateReceiver(receiver)}
+                            style={{
+                              fontSize: 12,
+                              color: MUTED,
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              textDecoration: "underline",
+                              marginLeft: "auto",
+                            }}
+                          >
+                            Set inactive
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <div data-testid="office-receiver-signup-section">
+              <p
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: NAVY,
+                  marginBottom: 12,
+                }}
+              >
+                {receivers.length === 0
+                  ? "Add a Catch-All receiver"
+                  : "Add another Catch-All receiver"}
+              </p>
+              {drafts.map((draft, index) => (
+                <div
+                  key={draft.localId}
+                  data-testid={`office-receiver-signup-form-${index}`}
                   style={{
-                    padding: "12px 0",
-                    borderBottom: "1px solid #f3f4f6",
-                    fontSize: 14,
-                    color: TEXT,
+                    padding: "14px 0",
+                    borderTop: index > 0 ? "1px solid #f3f4f6" : undefined,
+                    marginBottom: 8,
                   }}
                 >
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
                       gap: 12,
-                      flexWrap: "wrap",
+                      marginBottom: 12,
                     }}
                   >
                     <div>
-                      <strong>{receiver.name}</strong>
-                      {receiver.active === false ? " (inactive)" : ""}
-                      {receiver.email ? ` · ${receiver.email}` : ""}
+                      <label style={labelStyle} htmlFor={`draft-name-${draft.localId}`}>
+                        Name
+                      </label>
+                      <input
+                        id={`draft-name-${draft.localId}`}
+                        type="text"
+                        placeholder="Full name"
+                        value={draft.name}
+                        onChange={(e) =>
+                          updateDraftField(draft.localId, {
+                            name: e.target.value,
+                          })
+                        }
+                        data-testid={
+                          index === 0
+                            ? "office-receiver-name-input"
+                            : `office-receiver-name-input-${index}`
+                        }
+                        style={{ ...inputStyle, width: "100%" }}
+                      />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void toggleActive(receiver)}
+                    <div>
+                      <label style={labelStyle} htmlFor={`draft-email-${draft.localId}`}>
+                        Email
+                      </label>
+                      <input
+                        id={`draft-email-${draft.localId}`}
+                        type="email"
+                        placeholder="name@company.com"
+                        value={draft.email}
+                        onChange={(e) =>
+                          updateDraftField(draft.localId, {
+                            email: e.target.value,
+                          })
+                        }
+                        data-testid={
+                          index === 0
+                            ? "office-receiver-email-input"
+                            : `office-receiver-email-input-${index}`
+                        }
+                        style={{ ...inputStyle, width: "100%" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={labelStyle}>SMS (coming soon)</span>
+                    <input
+                      type="text"
+                      value=""
+                      disabled
+                      placeholder="Not available yet"
+                      data-testid={
+                        index === 0
+                          ? "office-receiver-sms-coming-soon-input"
+                          : `office-receiver-sms-coming-soon-input-${index}`
+                      }
                       style={{
-                        fontSize: 12,
-                        color: NAVY,
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
+                        ...inputStyle,
+                        width: "100%",
+                        maxWidth: 280,
+                        opacity: 0.75,
+                        cursor: "not-allowed",
                       }}
-                    >
-                      {receiver.active === false ? "Activate" : "Deactivate"}
-                    </button>
+                    />
                   </div>
                   <div
                     style={{
                       display: "flex",
                       flexWrap: "wrap",
                       gap: 12,
-                      marginTop: 8,
                       alignItems: "center",
+                      marginBottom: 12,
                     }}
                   >
-                    <label
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        alignItems: "center",
-                        fontSize: 13,
-                        color: TEXT,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        data-testid={`office-receiver-catchall-${receiver.id}`}
-                        checked={receiver.catchAllCheckInEnabled !== false}
-                        disabled={receiver.active === false}
-                        onChange={() => void toggleCatchAllEnabled(receiver)}
-                      />
-                      Catch-all check-in alerts
-                    </label>
-                    <label
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        alignItems: "center",
-                        fontSize: 13,
-                        color: TEXT,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        data-testid={`office-receiver-email-${receiver.id}`}
-                        checked={receiver.notifyEmail !== false}
-                        disabled={receiver.active === false || !receiver.email}
-                        onChange={() => void toggleNotifyEmail(receiver)}
-                      />
-                      Email notify
-                    </label>
-                    <label
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        alignItems: "center",
-                        fontSize: 13,
-                        color: MUTED,
-                      }}
-                      title="SMS deferred until Twilio is approved"
-                    >
-                      <input
-                        type="checkbox"
-                        data-testid={`office-receiver-sms-${receiver.id}`}
-                        checked={false}
-                        disabled
-                      />
-                      SMS (coming soon)
-                    </label>
+                    {checkboxRow(`draft-${draft.localId}`, {
+                      catchAll: draft.catchAllCheckInEnabled,
+                      email: draft.notifyEmail,
+                      onCatchAllChange: () =>
+                        updateDraftField(draft.localId, {
+                          catchAllCheckInEnabled: !draft.catchAllCheckInEnabled,
+                        }),
+                      onEmailChange: () =>
+                        updateDraftField(draft.localId, {
+                          notifyEmail: !draft.notifyEmail,
+                        }),
+                    })}
                   </div>
-                  <div
+                  <button
+                    type="button"
+                    disabled={savingDraftId === draft.localId}
+                    data-testid={
+                      index === 0
+                        ? "office-receiver-add-btn"
+                        : `office-receiver-save-draft-${index}`
+                    }
+                    onClick={() => void saveDraft(draft)}
                     style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 8,
-                      marginTop: 10,
-                      alignItems: "center",
+                      padding: "8px 14px",
+                      borderRadius: 6,
+                      border: "none",
+                      backgroundColor: NAVY,
+                      color: "#fff",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontFamily: FONT,
                     }}
                   >
-                    {receiver.phone?.trim() ? (
-                      <span
-                        data-testid={`office-receiver-phone-chip-${receiver.id}`}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          backgroundColor: "#e5e7eb",
-                          color: TEXT,
-                          fontSize: 13,
-                          fontFamily: FONT,
-                        }}
-                      >
-                        {receiver.phone}
-                        <button
-                          type="button"
-                          aria-label="Remove phone"
-                          disabled={
-                            receiver.active === false || phoneSavingId === receiver.id
-                          }
-                          data-testid={`office-receiver-phone-remove-${receiver.id}`}
-                          onClick={() => void clearReceiverPhone(receiver)}
-                          style={{
-                            border: "none",
-                            background: "none",
-                            cursor: "pointer",
-                            color: MUTED,
-                            fontSize: 16,
-                            lineHeight: 1,
-                            padding: 0,
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ) : (
-                      <>
-                        <input
-                          type="tel"
-                          placeholder="Mobile phone"
-                          value={phoneDrafts[receiver.id] ?? ""}
-                          disabled={receiver.active === false}
-                          onChange={(e) =>
-                            setPhoneDrafts((prev) => ({
-                              ...prev,
-                              [receiver.id]: formatPhone(e.target.value),
-                            }))
-                          }
-                          data-testid={`office-receiver-phone-input-${receiver.id}`}
-                          style={{ ...inputStyle, minWidth: 160 }}
-                        />
-                        <button
-                          type="button"
-                          disabled={
-                            receiver.active === false ||
-                            phoneSavingId === receiver.id ||
-                            !isValidPhone(phoneDrafts[receiver.id] ?? "")
-                          }
-                          data-testid={`office-receiver-phone-save-${receiver.id}`}
-                          onClick={() => void saveReceiverPhone(receiver)}
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
-                            border: `1px solid ${NAVY}`,
-                            backgroundColor: "#fff",
-                            color: NAVY,
-                            fontWeight: 600,
-                            fontSize: 13,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Save phone
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </li>
+                    Save receiver
+                  </button>
+                </div>
               ))}
-              {receivers.length === 0 && (
-                <li style={{ fontSize: 14, color: MUTED }}>
-                  No office receivers yet.
-                </li>
-              )}
-            </ul>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                marginBottom: 12,
-              }}
-            >
-              <input
-                type="text"
-                placeholder="Name"
-                value={receiverName}
-                onChange={(e) => setReceiverName(e.target.value)}
-                data-testid="office-receiver-name-input"
-                style={inputStyle}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                value={receiverEmail}
-                onChange={(e) => setReceiverEmail(e.target.value)}
-                data-testid="office-receiver-email-input"
-                style={{ ...inputStyle, minWidth: 220 }}
-              />
-              <input
-                type="tel"
-                placeholder="Mobile phone (optional)"
-                value={receiverPhone}
-                onChange={(e) => setReceiverPhone(formatPhone(e.target.value))}
-                data-testid="office-receiver-add-phone-input"
-                style={{ ...inputStyle, minWidth: 160 }}
-              />
               <button
                 type="button"
-                disabled={saving}
-                data-testid="office-receiver-add-btn"
-                onClick={() => void handleAddReceiver()}
+                data-testid="office-receiver-add-additional-btn"
+                onClick={addDraftForm}
                 style={{
+                  marginTop: 8,
                   padding: "8px 14px",
                   borderRadius: 6,
-                  border: "none",
-                  backgroundColor: NAVY,
-                  color: "#fff",
+                  border: `1px solid ${NAVY}`,
+                  backgroundColor: "#fff",
+                  color: NAVY,
                   fontWeight: 600,
+                  fontSize: 13,
                   cursor: "pointer",
+                  fontFamily: FONT,
                 }}
               >
-                Add office receiver
+                Add additional Catch-All receivers
               </button>
             </div>
+
             {error ? (
-              <p style={{ color: "#bf0a30", fontSize: 13 }}>{error}</p>
+              <p style={{ color: "#bf0a30", fontSize: 13, marginTop: 12 }}>
+                {error}
+              </p>
             ) : null}
           </>
         )}

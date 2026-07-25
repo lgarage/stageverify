@@ -202,42 +202,36 @@ async function expectCallableError(fn, expectedSubstring) {
     await page.getByTestId("office-receiver-name-input").waitFor({
       timeout: 20_000,
     });
-    await page.getByTestId("office-receiver-add-phone-input").waitFor({
+    await page.getByTestId("office-receiver-sms-coming-soon-input").waitFor({
+      timeout: 20_000,
+    });
+    await page.getByTestId("office-receiver-add-additional-btn").waitFor({
       timeout: 20_000,
     });
     await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);
-    record("office receivers panel readable text contrast (D-42)", true);
+    record("Catch-All receivers panel readable text contrast (D-42)", true);
 
-    const phoneInput = page.getByTestId(
-      `office-receiver-phone-input-${fixtureReceiverId}`,
+    const activeBtn = page.getByTestId(
+      `office-receiver-active-status-${fixtureReceiverId}`,
     );
-    await phoneInput.waitFor({ timeout: 15_000 });
-    await phoneInput.fill("5559876543");
-    await page
-      .getByTestId(`office-receiver-phone-save-${fixtureReceiverId}`)
-      .click();
-    const chip = page.getByTestId(
-      `office-receiver-phone-chip-${fixtureReceiverId}`,
-    );
-    await chip.waitFor({ timeout: 15_000 });
-    const chipText = (await chip.textContent()) ?? "";
+    await activeBtn.waitFor({ timeout: 15_000 });
+    const activeLabel = (await activeBtn.textContent())?.trim() ?? "";
     record(
-      "office receiver phone persists as chip",
-      chipText.includes("555") && chipText.includes("987-6543"),
-      chipText.trim(),
+      "fixture Catch-All receiver shows Active status",
+      activeLabel === "Active",
+      activeLabel,
     );
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByTestId("office-receivers-settings-panel").waitFor({
-      timeout: 20_000,
-    });
-    await page
-      .getByTestId(`office-receiver-phone-chip-${fixtureReceiverId}`)
-      .waitFor({ timeout: 15_000 });
-    record("office receiver phone survives reload", true);
-
-    await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);
-    record("phone chip readable text contrast (D-42)", true);
+    const statusNote = page.getByTestId(
+      `office-receiver-status-note-${fixtureReceiverId}`,
+    );
+    await statusNote.waitFor({ timeout: 15_000 });
+    const noteText = (await statusNote.textContent()) ?? "";
+    record(
+      "active receiver shows email notifications note",
+      noteText.includes("email notifications active"),
+      noteText.trim(),
+    );
 
     const intakeOff = await setupFirebaseFixture({
       parcelIntakeEnabled: false,

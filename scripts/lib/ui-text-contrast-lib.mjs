@@ -151,7 +151,7 @@ export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
   ],
 };
 
-/** Office receivers Settings panel (D-44 Slice C). */
+/** Catch-All receivers Settings panel (D-44 Slice C). */
 export const OFFICE_RECEIVER_PANEL_CONTRAST_SPEC = {
   rootSelector: '[data-testid="office-receivers-settings-panel"]',
   elements: [
@@ -168,36 +168,29 @@ export const OFFICE_RECEIVER_PANEL_CONTRAST_SPEC = {
       large: false,
     },
     {
-      name: "add phone input",
-      selector: '[data-testid="office-receiver-add-phone-input"]',
+      name: "SMS coming soon input",
+      selector: '[data-testid="office-receiver-sms-coming-soon-input"]',
       large: false,
     },
     {
-      name: "add button",
+      name: "save receiver button",
       selector: '[data-testid="office-receiver-add-btn"]',
       large: false,
     },
     {
-      name: "phone chip",
-      selector: '[data-testid^="office-receiver-phone-chip-"]',
+      name: "add additional button",
+      selector: '[data-testid="office-receiver-add-additional-btn"]',
+      large: false,
+    },
+    {
+      name: "Active status",
+      selector: '[data-testid^="office-receiver-active-status-"]',
       large: false,
       optional: true,
     },
     {
-      name: "row phone input",
-      selector: '[data-testid^="office-receiver-phone-input-"]',
-      large: false,
-      optional: true,
-    },
-    {
-      name: "save phone button",
-      selector: '[data-testid^="office-receiver-phone-save-"]',
-      large: false,
-      optional: true,
-    },
-    {
-      name: "receiver row",
-      selector: "li strong",
+      name: "status note",
+      selector: '[data-testid^="office-receiver-status-note-"]',
       large: false,
       optional: true,
     },
