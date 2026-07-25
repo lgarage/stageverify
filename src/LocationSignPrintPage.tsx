@@ -184,22 +184,22 @@ export function LocationSignPrintPage() {
                 margin: "0 auto",
                 padding: "0.55in 0.5in",
                 backgroundColor: "#fff",
-                border: "4px solid #000",
+                border: "2px solid #000",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "0.35in",
+                gap: "0.28in",
                 color: "#000",
               }}
             >
               <div
                 data-testid="location-sign-code"
                 style={{
-                  fontSize: "clamp(72px, 18vw, 140px)",
+                  fontSize: "clamp(80px, 20vw, 168px)",
                   fontWeight: 900,
                   lineHeight: 1,
-                  letterSpacing: "-0.03em",
+                  letterSpacing: "-0.04em",
                   color: "#000",
                   textAlign: "center",
                 }}
@@ -208,8 +208,8 @@ export function LocationSignPrintPage() {
               </div>
               <div
                 style={{
-                  padding: 12,
-                  border: "3px solid #000",
+                  padding: 8,
+                  border: "2px solid #000",
                   backgroundColor: "#fff",
                   lineHeight: 0,
                 }}
@@ -221,16 +221,40 @@ export function LocationSignPrintPage() {
                 />
               </div>
               <div
+                data-testid="location-sign-scan-caption"
+                style={{
+                  fontSize: "clamp(14px, 2.2vw, 20px)",
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "#000",
+                  textAlign: "center",
+                  lineHeight: 1.2,
+                }}
+              >
+                SCAN FOR STATUS
+              </div>
+              <div
                 data-testid="location-sign-arrow"
                 aria-hidden
                 style={{
-                  fontSize: "clamp(48px, 12vw, 96px)",
-                  fontWeight: 900,
-                  lineHeight: 1,
-                  color: "#000",
+                  display: "flex",
+                  justifyContent: "center",
+                  lineHeight: 0,
                 }}
               >
-                ↓
+                <svg
+                  viewBox="0 0 64 96"
+                  width="clamp(72px, 14vw, 120px)"
+                  height="clamp(96px, 18vw, 144px)"
+                  role="presentation"
+                  data-testid="location-sign-arrow-svg"
+                >
+                  <path
+                    d="M32 88 L56 56 L44 56 L44 8 L20 8 L20 56 L8 56 Z"
+                    fill="#000"
+                  />
+                </svg>
               </div>
             </div>
           ) : (
@@ -279,7 +303,7 @@ export function LocationSignPrintPage() {
             min-height: auto !important;
             height: auto !important;
             margin: 0 !important;
-            border: 4px solid #000 !important;
+            border: 2px solid #000 !important;
             break-inside: avoid;
             page-break-inside: avoid;
           }

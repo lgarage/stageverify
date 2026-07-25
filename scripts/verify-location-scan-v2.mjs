@@ -201,6 +201,36 @@ async function assertLetterLocationSignPrint(browser) {
       permanentUrl === expectedUrl,
       permanentUrl ?? "missing data-permanent-url",
     );
+    const caption = printPage.getByTestId("location-sign-scan-caption");
+    await caption.waitFor({ timeout: 10_000 });
+    const captionText = (await caption.innerText()).trim().toUpperCase();
+    record(
+      "Letter sign shows SCAN FOR STATUS caption",
+      captionText === "SCAN FOR STATUS",
+      captionText,
+    );
+    const arrowSvg = printPage.getByTestId("location-sign-arrow-svg");
+    await arrowSvg.waitFor({ timeout: 10_000 });
+    const arrowBox = await arrowSvg.boundingBox();
+    const arrowFill = await arrowSvg
+      .locator("path")
+      .first()
+      .getAttribute("fill");
+    const arrowPathD = await arrowSvg.locator("path").first().getAttribute("d");
+    record(
+      "Letter sign solid down arrow (SVG)",
+      Boolean(
+        arrowBox &&
+          arrowBox.width >= 48 &&
+          arrowBox.height >= 64 &&
+          arrowFill === "#000" &&
+          typeof arrowPathD === "string" &&
+          /^M32 88/i.test(arrowPathD.trim()),
+      ),
+      arrowBox
+        ? `w=${arrowBox.width} h=${arrowBox.height} fill=${arrowFill ?? "none"} d=${arrowPathD ?? "none"}`
+        : "no bbox",
+    );
     await assertReadableTextContrast(printPage, {
       rootSelector: '[data-testid="location-sign-print-sheet"]',
       elements: [
@@ -210,9 +240,9 @@ async function assertLetterLocationSignPrint(browser) {
           large: true,
         },
         {
-          name: "down arrow",
-          selector: '[data-testid="location-sign-arrow"]',
-          large: true,
+          name: "scan caption",
+          selector: '[data-testid="location-sign-scan-caption"]',
+          large: false,
         },
       ],
     });
@@ -287,6 +317,10 @@ async function assertPermanentSignUrl(browser) {
   await ensureUniqueJobPinForLocationScan();
 
   const browser = await chromium.launch({ headless: true });
+
+  await assertPermanentSignUrl(browser);
+  await assertLetterLocationSignPrint(browser);
+
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -297,11 +331,20 @@ async function assertPermanentSignUrl(browser) {
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector("text=Staging location", { timeout: 30_000 });
+  await page
+    .getByText("Staging location", { exact: true })
+    .waitFor({ timeout: 30_000 });
+  await page.getByText(signLocationCode, { exact: true }).first().waitFor({
+    timeout: 15_000,
+  });
   record("Location header shows scanned code", true);
   await shot(page, "01-location-header");
 
-  await page.waitForSelector("text=Enter Job or Company PIN", { timeout: 30_000 });
+  const pinHeading = page.getByRole("heading", {
+    name: "Enter Job or Company PIN",
+    exact: true,
+  });
+  await pinHeading.waitFor({ state: "visible", timeout: 30_000 });
   await enterPin(page, job1Pin);
   const bodyAfterPin = await page.locator("body").innerText();
   if (/Invalid code/i.test(bodyAfterPin)) {
@@ -357,9 +400,6 @@ async function assertPermanentSignUrl(browser) {
   }, { timeout: 30_000 });
   record("Confirm delivered updates status", true);
   await shot(page, "03-confirmed");
-
-  await assertPermanentSignUrl(browser);
-  await assertLetterLocationSignPrint(browser);
 
   await browser.close();
 
