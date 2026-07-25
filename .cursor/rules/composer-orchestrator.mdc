@@ -114,7 +114,7 @@ The app's dispatcher, settings, and zone screens require Firebase login. Use a s
    ```bash
    npx playwright screenshot --browser chromium \
      --storage-state playwright/.auth/state.json \
-     "http://localhost:5173/#/settings" before.png
+     "http://localhost:5173/stageverify/#/settings" before.png
    ```
 
 3. If `state.json` does not exist or is expired (Firebase tokens last ~1 hour), re-run the setup script before taking screenshots.
