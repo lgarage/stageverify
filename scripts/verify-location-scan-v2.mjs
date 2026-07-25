@@ -172,6 +172,199 @@ async function ensureZonesAuthenticated(page) {
   }
 }
 
+async function assertBatchLocationSignPrint(browser) {
+  const printContext = await browser.newContext({
+    viewport: { width: 900, height: 1100 },
+    ...(existsSync(authState) ? { storageState: authState } : {}),
+  });
+  const printPage = await printContext.newPage();
+  try {
+    await ensureZonesAuthenticated(printPage);
+    await printPage.goto(`${appBase}/#/zones/print-labels`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await printPage
+      .getByTestId("location-sign-batch-picker")
+      .waitFor({ timeout: 45_000 });
+    const pickerRows = printPage.getByTestId("location-sign-batch-picker-row");
+    await pickerRows.first().waitFor({ timeout: 60_000 });
+    const rowCount = await pickerRows.count();
+    record(
+      "Batch label picker lists printable spots",
+      rowCount >= 2,
+      `rowCount=${rowCount}`,
+    );
+
+    const orderedCodes = await pickerRows.evaluateAll((nodes) =>
+      nodes.map((n) => n.getAttribute("data-location-code") ?? ""),
+    );
+    const catchAllIdx = await pickerRows.evaluateAll((nodes) =>
+      nodes.findIndex((n) => n.getAttribute("data-catch-all") === "true"),
+    );
+    const g1Idx = orderedCodes.findIndex((c) => c === "G1");
+    if (catchAllIdx >= 0 && g1Idx >= 0) {
+      record(
+        "Catch-all row sorts before G1 in picker",
+        catchAllIdx < g1Idx,
+        `catchAllIdx=${catchAllIdx} g1Idx=${g1Idx}`,
+      );
+    } else {
+      record(
+        "Catch-all row sorts before G1 in picker",
+        true,
+        "skipped (catch-all or G1 not in list)",
+      );
+    }
+
+    const clearBtn = printPage.getByTestId("location-sign-batch-clear-all");
+    await clearBtn.click();
+    const batchBtn = printPage.getByTestId("location-sign-batch-print-button");
+    record(
+      "Batch print disabled when none selected",
+      !(await batchBtn.isEnabled()),
+      "disabled after clear",
+    );
+    const sheetsAfterClear = printPage.getByTestId("location-sign-print-sheet");
+    record(
+      "Batch preview empty when none selected",
+      (await sheetsAfterClear.count()) === 0,
+      `sheetCount=${await sheetsAfterClear.count()}`,
+    );
+
+    const selectAllBtn = printPage.getByTestId("location-sign-batch-select-all");
+    await selectAllBtn.click();
+    const sheets = printPage.getByTestId("location-sign-print-sheet");
+    await sheets.first().waitFor({ timeout: 60_000 });
+    const count = await sheets.count();
+    record(
+      "Batch label print renders multiple sheets",
+      count >= 2,
+      `sheetCount=${count}`,
+    );
+    record(
+      "Batch print enabled when selection non-empty",
+      await batchBtn.isEnabled(),
+      "enabled after select all",
+    );
+
+    await clearBtn.click();
+    const g2Row = printPage.locator(
+      '[data-testid="location-sign-batch-picker-row"][data-location-code="G2"]',
+    );
+    await g2Row.getByTestId("location-sign-batch-picker-checkbox").check();
+    const g2Sheet = printPage.locator(
+      '[data-testid="location-sign-print-sheet"][data-location-code="G2"]',
+    );
+    record(
+      "Batch labels include expected spot (G2) when selected",
+      (await g2Sheet.count()) === 1,
+      `g2Sheets=${await g2Sheet.count()}`,
+    );
+    record(
+      "Batch print enabled for single selection",
+      await batchBtn.isEnabled(),
+      "enabled",
+    );
+    await assertReadableTextContrast(printPage, {
+      rootSelector: '[data-testid="location-sign-print-sheet"]',
+      elements: [
+        {
+          name: "batch location code",
+          selector: '[data-testid="location-sign-code"]',
+          large: true,
+        },
+        {
+          name: "batch scan caption",
+          selector: '[data-testid="location-sign-scan-caption"]',
+          large: false,
+        },
+      ],
+    });
+    record("Batch label readable contrast (D-42)", true);
+    await batchBtn.waitFor({ timeout: 10_000 });
+  } catch (err) {
+    record(
+      "Batch label readable contrast (D-42)",
+      false,
+      err instanceof Error ? err.message : String(err),
+    );
+    record(
+      "Batch label print renders multiple sheets",
+      false,
+      err instanceof Error ? err.message : String(err),
+    );
+  } finally {
+    await printPage.close();
+    await printContext.close();
+  }
+}
+
+async function assertStagingMapBatchLabelButton(browser) {
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    ...(existsSync(authState) ? { storageState: authState } : {}),
+  });
+  const page = await ctx.newPage();
+  try {
+    await ensureZonesAuthenticated(page);
+    await page.goto(`${appBase}/#/zones`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await page
+      .getByText("Loading zones…")
+      .waitFor({ state: "hidden", timeout: 60_000 })
+      .catch(() => {});
+    const batchToolbarBtn = page.getByTestId(
+      "staging-map-print-all-location-labels",
+    );
+    await batchToolbarBtn.waitFor({ timeout: 20_000 });
+    const printMapBtn = page.getByRole("button", {
+      name: "Print map",
+      exact: true,
+    });
+    await printMapBtn.waitFor({ timeout: 10_000 });
+    const batchBox = await batchToolbarBtn.boundingBox();
+    const mapBox = await printMapBtn.boundingBox();
+    record(
+      "Print location labels left of Print map",
+      Boolean(batchBox && mapBox && batchBox.x < mapBox.x),
+      batchBox && mapBox
+        ? `batchX=${batchBox.x} mapX=${mapBox.x}`
+        : "missing bbox",
+    );
+    await assertReadableTextContrast(page, {
+      rootSelector: "body",
+      elements: [
+        {
+          name: "Print location labels toolbar",
+          selector: '[data-testid="staging-map-print-all-location-labels"]',
+          large: false,
+        },
+      ],
+    });
+    record("Staging map batch label button contrast (D-42)", true);
+    await batchToolbarBtn.click();
+    await page.waitForURL(/print-labels/, { timeout: 30_000 });
+    record("Batch label toolbar opens print-labels route", true);
+  } catch (err) {
+    record(
+      "Staging map batch label button contrast (D-42)",
+      false,
+      err instanceof Error ? err.message : String(err),
+    );
+    record(
+      "Print location labels left of Print map",
+      false,
+      err instanceof Error ? err.message : String(err),
+    );
+  } finally {
+    await page.close();
+    await ctx.close();
+  }
+}
+
 async function assertLetterLocationSignPrint(browser) {
   const expectedUrl = buildPermanentLocationUrl(signLocationCode);
   const printContext = await browser.newContext({
@@ -184,6 +377,30 @@ async function assertLetterLocationSignPrint(browser) {
     await printPage.goto(
       `${appBase}/#/zones/print-label?loc=${encodeURIComponent(signLocationCode)}`,
       { waitUntil: "domcontentloaded", timeout: 45_000 },
+    );
+    await printPage.evaluate(() => window.scrollTo(0, 0));
+    const toolbar = printPage.getByTestId("location-sign-print-toolbar");
+    await toolbar.waitFor({ timeout: 10_000 });
+    const printBtn = printPage.getByTestId("location-sign-print-button");
+    const locInput = printPage.getByTestId("location-sign-loc-input");
+    const toolbarBox = await toolbar.boundingBox();
+    const btnBox = await printBtn.boundingBox();
+    const inputBox = await locInput.boundingBox();
+    const vp = printPage.viewportSize();
+    record(
+      "Label print toolbar not clipped at top",
+      Boolean(
+        toolbarBox &&
+          btnBox &&
+          inputBox &&
+          toolbarBox.y >= 0 &&
+          btnBox.y >= toolbarBox.y - 2 &&
+          inputBox.y >= toolbarBox.y - 2 &&
+          (vp ? toolbarBox.y + toolbarBox.height <= vp.height + 2 : true),
+      ),
+      toolbarBox && btnBox
+        ? `toolbarY=${toolbarBox.y} h=${toolbarBox.height}`
+        : "missing bbox",
     );
     const sheet = printPage.getByTestId("location-sign-print-sheet");
     await sheet.waitFor({ timeout: 30_000 });
@@ -247,6 +464,20 @@ async function assertLetterLocationSignPrint(browser) {
       ],
     });
     record("Letter sign readable contrast (D-42)", true);
+    await printPage.emulateMedia({ media: "print" });
+    const toolbarHidden = await toolbar.evaluate(
+      (el) => window.getComputedStyle(el).display === "none",
+    );
+    const hintHidden = await printPage
+      .getByTestId("location-sign-print-hint")
+      .evaluate((el) => window.getComputedStyle(el).display === "none");
+    const sheetStillVisible = await sheet.isVisible();
+    record(
+      "Print media hides app chrome, shows sign sheet",
+      toolbarHidden && hintHidden && sheetStillVisible,
+      `toolbarHidden=${toolbarHidden} hintHidden=${hintHidden} sheetVisible=${sheetStillVisible}`,
+    );
+    await printPage.emulateMedia({ media: "screen" });
     await shot(printPage, "05-letter-location-sign");
   } catch (err) {
     record(
@@ -320,6 +551,8 @@ async function assertPermanentSignUrl(browser) {
 
   await assertPermanentSignUrl(browser);
   await assertLetterLocationSignPrint(browser);
+  await assertStagingMapBatchLabelButton(browser);
+  await assertBatchLocationSignPrint(browser);
 
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },

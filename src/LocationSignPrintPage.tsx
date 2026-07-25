@@ -1,39 +1,29 @@
 import { useCallback, useMemo, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  buildPermanentLocationUrl,
-  ESL_QR_SIZE_LOCATION_SIGN,
-} from "./receiveQrUrls";
-import { EslQrCode } from "./EslQrCode";
-import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
-import {
-  PORTAL_MAIN_CLASS,
-  PORTAL_SCROLL_CLASS,
-  PORTAL_SHELL_CLASS,
-} from "./dispatcherPortalLayout";
+import { PORTAL_SHELL_CLASS } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
+import {
+  LocationSignPrintSheet,
+  LOCATION_SIGN_PRINT_HINT,
+  LOCATION_SIGN_PRINT_PAGE_CLASS,
+  LOCATION_SIGN_PRINT_STYLES,
+  normalizeLocationSignCode,
+  useLocationSignPrintDocumentTitle,
+} from "./LocationSignPrintSheet";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-
-function normalizeLocParam(raw: string | null): string {
-  const trimmed = raw?.trim() ?? "";
-  if (!trimmed) return "";
-  return formatStagingCodeCanonical(trimmed);
-}
 
 /** Letter-size permanent location sign — static `#/s?loc=` QR (D8). */
 export function LocationSignPrintPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const locationCode = useMemo(
-    () => normalizeLocParam(searchParams.get("loc")),
+    () => normalizeLocationSignCode(searchParams.get("loc")),
     [searchParams],
   );
 
-  const qrUrl = locationCode
-    ? buildPermanentLocationUrl(locationCode, { forPrint: true })
-    : "";
+  useLocationSignPrintDocumentTitle(locationCode);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -42,7 +32,7 @@ export function LocationSignPrintPage() {
   const handleLocSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    const next = normalizeLocParam(String(data.get("loc") ?? ""));
+    const next = normalizeLocationSignCode(String(data.get("loc") ?? ""));
     if (!next) return;
     setSearchParams({ loc: next }, { replace: true });
   };
@@ -51,12 +41,10 @@ export function LocationSignPrintPage() {
     <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
       <PortalSidebar className="print:hidden" />
 
-      <div
-        className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#e5e7eb" }}
-      >
+      <div className={LOCATION_SIGN_PRINT_PAGE_CLASS} style={{ backgroundColor: "#e5e7eb" }}>
         <div
-          className={`${PORTAL_SCROLL_CLASS} print:hidden`}
+          className="location-sign-print-toolbar print:hidden"
+          data-testid="location-sign-print-toolbar"
           style={{ padding: "24px 30px", backgroundColor: "#e5e7eb" }}
         >
           <div
@@ -156,9 +144,18 @@ export function LocationSignPrintPage() {
               Print label
             </button>
           </div>
-          <p style={{ maxWidth: 720, margin: "12px auto 0", fontSize: 12, color: "#64748b" }}>
+          <p
+            data-testid="location-sign-print-hint"
+            style={{
+              maxWidth: 720,
+              margin: "10px auto 0",
+              fontSize: 12,
+              color: "#64748b",
+              lineHeight: 1.4,
+            }}
+          >
             US Letter portrait — one sign per sheet. QR encodes the permanent scan URL
-            for this spot (never changes when occupancy changes).
+            for this spot. {LOCATION_SIGN_PRINT_HINT}
           </p>
         </div>
 
@@ -172,91 +169,7 @@ export function LocationSignPrintPage() {
           className="location-sign-print-stage"
         >
           {locationCode ? (
-            <div
-              data-testid="location-sign-print-sheet"
-              data-permanent-url={qrUrl}
-              className="location-sign-print-sheet"
-              style={{
-                boxSizing: "border-box",
-                width: "100%",
-                maxWidth: "7.5in",
-                minHeight: "9.5in",
-                margin: "0 auto",
-                padding: "0.55in 0.5in",
-                backgroundColor: "#fff",
-                border: "2px solid #000",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.28in",
-                color: "#000",
-              }}
-            >
-              <div
-                data-testid="location-sign-code"
-                style={{
-                  fontSize: "clamp(80px, 20vw, 168px)",
-                  fontWeight: 900,
-                  lineHeight: 1,
-                  letterSpacing: "-0.04em",
-                  color: "#000",
-                  textAlign: "center",
-                }}
-              >
-                {locationCode}
-              </div>
-              <div
-                style={{
-                  padding: 8,
-                  border: "2px solid #000",
-                  backgroundColor: "#fff",
-                  lineHeight: 0,
-                }}
-              >
-                <EslQrCode
-                  value={qrUrl}
-                  variant="print"
-                  size={ESL_QR_SIZE_LOCATION_SIGN}
-                />
-              </div>
-              <div
-                data-testid="location-sign-scan-caption"
-                style={{
-                  fontSize: "clamp(14px, 2.2vw, 20px)",
-                  fontWeight: 800,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "#000",
-                  textAlign: "center",
-                  lineHeight: 1.2,
-                }}
-              >
-                SCAN FOR STATUS
-              </div>
-              <div
-                data-testid="location-sign-arrow"
-                aria-hidden
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  lineHeight: 0,
-                }}
-              >
-                <svg
-                  viewBox="0 0 64 96"
-                  width="clamp(72px, 14vw, 120px)"
-                  height="clamp(96px, 18vw, 144px)"
-                  role="presentation"
-                  data-testid="location-sign-arrow-svg"
-                >
-                  <path
-                    d="M32 88 L56 56 L44 56 L44 8 L20 8 L20 56 L8 56 Z"
-                    fill="#000"
-                  />
-                </svg>
-              </div>
-            </div>
+            <LocationSignPrintSheet locationCode={locationCode} />
           ) : (
             <p
               className="print:hidden"
@@ -268,47 +181,7 @@ export function LocationSignPrintPage() {
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          @page {
-            size: letter portrait;
-            margin: 0.45in;
-          }
-          .print\\:hidden { display: none !important; }
-          html, body {
-            background: #fff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .portal-shell,
-          .portal-main,
-          .portal-scroll {
-            display: block !important;
-            height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-            background: #fff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .location-sign-print-stage {
-            padding: 0 !important;
-            background: #fff !important;
-          }
-          .location-sign-print-sheet {
-            width: 100% !important;
-            max-width: none !important;
-            min-height: auto !important;
-            height: auto !important;
-            margin: 0 !important;
-            border: 2px solid #000 !important;
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-        }
-      `}</style>
+      <style>{LOCATION_SIGN_PRINT_STYLES}</style>
     </div>
   );
 }

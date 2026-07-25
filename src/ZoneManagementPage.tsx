@@ -1209,6 +1209,24 @@ export function ZoneManagementPage() {
             <div className="flex flex-wrap items-center justify-end gap-3">
               <button
                 type="button"
+                data-testid="staging-map-print-all-location-labels"
+                onClick={() => navigate("/zones/print-labels")}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 4,
+                  border: `1px solid ${NAVY}`,
+                  backgroundColor: "#fff",
+                  color: NAVY,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                Print location labels
+              </button>
+              <button
+                type="button"
                 onClick={() => window.print()}
                 style={{
                   padding: "8px 18px",

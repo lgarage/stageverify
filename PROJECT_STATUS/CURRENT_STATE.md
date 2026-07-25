@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.146** — Letter sign print layout: huge spot code, QR, **SCAN FOR STATUS**, solid SVG down arrow; thin 2px border (`#/zones/print-label?loc=`)
+- Last shipped: **v0.0.147** — Staging Map **Print location labels** batch route with multi-select picker (Catch-all first sort); single/batch sign print hides chrome in print preview; toolbar scroll fix on `#/zones/print-label`
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:pickup` / `:prod`; `verify:receive` / `:prod`; `verify:vendor-delivered` / `:prod`; `verify:catch-all-map` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
