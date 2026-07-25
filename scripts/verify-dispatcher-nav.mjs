@@ -376,6 +376,29 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await assertReadableTextContrast(page, DISPATCHER_TOPBAR_CONTRAST_SPEC);
   console.log("PASS: dispatcher top bar — no overlap; readable text.");
 
+  const catchAllBtn = page.getByTestId("catch-all-delivery-btn");
+  if (await catchAllBtn.isVisible().catch(() => false)) {
+    const topbarBox = await page
+      .getByTestId("dispatcher-portal-topbar")
+      .boundingBox();
+    const btnBox = await catchAllBtn.boundingBox();
+    if (!topbarBox || !btnBox || btnBox.width < 8) {
+      throw new Error(
+        "catch-all-delivery-btn visible but clipped or zero-width in top bar",
+      );
+    }
+    if (btnBox.x + btnBox.width > topbarBox.x + topbarBox.width + 2) {
+      throw new Error(
+        "catch-all-delivery-btn extends past dispatcher top bar (overflow clip)",
+      );
+    }
+    console.log("PASS: catch-all delivery button visible and not clipped.");
+  } else {
+    console.log(
+      "SKIP: catch-all-delivery-btn not shown (catch-all not configured in appSettings).",
+    );
+  }
+
   console.log("Delivery Overview: Delivered status filter pill…");
   await assertDeliveredOverviewTiles(page);
 

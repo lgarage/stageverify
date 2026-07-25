@@ -628,30 +628,31 @@ export function ZoneManagementPage() {
       const caId = settings.catchAllStagingLocationId?.trim();
       if (caId) {
         const designated = zones.find((z) => z.id === caId);
-        const slot =
-          designated?.mapLayoutSlot?.trim() ||
-          designated?.code?.trim() ||
-          "";
-        if (slot && isDefaultGroundLayoutSlot(slot)) {
+        const layoutSlot = designated?.mapLayoutSlot?.trim() ?? "";
+        const needsCaSlotRepair =
+          designated &&
+          layoutSlot &&
+          isDefaultGroundLayoutSlot(layoutSlot);
+        if (needsCaSlotRepair) {
+          await updateZone(designated.id, {
+            code: CATCH_ALL_ZONE_CODE,
+            mapLayoutSlot: CATCH_ALL_ZONE_CODE,
+          });
+          patchZoneLocal(designated.id, {
+            code: CATCH_ALL_ZONE_CODE,
+            mapLayoutSlot: CATCH_ALL_ZONE_CODE,
+          });
+        }
+        if (settings.parcelIntakeEnabled !== true) {
           await updateAppSettings({
-            catchAllStagingLocationId: undefined,
-            parcelIntakeEnabled: false,
+            catchAllStagingLocationId: caId,
+            parcelIntakeEnabled: true,
           });
           settings = {
             ...settings,
-            catchAllStagingLocationId: undefined,
-            parcelIntakeEnabled: false,
+            catchAllStagingLocationId: caId,
+            parcelIntakeEnabled: true,
           };
-          if (designated) {
-            await updateZone(designated.id, {
-              code: CATCH_ALL_ZONE_CODE,
-              mapLayoutSlot: CATCH_ALL_ZONE_CODE,
-            });
-            patchZoneLocal(designated.id, {
-              code: CATCH_ALL_ZONE_CODE,
-              mapLayoutSlot: CATCH_ALL_ZONE_CODE,
-            });
-          }
         }
       }
 

@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { useDispatcherPortal } from "./DispatcherPortalContext";
-import { notifyCatchAllCheckers, subscribeAppSettings } from "./firestoreService";
+import {
+  notifyCatchAllCheckers,
+  subscribeAppSettings,
+  updateAppSettings,
+} from "./firestoreService";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function CatchAllDeliveryTopBarEntry() {
   const { emailProviderConnected } = useDispatcherPortal();
+  const [catchAllLocationId, setCatchAllLocationId] = useState<string | null>(
+    null,
+  );
   const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
   const [catchAllPendingCheckInCount, setCatchAllPendingCheckInCount] =
     useState(0);
@@ -14,20 +21,37 @@ export function CatchAllDeliveryTopBarEntry() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    let healInFlight = false;
     return subscribeAppSettings((settings) => {
+      const catchAllId = settings.catchAllStagingLocationId?.trim() ?? "";
+      setCatchAllLocationId(catchAllId || null);
       setParcelIntakeEnabled(
-        settings.parcelIntakeEnabled === true &&
-          Boolean(settings.catchAllStagingLocationId?.trim()),
+        settings.parcelIntakeEnabled === true && Boolean(catchAllId),
       );
       setCatchAllPendingCheckInCount(settings.catchAllPendingCheckInCount ?? 0);
+
+      if (
+        catchAllId &&
+        settings.parcelIntakeEnabled !== true &&
+        !healInFlight
+      ) {
+        healInFlight = true;
+        void updateAppSettings({
+          catchAllStagingLocationId: catchAllId,
+          parcelIntakeEnabled: true,
+        }).finally(() => {
+          healInFlight = false;
+        });
+      }
     });
   }, []);
 
-  if (!parcelIntakeEnabled) {
+  if (!catchAllLocationId) {
     return null;
   }
 
-  const disabled = busy || !emailProviderConnected;
+  const disabled =
+    busy || !emailProviderConnected || !parcelIntakeEnabled;
 
   const handleClick = () => {
     if (disabled) return;
@@ -86,9 +110,11 @@ export function CatchAllDeliveryTopBarEntry() {
           data-gmail-connected={emailProviderConnected ? "true" : "false"}
           disabled={disabled}
           title={
-            !emailProviderConnected
-              ? "Connect Gmail in Settings to send catch-all alerts."
-              : undefined
+            !parcelIntakeEnabled
+              ? "Catch-all intake is syncing — try again in a moment."
+              : !emailProviderConnected
+                ? "Connect Gmail in Settings to send catch-all alerts."
+                : undefined
           }
           onClick={handleClick}
           style={{

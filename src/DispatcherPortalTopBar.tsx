@@ -61,7 +61,7 @@ export function DispatcherPortalTopBar({
         alignItems: "center",
         columnGap: 12,
         minWidth: 0,
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       <div
