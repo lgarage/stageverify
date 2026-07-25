@@ -15,13 +15,17 @@ import {
   getAppSettings,
   updateAppSettings,
   listAllZones,
+  createZone,
   updateZone,
   subscribeAppSettings,
   getEmailProviderConnection,
   initiateGmailOAuth,
   disconnectGmailOAuth,
 } from "./dispatcher/firestoreService";
-import { filterStagingLocationsOnShopMap } from "./dispatcher/stagingMapSync";
+import {
+  stagingListRowsForShopMap,
+  isMapSlotPlaceholderStagingLocation,
+} from "./dispatcher/stagingMapSync";
 import type { ShopMapLayoutExtras } from "./dispatcher/shopMapLayout";
 import type { EmailProviderConnection } from "./dispatcher/models";
 import { STAGEVERIFY_BOT_INBOX } from "./dispatcher/email/stageverifyBotInbox";
@@ -151,12 +155,17 @@ export function SettingsPage() {
     });
   }, []);
 
-  const stagingSpots = useMemo(
+  const stagingSpotRows = useMemo(
     () =>
-      filterStagingLocationsOnShopMap(allZones, mapLayoutExtras).sort(
-        sortStagingSpots,
+      stagingListRowsForShopMap(allZones, mapLayoutExtras).sort((a, b) =>
+        sortStagingSpots(a.spot, b.spot),
       ),
     [allZones, mapLayoutExtras],
+  );
+
+  const stagingSpots = useMemo(
+    () => stagingSpotRows.map((row) => row.spot),
+    [stagingSpotRows],
   );
 
   useEffect(() => {
@@ -387,11 +396,32 @@ export function SettingsPage() {
         status: editForm.status,
         sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
       };
-      await updateZone(spot.id, patch);
-      setAllZones((prev) =>
-        prev
-          .map((s) => (s.id === spot.id ? { ...s, ...patch, id: spot.id } : s)),
+      const mapLayoutSlot = formatStagingCodeCanonical(
+        spot.mapLayoutSlot ?? spot.code,
       );
+
+      if (isMapSlotPlaceholderStagingLocation(spot)) {
+        const id = await createZone({
+          ...patch,
+          mapLayoutSlot,
+          sortOrder: patch.sortOrder,
+        });
+        setAllZones((prev) => [
+          ...prev,
+          {
+            id,
+            ...patch,
+            mapLayoutSlot,
+          },
+        ]);
+      } else {
+        await updateZone(spot.id, { ...patch, mapLayoutSlot });
+        setAllZones((prev) =>
+          prev.map((s) =>
+            s.id === spot.id ? { ...s, ...patch, mapLayoutSlot, id: spot.id } : s,
+          ),
+        );
+      }
       cancelEditSpot();
     } catch (err) {
       setEditError(
@@ -1322,7 +1352,11 @@ export function SettingsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {stagingSpots.map((spot, idx) => {
+                      {stagingSpotRows.map((row, idx) => {
+                        const spot = row.spot;
+                        const rowKey = row.layoutSlot;
+                        const rowTestCode =
+                          spot.mapLayoutSlot ?? row.layoutSlot ?? spot.code;
                         const isEditing = editingSpotId === spot.id;
                         const rowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
                         const tdBase: CSSProperties = {
@@ -1357,7 +1391,7 @@ export function SettingsPage() {
                           Boolean(rowConflict);
 
                         return (
-                          <tr key={spot.id} style={{ backgroundColor: rowBg }}>
+                          <tr key={rowKey} style={{ backgroundColor: rowBg }}>
                             <td
                               style={{
                                 ...tdBase,
@@ -1543,7 +1577,7 @@ export function SettingsPage() {
                               ) : (
                                 <button
                                   type="button"
-                                  data-testid={`edit-spot-${spot.code}`}
+                                  data-testid={`edit-spot-${rowTestCode}`}
                                   onClick={() => startEditSpot(spot)}
                                   style={{
                                     padding: "3px 10px",
@@ -1623,9 +1657,11 @@ export function SettingsPage() {
                       gap: 6,
                     }}
                   >
-                    {stagingSpots.map((spot) => (
+                    {stagingSpotRows.map((row) => {
+                      const spot = row.spot;
+                      return (
                       <li
-                        key={spot.id}
+                        key={row.layoutSlot}
                         style={{
                           display: "flex",
                           flexWrap: "wrap",
@@ -1661,7 +1697,8 @@ export function SettingsPage() {
                           {spot.status !== "Active" ? ` · ${spot.status}` : ""}
                         </span>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </div>
               )}

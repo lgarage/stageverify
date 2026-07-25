@@ -38,6 +38,47 @@ mkdirSync(outDir, { recursive: true });
 
 const appBase = resolveAppBase(baseUrl);
 
+function normalizeSpotKey(code) {
+  return code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+}
+
+async function collectMapStagingSpotKeys(page) {
+  await page.goto(`${appBase}/#/zones`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForSelector('[data-testid="shop-floor-map"]', {
+    timeout: 30_000,
+  });
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll(
+        '[data-testid^="shop-spot-"]:not([data-testid="shop-spot-catch-all-label"])',
+      ).length >= 12,
+    { timeout: 45_000 },
+  );
+  await page.waitForTimeout(800);
+  const layoutSlots = await page
+    .locator(
+      '[data-testid^="shop-spot-"]:not([data-testid="shop-spot-catch-all-label"])',
+    )
+    .evaluateAll((els) =>
+      els.map(
+        (el) =>
+          el.getAttribute("data-testid")?.replace("shop-spot-", "") ?? "",
+      ),
+    );
+  const keys = layoutSlots.map((s) => normalizeSpotKey(s)).filter(Boolean);
+  const catchAll = await page
+    .locator('[data-testid="shop-map-catch-all"]')
+    .count();
+  if (catchAll > 0) {
+    keys.push("CA");
+  }
+  keys.sort();
+  return keys;
+}
+
 function trySeed(status) {
   try {
     execSync(`node scripts/seed-email-oauth-fixture.mjs --status=${status}`, {
@@ -82,18 +123,8 @@ async function ensureAuthenticated(page) {
 }
 
 async function countMapStagingSpots(page) {
-  await page.goto(`${appBase}/#/zones`, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
-  await page.waitForSelector('[data-testid="shop-floor-map"]', {
-    timeout: 30_000,
-  });
-  const groundShelf = await page.locator('[data-testid^="shop-spot-"]').count();
-  const catchAll = await page
-    .locator('[data-testid="shop-map-catch-all"]')
-    .count();
-  return groundShelf + catchAll;
+  const keys = await collectMapStagingSpotKeys(page);
+  return keys.length;
 }
 
 (async () => {
@@ -236,31 +267,66 @@ async function countMapStagingSpots(page) {
     .scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
 
-  const mapSpotCount = await countMapStagingSpots(page);
-
-  await page.goto(`${appBase}/#/settings`, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
   await page.waitForSelector('[data-testid="settings-staging-spots-section"]', {
     timeout: 20_000,
   });
-
-  const settingsEditButtons = await page
-    .locator('[data-testid^="edit-spot-"]')
-    .count();
-
-  if (settingsEditButtons > mapSpotCount) {
-    throw new Error(
-      `Settings has more rows (${settingsEditButtons}) than Staging Map spots (${mapSpotCount}) — D-52 sync`,
-    );
-  }
+  await page.waitForFunction(
+    () => !/Loading spots/i.test(document.body.textContent ?? ""),
+    { timeout: 45_000 },
+  );
+  await page.waitForTimeout(400);
 
   const editIds = await page
     .locator('[data-testid^="edit-spot-"]')
     .evaluateAll((els) =>
       els.map((el) => el.getAttribute("data-testid")?.replace("edit-spot-", "") ?? ""),
     );
+  const settingsKeys = editIds.map((c) => normalizeSpotKey(c)).filter(Boolean);
+  const settingsEditButtons = editIds.length;
+
+  const sectionText = await page
+    .locator('[data-testid="settings-staging-spots-section"]')
+    .innerText();
+  const expectedCountMatch = sectionText.match(/(\d+)\s+spots on map/i);
+  const expectedSpotCount = expectedCountMatch
+    ? Number(expectedCountMatch[1])
+    : settingsEditButtons;
+
+  let mapSpotKeys = await collectMapStagingSpotKeys(page);
+  for (let attempt = 0; attempt < 24; attempt++) {
+    if (mapSpotKeys.length === expectedSpotCount) break;
+    await page.waitForTimeout(500);
+    mapSpotKeys = await collectMapStagingSpotKeys(page);
+  }
+  const mapSpotCount = mapSpotKeys.length;
+
+  const mapKeySet = new Set(mapSpotKeys);
+  const settingsKeySet = new Set(settingsKeys);
+
+  if (settingsKeys.length !== mapSpotKeys.length) {
+    const onlyMap = mapSpotKeys.filter((k) => !settingsKeySet.has(k));
+    const onlySettings = settingsKeys.filter((k) => !mapKeySet.has(k));
+    throw new Error(
+      `Settings row count (${settingsKeys.length}) ≠ Staging Map chips (${mapSpotKeys.length}) — D-52 parity` +
+        (onlyMap.length ? `; on map only: ${onlyMap.join(", ")}` : "") +
+        (onlySettings.length ? `; settings only: ${onlySettings.join(", ")}` : ""),
+    );
+  }
+
+  for (const key of mapKeySet) {
+    if (!settingsKeySet.has(key)) {
+      throw new Error(
+        `Map chip ${key} missing from Settings staging list — D-52 parity`,
+      );
+    }
+  }
+  for (const key of settingsKeySet) {
+    if (!mapKeySet.has(key)) {
+      throw new Error(
+        `Settings row ${key} has no Staging Map chip — D-52 parity`,
+      );
+    }
+  }
 
   await page.goto(`${appBase}/#/zones`, {
     waitUntil: "domcontentloaded",
@@ -284,7 +350,7 @@ async function countMapStagingSpots(page) {
   }
 
   console.log(
-    `PASS: Settings list ⊆ map (${settingsEditButtons} rows, ${mapSpotCount} map chips).`,
+    `PASS: Settings list ↔ map parity (${settingsEditButtons} rows, ${mapSpotCount} map chips).`,
   );
 
   await page.goto(`${appBase}/#/settings`, {

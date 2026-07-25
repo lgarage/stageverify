@@ -209,7 +209,7 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
-**Settings staging spots = map only (2026-07-25, v0.0.152, D-52)** — Settings Workflow list is derived from persisted Staging Map layout (`filterStagingLocationsOnShopMap`); add/remove via Staging Map Edit Locations only. Verify: `verify:settings-staging`.
+**Settings staging spots = map SSOT (2026-07-25, v0.0.153, D-52 follow-up)** — Settings Workflow lists **one row per visible map slot** (`stagingListRowsForShopMap` / `visibleShopMapLayoutSlotKeys`); zone docs hydrate label/QR when present; map-only slots show default labels; add/remove via Staging Map Edit Locations only. Map shelf chips respect `hiddenSlots` (aligned with list). Verify: `verify:settings-staging` (bidirectional parity).
 
 **Catch-all view-mode tile + top-bar badge (2026-07-24, v0.0.140)** — Staging Map shows persisted catch-all overlay in view after Done (read-only); top-bar Catch-all delivery shows live `catchAllPendingCheckInCount` badge including 0. CF notify/check-in decrement unchanged. Verify: `verify:catch-all-map` (+ `:prod`).
 

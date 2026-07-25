@@ -3296,6 +3296,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                     SHOP_MAP_DEFAULT_SHELF_LETTERS as readonly string[]
                   ).includes(letter),
               );
+              const unitLetterSet = new Set(
+                (
+                  layout.shelfLettersByUnit[unit] ??
+                  SHOP_MAP_DEFAULT_SHELF_LETTERS
+                ).map((letter) => letter.toUpperCase()),
+              );
               return (
                 <div
                   key={unit}
@@ -3410,18 +3416,20 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                               flexShrink: 0,
                             }}
                           >
-                            {renderSpotButton(
-                              codeA,
-                              false,
-                              { left: 0, top: 2 },
-                              1,
-                            )}
-                            {renderSpotButton(
-                              codeB,
-                              false,
-                              { left: 34, top: 18 },
-                              2,
-                            )}
+                            {unitLetterSet.has(a) &&
+                              renderSpotButton(
+                                codeA,
+                                false,
+                                { left: 0, top: 2 },
+                                1,
+                              )}
+                            {unitLetterSet.has(b) &&
+                              renderSpotButton(
+                                codeB,
+                                false,
+                                { left: 34, top: 18 },
+                                2,
+                              )}
                           </div>
                         );
                       })}
