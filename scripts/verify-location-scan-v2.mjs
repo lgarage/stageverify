@@ -288,6 +288,10 @@ async function assertBatchLocationSignPrint(browser) {
         true,
         "skipped (no catch-all row)",
       );
+    }
+
+    // D-42 needs a visible sheet — re-select G2 if catch-all path left none.
+    if ((await sheets.count()) === 0) {
       await g2Row.getByTestId("location-sign-batch-picker-checkbox").check();
       await g2Sheet.first().waitFor({ timeout: 60_000 });
     }
@@ -497,11 +501,16 @@ async function assertLetterLocationSignPrint(browser) {
     const hintHidden = await printPage
       .getByTestId("location-sign-print-hint")
       .evaluate((el) => window.getComputedStyle(el).display === "none");
+    const sidebarHidden = await printPage
+      .locator(".portal-sidebar")
+      .first()
+      .evaluate((el) => window.getComputedStyle(el).display === "none")
+      .catch(() => true);
     const sheetStillVisible = await sheet.isVisible();
     record(
       "Print media hides app chrome, shows sign sheet",
-      toolbarHidden && hintHidden && sheetStillVisible,
-      `toolbarHidden=${toolbarHidden} hintHidden=${hintHidden} sheetVisible=${sheetStillVisible}`,
+      toolbarHidden && hintHidden && sidebarHidden && sheetStillVisible,
+      `toolbarHidden=${toolbarHidden} hintHidden=${hintHidden} sidebarHidden=${sidebarHidden} sheetVisible=${sheetStillVisible}`,
     );
     await printPage.emulateMedia({ media: "screen" });
     await shot(printPage, "05-letter-location-sign");

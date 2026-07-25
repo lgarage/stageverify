@@ -5,7 +5,6 @@ import {
 } from "./receiveQrUrls";
 import { EslQrCode } from "./EslQrCode";
 import { formatStagingCodeCanonical } from "./dispatcher/stagingCode";
-import { PORTAL_MAIN_CLASS } from "./dispatcherPortalLayout";
 
 export function normalizeLocationSignCode(raw: string | null | undefined): string {
   const trimmed = raw?.trim() ?? "";
@@ -13,8 +12,11 @@ export function normalizeLocationSignCode(raw: string | null | undefined): strin
   return formatStagingCodeCanonical(trimmed);
 }
 
-/** Main column scrolls as one unit — avoids portal-scroll min-height clip on toolbar. */
-export const LOCATION_SIGN_PRINT_PAGE_CLASS = `${PORTAL_MAIN_CLASS} location-sign-print-page`;
+/**
+ * Dedicated scroll column — NOT `.portal-main` (flex + min-height:0 + overflow:hidden
+ * clips the toolbar). Block layout + overflow-y auto inside portal-shell.
+ */
+export const LOCATION_SIGN_PRINT_PAGE_CLASS = "location-sign-print-page";
 
 export const LOCATION_SIGN_PRINT_HINT =
   "In the print dialog, turn off Headers and footers for a clean sign-only page.";
@@ -25,6 +27,7 @@ const DEFAULT_DOC_TITLE = "stageverify";
 export function useLocationSignPrintDocumentTitle(printTitle: string) {
   useEffect(() => {
     const minimal = printTitle.trim() || " ";
+    document.title = minimal;
     const onBeforePrint = () => {
       document.title = minimal;
     };
@@ -43,11 +46,20 @@ export function useLocationSignPrintDocumentTitle(printTitle: string) {
 
 export const LOCATION_SIGN_PRINT_STYLES = `
   .location-sign-print-page {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    max-height: 100%;
     overflow-x: hidden;
-    overflow-y: auto !important;
+    overflow-y: auto;
+    display: block;
+    box-sizing: border-box;
   }
   .location-sign-print-toolbar {
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
 
   @media print {
@@ -143,13 +155,13 @@ export function LocationSignPrintSheet({
         maxWidth: batchPreviewGap ? "7.5in" : "7.5in",
         minHeight: "9.5in",
         margin: batchPreviewGap ? "0 auto 32px" : "0 auto",
-        padding: "0.55in 0.5in",
+        padding: "0.7in 0.5in 0.55in",
         backgroundColor: "#fff",
         border: "2px solid #000",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         gap: "0.28in",
         color: "#000",
       }}
