@@ -1,4 +1,4 @@
-import{An as e,Sr as t,Vr as n,r,zr as i}from"./index-B1plw2DS.js";import{t as a}from"./EslQrCode-DIhpESWR.js";var o=n(i(),1),s=t();function c(t){let n=t?.trim()??``;return n?e(n):``}var l=`location-sign-print-page`,u=`In the print dialog, turn off Headers and footers for a clean sign-only page.`,d=`stageverify`;function f(e){(0,o.useEffect)(()=>{let t=e.trim()||` `;document.title=t;let n=()=>{document.title=t},r=()=>{document.title=d};return window.addEventListener(`beforeprint`,n),window.addEventListener(`afterprint`,r),()=>{window.removeEventListener(`beforeprint`,n),window.removeEventListener(`afterprint`,r),document.title=d}},[e])}var p=`
+import{An as e,Sr as t,Vr as n,r,zr as i}from"./index-IpXN4wTA.js";import{t as a}from"./EslQrCode-CgS2-8hY.js";var o=n(i(),1),s=t();function c(t){let n=t?.trim()??``;return n?e(n):``}var l=`location-sign-print-page`,u=`In the print dialog, turn off Headers and footers for a clean sign-only page.`,d=`stageverify`;function f(e){(0,o.useEffect)(()=>{let t=e.trim()||` `;document.title=t;let n=()=>{document.title=t},r=()=>{document.title=d};return window.addEventListener(`beforeprint`,n),window.addEventListener(`afterprint`,r),()=>{window.removeEventListener(`beforeprint`,n),window.removeEventListener(`afterprint`,r),document.title=d}},[e])}var p=`
   .location-sign-print-page {
     flex: 1;
     min-width: 0;
@@ -16,10 +16,38 @@ import{An as e,Sr as t,Vr as n,r,zr as i}from"./index-B1plw2DS.js";import{t as a
     z-index: 5;
   }
 
+  .location-sign-print-stage--screen-hidden {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 8.5in;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  @media print {
+    .location-sign-print-stage--screen-hidden {
+      position: static !important;
+      left: auto !important;
+      visibility: visible !important;
+      width: auto !important;
+      overflow: visible !important;
+      pointer-events: auto !important;
+    }
+  }
+
   @media print {
     @page {
       size: letter portrait;
       margin: 0.45in;
+    }
+    @page label2x4 {
+      size: letter portrait;
+      margin: 0;
     }
     .print\\:hidden,
     .portal-sidebar,
@@ -52,7 +80,7 @@ import{An as e,Sr as t,Vr as n,r,zr as i}from"./index-B1plw2DS.js";import{t as a
       margin: 0 !important;
       background: #fff !important;
     }
-    .location-sign-print-stage > :not(.location-sign-print-sheet) {
+    .location-sign-print-stage > :not(.location-sign-print-sheet):not(.location-sign-2x4-page) {
       display: none !important;
     }
     .location-sign-print-sheet {
