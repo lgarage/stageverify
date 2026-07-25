@@ -2,12 +2,12 @@ import type { ShopStockLocationMapping } from "./models";
 import { normalizeStagingCodeKey } from "./stagingCode";
 import type { ZoneOccupancySummaryWithReadiness } from "./zoneOccupancyCompute";
 
-export type SpotMapColor = "green" | "orange" | "red" | "gray";
+export type SpotMapColor = "green" | "orange" | "purple" | "gray";
 
 export const SPOT_MAP_COLORS: Record<SpotMapColor, string> = {
   green: "#16a34a",
   orange: "#facc15",
-  red: "#dc2626",
+  purple: "#7c3aed",
   gray: "#6b7280",
 };
 
@@ -15,7 +15,7 @@ export const SPOT_MAP_COLORS: Record<SpotMapColor, string> = {
 export const SPOT_MAP_FG: Record<SpotMapColor, string> = {
   green: "#ffffff",
   orange: "#111827",
-  red: "#ffffff",
+  purple: "#ffffff",
   gray: "#ffffff",
 };
 
@@ -25,7 +25,7 @@ export const CATCH_ALL_SPOT_FG = "#0a3161";
 export const CATCH_ALL_SPOT_BORDER = "#3b82f6";
 
 /**
- * Color priority: red (ready) > orange (assigned/planned) > gray (shop stock) > green (free).
+ * Color priority: purple (ready) > orange (assigned/planned) > gray (shop stock) > green (free).
  */
 export function resolveSpotColor(
   code: string,
@@ -34,7 +34,7 @@ export function resolveSpotColor(
 ): SpotMapColor {
   const key = normalizeStagingCodeKey(code);
   const occ = occupancyByZoneCode[key];
-  if (occ?.readyForPickup) return "red";
+  if (occ?.readyForPickup) return "purple";
   if (occ) return "orange";
   if (shopStockByCode[key]) return "gray";
   return "green";

@@ -209,9 +209,9 @@ async function main() {
     throw new Error(`Unexpected hover card content: ${hoverText}`);
   }
 
-  // If any orange/red spot exists, click opens shared drawer + focus chrome
+  // If any orange/purple spot exists, click opens shared drawer + focus chrome
   const occupied = page.locator(
-    '[data-testid^="shop-spot-"][data-spot-color="orange"], [data-testid^="shop-spot-"][data-spot-color="red"]',
+    '[data-testid^="shop-spot-"][data-spot-color="orange"], [data-testid^="shop-spot-"][data-spot-color="purple"]',
   );
   const occupiedCount = await occupied.count();
   if (occupiedCount > 0) {
@@ -315,7 +315,7 @@ async function main() {
   }
   if ((await stagingChips.count()) > 0) {
     const chipColor = await stagingChips.first().getAttribute("data-spot-color");
-    if (!chipColor || !/^(green|orange|red|gray)$/.test(chipColor)) {
+    if (!chipColor || !/^(green|orange|purple|gray)$/.test(chipColor)) {
       throw new Error(
         `Staging chip missing map color attribute: ${chipColor ?? "(null)"}`,
       );

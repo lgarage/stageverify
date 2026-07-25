@@ -40,7 +40,7 @@ const shop = {
   },
 };
 
-assert.equal(resolveSpotColor("G1", occupancy, shop), "red");
+assert.equal(resolveSpotColor("G1", occupancy, shop), "purple");
 assert.equal(resolveSpotColor("G2", occupancy, shop), "orange");
 assert.equal(resolveSpotColor("G3", occupancy, shop), "gray");
 assert.equal(resolveSpotColor("G4", occupancy, shop), "green");

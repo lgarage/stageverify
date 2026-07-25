@@ -1202,7 +1202,7 @@ export function ZoneManagementPage() {
                 Staging Map
               </h1>
               <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                Live floor map — green available, yellow assigned/planned, red ready
+                Live floor map — green available, yellow assigned/planned, purple ready
                 for pickup, gray shop stock. Click a spot to open the delivery
                 drawer.
               </p>

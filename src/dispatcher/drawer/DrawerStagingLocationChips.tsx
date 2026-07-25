@@ -105,7 +105,7 @@ export function DrawerStagingLocationChips({
           ? resolveSpotColor(code, occupancyByZoneCode, shopStockByCode)
           : "orange";
         const statusTitle =
-          color === "red"
+          color === "purple"
             ? "Ready for pickup"
             : color === "orange"
               ? "Assigned / planned"

@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.164** @ `3cd729f` — 2×4 labels: `position: relative; top: 0.125in` on `.location-sign-2x4-label` for print alignment.
+- Last shipped: **v0.0.165** — Staging Map ready-for-pickup spots **purple** `#7c3aed` (SpotMapColor `purple`; dashboard STATUS_BADGE unchanged).
+- Prior: **v0.0.164** @ `3cd729f` — 2×4 labels: `position: relative; top: 0.125in` on `.location-sign-2x4-label` for print alignment.
 - Prior: **v0.0.163** — 2×4 print labels: gutter, QR clearance (144px), typography, asymmetric padding for code centering.
 - Prior: **v0.0.162** — Batch `#/zones/print-labels`: Full page vs 2×4 toggle, print-only DOM, `LocationSignLabel2x4Sheet`.
 - Prior: **v0.0.161** — Print location labels picker lists only visible Staging Map slots (D-52/D-53 SSOT); orphan Firestore zones excluded.
