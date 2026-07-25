@@ -81,6 +81,20 @@ function assertSettingsStagingListSortOrder(editIdsInDomOrder) {
   console.log("PASS: Settings staging list sort order (D-53 CA → G* → S*).");
 }
 
+/** D-52/D-53: no duplicate list or orphan messaging — table is the only spot UI. */
+async function assertNoOrphanStagingCallout(page) {
+  if ((await page.getByText(/Orphan zones/i).count()) > 0) {
+    throw new Error('Orphan zones copy must not appear in Settings staging (D-52/D-53)');
+  }
+  if ((await page.locator('[data-testid="settings-staging-orphan-callout"]').count()) > 0) {
+    throw new Error('settings-staging-orphan-callout must be absent (D-52/D-53)');
+  }
+  if ((await page.getByText(/\d+\s+spots on Staging Map/i).count()) > 0) {
+    throw new Error('Duplicate "N spots on Staging Map" callout must not appear (D-52/D-53)');
+  }
+  console.log("PASS: No orphan / duplicate staging spot callout (D-52/D-53).");
+}
+
 async function collectMapStagingSpotKeys(page) {
   await page.goto(`${appBase}/#/zones`, {
     waitUntil: "domcontentloaded",
@@ -187,6 +201,8 @@ async function countMapStagingSpots(page) {
     timeout: 15_000,
   });
   await page.waitForSelector("text=On Staging Map", { timeout: 10_000 });
+
+  await assertNoOrphanStagingCallout(page);
 
   const addForm = page.getByText("Add Staging Spot", { exact: true });
   if (await addForm.count()) {
@@ -323,13 +339,9 @@ async function countMapStagingSpots(page) {
   const settingsKeys = editIds.map((c) => normalizeSpotKey(c)).filter(Boolean);
   const settingsEditButtons = editIds.length;
 
-  const sectionText = await page
-    .locator('[data-testid="settings-staging-spots-section"]')
-    .innerText();
-  const expectedCountMatch = sectionText.match(/(\d+)\s+spots on map/i);
-  const expectedSpotCount = expectedCountMatch
-    ? Number(expectedCountMatch[1])
-    : settingsEditButtons;
+  await assertNoOrphanStagingCallout(page);
+
+  const expectedSpotCount = settingsEditButtons;
 
   let mapSpotKeys = await collectMapStagingSpotKeys(page);
   for (let attempt = 0; attempt < 24; attempt++) {
