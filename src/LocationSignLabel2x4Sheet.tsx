@@ -190,6 +190,8 @@ export const LOCATION_SIGN_2X4_PRINT_STYLES = `
     padding-bottom: 0.125in;
   }
   .location-sign-2x4-label {
+    position: relative;
+    top: 0.125in;
     box-sizing: border-box;
     flex: 0 0 4in;
     flex-shrink: 0;
