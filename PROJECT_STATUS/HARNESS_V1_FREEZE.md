@@ -42,6 +42,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-24: Dan-directed every-edit ≥97% confidence before any file write (D-47 widens D-46 from substantive-only to all repo writes; classify + agreed Critical clarifications on scope persistence and verifier-lane vs conf-bar separation).
 - 2026-07-24: Dan-directed reopen (owner authority): print-label worker implemented then ran Solution Verifier (2nd deferral incident — Agree after edit); D-48 locks PASS + evidence before **first repo write** in scope when D-36 applies (closes docs-first dodge); workers cannot defer Agree to parent (Dan 2026-07-24).
 - 2026-07-24: Dan-directed reopen (owner authority): same task scope hit **3 consecutive implement+verify fails** — wanted automatic Grok↔Sonnet Agree on root cause + fix plan, then Grok implements stuck scope once, then Composer default implementer again (D-50; not gated on Dan saying "escalate").
+- 2026-07-24: Dan-directed reopen (owner authority): Catch-all delivery top-bar button missing after UI ship despite build + verify pass — wanted mandatory before/after screenshot compare on every visible UI edit (chrome regressions), not build-only (D-51; complements D-42/D-45).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

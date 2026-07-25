@@ -1,0 +1,41 @@
+---
+description: Mandatory before/after screenshots on visible UI edits (D-51) — complements Playwright + D-45 + D-42.
+alwaysApply: true
+---
+
+# UI before/after screenshot gate (D-51)
+
+**Authority:** Dan 2026-07-24 standing preference. **Platform parity:** D-32 — desktop PC, mobile Cursor, cloud VM identical.
+
+## Trigger
+
+Any task that will edit **visible UI** in `src/` (layout, copy, colors, components users see, add/remove buttons/fields/nav chrome). Same surface class as D-42, D-45, and `composer-orchestrator.mdc` § UI Verification Protocol.
+
+**Skip:** TypeScript-only, service logic, no rendered output; rules/docs-only commits with no `src/` UI diff.
+
+## Hard sequence (additive — does not replace Playwright)
+
+| Step | When | Action |
+|------|------|--------|
+| **0 — Before** | **Before the first UI edit** on the task scope | Dev server up (`npm run dev`, base `http://localhost:5173/stageverify/`). For **each affected route**, capture `before-<route>.png` (Playwright screenshot; auth per orchestrator § Authentication for protected routes). |
+| **1 — Implement** | After step 0 | Code changes only. |
+| **2 — Build** | After implement | `npm run build` clean. |
+| **3 — After + compare** | After step 2 | Same routes → `after-<route>.png`. Agent **must read both** before and after images, then assert: intended change visible in after; **no regressions** on nearby chrome (top bar buttons, nav, sidebars, CTAs — e.g. Catch-all delivery header button must not disappear). |
+| **4 — Playwright ladder** | After step 3 passes | Route `verify:*`, D-42 contrast/overlap, Grok **UI Playwright Verifier** (D-45), then Build Checker → commit. |
+
+Missing step **0** or **3** (no before/after pair + explicit compare) = **`ui-before-after: NOT RUN`** — do **not** declare UI done; do **not** commit UI ships.
+
+## Evidence (mandatory on UI ships)
+
+Completion report includes **`ui-before-after:`** with routes compared (e.g. `dispatcher, settings-catch-all`) or **`ui-before-after: N/A (no visible UI)`** when skip applies. Missing line when trigger fired = NOT RUN.
+
+## Cleanup (mandatory)
+
+Before push/done: delete all ephemeral `before-*.png` and `after-*.png` (agent comparison only — never commit). Same cleanup bucket as `ship-loop.mdc` § Session cleanup (`screenshots/**` verify artifacts except where scripts intentionally retain paths).
+
+## Relation
+
+- **D-42:** Playwright contrast/overlap — required; screenshots do **not** substitute.
+- **D-45:** Grok UI Playwright judgment — required before commit; runs **after** before/after compare passes.
+- **D-27 mobile-ui-ship:** merge+deploy unchanged; before/after applies to mobile surfaces too.
+- **Details:** screenshot commands, auth, multi-route — `composer-orchestrator.mdc` § UI Verification Protocol (screenshot subsection is operational detail; **this file is the hard gate**).

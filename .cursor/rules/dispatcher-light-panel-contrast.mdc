@@ -5,7 +5,7 @@ alwaysApply: true
 
 # UI readable text + contrast (D-42)
 
-Global `body` uses light text (`#f8fafc`) for dark mobile surfaces. **Any visible UI edit** in `src/` (layout, copy, colors, components users see) must pass Playwright with a **mechanical readable-text/contrast assert** before commit — not build-only, not screenshot-only. Reuse `scripts/lib/ui-text-contrast-lib.mjs` (`assertReadableTextContrast`) in route verifies; add element specs for changed surfaces.
+Global `body` uses light text (`#f8fafc`) for dark mobile surfaces. **Any visible UI edit** in `src/` (layout, copy, colors, components users see) must pass Playwright with a **mechanical readable-text/contrast assert** before commit — not build-only; **D-51** before/after screenshots are **additional**, not a substitute for Playwright. Reuse `scripts/lib/ui-text-contrast-lib.mjs` (`assertReadableTextContrast`) in route verifies; add element specs for changed surfaces.
 
 **Light dispatcher panels** (`SettingsPage`, portal main, white cards): set explicit dark text (`#333`, `#6b7280` muted, `NAVY` headings); inputs need `color` + `backgroundColor: "#fff"`. **Why white-on-white repeats:** new panels copy sidebar/NAVY constants without per-element colors on light canvases.
 

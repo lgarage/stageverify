@@ -24,11 +24,12 @@ Dan asks for a **mobile UI change** — layout, copy, buttons, colors, visibilit
 
 When implementation is **fast-safe** and validation passes, finish with **merge + deploy** without Dan saying “merge”, “deploy”, or “ship it”:
 
-1. **Build** — `npm run build` clean.
-2. **Verify** — Playwright on the affected mobile route (`verify:pickup`, `verify:vendor-delivered`, demo flow, or route script). UI change without passing verify = not done.
-3. **Merge** — if work is on a feature branch, merge to `main` and push (cloud agents: **do not** stop at draft PR).
-4. **Deploy** — `npm run deploy`; confirm live bundle matches `dist/` (retry after 15s if gh-pages propagation lag).
-5. **Reply** — live URL `https://lgarage.github.io/stageverify` + phone test link (vendor: `product-guardrails.mdc` § Vendor phone test).
+1. **Before/after (D-51)** — per `.cursor/rules/ui-before-after.mdc` on the affected mobile route(s) before first edit and after build.
+2. **Build** — `npm run build` clean.
+3. **Verify** — Playwright on the affected mobile route (`verify:pickup`, `verify:vendor-delivered`, demo flow, or route script). UI change without passing verify = not done.
+4. **Merge** — if work is on a feature branch, merge to `main` and push (cloud agents: **do not** stop at draft PR).
+5. **Deploy** — `npm run deploy`; confirm live bundle matches `dist/` (retry after 15s if gh-pages propagation lag).
+6. **Reply** — live URL `https://lgarage.github.io/stageverify` + phone test link (vendor: `product-guardrails.mdc` § Vendor phone test).
 
 ## Hard stops (unchanged)
 

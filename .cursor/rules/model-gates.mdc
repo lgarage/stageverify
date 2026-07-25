@@ -30,7 +30,7 @@ alwaysApply: true
 
 ## Platform parity (D-20 — all Composer sessions)
 
-`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A/Solution/Build-Checker/**UI-Playwright** verifiers (§ Solution deliberation, D-36/D-43/D-45), evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
+`.cursor/rules/*` **alwaysApply** rules bind **every** Composer session — desktop IDE (Windows PC), mobile Cursor app, and cloud VM — with **identical** harness behavior: ship-loop tiers (`ship-loop.mdc`), repair loop (§ Repair loop), planning verify loop (§ Planning verify loop), Q&A verify loop (§ Q&A verify loop), verification ladder (§ Verification ladder), security gate (`security-review-gate.mdc`), stall-advisor (D-19), Ship/Critical/Work/Planning/Q&A/Solution/Build-Checker/**UI-Playwright** verifiers (§ Solution deliberation, D-36/D-43/D-45), **UI before/after screenshots (D-51, `ui-before-after.mdc`)**, evidence lines, and fix-closure. Cloud agents read the same rules from the repo; **no "mobile-lite" orchestration**.
 
 Mechanical evidence gate identical across clients — CI gate-check on PRs; local pre-push hook auto-installed by npm `prepare` blocks high-risk direct-to-main pushes without commit-message evidence (D-28/D-29).
 
@@ -319,7 +319,7 @@ Task({
 
 ### UI Playwright Verifier (D-45 — Dan 2026-07-23)
 
-**Trigger:** any ship-cycle diff with **visible UI** edits in `src/` (layout, copy, colors, components users see) — same surface class as D-42. Extends D-42: mechanical Playwright is necessary but **not sufficient**; Grok owns PASS/FAIL judgment and fix instructions.
+**Trigger:** any ship-cycle diff with **visible UI** edits in `src/` (layout, copy, colors, components users see) — same surface class as D-42. **Prerequisite:** D-51 before/after compare PASS (or N/A). Extends D-42: mechanical Playwright is necessary but **not sufficient**; Grok owns PASS/FAIL judgment and fix instructions.
 
 **Flow:** Composer implements + build → Grok **UI Playwright Verifier** runs (or re-runs) the affected route `verify:*` script(s) including D-42 contrast and layout overlap asserts where applicable → PASS → proceed to Build Checker → commit. FAIL → Grok returns **specific fix list** (`file:line`, exact change, why) → **Composer only** fixes → **same Grok** re-runs verify until PASS (max 3 cycles) per § Fix-closure. Composer never self-closes UI Playwright findings.
 

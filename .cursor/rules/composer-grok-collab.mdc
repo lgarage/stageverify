@@ -12,8 +12,8 @@ alwaysApply: true
 | Phase | Who | What |
 |-------|-----|------|
 | **1 — Agree** | Composer proposes → Grok **Solution Verifier** | **Every edit:** conf **≥ 97%** per `confidence-gate.mdc` (D-47) before any file write; substantive builds also peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
-| **2 — Implement** | **Composer only** ( **Grok only** after D-50 stuck-task Agree on 3rd fail — same scope until ship closes ) | Code, local build. Grok never implements except D-50 carve-out. |
-| **2b — UI verify** | Grok **UI Playwright Verifier** | On visible UI edits (`src/`): Grok runs (or re-runs) the affected route `verify:*` + D-42 contrast/overlap asserts; **PASS required before commit**. FAIL → Grok returns **file:line fix list** → Composer fixes → **same Grok** re-verifies (fix-closure, max 3 cycles). Distinct from Build Checker (diff-vs-scope). |
+| **2 — Implement** | **Composer only** ( **Grok only** after D-50 stuck-task Agree on 3rd fail — same scope until ship closes ) | Code, local build. **D-51:** before first UI edit capture `before-*.png`; after build capture `after-*.png` + compare (see `ui-before-after.mdc`). Grok never implements except D-50 carve-out. |
+| **2b — UI verify** | Grok **UI Playwright Verifier** | On visible UI edits (`src/`): after D-51 compare passes, Grok runs (or re-runs) the affected route `verify:*` + D-42 contrast/overlap asserts; **PASS required before commit**. FAIL → Grok returns **file:line fix list** → Composer fixes → **same Grok** re-verifies (fix-closure, max 3 cycles). Distinct from Build Checker (diff-vs-scope). |
 | **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
 | **4 — Ship + verify** | **Composer only** → Grok | After Build Checker PASS: **Composer** runs commit + push + deploy (`ship-loop.mdc`); then Grok **Ship Verifier** post-push (+ **Repair Verifier** on repair intent). Sonnet security gate unchanged for high-risk paths. |
 
@@ -52,11 +52,12 @@ Phases 2b–4 unchanged; they still run after implement when triggered.
 | Phase | Report line |
 |-------|-------------|
 | 1 | `solution-verifier: <task-id>` or `solution-verifier: N/A (<reason>)` — **before first edit in scope** (D-48); post-implement line = NOT RUN |
+| 2 (UI) | `ui-before-after: <routes>` or `ui-before-after: N/A (no visible UI)` — before/after compare (D-51) before Playwright commit ladder |
 | 2b | `ui-playwright-verifier: <task-id>` + verdict **PASS** before commit — or `ui-playwright-verifier: N/A (<skip reason>)` |
 | 3 | `build-checker: <task-id>` + verdict **PASS** before commit — or `build-checker: N/A (<skip reason>)` |
 | 4 | `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` |
 
-Missing a required line when its trigger fired = **NOT RUN** — do not ship or declare done. Do **not** commit while Phase 1 was required but ran only after edits, or while Phase 2b or Phase 3 is NOT RUN or FAIL.
+Missing a required line when its trigger fired = **NOT RUN** — do not ship or declare done. Do **not** commit while Phase 1 was required but ran only after edits, while **D-51** before/after was skipped on visible UI, or while Phase 2b or Phase 3 is NOT RUN or FAIL.
 
 ## Authority
 
