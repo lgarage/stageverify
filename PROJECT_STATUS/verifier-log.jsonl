@@ -88,3 +88,5 @@
 {"date":"2026-07-24","role":"ship","verdict":"FAIL","taskId":"ship-verifier-ffbdfe1-unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":"ui-playwright/build-checker NOT RUN on multi-file UI ship ffbdfe1"}
 {"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":"ffbdfe1 fix-closure: ui-playwright PASS (local+prod:dispatcher-job-release D-42), build-checker PASS (navy bar/Edit/no logic), ship-verifier PASS re-verify closes 98c7a07e; parent stamp actual Task id"}
 {"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"9c47e17b-e90c-431e-b929-3ac4cc99d28b","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-closure"}
+{"date":"2026-07-25","role":"ship","verdict":"PASS","taskId":"unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-25","role":"ship","verdict":"PASS","taskId":"e3aac181-60fc-41f5-8de4-e7d2c067c1b0","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-closure 74c1199 status cards"}
