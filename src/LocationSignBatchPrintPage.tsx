@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAppSettings, listAllZones } from "./dispatcher/firestoreService";
-import { isLocationActive, type StagingLocation } from "./dispatcher/models";
+import type { StagingLocation } from "./dispatcher/models";
 import { PORTAL_SHELL_CLASS } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
 import {
@@ -46,7 +46,7 @@ export function LocationSignBatchPrintPage() {
         const candidates = buildLabelPrintCandidates(
           loaded,
           catchAllId,
-          isLocationActive,
+          settings.shopMapLayoutExtras ?? {},
         );
         setZones(candidates);
         setSelectedIds(new Set());

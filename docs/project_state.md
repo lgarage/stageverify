@@ -209,6 +209,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Print location labels picker = map SSOT (2026-07-25, v0.0.161, D-52/D-53 gap-close)** — `#/zones/print-labels` batch picker uses `filterStagingLocationsOnShopMap` / `shopMapLayoutExtras` (same membership + D-53 order as Settings); no longer lists orphan/active-only Firestore zones. Verify: `verify:location-scan` (picker ↔ map parity, select-all count, D-53 order).
+
 **Settings staging spots = map SSOT (2026-07-25, v0.0.153, D-52 follow-up)** — Settings Workflow lists **one row per visible map slot** (`stagingListRowsForShopMap` / `visibleShopMapLayoutSlotKeys`); zone docs hydrate label/QR when present; map-only slots show default labels; add/remove via Staging Map Edit Locations only. Map shelf chips respect `hiddenSlots` (aligned with list). Verify: `verify:settings-staging` (bidirectional parity).
 
 **Staging list sort order (2026-07-25, v0.0.154, D-53)** — Catch-all → ground G1… → shelf S1-*… via `compareStagingMapLayoutSlots` in `stagingMapSync.ts`; Settings, print-label batch picker, Management catch-all dropdown. Verify: `verify:settings-staging` (order assert); `verify:location-scan-v2` (catch-all before G1).

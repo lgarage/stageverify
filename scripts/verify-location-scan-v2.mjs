@@ -172,6 +172,84 @@ async function ensureZonesAuthenticated(page) {
   }
 }
 
+function normalizeSpotKey(code) {
+  return code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+}
+
+/** Mirror of compareStagingMapLayoutSlots — SSOT: src/dispatcher/stagingMapSync.ts (D-53). */
+function layoutSlotSortRank(key) {
+  const norm = normalizeSpotKey(key);
+  if (norm === "CA") return { kind: -1, primary: 0, secondary: 0 };
+  const ground = /^G(\d+)$/.exec(norm);
+  if (ground) return { kind: 0, primary: Number(ground[1]), secondary: 0 };
+  const shelf = /^S(\d+)([A-Z])$/.exec(norm);
+  if (shelf) {
+    return {
+      kind: 1,
+      primary: Number(shelf[1]),
+      secondary: shelf[2].charCodeAt(0) - 65,
+    };
+  }
+  return { kind: 2, primary: 0, secondary: 0 };
+}
+
+function compareStagingMapLayoutSlots(a, b) {
+  const rankA = layoutSlotSortRank(a);
+  const rankB = layoutSlotSortRank(b);
+  if (rankA.kind !== rankB.kind) return rankA.kind - rankB.kind;
+  if (rankA.primary !== rankB.primary) return rankA.primary - rankB.primary;
+  if (rankA.secondary !== rankB.secondary) return rankA.secondary - rankB.secondary;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
+function assertPickerSortOrder(codesInDomOrder) {
+  const sorted = [...codesInDomOrder].sort(compareStagingMapLayoutSlots);
+  for (let i = 0; i < codesInDomOrder.length; i++) {
+    if (
+      normalizeSpotKey(codesInDomOrder[i]) !== normalizeSpotKey(sorted[i])
+    ) {
+      throw new Error(
+        `Print-label picker order violates D-53 at row ${i + 1}: DOM=${codesInDomOrder[i]}, expected=${sorted[i]}`,
+      );
+    }
+  }
+}
+
+async function collectMapStagingSpotKeys(page) {
+  await page.goto(`${appBase}/#/zones`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForSelector('[data-testid="shop-floor-map"]', {
+    timeout: 30_000,
+  });
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll(
+        '[data-testid^="shop-spot-"]:not([data-testid="shop-spot-catch-all-label"])',
+      ).length >= 12,
+    { timeout: 45_000 },
+  );
+  await page.waitForTimeout(800);
+  const layoutSlots = await page
+    .locator(
+      '[data-testid^="shop-spot-"]:not([data-testid="shop-spot-catch-all-label"])',
+    )
+    .evaluateAll((els) =>
+      els.map(
+        (el) =>
+          el.getAttribute("data-testid")?.replace("shop-spot-", "") ?? "",
+      ),
+    );
+  const keys = layoutSlots.map((s) => normalizeSpotKey(s)).filter(Boolean);
+  const catchAll = await page.locator('[data-testid="shop-map-catch-all"]').count();
+  if (catchAll > 0) {
+    keys.push("CA");
+  }
+  keys.sort();
+  return keys;
+}
+
 async function assertBatchLocationSignPrint(browser) {
   const printContext = await browser.newContext({
     viewport: { width: 900, height: 1100 },
@@ -180,6 +258,7 @@ async function assertBatchLocationSignPrint(browser) {
   const printPage = await printContext.newPage();
   try {
     await ensureZonesAuthenticated(printPage);
+    const mapSpotKeys = await collectMapStagingSpotKeys(printPage);
     await printPage.goto(`${appBase}/#/zones/print-labels`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
@@ -198,6 +277,41 @@ async function assertBatchLocationSignPrint(browser) {
 
     const orderedCodes = await pickerRows.evaluateAll((nodes) =>
       nodes.map((n) => n.getAttribute("data-location-code") ?? ""),
+    );
+    const pickerKeys = orderedCodes
+      .map((c) => normalizeSpotKey(c))
+      .filter(Boolean);
+    const mapKeySet = new Set(mapSpotKeys);
+    const pickerKeySet = new Set(pickerKeys);
+    let parityPass = pickerKeys.length === mapSpotKeys.length;
+    if (parityPass) {
+      for (const key of mapKeySet) {
+        if (!pickerKeySet.has(key)) parityPass = false;
+      }
+      for (const key of pickerKeySet) {
+        if (!mapKeySet.has(key)) parityPass = false;
+      }
+    }
+    record(
+      "Print-label picker matches Staging Map chips (D-52)",
+      parityPass,
+      `picker=${pickerKeys.length} map=${mapSpotKeys.length}`,
+    );
+    try {
+      assertPickerSortOrder(orderedCodes.filter(Boolean));
+      record("Print-label picker sort order (D-53 CA → G* → S*)", true);
+    } catch (err) {
+      record("Print-label picker sort order (D-53 CA → G* → S*)", false, err.message);
+    }
+    const catchAllRowCount = await printPage
+      .locator(
+        '[data-testid="location-sign-batch-picker-row"][data-catch-all="true"]',
+      )
+      .count();
+    record(
+      "At most one Catch-all row in print picker",
+      catchAllRowCount <= 1,
+      `catchAllRows=${catchAllRowCount}`,
     );
     const catchAllIdx = await pickerRows.evaluateAll((nodes) =>
       nodes.findIndex((n) => n.getAttribute("data-catch-all") === "true"),
@@ -239,6 +353,11 @@ async function assertBatchLocationSignPrint(browser) {
       "Batch label print renders multiple sheets",
       count >= 2,
       `sheetCount=${count}`,
+    );
+    record(
+      "Select all matches picker row count",
+      count === rowCount,
+      `sheets=${count} rows=${rowCount}`,
     );
     record(
       "Batch print enabled when selection non-empty",

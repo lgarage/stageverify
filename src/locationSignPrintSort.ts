@@ -1,7 +1,13 @@
 import type { StagingLocation } from "./dispatcher/models";
+import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 import {
+  filterStagingLocationsOnShopMap,
   sortStagingLocationsForList,
 } from "./dispatcher/stagingMapSync";
+import {
+  CATCH_ALL_ZONE_CODE,
+  type ShopMapLayoutExtras,
+} from "./dispatcher/shopMapLayout";
 
 /** Headline on printed sign for the configured catch-all spot (exact casing). */
 export const CATCH_ALL_SIGN_HEADLINE = "Catch-All";
@@ -16,29 +22,18 @@ export function sortStagingLocationsForLabelPrint(
   });
 }
 
-/** Active spots plus configured catch-all (even if inactive). Dedupes by id. */
+/** Visible Staging Map slots only (D-52/D-53) — same membership as Settings staging list. */
 export function buildLabelPrintCandidates(
   allZones: StagingLocation[],
   catchAllStagingLocationId: string | undefined,
-  isActive: (loc: StagingLocation) => boolean,
+  mapLayoutExtras?: ShopMapLayoutExtras | null,
 ): StagingLocation[] {
   const catchAllId = catchAllStagingLocationId?.trim() || undefined;
-  const byId = new Map<string, StagingLocation>();
-
-  for (const zone of allZones) {
-    if (isActive(zone)) {
-      byId.set(zone.id, zone);
-    }
-  }
-
-  if (catchAllId) {
-    const catchAllZone = allZones.find((z) => z.id === catchAllId);
-    if (catchAllZone && !byId.has(catchAllId)) {
-      byId.set(catchAllId, catchAllZone);
-    }
-  }
-
-  return sortStagingLocationsForLabelPrint([...byId.values()], catchAllId);
+  const mapSpots = filterStagingLocationsOnShopMap(
+    allZones,
+    mapLayoutExtras ?? {},
+  );
+  return sortStagingLocationsForLabelPrint(mapSpots, catchAllId);
 }
 
 export function isCatchAllLabelRow(
@@ -46,5 +41,7 @@ export function isCatchAllLabelRow(
   catchAllStagingLocationId: string | undefined,
 ): boolean {
   const catchAllId = catchAllStagingLocationId?.trim();
-  return Boolean(catchAllId && zone.id === catchAllId);
+  if (catchAllId && zone.id === catchAllId) return true;
+  const slotKey = normalizeStagingCodeKey(zone.mapLayoutSlot ?? zone.code);
+  return slotKey === normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
 }
