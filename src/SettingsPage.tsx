@@ -91,13 +91,6 @@ function findOtherSpotByCode(
   return found;
 }
 
-function sortStagingSpots(a: StagingLocation, b: StagingLocation): number {
-  const orderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
-  const orderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
-  if (orderA !== orderB) return orderA - orderB;
-  return a.code.localeCompare(b.code, undefined, { numeric: true });
-}
-
 export function SettingsPage() {
   const location = useLocation();
   const {
@@ -156,10 +149,7 @@ export function SettingsPage() {
   }, []);
 
   const stagingSpotRows = useMemo(
-    () =>
-      stagingListRowsForShopMap(allZones, mapLayoutExtras).sort((a, b) =>
-        sortStagingSpots(a.spot, b.spot),
-      ),
+    () => stagingListRowsForShopMap(allZones, mapLayoutExtras),
     [allZones, mapLayoutExtras],
   );
 

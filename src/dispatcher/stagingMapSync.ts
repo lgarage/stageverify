@@ -100,6 +100,89 @@ export type StagingMapListRow = {
   spot: StagingLocation;
 };
 
+/** D-53 — kind: -1=catch-all, 0=ground G*, 1=shelf S*, 2=other */
+type LayoutSlotSortRank = {
+  kind: number;
+  primary: number;
+  secondary: number;
+};
+
+function layoutSlotSortRank(layoutSlot: string): LayoutSlotSortRank {
+  const key = normalizeStagingCodeKey(layoutSlot);
+  if (key === normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE)) {
+    return { kind: -1, primary: 0, secondary: 0 };
+  }
+  const ground = /^G(\d+)$/.exec(key);
+  if (ground) {
+    return { kind: 0, primary: Number(ground[1]), secondary: 0 };
+  }
+  const shelf = /^S(\d+)([A-Z])$/.exec(key);
+  if (shelf) {
+    return {
+      kind: 1,
+      primary: Number(shelf[1]),
+      secondary: shelf[2].charCodeAt(0) - 65,
+    };
+  }
+  return { kind: 2, primary: 0, secondary: 0 };
+}
+
+/**
+ * SSOT display order for map layout slots (D-53): Catch-all → G1… → S1-* … S2-* …
+ * @see PROJECT_STATUS/DECISIONS.md D-53
+ */
+export function compareStagingMapLayoutSlots(a: string, b: string): number {
+  const rankA = layoutSlotSortRank(a);
+  const rankB = layoutSlotSortRank(b);
+  if (rankA.kind !== rankB.kind) return rankA.kind - rankB.kind;
+  if (rankA.primary !== rankB.primary) return rankA.primary - rankB.primary;
+  if (rankA.secondary !== rankB.secondary) return rankA.secondary - rankB.secondary;
+  return formatStagingCodeCanonical(a).localeCompare(
+    formatStagingCodeCanonical(b),
+    undefined,
+    { numeric: true },
+  );
+}
+
+export type StagingLocationListSortOptions = {
+  /** Configured catch-all zone id — that row sorts first when set (label-print picker). */
+  catchAllStagingLocationId?: string;
+};
+
+/**
+ * SSOT display order for staging location rows (D-53).
+ * Catch-all first (by configured id and/or CA layout slot), then ground, then shelf.
+ */
+export function compareStagingLocationsForList(
+  a: StagingLocation,
+  b: StagingLocation,
+  options?: StagingLocationListSortOptions,
+): number {
+  const catchAllId = options?.catchAllStagingLocationId?.trim();
+  if (catchAllId) {
+    if (a.id === catchAllId && b.id !== catchAllId) return -1;
+    if (b.id === catchAllId && a.id !== catchAllId) return 1;
+  }
+  const slotA = a.mapLayoutSlot ?? a.code;
+  const slotB = b.mapLayoutSlot ?? b.code;
+  return compareStagingMapLayoutSlots(slotA, slotB);
+}
+
+export function sortStagingMapListRows(rows: StagingMapListRow[]): StagingMapListRow[] {
+  return [...rows].sort((a, b) =>
+    compareStagingMapLayoutSlots(a.layoutSlot, b.layoutSlot),
+  );
+}
+
+export function sortStagingLocationsForList(
+  locations: StagingLocation[],
+  options?: StagingLocationListSortOptions,
+): StagingLocation[] {
+  return [...locations].sort((a, b) =>
+    compareStagingLocationsForList(a, b, options),
+  );
+}
+
 /** Settings staging list = one row per visible map slot; zone docs hydrate metadata when present. */
 export function stagingListRowsForShopMap(
   zones: StagingLocation[],
@@ -121,7 +204,7 @@ export function stagingListRowsForShopMap(
     }
     result.push({ layoutSlot, spot });
   }
-  return result;
+  return sortStagingMapListRows(result);
 }
 
 /** @deprecated Prefer stagingListRowsForShopMap — spots-only list (unique by map slot). */

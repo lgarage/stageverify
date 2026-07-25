@@ -42,6 +42,45 @@ function normalizeSpotKey(code) {
   return code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 }
 
+/** Mirror of compareStagingMapLayoutSlots — SSOT: src/dispatcher/stagingMapSync.ts (D-53). */
+function layoutSlotSortRank(key) {
+  const norm = normalizeSpotKey(key);
+  if (norm === "CA") return { kind: -1, primary: 0, secondary: 0 };
+  const ground = /^G(\d+)$/.exec(norm);
+  if (ground) return { kind: 0, primary: Number(ground[1]), secondary: 0 };
+  const shelf = /^S(\d+)([A-Z])$/.exec(norm);
+  if (shelf) {
+    return {
+      kind: 1,
+      primary: Number(shelf[1]),
+      secondary: shelf[2].charCodeAt(0) - 65,
+    };
+  }
+  return { kind: 2, primary: 0, secondary: 0 };
+}
+
+function compareStagingMapLayoutSlots(a, b) {
+  const rankA = layoutSlotSortRank(a);
+  const rankB = layoutSlotSortRank(b);
+  if (rankA.kind !== rankB.kind) return rankA.kind - rankB.kind;
+  if (rankA.primary !== rankB.primary) return rankA.primary - rankB.primary;
+  if (rankA.secondary !== rankB.secondary) return rankA.secondary - rankB.secondary;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
+function assertSettingsStagingListSortOrder(editIdsInDomOrder) {
+  const codes = editIdsInDomOrder.filter(Boolean);
+  const sorted = [...codes].sort(compareStagingMapLayoutSlots);
+  for (let i = 0; i < codes.length; i++) {
+    if (normalizeSpotKey(codes[i]) !== normalizeSpotKey(sorted[i])) {
+      throw new Error(
+        `Settings staging list order violates D-53 (CA → G* → S*) at row ${i + 1}: DOM=${codes[i]}, expected=${sorted[i]}`,
+      );
+    }
+  }
+  console.log("PASS: Settings staging list sort order (D-53 CA → G* → S*).");
+}
+
 async function collectMapStagingSpotKeys(page) {
   await page.goto(`${appBase}/#/zones`, {
     waitUntil: "domcontentloaded",
@@ -328,6 +367,8 @@ async function countMapStagingSpots(page) {
     }
   }
 
+  assertSettingsStagingListSortOrder(editIds);
+
   await page.goto(`${appBase}/#/zones`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -364,13 +405,30 @@ async function countMapStagingSpots(page) {
     .getByText("Staging Spots", { exact: true })
     .first()
     .scrollIntoViewIfNeeded();
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-testid^="edit-spot-"]').length > 0,
+    { timeout: 45_000 },
+  );
 
-  const firstEdit = page.locator('[data-testid^="edit-spot-"]').first();
-  if (settingsEditButtons > 0) {
-    await firstEdit.waitFor({ timeout: 10_000 });
-    const editTestId = await firstEdit.getAttribute("data-testid");
-    const spotCode = editTestId?.replace("edit-spot-", "") ?? "G1";
-    await firstEdit.click();
+  const editIdsForProbe = await page
+    .locator('[data-testid^="edit-spot-"]')
+    .evaluateAll((els) =>
+      els.map(
+        (el) =>
+          el.getAttribute("data-testid")?.replace("edit-spot-", "") ?? "",
+      ),
+    );
+  if (editIdsForProbe.length > 0) {
+    const groundCode = editIdsForProbe.find((c) =>
+      /^G\d+$/i.test(normalizeSpotKey(c)),
+    );
+    const spotCode = groundCode ?? editIdsForProbe[0] ?? "G1";
+    const editBtn = page.locator(`[data-testid="edit-spot-${spotCode}"]`);
+    if ((await editBtn.count()) === 0) {
+      throw new Error(`Missing edit-spot-${spotCode} for label save probe`);
+    }
+    await editBtn.waitFor({ timeout: 10_000 });
+    await editBtn.click();
 
     await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
 
@@ -387,7 +445,7 @@ async function countMapStagingSpots(page) {
         timeout: 25_000,
       });
 
-    await firstEdit.click();
+    await editBtn.click();
     await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
     await page.getByTestId("edit-spot-label").fill(originalLabel);
     await page.getByTestId(`save-spot-${spotCode}`).click();

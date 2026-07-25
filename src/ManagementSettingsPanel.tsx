@@ -14,6 +14,7 @@ import {
   listManagementPinsClient,
   upsertManagementPinClient,
 } from "./phase2CallableClients";
+import { sortStagingLocationsForList } from "./dispatcher/stagingMapSync";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
@@ -87,11 +88,7 @@ export function ManagementSettingsPanel() {
       setParcelIntakeEnabled(settings.parcelIntakeEnabled === true);
       setManagementSessionMinutes(settings.managementSessionMinutes ?? 30);
       setPins(pinResult.pins);
-      setSpots(
-        [...locations].sort((a, b) =>
-          a.code.localeCompare(b.code, undefined, { numeric: true }),
-        ),
-      );
+      setSpots(sortStagingLocationsForList(locations));
     } finally {
       setLoading(false);
     }
