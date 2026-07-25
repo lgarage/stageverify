@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Pre-edit dispatch (announce-and-go — Dan-nonblocking, not Grok-skip)
 
-**BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc` (5) **conf** per `confidence-gate.mdc` (D-46/D-47) — **every edit** requires conf ≥ 97% before the first byte changes. "Announce-and-go" means **never wait for Dan's go-ahead** — it does NOT skip verifier gates: substantive work directives **also** require Grok solution agreement **before the first edit** per § Solution deliberation (D-36) + D-46/D-47.
+**BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc` (5) **conf** per `confidence-gate.mdc` (D-46/D-47) — **every edit** requires conf ≥ 97% before the first byte changes. "Announce-and-go" means **never wait for Dan's go-ahead** — it does NOT skip verifier gates: substantive work directives **also** require Grok solution agreement **before the first edit** per § Solution deliberation (D-36) + D-46/D-47/D-48. **Workers/subagents:** when D-36 applies, dispatch Solution Verifier (or receive parent Agree) **before** editing — never implement-first and defer Agree to parent (D-48).
 
 > **Quota (constraint, not purpose — see § Trust over cost, D-34):** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 4.6 = on-demand only.
 
@@ -255,6 +255,8 @@ Task({
 
 **Implementer lock:** Non-Composer parents MUST `Task` Composer (`model: "composer-2.5-fast"`) for product/code implementation — never inline edits and never `resume: "self"` for a build (D-37 / D-43). Composer parents may implement inline after Agree.
 
+**Pre-edit ordering (D-48):** When this section's Solution Verifier runs (not N/A), **PASS** must precede the **first** product/code edit in scope — same moment as conf ≥ 97% (D-47). Evidence `solution-verifier: <task-id>` (or valid N/A) in-session **before** edits; implement-first then Agree = **NOT RUN**; do not ship as done. Subagents either Agree before editing or return unread implementation to the parent.
+
 **Trigger:** Dan gives a direct **work directive** ("build X", "change Y", "add Z") whose diff would qualify as a **substantive ship** under the Ship Verifier path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`) **and** the work is T1+, multi-file, or has a branching approach — i.e. a real solution choice exists. Symmetric with the post-ship gate. **When in doubt on real feature work, run Solution Verifier — do not skip by default.**
 
 **Flow (one ladder — phases 1–4 plus 2b for UI):**
@@ -275,7 +277,7 @@ Task({
 
 **Build Checker skips** (`build-checker: N/A (<reason>)`): same T0 single-file unambiguous / excluded-paths / repair-owned as above; if Phase 1 was skipped as T0 but the uncommitted diff is multi-file or branching → Build Checker **must** run (falsify the skip).
 
-**Evidence (mandatory on substantive work completions):** `solution-verifier:` + `ui-playwright-verifier:` (or N/A) + `build-checker:` (or N/A reasons) + `ship-verifier:` (or N/A). Missing a required line when its trigger fired = **NOT RUN**.
+**Evidence (mandatory on substantive work completions):** `solution-verifier:` + `ui-playwright-verifier:` (or N/A) + `build-checker:` (or N/A reasons) + `ship-verifier:` (or N/A). Phase 1 evidence must reflect **pre-edit** Agree (D-48) — a `solution-verifier:` line that appears only after implementation = **NOT RUN**. Missing a required line when its trigger fired = **NOT RUN** — do not ship as done.
 
 **Dispatch (Solution Verifier):**
 

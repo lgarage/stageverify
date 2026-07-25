@@ -30,6 +30,15 @@ Pain: a Grok parent forked itself (`resume: "self"`) and started implementing pr
 - When the parent **is** already Composer 2.5, it may implement inline after Phase 1 agreement (no nested Composer→Composer required).
 - Cross-link: strengthens **D-37** (dispatcher never edits when Composer is available).
 
+## Pre-edit gate ordering (D-48 — hard STOP)
+
+Phase **1 — Agree** completes **before Phase 2 — Implement** whenever Phase 1 is required. **conf ≥ 97%** (D-47) and **Solution Verifier PASS** (D-36, when not N/A) must both be satisfied **before the first file edit** in scope — with in-session evidence (`solution-verifier: <task-id>` + model, or documented N/A), not only in the completion report.
+
+- **Subagents/workers:** if Agree is required, **STOP** — dispatch Solution Verifier (readonly Task) and reach PASS/N/A **before** editing, or return to the parent for Agree **without** product/code edits. Never implement and leave Agree to the parent.
+- **Parents:** worker diffs produced without prior Agree when Agree was required are **not done** — satisfy Phase 1 or revert; do not commit through a deferred Solution Verifier.
+
+Phases 2b–4 unchanged; they still run after implement when triggered.
+
 ## When this applies
 
 - **Default:** Dan work directives / planned code changes that are substantive (T1+ feature work, multi-file, branching approach) — see D-36 trigger in `model-gates.mdc`.
@@ -41,12 +50,12 @@ Pain: a Grok parent forked itself (`resume: "self"`) and started implementing pr
 
 | Phase | Report line |
 |-------|-------------|
-| 1 | `solution-verifier: <task-id>` or `solution-verifier: N/A (<reason>)` |
+| 1 | `solution-verifier: <task-id>` or `solution-verifier: N/A (<reason>)` — **before first edit in scope** (D-48); post-implement line = NOT RUN |
 | 2b | `ui-playwright-verifier: <task-id>` + verdict **PASS** before commit — or `ui-playwright-verifier: N/A (<skip reason>)` |
 | 3 | `build-checker: <task-id>` + verdict **PASS** before commit — or `build-checker: N/A (<skip reason>)` |
 | 4 | `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` |
 
-Missing a required line when its trigger fired = **NOT RUN**. Do **not** commit while Phase 2b or Phase 3 is NOT RUN or FAIL.
+Missing a required line when its trigger fired = **NOT RUN** — do not ship or declare done. Do **not** commit while Phase 1 was required but ran only after edits, or while Phase 2b or Phase 3 is NOT RUN or FAIL.
 
 ## Authority
 

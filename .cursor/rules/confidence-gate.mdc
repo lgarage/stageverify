@@ -15,7 +15,7 @@ alwaysApply: true
 
 1. **Classify** — `PROJECT_STATUS/MODEL_DOSSIER.md` + agent-ops skill → archetype, tier, cheapest model, **confStart** (state in reply). **Classify alone may yield ≥97%** for unambiguous T0 edits, typos, or docs-only clarifications with an explicit fix list — no scout fan-out required when classification already locks files, acceptance, and approach.
 2. **If conf < 97%** — **no edits** (any path): parallel scouts / targeted reads; lock root cause, files, acceptance; one focused Dan question when UX/scope is ambiguous; for substantive product work also **Grok Solution Verifier** until agreed (D-36/D-43 Phase 1).
-3. **Edit only when** conf ≥ 97%. Substantive product work **also** requires `solution-verifier:` PASS or N/A (D-36 skip reasons unchanged). **`solution-verifier: N/A` and away items with approved approach-level specs do not skip the conf bar** — they skip Phase 1 Solution Verifier only; conf ≥ 97% still required before the first edit.
+3. **Edit only when** conf ≥ 97%. Substantive product work **also** requires `solution-verifier:` PASS or N/A (D-36 skip reasons unchanged) **before the first edit in scope** (D-48 — not after implement, not deferred to parent). **`solution-verifier: N/A` and away items with approved approach-level specs do not skip the conf bar** — they skip Phase 1 Solution Verifier only; conf ≥ 97% still required before the first edit.
 4. **Session log** — record archetype, model, conf as it rises (completion report or brain `outcomes/*.jsonl` per `agent-ops.mdc`).
 
 ## Scope persistence
@@ -29,6 +29,14 @@ Once conf ≥ 97% for the **current task scope**, that confidence **holds for su
 
 Planning/Q&A/repair loops run their own verifiers; they do **not** exempt reaching 97% before editing files in those loops.
 
+## Solution Verifier ordering (D-48)
+
+When D-36 requires **Solution Verifier**, **PASS** (or a valid **N/A** reason per `model-gates.mdc`) must be **evidenced in-session before the first edit** in that scope — **together with** conf ≥ 97%, not instead of it.
+
+- **Workers/subagents:** MUST NOT implement product/code and defer Solution Verifier to the parent. Parent completes Phase 1 (Agree) **before** dispatching implementation, **or** the worker dispatches readonly Solution Verifier and reaches PASS/N/A **before** its first edit.
+- **Forbidden:** edit-first then Solution Verifier; "parent will verify later"; completion-report-only `solution-verifier:` after diffs already exist.
+- **Missing when triggered** = **NOT RUN** — do not ship or declare done.
+
 ## Relation
 
-Does not replace D-36/D-43 (Solution Verifier, Build Checker, UI Playwright, Ship Verifier). **D-47** widens D-46: the **97% floor binds every edit**; Solution Verifier remains a separate gate where D-36 triggers.
+Does not replace D-36/D-43 (Solution Verifier, Build Checker, UI Playwright, Ship Verifier). **D-47** widens D-46: the **97% floor binds every edit**; **D-48** locks Solution Verifier **before first edit** when D-36 applies.
