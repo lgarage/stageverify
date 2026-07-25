@@ -155,10 +155,39 @@ async function ensureAuthenticated(page) {
       );
     }
     console.log("PASS: Add reveals signup form when saved receivers exist");
+
+    const cancelBtn = panel.getByTestId("office-receiver-cancel-drafts-btn");
+    await cancelBtn.waitFor({ timeout: 5000 });
+    await cancelBtn.click();
+    await page.waitForTimeout(300);
+    const formCountAfterCancel = await signupForms.count();
+    if (formCountAfterCancel !== 0) {
+      throw new Error(
+        `Cancel must clear all draft forms; expected 0, found ${formCountAfterCancel}`,
+      );
+    }
+    console.log("PASS: Cancel clears all blank add forms (saved rows unchanged)");
+
+    await addBtn.click();
+    await page.waitForTimeout(200);
+    await addBtn.click();
+    await page.waitForTimeout(200);
+    const formCountTwo = await signupForms.count();
+    if (formCountTwo !== 2) {
+      throw new Error(
+        `Expected 2 signup forms after double Add, found ${formCountTwo}`,
+      );
+    }
+    await cancelBtn.click();
+    await page.waitForTimeout(300);
+    if ((await signupForms.count()) !== 0) {
+      throw new Error("Cancel must clear all open draft forms at once");
+    }
+    console.log("PASS: Cancel clears multiple open draft forms at once");
   }
 
   const signupVisible = (await signupForms.count()) >= 1;
-  if (signupVisible) {
+  if (signupVisible && savedCount === 0) {
     await page.getByTestId("office-receiver-name-input").waitFor({
       timeout: 10_000,
     });
@@ -194,6 +223,18 @@ async function ensureAuthenticated(page) {
       );
     }
     console.log("PASS: Add additional Catch-All receivers reveals second form");
+
+    const cancelEmptyList = panel.getByTestId("office-receiver-cancel-drafts-btn");
+    await cancelEmptyList.waitFor({ timeout: 5000 });
+    await cancelEmptyList.click();
+    await page.waitForTimeout(400);
+    const afterCancelEmpty = await signupForms.count();
+    if (afterCancelEmpty !== 1) {
+      throw new Error(
+        `After Cancel with empty saved list, expect 1 default form (auto-seed), got ${afterCancelEmpty}`,
+      );
+    }
+    console.log("PASS: Cancel clears extra drafts; one default form remains when list empty");
   }
 
   async function assertYellowActivateButton(locator, label) {
@@ -260,12 +301,48 @@ async function ensureAuthenticated(page) {
           `Expected green status note with email notifications active, got "${noteText}"`,
         );
       }
-      console.log("PASS: email notifications active note present");
+      const firstRow = savedRows.first();
+      const nameBlock = firstRow.locator("span").filter({ hasText: /^Name$/ });
+      const emailLabel = firstRow.locator("span").filter({ hasText: /^Email$/ });
+      const smsInput = firstRow.locator(
+        '[data-testid^="office-receiver-sms-coming-soon-"]',
+      );
+      const nameBox = await nameBlock.first().boundingBox();
+      const emailBox = await emailLabel.first().boundingBox();
+      const smsBox = await smsInput.first().boundingBox();
+      const noteBox = await statusNote.first().boundingBox();
+      if (!nameBox || !emailBox || !smsBox || !noteBox) {
+        throw new Error("Could not measure saved row vertical stack layout");
+      }
+      if (nameBox.y >= emailBox.y || emailBox.y >= smsBox.y) {
+        throw new Error(
+          "Saved row must stack Name, then Email, then SMS vertically",
+        );
+      }
+      if (noteBox.y < emailBox.y - 2 || noteBox.y > emailBox.y + 40) {
+        throw new Error(
+          "Green email notifications note must sit on the email line beside the address",
+        );
+      }
+      const activeBox = await activeStatus.first().boundingBox();
+      if (activeBox && Math.abs(noteBox.y - activeBox.y) < 8) {
+        throw new Error(
+          "Status note must not sit beside Active button — should be beside email",
+        );
+      }
+      console.log(
+        "PASS: saved row vertical stack; email notifications note beside email",
+      );
     }
   } else {
     console.log(
       "SKIP: no active Catch-All receiver in Firestore — Active green state not asserted",
     );
+  }
+
+  if ((await signupForms.count()) === 0) {
+    await addBtn.click();
+    await page.waitForTimeout(300);
   }
 
   await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);

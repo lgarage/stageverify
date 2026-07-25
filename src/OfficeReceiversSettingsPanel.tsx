@@ -195,6 +195,16 @@ export function OfficeReceiversSettingsPanel() {
     setDrafts((prev) => [...prev, newDraft()]);
   };
 
+  const cancelAllDraftForms = () => {
+    setDrafts([]);
+    setError(null);
+  };
+
+  const showCancelDrafts =
+    displayReceivers.length > 0
+      ? drafts.length >= 1
+      : drafts.length > 1;
+
   const checkboxRow = (
     idPrefix: string,
     opts: {
@@ -331,31 +341,43 @@ export function OfficeReceiversSettingsPanel() {
                       >
                         {RECEIVER_FORM_TITLE}
                       </div>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: 12,
-                          marginBottom: 12,
-                        }}
-                      >
-                        <div>
-                          <span style={labelStyle}>Name</span>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 600,
-                              color: TEXT,
-                            }}
-                          >
-                            {receiver.name}
-                          </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <span style={labelStyle}>Name</span>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: TEXT,
+                          }}
+                        >
+                          {receiver.name}
                         </div>
-                        <div>
-                          <span style={labelStyle}>Email</span>
-                          <div style={{ fontSize: 14, color: TEXT }}>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <span style={labelStyle}>Email</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 8,
+                            alignItems: "center",
+                          }}
+                        >
+                          <span style={{ fontSize: 14, color: TEXT }}>
                             {receiver.email ?? "—"}
-                          </div>
+                          </span>
+                          {note ? (
+                            <span
+                              data-testid={`office-receiver-status-note-${receiver.id}`}
+                              style={{
+                                fontSize: 13,
+                                color: ACTIVE_GREEN,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {note}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       <div style={{ marginBottom: 10 }}>
@@ -421,18 +443,6 @@ export function OfficeReceiversSettingsPanel() {
                             Activate
                           </button>
                         )}
-                        {note ? (
-                          <span
-                            data-testid={`office-receiver-status-note-${receiver.id}`}
-                            style={{
-                              fontSize: 13,
-                              color: ACTIVE_GREEN,
-                              fontWeight: 600,
-                            }}
-                          >
-                            {note}
-                          </span>
-                        ) : null}
                         {isActive ? (
                           <button
                             type="button"
@@ -592,25 +602,54 @@ export function OfficeReceiversSettingsPanel() {
                   </div>
                 </div>
               ))}
-              <button
-                type="button"
-                data-testid="office-receiver-add-additional-btn"
-                onClick={addDraftForm}
+              <div
                 style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  alignItems: "center",
                   marginTop: 8,
-                  padding: "8px 14px",
-                  borderRadius: 6,
-                  border: `1px solid ${NAVY}`,
-                  backgroundColor: "#fff",
-                  color: NAVY,
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
                 }}
               >
-                Add additional Catch-All receivers
-              </button>
+                <button
+                  type="button"
+                  data-testid="office-receiver-add-additional-btn"
+                  onClick={addDraftForm}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    border: `1px solid ${NAVY}`,
+                    backgroundColor: "#fff",
+                    color: NAVY,
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Add additional Catch-All receivers
+                </button>
+                {showCancelDrafts ? (
+                  <button
+                    type="button"
+                    data-testid="office-receiver-cancel-drafts-btn"
+                    onClick={cancelAllDraftForms}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 6,
+                      border: "1px solid #ccd0d7",
+                      backgroundColor: "#fff",
+                      color: MUTED,
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             {error ? (
