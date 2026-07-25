@@ -90,3 +90,8 @@
 {"date":"2026-07-24","role":"ship","verdict":"PASS","taskId":"9c47e17b-e90c-431e-b929-3ac4cc99d28b","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-closure"}
 {"date":"2026-07-25","role":"ship","verdict":"PASS","taskId":"unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-07-25","role":"ship","verdict":"PASS","taskId":"e3aac181-60fc-41f5-8de4-e7d2c067c1b0","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-closure 74c1199 status cards"}
+{"date":"2026-07-25","role":"ship","verdict":"FAIL","taskId":"ship-verifier-27b8363-unknown","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-25","role":"security","verdict":"PASS","taskId":"54de9ea0-6fb5-4434-86b2-c81b962f0102","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
+{"date":"2026-07-25","role":"ship","verdict":"PASS","taskId":"027ee235-85ab-492f-98db-38e60b4043bf","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-07-25","role":"critical","verdict":"PARTIAL","taskId":"7dcc702e-f7a6-4be5-9905-4487e8b5dea9","model":"cursor-grok-4.5-high-fast","real":"yes","note":"A vs B capabilities; adopted B"}
+{"date":"2026-07-25","role":"ship","verdict":"PASS","taskId":"1b725b6d-9d21-48b9-a58d-7938af0664a8","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
