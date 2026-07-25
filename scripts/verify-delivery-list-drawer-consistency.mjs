@@ -1285,14 +1285,14 @@ async function assertOrd006EmailReviewAction(page, record) {
     const ord005ItemsLine = itemsReceivedLine;
 
     record(
-      "ORD-005 list status is Pending Delivery",
-      ord005ListStatus === "Pending Delivery",
+      "ORD-005 list status is Awaiting Delivery",
+      ord005ListStatus === "Awaiting Delivery",
       ord005ListStatus,
     );
     record(
       "ORD-005 drawer status matches list",
-      ord005StatusLine?.includes("Pending Delivery") === true &&
-        ord005ListStatus === "Pending Delivery",
+      ord005StatusLine?.includes("Awaiting Delivery") === true &&
+        ord005ListStatus === "Awaiting Delivery",
       ord005StatusLine ?? "",
     );
     record(
@@ -1318,7 +1318,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   } else if (headingNormalized === "waiting on delivery") {
     record(
       "ORD-005 calm Waiting on Delivery banner (not urgent)",
-      (await ord005Row.count()) === 0 || listStatus === "Pending Delivery",
+      (await ord005Row.count()) === 0 || listStatus === "Awaiting Delivery",
       listStatus,
     );
     record(

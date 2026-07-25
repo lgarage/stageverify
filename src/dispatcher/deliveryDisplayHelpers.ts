@@ -20,7 +20,10 @@ import {
   isInvoiceShellNoShopStaging,
   resolveDeliveryPoNumber,
 } from "./invoice/invoiceShellDisplayHelpers";
-import { deliveryReadinessDisplayLabel } from "./jobReadinessDisplay";
+import {
+  AWAITING_DELIVERY_STATUS_LABEL,
+  deliveryReadinessDisplayLabel,
+} from "./jobReadinessDisplay";
 import {
   computeDeliveryReadiness,
   type DeliveryReadinessResult,
@@ -701,7 +704,7 @@ export function buildDrawerActionBannerContent(
   const calmWaiting =
     !display.readiness.readyForPickup &&
     panel.itemsReceivedCount === 0 &&
-    display.statusDisplayLabel === "Pending Delivery" &&
+    display.statusDisplayLabel === AWAITING_DELIVERY_STATUS_LABEL &&
     exceptionRows.length === 0 &&
     openBlockingMaterialIssues(materialIssues).length === 0 &&
     !options?.emailReviewRequired &&

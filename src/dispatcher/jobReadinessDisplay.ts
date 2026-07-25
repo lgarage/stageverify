@@ -9,6 +9,9 @@ import type {
 
 const OPEN_ISSUE_STATUSES = new Set(["open", "assigned"]);
 
+/** List + drawer status when shop is waiting for inbound material (0 received). */
+export const AWAITING_DELIVERY_STATUS_LABEL = "Awaiting Delivery";
+
 function countOpenIssuesForLabel(
   delivery: Pick<DeliveryOrder, "openIssueCount">,
   materialIssues?: MaterialIssue[],
@@ -69,7 +72,7 @@ export function deliveryReadinessDisplayLabel(
       delivery.status === "arrived" ||
       delivery.status === "partial")
   ) {
-    return "Pending Delivery";
+    return AWAITING_DELIVERY_STATUS_LABEL;
   }
 
   return "Incomplete";

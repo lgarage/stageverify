@@ -99,6 +99,14 @@ const STATUS_BADGE: Record<
   },
 };
 
+/** Yellow badge — shop waiting for vendor delivery (0 received). */
+const AWAITING_DELIVERY_BADGE = {
+  bg: "#facc15",
+  text: "#422006",
+  border: "#ca8a04",
+  dot: "#eab308",
+} as const;
+
 const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
   DELIVERY_OVERVIEW_FILTER_LABEL[status];
 
@@ -117,10 +125,11 @@ function listStatusBadge(
       ? STATUS_BADGE.shipped
       : STATUS_BADGE.pending;
   }
-  if (label === "Pending Delivery" || label === "Awaiting Vendor Delivery") {
-    return row.status === "shipped"
-      ? STATUS_BADGE.shipped
-      : STATUS_BADGE.pending;
+  if (label === "Awaiting Delivery" || label === "Awaiting Vendor Delivery") {
+    return AWAITING_DELIVERY_BADGE;
+  }
+  if (label === "Pending Delivery") {
+    return AWAITING_DELIVERY_BADGE;
   }
   if (label === "Incomplete") return STATUS_BADGE.partial;
   if (row.status === "installed") return STATUS_BADGE.picked_up;
