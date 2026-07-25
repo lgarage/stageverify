@@ -1,4 +1,4 @@
-import{Fr as e,M as t,Mr as n,Sr as r,Vr as i,jn as a,r as o,z as s,zr as c}from"./index-IpXN4wTA.js";import{a as l,t as u}from"./PortalSidebar-pvPbJQTk.js";import{r as d,t as f}from"./stagingMapSync-BB1d8PCI.js";import{t as p}from"./EslQrCode-CgS2-8hY.js";import{a as m,i as h,n as g,o as _,r as v,t as y}from"./LocationSignPrintSheet-P52xeGk6.js";var b=i(c(),1),x=`Catch-All`;function S(e,t){return d(e,{catchAllStagingLocationId:t})}function C(e,t,n){let r=t?.trim()||void 0;return S(f(e,n??{}),r)}function w(e,t){let n=t?.trim();return n&&e.id===n?!0:a(e.mapLayoutSlot??e.code)===a(`CA`)}var T=r(),E=8;function D(e,t){let n=[];for(let r=0;r<e.length;r+=t)n.push(e.slice(r,r+t));return n}function O({entry:e}){if(!e)return(0,T.jsx)(`div`,{className:`location-sign-2x4-label location-sign-2x4-label--blank`,"data-testid":`location-sign-2x4-label`,"data-blank":`true`,"aria-hidden":!0});let t=m(e.locationCode),n=e.headlineText?.trim()||t,r=t?o(t,{forPrint:!0}):``;return t?(0,T.jsxs)(`div`,{className:`location-sign-2x4-label`,"data-testid":`location-sign-2x4-label`,"data-location-code":t,"data-sign-headline":n,"data-permanent-url":r,children:[(0,T.jsx)(`div`,{className:`location-sign-2x4-label-code`,"data-testid":`location-sign-code`,children:n}),(0,T.jsx)(`div`,{className:`location-sign-2x4-label-qr`,children:(0,T.jsx)(p,{value:r,variant:`print`,size:200})})]}):null}function k({entries:e,pageIndex:t,totalPages:n}){let r=[...e];for(;r.length<E;)r.push(null);let i=[];for(let e=0;e<4;e++)i.push([r[e*2]??null,r[e*2+1]??null]);return(0,T.jsx)(`div`,{className:`location-sign-2x4-page location-sign-print-sheet--batch`,"data-testid":`location-sign-2x4-page`,"data-page-index":t,"data-page-count":n,children:(0,T.jsx)(`div`,{className:`location-sign-2x4-letter`,children:(0,T.jsx)(`div`,{className:`location-sign-2x4-block`,children:i.map((e,t)=>(0,T.jsxs)(`div`,{className:`location-sign-2x4-row-wrap`,children:[t>0?(0,T.jsx)(`div`,{className:`location-sign-2x4-row-gutter`,"aria-hidden":!0}):null,(0,T.jsxs)(`div`,{className:`location-sign-2x4-row`,children:[(0,T.jsx)(O,{entry:e[0]}),(0,T.jsx)(`div`,{className:`location-sign-2x4-col-gutter`,"aria-hidden":!0}),(0,T.jsx)(O,{entry:e[1]})]})]},t))})})})}function A({entries:e}){if(e.length===0)return null;let t=D(e,E);return(0,T.jsx)(T.Fragment,{children:t.map((e,n)=>(0,T.jsx)(k,{entries:e,pageIndex:n,totalPages:t.length},`2x4-page-${n}`))})}var j=`
+import{Fr as e,M as t,Mr as n,Sr as r,Vr as i,jn as a,r as o,z as s,zr as c}from"./index-K6yzxEbL.js";import{a as l,t as u}from"./PortalSidebar-Bs-svimy.js";import{r as d,t as f}from"./stagingMapSync-gR6xZjqb.js";import{t as p}from"./EslQrCode-u7cq9l54.js";import{a as m,i as h,n as g,o as _,r as v,t as y}from"./LocationSignPrintSheet-BXGP-sT9.js";var b=i(c(),1),x=`Catch-All`;function S(e,t){return d(e,{catchAllStagingLocationId:t})}function C(e,t,n){let r=t?.trim()||void 0;return S(f(e,n??{}),r)}function w(e,t){let n=t?.trim();return n&&e.id===n?!0:a(e.mapLayoutSlot??e.code)===a(`CA`)}var T=r(),E=8;function D(e,t){let n=[];for(let r=0;r<e.length;r+=t)n.push(e.slice(r,r+t));return n}function O({entry:e}){if(!e)return(0,T.jsx)(`div`,{className:`location-sign-2x4-label location-sign-2x4-label--blank`,"data-testid":`location-sign-2x4-label`,"data-blank":`true`,"aria-hidden":!0});let t=m(e.locationCode),n=e.headlineText?.trim()||t,r=t?o(t,{forPrint:!0}):``;return t?(0,T.jsxs)(`div`,{className:`location-sign-2x4-label`,"data-testid":`location-sign-2x4-label`,"data-location-code":t,"data-sign-headline":n,"data-permanent-url":r,children:[(0,T.jsx)(`div`,{className:n===`Catch-All`?`location-sign-2x4-label-code location-sign-2x4-label-code--catch-all`:`location-sign-2x4-label-code`,"data-testid":`location-sign-code`,children:n}),(0,T.jsx)(`div`,{className:`location-sign-2x4-label-qr`,children:(0,T.jsx)(p,{value:r,variant:`print`,size:144})})]}):null}function k({entries:e,pageIndex:t,totalPages:n}){let r=[...e];for(;r.length<E;)r.push(null);let i=[];for(let e=0;e<4;e++)i.push([r[e*2]??null,r[e*2+1]??null]);return(0,T.jsx)(`div`,{className:`location-sign-2x4-page location-sign-print-sheet--batch`,"data-testid":`location-sign-2x4-page`,"data-page-index":t,"data-page-count":n,children:(0,T.jsx)(`div`,{className:`location-sign-2x4-letter`,children:(0,T.jsx)(`div`,{className:`location-sign-2x4-block`,children:i.map((e,t)=>(0,T.jsxs)(`div`,{className:`location-sign-2x4-row-wrap`,children:[t>0?(0,T.jsx)(`div`,{className:`location-sign-2x4-row-gutter`,"aria-hidden":!0}):null,(0,T.jsxs)(`div`,{className:`location-sign-2x4-row`,children:[(0,T.jsx)(O,{entry:e[0]}),(0,T.jsx)(`div`,{className:`location-sign-2x4-col-gutter`,"aria-hidden":!0}),(0,T.jsx)(O,{entry:e[1]})]})]},t))})})})}function A({entries:e}){if(e.length===0)return null;let t=D(e,E);return(0,T.jsx)(T.Fragment,{children:t.map((e,n)=>(0,T.jsx)(k,{entries:e,pageIndex:n,totalPages:t.length},`2x4-page-${n}`))})}var j=`
   .location-sign-2x4-letter {
     box-sizing: border-box;
     min-height: 11in;
@@ -28,11 +28,16 @@ import{Fr as e,M as t,Mr as n,Sr as r,Vr as i,jn as a,r as o,z as s,zr as c}from
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    justify-content: center;
+    justify-content: flex-start;
+    flex-shrink: 0;
+    width: calc(4in + 0.25in + 4in);
+    box-sizing: border-box;
   }
   .location-sign-2x4-col-gutter {
     flex: 0 0 0.25in;
     width: 0.25in;
+    min-width: 0.25in;
+    flex-shrink: 0;
   }
   .location-sign-2x4-row-gutter {
     width: calc(4in + 0.25in + 4in);
@@ -44,17 +49,19 @@ import{Fr as e,M as t,Mr as n,Sr as r,Vr as i,jn as a,r as o,z as s,zr as c}from
   }
   .location-sign-2x4-label {
     box-sizing: border-box;
+    flex: 0 0 4in;
+    flex-shrink: 0;
     width: 4in;
+    min-width: 4in;
     height: 2in;
     border: 2px solid #000;
     background: #fff;
     color: #000;
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.08in;
-    padding: 0.1in 0.12in;
+    column-gap: 0.06in;
+    padding: 0.25in 0.25in 0.25in 0;
     overflow: hidden;
   }
   .location-sign-2x4-label--blank {
@@ -62,24 +69,34 @@ import{Fr as e,M as t,Mr as n,Sr as r,Vr as i,jn as a,r as o,z as s,zr as c}from
     background: transparent;
   }
   .location-sign-2x4-label-code {
-    flex: 1 1 auto;
     min-width: 0;
-    font-size: clamp(18px, 4vw, 36px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(36px, 8vw, 72px);
     font-weight: 900;
     line-height: 1.05;
     letter-spacing: -0.03em;
     color: #000;
-    text-align: left;
+    text-align: center;
+  }
+  .location-sign-2x4-label-code--catch-all {
+    font-size: clamp(36px, 8vw, 72px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
   }
   .location-sign-2x4-label-qr {
-    flex: 0 0 auto;
+    flex-shrink: 0;
     line-height: 0;
-    border: 1px solid #000;
-    padding: 2px;
     background: #fff;
   }
 
   @media print {
+    .location-sign-2x4-row,
+    .location-sign-2x4-label,
+    .location-sign-2x4-col-gutter {
+      flex-shrink: 0 !important;
+    }
     .location-sign-2x4-page {
       break-after: page;
       page-break-after: always;
