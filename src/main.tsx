@@ -24,6 +24,11 @@ const EntryDisplayPage = lazy(() =>
 const DispatcherDashboardPage = lazy(() => import("./DispatcherDashboardPage").then(m => ({ default: m.DispatcherDashboardPage })));
 const SettingsPage = lazy(() => import("./SettingsPage").then(m => ({ default: m.SettingsPage })));
 const ZoneManagementPage = lazy(() => import("./ZoneManagementPage").then(m => ({ default: m.ZoneManagementPage })));
+const LocationSignPrintPage = lazy(() =>
+  import("./LocationSignPrintPage").then((m) => ({
+    default: m.LocationSignPrintPage,
+  })),
+);
 const VendorsPage = lazy(() => import("./VendorsPage").then(m => ({ default: m.VendorsPage })));
 const InvoiceReviewPage = lazy(() =>
   import("./InvoiceReviewPage").then((m) => ({ default: m.InvoiceReviewPage })),
@@ -95,6 +100,7 @@ const renderApp = () => {
                   <Route path="/vendors" element={<VendorsPage />} />
                   <Route path="/invoice-review" element={<InvoiceReviewPage />} />
                   <Route path="/zones" element={<ZoneManagementPage />} />
+                  <Route path="/zones/print-label" element={<LocationSignPrintPage />} />
                 </Route>
                 <Route path="/hub" element={<MobileHubPage />} />
               </Route>

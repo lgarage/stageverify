@@ -20,6 +20,8 @@ export const ESL_QR_RENDER_PROPS = {
 
 export const ESL_QR_SIZE_PREVIEW = 96;
 export const ESL_QR_SIZE_PRINT = 200;
+/** Full letter location sign (portrait). */
+export const ESL_QR_SIZE_LOCATION_SIGN = 280;
 
 /** Printed tags always encode prod gh-pages so native camera opens the live app. */
 export type EslQrOptions = { forPrint?: boolean };

@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.144** — Delivery Overview: removed redundant status summary metric cards; Search + Filter by Status pills unchanged; dropped extra full-list fetch for tile counts
+- Last shipped: **v0.0.145** — Letter-size permanent location sign print (`#/zones/print-label?loc=G1`): code + static `#/s?loc=` QR + down arrow; Staging Map **Print label** when a spot is focused
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:pickup` / `:prod`; `verify:receive` / `:prod`; `verify:vendor-delivered` / `:prod`; `verify:catch-all-map` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

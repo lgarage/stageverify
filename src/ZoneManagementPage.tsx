@@ -1224,6 +1224,30 @@ export function ZoneManagementPage() {
               >
                 Print map
               </button>
+              {effectiveFocusSpotCode ? (
+                <button
+                  type="button"
+                  data-testid="staging-map-print-location-label"
+                  onClick={() =>
+                    navigate(
+                      `/zones/print-label?loc=${encodeURIComponent(effectiveFocusSpotCode)}`,
+                    )
+                  }
+                  style={{
+                    padding: "8px 18px",
+                    borderRadius: 4,
+                    border: `2px solid ${NAVY}`,
+                    backgroundColor: NAVY,
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Print label ({effectiveFocusSpotCode})
+                </button>
+              ) : null}
               <button
                 type="button"
                 data-testid="shop-map-vendor-view-toggle"
@@ -1981,48 +2005,71 @@ export function ZoneManagementPage() {
                             <div
                               style={{
                                 display: "flex",
+                                flexDirection: "column",
                                 alignItems: "center",
-                                justifyContent: "center",
-                                gap: 16,
+                                gap: 10,
                               }}
                             >
-                              <div style={{ textAlign: "center" }}>
-                                <p
-                                  style={{
-                                    fontSize: 22,
-                                    fontWeight: 900,
-                                    color: NAVY,
-                                    margin: 0,
-                                    fontFamily: FONT,
-                                  }}
-                                >
-                                  {zone.code}
-                                </p>
-                                <p
-                                  style={{
-                                    fontSize: 11,
-                                    color: "#374151",
-                                    margin: "4px 0 0",
-                                  }}
-                                >
-                                  {zone.label}
-                                </p>
-                                <p
-                                  style={{
-                                    fontSize: 28,
-                                    lineHeight: 1,
-                                    margin: "6px 0 0",
-                                    color: RED,
-                                  }}
-                                  aria-hidden
-                                >
-                                  ↓
-                                </p>
+                              <p
+                                style={{
+                                  fontSize: 36,
+                                  fontWeight: 900,
+                                  color: "#000",
+                                  margin: 0,
+                                  fontFamily: FONT,
+                                  lineHeight: 1,
+                                }}
+                              >
+                                {zone.code}
+                              </p>
+                              <div
+                                style={{
+                                  padding: 8,
+                                  border: "2px solid #000",
+                                  backgroundColor: "#fff",
+                                  lineHeight: 0,
+                                }}
+                              >
+                                <EslQrCode
+                                  value={permanentSignUrl}
+                                  variant="preview"
+                                />
                               </div>
-                              <EslQrCode
-                                value={permanentSignUrl}
-                                variant="preview"
-                              />
+                              <p
+                                style={{
+                                  fontSize: 32,
+                                  lineHeight: 1,
+                                  margin: 0,
+                                  color: "#000",
+                                  fontWeight: 900,
+                                }}
+                                aria-hidden
+                              >
+                                ↓
+                              </p>
+                              <button
+                                type="button"
+                                data-testid="permanent-location-print-letter"
+                                onClick={() =>
+                                  navigate(
+                                    `/zones/print-label?loc=${encodeURIComponent(zone.code)}`,
+                                  )
+                                }
+                                style={{
+                                  marginTop: 4,
+                                  padding: "6px 12px",
+                                  borderRadius: 4,
+                                  border: `1px solid ${NAVY}`,
+                                  backgroundColor: "#fff",
+                                  color: NAVY,
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                  cursor: "pointer",
+                                  fontFamily: FONT,
+                                }}
+                              >
+                                Print letter label
+                              </button>
                             </div>
                             <p
                               style={{

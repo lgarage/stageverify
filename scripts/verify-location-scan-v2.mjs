@@ -11,7 +11,19 @@
 import { chromium } from "playwright";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  setDoc,
+  where,
+} from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
 
 const PROD_APP_BASE = "https://lgarage.github.io/stageverify";
 
@@ -40,7 +52,9 @@ if (existsSync(envPath)) {
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 
-const appBase = resolveAppBase(baseUrl);
+if (!process.env.STAGEVERIFY_RECEIVE_DELIVERY) {
+  process.env.STAGEVERIFY_RECEIVE_DELIVERY = "delivery-demo-vendor-1";
+}
 
 const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
 const job1Order = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
@@ -49,6 +63,47 @@ const otherJobOrder = process.env.STAGEVERIFY_OTHER_JOB_ORDER ?? "ORD-006";
 const crossVendorOrder =
   process.env.STAGEVERIFY_CROSS_VENDOR_ORDER ?? "ORD-007";
 const signLocationCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G2";
+
+const firebaseApp = initializeApp({
+  apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
+  authDomain: "stageverify-db.firebaseapp.com",
+  projectId: "stageverify-db",
+  storageBucket: "stageverify-db.firebasestorage.app",
+  messagingSenderId: "784751243681",
+  appId: "1:784751243681:web:31fa71762b94f878fd1be0",
+});
+
+/** CF findJobByPin fails when multiple jobs share the same pinCode query match. */
+async function ensureUniqueJobPinForLocationScan() {
+  if (!email || !password) return;
+  const auth = getAuth(firebaseApp);
+  const db = getFirestore(firebaseApp);
+  await signInWithEmailAndPassword(auth, email, password);
+  const now = new Date().toISOString();
+  await setDoc(
+    doc(db, "jobs", "job-1"),
+    { pinCode: job1Pin, updatedAt: now },
+    { merge: true },
+  );
+  await setDoc(
+    doc(db, "jobs", "job-2"),
+    { pinCode: "5678", updatedAt: now },
+    { merge: true },
+  );
+  const dupSnap = await getDocs(
+    query(collection(db, "jobs"), where("pinCode", "==", job1Pin)),
+  );
+  for (const jobDoc of dupSnap.docs) {
+    if (jobDoc.id === "job-1") continue;
+    await setDoc(
+      jobDoc.ref,
+      { pinCode: "5891", updatedAt: now },
+      { merge: true },
+    );
+  }
+}
+
+const appBase = resolveAppBase(baseUrl);
 
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 
@@ -72,6 +127,21 @@ async function enterPin(page, digits) {
   for (const digit of digits) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
+  await page
+    .waitForFunction(
+      () => {
+        const body = document.body?.innerText ?? "";
+        if (/Invalid code/i.test(body)) return true;
+        return (
+          /Mark Delivered/i.test(body) ||
+          /This job/i.test(body) ||
+          document.querySelector('[data-testid="vendor-run-session-active"]') !=
+            null
+        );
+      },
+      { timeout: 20_000 },
+    )
+    .catch(() => {});
 }
 
 async function ensureZonesAuthenticated(page) {
@@ -102,6 +172,64 @@ async function ensureZonesAuthenticated(page) {
   }
 }
 
+async function assertLetterLocationSignPrint(browser) {
+  const expectedUrl = buildPermanentLocationUrl(signLocationCode);
+  const printContext = await browser.newContext({
+    viewport: { width: 900, height: 1100 },
+    ...(existsSync(authState) ? { storageState: authState } : {}),
+  });
+  const printPage = await printContext.newPage();
+  try {
+    await ensureZonesAuthenticated(printPage);
+    await printPage.goto(
+      `${appBase}/#/zones/print-label?loc=${encodeURIComponent(signLocationCode)}`,
+      { waitUntil: "domcontentloaded", timeout: 45_000 },
+    );
+    const sheet = printPage.getByTestId("location-sign-print-sheet");
+    await sheet.waitFor({ timeout: 30_000 });
+    const codeEl = printPage.getByTestId("location-sign-code");
+    await codeEl.waitFor({ timeout: 10_000 });
+    const codeText = (await codeEl.innerText()).trim();
+    const permanentUrl = await sheet.getAttribute("data-permanent-url");
+    record(
+      "Letter sign sheet shows spot code",
+      codeText === signLocationCode,
+      codeText,
+    );
+    record(
+      "Letter sign QR uses permanent loc URL",
+      permanentUrl === expectedUrl,
+      permanentUrl ?? "missing data-permanent-url",
+    );
+    await assertReadableTextContrast(printPage, {
+      rootSelector: '[data-testid="location-sign-print-sheet"]',
+      elements: [
+        {
+          name: "location code",
+          selector: '[data-testid="location-sign-code"]',
+          large: true,
+        },
+        {
+          name: "down arrow",
+          selector: '[data-testid="location-sign-arrow"]',
+          large: true,
+        },
+      ],
+    });
+    record("Letter sign readable contrast (D-42)", true);
+    await shot(printPage, "05-letter-location-sign");
+  } catch (err) {
+    record(
+      "Letter sign readable contrast (D-42)",
+      false,
+      err instanceof Error ? err.message : String(err),
+    );
+  } finally {
+    await printPage.close();
+    await printContext.close();
+  }
+}
+
 async function assertPermanentSignUrl(browser) {
   const expectedUrl = buildPermanentLocationUrl(signLocationCode);
   const expectedLine = `Permanent URL: ${expectedUrl}`;
@@ -114,9 +242,21 @@ async function assertPermanentSignUrl(browser) {
   try {
     await ensureZonesAuthenticated(zonesPage);
     await zonesPage
+      .getByText("Loading zones…")
+      .waitFor({ state: "hidden", timeout: 60_000 })
+      .catch(() => {});
+    const zoneToolsBtn = zonesPage.getByRole("button", {
+      name: "Zone tools",
+      exact: true,
+    });
+    await zoneToolsBtn.waitFor({ timeout: 15_000 });
+    if ((await zoneToolsBtn.getAttribute("aria-pressed")) !== "true") {
+      await zoneToolsBtn.click();
+    }
+    await zonesPage
       .getByTestId("permanent-location-sign")
       .first()
-      .waitFor({ timeout: 30_000 });
+      .waitFor({ state: "visible", timeout: 45_000 });
     const urlLine = zonesPage.getByText(expectedLine, { exact: true });
     const urlVisible = await urlLine.isVisible().catch(() => false);
     const signBlock = zonesPage
@@ -144,6 +284,8 @@ async function assertPermanentSignUrl(browser) {
 }
 
 (async () => {
+  await ensureUniqueJobPinForLocationScan();
+
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -161,7 +303,13 @@ async function assertPermanentSignUrl(browser) {
 
   await page.waitForSelector("text=Enter Job or Company PIN", { timeout: 30_000 });
   await enterPin(page, job1Pin);
-  await page.waitForTimeout(3000);
+  const bodyAfterPin = await page.locator("body").innerText();
+  if (/Invalid code/i.test(bodyAfterPin)) {
+    throw new Error(
+      "Job PIN rejected (Invalid code) — run seed-vendor-pin-data or check duplicate job pinCode in Firestore",
+    );
+  }
+  await page.waitForTimeout(1500);
   await shot(page, "01b-after-pin");
 
   const listHeading = page.getByRole("heading", { name: /This job/i });
@@ -211,6 +359,7 @@ async function assertPermanentSignUrl(browser) {
   await shot(page, "03-confirmed");
 
   await assertPermanentSignUrl(browser);
+  await assertLetterLocationSignPrint(browser);
 
   await browser.close();
 
