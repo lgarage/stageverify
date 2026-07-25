@@ -288,6 +288,8 @@ async function assertBatchLocationSignPrint(browser) {
         true,
         "skipped (no catch-all row)",
       );
+      await g2Row.getByTestId("location-sign-batch-picker-checkbox").check();
+      await g2Sheet.first().waitFor({ timeout: 60_000 });
     }
 
     await assertReadableTextContrast(printPage, {
