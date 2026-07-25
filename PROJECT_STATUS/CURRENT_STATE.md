@@ -6,7 +6,7 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.156** — Settings Catch-All receivers panel redesign (signup + verify script)
+- Last shipped: **v0.0.156** — Settings Catch-All receivers panel redesign (signup + verify script); Sonnet security gate PASS post-push (package.json scripts high-risk path).
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:settings-office-receivers` / `:prod`; `verify:management-catch-all` / `:prod`; `verify:settings-management-pins`; `verify:pickup` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
