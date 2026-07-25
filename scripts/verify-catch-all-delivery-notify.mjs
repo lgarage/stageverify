@@ -211,26 +211,31 @@ async function expectCallableError(fn, expectedSubstring) {
     await assertReadableTextContrast(page, OFFICE_RECEIVER_PANEL_CONTRAST_SPEC);
     record("Catch-All receivers panel readable text contrast (D-42)", true);
 
-    const activeBtn = page.getByTestId(
-      `office-receiver-active-status-${fixtureReceiverId}`,
-    );
-    await activeBtn.waitFor({ timeout: 15_000 });
-    const activeLabel = (await activeBtn.textContent())?.trim() ?? "";
+    const signupTitle = (
+      await page.getByTestId("office-receiver-signup-title").textContent()
+    )?.trim();
     record(
-      "fixture Catch-All receiver shows Active status",
-      activeLabel === "Active",
-      activeLabel,
+      "signup form titled Catch-All Receiver",
+      signupTitle === "Catch-All Receiver",
+      signupTitle ?? "",
     );
 
-    const statusNote = page.getByTestId(
-      `office-receiver-status-note-${fixtureReceiverId}`,
-    );
-    await statusNote.waitFor({ timeout: 15_000 });
-    const noteText = (await statusNote.textContent()) ?? "";
+    const seedVisible = await page
+      .getByText("Verify Office Receiver", { exact: true })
+      .count();
     record(
-      "active receiver shows email notifications note",
-      noteText.includes("email notifications active"),
-      noteText.trim(),
+      "verify seed name not shown in Settings UI",
+      seedVisible === 0,
+      seedVisible === 0 ? "hidden" : "visible",
+    );
+
+    const fixtureRow = page.getByTestId(
+      `office-receiver-row-${fixtureReceiverId}`,
+    );
+    record(
+      "fixture verify seed row hidden from Settings list",
+      (await fixtureRow.count()) === 0,
+      (await fixtureRow.count()) === 0 ? "hidden" : "visible",
     );
 
     const intakeOff = await setupFirebaseFixture({

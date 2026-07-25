@@ -104,6 +104,19 @@ async function ensureAuthenticated(page) {
   }
   console.log("PASS: no verify seed Catch-All receiver cards visible");
 
+  await panel.getByTestId("office-receiver-signup-title").waitFor({
+    timeout: 10_000,
+  });
+  const signupTitle = (
+    await panel.getByTestId("office-receiver-signup-title").textContent()
+  )?.trim();
+  if (signupTitle !== "Catch-All Receiver") {
+    throw new Error(
+      `Signup form title expected "Catch-All Receiver", got "${signupTitle ?? ""}"`,
+    );
+  }
+  console.log("PASS: signup form titled Catch-All Receiver");
+
   const signupForms = page.locator('[data-testid^="office-receiver-signup-form-"]');
   const formCount = await signupForms.count();
   if (formCount !== 1) {

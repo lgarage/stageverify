@@ -12,6 +12,7 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
 const MUTED = "#6b7280";
 const ACTIVE_GREEN = "#2e7d32";
+const RECEIVER_FORM_TITLE = "Catch-All Receiver";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
@@ -305,6 +306,17 @@ export function OfficeReceiversSettingsPanel() {
                     >
                       <div
                         style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: NAVY,
+                          marginBottom: 10,
+                        }}
+                        data-testid={`office-receiver-row-title-${receiver.id}`}
+                      >
+                        {RECEIVER_FORM_TITLE}
+                      </div>
+                      <div
+                        style={{
                           display: "grid",
                           gridTemplateColumns: "1fr 1fr",
                           gap: 12,
@@ -440,18 +452,6 @@ export function OfficeReceiversSettingsPanel() {
             ) : null}
 
             <div data-testid="office-receiver-signup-section">
-              <p
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: NAVY,
-                  marginBottom: 12,
-                }}
-              >
-                {displayReceivers.length === 0
-                  ? "Add a Catch-All receiver"
-                  : "Add another Catch-All receiver"}
-              </p>
               {drafts.map((draft, index) => (
                 <div
                   key={draft.localId}
@@ -462,6 +462,21 @@ export function OfficeReceiversSettingsPanel() {
                     marginBottom: 8,
                   }}
                 >
+                  <p
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: NAVY,
+                      marginBottom: 12,
+                    }}
+                    data-testid={
+                      index === 0
+                        ? "office-receiver-signup-title"
+                        : `office-receiver-signup-title-${index}`
+                    }
+                  >
+                    {RECEIVER_FORM_TITLE}
+                  </p>
                   <div style={{ marginBottom: 12 }}>
                     <label style={labelStyle} htmlFor={`draft-name-${draft.localId}`}>
                       Name
