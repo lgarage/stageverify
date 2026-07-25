@@ -26,7 +26,7 @@ exports.getManagementWaitingParts = (0, https_1.onCall)({
     if (!sessionToken) {
         throw new https_1.HttpsError("invalid-argument", "Invalid session.");
     }
-    await (0, managementSessionValidation_1.assertManagementCatchAllSession)(sessionToken);
+    await (0, managementSessionValidation_1.assertManagementCatchAllSession)(sessionToken, "viewWaitingParts");
     const deliveriesSnap = await getDb()
         .collection("deliveries")
         .where("status", "in", ["pending", "shipped"])

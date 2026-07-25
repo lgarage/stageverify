@@ -1,8 +1,12 @@
 import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { asFourDigitPin, pinMatches } from "./pinMatching";
+import { asFourDigitPin } from "./pinMatching";
 import { loadCatchAllConfig } from "./managementSessionValidation";
+import {
+  pinHasCapability,
+  resolveManagementPinMatch,
+} from "./managementPinRegistry";
 
 function getDb() {
   return admin.firestore();
@@ -127,6 +131,7 @@ export const verifyManagementPin = onCall(
       throw new HttpsError("invalid-argument", "Invalid code.");
     }
 
+    // Office portal remains catch-all-gated (parcelIntakeEnabled required).
     const config = await loadCatchAllConfig();
     if (!config) {
       throw new HttpsError(
@@ -143,40 +148,20 @@ export const verifyManagementPin = onCall(
       );
     }
 
-    const settingsSnap = await getDb().collection("appSettings").doc("config").get();
-    const settings = settingsSnap.data() as {
-      managementPinHash?: string;
-      managementPinConfigured?: boolean;
-    } | undefined;
-
-    const secretSnap = await getDb()
-      .collection("managementPinSecrets")
-      .doc("config")
-      .get();
-    const secretData = secretSnap.data() as { managementPinHash?: string } | undefined;
-    const pinHash =
-      secretData?.managementPinHash?.trim() ??
-      settings?.managementPinHash?.trim() ??
-      "";
-    if (!pinHash && settings?.managementPinConfigured !== true) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Management PIN is not configured.",
-      );
-    }
-    if (!pinHash) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Management PIN is not configured.",
-      );
-    }
-
     const attemptKey = `loc:${stagingLocationCode}`;
     await checkRateLimit(attemptKey);
     await checkRateLimit("pin:management:global");
 
-    if (!pinMatches({ pinHash }, pin)) {
+    const matched = await resolveManagementPinMatch(pin);
+    if (!matched) {
       return { success: false, message: "Invalid code." };
+    }
+
+    if (!pinHasCapability(matched, "enterPortalAnyQr")) {
+      return {
+        success: false,
+        message: "This PIN cannot open the office portal.",
+      };
     }
 
     const sessionMinutes = await getManagementSessionMinutes();
@@ -192,6 +177,8 @@ export const verifyManagementPin = onCall(
       createdAt: new Date(now).toISOString(),
       scannedStagingLocationCode: location.code,
       scannedStagingLocationId: location.id,
+      pinId: matched.id,
+      permissions: matched.permissions,
     });
 
     const eventId = `mgmt-pin-${createHash("sha256")
@@ -206,6 +193,7 @@ export const verifyManagementPin = onCall(
       timestamp: new Date(now).toISOString(),
       createdAt: new Date(now).toISOString(),
       stagingLocationCode: location.code,
+      pinId: matched.id,
     });
 
     await clearRateLimitOnSuccess(attemptKey);
@@ -216,6 +204,8 @@ export const verifyManagementPin = onCall(
       sessionToken,
       expiresAt,
       scannedStagingLocationCode: location.code,
+      pinId: matched.id,
+      permissions: matched.permissions,
     };
   },
 );

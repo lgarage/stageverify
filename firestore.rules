@@ -108,6 +108,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Multi-PIN management identities + capability matrix — CF Admin SDK only.
+    match /managementPins/{pinId} {
+      allow read, write: if false;
+    }
+
     // Vendor PIN sessions — CF Admin SDK only; clients hold opaque token locally.
     match /vendorSessions/{sessionId} {
       allow read, write: if false;

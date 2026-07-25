@@ -432,6 +432,31 @@ export interface TechnicianReleasedJobSummary {
   readyForPickupCount: number;
 }
 
+/** Office management PIN capability matrix (D-49). Unrelated to officeReceivers.notify. */
+export interface ManagementPinPermissions {
+  /** May mint a session from any location QR Office door. */
+  enterPortalAnyQr?: boolean;
+  /** Client: show Catch-all check-in CTA / enter hub. */
+  catchAllCheckIn?: boolean;
+  /** CF: getManagementWaitingParts. */
+  viewWaitingParts?: boolean;
+  /** CF: markCatchAllDeliveryReceived + captureUnidentifiableParcel. */
+  markOrFlagParcel?: boolean;
+}
+
+/** Public management PIN row for Settings — never includes pinHash. */
+export interface ManagementPinPublic {
+  id: string;
+  label: string;
+  active: boolean;
+  permissions: Required<ManagementPinPermissions>;
+  hasPin: boolean;
+  /** Legacy singleton view before first registry write — not a Firestore doc yet. */
+  virtual?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface VerifyManagementPinInput {
   pin: string;
   stagingLocationCode: string;
@@ -443,6 +468,8 @@ export interface VerifyManagementPinResult {
   sessionToken?: string;
   expiresAt?: string;
   scannedStagingLocationCode?: string;
+  pinId?: string;
+  permissions?: Required<ManagementPinPermissions>;
 }
 
 export interface ManagementWaitingDeliverySummary {

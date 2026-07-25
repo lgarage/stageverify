@@ -59,6 +59,9 @@ import { markCatchAllDeliveryReceived } from "./markCatchAllDeliveryReceived";
 import { notifyCatchAllCheckers } from "./notifyCatchAllCheckers";
 import { captureUnidentifiableParcel } from "./captureUnidentifiableParcel";
 import { setManagementPin } from "./setManagementPin";
+import { listManagementPins } from "./listManagementPins";
+import { upsertManagementPin } from "./upsertManagementPin";
+import { deactivateManagementPin } from "./deactivateManagementPin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 
@@ -209,6 +212,9 @@ export {
   notifyCatchAllCheckers,
   captureUnidentifiableParcel,
   setManagementPin,
+  listManagementPins,
+  upsertManagementPin,
+  deactivateManagementPin,
   getTechnicianReleasedJobs,
   releaseJobsToTechnician,
   processInboundVendorEmail,

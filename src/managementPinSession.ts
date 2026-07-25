@@ -1,4 +1,20 @@
+import type { ManagementPinPermissions } from "./dispatcher/models";
+
 const MANAGEMENT_PIN_SESSION_KEY = "stageverify_management_pin_session";
+
+export type NormalizedManagementPinPermissions =
+  Required<ManagementPinPermissions>;
+
+export function normalizeManagementPinPermissions(
+  permissions?: ManagementPinPermissions | null,
+): NormalizedManagementPinPermissions {
+  return {
+    enterPortalAnyQr: permissions?.enterPortalAnyQr !== false,
+    catchAllCheckIn: permissions?.catchAllCheckIn !== false,
+    viewWaitingParts: permissions?.viewWaitingParts !== false,
+    markOrFlagParcel: permissions?.markOrFlagParcel !== false,
+  };
+}
 
 export interface ManagementPinSessionRecord {
   sessionToken: string;
@@ -6,6 +22,9 @@ export interface ManagementPinSessionRecord {
   sessionMinutes: number;
   lastActivityAt: number;
   scannedStagingLocationCode?: string;
+  pinId?: string;
+  /** UX cache — CF re-reads registry for enforcement. */
+  permissions?: NormalizedManagementPinPermissions;
 }
 
 function readRecord(): ManagementPinSessionRecord | null {
@@ -32,6 +51,8 @@ export function setManagementPinSession(opts: {
   expiresAt: string;
   sessionMinutes: number;
   scannedStagingLocationCode?: string;
+  pinId?: string;
+  permissions?: ManagementPinPermissions;
 }): void {
   writeRecord({
     sessionToken: opts.sessionToken,
@@ -39,6 +60,8 @@ export function setManagementPinSession(opts: {
     sessionMinutes: opts.sessionMinutes,
     lastActivityAt: Date.now(),
     scannedStagingLocationCode: opts.scannedStagingLocationCode,
+    pinId: opts.pinId,
+    permissions: normalizeManagementPinPermissions(opts.permissions),
   });
 }
 
@@ -54,6 +77,12 @@ export function getManagementPinSession(): ManagementPinSessionRecord | null {
 
 export function getManagementSessionToken(): string | null {
   return getManagementPinSession()?.sessionToken ?? null;
+}
+
+export function getManagementSessionPermissions(): NormalizedManagementPinPermissions | null {
+  const session = getManagementPinSession();
+  if (!session) return null;
+  return normalizeManagementPinPermissions(session.permissions);
 }
 
 export function isManagementPinSessionValid(): boolean {

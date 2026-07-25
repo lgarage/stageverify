@@ -30,7 +30,7 @@ exports.markCatchAllDeliveryReceived = (0, https_1.onCall)({
     if (!sessionToken || !deliveryId) {
         throw new https_1.HttpsError("invalid-argument", "Invalid session.");
     }
-    const session = await (0, managementSessionValidation_1.assertManagementCatchAllSession)(sessionToken);
+    const session = await (0, managementSessionValidation_1.assertManagementCatchAllSession)(sessionToken, "markOrFlagParcel");
     const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
     const deliverySnap = await deliveryRef.get();
     if (!deliverySnap.exists) {

@@ -71,7 +71,7 @@ export const getManagementWaitingParts = onCall(
       throw new HttpsError("invalid-argument", "Invalid session.");
     }
 
-    await assertManagementCatchAllSession(sessionToken);
+    await assertManagementCatchAllSession(sessionToken, "viewWaitingParts");
 
     const deliveriesSnap = await getDb()
       .collection("deliveries")

@@ -203,8 +203,8 @@ export function OfficeReceiversSettingsPanel() {
           <>
             <p style={{ fontSize: 13, color: MUTED, marginBottom: 12 }}>
               Staff who receive catch-all delivery alert emails. Check-in still
-              uses the shared management PIN at any location QR — these contacts
-              are notify targets only.
+              uses a management PIN (capabilities set under Management) at any
+              location QR — these contacts are notify targets only.
             </p>
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px" }}>
               {receivers.map((receiver) => (

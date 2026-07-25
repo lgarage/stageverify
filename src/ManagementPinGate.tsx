@@ -64,6 +64,8 @@ export function ManagementPinGate({
           expiresAt: result.expiresAt,
           sessionMinutes,
           scannedStagingLocationCode: result.scannedStagingLocationCode,
+          pinId: result.pinId,
+          permissions: result.permissions,
         });
         onVerified({
           scannedStagingLocationCode: result.scannedStagingLocationCode,
@@ -120,7 +122,7 @@ export function ManagementPinGate({
           Enter Management PIN
         </h1>
         <p className="text-sm text-center text-text-secondary mb-8">
-          Shared shop PIN — scan any location QR, then open catch-all check-in.
+          Office PIN — scan any location QR, then use the actions your PIN allows.
         </p>
 
         <div

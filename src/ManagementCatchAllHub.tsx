@@ -7,6 +7,7 @@ import {
 } from "./phase2CallableClients";
 import {
   clearManagementPinSession,
+  getManagementSessionPermissions,
   getManagementSessionToken,
   isManagementPinSessionValid,
   touchManagementPinSession,
@@ -102,6 +103,9 @@ export function ManagementCatchAllHub({
     }, 30_000);
     return () => window.clearInterval(interval);
   }, [onSessionExpired]);
+
+  const canMarkOrFlag =
+    getManagementSessionPermissions()?.markOrFlagParcel === true;
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -278,21 +282,30 @@ export function ManagementCatchAllHub({
                       className="px-4 py-3 flex items-start gap-3"
                       data-testid={`mgmt-waiting-delivery-${row.deliveryId}`}
                     >
-                      <button
-                        type="button"
-                        disabled={markingId === row.deliveryId}
-                        onClick={() => void handleMarkReceived(row.deliveryId)}
-                        className="shrink-0 min-w-[4.5rem] px-2 py-2 rounded-lg border-2 border-accent-green text-accent-green flex flex-col items-center justify-center gap-0.5 active:scale-95 disabled:opacity-40"
-                        aria-label={`Mark ${row.orderNumber} part arrived`}
-                        data-testid={`mgmt-mark-received-${row.deliveryId}`}
-                      >
-                        <span className="text-lg leading-none">
-                          {markingId === row.deliveryId ? "…" : "✓"}
-                        </span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wide">
-                          Arrived
-                        </span>
-                      </button>
+                      {canMarkOrFlag ? (
+                        <button
+                          type="button"
+                          disabled={markingId === row.deliveryId}
+                          onClick={() => void handleMarkReceived(row.deliveryId)}
+                          className="shrink-0 min-w-[4.5rem] px-2 py-2 rounded-lg border-2 border-accent-green text-accent-green flex flex-col items-center justify-center gap-0.5 active:scale-95 disabled:opacity-40"
+                          aria-label={`Mark ${row.orderNumber} part arrived`}
+                          data-testid={`mgmt-mark-received-${row.deliveryId}`}
+                        >
+                          <span className="text-lg leading-none">
+                            {markingId === row.deliveryId ? "…" : "✓"}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wide">
+                            Arrived
+                          </span>
+                        </button>
+                      ) : (
+                        <div
+                          className="shrink-0 min-w-[4.5rem] px-2 py-2 rounded-lg border border-border text-text-secondary flex items-center justify-center text-[10px] font-semibold uppercase"
+                          data-testid={`mgmt-mark-received-disabled-${row.deliveryId}`}
+                        >
+                          View only
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-text-primary truncate">
                           {row.vendorName}
@@ -334,7 +347,7 @@ export function ManagementCatchAllHub({
       </div>
 
       <div className="shrink-0 px-6 py-4 border-t border-border space-y-3 bg-bg-surface">
-        {showUnidentForm ? (
+        {canMarkOrFlag && showUnidentForm ? (
           <div className="space-y-2" data-testid="mgmt-unident-form">
             <input
               type="text"
@@ -369,7 +382,7 @@ export function ManagementCatchAllHub({
               </button>
             </div>
           </div>
-        ) : (
+        ) : canMarkOrFlag ? (
           <button
             type="button"
             onClick={() => {
@@ -381,7 +394,7 @@ export function ManagementCatchAllHub({
           >
             Can't identify this parcel
           </button>
-        )}
+        ) : null}
         <button
           type="button"
           onClick={() => {

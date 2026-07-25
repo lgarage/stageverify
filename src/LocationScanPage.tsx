@@ -39,6 +39,7 @@ import {
 } from "./technicianPinSession";
 import {
   clearManagementPinSession,
+  getManagementSessionPermissions,
   isManagementPinSessionValid,
 } from "./managementPinSession";
 import { getTechnicianReleasedJobsClient } from "./phase2CallableClients";
@@ -624,6 +625,8 @@ export function LocationScanPage() {
   }
 
   if (step === "mgmt-landing" && branding && locationCode) {
+    const mgmtCaps = getManagementSessionPermissions();
+    const canCatchAllCheckIn = mgmtCaps?.catchAllCheckIn === true;
     return (
       <div className="flex flex-col h-screen h-dvh">
         <div className="shrink-0 px-6 py-5 border-b border-border bg-bg-surface text-center">
@@ -636,18 +639,30 @@ export function LocationScanPage() {
           <p className="text-sm text-text-secondary mt-1">{branding.label}</p>
         </div>
         <div className="flex flex-1 flex-col px-6 py-8">
-          <button
-            type="button"
-            data-testid="mgmt-catch-all-checkin-cta"
-            onClick={() => setStep("mgmt-hub")}
-            className="action-btn action-btn-delivered w-full text-lg py-5 mb-4"
-          >
-            Catch-all check-in
-          </button>
-          <p className="text-sm text-text-secondary text-center mb-8">
-            Match packing slips to jobs waiting for parts. Walk parcels to the
-            assigned spots after check-in.
-          </p>
+          {canCatchAllCheckIn ? (
+            <>
+              <button
+                type="button"
+                data-testid="mgmt-catch-all-checkin-cta"
+                onClick={() => setStep("mgmt-hub")}
+                className="action-btn action-btn-delivered w-full text-lg py-5 mb-4"
+              >
+                Catch-all check-in
+              </button>
+              <p className="text-sm text-text-secondary text-center mb-8">
+                Match packing slips to jobs waiting for parts. Walk parcels to the
+                assigned spots after check-in.
+              </p>
+            </>
+          ) : (
+            <p
+              className="text-sm text-text-secondary text-center mb-8"
+              data-testid="mgmt-no-catch-all-capability"
+            >
+              This PIN can open the office door but does not include catch-all
+              check-in. Ask dispatch to update PIN capabilities in Settings.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => {

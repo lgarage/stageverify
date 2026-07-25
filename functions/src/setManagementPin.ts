@@ -2,8 +2,11 @@ import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { asFourDigitPin } from "./pinMatching";
-import { hashPinForStorage } from "./pinHashing";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
+import {
+  DEFAULT_MANAGEMENT_PIN_ID,
+  upsertManagementPinDoc,
+} from "./managementPinRegistry";
 
 function getDb() {
   return admin.firestore();
@@ -13,7 +16,10 @@ interface SetManagementPinRequest {
   pin?: string;
 }
 
-/** Dispatcher sets hashed shared management PIN on appSettings (public-read field). */
+/**
+ * Back-compat: upserts the stable `default` management PIN with full capabilities.
+ * New Settings UI should prefer upsertManagementPin for multi-PIN + matrix.
+ */
 export const setManagementPin = onCall(
   { region: "us-central1" },
   async (request) => {
@@ -23,12 +29,33 @@ export const setManagementPin = onCall(
       throw new HttpsError("invalid-argument", "A 4-digit PIN is required.");
     }
 
-    const managementPinHash = hashPinForStorage(pin);
+    await upsertManagementPinDoc({
+      id: DEFAULT_MANAGEMENT_PIN_ID,
+      label: "Management PIN",
+      pin,
+      active: true,
+      permissions: {
+        enterPortalAnyQr: true,
+        catchAllCheckIn: true,
+        viewWaitingParts: true,
+        markOrFlagParcel: true,
+      },
+    });
+
     const now = new Date().toISOString();
-    await getDb()
-      .collection("managementPinSecrets")
-      .doc("config")
-      .set({ managementPinHash, updatedAt: now }, { merge: true });
+    // Keep legacy secret in sync for older readers during dual-read window.
+    const defaultSnap = await getDb()
+      .collection("managementPins")
+      .doc(DEFAULT_MANAGEMENT_PIN_ID)
+      .get();
+    const pinHash = (defaultSnap.data() as { pinHash?: string } | undefined)
+      ?.pinHash;
+    if (pinHash) {
+      await getDb()
+        .collection("managementPinSecrets")
+        .doc("config")
+        .set({ managementPinHash: pinHash, updatedAt: now }, { merge: true });
+    }
     await getDb()
       .collection("appSettings")
       .doc("config")

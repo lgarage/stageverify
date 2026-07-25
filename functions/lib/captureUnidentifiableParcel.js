@@ -41,7 +41,7 @@ exports.captureUnidentifiableParcel = (0, https_1.onCall)({
     if (!sessionToken || !vendorDescription || !parcelDescription) {
         throw new https_1.HttpsError("invalid-argument", "Vendor and parcel description required.");
     }
-    const session = await (0, managementSessionValidation_1.assertManagementCatchAllSession)(sessionToken);
+    const session = await (0, managementSessionValidation_1.assertManagementCatchAllSession)(sessionToken, "markOrFlagParcel");
     if (jobId) {
         const jobSnap = await getDb().collection("jobs").doc(jobId).get();
         if (!jobSnap.exists) {

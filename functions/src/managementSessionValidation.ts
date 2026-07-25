@@ -1,5 +1,11 @@
 import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
+import {
+  loadManagementPinById,
+  pinHasCapability,
+  type ManagementPinCapability,
+  type NormalizedManagementPinPermissions,
+} from "./managementPinRegistry";
 
 function getDb() {
   return admin.firestore();
@@ -11,6 +17,10 @@ export interface ManagementSessionDoc {
   createdAt: string;
   scannedStagingLocationCode: string;
   scannedStagingLocationId: string;
+  /** Stamped at mint — registry re-read is authority for capabilities. */
+  pinId?: string;
+  /** UX cache only — CF re-reads managementPins for enforcement. */
+  permissions?: NormalizedManagementPinPermissions;
 }
 
 export function asManagementSessionToken(value: unknown): string | null {
@@ -63,9 +73,13 @@ export async function loadCatchAllConfig(): Promise<CatchAllConfig | null> {
   };
 }
 
-/** Validates management session when parcel intake is enabled (any location QR). */
+/**
+ * Validates management session when parcel intake is enabled (any location QR).
+ * Registry is authority: re-reads pin active + capability on each call.
+ */
 export async function assertManagementCatchAllSession(
   sessionToken: string,
+  requiredCapability?: ManagementPinCapability,
 ): Promise<ManagementSessionDoc> {
   const session = await loadSession(sessionToken);
   if (!session) {
@@ -83,5 +97,32 @@ export async function assertManagementCatchAllSession(
       "Catch-all parcel intake is not configured.",
     );
   }
+
+  const pinId = session.pinId?.trim();
+  if (!pinId) {
+    throw new HttpsError(
+      "permission-denied",
+      "Session expired. Enter your PIN again.",
+    );
+  }
+
+  const pin = await loadManagementPinById(pinId);
+  if (!pin || pin.active !== true) {
+    throw new HttpsError(
+      "permission-denied",
+      "Session expired. Enter your PIN again.",
+    );
+  }
+
+  if (
+    requiredCapability &&
+    !pinHasCapability(pin, requiredCapability)
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "This PIN is not allowed to perform that action.",
+    );
+  }
+
   return session;
 }

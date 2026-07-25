@@ -5,6 +5,7 @@ exports.loadCatchAllConfig = loadCatchAllConfig;
 exports.assertManagementCatchAllSession = assertManagementCatchAllSession;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const managementPinRegistry_1 = require("./managementPinRegistry");
 function getDb() {
     return admin.firestore();
 }
@@ -45,8 +46,11 @@ async function loadCatchAllConfig() {
         parcelIntakeEnabled: true,
     };
 }
-/** Validates management session when parcel intake is enabled (any location QR). */
-async function assertManagementCatchAllSession(sessionToken) {
+/**
+ * Validates management session when parcel intake is enabled (any location QR).
+ * Registry is authority: re-reads pin active + capability on each call.
+ */
+async function assertManagementCatchAllSession(sessionToken, requiredCapability) {
     const session = await loadSession(sessionToken);
     if (!session) {
         throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
@@ -55,6 +59,18 @@ async function assertManagementCatchAllSession(sessionToken) {
     const config = await loadCatchAllConfig();
     if (!config) {
         throw new https_1.HttpsError("failed-precondition", "Catch-all parcel intake is not configured.");
+    }
+    const pinId = session.pinId?.trim();
+    if (!pinId) {
+        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
+    }
+    const pin = await (0, managementPinRegistry_1.loadManagementPinById)(pinId);
+    if (!pin || pin.active !== true) {
+        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
+    }
+    if (requiredCapability &&
+        !(0, managementPinRegistry_1.pinHasCapability)(pin, requiredCapability)) {
+        throw new https_1.HttpsError("permission-denied", "This PIN is not allowed to perform that action.");
     }
     return session;
 }

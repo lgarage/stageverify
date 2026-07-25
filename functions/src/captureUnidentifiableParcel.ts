@@ -52,7 +52,10 @@ export const captureUnidentifiableParcel = onCall(
       throw new HttpsError("invalid-argument", "Vendor and parcel description required.");
     }
 
-    const session = await assertManagementCatchAllSession(sessionToken);
+    const session = await assertManagementCatchAllSession(
+      sessionToken,
+      "markOrFlagParcel",
+    );
 
     if (jobId) {
       const jobSnap = await getDb().collection("jobs").doc(jobId).get();

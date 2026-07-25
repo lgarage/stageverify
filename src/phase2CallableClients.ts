@@ -193,6 +193,28 @@ export async function setManagementPinClient(input: {
   return callCallable("setManagementPin", input);
 }
 
+export async function listManagementPinsClient(): Promise<{
+  pins: import("./dispatcher/models").ManagementPinPublic[];
+}> {
+  return callCallable("listManagementPins", {});
+}
+
+export async function upsertManagementPinClient(input: {
+  id?: string;
+  label?: string;
+  pin?: string;
+  active?: boolean;
+  permissions?: import("./dispatcher/models").ManagementPinPermissions;
+}): Promise<{ success: boolean; id: string }> {
+  return callCallable("upsertManagementPin", input);
+}
+
+export async function deactivateManagementPinClient(input: {
+  id: string;
+}): Promise<{ success: boolean }> {
+  return callCallable("deactivateManagementPin", input);
+}
+
 export async function getManagementWaitingPartsClient(input: {
   sessionToken: string;
 }): Promise<{

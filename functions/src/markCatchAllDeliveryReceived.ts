@@ -61,7 +61,10 @@ export const markCatchAllDeliveryReceived = onCall(
       throw new HttpsError("invalid-argument", "Invalid session.");
     }
 
-    const session = await assertManagementCatchAllSession(sessionToken);
+    const session = await assertManagementCatchAllSession(
+      sessionToken,
+      "markOrFlagParcel",
+    );
 
     const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
     const deliverySnap = await deliveryRef.get();
