@@ -217,24 +217,22 @@ async function assertBatchLocationSignPrint(browser) {
       );
     }
 
-    const clearBtn = printPage.getByTestId("location-sign-batch-clear-all");
-    await clearBtn.click();
     const batchBtn = printPage.getByTestId("location-sign-batch-print-button");
+    const sheets = printPage.getByTestId("location-sign-print-sheet");
     record(
-      "Batch print disabled when none selected",
+      "Batch print disabled on open (none selected)",
       !(await batchBtn.isEnabled()),
-      "disabled after clear",
+      "disabled on load",
     );
-    const sheetsAfterClear = printPage.getByTestId("location-sign-print-sheet");
     record(
-      "Batch preview empty when none selected",
-      (await sheetsAfterClear.count()) === 0,
-      `sheetCount=${await sheetsAfterClear.count()}`,
+      "Batch preview empty on open",
+      (await sheets.count()) === 0,
+      `sheetCount=${await sheets.count()}`,
     );
 
+    const clearBtn = printPage.getByTestId("location-sign-batch-clear-all");
     const selectAllBtn = printPage.getByTestId("location-sign-batch-select-all");
     await selectAllBtn.click();
-    const sheets = printPage.getByTestId("location-sign-print-sheet");
     await sheets.first().waitFor({ timeout: 60_000 });
     const count = await sheets.count();
     record(
@@ -266,6 +264,32 @@ async function assertBatchLocationSignPrint(browser) {
       await batchBtn.isEnabled(),
       "enabled",
     );
+
+    await clearBtn.click();
+    const catchAllRow = printPage.locator(
+      '[data-testid="location-sign-batch-picker-row"][data-catch-all="true"]',
+    );
+    if ((await catchAllRow.count()) > 0) {
+      await catchAllRow
+        .first()
+        .getByTestId("location-sign-batch-picker-checkbox")
+        .check();
+      const catchAllHeadline = (
+        await printPage.getByTestId("location-sign-code").first().innerText()
+      ).trim();
+      record(
+        "Catch-all sheet headline is Catch-All",
+        catchAllHeadline === "Catch-All",
+        catchAllHeadline,
+      );
+    } else {
+      record(
+        "Catch-all sheet headline is Catch-All",
+        true,
+        "skipped (no catch-all row)",
+      );
+    }
+
     await assertReadableTextContrast(printPage, {
       rootSelector: '[data-testid="location-sign-print-sheet"]',
       elements: [

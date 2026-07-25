@@ -6,6 +6,7 @@ import { PORTAL_SHELL_CLASS } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
 import {
   buildLabelPrintCandidates,
+  CATCH_ALL_SIGN_HEADLINE,
   isCatchAllLabelRow,
 } from "./locationSignPrintSort";
 import {
@@ -48,7 +49,7 @@ export function LocationSignBatchPrintPage() {
           isLocationActive,
         );
         setZones(candidates);
-        setSelectedIds(new Set(candidates.map((z) => z.id)));
+        setSelectedIds(new Set());
       })
       .catch((err) => {
         if (cancelled) return;
@@ -370,13 +371,22 @@ export function LocationSignBatchPrintPage() {
               Select at least one label above to preview and print.
             </p>
           ) : null}
-          {selectedZones.map((zone) => (
-            <LocationSignPrintSheet
-              key={zone.id}
-              locationCode={normalizeLocationSignCode(zone.code)}
-              batchPreviewGap
-            />
-          ))}
+          {selectedZones.map((zone) => {
+            const isCatchAll = isCatchAllLabelRow(
+              zone,
+              catchAllStagingLocationId,
+            );
+            return (
+              <LocationSignPrintSheet
+                key={zone.id}
+                locationCode={normalizeLocationSignCode(zone.code)}
+                headlineText={
+                  isCatchAll ? CATCH_ALL_SIGN_HEADLINE : undefined
+                }
+                batchPreviewGap
+              />
+            );
+          })}
         </div>
       </div>
 

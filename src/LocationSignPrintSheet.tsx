@@ -112,6 +112,8 @@ export const LOCATION_SIGN_PRINT_STYLES = `
 
 type LocationSignPrintSheetProps = {
   locationCode: string;
+  /** Large headline (defaults to canonical location code). */
+  headlineText?: string;
   /** Screen preview spacing between sheets in batch mode */
   batchPreviewGap?: boolean;
 };
@@ -119,9 +121,11 @@ type LocationSignPrintSheetProps = {
 /** One US Letter location sign — code, QR, SCAN FOR STATUS, down arrow. */
 export function LocationSignPrintSheet({
   locationCode,
+  headlineText,
   batchPreviewGap = false,
 }: LocationSignPrintSheetProps) {
   const code = normalizeLocationSignCode(locationCode);
+  const headline = headlineText?.trim() || code;
   const qrUrl = code ? buildPermanentLocationUrl(code, { forPrint: true }) : "";
 
   if (!code) return null;
@@ -130,6 +134,7 @@ export function LocationSignPrintSheet({
     <div
       data-testid="location-sign-print-sheet"
       data-location-code={code}
+      data-sign-headline={headline}
       data-permanent-url={qrUrl}
       className={`location-sign-print-sheet${batchPreviewGap ? " location-sign-print-sheet--batch" : ""}`}
       style={{
@@ -160,7 +165,7 @@ export function LocationSignPrintSheet({
           textAlign: "center",
         }}
       >
-        {code}
+        {headline}
       </div>
       <div
         style={{

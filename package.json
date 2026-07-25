@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.147",
+  "version": "0.0.149",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -47,6 +47,8 @@
     "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
     "verify:settings-technicians": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians scripts/verify-settings-technicians.mjs",
     "verify:settings-technicians:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians:prod scripts/verify-settings-technicians.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:settings-management-pins": "node scripts/run-verify-with-learning.mjs --script verify:settings-management-pins scripts/verify-settings-management-pins.mjs",
+    "verify:settings-management-pins:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-management-pins:prod scripts/verify-settings-management-pins.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:dispatcher-job-release": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-job-release scripts/verify-dispatcher-job-release.mjs",
     "verify:dispatcher-job-release:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-job-release:prod scripts/verify-dispatcher-job-release.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:portal-layout": "node scripts/verify-portal-layout.mjs",

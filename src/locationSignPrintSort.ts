@@ -1,6 +1,9 @@
 import type { StagingLocation } from "./dispatcher/models";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 
+/** Headline on printed sign for the configured catch-all spot (exact casing). */
+export const CATCH_ALL_SIGN_HEADLINE = "Catch-All";
+
 /** Dan label-print order: Catch-all → G1–G12 → S1-* → S2-* → … */
 export function sortStagingLocationsForLabelPrint(
   locations: StagingLocation[],
