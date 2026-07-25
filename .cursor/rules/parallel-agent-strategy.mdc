@@ -162,6 +162,7 @@ Each domain executor prompt must include:
 - **Allowed paths:** explicit list
 - **Forbidden paths:** all other touched paths + coordinator-only shared files above
 - **Scope:** copy Dan's item scope verbatim — no widening (`composer-orchestrator.mdc` multitask rule)
+- **Agree (D-48):** when D-36 Solution Verifier applies to this slice, require in-session `solution-verifier:` PASS (or documented N/A reason) **before any repo write**; if Agree is not satisfied, **STOP — no edits** (return diff summary only if already agreed elsewhere; never write first and defer Agree to parent)
 - **Return only:** diff summary — coordinator owns merge, build, verify, commit, push, deploy
 
 ### Multitask mode

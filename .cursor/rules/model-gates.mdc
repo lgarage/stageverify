@@ -255,7 +255,7 @@ Task({
 
 **Implementer lock:** Non-Composer parents MUST `Task` Composer (`model: "composer-2.5-fast"`) for product/code implementation — never inline edits and never `resume: "self"` for a build (D-37 / D-43). Composer parents may implement inline after Agree.
 
-**Pre-edit ordering (D-48):** When this section's Solution Verifier runs (not N/A), **PASS** must precede the **first** product/code edit in scope — same moment as conf ≥ 97% (D-47). Evidence `solution-verifier: <task-id>` (or valid N/A) in-session **before** edits; implement-first then Agree = **NOT RUN**; do not ship as done. Subagents either Agree before editing or return unread implementation to the parent.
+**Pre-edit ordering (D-48):** When this section's Solution Verifier runs (not N/A), **PASS** must precede the **first repo write** in scope (any path — product, docs, rules, PROJECT_STATUS; no docs-first Agree dodge) — same moment as conf ≥ 97% (D-47). Evidence `solution-verifier: <task-id>` (or valid N/A) in-session **before** edits; implement-first then Agree = **NOT RUN**; do not ship as done. Subagents either Agree before editing or return to the parent **without product/code edits**.
 
 **Trigger:** Dan gives a direct **work directive** ("build X", "change Y", "add Z") whose diff would qualify as a **substantive ship** under the Ship Verifier path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`) **and** the work is T1+, multi-file, or has a branching approach — i.e. a real solution choice exists. Symmetric with the post-ship gate. **When in doubt on real feature work, run Solution Verifier — do not skip by default.**
 

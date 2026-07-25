@@ -32,9 +32,9 @@ Pain: a Grok parent forked itself (`resume: "self"`) and started implementing pr
 
 ## Pre-edit gate ordering (D-48 — hard STOP)
 
-Phase **1 — Agree** completes **before Phase 2 — Implement** whenever Phase 1 is required. **conf ≥ 97%** (D-47) and **Solution Verifier PASS** (D-36, when not N/A) must both be satisfied **before the first file edit** in scope — with in-session evidence (`solution-verifier: <task-id>` + model, or documented N/A), not only in the completion report.
+Phase **1 — Agree** completes **before Phase 2 — Implement** whenever Phase 1 is required. **conf ≥ 97%** (D-47) and **Solution Verifier PASS** (D-36, when not N/A) must both be satisfied **before the first repo write** in scope (any path — no docs/rules-first dodge) — with in-session evidence (`solution-verifier: <task-id>` + model, or documented N/A), not only in the completion report.
 
-- **Subagents/workers:** if Agree is required, **STOP** — dispatch Solution Verifier (readonly Task) and reach PASS/N/A **before** editing, or return to the parent for Agree **without** product/code edits. Never implement and leave Agree to the parent.
+- **Subagents/workers:** if Agree is required, **STOP** — dispatch Solution Verifier (readonly Task) and reach PASS/N/A **before any repo write**, or return to the parent for Agree **without product/code edits**. Never write (including docs/PROJECT_STATUS) and leave Agree to the parent.
 - **Parents:** worker diffs produced without prior Agree when Agree was required are **not done** — satisfy Phase 1 or revert; do not commit through a deferred Solution Verifier.
 
 Phases 2b–4 unchanged; they still run after implement when triggered.
