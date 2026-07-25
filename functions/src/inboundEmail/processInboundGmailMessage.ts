@@ -9,6 +9,7 @@ import {
   extractGmailBodyText,
   fetchGmailMessage,
   findPdfAttachments,
+  isGmailApiNotFoundError,
   parseGmailHeaders,
 } from "../gmailInbound";
 import { extractTextFromPdfBuffer } from "./extractPdfText";
@@ -116,6 +117,7 @@ export function shouldReprocessExistingDoc(
   }
 
   if (data.processingStatus === "reply_processed") return false;
+  if (data.processingStatus === "message_gone") return false;
 
   if (!options?.retryOnError) return false;
   if (data.processingStatus === "no_pdf") return false;
@@ -125,6 +127,47 @@ export function shouldReprocessExistingDoc(
   // Backfill any parsed email with pages but zero queued review rows.
   if (total > 0 && reviewIds.length === 0) return true;
   return false;
+}
+
+const GMAIL_MESSAGE_GONE_ERROR =
+  "Message no longer in Gmail mailbox (deleted or permanently inaccessible).";
+
+async function tombstoneGmailMessageGone(
+  ref: admin.firestore.DocumentReference,
+  docId: string,
+  gmailMessageId: string,
+  existing?: InboundEmailProcessingDoc,
+): Promise<ProcessInboundGmailMessageResult> {
+  const now = new Date().toISOString();
+  await ref.set(
+    {
+      id: docId,
+      gmailMessageId,
+      processingStatus: "message_gone",
+      processingError: GMAIL_MESSAGE_GONE_ERROR,
+      updatedAt: now,
+      ...(existing
+        ? {}
+        : {
+            senderEmail: "",
+            subject: "",
+            receivedAt: now,
+            attachmentFilenames: [],
+            pdfAttachments: [],
+            reviewStatus: "pending_review",
+            createdAt: now,
+          }),
+    },
+    { merge: true },
+  );
+  return {
+    docId,
+    gmailMessageId,
+    skipped: true,
+    processingStatus: "message_gone",
+    reviewRecordIds: existing?.parseResult?.reviewRecordIds ?? [],
+    skippedProcessingStatus: "message_gone",
+  };
 }
 
 async function finalizeParsedInboundDoc(
@@ -496,6 +539,12 @@ export async function processInboundGmailMessage(
       gmailMessageId,
     );
   } catch (err) {
+    if (isGmailApiNotFoundError(err)) {
+      const prior = existing.exists
+        ? (existing.data() as InboundEmailProcessingDoc)
+        : undefined;
+      return tombstoneGmailMessageGone(ref, docId, gmailMessageId, prior);
+    }
     const message = err instanceof Error ? err.message : String(err);
     await ref.set(
       {

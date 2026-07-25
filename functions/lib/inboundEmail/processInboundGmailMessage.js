@@ -68,6 +68,8 @@ function shouldReprocessExistingDoc(data, options) {
     }
     if (data.processingStatus === "reply_processed")
         return false;
+    if (data.processingStatus === "message_gone")
+        return false;
     if (!options?.retryOnError)
         return false;
     if (data.processingStatus === "no_pdf")
@@ -82,6 +84,36 @@ function shouldReprocessExistingDoc(data, options) {
     if (total > 0 && reviewIds.length === 0)
         return true;
     return false;
+}
+const GMAIL_MESSAGE_GONE_ERROR = "Message no longer in Gmail mailbox (deleted or permanently inaccessible).";
+async function tombstoneGmailMessageGone(ref, docId, gmailMessageId, existing) {
+    const now = new Date().toISOString();
+    await ref.set({
+        id: docId,
+        gmailMessageId,
+        processingStatus: "message_gone",
+        processingError: GMAIL_MESSAGE_GONE_ERROR,
+        updatedAt: now,
+        ...(existing
+            ? {}
+            : {
+                senderEmail: "",
+                subject: "",
+                receivedAt: now,
+                attachmentFilenames: [],
+                pdfAttachments: [],
+                reviewStatus: "pending_review",
+                createdAt: now,
+            }),
+    }, { merge: true });
+    return {
+        docId,
+        gmailMessageId,
+        skipped: true,
+        processingStatus: "message_gone",
+        reviewRecordIds: existing?.parseResult?.reviewRecordIds ?? [],
+        skippedProcessingStatus: "message_gone",
+    };
 }
 async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, gmailMessageId) {
     const db = getDb();
@@ -388,6 +420,12 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
         return finalizeParsedInboundDoc(ref, partialDoc, combinedExtractedText, gmailMessageId);
     }
     catch (err) {
+        if ((0, gmailInbound_1.isGmailApiNotFoundError)(err)) {
+            const prior = existing.exists
+                ? existing.data()
+                : undefined;
+            return tombstoneGmailMessageGone(ref, docId, gmailMessageId, prior);
+        }
         const message = err instanceof Error ? err.message : String(err);
         await ref.set({
             processingStatus: "error",

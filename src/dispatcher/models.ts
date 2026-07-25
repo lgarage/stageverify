@@ -1117,6 +1117,7 @@ export type InboundEmailProcessingStatus =
   | "parsed"
   | "no_pdf"
   | "reply_processed"
+  | "message_gone"
   | "error";
 
 export interface InboundEmailProcessing {

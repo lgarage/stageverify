@@ -26,6 +26,7 @@ process.env.FIRESTORE_EMULATOR_HOST =
 
 const admin = require("../functions/node_modules/firebase-admin");
 const { processInboundGmailMessage } = require("../functions/lib/inboundEmail/processInboundGmailMessage.js");
+const { isGmailApiNotFoundError } = require("../functions/lib/gmailInbound.js");
 
 const PROJECT_ID = "stageverify-db";
 const COLLECTION = "inboundEmailProcessing";
@@ -388,6 +389,56 @@ async function testStaleIssueImportReparseWithInvoiceNumber() {
   }
 }
 
+function testGmailApiNotFoundHelper() {
+  console.log("\n6. isGmailApiNotFoundError helper");
+  if (
+    isGmailApiNotFoundError(
+      new Error("gmail api /messages/19f3a2e9dfccab1e?format=full: 404"),
+    )
+  ) {
+    pass("detects messages.get 404");
+  } else {
+    fail("detects messages.get 404");
+  }
+  if (!isGmailApiNotFoundError(new Error("gmail api /history?startHistoryId=1: 404"))) {
+    pass("ignores history 404 (handled separately)");
+  } else {
+    fail("ignores history 404 (handled separately)");
+  }
+}
+
+async function testMessageGoneDocNotRetried() {
+  console.log("\n7. message_gone doc skipped even when retryOnError=true");
+  const gmailMessageId = "msg-tombstone-gone";
+  const docId = `inbound-${gmailMessageId}`;
+  const ts = new Date().toISOString();
+
+  await db.collection(COLLECTION).doc(docId).set({
+    id: docId,
+    gmailMessageId,
+    senderEmail: "billing@vendor.com",
+    subject: "Deleted in Gmail",
+    receivedAt: ts,
+    attachmentFilenames: [],
+    pdfAttachments: [],
+    processingStatus: "message_gone",
+    processingError: "Message no longer in Gmail mailbox (deleted or permanently inaccessible).",
+    reviewStatus: "pending_review",
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  const result = await processInboundGmailMessage("fake-token", gmailMessageId, {
+    retryOnError: true,
+  });
+
+  if (result.skipped === true) pass("skipped tombstoned message");
+  else fail("skipped tombstoned message", { skipped: result.skipped });
+
+  if (result.skippedProcessingStatus === "message_gone") pass("status remains message_gone");
+  else fail("status remains message_gone", { status: result.skippedProcessingStatus });
+}
+
 async function main() {
   console.log("test-retry-on-error-inbound (Firestore emulator)\n");
 
@@ -396,6 +447,8 @@ async function main() {
   await testZeroQueueParsedReprocessesOnRetry();
   await testCachedTextBackfillQueuesIssueImport();
   await testStaleIssueImportReparseWithInvoiceNumber();
+  testGmailApiNotFoundHelper();
+  await testMessageGoneDocNotRetried();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

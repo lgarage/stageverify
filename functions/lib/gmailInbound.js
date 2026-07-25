@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isGmailApiNotFoundError = isGmailApiNotFoundError;
 exports.getGmailAccessTokenForProvider = getGmailAccessTokenForProvider;
 exports.parseEmailAddress = parseEmailAddress;
 exports.parseGmailHeaders = parseGmailHeaders;
@@ -32,6 +33,11 @@ async function gmailJson(accessToken, path) {
         throw new Error(`gmail api ${path}: ${res.status}`);
     }
     return JSON.parse(text);
+}
+/** True when Gmail messages.get (or similar) returns HTTP 404 — message deleted or permanently inaccessible. */
+function isGmailApiNotFoundError(err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return /gmail api .*\/messages\/[^/]+.*: 404\b/.test(message);
 }
 async function getGmailAccessTokenForProvider(refreshToken) {
     return (0, gmailApi_1.refreshGmailAccessToken)(refreshToken);

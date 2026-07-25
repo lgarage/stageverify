@@ -50,6 +50,12 @@ async function gmailJson<T>(accessToken: string, path: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+/** True when Gmail messages.get (or similar) returns HTTP 404 — message deleted or permanently inaccessible. */
+export function isGmailApiNotFoundError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /gmail api .*\/messages\/[^/]+.*: 404\b/.test(message);
+}
+
 export async function getGmailAccessTokenForProvider(
   refreshToken: string,
 ): Promise<string> {

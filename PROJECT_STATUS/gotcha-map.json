@@ -782,7 +782,7 @@
       "files": ["functions/src/syncInboundGmail.ts"],
       "rules": [],
       "commands": ["npm run verify:inbound-email-ingest"],
-      "warning": "Stale Gmail message id 19f3a2e9dfccab1e returns 404 on every manual sync (orphan history id) — sync noise only, NOT a blocker for controlled reply ingest. errors=1 on sync banner does not mean reply ingest failed."
+      "warning": "Stale Gmail message id (e.g. 19f3a2e9dfccab1e) returns 404 on messages.get when the message was deleted from the mailbox but Firestore still has inboundEmailProcessing with processingStatus=error — Refresh Now retryOnError re-queues that id every sync. Fix in processInboundGmailMessage: tombstone as message_gone (skipped, not errors++). Until CF deploy: banner errors=1 is sync noise only, NOT a blocker for reply ingest or other parsed mail."
     },
     {
       "id": "vendor-email-test-account",

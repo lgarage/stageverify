@@ -3,6 +3,7 @@ import type { InboundGmailSyncResult } from "./models";
 const STATUS_LABELS: Record<string, string> = {
   no_pdf: "no PDF attachment",
   error: "processing error",
+  message_gone: "removed from Gmail (skipped)",
   parsed: "parsed",
   extracted: "extracted",
   processing: "still processing",

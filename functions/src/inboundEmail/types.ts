@@ -7,6 +7,7 @@ export type InboundEmailProcessingStatus =
   | "parsed"
   | "no_pdf"
   | "reply_processed"
+  | "message_gone"
   | "error";
 
 export type InboundEmailReviewStatus = "pending_review";
