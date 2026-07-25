@@ -1,9 +1,12 @@
 import {
   buildPermanentLocationUrl,
-  ESL_QR_SIZE_PRINT,
 } from "./receiveQrUrls";
 import { EslQrCode } from "./EslQrCode";
 import { normalizeLocationSignCode } from "./LocationSignPrintSheet";
+import { CATCH_ALL_SIGN_HEADLINE } from "./locationSignPrintSort";
+
+/** 2in label − 0.25in top − 0.25in bottom QR clearance ≈ 1.5in @ 96dpi */
+export const ESL_QR_SIZE_2X4_LABEL = 144;
 
 export type LocationSignLabel2x4Entry = {
   locationCode: string;
@@ -40,6 +43,11 @@ function Label2x4Cell({ entry }: LabelCellProps) {
   const qrUrl = code ? buildPermanentLocationUrl(code, { forPrint: true }) : "";
   if (!code) return null;
 
+  const isCatchAll = headline === CATCH_ALL_SIGN_HEADLINE;
+  const codeClassName = isCatchAll
+    ? "location-sign-2x4-label-code location-sign-2x4-label-code--catch-all"
+    : "location-sign-2x4-label-code";
+
   return (
     <div
       className="location-sign-2x4-label"
@@ -48,14 +56,15 @@ function Label2x4Cell({ entry }: LabelCellProps) {
       data-sign-headline={headline}
       data-permanent-url={qrUrl}
     >
-      <div
-        className="location-sign-2x4-label-code"
-        data-testid="location-sign-code"
-      >
+      <div className={codeClassName} data-testid="location-sign-code">
         {headline}
       </div>
       <div className="location-sign-2x4-label-qr">
-        <EslQrCode value={qrUrl} variant="print" size={ESL_QR_SIZE_PRINT} />
+        <EslQrCode
+          value={qrUrl}
+          variant="print"
+          size={ESL_QR_SIZE_2X4_LABEL}
+        />
       </div>
     </div>
   );
@@ -161,11 +170,16 @@ export const LOCATION_SIGN_2X4_PRINT_STYLES = `
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    justify-content: center;
+    justify-content: flex-start;
+    flex-shrink: 0;
+    width: calc(4in + 0.25in + 4in);
+    box-sizing: border-box;
   }
   .location-sign-2x4-col-gutter {
     flex: 0 0 0.25in;
     width: 0.25in;
+    min-width: 0.25in;
+    flex-shrink: 0;
   }
   .location-sign-2x4-row-gutter {
     width: calc(4in + 0.25in + 4in);
@@ -177,17 +191,19 @@ export const LOCATION_SIGN_2X4_PRINT_STYLES = `
   }
   .location-sign-2x4-label {
     box-sizing: border-box;
+    flex: 0 0 4in;
+    flex-shrink: 0;
     width: 4in;
+    min-width: 4in;
     height: 2in;
     border: 2px solid #000;
     background: #fff;
     color: #000;
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.08in;
-    padding: 0.1in 0.12in;
+    column-gap: 0.06in;
+    padding: 0.25in 0.25in 0.25in 0;
     overflow: hidden;
   }
   .location-sign-2x4-label--blank {
@@ -195,24 +211,34 @@ export const LOCATION_SIGN_2X4_PRINT_STYLES = `
     background: transparent;
   }
   .location-sign-2x4-label-code {
-    flex: 1 1 auto;
     min-width: 0;
-    font-size: clamp(18px, 4vw, 36px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(36px, 8vw, 72px);
     font-weight: 900;
     line-height: 1.05;
     letter-spacing: -0.03em;
     color: #000;
-    text-align: left;
+    text-align: center;
+  }
+  .location-sign-2x4-label-code--catch-all {
+    font-size: clamp(36px, 8vw, 72px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
   }
   .location-sign-2x4-label-qr {
-    flex: 0 0 auto;
+    flex-shrink: 0;
     line-height: 0;
-    border: 1px solid #000;
-    padding: 2px;
     background: #fff;
   }
 
   @media print {
+    .location-sign-2x4-row,
+    .location-sign-2x4-label,
+    .location-sign-2x4-col-gutter {
+      flex-shrink: 0 !important;
+    }
     .location-sign-2x4-page {
       break-after: page;
       page-break-after: always;
