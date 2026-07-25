@@ -40,7 +40,7 @@ import { ReadinessEvidencePanel } from "../email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./DrawerActionBanner";
 import { StagingLocationBanner } from "./StagingLocationBanner";
 import { JobReleaseToTechnicianPanel } from "./JobReleaseToTechnicianPanel";
-import { DrawerStagingLocationChips } from "./DrawerStagingLocationChips";
+import { DrawerStagingLocationChips, collectDeliveryStagingCodes } from "./DrawerStagingLocationChips";
 import { IssueSummaryPanel } from "./IssueSummaryPanel";
 import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
 import {
@@ -469,6 +469,11 @@ export function DetailContent({
     (sum, item) => sum + item.qtyOrdered,
     0,
   );
+  const drawerStagingLocById = new Map(
+    details.stagingLocation
+      ? [[details.stagingLocation.id, details.stagingLocation]]
+      : [],
+  );
   const drawerDeliveryRow: DeliveryListRow = {
     deliveryId: delivery.id,
     jobId: delivery.jobId,
@@ -486,6 +491,10 @@ export function DetailContent({
     vendorName: details.vendor.name,
     deliveryDate: delivery.deliveryDate ?? "",
     stagingLocationCode: details.stagingLocation?.code,
+    stagingLocationCodes: collectDeliveryStagingCodes(
+      delivery,
+      drawerStagingLocById,
+    ),
     itemsReceivedLabel: `${itemsReceivedTotal}/${itemsOrderedTotal}`,
     issueSummary: delivery.issueSummary ?? "",
     openIssueCount: details.materialIssues.filter(

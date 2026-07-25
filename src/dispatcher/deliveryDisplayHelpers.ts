@@ -183,11 +183,11 @@ export interface DeliveryDisplayOptions {
 
 /** List Issue Summary when staging zone is required but unassigned. */
 export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
-  "Assign staging location";
+  "Staging spot needs to be assigned";
 
 /**
- * Dispatcher deliveries table: dark-orange action row when staging zone is
- * missing. Display-only — does not affect drawer readiness evidence.
+ * Dispatcher deliveries table: unassigned staging flag for Issue Summary pill.
+ * Display-only — does not affect drawer readiness evidence.
  * Terminal installed deliveries are excluded (closed record).
  */
 export function isDispatcherTableStagingActionRequired(
@@ -307,10 +307,6 @@ function buildComputedIssueSummary(
   readiness: DeliveryReadinessResult,
   displayOptions?: DeliveryDisplayOptions,
 ): string {
-  if (isDispatcherTableStagingActionRequired(delivery)) {
-    return DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY;
-  }
-
   const deliverToSiteSummary = buildDeliverToSiteIssueSummary(delivery);
   if (deliverToSiteSummary) {
     return deliverToSiteSummary;

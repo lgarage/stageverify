@@ -27,19 +27,17 @@ import { portalNavFocus } from "./dispatcherPortalNav";
 import {
   DELIVERY_OVERVIEW_FILTER_LABEL,
   DELIVERY_OVERVIEW_STATUS_ORDER,
+  DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
   STAGING_PLAN_MISMATCH_LABEL,
   STAGING_PLAN_MISMATCH_TITLE,
   type DeliveryOverviewFilterStatus,
 } from "./dispatcher/deliveryDisplayHelpers";
+import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
 const NAVY = "#0a3161";
-/** Dark orange — dispatcher table rows needing staging assignment. */
-const DISPATCHER_ACTION_REQUIRED_BG = "#c2410c";
-const DISPATCHER_ACTION_REQUIRED_HOVER = "#b45309";
-const DISPATCHER_ACTION_REQUIRED_SELECTED = "#9a3412";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
@@ -204,7 +202,12 @@ export function DispatcherDashboardPage() {
     invoiceImports,
     invoiceShellBackfillErrors,
     refreshPortalData,
+    zonesSnapshot,
   } = useDispatcherPortal();
+
+  const stagingOccupancyReady = zonesSnapshot != null;
+  const occupancyByZoneCode = zonesSnapshot?.occupancyByZoneCode ?? {};
+  const shopStockByCode = zonesSnapshot?.shopStockByCode ?? {};
 
   const focusNeedsReview = portalNavFocus(location.search) === "needs-review";
 
@@ -596,14 +599,20 @@ export function DispatcherDashboardPage() {
                 borderBottom: "1px solid #eaecf0",
               }}
             >
-              <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
                 <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
                   Deliveries
                 </span>
                 {!listLoading && (
                   <span
                     style={{
-                      marginLeft: 8,
                       fontSize: 12,
                       color: "#9ca3af",
                       fontWeight: 500,
@@ -614,6 +623,53 @@ export function DispatcherDashboardPage() {
                     {hasActiveFilters ? " (filtered)" : ""}
                   </span>
                 )}
+                <div
+                  data-testid="deliveries-staging-legend"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 12,
+                    marginLeft: 4,
+                  }}
+                >
+                  {(
+                    [
+                      {
+                        swatch: "#facc15",
+                        label: "Assigned / planned (yellow)",
+                      },
+                      { swatch: "#7c3aed", label: "Ready for pickup" },
+                      { swatch: "#6b7280", label: "Shop stock" },
+                    ] as const
+                  ).map(({ swatch, label }) => (
+                    <span
+                      key={label}
+                      data-testid={`deliveries-legend-${label}`}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11,
+                        color: "#4b5563",
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 2,
+                          backgroundColor: swatch,
+                          border: "1px solid rgba(0,0,0,0.12)",
+                          flexShrink: 0,
+                        }}
+                      />
+                      {label}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {listLoading && (
@@ -704,49 +760,26 @@ export function DispatcherDashboardPage() {
                 <tbody>
                   {paged.items.map((row, idx) => {
                     const selected = selectedDeliveryId === row.deliveryId;
-                    const actionRequired = row.missingStagingAssignment;
                     const b = listStatusBadge(row);
                     const defaultRowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
-                    const rowBg = selected
-                      ? actionRequired
-                        ? DISPATCHER_ACTION_REQUIRED_SELECTED
-                        : "#eef4ff"
-                      : actionRequired
-                        ? DISPATCHER_ACTION_REQUIRED_BG
-                        : defaultRowBg;
-                    const cellText = actionRequired ? "#fff" : undefined;
-                    const cellMuted = actionRequired ? "rgba(255,255,255,0.75)" : "#666";
-                    const cellStrong = actionRequired ? "#fff" : "#111";
-                    const cellBody = actionRequired ? "#fff" : "#333";
+                    const rowBg = selected ? "#eef4ff" : defaultRowBg;
+                    const cellMuted = "#666";
+                    const cellStrong = "#111";
+                    const cellBody = "#333";
                     const issueSummaryColor =
                       row.issueSummary === "Pickup Scheduled" ||
                       row.issueSummary.startsWith("Delivered to ")
-                        ? actionRequired
-                          ? "#fff"
-                          : NAVY
+                        ? NAVY
                         : row.issueSummary.startsWith("Confirm delivery") ||
                             row.issueSummary === "Confirm site delivery"
-                          ? actionRequired
-                            ? "#fff"
-                            : "#c62828"
+                          ? "#c62828"
                           : row.issueSummary
-                          ? actionRequired
-                            ? "#fff"
-                            : "#c62828"
-                          : actionRequired
-                            ? "rgba(255,255,255,0.75)"
+                            ? "#c62828"
                             : "#9ca3af";
+                    const cellBorder = "1px solid #eaecf0";
                     return (
                       <tr
                         key={row.deliveryId}
-                        className={
-                          actionRequired ? "dispatcher-action-required" : undefined
-                        }
-                        data-testid={
-                          actionRequired
-                            ? `dispatcher-action-required-${row.deliveryId}`
-                            : undefined
-                        }
                         tabIndex={0}
                         role="button"
                         onClick={() => void selectDelivery(row.deliveryId)}
@@ -761,37 +794,30 @@ export function DispatcherDashboardPage() {
                           cursor: "pointer",
                           outline: "none",
                           borderLeft: selected
-                            ? `3px solid ${actionRequired ? "#fff" : NAVY}`
+                            ? `3px solid ${NAVY}`
                             : "3px solid transparent",
                           transition: "background-color 0.1s",
-                          color: cellText,
                         }}
                         onMouseEnter={(e) => {
                           if (!selected) {
                             (
                               e.currentTarget as HTMLElement
-                            ).style.backgroundColor = actionRequired
-                              ? DISPATCHER_ACTION_REQUIRED_HOVER
-                              : "#f5f8ff";
+                            ).style.backgroundColor = "#f5f8ff";
                           }
                         }}
                         onMouseLeave={(e) => {
                           if (!selected) {
                             (
                               e.currentTarget as HTMLElement
-                            ).style.backgroundColor = actionRequired
-                              ? DISPATCHER_ACTION_REQUIRED_BG
-                              : defaultRowBg;
+                            ).style.backgroundColor = defaultRowBg;
                           }
                         }}
                         onFocus={(e) => {
                           (
                             e.currentTarget as HTMLElement
-                          ).style.backgroundColor = actionRequired
-                            ? DISPATCHER_ACTION_REQUIRED_HOVER
-                            : selected
-                              ? "#eef4ff"
-                              : "#f5f8ff";
+                          ).style.backgroundColor = selected
+                            ? "#eef4ff"
+                            : "#f5f8ff";
                         }}
                         onBlur={(e) => {
                           (
@@ -803,9 +829,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                           }}
                         >
                           <span
@@ -839,9 +863,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             fontFamily: "monospace",
                             color: cellMuted,
                             fontWeight: 600,
@@ -853,9 +875,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             fontWeight: 600,
                             color: cellStrong,
                           }}
@@ -865,9 +885,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             fontFamily: "monospace",
                             color: cellMuted,
                             fontSize: 13,
@@ -878,9 +896,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             fontFamily: "monospace",
                             color: cellMuted,
                             fontSize: 13,
@@ -891,9 +907,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             color: cellBody,
                           }}
                         >
@@ -902,9 +916,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             color: cellBody,
                             whiteSpace: "nowrap",
                           }}
@@ -914,97 +926,52 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
+                            maxWidth: 180,
+                            verticalAlign: "middle",
                           }}
                         >
-                          {row.stagingLocationCode ? (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                flexWrap: "wrap",
-                              }}
-                            >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <DeliveryListStagingChips
+                              codes={row.stagingLocationCodes}
+                              occupancyByZoneCode={occupancyByZoneCode}
+                              shopStockByCode={shopStockByCode}
+                              occupancyReady={stagingOccupancyReady}
+                              deliveryId={row.deliveryId}
+                            />
+                            {row.plannedActualDivergence ? (
                               <span
+                                data-testid={`staging-divergence-badge-${row.deliveryId}`}
+                                title={STAGING_PLAN_MISMATCH_TITLE}
                                 style={{
                                   display: "inline-block",
-                                  padding: "3px 8px",
+                                  padding: "2px 6px",
                                   borderRadius: 4,
-                                  backgroundColor: actionRequired
-                                    ? "rgba(255,255,255,0.2)"
-                                    : "#eef2ff",
-                                  color: actionRequired ? "#fff" : NAVY,
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  fontFamily: "monospace",
-                                  border: actionRequired
-                                    ? "1px solid rgba(255,255,255,0.45)"
-                                    : `1px solid #c7d4f0`,
+                                  backgroundColor: "#fff7ed",
+                                  color: "#9a3412",
+                                  fontSize: 10,
+                                  fontWeight: 800,
+                                  letterSpacing: "0.04em",
+                                  textTransform: "uppercase",
+                                  border: "1px solid #fdba74",
                                 }}
                               >
-                                {row.stagingLocationCode}
+                                {STAGING_PLAN_MISMATCH_LABEL}
                               </span>
-                              {row.plannedActualDivergence ? (
-                                <span
-                                  data-testid={`staging-divergence-badge-${row.deliveryId}`}
-                                  title={STAGING_PLAN_MISMATCH_TITLE}
-                                  style={{
-                                    display: "inline-block",
-                                    padding: "2px 6px",
-                                    borderRadius: 4,
-                                    backgroundColor: "#fff7ed",
-                                    color: "#9a3412",
-                                    fontSize: 10,
-                                    fontWeight: 800,
-                                    letterSpacing: "0.04em",
-                                    textTransform: "uppercase",
-                                    border: "1px solid #fdba74",
-                                  }}
-                                >
-                                  {STAGING_PLAN_MISMATCH_LABEL}
-                                </span>
-                              ) : null}
-                            </span>
-                          ) : row.plannedActualDivergence ? (
-                            <span
-                              data-testid={`staging-divergence-badge-${row.deliveryId}`}
-                              title={STAGING_PLAN_MISMATCH_TITLE}
-                              style={{
-                                display: "inline-block",
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                                backgroundColor: "#fff7ed",
-                                color: "#9a3412",
-                                fontSize: 10,
-                                fontWeight: 800,
-                                letterSpacing: "0.04em",
-                                textTransform: "uppercase",
-                                border: "1px solid #fdba74",
-                              }}
-                            >
-                              {STAGING_PLAN_MISMATCH_LABEL}
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                color: actionRequired
-                                  ? "rgba(255,255,255,0.75)"
-                                  : "#9ca3af",
-                              }}
-                            >
-                              —
-                            </span>
-                          )}
+                            ) : null}
+                          </span>
                         </td>
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             fontFamily: "monospace",
                             color: cellBody,
                             fontWeight: 600,
@@ -1015,13 +982,31 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             color: issueSummaryColor,
                             maxWidth: 200,
                           }}
                         >
+                          {row.missingStagingAssignment && (
+                            <span
+                              data-testid={`staging-assignment-pill-${row.deliveryId}`}
+                              style={{
+                                display: "inline-block",
+                                marginBottom:
+                                  row.issueSummary || row.openIssueCount > 0
+                                    ? 6
+                                    : 0,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                backgroundColor: "#c62828",
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY}
+                            </span>
+                          )}
                           {row.openIssueCount > 0 && row.issueSummary !== "Pickup Scheduled" && (
                             <span
                               data-testid={`open-issue-badge-${row.deliveryId}`}
@@ -1030,15 +1015,10 @@ export function DispatcherDashboardPage() {
                                 marginBottom: row.issueSummary ? 6 : 0,
                                 padding: "2px 8px",
                                 borderRadius: 999,
-                                backgroundColor: actionRequired
-                                  ? "rgba(255,255,255,0.2)"
-                                  : "#ffebee",
-                                color: actionRequired ? "#fff" : "#c62828",
+                                backgroundColor: "#ffebee",
+                                color: "#c62828",
                                 fontSize: 11,
                                 fontWeight: 700,
-                                border: actionRequired
-                                  ? "1px solid rgba(255,255,255,0.35)"
-                                  : undefined,
                               }}
                             >
                               Issues ({row.openIssueCount})
@@ -1059,7 +1039,7 @@ export function DispatcherDashboardPage() {
                               ) : null}
                               {row.issueSummary}
                             </span>
-                          ) : row.openIssueCount > 0 ? null : (
+                          ) : row.openIssueCount > 0 || row.missingStagingAssignment ? null : (
                             "—"
                           )}
                         </td>
@@ -1067,9 +1047,7 @@ export function DispatcherDashboardPage() {
                           data-testid={`released-to-${row.deliveryId}`}
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                           }}
                         >
                           {(() => {
@@ -1077,15 +1055,7 @@ export function DispatcherDashboardPage() {
                               jobReleasedToEntries.get(row.jobId) ?? [];
                             if (entries.length === 0) {
                               return (
-                                <span
-                                  style={{
-                                    color: actionRequired
-                                      ? "rgba(255,255,255,0.75)"
-                                      : "#9ca3af",
-                                  }}
-                                >
-                                  —
-                                </span>
+                                <span style={{ color: "#9ca3af" }}>—</span>
                               );
                             }
                             return (
@@ -1118,15 +1088,9 @@ export function DispatcherDashboardPage() {
                                         maxWidth: 160,
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
-                                        backgroundColor: actionRequired
-                                          ? "rgba(255,255,255,0.2)"
-                                          : badgeStyle.bg,
-                                        color: actionRequired
-                                          ? "#fff"
-                                          : badgeStyle.text,
-                                        border: actionRequired
-                                          ? "1px solid rgba(255,255,255,0.45)"
-                                          : `1px solid ${badgeStyle.border}`,
+                                        backgroundColor: badgeStyle.bg,
+                                        color: badgeStyle.text,
+                                        border: `1px solid ${badgeStyle.border}`,
                                       }}
                                       title={entry.name}
                                     >
@@ -1141,9 +1105,7 @@ export function DispatcherDashboardPage() {
                         <td
                           style={{
                             padding: "14px 12px",
-                            borderBottom: actionRequired
-                              ? "1px solid rgba(255,255,255,0.2)"
-                              : "1px solid #eaecf0",
+                            borderBottom: cellBorder,
                             textAlign: "right",
                           }}
                         >
@@ -1153,21 +1115,9 @@ export function DispatcherDashboardPage() {
                               void selectDelivery(row.deliveryId);
                             }}
                             style={{
-                              backgroundColor: actionRequired
-                                ? selected
-                                  ? "#fff"
-                                  : "rgba(255,255,255,0.15)"
-                                : selected
-                                  ? NAVY
-                                  : "#fff",
-                              color: actionRequired
-                                ? DISPATCHER_ACTION_REQUIRED_BG
-                                : selected
-                                  ? "#fff"
-                                  : NAVY,
-                              border: actionRequired
-                                ? "1.5px solid #fff"
-                                : `1.5px solid ${NAVY}`,
+                              backgroundColor: selected ? NAVY : "#fff",
+                              color: selected ? "#fff" : NAVY,
+                              border: `1.5px solid ${NAVY}`,
                               borderRadius: 4,
                               padding: "4px 10px",
                               fontSize: 12,
@@ -1180,22 +1130,12 @@ export function DispatcherDashboardPage() {
                             }}
                             onMouseEnter={(e) => {
                               const el = e.currentTarget as HTMLElement;
-                              if (actionRequired) {
-                                el.style.backgroundColor = "#fff";
-                                el.style.color = DISPATCHER_ACTION_REQUIRED_BG;
-                              } else {
-                                el.style.backgroundColor = NAVY;
-                                el.style.color = "#fff";
-                              }
+                              el.style.backgroundColor = NAVY;
+                              el.style.color = "#fff";
                             }}
                             onMouseLeave={(e) => {
                               const el = e.currentTarget as HTMLElement;
-                              if (actionRequired) {
-                                el.style.backgroundColor = selected
-                                  ? "#fff"
-                                  : "rgba(255,255,255,0.15)";
-                                el.style.color = DISPATCHER_ACTION_REQUIRED_BG;
-                              } else if (!selected) {
+                              if (!selected) {
                                 el.style.backgroundColor = "#fff";
                                 el.style.color = NAVY;
                               }

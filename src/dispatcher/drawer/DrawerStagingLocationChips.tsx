@@ -14,7 +14,7 @@ import {
 } from "../resolveSpotColor";
 import type { ZoneOccupancySummaryWithReadiness } from "../zoneOccupancyCompute";
 
-function collectDeliveryStagingCodes(
+export function collectDeliveryStagingCodes(
   delivery: DeliveryOrder,
   locById: Map<string, StagingLocation>,
 ): string[] {
@@ -33,7 +33,7 @@ function collectDeliveryStagingCodes(
   );
 }
 
-function chipStyle(color: SpotMapColor): CSSProperties {
+export function stagingSpotChipStyle(color: SpotMapColor): CSSProperties {
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -129,7 +129,7 @@ export function DrawerStagingLocationChips({
               aria-label={`View ${code} on Staging Map`}
               onClick={() => onNavigateToStagingMap(code)}
               style={{
-                ...chipStyle(color),
+                ...stagingSpotChipStyle(color),
                 cursor: "pointer",
                 fontFamily: "monospace",
               }}
@@ -139,7 +139,7 @@ export function DrawerStagingLocationChips({
           );
         }
         return (
-          <span key={code} {...sharedProps} style={chipStyle(color)}>
+          <span key={code} {...sharedProps} style={stagingSpotChipStyle(color)}>
             {code}
           </span>
         );

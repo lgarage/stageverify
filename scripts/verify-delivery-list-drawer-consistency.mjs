@@ -111,8 +111,8 @@ function assertOfflineStagingActionRules() {
     display.missingStagingAssignment,
   );
   record(
-    "offline — Issue Summary Assign staging location (top priority)",
-    display.issueSummary === DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
+    "offline — issue summary not replaced by staging-only text",
+    display.issueSummary !== DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
     display.issueSummary,
   );
   const withStaging = {
@@ -150,8 +150,9 @@ function assertOfflineStagingActionRules() {
     [],
   );
   record(
-    "offline — Will-Call Issue Summary not Assign staging location",
-    willCallDisplay.issueSummary !== DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
+    "offline — Will-Call Issue Summary not staging pill text alone gate",
+    willCallDisplay.issueSummary !== DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY ||
+      !willCallDisplay.missingStagingAssignment,
     willCallDisplay.issueSummary,
   );
 
@@ -323,55 +324,49 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
     const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
-    const statusLabel = (
-      await row.locator("td").nth(STATUS_COLUMN_INDEX).innerText()
-    ).trim();
-    const stagingText = (
-      await row.locator("td").nth(STAGING_COLUMN_INDEX).innerText()
-    ).trim();
-    const stagingUnassigned =
-      stagingText.length === 0 || stagingText === "—" || stagingText === "-";
-    const hasClass = await row.evaluate((el) =>
+    const stagingCell = row.locator("td").nth(STAGING_COLUMN_INDEX);
+    const notAssigned = stagingCell.getByText("Not Assigned", { exact: true });
+    const stagingUnassigned = (await notAssigned.count()) > 0;
+    const hasOrangeRowClass = await row.evaluate((el) =>
       el.classList.contains("dispatcher-action-required"),
     );
-    const deliverToSiteExempt = statusLabel === "Delivered";
-    if (deliverToSiteExempt && stagingUnassigned && !hasClass) {
-      record(
-        `${orderNumber} — action row matches empty Staging Loc.`,
-        true,
-        "deliver-to-site exempt — empty staging OK without orange row",
-      );
-      continue;
-    }
-    if (stagingUnassigned && !hasClass) {
-      const issueText = (
-        await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
-      ).trim();
-      if (!issueText.includes("Assign staging location")) {
-        record(
-          `${orderNumber} — action row matches empty Staging Loc.`,
-          true,
-          "staging not required — issue summary not Assign staging location",
-        );
-        continue;
-      }
-    }
     record(
-      `${orderNumber} — action row matches empty Staging Loc.`,
-      hasClass === stagingUnassigned,
-      stagingUnassigned
-        ? "empty staging → orange"
-        : `assigned (${stagingText}) → normal`,
+      `${orderNumber} — no dispatcher-action-required row class`,
+      !hasOrangeRowClass,
+      hasOrangeRowClass ? "unexpected orange row" : "normal row",
     );
-    if (stagingUnassigned && hasClass) {
-      const issueText = (
-        await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
-      ).trim();
+    if (stagingUnassigned) {
+      const pill = row.locator(`[data-testid^="staging-assignment-pill-"]`);
+      const pillCount = await pill.count();
       record(
-        `${orderNumber} — Issue Summary Assign staging location`,
-        issueText.includes("Assign staging location"),
-        issueText,
+        `${orderNumber} — unassigned staging shows Not Assigned`,
+        true,
+        "Not Assigned",
       );
+      record(
+        `${orderNumber} — staging assignment red pill when action required`,
+        pillCount === 0 || (await pill.innerText()).includes("Staging spot"),
+        pillCount > 0
+          ? (await pill.innerText().catch(() => "")).trim()
+          : "no pill (staging not required for row)",
+      );
+    } else {
+      const chips = stagingCell.locator('[data-testid^="delivery-list-staging-chip-"]');
+      record(
+        `${orderNumber} — assigned staging shows map chips (no green)`,
+        (await chips.count()) > 0,
+        `${await chips.count()} chip(s)`,
+      );
+      if ((await chips.count()) > 0) {
+        const colors = await chips.evaluateAll((els) =>
+          els.map((el) => el.getAttribute("data-spot-color")),
+        );
+        record(
+          `${orderNumber} — list chips never green`,
+          colors.every((c) => c !== "green"),
+          colors.join(","),
+        );
+      }
     }
   }
 }
@@ -379,51 +374,105 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
 async function assertDispatcherStagingActionRows(page, record) {
   const rows = page.locator("table tbody tr");
   const count = await rows.count();
-  let actionCount = 0;
+  let orangeClassCount = 0;
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
     const hasClass = await row.evaluate((el) =>
       el.classList.contains("dispatcher-action-required"),
     );
-    if (!hasClass) continue;
-    actionCount++;
-    const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
-    const issueText = (
-      await row.locator("td").nth(ISSUE_SUMMARY_COLUMN_INDEX).innerText()
-    ).trim();
-    const bg = await row.evaluate((el) => getComputedStyle(el).backgroundColor);
+    if (hasClass) orangeClassCount++;
+  }
+  record(
+    "dispatcher-action-required rows absent (no full-row orange)",
+    orangeClassCount === 0,
+    orangeClassCount > 0
+      ? `${orangeClassCount} row(s) still styled`
+      : "none",
+  );
+
+  const legend = page.getByTestId("deliveries-staging-legend");
+  record(
+    "Deliveries staging color legend visible",
+    (await legend.count()) > 0,
+  );
+  if ((await legend.count()) > 0) {
+    const legendText = (await legend.innerText()).trim();
     record(
-      `${orderNumber} — dispatcher-action-required dark orange row`,
-      /194,\s*65,\s*12/.test(bg),
-      bg,
+      "Legend includes assigned / pickup / shop stock",
+      /Assigned \/ planned/i.test(legendText) &&
+        /Ready for pickup/i.test(legendText) &&
+        /Shop stock/i.test(legendText),
+      legendText.slice(0, 120),
     );
-    record(
-      `${orderNumber} — Issue Summary Assign staging location`,
-      issueText.includes("Assign staging location"),
-      issueText,
-    );
-    const viewBtn = row.getByRole("button", { name: "View" });
-    if ((await viewBtn.count()) > 0) {
-      const styles = await viewBtn.evaluate((el) => {
-        const s = getComputedStyle(el);
-        return { color: s.color, border: s.borderColor, bg: s.backgroundColor };
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="deliveries-staging-legend"]',
+        elements: [
+          {
+            name: "Legend labels",
+            selector: "span",
+            large: false,
+          },
+        ],
       });
+      record("Deliveries legend readable contrast (D-42)", true);
+    } catch (err) {
       record(
-        `${orderNumber} — View button contrast on action row`,
-        styles.border.includes("255") || styles.bg.includes("255"),
-        JSON.stringify(styles),
+        "Deliveries legend readable contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
       );
     }
   }
-  record(
-    "dispatcher-action-required rows scanned",
-    true,
-    actionCount > 0
-      ? `${actionCount} row(s) styled`
-      : "none in live data",
-  );
 
-  // Missing staging alone triggers action row (independent of received qty).
+  const firstChip = page.locator('[data-testid^="delivery-list-staging-chip-"]').first();
+  if ((await firstChip.count()) > 0) {
+    const chipTestId = await firstChip.getAttribute("data-testid");
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: "table tbody",
+        elements: [
+          {
+            name: "Staging chip label",
+            selector: `[data-testid="${chipTestId}"]`,
+            large: false,
+          },
+        ],
+      });
+      record("First staging list chip contrast (D-42)", true);
+    } catch (err) {
+      record(
+        "First staging list chip contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
+  const firstPill = page.locator('[data-testid^="staging-assignment-pill-"]').first();
+  if ((await firstPill.count()) > 0) {
+    const pillTestId = await firstPill.getAttribute("data-testid");
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: "table tbody",
+        elements: [
+          {
+            name: "Staging assignment pill",
+            selector: `[data-testid="${pillTestId}"]`,
+            large: false,
+          },
+        ],
+      });
+      record("Staging assignment pill contrast (D-42)", true);
+    } catch (err) {
+      record(
+        "Staging assignment pill contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   await assertStagingActionRowsMatchStagingColumn(page, record);
 }
 
@@ -432,8 +481,9 @@ async function openRowByStagingAssignment(page, wantUnassigned) {
   const count = await rows.count();
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const stagingText = (await row.locator("td").nth(STAGING_COLUMN_INDEX).innerText()).trim();
-    const isUnassigned = stagingText === "—" || stagingText.length === 0;
+    const stagingCell = row.locator("td").nth(STAGING_COLUMN_INDEX);
+    const isUnassigned =
+      (await stagingCell.getByText("Not Assigned", { exact: true }).count()) > 0;
     if (isUnassigned === wantUnassigned) {
       await page.keyboard.press("Escape");
       await page.waitForTimeout(400);

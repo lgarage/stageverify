@@ -1329,12 +1329,14 @@ export interface DeliveryListRow {
   vendorName: string;
   deliveryDate: string;
   stagingLocationCode?: string;
+  /** Canonical spot codes for list chips (includes planned). */
+  stagingLocationCodes: string[];
   /** Phase 4 — planned ≠ actual staging assignment. */
   plannedActualDivergence?: boolean;
   itemsReceivedLabel: string;
   issueSummary: string;
   openIssueCount: number;
-  /** Dispatcher table: dark-orange action row when staging zone is unassigned. */
+  /** Dispatcher table: unassigned staging — red pill in Issue Summary (not row styling). */
   missingStagingAssignment: boolean;
 }
 

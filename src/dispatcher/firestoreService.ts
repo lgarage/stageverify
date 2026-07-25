@@ -93,6 +93,7 @@ import {
   hasPlannedActualDivergence,
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
+import { collectDeliveryStagingCodes } from "./drawer/DrawerStagingLocationChips";
 import { resolveDeliveryPoNumber } from "./invoice/invoiceShellDisplayHelpers";
 import type {
   DeliveryQuery,
@@ -300,6 +301,7 @@ const includesSearch = (row: DeliveryListRow, search: string): boolean => {
     row.orderNumber,
     row.vendorName,
     row.stagingLocationCode,
+    row.stagingLocationCodes.join(", "),
   ].some((value) => safe(value).toLowerCase().includes(normalized));
 };
 
@@ -388,6 +390,10 @@ export class FirestoreDataService implements DispatcherDataService {
         : undefined;
       const locById = new Map(allLocations.map((loc) => [loc.id, loc]));
       const stagingLocationCode = formatActualStagingCodes(delivery, locById);
+      const stagingLocationCodes = collectDeliveryStagingCodes(
+        delivery,
+        locById,
+      );
 
       const lineItems = allItems.filter(
         (i) => i.deliveryOrderId === delivery.id,
@@ -422,6 +428,7 @@ export class FirestoreDataService implements DispatcherDataService {
         vendorName: vendor.name,
         deliveryDate: delivery.deliveryDate,
         stagingLocationCode,
+        stagingLocationCodes,
         plannedActualDivergence: hasPlannedActualDivergence(delivery),
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary: display.issueSummary,
