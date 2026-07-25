@@ -209,6 +209,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Settings staging spots = map only (2026-07-25, v0.0.152, D-52)** — Settings Workflow list is derived from persisted Staging Map layout (`filterStagingLocationsOnShopMap`); add/remove via Staging Map Edit Locations only. Verify: `verify:settings-staging`.
+
 **Catch-all view-mode tile + top-bar badge (2026-07-24, v0.0.140)** — Staging Map shows persisted catch-all overlay in view after Done (read-only); top-bar Catch-all delivery shows live `catchAllPendingCheckInCount` badge including 0. CF notify/check-in decrement unchanged. Verify: `verify:catch-all-map` (+ `:prod`).
 
 **Vendor Communications hub (2026-07-06, v0.0.16)** — Dispatcher Dashboard top bar **Vendor Communications** button opens compose modal (to/subject/body, optional vendor + delivery association). Calls `sendVendorEmail` with optional `deliveryOrderId`/`vendorId` (general path allows any recipient for dispatcher testing). Stage 1 tracking preserved ([SV-*] tag, Reply-To, outbound `vendorEmailEvents`). Resolve Issue flow unchanged. Verify: `verify:dispatcher-nav`, `test:send-vendor-email`.

@@ -17,6 +17,7 @@
 |------|-------|---------|
 | 2026-06-02 | **Deliveries** sidebar (same as Dispatcher Dashboard) | Dashboard only |
 | 2026-06-02 | **Vendors** on Settings (`?focus=vendors`) | `/vendors` page; Settings = workflow + staging |
+| 2026-07-25 | **Add staging spot** form on Settings | Staging Map Edit Locations only (D-52); Settings = edit metadata for mapped spots |
 
 ## Dan: add a row
 

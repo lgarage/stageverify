@@ -1,5 +1,5 @@
 /**
- * Playwright: Settings → Workflow → Staging Spots section visible.
+ * Playwright: Settings → Workflow → Staging Spots (map-synced list, D-52).
  *
  * Usage:
  *   npm run dev   (another terminal)
@@ -13,6 +13,7 @@ import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import { assertReadableTextContrast, MIN_LARGE_TEXT_CONTRAST, MIN_TEXT_CONTRAST } from "./lib/ui-text-contrast-lib.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -80,6 +81,21 @@ async function ensureAuthenticated(page) {
   }
 }
 
+async function countMapStagingSpots(page) {
+  await page.goto(`${appBase}/#/zones`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForSelector('[data-testid="shop-floor-map"]', {
+    timeout: 30_000,
+  });
+  const groundShelf = await page.locator('[data-testid^="shop-spot-"]').count();
+  const catchAll = await page
+    .locator('[data-testid="shop-map-catch-all"]')
+    .count();
+  return groundShelf + catchAll;
+}
+
 (async () => {
   trySeed("disconnected");
 
@@ -97,12 +113,17 @@ async function ensureAuthenticated(page) {
   await page.getByText("Staging Spots", { exact: true }).first().waitFor({
     timeout: 30_000,
   });
-  await page.waitForSelector("text=Already listed", { timeout: 10_000 });
-  await page.waitForSelector("text=already listed", { timeout: 10_000 });
-  await page.waitForSelector("text=Add Staging Spot", { timeout: 10_000 });
-  await page.waitForSelector('input[placeholder="e.g. s1a or G4"]', {
-    timeout: 10_000,
+  await page.waitForSelector('[data-testid="settings-staging-spots-section"]', {
+    timeout: 15_000,
   });
+  await page.waitForSelector("text=On Staging Map", { timeout: 10_000 });
+
+  const addForm = page.getByText("Add Staging Spot", { exact: true });
+  if (await addForm.count()) {
+    throw new Error(
+      "Settings still shows Add Staging Spot form — map-only list expected (D-52)",
+    );
+  }
 
   await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
 
@@ -127,103 +148,207 @@ async function ensureAuthenticated(page) {
   const inboxVisible = await inboxInput.isVisible().catch(() => false);
 
   if (gmailStatus !== "disconnected" || !inboxVisible) {
-      console.log(
-        "SKIP inbox edit — Gmail linked; toggling monitoring enabled only…",
-      );
-      const enableCheckbox = page.getByTestId("email-monitoring-enabled");
-      const originalEnabled = await enableCheckbox.isChecked();
-      await enableCheckbox.setChecked(!originalEnabled);
-      await page.getByTestId("save-email-settings").click();
-      await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByTestId("email-monitoring-enabled").waitFor({ timeout: 15_000 });
-      const reloadedEnabled = await page
-        .getByTestId("email-monitoring-enabled")
-        .isChecked();
-      if (reloadedEnabled === originalEnabled) {
-        throw new Error("emailMonitoringEnabled did not persist when Gmail connected");
-      }
-      await page.getByTestId("email-monitoring-enabled").setChecked(originalEnabled);
-      await page.getByTestId("save-email-settings").click();
-      await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 }).catch(() => {});
-      console.log("PASS: Email Monitoring toggle save verified (Gmail connected).");
+    console.log(
+      "SKIP inbox edit — Gmail linked; toggling monitoring enabled only…",
+    );
+    const enableCheckbox = page.getByTestId("email-monitoring-enabled");
+    const originalEnabled = await enableCheckbox.isChecked();
+    await enableCheckbox.setChecked(!originalEnabled);
+    await page.getByTestId("save-email-settings").click();
+    await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("email-monitoring-enabled").waitFor({ timeout: 15_000 });
+    const reloadedEnabled = await page
+      .getByTestId("email-monitoring-enabled")
+      .isChecked();
+    if (reloadedEnabled === originalEnabled) {
+      throw new Error("emailMonitoringEnabled did not persist when Gmail connected");
+    }
+    await page.getByTestId("email-monitoring-enabled").setChecked(originalEnabled);
+    await page.getByTestId("save-email-settings").click();
+    await page
+      .getByTestId("email-settings-saved")
+      .waitFor({ timeout: 15_000 })
+      .catch(() => {});
+    console.log("PASS: Email Monitoring toggle save verified (Gmail connected).");
   } else {
     await inboxInput.waitFor({ state: "visible", timeout: 10_000 });
-  const enableCheckbox = page.getByTestId("email-monitoring-enabled");
-  const originalEmail = await inboxInput.inputValue();
-  const originalEnabled = await enableCheckbox.isChecked();
+    const enableCheckbox = page.getByTestId("email-monitoring-enabled");
+    const originalEmail = await inboxInput.inputValue();
+    const originalEnabled = await enableCheckbox.isChecked();
 
-  const probeEmail = "verify-inbox@stageverify.test";
-  await inboxInput.fill(probeEmail);
-  await enableCheckbox.check();
-  await page.waitForFunction(
-    (probe) => {
-      const el = document.querySelector('[data-testid="monitoring-inbox-email"]');
-      const cb = document.querySelector('[data-testid="email-monitoring-enabled"]');
-      return el?.value === probe && cb?.checked === true;
-    },
-    probeEmail,
-    { timeout: 10_000 },
-  );
-  await page.getByTestId("save-email-settings").click();
-  await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
-  await page.waitForTimeout(1500);
-
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByTestId("monitoring-inbox-email").waitFor({ timeout: 15_000 });
-  await page.waitForTimeout(800);
-  const reloadedEmail = await page.getByTestId("monitoring-inbox-email").inputValue();
-  const reloadedEnabled = await page.getByTestId("email-monitoring-enabled").isChecked();
-  if (reloadedEmail !== probeEmail) {
-    throw new Error(
-      `Inbox email did not persist after reload (expected ${probeEmail}, got ${reloadedEmail})`,
+    const probeEmail = "verify-inbox@stageverify.test";
+    await inboxInput.fill(probeEmail);
+    await enableCheckbox.check();
+    await page.waitForFunction(
+      (probe) => {
+        const el = document.querySelector('[data-testid="monitoring-inbox-email"]');
+        const cb = document.querySelector('[data-testid="email-monitoring-enabled"]');
+        return el?.value === probe && cb?.checked === true;
+      },
+      probeEmail,
+      { timeout: 10_000 },
     );
-  }
-  if (!reloadedEnabled) {
-    throw new Error("emailMonitoringEnabled did not persist after reload");
+    await page.getByTestId("save-email-settings").click();
+    await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(1500);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("monitoring-inbox-email").waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(800);
+    const reloadedEmail = await page.getByTestId("monitoring-inbox-email").inputValue();
+    const reloadedEnabled = await page
+      .getByTestId("email-monitoring-enabled")
+      .isChecked();
+    if (reloadedEmail !== probeEmail) {
+      throw new Error(
+        `Inbox email did not persist after reload (expected ${probeEmail}, got ${reloadedEmail})`,
+      );
+    }
+    if (!reloadedEnabled) {
+      throw new Error("emailMonitoringEnabled did not persist after reload");
+    }
+
+    await page.getByTestId("monitoring-inbox-email").fill(originalEmail);
+    if (originalEnabled) {
+      await page.getByTestId("email-monitoring-enabled").check();
+    } else {
+      await page.getByTestId("email-monitoring-enabled").uncheck();
+    }
+    await page.waitForTimeout(400);
+    await page.getByTestId("save-email-settings").click();
+    await page
+      .getByTestId("email-settings-saved")
+      .waitFor({ timeout: 15_000 })
+      .catch(() => {});
+    await page.waitForTimeout(1000);
+
+    console.log("PASS: Email Monitoring settings save + reload verified.");
   }
 
-  await page.getByTestId("monitoring-inbox-email").fill(originalEmail);
-  if (originalEnabled) {
-    await page.getByTestId("email-monitoring-enabled").check();
-  } else {
-    await page.getByTestId("email-monitoring-enabled").uncheck();
-  }
-  await page.waitForTimeout(400);
-  await page.getByTestId("save-email-settings").click();
-  await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 }).catch(() => {});
-  await page.waitForTimeout(1000);
-
-  console.log("PASS: Email Monitoring settings save + reload verified.");
-  }
-
-  await page.getByText("Staging Spots", { exact: true }).first().scrollIntoViewIfNeeded();
+  await page.goto(`${appBase}/#/settings`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page
+    .getByText("Staging Spots", { exact: true })
+    .first()
+    .scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
 
-  const firstEdit = page.locator('[data-testid^="edit-spot-"]').first();
-  await firstEdit.waitFor({ timeout: 10_000 });
-  const editTestId = await firstEdit.getAttribute("data-testid");
-  const spotCode = editTestId?.replace("edit-spot-", "") ?? "G1";
-  await firstEdit.click();
+  const mapSpotCount = await countMapStagingSpots(page);
 
-  await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
-
-  const labelInput = page.getByTestId("edit-spot-label");
-  let originalLabel = await labelInput.inputValue();
-  originalLabel = originalLabel.replace(/ \(verify\)$/, "");
-  const probeLabel = `${originalLabel} (verify)`;
-  await labelInput.fill(probeLabel);
-  await page.getByTestId(`save-spot-${spotCode}`).click();
-  await page.getByTestId(`spot-label-${spotCode}`).filter({ hasText: probeLabel }).waitFor({
-    timeout: 25_000,
+  await page.goto(`${appBase}/#/settings`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForSelector('[data-testid="settings-staging-spots-section"]', {
+    timeout: 20_000,
   });
 
-  await firstEdit.click();
-  await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
-  await page.getByTestId("edit-spot-label").fill(originalLabel);
-  await page.getByTestId(`save-spot-${spotCode}`).click();
-  await page.getByTestId(`spot-label-${spotCode}`).filter({ hasText: originalLabel }).waitFor({
-    timeout: 25_000,
+  const settingsEditButtons = await page
+    .locator('[data-testid^="edit-spot-"]')
+    .count();
+
+  if (settingsEditButtons > mapSpotCount) {
+    throw new Error(
+      `Settings has more rows (${settingsEditButtons}) than Staging Map spots (${mapSpotCount}) — D-52 sync`,
+    );
+  }
+
+  const editIds = await page
+    .locator('[data-testid^="edit-spot-"]')
+    .evaluateAll((els) =>
+      els.map((el) => el.getAttribute("data-testid")?.replace("edit-spot-", "") ?? ""),
+    );
+
+  await page.goto(`${appBase}/#/zones`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForSelector('[data-testid="shop-floor-map"]', { timeout: 30_000 });
+
+  for (const code of editIds) {
+    if (!code) continue;
+    const key = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    const ca = key === "CA";
+    const onMap = ca
+      ? (await page.locator('[data-testid="shop-map-catch-all"]').count()) > 0
+      : (await page.locator(`[data-testid="shop-spot-${key}"]`).count()) > 0 ||
+        (await page.locator(`[data-testid="shop-spot-${code}"]`).count()) > 0;
+    if (!onMap) {
+      throw new Error(
+        `Settings spot ${code} has no matching Staging Map chip (D-52)`,
+      );
+    }
+  }
+
+  console.log(
+    `PASS: Settings list ⊆ map (${settingsEditButtons} rows, ${mapSpotCount} map chips).`,
+  );
+
+  await page.goto(`${appBase}/#/settings`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.waitForSelector('[data-testid="settings-staging-spots-section"]', {
+    timeout: 20_000,
+  });
+  await page
+    .getByText("Staging Spots", { exact: true })
+    .first()
+    .scrollIntoViewIfNeeded();
+
+  const firstEdit = page.locator('[data-testid^="edit-spot-"]').first();
+  if (settingsEditButtons > 0) {
+    await firstEdit.waitFor({ timeout: 10_000 });
+    const editTestId = await firstEdit.getAttribute("data-testid");
+    const spotCode = editTestId?.replace("edit-spot-", "") ?? "G1";
+    await firstEdit.click();
+
+    await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
+
+    const labelInput = page.getByTestId("edit-spot-label");
+    let originalLabel = await labelInput.inputValue();
+    originalLabel = originalLabel.replace(/ \(verify\)$/, "");
+    const probeLabel = `${originalLabel} (verify)`;
+    await labelInput.fill(probeLabel);
+    await page.getByTestId(`save-spot-${spotCode}`).click();
+    await page
+      .getByTestId(`spot-label-${spotCode}`)
+      .filter({ hasText: probeLabel })
+      .waitFor({
+        timeout: 25_000,
+      });
+
+    await firstEdit.click();
+    await page.getByTestId("edit-spot-label").waitFor({ timeout: 10_000 });
+    await page.getByTestId("edit-spot-label").fill(originalLabel);
+    await page.getByTestId(`save-spot-${spotCode}`).click();
+    await page
+      .getByTestId(`spot-label-${spotCode}`)
+      .filter({ hasText: originalLabel })
+      .waitFor({
+        timeout: 25_000,
+      });
+  }
+
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="settings-staging-spots-section"]',
+    elements: [
+      {
+        name: "Staging Spots heading",
+        selector: "span",
+        large: true,
+      },
+      {
+        name: "section body copy",
+        selector: "p",
+        optional: true,
+      },
+    ],
+    minText: MIN_TEXT_CONTRAST,
+    minLarge: MIN_LARGE_TEXT_CONTRAST,
   });
 
   await page.screenshot({
