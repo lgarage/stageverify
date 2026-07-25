@@ -286,7 +286,7 @@ export async function assignStagingIfUnassigned(page) {
   return false;
 }
 
-/** When 4046362 deliver-to-site row is present, summary tiles show Delivered + Complete counts. */
+/** When 4046362 deliver-to-site row is present, Filter by Status pills filter Delivered rows. */
 export async function assertDeliveredOverviewTiles(page, searchTerm = "4046362") {
   const search = page.locator('input[placeholder*="Job #, name, PO"]');
   await search.waitFor({ state: "visible", timeout: 15_000 });
@@ -300,45 +300,41 @@ export async function assertDeliveredOverviewTiles(page, searchTerm = "4046362")
     .first();
   if (!(await deliveredRow.isVisible().catch(() => false))) {
     console.log(
-      `SKIP delivered overview tiles: no Delivered row for search "${searchTerm}".`,
+      `SKIP delivered overview filter: no Delivered row for search "${searchTerm}".`,
     );
     await search.fill("");
     await page.waitForTimeout(800);
     return;
   }
 
-  const summaryGrid = page.locator(".grid.grid-cols-3").first();
-  const deliveredTile = summaryGrid.getByRole("button", { name: /Delivered/i });
-  const completeTile = summaryGrid.getByRole("button", { name: /Complete/i });
+  const statusFilterRow = page
+    .getByText("Filter by Status", { exact: true })
+    .locator("xpath=..");
+  const deliveredPill = statusFilterRow.getByRole("button", {
+    name: "Delivered",
+    exact: true,
+  });
+  const completePill = statusFilterRow.getByRole("button", {
+    name: "Complete",
+    exact: true,
+  });
+  await deliveredPill.waitFor({ state: "visible", timeout: 10_000 });
+  await completePill.waitFor({ state: "visible", timeout: 10_000 });
 
-  const deliveredText = ((await deliveredTile.innerText()) ?? "").replace(/\s+/g, " ");
-  const completeText = ((await completeTile.innerText()) ?? "").replace(/\s+/g, " ");
-
-  if (!/\b[1-9]\d*\b/.test(deliveredText)) {
-    throw new Error(
-      `Delivered summary tile should show a non-zero count, got: "${deliveredText}"`,
-    );
-  }
-  if (!/\b[1-9]\d*\b/.test(completeText)) {
-    throw new Error(
-      `Complete summary tile should include delivered items, got: "${completeText}"`,
-    );
-  }
-
-  await deliveredTile.click();
+  await deliveredPill.click();
   await page.waitForTimeout(900);
   const filteredRows = await page.locator("table tbody tr").count();
   if (filteredRows !== 1) {
     throw new Error(
-      `Delivered filter should show exactly one row for "${searchTerm}", got ${filteredRows}`,
+      `Delivered status filter should show exactly one row for "${searchTerm}", got ${filteredRows}`,
     );
   }
 
-  await deliveredTile.click();
+  await deliveredPill.click();
   await page.waitForTimeout(400);
   await search.fill("");
   await page.waitForTimeout(800);
   console.log(
-    `PASS: Delivered overview tile + filter for "${searchTerm}" (${deliveredText.trim()}, Complete ${completeText.trim()}).`,
+    `PASS: Delivered status filter pill for "${searchTerm}" (summary tiles removed).`,
   );
 }

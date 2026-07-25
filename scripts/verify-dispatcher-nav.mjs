@@ -376,7 +376,7 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await assertReadableTextContrast(page, DISPATCHER_TOPBAR_CONTRAST_SPEC);
   console.log("PASS: dispatcher top bar — no overlap; readable text.");
 
-  console.log("Delivery Overview: Delivered summary tile…");
+  console.log("Delivery Overview: Delivered status filter pill…");
   await assertDeliveredOverviewTiles(page);
 
   const nav = sidebar(page);

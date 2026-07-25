@@ -27,7 +27,6 @@ import { portalNavFocus } from "./dispatcherPortalNav";
 import {
   DELIVERY_OVERVIEW_FILTER_LABEL,
   DELIVERY_OVERVIEW_STATUS_ORDER,
-  incrementOverviewStatusCounts,
   STAGING_PLAN_MISMATCH_LABEL,
   STAGING_PLAN_MISMATCH_TITLE,
   type DeliveryOverviewFilterStatus,
@@ -100,21 +99,6 @@ const STATUS_BADGE: Record<
     border: "#e0e0e0",
     dot: "#9e9e9e",
   },
-};
-
-const STATUS_COUNT_COLORS: Record<
-  DeliveryOverviewFilterStatus,
-  { bg: string; text: string; accent: string }
-> = {
-  pending: { bg: "#fff8e1", text: "#f59104", accent: "#f59104" },
-  arrived: { bg: "#e3f2fd", text: "#1565c0", accent: "#1976d2" },
-  partial: { bg: "#f3e5f5", text: "#7b1fa2", accent: "#9c27b0" },
-  ready_for_pickup: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
-  complete: { bg: "#e8f5e9", text: "#2e7d32", accent: "#388e3c" },
-  delivered: { bg: "#e0f2f1", text: "#00695c", accent: "#00897b" },
-  issue: { bg: "#ffebee", text: "#c62828", accent: "#d32f2f" },
-  picked_up: { bg: "#f5f5f5", text: "#424242", accent: "#757575" },
-  shipped: { bg: "#e3f2fd", text: "#0d47a1", accent: "#1976d2" },
 };
 
 const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
@@ -197,7 +181,6 @@ export function DispatcherDashboardPage() {
   });
   const [paged, setPaged] =
     useState<PagedResult<DeliveryListRow>>(INITIAL_PAGED);
-  const [allRows, setAllRows] = useState<DeliveryListRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [jobReleasedToEntries, setJobReleasedToEntries] = useState<
@@ -227,17 +210,6 @@ export function DispatcherDashboardPage() {
 
   const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
 
-  /* ── Status summary tile counts (from full unfiltered list) ── */
-  const statusCounts = useMemo<Record<DeliveryOverviewFilterStatus, number>>(() => {
-    const counts = Object.fromEntries(
-      STATUS_ORDER.map((s) => [s, 0]),
-    ) as Record<DeliveryOverviewFilterStatus, number>;
-    for (const row of allRows) {
-      incrementOverviewStatusCounts(counts, row);
-    }
-    return counts;
-  }, [allRows]);
-
   const techById = useMemo(
     () => new Map(technicians.map((t) => [t.id, t])),
     [technicians],
@@ -259,19 +231,15 @@ export function DispatcherDashboardPage() {
   const fetchAllData = useCallback(async () => {
     setListLoading(true);
     try {
-      const [pagedResult, allResult] = await Promise.all([
-        firestoreDataService.listDeliveries({
-          search: query.search,
-          statuses: query.statuses.length ? query.statuses : undefined,
-          sortBy: query.sortBy,
-          sortDirection: query.sortDirection,
-          page: query.page,
-          pageSize: query.pageSize,
-        }),
-        firestoreDataService.listDeliveries({ page: 1, pageSize: 1000 }),
-      ]);
+      const pagedResult = await firestoreDataService.listDeliveries({
+        search: query.search,
+        statuses: query.statuses.length ? query.statuses : undefined,
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+        page: query.page,
+        pageSize: query.pageSize,
+      });
       setPaged(pagedResult);
-      setAllRows(allResult.items);
       setLastUpdated(new Date().toLocaleString());
       setListError(null);
       await fetchReleaseMap();
@@ -428,63 +396,6 @@ export function DispatcherDashboardPage() {
             onApproveSuccess={refreshPortalData}
             focusOnMount={focusNeedsReview}
           />
-
-          {/* ── Summary tiles ── */}
-          {allRows.length > 0 && (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {STATUS_ORDER.map((status) => {
-                const c = STATUS_COUNT_COLORS[status];
-                const count = statusCounts[status];
-                const isFiltered = query.statuses.includes(status);
-                return (
-                  <button
-                    key={status}
-                    onClick={() => toggleStatus(status)}
-                    style={{
-                      backgroundColor: isFiltered ? c.accent : "#fff",
-                      border: isFiltered
-                        ? `2px solid ${c.accent}`
-                        : "1px solid #dde1e7",
-                      borderRadius: 8,
-                      padding: "18px 20px",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
-                      transition: "all 0.15s",
-                      outline: "none",
-                      minHeight: 90,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 32,
-                        fontWeight: 800,
-                        color: isFiltered ? "#fff" : c.accent,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {count}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: isFiltered
-                          ? "rgba(255,255,255,0.85)"
-                          : "#374151",
-                        marginTop: 10,
-                        textTransform: "none",
-                        letterSpacing: "normal",
-                        fontFamily: FONT,
-                      }}
-                    >
-                      {STATUS_LABEL(status)}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
 
           {/* ── Search / Filter card ── */}
           <div
