@@ -36,7 +36,8 @@ When D-36 requires **Solution Verifier**, **PASS** (or a valid **N/A** reason pe
 - **Workers/subagents:** MUST NOT write any repo path and defer Solution Verifier to the parent. Parent completes Phase 1 (Agree) **before** dispatching implementation, **or** the worker dispatches readonly Solution Verifier and reaches PASS/N/A **before** its first repo write.
 - **Forbidden:** any repo write then Solution Verifier (including docs/rules/PROJECT_STATUS first — docs-first dodge); "parent will verify later"; completion-report-only `solution-verifier:` after diffs already exist.
 - **Missing when triggered** = **NOT RUN** — do not ship or declare done.
+- **D-50 stuck scope:** after `stuck-task-agree:` **Agree**, use `solution-verifier: N/A (stuck-task-agree)` instead of a separate Solution Verifier pass for Grok Phase B edits.
 
 ## Relation
 
-Does not replace D-36/D-43 (Solution Verifier, Build Checker, UI Playwright, Ship Verifier). **D-47** widens D-46: the **97% floor binds every edit**; **D-48** locks Solution Verifier **before first edit** when D-36 applies.
+Does not replace D-36/D-43 (Solution Verifier, Build Checker, UI Playwright, Ship Verifier). **D-47** widens D-46: the **97% floor binds every edit**; **D-48** locks Solution Verifier **before first edit** when D-36 applies. **D-50:** after stuck-task Agree on the **3rd fail**, Grok implement phase still requires **conf ≥ 97%** before Grok's first product edit in that stuck scope; Agree plan satisfies acceptance.

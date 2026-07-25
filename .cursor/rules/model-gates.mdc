@@ -40,16 +40,17 @@ Mechanical evidence gate identical across clients — CI gate-check on PRs; loca
 
 **Parity by default (D-32 — Dan 2026-07-12):** every **new** rule, gate, loop, script, or workflow is platform-parity **by default** — it binds desktop Windows PC, mobile Cursor, and cloud VM identically the moment it is created. New rules do NOT need a per-rule "Platform parity" clause (existing clauses stay as documentation, not opt-ins); enforcement mechanics must be client-neutral (node scripts via `path.join` + `readText()` CRLF-normalize; hooks via npm `prepare`; CI on PRs). Mobile parity means alwaysApply rules + cloud-VM execution mechanics — the phone itself runs no local git or hooks. The only thing a new rule may declare is an **exception**, and only when physically impossible on a client — documented in `AGENTS.md` and `docs/cloud-agent-iphone-setup.md`, never silently assumed. A rule that works on one client and not the others is a bug, not a variant.
 
-## 2-fail diagnose-only rule (Dan 2026-07-03 — authoritative; Grok stall layer D-19)
+## 2-fail + 3-fail stuck ladder (Dan 2026-07-03; D-19 stall; D-50 third-fail Agree + Grok implement)
 
-When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis) — **unless** the 2nd fail shares the **same failure fingerprint** as the 1st (then **Grok stall-advisor** runs first; Sonnet when still stuck per sequence below).
+**Default implementer:** **Composer** updates code, runs verify, and completes the ship loop (D-43). **Exception:** after **D-50 stuck-task Agree** on the **3rd consecutive implement+verify fail** on the same task scope, **Grok implements** that stuck scope only until that ship closes — then **Composer resumes** as default implementer.
 
-- **Only Composer** updates code, runs verify, and completes the ship loop.
-- Sonnet = **diagnostic reviewer only** — no commits, no file edits, no ship loop.
+When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via Task subagent for diagnosis only (root cause, hypothesis) — **unless** the 2nd fail shares the **same failure fingerprint** as the 1st (then **Grok stall-advisor** runs first; **3rd fail on same task scope** → **D-50** § below, not diagnose-only alone).
+
+- Sonnet (pre-D-50) = **diagnostic / Agree peer** — no commits, no file edits, no ship loop except as **stuck-task Agree** participant (D-50).
 - Grok stall-advisor = **advisory only** — hypotheses + next experiments; no commits, no file edits, no ship loop.
-- After Sonnet or Grok returns findings, **Composer** implements + verify + ship.
+- After stall-advisor or Sonnet **diagnose-only** (2nd fail, different fingerprint), **Composer** implements + verify + ship.
 
-**Counting failures:** implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted.
+**Counting failures:** implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted. **3rd consecutive fail** on that scope triggers **D-50 automatically** — Dan does not need to say "escalate."
 
 ### Same failure fingerprint (D-19)
 
@@ -67,13 +68,25 @@ Two consecutive fails on the same task scope share a fingerprint when the **norm
 
 1. **1st fail** → Composer retry (+ optional self-trace per `MODEL_DOSSIER.md` tag `composer-trace`).
 2. **2nd fail, same fingerprint as 1st** → **Grok stall-advisor** (mandatory; § below) → Composer retry per hypotheses.
-3. **Sonnet diagnose-only** (mandatory) when **still stuck** — ANY of:
+3. **3rd implement+verify fail on the same task scope** (automatic) → **D-50 stuck-task escalation** (§ below): **Grok ↔ Sonnet 4.6** peer deliberation until **Agree** on root cause + exact fix plan (Solution-style Agree + D-30/D-33); if scope touches CF/rules/auth, Sonnet uses **diagnose/Agree** role (security gate slug per `security-review-gate.mdc` when high-risk — separate mandatory gate before push unchanged) → **Grok implements** agreed fix for that scope only → normal D-43 verify ladder (UI Playwright / Build Checker when triggered; **Composer only** commit + push + deploy; Ship Verifier; Sonnet security gate before push if high-risk) → **Composer resumes** default implementer for the next task.
+4. **Sonnet diagnose-only** (Composer still implements after) when **still stuck before 3rd fail** — ANY of:
    - 2nd implement+verify fail where 2nd fingerprint **≠** 1st (Grok skipped);
-   - 3rd+ implement+verify fail on same task after Grok stall-advisor ran;
    - `confStart < 70` or Dan says "still broken" without new hypothesis (after 1st-fail self-trace).
-4. Composer implements after Sonnet returns.
+5. Composer implements after Sonnet **diagnose-only** returns (steps 4 only — not step 3).
 
 Other Sonnet triggers: security verifier before push; architecture unclear after synthesis. **Not** for scouts or routine T0/T1/T2 before 1st fail + retry. Opus 4.6 = locked fallback only if Sonnet security gate returns HIGH Composer cannot resolve.
+
+## 3-fail stuck-task escalation (D-50 — Dan 2026-07-24 standing preference)
+
+**Trigger:** **3 consecutive implement+verify fails** on the **same task scope** (same session or continued thread) — including after D-19 stall-advisor + Composer retry. **Automatic** — not gated on Dan saying "escalate."
+
+**Phase A — Agree (readonly Tasks):** Orchestrator (usually Composer) synthesizes failure history + fingerprints → dispatch **Grok** (`cursor-grok-4.5-high-fast` or `grok-4.5-fast-xhigh`, `generalPurpose`, `readonly`) and **Sonnet 4.6** (`claude-4.6-sonnet-high-thinking` then medium per D-38 if rejected, `generalPurpose` or `security-review` when CF/rules/auth in scope — **diagnose/Agree only**, not implementation) → peer deliberate until **Agree** on root cause + **exact fix plan** (file paths, acceptance = named `verify:*` PASS). Max 3 Agree cycles; unresolved → present both positions to Dan. **Evidence:** `stuck-task-agree: <grok-task-id> + <sonnet-task-id>` + model lines + verdict **Agree** (or `escalated to Dan`).
+
+**Phase B — Implement (Grok carve-out):** **Grok** (Task `generalPurpose`, `cursor-grok-4.5-high-fast` or orchestrating Grok parent **only for this stuck scope**) writes product code per agreed plan — **overrides D-43/D-37 Composer-only implementer lock for this stuck task only**. Grok **still never** commits, pushes, or deploys (ship lock unchanged). **Evidence:** `stuck-implementer: grok (<task-id or inline session>)`.
+
+**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff: UI Playwright Verifier when visible UI; Build Checker before commit; **Composer** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Composer** is default implementer again for all new work (D-43 lock restored).
+
+**Platform parity:** D-32 — identical on desktop PC, mobile Cursor, cloud VM.
 
 ## Grok stall-advisor auto-invoke (Dan 2026-07-10 — D-19)
 
@@ -93,7 +106,7 @@ Task({
 
 **Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: grok-4.5-fast-xhigh`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
 
-**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — 3rd+ same fingerprint after Grok → Sonnet, not a second stall-advisor.
+**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet diagnose per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — **3rd fail on same task scope** → **D-50** § 3-fail (not a second stall-advisor).
 
 **vs Ship Verifier / Repair Verifier / Planning Verifier / Q&A Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); Q&A Verifier = pre-present Q&A accuracy (§ Q&A verify loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
 
@@ -253,7 +266,7 @@ Task({
 
 **Standing default (D-43, amended 2026-07-23):** For substantive work / real feature code: Composer proposes → Grok Solution Verifier agrees → **Composer only** implements → Grok **UI Playwright Verifier** PASS (visible UI only, D-45) → Grok **Build Checker** PASSes on the **uncommitted** diff **before commit** → **Composer only** commit + push + deploy → Grok Ship Verifier post-push. Grok **never** commits, pushes, or deploys. See `.cursor/rules/composer-grok-collab.mdc`.
 
-**Implementer lock:** Non-Composer parents MUST `Task` Composer (`model: "composer-2.5-fast"`) for product/code implementation — never inline edits and never `resume: "self"` for a build (D-37 / D-43). Composer parents may implement inline after Agree.
+**Implementer lock:** Non-Composer parents MUST `Task` Composer (`model: "composer-2.5-fast"`) for product/code implementation — never inline edits and never `resume: "self"` for a build (D-37 / D-43). Composer parents may implement inline after Agree. **D-50 carve-out:** on **3rd consecutive implement+verify fail** on the same task scope, after **stuck-task Agree**, **Grok implements** that scope only until that ship closes — then Composer (or Task Composer) resumes (see § 3-fail stuck-task escalation).
 
 **Pre-edit ordering (D-48):** When this section's Solution Verifier runs (not N/A), **PASS** must precede the **first repo write** in scope (any path — product, docs, rules, PROJECT_STATUS; no docs-first Agree dodge) — same moment as conf ≥ 97% (D-47). Evidence `solution-verifier: <task-id>` (or valid N/A) in-session **before** edits; implement-first then Agree = **NOT RUN**; do not ship as done. Subagents either Agree before editing or return to the parent **without product/code edits**.
 
@@ -262,7 +275,7 @@ Task({
 **Flow (one ladder — phases 1–4 plus 2b for UI):**
 
 1. **Agree (pre-edit):** Composer drafts a brief **solution proposal** (approach, files to touch, risks, alternative considered) → dispatches one read-only Grok **Solution Verifier** → peer deliberation per § Peer deliberation (D-30) / § Question deliberation (D-33) mechanics (adopt/rebut/explicit accept-reject) → **implement only the AGREED solution**. **Max 2 cycles**; still unresolved → **stop and present BOTH positions to Dan** (per § Peer deliberation — never implement through unresolved disagreement); architectural disagreement → escalate per the ladder (Sonnet/Fable).
-2. **Implement:** Composer only — code, build. Grok never implements. Composer may run `verify:*` locally to iterate; **Composer never self-closes UI Playwright findings** (D-45).
+2. **Implement:** **Composer only** ( **Grok only** after D-50 stuck-task Agree — same scope until ship closes ) — code, build. Composer may run `verify:*` locally to iterate; **Composer never self-closes UI Playwright findings** (D-45); during D-50 stuck ship Grok owns implement + UI Playwright fix cycles per agreed plan.
 2b. **UI Playwright check (UI Playwright Verifier — D-45):** When diff includes visible UI in `src/`, dispatch one Grok Task that **runs or re-runs** the affected route `verify:*` (Playwright + D-42 `assertReadableTextContrast` / layout overlap asserts). **PASS required before commit.** FAIL → Grok returns **file:line fix list** (exact change, why) → Composer fixes only → **same Grok** re-verifies (max 3 cycles) per § Fix-closure. Orthogonal to Build Checker (Playwright judgment vs diff-vs-scope). Skip when no visible UI → `ui-playwright-verifier: N/A (no visible UI)`.
 3. **Pre-commit check (Build Checker):** Before `git commit`, Composer dispatches one read-only Grok Task on the **uncommitted** diff vs agreed solution + scope. **PASS required to commit.** FAIL → Composer fixes → same Grok re-checks (max 2 cycles) per § Fix-closure; still FAIL → Dan. Missing `build-checker:` when triggered = **NOT RUN** — do not commit.
 4. **Ship + verify:** After Build Checker PASS, **Composer only** runs commit + push + deploy per `ship-loop.mdc` (Grok never ships); then Grok **Ship Verifier** post-push (prompt includes agreed-solution summary; verifies execution matched agreement); Repair Verifier on Dan repair intent. Ship Verifier must flag any `solution-verifier: N/A (T0 single-file unambiguous)` claim whose final diff is multi-file or clearly branching (post-hoc falsifiable skip — a dodge is a FAIL finding).
@@ -274,6 +287,7 @@ Task({
 - Repair intent (§ Repair loop owns it); planning/Q&A (D-21/D-22 own it)
 - Away items whose approved packet/plan already specifies approach + files (approved spec = agreed solution); thin outcome-only queue items still get Solution Verifier at execute
 - **Critical Reviewer subsumes** — when its triggers fire (≥3 phases, ≥5 files, new gate/role, architecture options), run Critical only: `solution-verifier: N/A (critical-reviewer)`. If Solution Verifier flags architecture mid-deliberation, escalate to Critical once — never run both on one decision.
+- **D-50 stuck-task Agree** — after Phase A **Agree**, `solution-verifier: N/A (stuck-task-agree)` subsumes Phase 1 for that stuck scope (evidence `stuck-task-agree:` required).
 
 **Build Checker skips** (`build-checker: N/A (<reason>)`): same T0 single-file unambiguous / excluded-paths / repair-owned as above; if Phase 1 was skipped as T0 but the uncommitted diff is multi-file or branching → Build Checker **must** run (falsify the skip).
 
@@ -355,4 +369,4 @@ Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security revie
 
 Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: § Fix-closure rule (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
 
-**Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. Only Composer 2.5 implements; Fable verifies Composer's work. When Fable finds issues: Composer fixes, Fable re-verifies per § Fix-closure; affected work ships only after Fable confirms correct.
+**Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. **Composer 2.5** is default implementer (**D-50:** Grok implements stuck scope after Agree); Fable verifies Composer's work (and stuck-ship outcomes). When Fable finds issues: Composer fixes, Fable re-verifies per § Fix-closure; affected work ships only after Fable confirms correct.

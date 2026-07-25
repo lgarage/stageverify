@@ -121,7 +121,7 @@ For each id in `executionProtocol.sequence`:
 | Trigger | Action |
 |---------|--------|
 | CF / rules / auth / idempotency (T2+) | security-review Task **before push** — see `security-review-gate.mdc` |
-| Same verify fails twice (2nd fail on task) | Sonnet diagnose-only — see `model-gates.mdc` § 2-fail diagnose-only rule |
+| Same verify fails twice (2nd fail on task) | D-19 stall-advisor if same fingerprint; else Sonnet diagnose-only — **3rd fail** → D-50 stuck-task Agree + Grok implement — see `model-gates.mdc` § 2-fail + § 3-fail |
 | Acceptance needs out-of-scope schema/rules | Mark `blocked` — do not widen scope |
 | High-risk item without `danApproved: true` | Skip — mark `blocked`, report; never improvise or deploy |
 | Item is a phase of a Fable-authored spec | Phase-boundary **work-verifier** (Fable) before the next phase item starts — spec's own gate note is authoritative (e.g. `docs/location-first-transition-spec.md`); report `work-verifier:` line |

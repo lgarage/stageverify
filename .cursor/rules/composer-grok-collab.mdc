@@ -5,28 +5,29 @@ alwaysApply: true
 
 # Composer ↔ Grok collaboration (D-43)
 
-**Dan standing preference (every session / new conv — alwaysApply):** For substantive feature builds, Composer and Grok **deliberate before any implementation**, Grok **agrees** the solution, **Composer alone** writes the code, Grok **checks the uncommitted diff before commit**, then Grok **Ship-Verifies** after push. Not optional for real feature work. Platform parity (D-20/D-32).
+**Dan standing preference (every session / new conv — alwaysApply):** For substantive feature builds, Composer and Grok **deliberate before any implementation**, Grok **agrees** the solution, **Composer alone** writes the code (**D-50:** Grok writes code only after 3rd-fail stuck-task Agree until that ship closes), Grok **checks the uncommitted diff before commit**, then Grok **Ship-Verifies** after push. Not optional for real feature work. Platform parity (D-20/D-32).
 
 ## Four-phase loop (one ladder — no duplicate gates)
 
 | Phase | Who | What |
 |-------|-----|------|
 | **1 — Agree** | Composer proposes → Grok **Solution Verifier** | **Every edit:** conf **≥ 97%** per `confidence-gate.mdc` (D-47) before any file write; substantive builds also peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
-| **2 — Implement** | **Composer only** | Code, local build. Grok never implements. |
+| **2 — Implement** | **Composer only** ( **Grok only** after D-50 stuck-task Agree on 3rd fail — same scope until ship closes ) | Code, local build. Grok never implements except D-50 carve-out. |
 | **2b — UI verify** | Grok **UI Playwright Verifier** | On visible UI edits (`src/`): Grok runs (or re-runs) the affected route `verify:*` + D-42 contrast/overlap asserts; **PASS required before commit**. FAIL → Grok returns **file:line fix list** → Composer fixes → **same Grok** re-verifies (fix-closure, max 3 cycles). Distinct from Build Checker (diff-vs-scope). |
 | **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
 | **4 — Ship + verify** | **Composer only** → Grok | After Build Checker PASS: **Composer** runs commit + push + deploy (`ship-loop.mdc`); then Grok **Ship Verifier** post-push (+ **Repair Verifier** on repair intent). Sonnet security gate unchanged for high-risk paths. |
 
-Plain language: **deliberate → Grok agrees → Composer builds → Grok UI Playwright PASS (UI only) → Grok Build Checker PASS → Composer commit/push/deploy → Grok Ship Verifier.**
+Plain language: **deliberate → Grok agrees → Composer builds (or Grok builds after D-50 stuck Agree) → Grok UI Playwright PASS (UI only) → Grok Build Checker PASS → Composer commit/push/deploy → Grok Ship Verifier.**
 
-**Ship lock (hard STOP):** Grok **never** commits, pushes, deploys, or runs the ship loop — read-only verify lanes only.
+**Ship lock (hard STOP):** Grok **never** commits, pushes, deploys, or runs the ship loop — verify lanes stay read-only **except** D-50 Phase B product edits after stuck-task Agree.
 
 ## Implementer lock (hard STOP — Dan 2026-07-23)
 
 Pain: a Grok parent forked itself (`resume: "self"`) and started implementing product code.
 
 - **Composer owns all product/code implementation** (`src/`, `functions/src/`, `public/`, behavior-bearing `scripts/*.mjs`, and any ship that would trigger Ship Verifier paths).
-- When the **session parent is not Composer** (e.g. Grok orchestrator), it **MUST** dispatch implementation via `Task({ subagent_type: "generalPurpose", model: "composer-2.5-fast", … })` — **never** implement inline and **never** `resume: "self"` for a product build.
+- **D-50 stuck carve-out (3rd consecutive implement+verify fail, same task scope):** after Grok ↔ Sonnet **stuck-task Agree**, **Grok** may implement the agreed fix for **that scope only** until that ship closes; then **Composer** (or `Task` `composer-2.5-fast`) is default again. Full ladder: `model-gates.mdc` § 3-fail stuck-task escalation.
+- When the **session parent is not Composer** (e.g. Grok orchestrator), it **MUST** dispatch implementation via `Task({ subagent_type: "generalPurpose", model: "composer-2.5-fast", … })` — **never** implement inline and **never** `resume: "self"` for a product build **except** the D-50 stuck scope after Agree.
 - When the parent **is** already Composer 2.5, it may implement inline after Phase 1 agreement (no nested Composer→Composer required).
 - Cross-link: strengthens **D-37** (dispatcher never edits when Composer is available).
 
@@ -59,4 +60,4 @@ Missing a required line when its trigger fired = **NOT RUN** — do not ship or 
 
 ## Authority
 
-Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § UI Playwright Verifier (D-45), § Build Checker (pre-commit), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder beyond the phases above.
+Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § **3-fail stuck-task escalation (D-50)**, § UI Playwright Verifier (D-45), § Build Checker (pre-commit), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder beyond the phases above.

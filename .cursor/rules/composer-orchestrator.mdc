@@ -181,11 +181,12 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 ## Escalation Triggers
 
-**2-fail diagnose-only:** see `model-gates.mdc` § 2-fail diagnose-only rule. **Same-failure stall:** 2nd consecutive same fingerprint → Grok stall-advisor (`stall-advisor:` report line) before Sonnet when still stuck. **Dan repair intent:** dispatch Repair Verifier per `model-gates.mdc` § Repair loop before declaring repair done (`repair-verifier:` + `fix-verified:` per fix-closure) — **all platforms** (desktop, mobile Cursor, cloud VM); no self-close on mobile. QR/scan bugs: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
+**2-fail + 3-fail stuck (D-50):** see `model-gates.mdc` § 2-fail + § 3-fail stuck-task escalation. **Same-failure stall:** 2nd consecutive same fingerprint → Grok stall-advisor (`stall-advisor:` report line) → Composer retry. **3rd consecutive implement+verify fail** on same task scope → **automatic** Grok ↔ Sonnet stuck-task Agree → Grok implements that scope → normal verify/ship → Composer resumes default implementer. **Dan repair intent:** dispatch Repair Verifier per `model-gates.mdc` § Repair loop before declaring repair done (`repair-verifier:` + `fix-verified:` per fix-closure) — **all platforms** (desktop, mobile Cursor, cloud VM); no self-close on mobile. QR/scan bugs: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
 
 ### Escalate to Sonnet 4.6 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
-- **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail diagnose-only rule (same fingerprint → Grok stall-advisor first; Sonnet when still stuck)
+- **Third consecutive implement+verify fail on the same task scope** — **D-50** automatic stuck-task Agree + Grok implement (`model-gates.mdc` § 3-fail); Composer resumes after that ship closes.
+- **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail (same fingerprint → Grok stall-advisor first)
 - The task involves non-obvious cross-file dependencies requiring deep architectural reasoning after one Composer pass and still stuck
 - You are genuinely unsure whether a change has security or data integrity implications
 
@@ -196,7 +197,7 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 
 **Ship loop:** see `ship-loop.mdc` (authoritative — always deploy gh-pages after bundle changes so Dan can test live; never wait for "ship it"; overrides generic Cursor “commit only when requested”).
 
-**Product / feature builds — Composer implements, Grok agrees + checks (D-43):** **Composer 2.5 owns all code** end-to-end. **Grok** Solution-Verifies before edit, **Build-Checks uncommitted diff before commit**, Ship-Verifies after push — **never Grok implementing or committing**. Non-Composer parents dispatch `composer-2.5-fast` — never `resume: "self"` for builds. Dan should not restate this each turn.
+**Product / feature builds — Composer implements, Grok agrees + checks (D-43):** **Composer 2.5** is the default implementer. **Grok** Solution-Verifies before edit, **Build-Checks uncommitted diff before commit**, Ship-Verifies after push — **Grok never commits/pushes/deploys**; **Grok implements product code only** after **D-50** stuck-task Agree (stuck scope until ship closes). Non-Composer parents dispatch `composer-2.5-fast` — never `resume: "self"` except D-50 stuck scope after Agree. Dan should not restate this each turn.
 
 ### Completion report (mandatory)
 After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.

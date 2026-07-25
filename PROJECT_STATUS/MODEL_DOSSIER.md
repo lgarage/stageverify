@@ -21,7 +21,7 @@
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
-| `composer-trace` | 1st fail → self-trace prep; 2nd same fingerprint → Grok stall-advisor; still stuck → Sonnet diagnose-only | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail + § Grok stall-advisor |
+| `composer-trace` | 1st fail → self-trace prep; 2nd same fingerprint → Grok stall-advisor; **3rd fail same scope → D-50** stuck Agree + Grok implement | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail + § 3-fail + § Grok stall-advisor |
 | `stall-advisor` | 2nd consecutive same-failure stall mid-task | **§ Stall Advisor — Grok 4.5 Fast** (tier 1b) — SSOT in `model-gates.mdc` § Grok stall-advisor auto-invoke |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
 | `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
@@ -63,7 +63,7 @@ Hard-won mistakes — **read before declaring UI/Firestore work done.**
 6. **Confidence downgrade when user still sees the bug.** Code-only fix that doesn't deploy rules or pass E2E → lower conf, do not mark ok until Playwright + user path green.
 7. **Auto-submit and Done must share the same gates** (shop stock + staged item checklists) — any second code path bypassing a gate will reproduce the bug.
 8. **Scope:** do not add portal pickers, cross-links, or hub buttons unless Dan asked. Check `USER_SCOPE_REJECTIONS.md` before `PortalNavBar` / `MobileHubPage` edits.
-9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd same fingerprint → Grok stall-advisor** (`stall-advisor:` line); **still stuck → Sonnet diagnose-only** per `model-gates.mdc`; Composer implements after Grok/Sonnet returns.
+9. **1st fix failed → § Composer without Sonnet** self-trace prep; **2nd same fingerprint → Grok stall-advisor** (`stall-advisor:` line); **3rd fail same scope → D-50** stuck Agree + Grok implement; **2nd different fingerprint → Sonnet diagnose-only** — Composer implements after diagnose when not in D-50 path.
 10. **Separate “shipped code” from “fixed for Dan”** — deploy + Playwright + (for public writes) rules deploy.
 11. **Away batches:** follow `PROJECT_STATUS/AWAY_BUILD_PROTOCOL.md` — orchestrator runs verify; parallel scouts read-only only.
 12. **Public vendor flows must use public-safe hydration paths.** Do not call authenticated dispatcher/admin detail readers (`getDeliveryDetails`, `fetchAll<vendors>`) after unauthenticated vendor writes. Use `getDeliveryDetailsPublic`, denormalized `delivery.vendorName` for occupancy, and `hydrateAfterVendorWrite` patterns.
@@ -176,4 +176,4 @@ Purpose: **tier 1b (cheap)** mid-task pivot when Composer hits the **same failur
 
 - Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true` — never edits code
 - **SSOT:** `model-gates.mdc` § Grok stall-advisor auto-invoke — same failure fingerprint table, one Task per fingerprint per task scope, `stall-advisor:` report line
-- Sonnet diagnose-only runs when **still stuck** after Grok (different fingerprint on 2nd fail, or 3rd+ fail) — see § 2-fail
+- Sonnet diagnose-only runs on **2nd fail, different fingerprint** (before 3rd fail) — **3rd consecutive fail on same task scope → D-50** Grok implement after Agree — see § 2-fail + § 3-fail
