@@ -12,7 +12,20 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
 const MUTED = "#6b7280";
 const ACTIVE_GREEN = "#2e7d32";
+const ACTIVATE_YELLOW = "#ffc107";
 const RECEIVER_FORM_TITLE = "Catch-All Receiver";
+
+const activateButtonStyle: CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "1px solid #e6a800",
+  backgroundColor: ACTIVATE_YELLOW,
+  color: TEXT,
+  fontWeight: 700,
+  fontSize: 13,
+  cursor: "pointer",
+  fontFamily: FONT,
+};
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
@@ -71,7 +84,7 @@ function statusNoteFor(receiver: OfficeReceiver): string {
 export function OfficeReceiversSettingsPanel() {
   const [receivers, setReceivers] = useState<OfficeReceiver[]>([]);
   const [loading, setLoading] = useState(true);
-  const [drafts, setDrafts] = useState<ReceiverDraft[]>(() => [newDraft()]);
+  const [drafts, setDrafts] = useState<ReceiverDraft[]>([]);
   const [savingDraftId, setSavingDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,6 +105,13 @@ export function OfficeReceiversSettingsPanel() {
   const displayReceivers = receivers.filter(
     (r) => !isVerifySeedOfficeReceiver(r),
   );
+
+  useEffect(() => {
+    if (loading) return;
+    if (displayReceivers.length === 0 && drafts.length === 0) {
+      setDrafts([newDraft()]);
+    }
+  }, [loading, displayReceivers.length, drafts.length]);
 
   const saveDraft = async (draft: ReceiverDraft) => {
     const name = draft.name.trim();
@@ -116,11 +136,7 @@ export function OfficeReceiversSettingsPanel() {
         createdAt: now,
         updatedAt: now,
       });
-      setDrafts((prev) => {
-        const next = prev.filter((d) => d.localId !== draft.localId);
-        if (next.length === 0) return [newDraft()];
-        return next;
-      });
+      setDrafts((prev) => prev.filter((d) => d.localId !== draft.localId));
       await reload();
     } catch {
       setError("Could not save Catch-All receiver.");
@@ -400,17 +416,7 @@ export function OfficeReceiversSettingsPanel() {
                             type="button"
                             data-testid={`office-receiver-activate-${receiver.id}`}
                             onClick={() => void toggleActive(receiver)}
-                            style={{
-                              padding: "6px 14px",
-                              borderRadius: 6,
-                              border: `1px solid ${NAVY}`,
-                              backgroundColor: "#fff",
-                              color: NAVY,
-                              fontWeight: 600,
-                              fontSize: 13,
-                              cursor: "pointer",
-                              fontFamily: FONT,
-                            }}
+                            style={activateButtonStyle}
                           >
                             Activate
                           </button>
@@ -573,15 +579,12 @@ export function OfficeReceiversSettingsPanel() {
                       }
                       onClick={() => void saveDraft(draft)}
                       style={{
-                        padding: "6px 14px",
-                        borderRadius: 6,
-                        border: `1px solid ${NAVY}`,
-                        backgroundColor: "#fff",
-                        color: NAVY,
-                        fontWeight: 600,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        fontFamily: FONT,
+                        ...activateButtonStyle,
+                        cursor:
+                          savingDraftId === draft.localId
+                            ? "wait"
+                            : "pointer",
+                        opacity: savingDraftId === draft.localId ? 0.7 : 1,
                       }}
                     >
                       Activate

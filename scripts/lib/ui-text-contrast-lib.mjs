@@ -178,6 +178,12 @@ export const OFFICE_RECEIVER_PANEL_CONTRAST_SPEC = {
       large: false,
     },
     {
+      name: "Activate receiver button",
+      selector: '[data-testid^="office-receiver-activate-"]',
+      large: false,
+      optional: true,
+    },
+    {
       name: "add additional button",
       selector: '[data-testid="office-receiver-add-additional-btn"]',
       large: false,

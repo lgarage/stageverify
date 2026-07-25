@@ -104,63 +104,143 @@ async function ensureAuthenticated(page) {
   }
   console.log("PASS: no verify seed Catch-All receiver cards visible");
 
-  await panel.getByTestId("office-receiver-signup-title").waitFor({
-    timeout: 10_000,
-  });
-  const signupTitle = (
-    await panel.getByTestId("office-receiver-signup-title").textContent()
-  )?.trim();
-  if (signupTitle !== "Catch-All Receiver") {
-    throw new Error(
-      `Signup form title expected "Catch-All Receiver", got "${signupTitle ?? ""}"`,
+  const savedRows = panel.locator('[data-testid^="office-receiver-row-"]');
+  const savedCount = await savedRows.count();
+
+  const signupForms = panel.locator('[data-testid^="office-receiver-signup-form-"]');
+
+  if (savedCount === 0) {
+    await panel.getByTestId("office-receiver-signup-title").waitFor({
+      timeout: 10_000,
+    });
+    const signupTitle = (
+      await panel.getByTestId("office-receiver-signup-title").textContent()
+    )?.trim();
+    if (signupTitle !== "Catch-All Receiver") {
+      throw new Error(
+        `Signup form title expected "Catch-All Receiver", got "${signupTitle ?? ""}"`,
+      );
+    }
+    console.log("PASS: zero saved receivers → one signup form titled Catch-All Receiver");
+
+    const formCount = await signupForms.count();
+    if (formCount !== 1) {
+      throw new Error(
+        `Expected exactly 1 default signup form when no saved receivers, found ${formCount}`,
+      );
+    }
+    console.log("PASS: one default Catch-All signup form when list empty");
+  } else {
+    const formCountBeforeAdd = await signupForms.count();
+    if (formCountBeforeAdd !== 0) {
+      throw new Error(
+        `Expected 0 blank signup forms when ${savedCount} saved receiver(s) exist, found ${formCountBeforeAdd}`,
+      );
+    }
+    console.log(
+      `PASS: ${savedCount} saved receiver(s) → no blank signup form until Add`,
     );
   }
-  console.log("PASS: signup form titled Catch-All Receiver");
 
-  const signupForms = page.locator('[data-testid^="office-receiver-signup-form-"]');
-  const formCount = await signupForms.count();
-  if (formCount !== 1) {
-    throw new Error(
-      `Expected exactly 1 default signup form, found ${formCount}`,
-    );
-  }
-  console.log("PASS: one default Catch-All signup form");
-
-  await page.getByTestId("office-receiver-name-input").waitFor({ timeout: 10_000 });
-  const emailInput = page.getByTestId("office-receiver-email-input");
-  await emailInput.waitFor({ timeout: 10_000 });
-  const smsInput = page.getByTestId("office-receiver-sms-coming-soon-input");
-  await smsInput.waitFor({ timeout: 10_000 });
-
-  if (await emailInput.isDisabled()) {
-    throw new Error("Signup form email field must be an editable text input");
-  }
-  const emailBox = await emailInput.boundingBox();
-  const smsBox = await smsInput.boundingBox();
-  if (!emailBox || !smsBox) {
-    throw new Error("Could not measure email vs SMS field positions");
-  }
-  if (emailBox.y >= smsBox.y) {
-    throw new Error(
-      "Email input must appear directly above SMS (coming soon) on the signup form",
-    );
-  }
-  console.log("PASS: editable email input above SMS (coming soon)");
-
-  console.log("PASS: name, email, and SMS (coming soon) fields visible");
-
-  const addBtn = page.getByTestId("office-receiver-add-additional-btn");
+  const addBtn = panel.getByTestId("office-receiver-add-additional-btn");
   await addBtn.waitFor({ timeout: 10_000 });
-  await addBtn.click();
-  const formCountAfter = await signupForms.count();
-  if (formCountAfter !== 2) {
-    throw new Error(
-      `Expected 2 signup forms after add click, found ${formCountAfter}`,
+
+  if (savedCount >= 1) {
+    await addBtn.click();
+    await page.waitForTimeout(300);
+    const formCountAfterAdd = await signupForms.count();
+    if (formCountAfterAdd !== 1) {
+      throw new Error(
+        `Expected 1 signup form after Add (with saved receivers), found ${formCountAfterAdd}`,
+      );
+    }
+    console.log("PASS: Add reveals signup form when saved receivers exist");
+  }
+
+  const signupVisible = (await signupForms.count()) >= 1;
+  if (signupVisible) {
+    await page.getByTestId("office-receiver-name-input").waitFor({
+      timeout: 10_000,
+    });
+    const emailInput = page.getByTestId("office-receiver-email-input");
+    await emailInput.waitFor({ timeout: 10_000 });
+    const smsInput = page.getByTestId("office-receiver-sms-coming-soon-input");
+    await smsInput.waitFor({ timeout: 10_000 });
+
+    if (await emailInput.isDisabled()) {
+      throw new Error("Signup form email field must be an editable text input");
+    }
+    const emailBox = await emailInput.boundingBox();
+    const smsBox = await smsInput.boundingBox();
+    if (!emailBox || !smsBox) {
+      throw new Error("Could not measure email vs SMS field positions");
+    }
+    if (emailBox.y >= smsBox.y) {
+      throw new Error(
+        "Email input must appear directly above SMS (coming soon) on the signup form",
+      );
+    }
+    console.log("PASS: editable email input above SMS (coming soon)");
+
+    console.log("PASS: name, email, and SMS (coming soon) fields visible");
+  }
+
+  if (savedCount === 0) {
+    await addBtn.click();
+    const formCountAfter = await signupForms.count();
+    if (formCountAfter !== 2) {
+      throw new Error(
+        `Expected 2 signup forms after add click (empty list), found ${formCountAfter}`,
+      );
+    }
+    console.log("PASS: Add additional Catch-All receivers reveals second form");
+  }
+
+  async function assertYellowActivateButton(locator, label) {
+    await locator.waitFor({ timeout: 10_000 });
+    const bg = await locator.evaluate((el) =>
+      getComputedStyle(el).backgroundColor,
+    );
+    const color = await locator.evaluate((el) => getComputedStyle(el).color);
+    const rgb = bg.match(/\d+/g)?.map(Number) ?? [];
+    if (rgb.length < 3) {
+      throw new Error(`${label}: could not parse background ${bg}`);
+    }
+    const [r, g, b] = rgb;
+    const isYellowish = r >= 200 && g >= 150 && b <= 120;
+    if (!isYellowish) {
+      throw new Error(
+        `${label}: expected yellow Activate background, got ${bg}`,
+      );
+    }
+    const textRgb = color.match(/\d+/g)?.map(Number) ?? [];
+    if (textRgb.length >= 3) {
+      const lum =
+        (0.299 * textRgb[0] + 0.587 * textRgb[1] + 0.114 * textRgb[2]) / 255;
+      if (lum > 0.85) {
+        throw new Error(
+          `${label}: Activate text should be dark/readable, got ${color}`,
+        );
+      }
+    }
+    console.log(`PASS: ${label} uses yellow Activate styling (${bg})`);
+  }
+
+  const draftActivate = panel.getByTestId("office-receiver-add-btn");
+  if ((await draftActivate.count()) > 0) {
+    await assertYellowActivateButton(draftActivate.first(), "signup Activate");
+  }
+
+  const rowActivate = panel.locator('[data-testid^="office-receiver-activate-"]');
+  if ((await rowActivate.count()) > 0) {
+    await assertYellowActivateButton(rowActivate.first(), "inactive row Activate");
+  } else if (savedCount === 0) {
+    console.log(
+      "SKIP: no inactive saved receiver — row Activate yellow not asserted",
     );
   }
-  console.log("PASS: Add additional Catch-All receivers reveals second form");
 
-  const activeStatus = page.locator('[data-testid^="office-receiver-active-status-"]');
+  const activeStatus = panel.locator('[data-testid^="office-receiver-active-status-"]');
   const activeCount = await activeStatus.count();
   if (activeCount >= 1) {
     const label = (await activeStatus.first().textContent())?.trim() ?? "";
@@ -171,6 +251,17 @@ async function ensureAuthenticated(page) {
       getComputedStyle(el).backgroundColor,
     );
     console.log(`PASS: green Active status present (${bg})`);
+
+    const statusNote = panel.locator('[data-testid^="office-receiver-status-note-"]');
+    if ((await statusNote.count()) >= 1) {
+      const noteText = (await statusNote.first().textContent())?.trim() ?? "";
+      if (!noteText.includes("email notifications active")) {
+        throw new Error(
+          `Expected green status note with email notifications active, got "${noteText}"`,
+        );
+      }
+      console.log("PASS: email notifications active note present");
+    }
   } else {
     console.log(
       "SKIP: no active Catch-All receiver in Firestore — Active green state not asserted",
