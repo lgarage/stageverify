@@ -599,27 +599,14 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.waitForTimeout(800);
   assertUrl(page, /\/dispatcher/, "after Refresh");
 
-  console.log("Top bar: Pickup Portal (new tab)…");
-  const [pickupPage] = await Promise.all([
-    context.waitForEvent("page"),
-    page.getByRole("link", { name: "Pickup Portal ↗" }).click(),
-  ]);
-  await pickupPage.waitForLoadState("domcontentloaded");
-  if (!pickupPage.url().includes("/pickup")) {
-    throw new Error(`Pickup Portal tab: expected /pickup, got ${pickupPage.url()}`);
+  console.log("Top bar: portal shortcut links removed…");
+  if ((await page.getByRole("link", { name: "Pickup Portal ↗" }).count()) > 0) {
+    throw new Error("Pickup Portal ↗ must be removed from dispatcher top bar");
   }
-  await pickupPage.close();
-
-  console.log("Top bar: Vendor Portal (new tab)…");
-  const [receivePage] = await Promise.all([
-    context.waitForEvent("page"),
-    page.getByRole("link", { name: "Vendor Portal ↗" }).click(),
-  ]);
-  await receivePage.waitForLoadState("domcontentloaded");
-  if (!receivePage.url().includes("/receive")) {
-    throw new Error(`Vendor Portal tab: expected /receive, got ${receivePage.url()}`);
+  if ((await page.getByRole("link", { name: "Vendor Portal ↗" }).count()) > 0) {
+    throw new Error("Vendor Portal ↗ must be removed from dispatcher top bar");
   }
-  await receivePage.close();
+  console.log("PASS: Pickup/Vendor portal header links absent.");
 
   console.log("Delivery drawer (dynamic row selection)…");
   await page

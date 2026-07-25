@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
 type PortalTab = "pickup" | "receive";
@@ -26,31 +25,3 @@ export function PortalNavBar({ active }: { active?: PortalTab }) {
   );
 }
 
-const dispatcherLinkStyle: CSSProperties = {
-  padding: "5px 12px",
-  borderRadius: 4,
-  border: "1.5px solid #0a3161",
-  backgroundColor: "#fff",
-  color: "#0a3161",
-  fontWeight: 700,
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "'Segoe UI', system-ui, sans-serif",
-  textDecoration: "none",
-  outline: "none",
-  whiteSpace: "nowrap",
-};
-
-/** Dispatcher top bar — opens portals in a new tab. */
-export function DispatcherPortalLinks() {
-  return (
-    <div className="flex items-center gap-2 shrink-0">
-      <Link to="/pickup" target="_blank" style={dispatcherLinkStyle}>
-        Pickup Portal ↗
-      </Link>
-      <Link to="/receive" target="_blank" style={dispatcherLinkStyle}>
-        Vendor Portal ↗
-      </Link>
-    </div>
-  );
-}

@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
-import { DispatcherPortalLinks } from "./PortalNavBar";
 import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
 import { CatchAllDeliveryTopBarEntry } from "./dispatcher/CatchAllDeliveryTopBarEntry";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
@@ -103,7 +102,6 @@ export function DispatcherPortalTopBar({
           flexWrap: "nowrap",
         }}
       >
-        <DispatcherPortalLinks />
         <CatchAllDeliveryTopBarEntry />
         {showNewDelivery ? (
           <button
