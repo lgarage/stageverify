@@ -250,6 +250,24 @@ async function collectMapStagingSpotKeys(page) {
   return keys;
 }
 
+async function countVisibleInViewport(locator) {
+  return locator.evaluateAll((nodes) =>
+    nodes.filter((n) => {
+      const style = window.getComputedStyle(n);
+      if (style.visibility === "hidden" || style.display === "none") return false;
+      const r = n.getBoundingClientRect();
+      return (
+        r.width > 2 &&
+        r.height > 2 &&
+        r.bottom > 0 &&
+        r.right > 0 &&
+        r.left < window.innerWidth &&
+        r.top < window.innerHeight
+      );
+    }).length,
+  );
+}
+
 async function assertBatchLocationSignPrint(browser) {
   const printContext = await browser.newContext({
     viewport: { width: 900, height: 1100 },
@@ -333,36 +351,123 @@ async function assertBatchLocationSignPrint(browser) {
 
     const batchBtn = printPage.getByTestId("location-sign-batch-print-button");
     const sheets = printPage.getByTestId("location-sign-print-sheet");
+    const fullSizeBtn = printPage.getByTestId("location-sign-size-full");
+    const label2x4Btn = printPage.getByTestId("location-sign-size-2x4");
+    const summaryEl = printPage.getByTestId("location-sign-batch-summary");
+
     record(
       "Batch print disabled on open (none selected)",
       !(await batchBtn.isEnabled()),
       "disabled on load",
     );
     record(
-      "Batch preview empty on open",
+      "Batch print stage empty on open",
       (await sheets.count()) === 0,
       `sheetCount=${await sheets.count()}`,
     );
+    record(
+      "Full page size toggle default active",
+      (await fullSizeBtn.getAttribute("aria-pressed")) === "true",
+    );
+    record(
+      "2x4 size toggle inactive on open",
+      (await label2x4Btn.getAttribute("aria-pressed")) === "false",
+    );
+
+    await assertReadableTextContrast(printPage, {
+      rootSelector: '[data-testid="location-sign-batch-picker"]',
+      elements: [
+        {
+          name: "size toggle full page",
+          selector: '[data-testid="location-sign-size-full"]',
+          large: false,
+        },
+        {
+          name: "size toggle 2x4",
+          selector: '[data-testid="location-sign-size-2x4"]',
+          large: false,
+        },
+      ],
+    });
+    record("Batch label size toggle contrast (D-42)", true);
 
     const clearBtn = printPage.getByTestId("location-sign-batch-clear-all");
     const selectAllBtn = printPage.getByTestId("location-sign-batch-select-all");
     await selectAllBtn.click();
-    await sheets.first().waitFor({ timeout: 60_000 });
-    const count = await sheets.count();
+    await printPage
+      .locator('[data-testid="location-sign-print-sheet"]')
+      .first()
+      .waitFor({ state: "attached", timeout: 60_000 });
+    const fullSheetCount = await sheets.count();
     record(
-      "Batch label print renders multiple sheets",
-      count >= 2,
-      `sheetCount=${count}`,
+      "Batch full-page print DOM has multiple sheets",
+      fullSheetCount >= 2,
+      `sheetCount=${fullSheetCount}`,
     );
     record(
-      "Select all matches picker row count",
-      count === rowCount,
-      `sheets=${count} rows=${rowCount}`,
+      "Select all full mode sheet count matches rows",
+      fullSheetCount === rowCount,
+      `sheets=${fullSheetCount} rows=${rowCount}`,
+    );
+    const visibleFullSheets = await countVisibleInViewport(sheets);
+    record(
+      "No visible on-screen full-page preview sheets",
+      visibleFullSheets === 0 && fullSheetCount > 0,
+      `visible=${visibleFullSheets} dom=${fullSheetCount}`,
     );
     record(
       "Batch print enabled when selection non-empty",
       await batchBtn.isEnabled(),
       "enabled after select all",
+    );
+
+    await label2x4Btn.click();
+    record(
+      "2x4 size toggle active after click",
+      (await label2x4Btn.getAttribute("aria-pressed")) === "true",
+    );
+    record(
+      "Full page toggle inactive when 2x4 selected",
+      (await fullSizeBtn.getAttribute("aria-pressed")) === "false",
+    );
+    const summary2x4 = (await summaryEl.innerText()).trim();
+    record(
+      "2x4 mode summary mentions 8 labels per page",
+      summary2x4.includes("8 labels per US Letter page"),
+      summary2x4,
+    );
+    const pages2x4 = printPage.getByTestId("location-sign-2x4-page");
+    const pageCount2x4 = await pages2x4.count();
+    const expectedPages = Math.ceil(rowCount / 8);
+    record(
+      "2x4 select-all page count is ceil(n/8)",
+      pageCount2x4 === expectedPages,
+      `pages=${pageCount2x4} expected=${expectedPages} rows=${rowCount}`,
+    );
+    const labels2x4 = printPage.locator(
+      '[data-testid="location-sign-2x4-label"]:not([data-blank="true"])',
+    );
+    record(
+      "2x4 DOM label count matches selection",
+      (await labels2x4.count()) === rowCount,
+      `labels=${await labels2x4.count()} rows=${rowCount}`,
+    );
+    const visible2x4Pages = await countVisibleInViewport(pages2x4);
+    record(
+      "No visible on-screen 2x4 preview pages",
+      visible2x4Pages === 0 && pageCount2x4 > 0,
+      `visiblePages=${visible2x4Pages}`,
+    );
+
+    await fullSizeBtn.click();
+    await printPage
+      .locator('[data-testid="location-sign-print-sheet"]')
+      .first()
+      .waitFor({ state: "attached", timeout: 60_000 });
+    record(
+      "Switch back to full restores one sheet per row",
+      (await sheets.count()) === rowCount,
+      `sheets=${await sheets.count()}`,
     );
 
     await clearBtn.click();
@@ -374,7 +479,7 @@ async function assertBatchLocationSignPrint(browser) {
       '[data-testid="location-sign-print-sheet"][data-location-code="G2"]',
     );
     record(
-      "Batch labels include expected spot (G2) when selected",
+      "Batch full labels include expected spot (G2) when selected",
       (await g2Sheet.count()) === 1,
       `g2Sheets=${await g2Sheet.count()}`,
     );
@@ -394,52 +499,46 @@ async function assertBatchLocationSignPrint(browser) {
         .getByTestId("location-sign-batch-picker-checkbox")
         .check();
       const catchAllHeadline = (
-        await printPage.getByTestId("location-sign-code").first().innerText()
-      ).trim();
+        await printPage
+          .locator('[data-testid="location-sign-print-sheet"]')
+          .first()
+          .getAttribute("data-sign-headline")
+      )?.trim();
       record(
-        "Catch-all sheet headline is Catch-All",
+        "Catch-all full sheet headline is Catch-All",
         catchAllHeadline === "Catch-All",
         catchAllHeadline,
       );
+
+      await label2x4Btn.click();
+      const catchAll2x4Headline = await printPage
+        .locator(
+          '[data-testid="location-sign-2x4-label"][data-sign-headline="Catch-All"]',
+        )
+        .first()
+        .getAttribute("data-sign-headline");
+      record(
+        "Catch-all 2x4 label headline is Catch-All",
+        catchAll2x4Headline === "Catch-All",
+        catchAll2x4Headline ?? "missing",
+      );
     } else {
       record(
-        "Catch-all sheet headline is Catch-All",
+        "Catch-all full sheet headline is Catch-All",
+        true,
+        "skipped (no catch-all row)",
+      );
+      record(
+        "Catch-all 2x4 label headline is Catch-All",
         true,
         "skipped (no catch-all row)",
       );
     }
 
-    // D-42 needs a visible sheet — re-select G2 if catch-all path left none.
-    if ((await sheets.count()) === 0) {
-      await g2Row.getByTestId("location-sign-batch-picker-checkbox").check();
-      await g2Sheet.first().waitFor({ timeout: 60_000 });
-    }
-
-    await assertReadableTextContrast(printPage, {
-      rootSelector: '[data-testid="location-sign-print-sheet"]',
-      elements: [
-        {
-          name: "batch location code",
-          selector: '[data-testid="location-sign-code"]',
-          large: true,
-        },
-        {
-          name: "batch scan caption",
-          selector: '[data-testid="location-sign-scan-caption"]',
-          large: false,
-        },
-      ],
-    });
-    record("Batch label readable contrast (D-42)", true);
     await batchBtn.waitFor({ timeout: 10_000 });
   } catch (err) {
     record(
-      "Batch label readable contrast (D-42)",
-      false,
-      err instanceof Error ? err.message : String(err),
-    );
-    record(
-      "Batch label print renders multiple sheets",
+      "Batch full-page print DOM has multiple sheets",
       false,
       err instanceof Error ? err.message : String(err),
     );

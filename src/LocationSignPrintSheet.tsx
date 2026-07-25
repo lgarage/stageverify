@@ -62,10 +62,38 @@ export const LOCATION_SIGN_PRINT_STYLES = `
     z-index: 5;
   }
 
+  .location-sign-print-stage--screen-hidden {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 8.5in;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  @media print {
+    .location-sign-print-stage--screen-hidden {
+      position: static !important;
+      left: auto !important;
+      visibility: visible !important;
+      width: auto !important;
+      overflow: visible !important;
+      pointer-events: auto !important;
+    }
+  }
+
   @media print {
     @page {
       size: letter portrait;
       margin: 0.45in;
+    }
+    @page label2x4 {
+      size: letter portrait;
+      margin: 0;
     }
     .print\\:hidden,
     .portal-sidebar,
@@ -98,7 +126,7 @@ export const LOCATION_SIGN_PRINT_STYLES = `
       margin: 0 !important;
       background: #fff !important;
     }
-    .location-sign-print-stage > :not(.location-sign-print-sheet) {
+    .location-sign-print-stage > :not(.location-sign-print-sheet):not(.location-sign-2x4-page) {
       display: none !important;
     }
     .location-sign-print-sheet {

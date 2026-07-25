@@ -10,6 +10,11 @@ import {
   isCatchAllLabelRow,
 } from "./locationSignPrintSort";
 import {
+  LocationSignLabel2x4Pages,
+  LOCATION_SIGN_2X4_PRINT_STYLES,
+  type LocationSignLabel2x4Entry,
+} from "./LocationSignLabel2x4Sheet";
+import {
   LocationSignPrintSheet,
   LOCATION_SIGN_PRINT_HINT,
   LOCATION_SIGN_PRINT_PAGE_CLASS,
@@ -22,8 +27,53 @@ const FONT =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 const NAVY = "#0a3161";
+const SIZE_TOGGLE_ACTIVE = "#facc15";
+const SIZE_TOGGLE_ACTIVE_TEXT = "#111827";
 
-/** Multi-select label print — one US Letter page per selected spot. */
+type BatchLabelSize = "full" | "label2x4";
+
+function SizeToggleButton({
+  active,
+  testId,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  testId: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-pressed={active}
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 12px",
+        borderRadius: 4,
+        border: `2px solid ${active ? "#ca8a04" : "#64748b"}`,
+        backgroundColor: active ? SIZE_TOGGLE_ACTIVE : "#fff",
+        color: active ? SIZE_TOGGLE_ACTIVE_TEXT : "#334155",
+        fontWeight: 700,
+        fontSize: 12,
+        cursor: "pointer",
+      }}
+    >
+      {active ? (
+        <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>
+          ✓
+        </span>
+      ) : null}
+      {label}
+    </button>
+  );
+}
+
+/** Multi-select label print — full letter or 2×4 label sheets. */
 export function LocationSignBatchPrintPage() {
   const navigate = useNavigate();
   const [zones, setZones] = useState<StagingLocation[]>([]);
@@ -31,6 +81,7 @@ export function LocationSignBatchPrintPage() {
     string | undefined
   >(undefined);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [labelSize, setLabelSize] = useState<BatchLabelSize>("full");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +129,20 @@ export function LocationSignBatchPrintPage() {
     [selectedZones],
   );
 
+  const label2x4Entries = useMemo((): LocationSignLabel2x4Entry[] => {
+    const out: LocationSignLabel2x4Entry[] = [];
+    for (const zone of selectedZones) {
+      const code = normalizeLocationSignCode(zone.code);
+      if (!code) continue;
+      const isCatchAll = isCatchAllLabelRow(zone, catchAllStagingLocationId);
+      out.push({
+        locationCode: code,
+        ...(isCatchAll ? { headlineText: CATCH_ALL_SIGN_HEADLINE } : {}),
+      });
+    }
+    return out;
+  }, [selectedZones, catchAllStagingLocationId]);
+
   useLocationSignPrintDocumentTitle(
     locationCodes.length > 0 ? `Labels (${locationCodes.length})` : " ",
   );
@@ -107,13 +172,21 @@ export function LocationSignBatchPrintPage() {
     ? "Loading spots…"
     : error
       ? error
-      : `${selectedIds.size} of ${zones.length} selected — one US Letter page each`;
+      : labelSize === "full"
+        ? `${selectedIds.size} of ${zones.length} selected — one US Letter page each`
+        : `${selectedIds.size} of ${zones.length} selected — 8 labels per US Letter page`;
+
+  const hasSelection = selectedIds.size > 0;
 
   return (
     <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
       <PortalSidebar className="print:hidden" />
 
-      <div className={LOCATION_SIGN_PRINT_PAGE_CLASS} style={{ backgroundColor: "#e5e7eb" }}>
+      <div
+        className={LOCATION_SIGN_PRINT_PAGE_CLASS}
+        data-batch-label-size={labelSize}
+        style={{ backgroundColor: "#e5e7eb" }}
+      >
         <div
           className="location-sign-print-toolbar print:hidden"
           data-testid="location-sign-print-toolbar"
@@ -258,6 +331,18 @@ export function LocationSignBatchPrintPage() {
                 >
                   Clear all
                 </button>
+                <SizeToggleButton
+                  testId="location-sign-size-full"
+                  label="Full page"
+                  active={labelSize === "full"}
+                  onClick={() => setLabelSize("full")}
+                />
+                <SizeToggleButton
+                  testId="location-sign-size-2x4"
+                  label='2" x 4" Label'
+                  active={labelSize === "label2x4"}
+                  onClick={() => setLabelSize("label2x4")}
+                />
               </div>
               <ul
                 data-testid="location-sign-batch-picker-list"
@@ -341,56 +426,72 @@ export function LocationSignBatchPrintPage() {
               lineHeight: 1.4,
             }}
           >
-            Select spots above, preview sheets below, then print. Each sheet matches the
+            Select spots above, choose a size, then print. Full-page sheets match the
             single-spot sign layout. {LOCATION_SIGN_PRINT_HINT}
           </p>
         </div>
 
-        <div
-          data-testid="location-sign-batch-stage"
-          className="location-sign-print-stage"
-          style={{
-            padding: "24px 30px 48px",
-            backgroundColor: "#e5e7eb",
-          }}
-        >
-          {!loading && !error && zones.length === 0 ? (
-            <p
-              className="print:hidden"
-              style={{ fontSize: 14, color: "#64748b", textAlign: "center" }}
-            >
-              No spots available to print.
-            </p>
-          ) : null}
-          {!loading && !error && zones.length > 0 && selectedIds.size === 0 ? (
-            <p
-              className="print:hidden"
-              data-testid="location-sign-batch-none-selected"
-              style={{ fontSize: 14, color: "#64748b", textAlign: "center" }}
-            >
-              Select at least one label above to preview and print.
-            </p>
-          ) : null}
-          {selectedZones.map((zone) => {
-            const isCatchAll = isCatchAllLabelRow(
-              zone,
-              catchAllStagingLocationId,
-            );
-            return (
-              <LocationSignPrintSheet
-                key={zone.id}
-                locationCode={normalizeLocationSignCode(zone.code)}
-                headlineText={
-                  isCatchAll ? CATCH_ALL_SIGN_HEADLINE : undefined
-                }
-                batchPreviewGap
-              />
-            );
-          })}
-        </div>
+        {!loading && !error && zones.length === 0 ? (
+          <p
+            className="print:hidden"
+            style={{
+              fontSize: 14,
+              color: "#64748b",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
+            No spots available to print.
+          </p>
+        ) : null}
+        {!loading && !error && zones.length > 0 && !hasSelection ? (
+          <p
+            className="print:hidden"
+            data-testid="location-sign-batch-none-selected"
+            style={{
+              fontSize: 14,
+              color: "#64748b",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
+            Select at least one label above to print.
+          </p>
+        ) : null}
+
+        {hasSelection ? (
+          <div
+            data-testid="location-sign-batch-stage"
+            className={`location-sign-print-stage location-sign-print-stage--screen-hidden${
+              labelSize === "label2x4" ? " location-sign-print-stage--2x4" : ""
+            }`}
+          >
+            {labelSize === "full"
+              ? selectedZones.map((zone) => {
+                  const isCatchAll = isCatchAllLabelRow(
+                    zone,
+                    catchAllStagingLocationId,
+                  );
+                  return (
+                    <LocationSignPrintSheet
+                      key={zone.id}
+                      locationCode={normalizeLocationSignCode(zone.code)}
+                      headlineText={
+                        isCatchAll ? CATCH_ALL_SIGN_HEADLINE : undefined
+                      }
+                      batchPreviewGap
+                    />
+                  );
+                })
+              : (
+                  <LocationSignLabel2x4Pages entries={label2x4Entries} />
+                )}
+          </div>
+        ) : null}
       </div>
 
       <style>{LOCATION_SIGN_PRINT_STYLES}</style>
+      <style>{LOCATION_SIGN_2X4_PRINT_STYLES}</style>
     </div>
   );
 }
