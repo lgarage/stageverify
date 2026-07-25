@@ -185,6 +185,19 @@ export interface DeliveryDisplayOptions {
 export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
   "Staging spot needs to be assigned";
 
+/** Deliveries list Staging Loc. column — vendor will-call (no shop staging). */
+export function isWillCallPickupStagingListNa(
+  delivery: Pick<
+    DeliveryOrder,
+    "invoiceImportStatus" | "invoiceFulfillmentMethod"
+  >,
+): boolean {
+  return (
+    delivery.invoiceImportStatus === "pickup_at_vendor" ||
+    delivery.invoiceFulfillmentMethod === "will_call_pickup"
+  );
+}
+
 /**
  * Dispatcher deliveries table: unassigned staging flag for Issue Summary pill.
  * Display-only — does not affect drawer readiness evidence.
@@ -317,6 +330,13 @@ function buildComputedIssueSummary(
     delivery.invoiceDeliverToSiteConfirmed === true
   ) {
     return "";
+  }
+
+  if (
+    delivery.invoiceImportStatus === "pickup_at_vendor" ||
+    delivery.invoiceFulfillmentMethod === "will_call_pickup"
+  ) {
+    return "Will-Call Pickup";
   }
 
   if (readiness.readyForPickup) {

@@ -434,6 +434,9 @@ export class FirestoreDataService implements DispatcherDataService {
         issueSummary: display.issueSummary,
         openIssueCount: display.openIssueCount,
         missingStagingAssignment: display.missingStagingAssignment,
+        stagingLocationListNotApplicable:
+          delivery.invoiceImportStatus === "pickup_at_vendor" ||
+          delivery.invoiceFulfillmentMethod === "will_call_pickup",
       });
     }
 

@@ -18,6 +18,7 @@ import {
   computeDeliveryDisplayState,
   DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
   isDispatcherTableStagingActionRequired,
+  isWillCallPickupStagingListNa,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 import { isInvoiceShellNoShopStaging } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
@@ -150,10 +151,32 @@ function assertOfflineStagingActionRules() {
     [],
   );
   record(
-    "offline — Will-Call Issue Summary not staging pill text alone gate",
-    willCallDisplay.issueSummary !== DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY ||
-      !willCallDisplay.missingStagingAssignment,
+    "offline — Will-Call pickup_at_vendor Issue Summary",
+    willCallDisplay.issueSummary === "Will-Call Pickup",
     willCallDisplay.issueSummary,
+  );
+  const willCallFulfillmentOnly = {
+    ...willCallShell,
+    invoiceImportStatus: "pending",
+    invoiceFulfillmentMethod: "will_call_pickup",
+  };
+  const fulfillmentOnlyDisplay = computeDeliveryDisplayState(
+    willCallFulfillmentOnly,
+    zeroReceivedItems,
+    [],
+  );
+  record(
+    "offline — Will-Call will_call_pickup Issue Summary",
+    fulfillmentOnlyDisplay.issueSummary === "Will-Call Pickup",
+    fulfillmentOnlyDisplay.issueSummary,
+  );
+  record(
+    "offline — Will-Call staging list N/A (pickup_at_vendor)",
+    isWillCallPickupStagingListNa(willCallShell),
+  );
+  record(
+    "offline — shop delivery staging list not N/A",
+    !isWillCallPickupStagingListNa(pendingNoStaging),
   );
 
   const deliverToSiteShell = {
@@ -325,6 +348,8 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
     const row = rows.nth(i);
     const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
     const stagingCell = row.locator("td").nth(STAGING_COLUMN_INDEX);
+    const stagingNa = stagingCell.locator('[data-testid^="delivery-list-staging-na-"]');
+    const hasStagingNa = (await stagingNa.count()) > 0;
     const notAssigned = stagingCell.getByText("Not Assigned", { exact: true });
     const stagingUnassigned = (await notAssigned.count()) > 0;
     const hasOrangeRowClass = await row.evaluate((el) =>
@@ -335,6 +360,19 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
       !hasOrangeRowClass,
       hasOrangeRowClass ? "unexpected orange row" : "normal row",
     );
+    if (hasStagingNa) {
+      record(
+        `${orderNumber} — Will-Call staging Loc. shows N/A`,
+        (await stagingNa.innerText()).trim() === "N/A",
+        "N/A",
+      );
+      const chips = stagingCell.locator('[data-testid^="delivery-list-staging-chip-"]');
+      record(
+        `${orderNumber} — N/A row has no staging chips`,
+        (await chips.count()) === 0,
+      );
+      continue;
+    }
     if (stagingUnassigned) {
       const pill = row.locator(`[data-testid^="staging-assignment-pill-"]`);
       const pillCount = await pill.count();

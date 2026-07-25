@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.166** — Deliveries list: map-matching staging chips + color legend; red staging pill; no full-row orange action rows.
+- Last shipped: **v0.0.167** — Compact list staging chips; Will-Call **N/A** in Staging Loc. + **Will-Call Pickup** Issue Summary (calm NAVY); drawer chips full size.
+- Prior: **v0.0.166** — Deliveries list: map-matching staging chips + color legend; red staging pill; no full-row orange action rows.
 - Prior: **v0.0.165** — Staging Map ready-for-pickup spots **purple** `#7c3aed` (SpotMapColor `purple`; dashboard STATUS_BADGE unchanged).
 - Prior: **v0.0.163** — 2×4 print labels: gutter, QR clearance (144px), typography, asymmetric padding for code centering.
 - Prior: **v0.0.162** — Batch `#/zones/print-labels`: Full page vs 2×4 toggle, print-only DOM, `LocationSignLabel2x4Sheet`.

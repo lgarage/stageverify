@@ -1338,6 +1338,8 @@ export interface DeliveryListRow {
   openIssueCount: number;
   /** Dispatcher table: unassigned staging — red pill in Issue Summary (not row styling). */
   missingStagingAssignment: boolean;
+  /** Will-Call pickup — list Staging Loc. shows N/A (not chips / Not Assigned). */
+  stagingLocationListNotApplicable?: boolean;
 }
 
 export interface DeliveryDetails {

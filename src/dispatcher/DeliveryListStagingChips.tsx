@@ -19,6 +19,8 @@ type Props = {
   shopStockByCode: Record<string, ShopStockLocationMapping>;
   occupancyReady: boolean;
   deliveryId: string;
+  /** Will-Call vendor pickup — shop staging not used. */
+  stagingNotApplicable?: boolean;
 };
 
 export function DeliveryListStagingChips({
@@ -27,7 +29,19 @@ export function DeliveryListStagingChips({
   shopStockByCode,
   occupancyReady,
   deliveryId,
+  stagingNotApplicable = false,
 }: Props) {
+  if (stagingNotApplicable) {
+    return (
+      <span
+        data-testid={`delivery-list-staging-na-${deliveryId}`}
+        style={{ color: "#9ca3af", fontFamily: FONT }}
+      >
+        N/A
+      </span>
+    );
+  }
+
   if (codes.length === 0) {
     return (
       <span
@@ -45,7 +59,7 @@ export function DeliveryListStagingChips({
       style={{
         display: "flex",
         flexWrap: "wrap",
-        gap: 6,
+        gap: 3,
         maxWidth: 160,
       }}
     >
@@ -68,7 +82,7 @@ export function DeliveryListStagingChips({
             data-testid={`delivery-list-staging-chip-${deliveryId}-${code}`}
             data-spot-color={color}
             title={statusTitle}
-            style={stagingSpotChipStyle(color)}
+            style={stagingSpotChipStyle(color, "compact")}
           >
             {code}
           </span>

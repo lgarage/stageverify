@@ -219,6 +219,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 **Deliveries list staging UX (2026-07-25, v0.0.166)** — Staging Loc. column uses map-matching drawer chips (yellow/orange, purple, gray; no green in list); italic **Not Assigned** when empty; color legend beside record count; missing staging → red Issue Summary pill (no full-row orange). `verify:delivery-consistency` (`assertDispatcherStagingActionRows`).
 
+**Deliveries list compact chips + Will-Call summary (2026-07-25, v0.0.167)** — List Staging Loc. chips ~half size (`compact` on `stagingSpotChipStyle`); drawer chips full size. Will-Call rows show **N/A** in Staging Loc. (`delivery-list-staging-na-*`) and **Will-Call Pickup** in Issue Summary (NAVY calm styling, no ⚠). `verify:delivery-consistency`, `test:invoice-shell-display`.
+
 **Settings staging UI cleanup (2026-07-25, v0.0.155, D-52/D-53)** — Removed light-blue duplicate spot summary and “Orphan zones not on the map” callout; editable table is the only list. Verify: `verify:settings-staging` (`assertNoOrphanStagingCallout`).
 
 **Catch-all view-mode tile + top-bar badge (2026-07-24, v0.0.140)** — Staging Map shows persisted catch-all overlay in view after Done (read-only); top-bar Catch-all delivery shows live `catchAllPendingCheckInCount` badge including 0. CF notify/check-in decrement unchanged. Verify: `verify:catch-all-map` (+ `:prod`).

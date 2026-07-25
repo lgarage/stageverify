@@ -21,6 +21,7 @@ import {
   isDeliveredToSiteListRow,
   rowMatchesOverviewStatusFilter,
   DELIVERY_OVERVIEW_STATUS_ORDER,
+  isWillCallPickupStagingListNa,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 let passed = 0;
@@ -66,6 +67,42 @@ assert(
     createdFromInvoiceImport: true,
     status: "complete",
   }),
+);
+
+const willCallShellDelivery = {
+  id: "delivery-willcall-test",
+  orderNumber: "WC-1",
+  jobId: "job-1",
+  vendorId: "v-1",
+  vendorName: "Vendor",
+  deliveryDate: "2026-01-08",
+  status: "complete",
+  vendorOrderComplete: true,
+  invoiceImportStatus: "pickup_at_vendor",
+  createdFromInvoiceImport: true,
+};
+const willCallItems = [
+  {
+    id: "item-wc",
+    deliveryOrderId: "delivery-willcall-test",
+    jobId: "job-1",
+    description: "Part",
+    qtyOrdered: 1,
+    qtyReceived: 0,
+    qtyBackordered: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+  },
+];
+assert(
+  "will-call shell shows Will-Call Pickup in issue summary column",
+  computeDeliveryDisplayState(willCallShellDelivery, willCallItems, [])
+    .issueSummary === "Will-Call Pickup",
+);
+
+assert(
+  "will-call shell staging list column is N/A gate",
+  isWillCallPickupStagingListNa(willCallShellDelivery),
 );
 
 assert(

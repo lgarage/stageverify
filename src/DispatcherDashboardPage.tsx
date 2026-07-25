@@ -766,16 +766,18 @@ export function DispatcherDashboardPage() {
                     const cellMuted = "#666";
                     const cellStrong = "#111";
                     const cellBody = "#333";
-                    const issueSummaryColor =
+                    const calmIssueSummary =
                       row.issueSummary === "Pickup Scheduled" ||
-                      row.issueSummary.startsWith("Delivered to ")
-                        ? NAVY
-                        : row.issueSummary.startsWith("Confirm delivery") ||
-                            row.issueSummary === "Confirm site delivery"
+                      row.issueSummary === "Will-Call Pickup" ||
+                      row.issueSummary.startsWith("Delivered to ");
+                    const issueSummaryColor = calmIssueSummary
+                      ? NAVY
+                      : row.issueSummary.startsWith("Confirm delivery") ||
+                          row.issueSummary === "Confirm site delivery"
+                        ? "#c62828"
+                        : row.issueSummary
                           ? "#c62828"
-                          : row.issueSummary
-                            ? "#c62828"
-                            : "#9ca3af";
+                          : "#9ca3af";
                     const cellBorder = "1px solid #eaecf0";
                     return (
                       <tr
@@ -945,6 +947,9 @@ export function DispatcherDashboardPage() {
                               shopStockByCode={shopStockByCode}
                               occupancyReady={stagingOccupancyReady}
                               deliveryId={row.deliveryId}
+                              stagingNotApplicable={
+                                row.stagingLocationListNotApplicable === true
+                              }
                             />
                             {row.plannedActualDivergence ? (
                               <span
@@ -1007,7 +1012,7 @@ export function DispatcherDashboardPage() {
                               {DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY}
                             </span>
                           )}
-                          {row.openIssueCount > 0 && row.issueSummary !== "Pickup Scheduled" && (
+                          {row.openIssueCount > 0 && !calmIssueSummary && (
                             <span
                               data-testid={`open-issue-badge-${row.deliveryId}`}
                               style={{
@@ -1032,7 +1037,7 @@ export function DispatcherDashboardPage() {
                                 gap: 5,
                               }}
                             >
-                              {row.issueSummary !== "Pickup Scheduled" ? (
+                              {!calmIssueSummary ? (
                                 <span style={{ flexShrink: 0, marginTop: 1 }}>
                                   ⚠
                                 </span>

@@ -33,14 +33,18 @@ export function collectDeliveryStagingCodes(
   );
 }
 
-export function stagingSpotChipStyle(color: SpotMapColor): CSSProperties {
+export function stagingSpotChipStyle(
+  color: SpotMapColor,
+  size: "default" | "compact" = "default",
+): CSSProperties {
+  const compact = size === "compact";
   return {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 40,
-    height: 32,
-    padding: "0 8px",
+    minWidth: compact ? 20 : 40,
+    height: compact ? 16 : 32,
+    padding: compact ? "0 4px" : "0 8px",
     borderRadius: 4,
     backgroundColor: SPOT_MAP_COLORS[color],
     color: SPOT_MAP_FG[color],
@@ -48,7 +52,7 @@ export function stagingSpotChipStyle(color: SpotMapColor): CSSProperties {
       color === "orange" ? "1px solid #ca8a04" : "1px solid rgba(0,0,0,0.15)",
     fontFamily: "monospace",
     fontWeight: 800,
-    fontSize: 13,
+    fontSize: compact ? 10 : 13,
     letterSpacing: "0.02em",
     boxSizing: "border-box",
     flexShrink: 0,
