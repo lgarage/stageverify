@@ -567,100 +567,184 @@ export function InvoiceParsedInspectModal({
             data-testid="invoice-parsed-inspect-actions"
             style={{
               flexShrink: 0,
-              padding: "16px 28px",
+              padding: "16px 28px 18px",
               borderTop: "1px solid #e5e7eb",
               backgroundColor: "#fff",
               borderRadius: "0 0 12px 12px",
               display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              flexWrap: "wrap",
+              flexDirection: "column",
+              gap: 14,
             }}
           >
-            {onReject && isPending && (
-              <button
-                type="button"
-                data-testid="invoice-parsed-inspect-reject"
-                disabled={actionLoading}
-                onClick={onReject}
-                style={{
-                  backgroundColor: "#fff",
-                  color: RED,
-                  border: `1px solid ${RED}`,
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  opacity: actionLoading ? 0.6 : 1,
-                }}
-              >
-                Reject
-              </button>
-            )}
-            {onReopen && isRejected && (
-              <button
-                type="button"
-                data-testid="invoice-parsed-inspect-reopen"
-                disabled={actionLoading}
-                onClick={onReopen}
-                style={{
-                  backgroundColor: "#fff",
-                  color: NAVY,
-                  border: `1px solid ${NAVY}`,
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  opacity: actionLoading ? 0.6 : 1,
-                }}
-              >
-                Re-open for review
-              </button>
-            )}
             {onApprove && (isPending || isRejected) && (
               <div
+                data-testid="invoice-parsed-inspect-training-panel"
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  alignItems: "stretch",
-                  minWidth: 220,
-                  maxWidth: 320,
+                  padding: "14px 16px",
+                  backgroundColor: "#f0f5fa",
+                  border: "1px solid #d0dbe8",
+                  borderRadius: 8,
                 }}
               >
-                <label
+                <div
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: MUTED,
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 6,
+                    flexWrap: "wrap",
                   }}
                 >
-                  Training note (optional)
-                  <textarea
-                    data-testid="invoice-parsed-inspect-correction-note"
-                    value={correctionNote}
-                    onChange={(e) => setCorrectionNote(e.target.value)}
-                    placeholder="What to look for next time + the proper fix (no invoice #s / POs)"
-                    rows={3}
-                    disabled={actionLoading || approveBlocked}
+                  <h3
                     style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: CELL_TEXT,
-                      backgroundColor: "#fff",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 6,
-                      padding: "8px 10px",
-                      resize: "vertical",
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: NAVY,
                       fontFamily: FONT,
                     }}
-                  />
-                </label>
+                  >
+                    Training note
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#6b7280",
+                      }}
+                    >
+                      optional
+                    </span>
+                  </h3>
+                </div>
+                <p
+                  style={{
+                    margin: "0 0 10px",
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                    color: "#4b5563",
+                    fontWeight: 500,
+                    fontFamily: FONT,
+                  }}
+                >
+                  Teach the AI what to look for on the next similar invoice and the
+                  proper fix. Use patterns only — no invoice numbers, POs, or addresses.
+                </p>
+                <textarea
+                  data-testid="invoice-parsed-inspect-correction-note"
+                  value={correctionNote}
+                  onChange={(e) => setCorrectionNote(e.target.value)}
+                  placeholder="Example: When Ship Via is WILL CALL, set fulfillment to will_call_pickup — not delivery."
+                  rows={3}
+                  disabled={actionLoading || approveBlocked}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    lineHeight: 1.45,
+                    color: CELL_TEXT,
+                    backgroundColor: "#fff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    padding: "12px 14px",
+                    resize: "vertical",
+                    minHeight: 72,
+                    fontFamily: FONT,
+                    outline: "none",
+                    boxShadow: "inset 0 1px 2px rgba(15, 23, 42, 0.04)",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = NAVY;
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(10, 49, 97, 0.12)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#cbd5e1";
+                    e.currentTarget.style.boxShadow =
+                      "inset 0 1px 2px rgba(15, 23, 42, 0.04)";
+                  }}
+                />
+              </div>
+            )}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              {onReject && isPending && (
+                <button
+                  type="button"
+                  data-testid="invoice-parsed-inspect-reject"
+                  disabled={actionLoading}
+                  onClick={onReject}
+                  style={{
+                    backgroundColor: "#fff",
+                    color: RED,
+                    border: `1px solid ${RED}`,
+                    borderRadius: 6,
+                    padding: "10px 18px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: actionLoading ? "not-allowed" : "pointer",
+                    opacity: actionLoading ? 0.6 : 1,
+                    fontFamily: FONT,
+                  }}
+                >
+                  Reject
+                </button>
+              )}
+              {onReopen && isRejected && (
+                <button
+                  type="button"
+                  data-testid="invoice-parsed-inspect-reopen"
+                  disabled={actionLoading}
+                  onClick={onReopen}
+                  style={{
+                    backgroundColor: "#fff",
+                    color: NAVY,
+                    border: `1px solid ${NAVY}`,
+                    borderRadius: 6,
+                    padding: "10px 18px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: actionLoading ? "not-allowed" : "pointer",
+                    opacity: actionLoading ? 0.6 : 1,
+                    fontFamily: FONT,
+                  }}
+                >
+                  Re-open for review
+                </button>
+              )}
+              {onRelinkToShell && (
+                <button
+                  type="button"
+                  data-testid="invoice-parsed-inspect-relink-shell"
+                  disabled={actionLoading || approveBlocked}
+                  onClick={onRelinkToShell}
+                  style={{
+                    backgroundColor: NAVY,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "10px 18px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: actionLoading || approveBlocked ? "not-allowed" : "pointer",
+                    opacity: actionLoading || approveBlocked ? 0.55 : 1,
+                    fontFamily: FONT,
+                  }}
+                >
+                  Create separate delivery
+                </button>
+              )}
+              {onApprove && (isPending || isRejected) && (
                 <button
                   type="button"
                   data-testid="invoice-parsed-inspect-approve"
@@ -672,38 +756,18 @@ export function InvoiceParsedInspectModal({
                     color: "#fff",
                     border: "none",
                     borderRadius: 6,
-                    padding: "8px 16px",
+                    padding: "10px 22px",
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: approveDisabled ? "not-allowed" : "pointer",
                     opacity: approveDisabled ? 0.55 : 1,
+                    fontFamily: FONT,
                   }}
                 >
                   Approve
                 </button>
-              </div>
-            )}
-            {onRelinkToShell && (
-              <button
-                type="button"
-                data-testid="invoice-parsed-inspect-relink-shell"
-                disabled={actionLoading || approveBlocked}
-                onClick={onRelinkToShell}
-                style={{
-                  backgroundColor: NAVY,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: actionLoading || approveBlocked ? "not-allowed" : "pointer",
-                  opacity: actionLoading || approveBlocked ? 0.55 : 1,
-                }}
-              >
-                Create separate delivery
-              </button>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
