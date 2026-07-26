@@ -11,6 +11,16 @@ const vendorInvoiceRouter_1 = require("./vendorInvoiceRouter");
 exports.PDF_ATTACHMENT_BOUNDARY = "\n\n---PDF ATTACHMENT---\n\n";
 exports.PDF_ATTACHMENT_MARKER = "---PDF ATTACHMENT---";
 const HEADER_WINDOW_LINES = 25;
+/** Tabular Johnstone headers can sit below stacked label blocks — scan until line grid. */
+const TABULAR_HEADER_MAX_LINES = 45;
+function tabularHeaderScanEnd(lines) {
+    for (let i = 0; i < lines.length && i < TABULAR_HEADER_MAX_LINES; i += 1) {
+        if (/^LN\s+QNTY/i.test(lines[i].trim())) {
+            return Math.max(0, i - 1);
+        }
+    }
+    return Math.min(lines.length - 1, TABULAR_HEADER_MAX_LINES);
+}
 const MAX_VENDOR_HEADER_LOOKBACK = 15;
 /** Cap logical invoices per extract — blocks review-queue amplification from crafted PDF text. */
 exports.MAX_INVOICE_DOCUMENTS_PER_EXTRACT = 20;
@@ -41,9 +51,28 @@ function isPlausibleInvoiceNumber(value) {
         return false;
     return true;
 }
+/** Johnstone tabular header: label row + value row (mirrors parseTabularHeaderBlock). */
+function extractJohnstoneTabularHeaderInvoiceNumber(lines) {
+    const windowEnd = tabularHeaderScanEnd(lines);
+    for (let i = 0; i < windowEnd; i += 1) {
+        const labelLine = lines[i].trim();
+        const valueLine = lines[i + 1].trim();
+        if (!/^Invoice\s*#\s+Invoice\s+Date/i.test(labelLine) || !valueLine)
+            continue;
+        const firstToken = valueLine.split(/\s+/).find(Boolean) ?? "";
+        if (isPlausibleInvoiceNumber(firstToken)) {
+            return firstToken;
+        }
+    }
+    return "";
+}
 /** Extract invoice # from the header window only — label-anchored, not mid-body references. */
 function extractHeaderInvoiceNumber(text) {
-    const lines = text.replace(/\r\n/g, "\n").split("\n").slice(0, HEADER_WINDOW_LINES);
+    const allLines = text.replace(/\r\n/g, "\n").split("\n");
+    const lines = allLines.slice(0, HEADER_WINDOW_LINES);
+    const tabular = extractJohnstoneTabularHeaderInvoiceNumber(allLines);
+    if (tabular)
+        return tabular;
     for (const line of lines) {
         for (const pattern of INVOICE_NUMBER_LABEL_PATTERNS) {
             const match = line.match(pattern);
@@ -93,10 +122,18 @@ function groupPhysicalChunksByInvoiceNumber(chunks) {
             currentInvoiceNumber = invoiceNumber;
             continue;
         }
-        if (!invoiceNumber || invoiceNumber === currentInvoiceNumber) {
+        const continuationOfNumberedDoc = Boolean(currentInvoiceNumber && !invoiceNumber);
+        const sameInvoiceNumber = Boolean(invoiceNumber && invoiceNumber === currentInvoiceNumber);
+        if (continuationOfNumberedDoc || sameInvoiceNumber) {
             currentDoc = `${currentDoc}\n\n${chunk}`;
             if (invoiceNumber)
                 currentInvoiceNumber = invoiceNumber;
+            continue;
+        }
+        if (!currentInvoiceNumber && !invoiceNumber) {
+            documents.push(currentDoc);
+            currentDoc = chunk;
+            currentInvoiceNumber = invoiceNumber;
             continue;
         }
         documents.push(currentDoc);
@@ -118,6 +155,16 @@ function findHeaderAnchoredInvoiceStarts(text) {
                 starts.push({ lineIndex, invoiceNumber: match[1].trim() });
                 break;
             }
+        }
+    }
+    for (let lineIndex = 0; lineIndex < lines.length - 1; lineIndex += 1) {
+        const labelLine = lines[lineIndex].trim();
+        const valueLine = lines[lineIndex + 1].trim();
+        if (!/^Invoice\s*#\s+Invoice\s+Date/i.test(labelLine) || !valueLine)
+            continue;
+        const firstToken = valueLine.split(/\s+/).find(Boolean) ?? "";
+        if (isPlausibleInvoiceNumber(firstToken)) {
+            starts.push({ lineIndex: lineIndex + 1, invoiceNumber: firstToken });
         }
     }
     return starts;

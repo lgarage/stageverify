@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.174** — Complete label; default hide finished jobs; Complete filter opt-in; deliver-to-site clears staging (CF mirror committed, not deployed).
+- Last shipped: **v0.0.175** — Johnstone multi-invoice PDF split restored (tabular Invoice # + no merge when both pages lack #); CF deployed.
+- Prior: **v0.0.174** — Complete label; default hide finished jobs; Complete filter opt-in; deliver-to-site clears staging (CF mirror committed, not deployed).
 - Prior: **v0.0.173** — Staging map catch-all marker opens view-only status drawer (pending count + note).
 - Prior: **v0.0.172** — Filter by Status chips no longer shift on toggle (stable 2px border; Clear always mounted).
 - Prior: **v0.0.171** — Staging map occupancy uses same prod delivery filter as Deliveries board staging (`hideSeedDemoRows` + invoice); `verify:shop-map` chip/map color parity.

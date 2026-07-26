@@ -28,9 +28,15 @@ import {
 } from "../src/dispatcher/invoice/processInvoicePage.ts";
 import {
   PDF_ATTACHMENT_BOUNDARY,
+  extractHeaderInvoiceNumber,
   splitExtractedTextIntoInvoiceDocuments,
 } from "../src/dispatcher/invoice/invoiceDocumentSplit.ts";
 import { INVOICE_PAGE_BOUNDARY } from "../src/dispatcher/invoice/pdfTextAdapter.ts";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const ACCURACY_GATE = 95;
 
@@ -829,6 +835,37 @@ if (johnstoneSplitDocs.length !== 1) {
     );
   }
   console.log("  PASS johnstone multi-page boundary → 1 document (6164999)");
+}
+
+console.log("\n--- Johnstone Sioux Falls 4-page PDF document split ---");
+const siouxFixturePath = join(__dirname, "fixtures", "sioux-falls-4page-20260725.txt");
+const siouxExtracted = postProcessExtractedPdfText(
+  readFileSync(siouxFixturePath, "utf8"),
+);
+const siouxSplitDocs = splitExtractedTextIntoInvoiceDocuments(siouxExtracted);
+const siouxExpectedInvoices = ["6167746", "6167990", "6168008"];
+if (siouxSplitDocs.length < 4) {
+  failures.push(
+    `sioux falls split: expected >= 4 documents, got ${siouxSplitDocs.length}`,
+  );
+} else {
+  const headerNumbers = siouxSplitDocs.map((doc) => extractHeaderInvoiceNumber(doc));
+  for (const inv of siouxExpectedInvoices) {
+    if (!headerNumbers.includes(inv)) {
+      failures.push(`sioux falls split: missing invoice # ${inv} in split headers`);
+    }
+  }
+  const creditDoc = siouxSplitDocs.find((doc) => /^\s*CREDIT\b/m.test(doc));
+  if (!creditDoc) {
+    failures.push("sioux falls split: expected a CREDIT memo document");
+  } else if (extractHeaderInvoiceNumber(creditDoc) !== "3316448A") {
+    failures.push(
+      `sioux falls split: CREDIT doc expected header inv 3316448A, got ${extractHeaderInvoiceNumber(creditDoc) || "(empty)"}`,
+    );
+  }
+  console.log(
+    `  PASS sioux falls 4-page → ${siouxSplitDocs.length} documents (CREDIT/3316448A, ${siouxExpectedInvoices.join(", ")})`,
+  );
 }
 
 const attachmentSplitDocs = splitExtractedTextIntoInvoiceDocuments(
