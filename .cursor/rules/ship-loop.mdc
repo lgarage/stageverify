@@ -49,7 +49,7 @@ Protocol: **STOP before implementation** — state plan + tier, wait for Dan's e
    - Cloud Functions: `firebase deploy --only functions --project stageverify-db` (or scoped function names)
    - Gmail watch / sync / inbound auto-ingest: deploy when the item enables production email behavior
 7. **Production verification** — after gh-pages deploy, run matching prod checks (see below). Retry once after **15s** if gh-pages propagation lag.
-8. **Report** — live URL `https://lgarage.github.io/stageverify`, deployed commit hash (`git rev-parse HEAD`), and any Firebase targets deployed separately from gh-pages.
+8. **Report** — live URL `https://lgarage.github.io/stageverify`, deployed commit hash (`git rev-parse HEAD`), and any Firebase targets deployed separately from gh-pages. Post-push **Ship Verifier** FAIL ladder (fix-closure → 2nd same fingerprint → stall-advisor → 3rd → D-50): **`model-gates.mdc` § Ship Verifier (D-54)** — platform parity D-32.
 
 ## When to deploy (gh-pages)
 

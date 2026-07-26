@@ -50,7 +50,7 @@ When **Composer fails twice on the same task**, escalate to **Sonnet 4.6** via T
 - Grok stall-advisor = **advisory only** — hypotheses + next experiments; no commits, no file edits, no ship loop.
 - After stall-advisor or Sonnet **diagnose-only** (2nd fail, different fingerprint), **Composer** implements + verify + ship.
 
-**Counting failures:** implement+verify attempts on the **same task scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted. **3rd consecutive fail** on that scope triggers **D-50 automatically** — Dan does not need to say "escalate."
+**Counting failures:** implement+verify attempts **and** consecutive **Ship Verifier FAIL** outcomes (verdict FAIL, including after an incomplete fix-closure re-verify) on the **same task/ship scope** in one session (or continued thread). Security-gate Sonnet runs are separate — not counted. **3rd consecutive fail** (any mix of implement+verify and Ship Verifier, same fingerprint rules below) on that scope triggers **D-50 automatically** — Dan does not need to say "escalate." **D-54:** do not start a **4th** retrospective Ship Verifier close attempt on the same scope without **D-50 Agree** completed.
 
 ### Same failure fingerprint (D-19)
 
@@ -61,8 +61,9 @@ Two consecutive fails on the same task scope share a fingerprint when the **norm
 | `verify:*` / `scripts/verify-*.mjs` | script name (or npm script) + first failed assertion or error message (whitespace-normalized; strip timestamps/paths that drift per run) |
 | `npm run build` / `tsc` | error code + file + line (e.g. `TS2322:src/foo.ts:42`) |
 | Playwright / runtime | test or step name + error class + stable message substring (first 120 chars, normalized) |
+| Ship Verifier (Grok post-push) | `ship-verifier` + finding class — for mandatory **evidence gaps** use `ship-verifier + missing:<token>` where `<token>` is one of `ui-playwright`, `build-checker`, `ui-before-after`, `security-gate`, `solution-verifier` (include all missing tokens, **sorted**); optional suffix `+commits:<short-range>` when the same ship scope spans multiple pushes in one conversation; whitespace-normalized; strip drifting paths/timestamps/task-ids from the key |
 
-**Different fingerprint** on 2nd fail → skip Grok stall-advisor; 2nd fail triggers Sonnet directly.
+**Different fingerprint** on 2nd fail → skip Grok stall-advisor; 2nd fail triggers Sonnet directly (implement+verify path only — Ship Verifier evidence-gap repeats still use stall-advisor/D-50 per D-54 § Ship Verifier).
 
 ### Failure sequence (ordered)
 
@@ -78,7 +79,7 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 ## 3-fail stuck-task escalation (D-50 — Dan 2026-07-24 standing preference)
 
-**Trigger:** **3 consecutive implement+verify fails** on the **same task scope** (same session or continued thread) — including after D-19 stall-advisor + Composer retry. **Automatic** — not gated on Dan saying "escalate."
+**Trigger:** **3 consecutive implement+verify fails** **or** **3 consecutive Ship Verifier FAILs** (same fingerprint rules) on the **same task/ship scope** (same session or continued thread) — including after D-19 stall-advisor + Composer retry. **Automatic** — not gated on Dan saying "escalate."
 
 **Phase A — Agree (readonly Tasks):** Orchestrator (usually Composer) synthesizes failure history + fingerprints → dispatch **Grok** (`cursor-grok-4.5-high-fast` or `grok-4.5-fast-xhigh`, `generalPurpose`, `readonly`) and **Sonnet 4.6** (`claude-4.6-sonnet-high-thinking` then medium per D-38 if rejected, `generalPurpose` or `security-review` when CF/rules/auth in scope — **diagnose/Agree only**, not implementation) → peer deliberate until **Agree** on root cause + **exact fix plan** (file paths, acceptance = named `verify:*` PASS). Max 3 Agree cycles; unresolved → present both positions to Dan. **Evidence:** `stuck-task-agree: <grok-task-id> + <sonnet-task-id>` + model lines + verdict **Agree** (or `escalated to Dan`).
 
@@ -92,7 +93,7 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 **Pain event:** Dan 2026-07-10 consecutive same-failure stall — Composer retried identical fixes without a cheap pivot.
 
-Dispatch exactly **one** read-only Task when **2nd consecutive implement+verify fail** on the same task scope shares the **same failure fingerprint** as the 1st:
+Dispatch exactly **one** read-only Task when **2nd consecutive fail** on the same task/ship scope shares the **same failure fingerprint** as the 1st — from **implement+verify** **or** from **Ship Verifier FAIL** (D-54 evidence-gap class):
 
 ```text
 Task({
@@ -106,9 +107,9 @@ Task({
 
 **Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: grok-4.5-fast-xhigh`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
 
-**When NOT to invoke:** 1st fail only; 2nd fail with different fingerprint (→ Sonnet diagnose per § 2-fail); security-gate Sonnet; post-ship Ship Verifier; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task scope** — **3rd fail on same task scope** → **D-50** § 3-fail (not a second stall-advisor).
+**When NOT to invoke:** 1st fail only (including 1st Ship Verifier FAIL); 2nd fail with different fingerprint on implement+verify (→ Sonnet diagnose per § 2-fail); security-gate Sonnet; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task/ship scope** — **3rd consecutive fail same fingerprint/scope** → **D-50** § 3-fail (not a second stall-advisor; no 4th retrospective Ship Verifier close without Agree — D-54).
 
-**vs Ship Verifier / Repair Verifier / Planning Verifier / Q&A Verifier:** orthogonal roles — Ship Verifier = post-ship scope check; Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); Q&A Verifier = pre-present Q&A accuracy (§ Q&A verify loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy both with one Task in the same event.
+**vs Ship Verifier / Repair Verifier / Planning Verifier / Q&A Verifier:** orthogonal roles — Ship Verifier = post-ship scope check (its **same-fingerprint FAIL ladder** feeds § 2-fail/D-50 per D-54, distinct Task from stall-advisor); Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); Q&A Verifier = pre-present Q&A accuracy (§ Q&A verify loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy repair + ship + stall with one Task unless explicitly same scope/event.
 
 ## Security gate
 
@@ -349,7 +350,18 @@ Task({
 
 **Dispatch + evidence:** after push, the conversation that shipped dispatches exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "grok-4.5-fast-xhigh"`, `readonly: true`). Completion report MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` — missing line = NOT RUN. **Blocking:** the next substantive ship in any conversation is blocked while a prior ship's verification is NOT RUN or has an unresolved FAIL — check CURRENT_STATE blockers.
 
-**Loop bounds:** PASS → done. FAIL → exact fix list (file:line, required change, why) → Composer fixes → same-model re-verify per § Fix-closure rule → still failing → escalate to Fable (ambiguity/architecture) or Dan (everything else). **Security:** Ship Verifier never judges security — it directs Composer to invoke the Sonnet gate; Sonnet closes its own findings per § Fix-closure rule.
+**Loop bounds (D-54 — same fingerprint on same task/ship scope):**
+
+1. **1st FAIL** → exact fix list → Composer completes missing D-43/D-51 lanes and/or scope fixes → same Grok **Ship Verifier** re-verify per § Fix-closure (include `fix-verified:` when findings closed).
+2. **2nd FAIL, same normalized fingerprint** (especially repeated `missing:ui-playwright|build-checker|ui-before-after|…`) → **mandatory Grok stall-advisor** (§ Grok stall-advisor) **before** another retrospective close attempt — evidence `stall-advisor:`; then execute ranked experiments (run skipped verifiers, fix reports, re-ship only if product diff required).
+3. **3rd consecutive FAIL, same fingerprint/scope** → **automatic D-50 stuck-task Agree** (§ 3-fail) — **do not** start a 4th close loop without Agree + agreed plan (acceptance includes valid mandatory evidence lines on the next ship).
+4. After D-50 Phase C, Ship Verifier must PASS before scope is done.
+
+Non-evidence FAILs (scope drift, ambiguity): fix-closure then Fable (architecture) or Dan if still failing after one re-verify cycle — fingerprint table still applies when the normalized key matches.
+
+**Security:** Ship Verifier never judges security — it directs Composer to invoke the Sonnet gate; Sonnet closes its own findings per § Fix-closure rule.
+
+**Platform parity:** D-32 — desktop PC, mobile Cursor, cloud VM identical.
 
 ## Critical Reviewer auto-invoke (Grok — Dan 2026-07-08)
 
