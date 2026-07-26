@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.169** — List/drawer: **blocking-only** open issues for status labels; **Awaiting Delivery** before **Reserved**; drawer vendor-comms hidden (verify harness); ORD-005 fixture stability.
+- Last shipped: **v0.0.170** — Staging Map: removed single-spot **Print label (CODE)** toolbar button; batch **Print location labels** only (`#/zones/print-labels`).
+- Prior: **v0.0.169** — List/drawer: **blocking-only** open issues for status labels; **Awaiting Delivery** before **Reserved**; drawer vendor-comms hidden (verify harness); ORD-005 fixture stability.
 - Prior: **v0.0.168** — Status **Awaiting Delivery** (yellow badge) for 0-received inbound orders; v0.0.167 compact chips + Will-Call N/A/Pickup summary.
 - Prior: **v0.0.166** — Deliveries list: map-matching staging chips + color legend; red staging pill; no full-row orange action rows.
 - Prior: **v0.0.165** — Staging Map ready-for-pickup spots **purple** `#7c3aed` (SpotMapColor `purple`; dashboard STATUS_BADGE unchanged).

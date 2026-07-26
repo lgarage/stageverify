@@ -1243,30 +1243,6 @@ export function ZoneManagementPage() {
               >
                 Print map
               </button>
-              {effectiveFocusSpotCode ? (
-                <button
-                  type="button"
-                  data-testid="staging-map-print-location-label"
-                  onClick={() =>
-                    navigate(
-                      `/zones/print-label?loc=${encodeURIComponent(effectiveFocusSpotCode)}`,
-                    )
-                  }
-                  style={{
-                    padding: "8px 18px",
-                    borderRadius: 4,
-                    border: `2px solid ${NAVY}`,
-                    backgroundColor: NAVY,
-                    color: "#fff",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    fontFamily: FONT,
-                  }}
-                >
-                  Print label ({effectiveFocusSpotCode})
-                </button>
-              ) : null}
               <button
                 type="button"
                 data-testid="shop-map-vendor-view-toggle"
