@@ -10,6 +10,39 @@ import type { ZoneOccupancySummary } from "./firestoreService";
 
 const CATCH_ALL_KEY = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
 
+/** Same ids/pattern as dispatcher list (hideSeedDemoRows) — map occupancy must match board. */
+const SEED_DEMO_DELIVERY_IDS = new Set([
+  "delivery-1",
+  "delivery-2",
+  "delivery-3",
+  "delivery-cross-vendor-1",
+  "delivery-demo-vendor-1",
+  "delivery-demo-vendor-2",
+]);
+
+const SEED_DEMO_ORDER_PATTERN = /^ORD-00[1-7]$/;
+
+export function isSeedDemoDelivery(delivery: DeliveryOrder): boolean {
+  if (SEED_DEMO_DELIVERY_IDS.has(delivery.id)) return true;
+  const orderNumber = delivery.orderNumber?.trim() ?? "";
+  return SEED_DEMO_ORDER_PATTERN.test(orderNumber);
+}
+
+/**
+ * Deliveries that may paint staging occupancy (map + list/drawer chips).
+ * Prod: same exclusions as dispatcher Deliveries list (seed demos + non-invoice rows).
+ */
+export function filterDeliveriesForBoardStagingOccupancy(
+  deliveries: DeliveryOrder[],
+): DeliveryOrder[] {
+  if (!import.meta.env.PROD) return deliveries;
+  return deliveries.filter((delivery) => {
+    if (isSeedDemoDelivery(delivery)) return false;
+    if (!delivery.vendorInvoiceImportId?.trim()) return false;
+    return true;
+  });
+}
+
 export type ZoneOccupancySummaryWithReadiness = ZoneOccupancySummary & {
   readyForPickup: boolean;
   /** True when this code is only planned (not in actual staging ids). */
@@ -32,18 +65,19 @@ export function computeZoneOccupancyByCode(
 ): Record<string, ZoneOccupancySummaryWithReadiness> {
   const byCode: Record<string, ZoneOccupancySummaryWithReadiness> = {};
   const locById = new Map(locations.map((loc) => [loc.id, loc]));
+  const stagingDeliveries = filterDeliveriesForBoardStagingOccupancy(deliveries);
 
   const shouldReplace = (
     existing: ZoneOccupancySummaryWithReadiness,
     candidate: DeliveryOrder,
   ): boolean => {
-    const prev = deliveries.find((d) => d.id === existing.deliveryId);
+    const prev = stagingDeliveries.find((d) => d.id === existing.deliveryId);
     return Boolean(
       prev && candidate.updatedAt.localeCompare(prev.updatedAt) > 0,
     );
   };
 
-  for (const delivery of deliveries) {
+  for (const delivery of stagingDeliveries) {
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
     const actualIds = new Set(getAllStagingLocationIds(delivery));
     const readyForPickup =
