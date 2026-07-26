@@ -39,6 +39,7 @@ import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
 const NAVY = "#0a3161";
+const COMPLETE_FILTER_BADGE_RED = "#bf0a30";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
@@ -175,6 +176,7 @@ export function DispatcherDashboardPage() {
   });
   const [paged, setPaged] =
     useState<PagedResult<DeliveryListRow>>(INITIAL_PAGED);
+  const [completeOverviewCount, setCompleteOverviewCount] = useState(0);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [jobReleasedToEntries, setJobReleasedToEntries] = useState<
@@ -230,15 +232,23 @@ export function DispatcherDashboardPage() {
   const fetchAllData = useCallback(async () => {
     setListLoading(true);
     try {
-      const pagedResult = await firestoreDataService.listDeliveries({
-        search: query.search,
-        statuses: query.statuses.length ? query.statuses : undefined,
-        sortBy: query.sortBy,
-        sortDirection: query.sortDirection,
-        page: query.page,
-        pageSize: query.pageSize,
-      });
+      const [pagedResult, completeCountResult] = await Promise.all([
+        firestoreDataService.listDeliveries({
+          search: query.search,
+          statuses: query.statuses.length ? query.statuses : undefined,
+          sortBy: query.sortBy,
+          sortDirection: query.sortDirection,
+          page: query.page,
+          pageSize: query.pageSize,
+        }),
+        firestoreDataService.listDeliveries({
+          statuses: ["complete"],
+          page: 1,
+          pageSize: 1,
+        }),
+      ]);
       setPaged(pagedResult);
+      setCompleteOverviewCount(completeCountResult.totalItems);
       setLastUpdated(new Date().toLocaleString());
       setListError(null);
       await fetchReleaseMap();
@@ -503,12 +513,16 @@ export function DispatcherDashboardPage() {
                   {STATUS_ORDER.map((status) => {
                     const active = query.statuses.includes(status);
                     const b = STATUS_BADGE[status];
-                    return (
+                    const showCompleteBadge =
+                      status === "complete" && completeOverviewCount > 0;
+                    const chipButton = (
                       <button
-                        key={status}
+                        type="button"
                         onClick={() => toggleStatus(status)}
                         style={{
-                          padding: "4px 10px",
+                          padding: showCompleteBadge
+                            ? "4px 22px 4px 10px"
+                            : "4px 10px",
                           borderRadius: 4,
                           fontSize: 12,
                           fontWeight: 700,
@@ -538,6 +552,49 @@ export function DispatcherDashboardPage() {
                         />
                         {STATUS_LABEL(status)}
                       </button>
+                    );
+                    if (status === "complete") {
+                      return (
+                        <div
+                          key={status}
+                          style={{
+                            position: "relative",
+                            display: "inline-flex",
+                          }}
+                        >
+                          {chipButton}
+                          {showCompleteBadge ? (
+                            <span
+                              data-testid="deliveries-complete-filter-badge"
+                              aria-label={`${completeOverviewCount} complete deliver${completeOverviewCount === 1 ? "y" : "ies"}`}
+                              style={{
+                                position: "absolute",
+                                top: -6,
+                                right: -4,
+                                minWidth: 18,
+                                height: 18,
+                                padding: "0 4px",
+                                borderRadius: 999,
+                                backgroundColor: COMPLETE_FILTER_BADGE_RED,
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 800,
+                                lineHeight: "18px",
+                                textAlign: "center",
+                                fontFamily: FONT,
+                                pointerEvents: "none",
+                              }}
+                            >
+                              {completeOverviewCount}
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    }
+                    return (
+                      <span key={status} style={{ display: "inline-flex" }}>
+                        {chipButton}
+                      </span>
                     );
                   })}
                   <button

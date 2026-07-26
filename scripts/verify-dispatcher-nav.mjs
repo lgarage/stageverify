@@ -77,6 +77,50 @@ function assertStableVendorCommsX(dashboardX, zonesX, tolerancePx = 4) {
   }
 }
 
+/** Complete filter corner badge — hidden when Firestore complete count is 0. */
+async function assertCompleteFilterBadge(page) {
+  const badge = page.getByTestId("deliveries-complete-filter-badge");
+  const visible = await badge.isVisible().catch(() => false);
+  if (!visible) {
+    console.log(
+      "SKIP: deliveries-complete-filter-badge not shown (complete count 0).",
+    );
+    return;
+  }
+  const text = (await badge.innerText()).trim();
+  if (!/^\d+$/.test(text) || Number(text) < 1) {
+    throw new Error(
+      `Complete filter badge should show positive integer count, got "${text}"`,
+    );
+  }
+  const { bgLum, textLum } = await badge.evaluate((el) => {
+    const style = window.getComputedStyle(el);
+    const parseLum = (color) => {
+      const rgb = color.match(/\d+/g);
+      if (!rgb || rgb.length < 3) return 0;
+      const [r, g, b] = rgb.map(Number);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    };
+    return {
+      bgLum: parseLum(style.backgroundColor),
+      textLum: parseLum(style.color),
+    };
+  });
+  if (bgLum > 0.55) {
+    throw new Error(
+      `Complete filter badge background should be brand red (dark), got luminance ${bgLum.toFixed(2)}`,
+    );
+  }
+  if (textLum < 0.85) {
+    throw new Error(
+      `Complete filter badge digits should be white/light, got luminance ${textLum.toFixed(2)}`,
+    );
+  }
+  console.log(
+    `PASS: Complete filter badge visible (count=${text}, red pill + white digits).`,
+  );
+}
+
 function sidebar(page) {
   return page.locator("aside");
 }
@@ -398,6 +442,9 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
       "SKIP: catch-all-delivery-btn not shown (catch-all not configured in appSettings).",
     );
   }
+
+  console.log("Delivery Overview: Complete filter badge…");
+  await assertCompleteFilterBadge(page);
 
   console.log("Delivery Overview: Delivered status filter pill…");
   await assertDeliveredOverviewTiles(page);
