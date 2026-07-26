@@ -91,6 +91,7 @@ import {
   computeDeliveryDisplayState,
   formatActualStagingCodes,
   hasPlannedActualDivergence,
+  isCompleteOverviewRow,
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
 import { collectDeliveryStagingCodes } from "./drawer/DrawerStagingLocationChips";
@@ -441,6 +442,9 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const filtered = rows.filter((row) => {
+      const defaultBoard =
+        !q.statuses?.length && !(q.search && q.search.trim());
+      if (defaultBoard && isCompleteOverviewRow(row)) return false;
       if (q.statuses?.length) {
         const matches = q.statuses.some((status) =>
           rowMatchesOverviewStatusFilter(row, status),
@@ -1080,6 +1084,13 @@ export class FirestoreDataService implements DispatcherDataService {
         invoiceDeliverToSiteConfirmed: true,
         invoiceDeliverToSiteConfirmedAt: now,
         invoiceDeliverToSiteConfirmedBy: actorName,
+        status: "complete",
+        readinessStatus: "complete",
+        stagingLocationId: "",
+        additionalStagingLocationIds: [],
+        combinationStagingGroupId: "",
+        combinationMemberLocationIds: [],
+        pickupCheckedItemIds: [],
         updatedAt: now,
       });
       for (const item of lineItems) {
@@ -1101,18 +1112,6 @@ export class FirestoreDataService implements DispatcherDataService {
         invoiceDeliverToSiteConfirmedBy: null,
         updatedAt: now,
       });
-      for (const item of lineItems) {
-        if (item.qtyReceived === 0) continue;
-        batch.update(doc(db, "items", item.id), {
-          qtyReceived: 0,
-          status: computeItemStatus({
-            qtyReceived: 0,
-            qtyMissing: item.qtyMissing,
-            qtyDamaged: item.qtyDamaged,
-            qtyOrdered: item.qtyOrdered,
-          }),
-        });
-      }
     }
 
     batch.set(doc(db, "statusHistory", eventId), {
@@ -1120,7 +1119,7 @@ export class FirestoreDataService implements DispatcherDataService {
       entityType: "delivery_order",
       entityId: deliveryId,
       fromStatus: delivery.status,
-      toStatus: delivery.status,
+      toStatus: confirmed ? "complete" : delivery.status,
       reason: confirmed
         ? siteLabel
           ? `Delivered to site: ${siteLabel}`

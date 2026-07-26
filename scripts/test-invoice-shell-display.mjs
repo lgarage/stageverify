@@ -18,7 +18,7 @@ import {
   buildIssueSummaryPanelData,
   computeDeliveryDisplayState,
   sumEffectiveItemQtyReceived,
-  isDeliveredToSiteListRow,
+  isCompleteOverviewRow,
   rowMatchesOverviewStatusFilter,
   DELIVERY_OVERVIEW_STATUS_ORDER,
   isWillCallPickupStagingListNa,
@@ -311,12 +311,12 @@ const deliverToSiteConfirmedDelivery = {
 };
 
 assert(
-  "deliver-to-site confirmed display label is Delivered (not Complete)",
+  "deliver-to-site confirmed display label is Complete",
   deliveryReadinessDisplayLabel(
     deliverToSiteConfirmedDelivery,
     deliverToSiteReadiness,
     deliverToSiteItems,
-  ) === "Delivered",
+  ) === "Complete",
 );
 
 assert(
@@ -333,7 +333,7 @@ assert(
   "issue summary panel shows 43 of 43 when site delivery confirmed",
   confirmedPanel.itemsReceivedCount === 43 &&
     confirmedPanel.itemsTotalCount === 43 &&
-    confirmedPanel.deliveryStatusLabel === "Delivered",
+    confirmedPanel.deliveryStatusLabel === "Complete",
 );
 assert(
   "issue summary panel hides not-delivered rows when site delivery confirmed",
@@ -348,7 +348,7 @@ const confirmedDisplay = computeDeliveryDisplayState(
   { jobPickupScheduled: true },
 );
 assert(
-  "issue summary column empty when site delivery confirmed (status column shows Delivered)",
+  "issue summary column empty when site delivery confirmed (status column shows Complete)",
   confirmedDisplay.issueSummary === "",
 );
 assert(
@@ -364,56 +364,48 @@ assert(
   ).issueSummary === "Confirm delivery to Planet Fitness Hartford",
 );
 
-const deliveredListRow = {
+const completeListRow = {
   status: "complete",
-  statusDisplayLabel: "Delivered",
+  statusDisplayLabel: "Complete",
 };
 assert(
-  "delivered overview filter matches deliver-to-site label only",
-  isDeliveredToSiteListRow(deliveredListRow) &&
-    rowMatchesOverviewStatusFilter(deliveredListRow, "delivered") &&
-    rowMatchesOverviewStatusFilter(deliveredListRow, "complete") &&
-    !rowMatchesOverviewStatusFilter(deliveredListRow, "ready_for_pickup"),
+  "complete overview filter matches deliver-to-site and picked-up terminal rows",
+  isCompleteOverviewRow(completeListRow) &&
+    rowMatchesOverviewStatusFilter(completeListRow, "complete") &&
+    !rowMatchesOverviewStatusFilter(completeListRow, "ready_for_pickup"),
 );
 
 assert(
-  "complete overview filter excludes non-delivered complete rows from delivered chip",
-  !rowMatchesOverviewStatusFilter(
+  "complete overview filter includes status complete even when label differs",
+  rowMatchesOverviewStatusFilter(
     { status: "complete", statusDisplayLabel: "Ready for Pickup" },
-    "delivered",
-  ) &&
-    rowMatchesOverviewStatusFilter(
-      { status: "complete", statusDisplayLabel: "Ready for Pickup" },
-      "complete",
-    ),
+    "complete",
+  ),
 );
 
 const pickedUpListRow = {
   status: "picked_up",
-  statusDisplayLabel: "Picked Up",
+  statusDisplayLabel: "Complete",
 };
 assert(
-  "picked up overview filter matches picked_up status and counts as complete",
-  rowMatchesOverviewStatusFilter(pickedUpListRow, "picked_up") &&
+  "picked up overview filter matches via complete chip only",
+  isCompleteOverviewRow(pickedUpListRow) &&
     rowMatchesOverviewStatusFilter(pickedUpListRow, "complete") &&
-    !rowMatchesOverviewStatusFilter(pickedUpListRow, "delivered"),
+    !rowMatchesOverviewStatusFilter(pickedUpListRow, "ready_for_pickup"),
 );
 
 assert(
-  "legacy installed rows map to picked up and complete overview filters",
+  "legacy installed rows map to complete overview filter",
   rowMatchesOverviewStatusFilter(
-    { status: "installed", statusDisplayLabel: "Picked Up" },
-    "picked_up",
-  ) &&
-    rowMatchesOverviewStatusFilter(
-      { status: "installed", statusDisplayLabel: "Picked Up" },
-      "complete",
-    ),
+    { status: "installed", statusDisplayLabel: "Complete" },
+    "complete",
+  ),
 );
 
 assert(
-  "installed is not a delivery overview filter chip",
-  !DELIVERY_OVERVIEW_STATUS_ORDER.includes("installed"),
+  "delivered and picked_up are not delivery overview filter chips",
+  !DELIVERY_OVERVIEW_STATUS_ORDER.includes("delivered") &&
+    !DELIVERY_OVERVIEW_STATUS_ORDER.includes("picked_up"),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

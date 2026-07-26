@@ -286,7 +286,7 @@ export async function assignStagingIfUnassigned(page) {
   return false;
 }
 
-/** When 4046362 deliver-to-site row is present, Filter by Status pills filter Delivered rows. */
+/** When 4046362 deliver-to-site row is present, Filter by Status Complete pill shows finished rows. */
 export async function assertDeliveredOverviewTiles(page, searchTerm = "4046362") {
   const search = page.locator('input[placeholder*="Job #, name, PO"]');
   await search.waitFor({ state: "visible", timeout: 15_000 });
@@ -294,13 +294,13 @@ export async function assertDeliveredOverviewTiles(page, searchTerm = "4046362")
   await search.fill(searchTerm);
   await page.waitForTimeout(1500);
 
-  const deliveredRow = page
+  const completeRow = page
     .locator("table tbody tr")
-    .filter({ hasText: "Delivered" })
+    .filter({ hasText: "Complete" })
     .first();
-  if (!(await deliveredRow.isVisible().catch(() => false))) {
+  if (!(await completeRow.isVisible().catch(() => false))) {
     console.log(
-      `SKIP delivered overview filter: no Delivered row for search "${searchTerm}".`,
+      `SKIP complete overview filter: no Complete row for search "${searchTerm}".`,
     );
     await search.fill("");
     await page.waitForTimeout(800);
@@ -314,27 +314,40 @@ export async function assertDeliveredOverviewTiles(page, searchTerm = "4046362")
     name: "Delivered",
     exact: true,
   });
+  if (await deliveredPill.isVisible().catch(() => false)) {
+    throw new Error(
+      'Delivered filter chip should be folded into Complete (no "Delivered" pill).',
+    );
+  }
+  const pickedUpPill = statusFilterRow.getByRole("button", {
+    name: "Picked Up",
+    exact: true,
+  });
+  if (await pickedUpPill.isVisible().catch(() => false)) {
+    throw new Error(
+      'Picked Up filter chip should be folded into Complete (no "Picked Up" pill).',
+    );
+  }
   const completePill = statusFilterRow.getByRole("button", {
     name: "Complete",
     exact: true,
   });
-  await deliveredPill.waitFor({ state: "visible", timeout: 10_000 });
   await completePill.waitFor({ state: "visible", timeout: 10_000 });
 
-  await deliveredPill.click();
+  await completePill.click();
   await page.waitForTimeout(900);
   const filteredRows = await page.locator("table tbody tr").count();
   if (filteredRows !== 1) {
     throw new Error(
-      `Delivered status filter should show exactly one row for "${searchTerm}", got ${filteredRows}`,
+      `Complete status filter should show exactly one row for "${searchTerm}", got ${filteredRows}`,
     );
   }
 
-  await deliveredPill.click();
+  await completePill.click();
   await page.waitForTimeout(400);
   await search.fill("");
   await page.waitForTimeout(800);
   console.log(
-    `PASS: Delivered status filter pill for "${searchTerm}" (summary tiles removed).`,
+    `PASS: Complete status filter pill for "${searchTerm}" (Delivered/Picked Up chips removed).`,
   );
 }

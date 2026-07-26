@@ -266,6 +266,7 @@ export const RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
 
 /** Zone is vacant for ESL/QR once pickup is finished. */
 export const ZONE_CLEARED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
+  "complete",
   "picked_up",
   "installed",
 ]);

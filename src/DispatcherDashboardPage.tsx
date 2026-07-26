@@ -31,6 +31,7 @@ import {
   STAGING_PLAN_MISMATCH_LABEL,
   STAGING_PLAN_MISMATCH_TITLE,
   type DeliveryOverviewFilterStatus,
+  isCompleteOverviewRow,
 } from "./dispatcher/deliveryDisplayHelpers";
 import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
@@ -84,19 +85,7 @@ const STATUS_BADGE: Record<
     border: "#a5d6a7",
     dot: "#66bb6a",
   },
-  delivered: {
-    bg: "#e0f2f1",
-    text: "#00695c",
-    border: "#80cbc4",
-    dot: "#00897b",
-  },
   issue: { bg: "#ffebee", text: "#c62828", border: "#ef9a9a", dot: "#ef5350" },
-  picked_up: {
-    bg: "#f5f5f5",
-    text: "#616161",
-    border: "#e0e0e0",
-    dot: "#9e9e9e",
-  },
 };
 
 /** Yellow badge — shop waiting for vendor delivery (0 received). */
@@ -114,11 +103,9 @@ function listStatusBadge(
   row: DeliveryListRow,
 ): (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus] {
   const label = row.statusDisplayLabel;
-  if (label === "Delivered") return STATUS_BADGE.delivered;
   if (label === "Complete") return STATUS_BADGE.complete;
   if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
-  if (label === "Picked Up") return STATUS_BADGE.picked_up;
   if (label === "Partial") return STATUS_BADGE.partial;
   if (label === "Reserved") {
     return row.status === "shipped"
@@ -132,7 +119,7 @@ function listStatusBadge(
     return AWAITING_DELIVERY_BADGE;
   }
   if (label === "Incomplete") return STATUS_BADGE.partial;
-  if (row.status === "installed") return STATUS_BADGE.picked_up;
+  if (isCompleteOverviewRow(row)) return STATUS_BADGE.complete;
   return STATUS_BADGE[row.status as DeliveryOverviewFilterStatus];
 }
 

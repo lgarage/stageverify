@@ -19,20 +19,20 @@ export function deliveryReadinessDisplayLabel(
   items: Item[] = [],
   materialIssues?: MaterialIssue[],
 ): string {
-  if (delivery.status === "picked_up" || delivery.status === "installed") {
-    return "Picked Up";
+  if (
+    delivery.status === "complete" ||
+    delivery.status === "picked_up" ||
+    delivery.status === "installed" ||
+    (delivery.invoiceDeliverToSite === true &&
+      delivery.invoiceDeliverToSiteConfirmed === true)
+  ) {
+    return "Complete";
   }
   if (delivery.invoiceImportStatus === "pickup_at_vendor") {
     return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
   }
   if (delivery.invoiceImportStatus === "closed_picked_up") {
     return vendorInvoiceImportDisplayLabel("closed_picked_up").replace(/\.$/, "");
-  }
-  if (
-    delivery.invoiceDeliverToSite === true &&
-    delivery.invoiceDeliverToSiteConfirmed === true
-  ) {
-    return "Delivered";
   }
   if (countOpenBlockingIssues(delivery, materialIssues) > 0) {
     return "Issue / Review Required";

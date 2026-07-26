@@ -116,6 +116,7 @@ export const RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
 ]);
 
 export const ZONE_CLEARED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
+  "complete",
   "picked_up",
   "installed",
 ]);
