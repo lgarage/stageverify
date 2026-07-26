@@ -526,13 +526,13 @@ export function DispatcherDashboardPage() {
                           fontSize: 12,
                           fontWeight: 700,
                           letterSpacing: "normal",
-                          border: active
-                            ? `2px solid ${b.border}`
-                            : `1px solid #ccd0d7`,
+                          boxSizing: "border-box",
+                          border: `2px solid ${active ? b.border : "#ccd0d7"}`,
                           backgroundColor: active ? b.bg : "#f9fafb",
                           color: active ? b.text : "#6b7280",
                           cursor: "pointer",
-                          transition: "all 0.12s",
+                          transition:
+                            "background-color 0.12s, color 0.12s, border-color 0.12s",
                           outline: "none",
                           display: "flex",
                           alignItems: "center",
@@ -553,33 +553,36 @@ export function DispatcherDashboardPage() {
                       </button>
                     );
                   })}
-                  {hasActiveFilters && (
-                    <button
-                      onClick={() =>
-                        setQuery((prev) => ({
-                          ...prev,
-                          search: "",
-                          statuses: [],
-                          page: 1,
-                        }))
-                      }
-                      style={{
-                        marginLeft: 2,
-                        padding: "4px 10px",
-                        borderRadius: 4,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        border: "1px solid #ccd0d7",
-                        backgroundColor: "#fff",
-                        color: "#ef4444",
-                        cursor: "pointer",
-                        outline: "none",
-                        fontFamily: FONT,
-                      }}
-                    >
-                      ✕ Clear
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={!hasActiveFilters}
+                    onClick={() =>
+                      setQuery((prev) => ({
+                        ...prev,
+                        search: "",
+                        statuses: [],
+                        page: 1,
+                      }))
+                    }
+                    style={{
+                      marginLeft: 2,
+                      padding: "4px 10px",
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      letterSpacing: "normal",
+                      boxSizing: "border-box",
+                      border: "2px solid #ccd0d7",
+                      backgroundColor: "#fff",
+                      color: hasActiveFilters ? "#ef4444" : "#d1d5db",
+                      cursor: hasActiveFilters ? "pointer" : "default",
+                      outline: "none",
+                      fontFamily: FONT,
+                      opacity: hasActiveFilters ? 1 : 0.55,
+                    }}
+                  >
+                    ✕ Clear
+                  </button>
                 </div>
               </div>
             </div>

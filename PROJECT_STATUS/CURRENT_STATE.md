@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.171** — Staging map occupancy uses same prod delivery filter as Deliveries board staging (`hideSeedDemoRows` + invoice); `verify:shop-map` chip/map color parity.
+- Last shipped: **v0.0.172** — Filter by Status chips no longer shift on toggle (stable 2px border; Clear always mounted).
+- Prior: **v0.0.171** — Staging map occupancy uses same prod delivery filter as Deliveries board staging (`hideSeedDemoRows` + invoice); `verify:shop-map` chip/map color parity.
 - Prior: **v0.0.170** — Staging Map: removed single-spot **Print label (CODE)** toolbar button; batch **Print location labels** only (`#/zones/print-labels`).
 - Prior: **v0.0.169** — List/drawer: **blocking-only** open issues for status labels; **Awaiting Delivery** before **Reserved**; drawer vendor-comms hidden (verify harness); ORD-005 fixture stability.
 - Prior: **v0.0.168** — Status **Awaiting Delivery** (yellow badge) for 0-received inbound orders; v0.0.167 compact chips + Will-Call N/A/Pickup summary.
