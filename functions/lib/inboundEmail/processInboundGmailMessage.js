@@ -16,6 +16,7 @@ const invoiceDocumentSplit_1 = require("../invoice/invoiceDocumentSplit");
 const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
 const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
+const runInvoiceAiShadow_1 = require("../invoice/aiShadow/runInvoiceAiShadow");
 const firestoreSafeValue_1 = require("./firestoreSafeValue");
 const sanitizeParsedLines_1 = require("./sanitizeParsedLines");
 const loadOutboundEmailContext_1 = require("../email/loadOutboundEmailContext");
@@ -137,6 +138,7 @@ async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, 
     };
     await ref.set(partialDoc);
     const reviewRecordIds = await writeReviewRecords(db, partialDoc, batchResult);
+    await maybeRunInvoiceAiShadow(db, partialDoc, batchResult);
     const parsedDoc = {
         ...partialDoc,
         processingStatus: "parsed",
@@ -158,6 +160,49 @@ async function finalizeParsedInboundDoc(ref, inboundDoc, combinedExtractedText, 
         processingStatus: "parsed",
         reviewRecordIds,
     };
+}
+/**
+ * Optional Johnstone AI shadow (flag-gated). Never changes reviewStatus / deliveries.
+ * Failures are swallowed so inbound parse always completes.
+ */
+async function maybeRunInvoiceAiShadow(db, inboundDoc, batchResult) {
+    try {
+        if (!(await (0, runInvoiceAiShadow_1.isInvoiceAiShadowEnabled)(db)))
+            return;
+    }
+    catch {
+        return;
+    }
+    for (const row of batchResult.results) {
+        if (!row.processing || row.outcome === "failed")
+            continue;
+        if (row.processing.parserFormatId !== "johnstone")
+            continue;
+        const reviewId = `vii-${inboundDoc.gmailMessageId}-${row.pageId}`;
+        try {
+            const existing = await db.collection(REVIEW_COLLECTION).doc(reviewId).get();
+            if (!existing.exists)
+                continue;
+            const status = existing.data().reviewStatus;
+            if (status === "approved" || status === "rejected")
+                continue;
+            const vendorKey = row.processing.detectedVendorName?.trim() ||
+                "johnstone";
+            const shadow = await (0, runInvoiceAiShadow_1.runInvoiceAiShadow)({
+                extractedText: row.processing.page.extractedText,
+                vendorKey,
+                parserFormatId: row.processing.parserFormatId,
+                regexLines: row.processing.parsed.lines,
+            });
+            await db.collection(REVIEW_COLLECTION).doc(reviewId).update({
+                aiShadowParse: (0, firestoreSafeValue_1.firestoreSafeValue)(shadow),
+                updatedAt: new Date().toISOString(),
+            });
+        }
+        catch {
+            // Shadow must never fail inbound ingest.
+        }
+    }
 }
 async function writeReviewRecords(db, inboundDoc, batchResult) {
     const reviewIds = [];

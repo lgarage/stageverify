@@ -19,6 +19,8 @@ import {
 } from "./invoice/computeAutoImportEligibility";
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
+import { appendVendorTrainingLesson } from "./invoice/aiShadow/vendorTrainingMd";
+import { redactLessonNote, isSafeLessonNote } from "./invoice/aiShadow/redactLessonNote";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -61,6 +63,8 @@ export const approveVendorInvoiceImport = onCall(
       vendorInvoiceImportId?: string;
       action?: string;
       deliveryOrderId?: string;
+      /** Generalized pattern note for vendor training MD — not invoice-specific details. */
+      correctionNote?: string;
     };
 
     const importId =
@@ -70,6 +74,8 @@ export const approveVendorInvoiceImport = onCall(
     const action = typeof data.action === "string" ? data.action.trim() : "";
     const deliveryOrderId =
       typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
+    const correctionNoteRaw =
+      typeof data.correctionNote === "string" ? data.correctionNote : "";
 
     if (!importId || importId.length > 256) {
       throw new HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
@@ -530,6 +536,34 @@ export const approveVendorInvoiceImport = onCall(
       });
     });
 
+    let trainingLessonWrote = false;
+    const redactedNote = redactLessonNote(correctionNoteRaw);
+    if (isSafeLessonNote(redactedNote)) {
+      const vendorKey =
+        (typeof importDoc.detectedVendorName === "string" &&
+        importDoc.detectedVendorName.trim()
+          ? importDoc.detectedVendorName
+          : importDoc.parserFormatId === "johnstone"
+            ? "johnstone"
+            : "unknown-vendor");
+      try {
+        const lesson = await appendVendorTrainingLesson({
+          vendorKey,
+          correctionNote: redactedNote,
+          atIso: now,
+        });
+        trainingLessonWrote = lesson.wrote;
+        if (lesson.wrote) {
+          await importRef.update({
+            trainingLessonAppendedAt: now,
+            updatedAt: now,
+          });
+        }
+      } catch {
+        trainingLessonWrote = false;
+      }
+    }
+
     return {
       vendorInvoiceImportId: importId,
       reviewStatus: "approved",
@@ -537,6 +571,7 @@ export const approveVendorInvoiceImport = onCall(
       itemsApplied: shell.expectedItems.length,
       shellCreated: true,
       jobCreated: shell.jobCreated,
+      trainingLessonWrote,
     };
   },
 );

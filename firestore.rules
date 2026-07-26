@@ -233,9 +233,14 @@ service cloud.firestore {
     match /appSettings/{docId} {
       allow read: if true;
       allow create: if isAuthenticated()
-        && !('catchAllPendingCheckInCount' in request.resource.data);
+        && !('catchAllPendingCheckInCount' in request.resource.data)
+        && (!('invoiceAiShadowEnabled' in request.resource.data) || isDispatcher());
       allow update: if isAuthenticated()
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['catchAllPendingCheckInCount']);
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['catchAllPendingCheckInCount'])
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['invoiceAiShadowEnabled'])
+          || isDispatcher()
+        );
     }
 
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.

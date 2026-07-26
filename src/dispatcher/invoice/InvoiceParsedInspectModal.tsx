@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type {
   InvoiceMatchResult,
   VendorInvoiceImportReview,
@@ -65,7 +65,8 @@ export function InvoiceParsedInspectModal({
   matchResult?: InvoiceMatchResult | null;
   matchLoading?: boolean;
   actionLoading?: boolean;
-  onApprove?: () => void;
+  /** Optional generalized correction note for vendor training MD. */
+  onApprove?: (correctionNote?: string) => void;
   onReject?: () => void;
   onReopen?: () => void;
   /** Move approved import off a shared/non-shell delivery onto its own shell. */
@@ -79,6 +80,7 @@ export function InvoiceParsedInspectModal({
   /** Linked delivery confirmed delivered to job site — suppress review-required UI. */
   deliverToSiteConfirmed?: boolean;
 }) {
+  const [correctionNote, setCorrectionNote] = useState("");
   const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
     useVendorInvoicePdfViewer();
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow, {
@@ -618,26 +620,68 @@ export function InvoiceParsedInspectModal({
               </button>
             )}
             {onApprove && (isPending || isRejected) && (
-              <button
-                type="button"
-                data-testid="invoice-parsed-inspect-approve"
-                disabled={approveDisabled}
-                title={approveBlocked ? "Approve blocked for issue imports" : undefined}
-                onClick={onApprove}
+              <div
                 style={{
-                  backgroundColor: NAVY,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: approveDisabled ? "not-allowed" : "pointer",
-                  opacity: approveDisabled ? 0.55 : 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  alignItems: "stretch",
+                  minWidth: 220,
+                  maxWidth: 320,
                 }}
               >
-                Approve
-              </button>
+                <label
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: MUTED,
+                  }}
+                >
+                  Training note (optional)
+                  <textarea
+                    data-testid="invoice-parsed-inspect-correction-note"
+                    value={correctionNote}
+                    onChange={(e) => setCorrectionNote(e.target.value)}
+                    placeholder="What to look for next time + the proper fix (no invoice #s / POs)"
+                    rows={3}
+                    disabled={actionLoading || approveBlocked}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: CELL_TEXT,
+                      backgroundColor: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      padding: "8px 10px",
+                      resize: "vertical",
+                      fontFamily: FONT,
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  data-testid="invoice-parsed-inspect-approve"
+                  disabled={approveDisabled}
+                  title={approveBlocked ? "Approve blocked for issue imports" : undefined}
+                  onClick={() => onApprove(correctionNote.trim() || undefined)}
+                  style={{
+                    backgroundColor: NAVY,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: approveDisabled ? "not-allowed" : "pointer",
+                    opacity: approveDisabled ? 0.55 : 1,
+                  }}
+                >
+                  Approve
+                </button>
+              </div>
             )}
             {onRelinkToShell && (
               <button

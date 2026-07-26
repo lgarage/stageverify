@@ -13,6 +13,8 @@ const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFr
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
+const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
+const redactLessonNote_1 = require("./invoice/aiShadow/redactLessonNote");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
 function getDb() {
@@ -46,6 +48,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         : "";
     const action = typeof data.action === "string" ? data.action.trim() : "";
     const deliveryOrderId = typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
+    const correctionNoteRaw = typeof data.correctionNote === "string" ? data.correctionNote : "";
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
@@ -358,6 +361,33 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
         });
     });
+    let trainingLessonWrote = false;
+    const redactedNote = (0, redactLessonNote_1.redactLessonNote)(correctionNoteRaw);
+    if ((0, redactLessonNote_1.isSafeLessonNote)(redactedNote)) {
+        const vendorKey = (typeof importDoc.detectedVendorName === "string" &&
+            importDoc.detectedVendorName.trim()
+            ? importDoc.detectedVendorName
+            : importDoc.parserFormatId === "johnstone"
+                ? "johnstone"
+                : "unknown-vendor");
+        try {
+            const lesson = await (0, vendorTrainingMd_1.appendVendorTrainingLesson)({
+                vendorKey,
+                correctionNote: redactedNote,
+                atIso: now,
+            });
+            trainingLessonWrote = lesson.wrote;
+            if (lesson.wrote) {
+                await importRef.update({
+                    trainingLessonAppendedAt: now,
+                    updatedAt: now,
+                });
+            }
+        }
+        catch {
+            trainingLessonWrote = false;
+        }
+    }
     return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
@@ -365,6 +395,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         itemsApplied: shell.expectedItems.length,
         shellCreated: true,
         jobCreated: shell.jobCreated,
+        trainingLessonWrote,
     };
 });
 //# sourceMappingURL=approveVendorInvoiceImport.js.map

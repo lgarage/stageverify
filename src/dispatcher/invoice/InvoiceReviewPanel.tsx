@@ -371,7 +371,10 @@ export function InvoiceReviewPanel({
     loadMatchForRow,
   ]);
 
-  const submitApprove = async (row: VendorInvoiceImportReview) => {
+  const submitApprove = async (
+    row: VendorInvoiceImportReview,
+    correctionNote?: string,
+  ) => {
     if (row.importStatus === "issue") return;
     setActionLoadingId(row.id);
     setError(null);
@@ -380,6 +383,9 @@ export function InvoiceReviewPanel({
       const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "approve",
+        ...(correctionNote?.trim()
+          ? { correctionNote: correctionNote.trim() }
+          : {}),
       });
       if (result.shellError?.trim()) {
         setError(result.shellError);
@@ -402,8 +408,11 @@ export function InvoiceReviewPanel({
         return;
       }
       const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
+      const lessonNote = result.trainingLessonWrote
+        ? " Training lesson saved for future invoices."
+        : "";
       setSuccessMessage(
-        `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}`,
+        `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}${lessonNote}`,
       );
       if (onApproveSuccess) {
         await onApproveSuccess();
@@ -905,8 +914,8 @@ export function InvoiceReviewPanel({
           onApprove={
             inspectImport.reviewStatus === "pending_review" ||
             inspectImport.reviewStatus === "rejected"
-              ? () => {
-                  void submitApprove(inspectImport);
+              ? (correctionNote) => {
+                  void submitApprove(inspectImport, correctionNote);
                 }
               : undefined
           }

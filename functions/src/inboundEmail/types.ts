@@ -131,6 +131,21 @@ export interface VendorInvoiceImportDoc {
   parserRouteConfidence?: number;
   detectedVendorId?: string;
   detectedVendorName?: string;
+  /**
+   * Optional AI shadow parse (flag-gated). Structured compare only — never flips reviewStatus.
+   */
+  aiShadowParse?: {
+    enabled: true;
+    ranAt: string;
+    vendorKey: string;
+    finalModel: string;
+    escalated: boolean;
+    gateFailures: string[];
+    qtyMatchRegex: boolean | null;
+    error?: string;
+  };
+  /** Generalized human correction note last written to vendor training MD (redacted). */
+  trainingLessonAppendedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

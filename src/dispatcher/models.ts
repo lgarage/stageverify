@@ -807,6 +807,11 @@ export interface AppSettings {
   /** CF-only — packages at catch-all awaiting management check-in (map tile count). */
   catchAllPendingCheckInCount?: number;
   /**
+   * When true, inbound Johnstone invoice ingest runs Vertex AI shadow parse (lite→3.6)
+   * and stores `aiShadowParse` on the review doc. Never auto-approves. Default false.
+   */
+  invoiceAiShadowEnabled?: boolean;
+  /**
    * Staging Map layout additions beyond default constants (extra ground / shelf units / shelf letters)
    * plus optional hiddenSlots. Written by authenticated dispatcher map edit; public-readable via appSettings.
    */
@@ -1241,6 +1246,18 @@ export interface VendorInvoiceImportReview {
   parserRouteConfidence?: number;
   detectedVendorId?: string;
   detectedVendorName?: string;
+  /** Structured AI shadow result (flag-gated) — does not change reviewStatus. */
+  aiShadowParse?: {
+    enabled: true;
+    ranAt: string;
+    vendorKey: string;
+    finalModel: string;
+    escalated: boolean;
+    gateFailures: string[];
+    qtyMatchRegex: boolean | null;
+    error?: string;
+  };
+  trainingLessonAppendedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1282,6 +1299,8 @@ export interface ApproveVendorInvoiceImportResult {
   relinked?: boolean;
   /** Set when shell was expected but could not be created (legacy clients). */
   shellError?: string;
+  /** True when a generalized correction note was appended to vendor training MD. */
+  trainingLessonWrote?: boolean;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

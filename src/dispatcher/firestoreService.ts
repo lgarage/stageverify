@@ -2361,6 +2361,7 @@ const approveVendorInvoiceImportCallable = httpsCallable<
     vendorInvoiceImportId: string;
     action: "approve" | "reject" | "reopen" | "create_shell" | "relink_to_shell";
     deliveryOrderId?: string;
+    correctionNote?: string;
   },
   ApproveVendorInvoiceImportResult
 >(functions, "approveVendorInvoiceImport");
@@ -2469,6 +2470,8 @@ export async function approveVendorInvoiceImport(input: {
   vendorInvoiceImportId: string;
   action: "approve" | "reject" | "reopen" | "create_shell" | "relink_to_shell";
   deliveryOrderId?: string;
+  /** Generalized pattern for vendor training MD — not invoice-specific details. */
+  correctionNote?: string;
 }): Promise<ApproveVendorInvoiceImportResult> {
   const response = await approveVendorInvoiceImportCallable(input);
   return response.data;

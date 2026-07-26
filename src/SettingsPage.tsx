@@ -109,6 +109,7 @@ export function SettingsPage() {
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [monitoringInboxEmail, setMonitoringInboxEmail] = useState("");
   const [emailMonitoringEnabled, setEmailMonitoringEnabled] = useState(false);
+  const [invoiceAiShadowEnabled, setInvoiceAiShadowEnabled] = useState(false);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -182,6 +183,7 @@ export function SettingsPage() {
       setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
       setMonitoringInboxEmail(settings.monitoringInboxEmail ?? "");
       setEmailMonitoringEnabled(settings.emailMonitoringEnabled === true);
+      setInvoiceAiShadowEnabled(settings.invoiceAiShadowEnabled === true);
     });
   }, []);
 
@@ -304,6 +306,7 @@ export function SettingsPage() {
       await updateAppSettings({
         monitoringInboxEmail: inboxEmail,
         emailMonitoringEnabled,
+        invoiceAiShadowEnabled,
       });
       if (hasLinkedMailbox) {
         setMonitoringInboxEmail(linkedMailboxEmail);
@@ -961,6 +964,43 @@ export function SettingsPage() {
                       >
                         Controls whether StageVerify ingests and processes emails —
                         not the mailbox address.
+                      </span>
+                    </span>
+                  </label>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#374151",
+                      cursor: "pointer",
+                      maxWidth: 560,
+                      marginTop: 12,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      data-testid="invoice-ai-shadow-enabled"
+                      checked={invoiceAiShadowEnabled}
+                      onChange={(e) => setInvoiceAiShadowEnabled(e.target.checked)}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      Johnstone invoice AI shadow (Vertex)
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: "#6b7280",
+                          marginTop: 4,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Runs Gemini Flash-Lite → 3.6 Flash after the regex parser and
+                        logs results for comparison. Never auto-approves invoices.
                       </span>
                     </span>
                   </label>

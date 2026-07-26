@@ -21,6 +21,10 @@ import { preferredPreParseFormat } from "../invoice/invoiceDocumentSplit";
 import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
 import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
+import {
+  isInvoiceAiShadowEnabled,
+  runInvoiceAiShadow,
+} from "../invoice/aiShadow/runInvoiceAiShadow";
 import { firestoreSafeValue } from "./firestoreSafeValue";
 import { sanitizeParsedLines } from "./sanitizeParsedLines";
 import {
@@ -201,6 +205,7 @@ async function finalizeParsedInboundDoc(
   await ref.set(partialDoc);
 
   const reviewRecordIds = await writeReviewRecords(db, partialDoc, batchResult);
+  await maybeRunInvoiceAiShadow(db, partialDoc, batchResult);
 
   const parsedDoc: InboundEmailProcessingDoc = {
     ...partialDoc,
@@ -224,6 +229,51 @@ async function finalizeParsedInboundDoc(
     processingStatus: "parsed",
     reviewRecordIds,
   };
+}
+
+/**
+ * Optional Johnstone AI shadow (flag-gated). Never changes reviewStatus / deliveries.
+ * Failures are swallowed so inbound parse always completes.
+ */
+async function maybeRunInvoiceAiShadow(
+  db: admin.firestore.Firestore,
+  inboundDoc: InboundEmailProcessingDoc,
+  batchResult: ReturnType<typeof parseInboundInvoiceText>,
+): Promise<void> {
+  try {
+    if (!(await isInvoiceAiShadowEnabled(db))) return;
+  } catch {
+    return;
+  }
+
+  for (const row of batchResult.results) {
+    if (!row.processing || row.outcome === "failed") continue;
+    if (row.processing.parserFormatId !== "johnstone") continue;
+
+    const reviewId = `vii-${inboundDoc.gmailMessageId}-${row.pageId}`;
+    try {
+      const existing = await db.collection(REVIEW_COLLECTION).doc(reviewId).get();
+      if (!existing.exists) continue;
+      const status = (existing.data() as VendorInvoiceImportDoc).reviewStatus;
+      if (status === "approved" || status === "rejected") continue;
+
+      const vendorKey =
+        row.processing.detectedVendorName?.trim() ||
+        "johnstone";
+      const shadow = await runInvoiceAiShadow({
+        extractedText: row.processing.page.extractedText,
+        vendorKey,
+        parserFormatId: row.processing.parserFormatId,
+        regexLines: row.processing.parsed.lines,
+      });
+      await db.collection(REVIEW_COLLECTION).doc(reviewId).update({
+        aiShadowParse: firestoreSafeValue(shadow),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {
+      // Shadow must never fail inbound ingest.
+    }
+  }
 }
 
 async function writeReviewRecords(
