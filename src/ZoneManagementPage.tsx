@@ -72,6 +72,7 @@ import {
 import type { MapZoneSavePayload, ShopFloorMapHandle } from "./ShopFloorMap";
 import { ShopFloorMap } from "./ShopFloorMap";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
+import { CatchAllStatusDrawer } from "./dispatcher/drawer/CatchAllStatusDrawer";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -323,6 +324,7 @@ export function ZoneManagementPage() {
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
   const [catchAllPendingCount, setCatchAllPendingCount] = useState(0);
+  const [catchAllStatusOpen, setCatchAllStatusOpen] = useState(false);
   const liveOccupancy = useLiveZoneOccupancy(true);
   const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
     null,
@@ -342,6 +344,7 @@ export function ZoneManagementPage() {
 
   const handleMapOpenDelivery = useCallback(
     (deliveryId: string, spotCode?: string) => {
+      setCatchAllStatusOpen(false);
       setSelectedDeliveryId(deliveryId);
       const code = spotCode?.trim();
       if (code && !mapEditMode && !assignMode) {
@@ -350,6 +353,11 @@ export function ZoneManagementPage() {
     },
     [mapEditMode, assignMode],
   );
+
+  const handleCatchAllClick = useCallback(() => {
+    setSelectedDeliveryId(null);
+    setCatchAllStatusOpen(true);
+  }, []);
 
   const exitAssignMode = useCallback(() => {
     setPendingAssignSpot(null);
@@ -1522,6 +1530,7 @@ export function ZoneManagementPage() {
               onAddCatchAllSpot={handleAddCatchAllSpot}
               onRemoveCatchAllSpot={handleRemoveCatchAllSpot}
               onSpotDeliveryUnavailable={showAssignToast}
+              onCatchAllClick={handleCatchAllClick}
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
@@ -2266,7 +2275,16 @@ export function ZoneManagementPage() {
         deliveryId={selectedDeliveryId}
         onClose={() => setSelectedDeliveryId(null)}
         onDataChanged={() => void loadZones()}
-        onOpenDelivery={(id) => setSelectedDeliveryId(id)}
+        onOpenDelivery={(id) => {
+          setCatchAllStatusOpen(false);
+          setSelectedDeliveryId(id);
+        }}
+      />
+
+      <CatchAllStatusDrawer
+        open={catchAllStatusOpen}
+        pendingCount={catchAllPendingCount}
+        onClose={() => setCatchAllStatusOpen(false)}
       />
 
       <style>{`

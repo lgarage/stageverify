@@ -30,6 +30,68 @@ mkdirSync(screenshotDir, { recursive: true });
 
 const CATCH_ALL_BLUE = /rgb\(\s*219\s*,\s*234\s*,\s*254\s*\)/i;
 
+const CATCH_ALL_STATUS_NOTE =
+  "Regular vendor deliveries can be matched to expected jobs and checked in to their staging spots. For carrier packages (UPS, FedEx, Speedy, etc.) with no matching job, use Catch-all check-in to flag them as unidentifiable.";
+
+async function assertCatchAllStatusDrawer(page) {
+  const catchAll = page.locator('[data-testid="shop-map-catch-all"]').first();
+  if (!(await catchAll.isVisible().catch(() => false))) {
+    console.log("SKIP: catch-all marker not visible for status drawer");
+    return;
+  }
+  const badgeCount = (
+    await catchAll.getByTestId("catch-all-pending-count").innerText()
+  ).trim();
+  await catchAll.click();
+  const drawer = page.getByTestId("catch-all-status-drawer");
+  await drawer.waitFor({ state: "visible", timeout: 8000 });
+  const title = (
+    await page.getByTestId("catch-all-status-drawer-title").innerText()
+  ).trim();
+  if (title !== "Catch All Deliveries status") {
+    throw new Error(`Expected catch-all drawer title, got "${title}"`);
+  }
+  const drawerCount = (
+    await page.getByTestId("catch-all-status-drawer-count").innerText()
+  ).trim();
+  if (drawerCount !== badgeCount) {
+    throw new Error(
+      `Drawer count "${drawerCount}" !== marker badge "${badgeCount}"`,
+    );
+  }
+  const note = (
+    await page.getByTestId("catch-all-status-drawer-note").innerText()
+  ).trim();
+  if (note !== CATCH_ALL_STATUS_NOTE) {
+    throw new Error(`Catch-all status note mismatch:\n${note}`);
+  }
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="catch-all-status-drawer"]',
+    elements: [
+      {
+        name: "Catch-all status title",
+        selector: '[data-testid="catch-all-status-drawer-title"]',
+      },
+      {
+        name: "Catch-all status count",
+        selector: '[data-testid="catch-all-status-drawer-count"]',
+      },
+      {
+        name: "Catch-all status note",
+        selector: '[data-testid="catch-all-status-drawer-note"]',
+      },
+    ],
+  });
+  if (await page.getByTestId("delivery-detail-drawer").count()) {
+    throw new Error(
+      "Delivery drawer must not be open when catch-all status drawer is open",
+    );
+  }
+  await page.keyboard.press("Escape");
+  await drawer.waitFor({ state: "hidden", timeout: 8000 });
+  console.log("PASS: catch-all status drawer (title, count, note, contrast)");
+}
+
 async function assertG1NotCatchAll(page) {
   const g1 = page.getByTestId("shop-spot-G1");
   if (!(await g1.count())) return;
@@ -583,6 +645,7 @@ async function main() {
 
   await exitEditMode(page);
   await assertCatchAllOverlayInView(page, "View mode after Done editing");
+  await assertCatchAllStatusDrawer(page);
   await assertTopBarCatchAllBadge(page);
 
   await page.reload({ waitUntil: "domcontentloaded" });

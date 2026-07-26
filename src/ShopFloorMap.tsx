@@ -131,6 +131,8 @@ type Props = {
   onRemoveCatchAllSpot?: () => Promise<void>;
   /** View-mode spot click could not open delivery (stale assignment, etc.). */
   onSpotDeliveryUnavailable?: (message: string) => void;
+  /** View mode only — open catch-all status drawer (not in edit drag/resize). */
+  onCatchAllClick?: () => void;
 };
 
 export type ShopFloorMapHandle = {
@@ -344,6 +346,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       onAddCatchAllSpot,
       onRemoveCatchAllSpot,
       onSpotDeliveryUnavailable: _onSpotDeliveryUnavailable,
+      onCatchAllClick,
     },
     ref,
   ) {
@@ -2937,6 +2940,26 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             onPointerDown={editMode ? onCatchAllPointerDown : undefined}
             onPointerMove={editMode ? onCatchAllPointerMove : undefined}
             onPointerUp={editMode ? onCatchAllPointerUp : undefined}
+            onClick={
+              !editMode && onCatchAllClick
+                ? (e) => {
+                    e.stopPropagation();
+                    onCatchAllClick();
+                  }
+                : undefined
+            }
+            role={!editMode && onCatchAllClick ? "button" : undefined}
+            tabIndex={!editMode && onCatchAllClick ? 0 : undefined}
+            onKeyDown={
+              !editMode && onCatchAllClick
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onCatchAllClick();
+                    }
+                  }
+                : undefined
+            }
             style={{
               position: "absolute",
               left: catchAllMarker.ox,
@@ -2956,8 +2979,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               gap: 1,
               fontFamily: FONT,
               userSelect: "none",
-              cursor: editMode ? "grab" : "default",
-              pointerEvents: editMode ? "auto" : "none",
+              cursor: editMode
+                ? "grab"
+                : onCatchAllClick
+                  ? "pointer"
+                  : "default",
+              pointerEvents: editMode || onCatchAllClick ? "auto" : "none",
               touchAction: editMode ? "none" : "auto",
               outline: editMode
                 ? selectedCatchAll
