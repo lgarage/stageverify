@@ -574,10 +574,9 @@ async function assertStagingMapBatchLabelButton(browser) {
     });
     await printMapBtn.waitFor({ timeout: 10_000 });
     const focusSpot = page.getByTestId("shop-spot-G4");
-    if ((await focusSpot.count()) > 0) {
-      await focusSpot.click();
-      await page.waitForTimeout(400);
-    }
+    await focusSpot.waitFor({ timeout: 20_000 });
+    await focusSpot.click();
+    await page.waitForTimeout(400);
     const singleSpotPrint = page.getByTestId("staging-map-print-location-label");
     record(
       "Staging map has no single-spot Print label toolbar button",
