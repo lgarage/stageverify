@@ -75,7 +75,7 @@ import {
 } from "./resolveIssueDefaults";
 
 /** Drawer UI simplification (away-080) — sections hidden pending redesign; logic preserved. */
-const DRAWER_HIDE_VENDOR_COMMUNICATIONS = false;
+const DRAWER_HIDE_VENDOR_COMMUNICATIONS = true;
 const DRAWER_HIDE_RESOLVED_MATERIAL_ISSUES = true;
 
 const DRAWER_ACTION_BTN_BASE = {

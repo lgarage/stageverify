@@ -76,8 +76,16 @@ const itemsSnap = await getDocs(
 const batch = writeBatch(db);
 batch.update(doc(db, "deliveries", deliveryId), {
   status: "pending",
-  stagingLocationId: null,
-  additionalStagingLocationIds: [],
+  ...(deliveryId === "delivery-demo-vendor-1"
+    ? {
+        stagingLocationId: "staging-1",
+        additionalStagingLocationIds: ["staging-2", "staging-3"],
+        plannedStagingLocationIds: ["staging-1", "staging-2", "staging-3"],
+      }
+    : {
+        stagingLocationId: null,
+        additionalStagingLocationIds: [],
+      }),
   submittedAt: null,
   vendorPhysicalDropoffConfirmed: false,
   vendorPhysicalDropoffConfirmedAt: null,

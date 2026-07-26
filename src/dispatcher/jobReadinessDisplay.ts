@@ -1,5 +1,8 @@
 import type { DeliveryOrder, Item, Job, MaterialIssue } from "./models";
-import { isReservedDisplayState } from "./deliveryDisplayHelpers";
+import {
+  countOpenBlockingIssues,
+  isReservedDisplayState,
+} from "./deliveryDisplayHelpers";
 import { vendorInvoiceImportDisplayLabel } from "./invoice/invoiceDisplayHelpers";
 import type {
   DeliveryReadinessResult,
@@ -7,22 +10,8 @@ import type {
   POReadinessResult,
 } from "./readiness";
 
-const OPEN_ISSUE_STATUSES = new Set(["open", "assigned"]);
-
 /** List + drawer status when shop is waiting for inbound material (0 received). */
 export const AWAITING_DELIVERY_STATUS_LABEL = "Awaiting Delivery";
-
-function countOpenIssuesForLabel(
-  delivery: Pick<DeliveryOrder, "openIssueCount">,
-  materialIssues?: MaterialIssue[],
-): number {
-  if (materialIssues !== undefined) {
-    return materialIssues.filter((issue) =>
-      OPEN_ISSUE_STATUSES.has(issue.status),
-    ).length;
-  }
-  return delivery.openIssueCount ?? 0;
-}
 
 export function deliveryReadinessDisplayLabel(
   delivery: DeliveryOrder,
@@ -45,9 +34,23 @@ export function deliveryReadinessDisplayLabel(
   ) {
     return "Delivered";
   }
-  if (countOpenIssuesForLabel(delivery, materialIssues) > 0) {
+  if (countOpenBlockingIssues(delivery, materialIssues) > 0) {
     return "Issue / Review Required";
   }
+
+  const ordered = items.reduce((sum, item) => sum + item.qtyOrdered, 0);
+  const received = items.reduce((sum, item) => sum + item.qtyReceived, 0);
+
+  if (
+    received === 0 &&
+    (delivery.status === "pending" ||
+      delivery.status === "shipped" ||
+      delivery.status === "arrived" ||
+      delivery.status === "partial")
+  ) {
+    return AWAITING_DELIVERY_STATUS_LABEL;
+  }
+
   if (isReservedDisplayState(delivery)) {
     return "Reserved";
   }
@@ -58,21 +61,8 @@ export function deliveryReadinessDisplayLabel(
     return "Issue / Review Required";
   }
 
-  const ordered = items.reduce((sum, item) => sum + item.qtyOrdered, 0);
-  const received = items.reduce((sum, item) => sum + item.qtyReceived, 0);
-
   if (received > 0 && received < ordered) {
     return "Partial";
-  }
-
-  if (
-    received === 0 &&
-    (delivery.status === "pending" ||
-      delivery.status === "shipped" ||
-      delivery.status === "arrived" ||
-      delivery.status === "partial")
-  ) {
-    return AWAITING_DELIVERY_STATUS_LABEL;
   }
 
   return "Incomplete";
