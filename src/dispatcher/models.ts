@@ -1253,7 +1253,11 @@ export interface VendorInvoiceImportReview {
     vendorKey: string;
     finalModel: string;
     escalated: boolean;
+    validatedBy?: string;
     gateFailures: string[];
+    liteGateFailures?: string[];
+    validatorGateFailures?: string[];
+    validatorVerdict?: "pass" | "fail";
     qtyMatchRegex: boolean | null;
     error?: string;
   };

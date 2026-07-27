@@ -999,8 +999,8 @@ export function SettingsPage() {
                           lineHeight: 1.45,
                         }}
                       >
-                        Runs Gemini Flash-Lite → 3.6 Flash after the regex parser and
-                        logs results for comparison. Never auto-approves invoices.
+                        Runs Gemini Flash-Lite, then always validates with 3.6 Flash
+                        after the regex parser. Logs results only — never auto-approves.
                       </span>
                     </span>
                   </label>
