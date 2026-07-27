@@ -4,6 +4,7 @@ exports.sanitizeVendorKey = sanitizeVendorKey;
 exports.vendorTrainingObjectPath = vendorTrainingObjectPath;
 exports.readVendorTrainingMd = readVendorTrainingMd;
 exports.appendVendorTrainingLesson = appendVendorTrainingLesson;
+exports.writeVendorTrainingMd = writeVendorTrainingMd;
 const admin = require("firebase-admin");
 const constants_1 = require("./constants");
 const redactLessonNote_1 = require("./redactLessonNote");
@@ -63,6 +64,26 @@ async function appendVendorTrainingLesson(input) {
         return { wrote: false, reason: "md_size_cap" };
     }
     await file.save(next, {
+        contentType: "text/markdown; charset=utf-8",
+        resumable: false,
+        metadata: {
+            cacheControl: "private, max-age=0",
+        },
+    });
+    return { wrote: true };
+}
+/** Full replace of vendor training MD (Admin editor). Size-capped only. */
+async function writeVendorTrainingMd(input) {
+    const markdown = input.markdown.replace(/\r\n/g, "\n");
+    if (!markdown.trim()) {
+        return { wrote: false, reason: "md_empty" };
+    }
+    if (Buffer.byteLength(markdown, "utf8") > constants_1.MAX_VENDOR_MD_BYTES) {
+        return { wrote: false, reason: "md_size_cap" };
+    }
+    const path = vendorTrainingObjectPath(input.vendorKey);
+    const file = storage().file(path);
+    await file.save(markdown, {
         contentType: "text/markdown; charset=utf-8",
         resumable: false,
         metadata: {

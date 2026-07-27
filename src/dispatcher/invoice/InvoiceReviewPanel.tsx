@@ -5,6 +5,7 @@ import type {
 } from "../models";
 import {
   approveVendorInvoiceImport,
+  INVOICE_TRAINING_LESSON_TOAST,
   ensureApprovedUnlinkedInvoiceShells,
   listVendorInvoiceImports,
   matchInvoiceToRecords,
@@ -234,10 +235,16 @@ export function InvoiceReviewPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [trainingToast, setTrainingToast] = useState<string | null>(null);
   const [filter, setFilter] = useState<QueueFilter>("pending");
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
   const lastAppliedGeneration = useRef(0);
+
+  const showTrainingToast = (message: string) => {
+    setTrainingToast(message);
+    window.setTimeout(() => setTrainingToast(null), 4000);
+  };
 
   const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
     setImports(items);
@@ -410,10 +417,19 @@ export function InvoiceReviewPanel({
       const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
       const lessonNote = result.trainingLessonWrote
         ? " Training lesson saved for future invoices."
-        : "";
+        : result.trainingLessonPendingAdminReview
+          ? " Training note pending Admin review."
+          : "";
       setSuccessMessage(
         `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}${lessonNote}`,
       );
+      if (result.trainingLessonWrote) {
+        showTrainingToast(INVOICE_TRAINING_LESSON_TOAST);
+      } else if (result.trainingLessonPendingAdminReview) {
+        showTrainingToast(
+          "This note is pending Admin review — patterns may need a fix before it can be saved.",
+        );
+      }
       if (onApproveSuccess) {
         await onApproveSuccess();
       }
@@ -889,6 +905,31 @@ export function InvoiceReviewPanel({
           }}
         >
           {successMessage}
+        </div>
+      )}
+
+      {trainingToast && (
+        <div
+          data-testid="invoice-review-training-toast"
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 28,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10000,
+            backgroundColor: "#0a3161",
+            color: "#fff",
+            padding: "12px 18px",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+            maxWidth: "min(520px, 92vw)",
+            textAlign: "center",
+          }}
+        >
+          {trainingToast}
         </div>
       )}
 

@@ -73,6 +73,8 @@ import type {
   VendorInvoiceImportReview,
   InvoiceMatchResult,
   ApproveVendorInvoiceImportResult,
+  InvoiceTrainingAdminStatus,
+  SaveInvoiceTrainingLessonResult,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -2366,6 +2368,31 @@ const approveVendorInvoiceImportCallable = httpsCallable<
   ApproveVendorInvoiceImportResult
 >(functions, "approveVendorInvoiceImport");
 
+const getInvoiceTrainingAdminStatusCallable = httpsCallable<
+  Record<string, never>,
+  InvoiceTrainingAdminStatus
+>(functions, "getInvoiceTrainingAdminStatus");
+
+const configureInvoiceTrainingAdminCallable = httpsCallable<
+  { alertEmail: string; password: string },
+  InvoiceTrainingAdminStatus & { success: boolean }
+>(functions, "configureInvoiceTrainingAdmin");
+
+const saveInvoiceTrainingLessonCallable = httpsCallable<
+  { vendorInvoiceImportId: string; correctionNote: string },
+  SaveInvoiceTrainingLessonResult
+>(functions, "saveInvoiceTrainingLesson");
+
+const getVendorTrainingPlaybookCallable = httpsCallable<
+  { password: string; vendorKey?: string; vendorInvoiceImportId?: string },
+  { vendorKey: string; markdown: string }
+>(functions, "getVendorTrainingPlaybook");
+
+const saveVendorTrainingPlaybookCallable = httpsCallable<
+  { password: string; vendorKey: string; markdown: string },
+  { vendorKey: string; wrote: boolean }
+>(functions, "saveVendorTrainingPlaybook");
+
 const getVendorInvoiceImportCallable = httpsCallable<
   { id: string },
   VendorInvoiceImportReview
@@ -2476,6 +2503,49 @@ export async function approveVendorInvoiceImport(input: {
   const response = await approveVendorInvoiceImportCallable(input);
   return response.data;
 }
+
+export async function getInvoiceTrainingAdminStatus(): Promise<InvoiceTrainingAdminStatus> {
+  const response = await getInvoiceTrainingAdminStatusCallable({});
+  return response.data;
+}
+
+export async function configureInvoiceTrainingAdmin(input: {
+  alertEmail: string;
+  password: string;
+}): Promise<InvoiceTrainingAdminStatus & { success: boolean }> {
+  const response = await configureInvoiceTrainingAdminCallable(input);
+  return response.data;
+}
+
+export async function saveInvoiceTrainingLesson(input: {
+  vendorInvoiceImportId: string;
+  correctionNote: string;
+}): Promise<SaveInvoiceTrainingLessonResult> {
+  const response = await saveInvoiceTrainingLessonCallable(input);
+  return response.data;
+}
+
+export async function getVendorTrainingPlaybook(input: {
+  password: string;
+  vendorKey?: string;
+  vendorInvoiceImportId?: string;
+}): Promise<{ vendorKey: string; markdown: string }> {
+  const response = await getVendorTrainingPlaybookCallable(input);
+  return response.data;
+}
+
+export async function saveVendorTrainingPlaybook(input: {
+  password: string;
+  vendorKey: string;
+  markdown: string;
+}): Promise<{ vendorKey: string; wrote: boolean }> {
+  const response = await saveVendorTrainingPlaybookCallable(input);
+  return response.data;
+}
+
+/** Toast copy when a training lesson or Admin MD save succeeds. */
+export const INVOICE_TRAINING_LESSON_TOAST =
+  "Got it — new rule added to internal notes for the next similar invoice.";
 
 function invoiceShellBackfillCandidate(
   row: VendorInvoiceImportReview,

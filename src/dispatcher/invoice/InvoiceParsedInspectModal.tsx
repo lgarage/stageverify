@@ -3,6 +3,13 @@ import type {
   InvoiceMatchResult,
   VendorInvoiceImportReview,
 } from "../models";
+import {
+  getInvoiceTrainingAdminStatus,
+  getVendorTrainingPlaybook,
+  INVOICE_TRAINING_LESSON_TOAST,
+  saveInvoiceTrainingLesson,
+  saveVendorTrainingPlaybook,
+} from "../firestoreService";
 import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChecklist";
 import { useVendorInvoicePdfViewer } from "./useVendorInvoicePdfViewer";
 import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
@@ -23,6 +30,18 @@ const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const CELL_TEXT = "#111827";
 const MUTED = "#4b5563";
+
+const HEADER_BTN: CSSProperties = {
+  backgroundColor: "#fff",
+  color: NAVY,
+  border: `1px solid ${NAVY}`,
+  borderRadius: 6,
+  padding: "8px 14px",
+  fontWeight: 600,
+  fontSize: 13,
+  fontFamily: FONT,
+  cursor: "pointer",
+};
 
 const TABLE_CELL: CSSProperties = {
   padding: "10px 12px",
@@ -81,8 +100,131 @@ export function InvoiceParsedInspectModal({
   deliverToSiteConfirmed?: boolean;
 }) {
   const [correctionNote, setCorrectionNote] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const [saveLessonLoading, setSaveLessonLoading] = useState(false);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminPasswordPrompt, setAdminPasswordPrompt] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminPasswordError, setAdminPasswordError] = useState<string | null>(
+    null,
+  );
+  const [mdEditor, setMdEditor] = useState<{
+    vendorKey: string;
+    markdown: string;
+    password: string;
+  } | null>(null);
+  const [mdSaveLoading, setMdSaveLoading] = useState(false);
   const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
     useVendorInvoicePdfViewer();
+
+  const showToast = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const openTrainingAdminSettings = () => {
+    window.location.hash = "#/settings?focus=invoice-training-admin";
+  };
+
+  const handleAdminClick = async () => {
+    if (adminBusy || readOnly) return;
+    setAdminBusy(true);
+    setAdminPasswordError(null);
+    try {
+      const status = await getInvoiceTrainingAdminStatus();
+      if (!status.fullyConfigured) {
+        openTrainingAdminSettings();
+        return;
+      }
+      setAdminPassword("");
+      setAdminPasswordPrompt(true);
+    } catch (err) {
+      setAdminPasswordError(
+        err instanceof Error ? err.message : "Could not check Admin setup.",
+      );
+      setAdminPasswordPrompt(true);
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const unlockPlaybook = async () => {
+    if (!adminPassword.trim()) {
+      setAdminPasswordError("Enter the Admin password.");
+      return;
+    }
+    setAdminBusy(true);
+    setAdminPasswordError(null);
+    try {
+      const playbook = await getVendorTrainingPlaybook({
+        password: adminPassword,
+        vendorInvoiceImportId: importRow.id,
+      });
+      setMdEditor({
+        vendorKey: playbook.vendorKey,
+        markdown: playbook.markdown,
+        password: adminPassword,
+      });
+      setAdminPasswordPrompt(false);
+      setAdminPassword("");
+    } catch (err) {
+      setAdminPasswordError(
+        err instanceof Error ? err.message : "Incorrect password or load failed.",
+      );
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const savePlaybook = async () => {
+    if (!mdEditor) return;
+    setMdSaveLoading(true);
+    try {
+      await saveVendorTrainingPlaybook({
+        password: mdEditor.password,
+        vendorKey: mdEditor.vendorKey,
+        markdown: mdEditor.markdown,
+      });
+      showToast(INVOICE_TRAINING_LESSON_TOAST);
+      setMdEditor(null);
+    } catch (err) {
+      setAdminPasswordError(
+        err instanceof Error ? err.message : "Could not save playbook.",
+      );
+    } finally {
+      setMdSaveLoading(false);
+    }
+  };
+
+  const handleSaveLesson = async () => {
+    const note = correctionNote.trim();
+    if (!note || saveLessonLoading) return;
+    setSaveLessonLoading(true);
+    try {
+      const result = await saveInvoiceTrainingLesson({
+        vendorInvoiceImportId: importRow.id,
+        correctionNote: note,
+      });
+      if (result.trainingLessonWrote) {
+        showToast(INVOICE_TRAINING_LESSON_TOAST);
+        setCorrectionNote("");
+      } else if (result.trainingLessonPendingAdminReview) {
+        showToast(
+          "This note is pending Admin review — patterns may need a fix before it can be saved.",
+        );
+      } else {
+        showToast(
+          result.reason === "empty"
+            ? "Enter a training note first."
+            : "Lesson was not saved. Try a more general pattern.",
+        );
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Save lesson failed.");
+    } finally {
+      setSaveLessonLoading(false);
+    }
+  };
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow, {
     deliverToSiteConfirmed,
   });
@@ -180,6 +322,21 @@ export function InvoiceParsedInspectModal({
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {!readOnly && (
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-admin"
+                disabled={adminBusy}
+                onClick={() => void handleAdminClick()}
+                style={{
+                  ...HEADER_BTN,
+                  cursor: adminBusy ? "not-allowed" : "pointer",
+                  opacity: adminBusy ? 0.55 : 1,
+                }}
+              >
+                Admin
+              </button>
+            )}
             <button
               type="button"
               data-testid="invoice-parsed-inspect-view-original-pdf"
@@ -187,13 +344,7 @@ export function InvoiceParsedInspectModal({
               title={pdfUnavailableMessage(importRow.id) ?? undefined}
               onClick={() => void viewPdf(importRow.id)}
               style={{
-                backgroundColor: "#fff",
-                color: NAVY,
-                border: `1px solid ${NAVY}`,
-                borderRadius: 6,
-                padding: "8px 14px",
-                fontWeight: 600,
-                fontSize: 13,
+                ...HEADER_BTN,
                 cursor:
                   pdfLoading(importRow.id) || pdfUnavailableMessage(importRow.id)
                     ? "not-allowed"
@@ -576,7 +727,7 @@ export function InvoiceParsedInspectModal({
               gap: 14,
             }}
           >
-            {onApprove && (isPending || isRejected) && (
+            {(isPending || isRejected) && (
               <div
                 data-testid="invoice-parsed-inspect-training-panel"
                 style={{
@@ -637,7 +788,7 @@ export function InvoiceParsedInspectModal({
                   onChange={(e) => setCorrectionNote(e.target.value)}
                   placeholder="Example: When Ship Via is WILL CALL, set fulfillment to will_call_pickup — not delivery."
                   rows={3}
-                  disabled={actionLoading || approveBlocked}
+                  disabled={actionLoading || saveLessonLoading}
                   style={{
                     display: "block",
                     width: "100%",
@@ -678,6 +829,42 @@ export function InvoiceParsedInspectModal({
                 flexWrap: "wrap",
               }}
             >
+              {(isPending || isRejected) && (
+                <button
+                  type="button"
+                  data-testid="invoice-parsed-inspect-save-lesson"
+                  disabled={
+                    actionLoading ||
+                    saveLessonLoading ||
+                    !correctionNote.trim()
+                  }
+                  onClick={() => void handleSaveLesson()}
+                  style={{
+                    backgroundColor: "#fff",
+                    color: NAVY,
+                    border: `1px solid ${NAVY}`,
+                    borderRadius: 6,
+                    padding: "10px 18px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor:
+                      actionLoading ||
+                      saveLessonLoading ||
+                      !correctionNote.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      actionLoading ||
+                      saveLessonLoading ||
+                      !correctionNote.trim()
+                        ? 0.55
+                        : 1,
+                    fontFamily: FONT,
+                  }}
+                >
+                  {saveLessonLoading ? "Saving…" : "Save lesson"}
+                </button>
+              )}
               {onReject && isPending && (
                 <button
                   type="button"
@@ -771,6 +958,249 @@ export function InvoiceParsedInspectModal({
           </div>
         )}
       </div>
+
+      {toast && (
+        <div
+          data-testid="invoice-training-toast"
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 28,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10000,
+            backgroundColor: NAVY,
+            color: "#fff",
+            padding: "12px 18px",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            fontFamily: FONT,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+            maxWidth: "min(520px, 92vw)",
+            textAlign: "center",
+          }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {adminPasswordPrompt && (
+        <div
+          data-testid="invoice-training-admin-password-dialog"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10001,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => {
+            if (!adminBusy) setAdminPasswordPrompt(false);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 10,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+              color: CELL_TEXT,
+              fontFamily: FONT,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 8px", color: NAVY, fontSize: 18 }}>
+              Admin password
+            </h3>
+            <p style={{ margin: "0 0 14px", fontSize: 13, color: MUTED }}>
+              Enter the invoice training Admin password to view this vendor&apos;s
+              playbook.
+            </p>
+            <input
+              type="password"
+              data-testid="invoice-training-admin-password-input"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void unlockPlaybook();
+              }}
+              autoFocus
+              style={{
+                display: "block",
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "10px 12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: 6,
+                fontSize: 14,
+                color: CELL_TEXT,
+                backgroundColor: "#fff",
+                marginBottom: 10,
+              }}
+            />
+            {adminPasswordError && (
+              <p
+                data-testid="invoice-training-admin-password-error"
+                style={{ margin: "0 0 10px", fontSize: 13, color: RED }}
+              >
+                {adminPasswordError}
+              </p>
+            )}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setAdminPasswordPrompt(false)}
+                disabled={adminBusy}
+                style={{ ...HEADER_BTN }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="invoice-training-admin-password-submit"
+                disabled={adminBusy}
+                onClick={() => void unlockPlaybook()}
+                style={{
+                  backgroundColor: NAVY,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: adminBusy ? "not-allowed" : "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                {adminBusy ? "Checking…" : "Open playbook"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mdEditor && (
+        <div
+          data-testid="invoice-training-md-editor"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10002,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 10,
+              padding: 20,
+              width: "100%",
+              maxWidth: 720,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              color: CELL_TEXT,
+              fontFamily: FONT,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <h3 style={{ margin: 0, color: NAVY, fontSize: 18 }}>
+                Training playbook — {mdEditor.vendorKey}.md
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMdEditor(null)}
+                style={{ ...HEADER_BTN }}
+              >
+                Close
+              </button>
+            </div>
+            <textarea
+              data-testid="invoice-training-md-textarea"
+              value={mdEditor.markdown}
+              onChange={(e) =>
+                setMdEditor({ ...mdEditor, markdown: e.target.value })
+              }
+              rows={18}
+              style={{
+                flex: 1,
+                minHeight: 280,
+                width: "100%",
+                boxSizing: "border-box",
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                fontSize: 12,
+                lineHeight: 1.45,
+                color: CELL_TEXT,
+                backgroundColor: "#fff",
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                padding: 12,
+                resize: "vertical",
+              }}
+            />
+            {adminPasswordError && (
+              <p style={{ margin: 0, fontSize: 13, color: RED }}>
+                {adminPasswordError}
+              </p>
+            )}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                data-testid="invoice-training-md-save"
+                disabled={mdSaveLoading || !mdEditor.markdown.trim()}
+                onClick={() => void savePlaybook()}
+                style={{
+                  backgroundColor: NAVY,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "10px 18px",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor:
+                    mdSaveLoading || !mdEditor.markdown.trim()
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity: mdSaveLoading || !mdEditor.markdown.trim() ? 0.55 : 1,
+                  fontFamily: FONT,
+                }}
+              >
+                {mdSaveLoading ? "Saving…" : "Save playbook"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -812,6 +812,13 @@ export interface AppSettings {
    */
   invoiceAiShadowEnabled?: boolean;
   /**
+   * Public hint only — alert email string is CF-only in invoiceTrainingAdminSecrets
+   * (never on public-readable appSettings).
+   */
+  invoiceTrainingAlertEmailConfigured?: boolean;
+  /** Public hint only — password hash is CF-only in invoiceTrainingAdminSecrets. */
+  invoiceTrainingAdminPasswordConfigured?: boolean;
+  /**
    * Staging Map layout additions beyond default constants (extra ground / shelf units / shelf letters)
    * plus optional hiddenSlots. Written by authenticated dispatcher map edit; public-readable via appSettings.
    */
@@ -1305,6 +1312,26 @@ export interface ApproveVendorInvoiceImportResult {
   shellError?: string;
   /** True when a generalized correction note was appended to vendor training MD. */
   trainingLessonWrote?: boolean;
+  /** True when the note failed safety/redaction and needs Admin review. */
+  trainingLessonPendingAdminReview?: boolean;
+  /** True when a pending-Admin alert email was sent. */
+  trainingLessonAlertEmailed?: boolean;
+}
+
+export interface InvoiceTrainingAdminStatus {
+  alertEmailConfigured: boolean;
+  passwordConfigured: boolean;
+  fullyConfigured: boolean;
+  alertEmail: string | null;
+}
+
+export interface SaveInvoiceTrainingLessonResult {
+  vendorInvoiceImportId: string;
+  vendorKey: string;
+  trainingLessonWrote: boolean;
+  trainingLessonPendingAdminReview: boolean;
+  trainingLessonAlertEmailed: boolean;
+  reason?: string;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

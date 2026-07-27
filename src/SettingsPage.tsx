@@ -21,6 +21,8 @@ import {
   getEmailProviderConnection,
   initiateGmailOAuth,
   disconnectGmailOAuth,
+  configureInvoiceTrainingAdmin,
+  getInvoiceTrainingAdminStatus,
 } from "./dispatcher/firestoreService";
 import {
   stagingListRowsForShopMap,
@@ -110,6 +112,16 @@ export function SettingsPage() {
   const [monitoringInboxEmail, setMonitoringInboxEmail] = useState("");
   const [emailMonitoringEnabled, setEmailMonitoringEnabled] = useState(false);
   const [invoiceAiShadowEnabled, setInvoiceAiShadowEnabled] = useState(false);
+  const [invoiceTrainingAlertEmail, setInvoiceTrainingAlertEmail] = useState("");
+  const [invoiceTrainingAdminPassword, setInvoiceTrainingAdminPassword] =
+    useState("");
+  const [invoiceTrainingPasswordConfigured, setInvoiceTrainingPasswordConfigured] =
+    useState(false);
+  const [savingTrainingAdmin, setSavingTrainingAdmin] = useState(false);
+  const [trainingAdminSaved, setTrainingAdminSaved] = useState(false);
+  const [trainingAdminError, setTrainingAdminError] = useState<string | null>(
+    null,
+  );
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -184,8 +196,36 @@ export function SettingsPage() {
       setMonitoringInboxEmail(settings.monitoringInboxEmail ?? "");
       setEmailMonitoringEnabled(settings.emailMonitoringEnabled === true);
       setInvoiceAiShadowEnabled(settings.invoiceAiShadowEnabled === true);
+      setInvoiceTrainingPasswordConfigured(
+        settings.invoiceTrainingAdminPasswordConfigured === true,
+      );
     });
+    void getInvoiceTrainingAdminStatus()
+      .then((status) => {
+        setInvoiceTrainingAlertEmail(status.alertEmail ?? "");
+        setInvoiceTrainingPasswordConfigured(status.passwordConfigured);
+      })
+      .catch(() => {
+        /* status callable optional on first load */
+      });
   }, []);
+
+  useEffect(() => {
+    const hash = location.hash;
+    const queryStart = hash.indexOf("?");
+    if (queryStart === -1) return;
+    const params = new URLSearchParams(hash.slice(queryStart + 1));
+    if (params.get("focus") !== "invoice-training-admin") return;
+    const el = document.getElementById("settings-invoice-training-admin");
+    if (!el) return;
+    window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.style.outline = "2px solid #0a3161";
+      window.setTimeout(() => {
+        el.style.outline = "";
+      }, 2500);
+    }, 80);
+  }, [location.hash]);
 
   const syncConnectedMailboxToSettings = async (
     connectedEmail: string,
@@ -315,6 +355,29 @@ export function SettingsPage() {
       setTimeout(() => setEmailSaved(false), 2000);
     } finally {
       setSavingEmail(false);
+    }
+  };
+
+  const saveInvoiceTrainingAdmin = async () => {
+    if (savingTrainingAdmin) return;
+    setSavingTrainingAdmin(true);
+    setTrainingAdminError(null);
+    try {
+      const result = await configureInvoiceTrainingAdmin({
+        alertEmail: invoiceTrainingAlertEmail.trim(),
+        password: invoiceTrainingAdminPassword,
+      });
+      setInvoiceTrainingAlertEmail(result.alertEmail ?? invoiceTrainingAlertEmail);
+      setInvoiceTrainingPasswordConfigured(true);
+      setInvoiceTrainingAdminPassword("");
+      setTrainingAdminSaved(true);
+      window.setTimeout(() => setTrainingAdminSaved(false), 2500);
+    } catch (err) {
+      setTrainingAdminError(
+        err instanceof Error ? err.message : "Could not save Admin settings.",
+      );
+    } finally {
+      setSavingTrainingAdmin(false);
     }
   };
 
@@ -1004,6 +1067,187 @@ export function SettingsPage() {
                       </span>
                     </span>
                   </label>
+                  <div
+                    id="settings-invoice-training-admin"
+                    data-testid="settings-invoice-training-admin"
+                    style={{
+                      marginTop: 20,
+                      padding: "16px 16px 14px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 8,
+                      backgroundColor: "#f8fafc",
+                      maxWidth: 560,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: NAVY,
+                        marginBottom: 6,
+                      }}
+                    >
+                      Invoice training Admin
+                    </div>
+                    <p
+                      style={{
+                        margin: "0 0 12px",
+                        fontSize: 12,
+                        color: "#4b5563",
+                        lineHeight: 1.45,
+                        fontWeight: 500,
+                      }}
+                    >
+                      Alert email (safety-reject notifications) and Admin password
+                      for editing vendor training playbooks. Dispatcher only. Password
+                      is stored as a hash — never shown again.
+                    </p>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#374151",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Alert email
+                    </label>
+                    <input
+                      type="email"
+                      data-testid="invoice-training-alert-email"
+                      value={invoiceTrainingAlertEmail}
+                      onChange={(e) => setInvoiceTrainingAlertEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "8px 10px",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 6,
+                        fontSize: 13,
+                        color: "#111827",
+                        backgroundColor: "#fff",
+                        marginBottom: 10,
+                        fontFamily: FONT,
+                      }}
+                    />
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#374151",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Admin password{" "}
+                      {invoiceTrainingPasswordConfigured
+                        ? "(set a new password to replace)"
+                        : "(min 8 characters)"}
+                    </label>
+                    <input
+                      type="password"
+                      data-testid="invoice-training-admin-password"
+                      value={invoiceTrainingAdminPassword}
+                      onChange={(e) =>
+                        setInvoiceTrainingAdminPassword(e.target.value)
+                      }
+                      placeholder={
+                        invoiceTrainingPasswordConfigured
+                          ? "Enter new password to change"
+                          : "Create Admin password"
+                      }
+                      autoComplete="new-password"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "8px 10px",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 6,
+                        fontSize: 13,
+                        color: "#111827",
+                        backgroundColor: "#fff",
+                        marginBottom: 10,
+                        fontFamily: FONT,
+                      }}
+                    />
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: invoiceTrainingPasswordConfigured
+                          ? "#166534"
+                          : "#b45309",
+                        marginBottom: 10,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {invoiceTrainingPasswordConfigured
+                        ? "Password configured"
+                        : "Password not configured yet"}
+                      {" · "}
+                      {invoiceTrainingAlertEmail.trim()
+                        ? "Alert email set"
+                        : "Alert email required"}
+                    </div>
+                    {trainingAdminError && (
+                      <p
+                        data-testid="invoice-training-admin-error"
+                        style={{
+                          margin: "0 0 8px",
+                          fontSize: 12,
+                          color: RED,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {trainingAdminError}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      data-testid="save-invoice-training-admin"
+                      onClick={() => void saveInvoiceTrainingAdmin()}
+                      disabled={
+                        savingTrainingAdmin ||
+                        !invoiceTrainingAlertEmail.trim() ||
+                        invoiceTrainingAdminPassword.length < 8
+                      }
+                      style={{
+                        padding: "8px 18px",
+                        borderRadius: 4,
+                        border: "none",
+                        backgroundColor:
+                          savingTrainingAdmin ||
+                          !invoiceTrainingAlertEmail.trim() ||
+                          invoiceTrainingAdminPassword.length < 8
+                            ? "#f3f4f6"
+                            : NAVY,
+                        color:
+                          savingTrainingAdmin ||
+                          !invoiceTrainingAlertEmail.trim() ||
+                          invoiceTrainingAdminPassword.length < 8
+                            ? "#9ca3af"
+                            : "#fff",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor:
+                          savingTrainingAdmin ||
+                          !invoiceTrainingAlertEmail.trim() ||
+                          invoiceTrainingAdminPassword.length < 8
+                            ? "not-allowed"
+                            : "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {savingTrainingAdmin
+                        ? "Saving…"
+                        : trainingAdminSaved
+                          ? "Saved"
+                          : "Save Admin email & password"}
+                    </button>
+                  </div>
                   <div
                     style={{
                       display: "flex",

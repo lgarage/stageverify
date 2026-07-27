@@ -80,6 +80,7 @@ exports.RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set([
     "installed",
 ]);
 exports.ZONE_CLEARED_DELIVERY_STATUSES = new Set([
+    "complete",
     "picked_up",
     "installed",
 ]);

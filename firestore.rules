@@ -199,6 +199,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Invoice training Admin password hash — CF Admin SDK only (never client).
+    match /invoiceTrainingAdminSecrets/{docId} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }
@@ -234,9 +239,18 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated()
         && !('catchAllPendingCheckInCount' in request.resource.data)
+        && !('invoiceTrainingAdminPasswordConfigured' in request.resource.data)
+        && !('invoiceTrainingAlertEmailConfigured' in request.resource.data)
+        && !('invoiceTrainingAlertEmail' in request.resource.data)
         && (!('invoiceAiShadowEnabled' in request.resource.data) || isDispatcher());
       allow update: if isAuthenticated()
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['catchAllPendingCheckInCount'])
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny([
+            'catchAllPendingCheckInCount',
+            'invoiceTrainingAdminPasswordConfigured',
+            'invoiceTrainingAlertEmailConfigured',
+            'invoiceTrainingAlertEmail',
+          ])
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['invoiceAiShadowEnabled'])
           || isDispatcher()

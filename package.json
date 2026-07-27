@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.179",
+  "version": "0.0.180",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -62,6 +62,8 @@
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:invoice-training-settings": "node scripts/run-verify-with-learning.mjs --script verify:invoice-training-settings scripts/verify-invoice-training-settings.mjs",
+    "verify:invoice-training-settings:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-training-settings:prod scripts/verify-invoice-training-settings.mjs --base-url=https://lgarage.github.io/stageverify",
     "repair:invoice-shells": "node scripts/repair-invoice-separate-shells.mjs",
     "verify:invoice-separate-rows": "node scripts/run-verify-with-learning.mjs --script verify:invoice-separate-rows scripts/verify-invoice-separate-rows.mjs",
     "verify:invoice-separate-rows:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-separate-rows:prod scripts/verify-invoice-separate-rows.mjs --base-url=https://lgarage.github.io/stageverify",
@@ -130,6 +132,7 @@
     "test:vendor-email-reply-router": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-vendor-email-reply-router.mjs\"",
     "test:invoice-parser": "npx tsx scripts/test-invoice-parser.mjs",
     "test:invoice-ai-shadow": "cd functions && npm run build && cd .. && node scripts/test-invoice-ai-shadow.mjs",
+    "test:invoice-training-admin": "cd functions && npm run build && cd .. && node scripts/test-invoice-training-admin.mjs",
     "test:auto-import-eligibility": "npx tsx scripts/test-auto-import-eligibility.mjs",
     "test:pdf-text-normalize": "npx tsx scripts/test-pdf-text-normalize.mjs",
     "test:pdf-extract-4046362": "cd functions && npm run build && cd .. && npx tsx scripts/test-pdf-extract-4046362.mjs",

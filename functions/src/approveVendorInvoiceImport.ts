@@ -19,8 +19,8 @@ import {
 } from "./invoice/computeAutoImportEligibility";
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
-import { appendVendorTrainingLesson } from "./invoice/aiShadow/vendorTrainingMd";
-import { redactLessonNote, isSafeLessonNote } from "./invoice/aiShadow/redactLessonNote";
+import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCore";
+import { vendorKeyFromImportDoc } from "./invoice/aiShadow/adminConfig";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -537,30 +537,24 @@ export const approveVendorInvoiceImport = onCall(
     });
 
     let trainingLessonWrote = false;
-    const redactedNote = redactLessonNote(correctionNoteRaw);
-    if (isSafeLessonNote(redactedNote)) {
-      const vendorKey =
-        (typeof importDoc.detectedVendorName === "string" &&
-        importDoc.detectedVendorName.trim()
-          ? importDoc.detectedVendorName
-          : importDoc.parserFormatId === "johnstone"
-            ? "johnstone"
-            : "unknown-vendor");
-      try {
-        const lesson = await appendVendorTrainingLesson({
-          vendorKey,
-          correctionNote: redactedNote,
-          atIso: now,
+    let trainingLessonPendingAdminReview = false;
+    let trainingLessonAlertEmailed = false;
+    if (correctionNoteRaw.trim()) {
+      const vendorKey = vendorKeyFromImportDoc(importDoc);
+      const lesson = await saveTrainingLessonCore({
+        vendorKey,
+        correctionNoteRaw,
+        importId,
+        atIso: now,
+      });
+      trainingLessonWrote = lesson.trainingLessonWrote;
+      trainingLessonPendingAdminReview = lesson.trainingLessonPendingAdminReview;
+      trainingLessonAlertEmailed = lesson.trainingLessonAlertEmailed;
+      if (lesson.trainingLessonWrote) {
+        await importRef.update({
+          trainingLessonAppendedAt: now,
+          updatedAt: now,
         });
-        trainingLessonWrote = lesson.wrote;
-        if (lesson.wrote) {
-          await importRef.update({
-            trainingLessonAppendedAt: now,
-            updatedAt: now,
-          });
-        }
-      } catch {
-        trainingLessonWrote = false;
       }
     }
 
@@ -572,6 +566,8 @@ export const approveVendorInvoiceImport = onCall(
       shellCreated: true,
       jobCreated: shell.jobCreated,
       trainingLessonWrote,
+      trainingLessonPendingAdminReview,
+      trainingLessonAlertEmailed,
     };
   },
 );

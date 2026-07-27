@@ -9,14 +9,44 @@
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
     "escalationModel": "claude-4.6-sonnet-medium-thinking",
-    "sequence": [],
+    "sequence": ["away-136"],
     "commandInterface": {
       "paused": false,
       "pauseAfterCurrentTask": false,
-      "updatedAt": "2026-07-24T02:45:00.000Z"
+      "updatedAt": "2026-07-27T02:30:00.000Z"
     }
   },
   "queue": [
+    {
+      "id": "away-136",
+      "title": "Invoice training Admin + Save lesson + alert email",
+      "status": "queued",
+      "riskTier": "high-risk",
+      "danApproved": true,
+      "deployApproved": true,
+      "deployTargets": ["functions", "firestore:rules", "gh-pages"],
+      "tier": "T3",
+      "model": "composer-2.5-fast",
+      "preApproved": true,
+      "scope": "Parsed import data: Admin button (left of View original PDF) password-gates GCS vendor MD editor; Save lesson without approve/reject (works when Approve blocked); Training note still appends on Approve; toast Got it — new rule… on successful write + Admin MD save; keep success banner; safety reject → pending Admin review UI + CF Gmail email to Settings alert address. Settings dispatcher-only section for alert email + Admin password (hash in private doc, CF verify). Unset config → navigate Settings to that section. Password every Admin click. Both email+password required. GCS playbook only.",
+      "acceptance": "Admin button visible; unset→Settings invoice-training section; password CF verify; full MD get/save; Save lesson when approve blocked; Approve still appends; toast on wrote; safety reject notifies + emails; build+verify PASS; Sonnet gate before push; deploy functions+rules+gh-pages.",
+      "files": [
+        "functions/src/invoiceTrainingAdminApi.ts",
+        "functions/src/invoice/aiShadow/vendorTrainingMd.ts",
+        "functions/src/approveVendorInvoiceImport.ts",
+        "firestore.rules",
+        "src/SettingsPage.tsx",
+        "src/dispatcher/invoice/InvoiceParsedInspectModal.tsx",
+        "src/dispatcher/invoice/InvoiceReviewPanel.tsx",
+        "src/dispatcher/firestoreService.ts",
+        "src/dispatcher/models.ts"
+      ],
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run build:functions",
+        "npm run test:invoice-ai-shadow"
+      ]
+    },
     {
       "id": "away-069",
       "title": "Phase 6 slice 3: Gmail reply sync / watch (spec only)",

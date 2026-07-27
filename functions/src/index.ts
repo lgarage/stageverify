@@ -34,6 +34,13 @@ import {
 } from "./inboundEmailProcessingApi";
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
+import {
+  configureInvoiceTrainingAdmin,
+  getInvoiceTrainingAdminStatus,
+  getVendorTrainingPlaybook,
+  saveInvoiceTrainingLesson,
+  saveVendorTrainingPlaybook,
+} from "./invoiceTrainingAdminApi";
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
 import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
@@ -234,6 +241,11 @@ export {
   getVendorInvoicePdf,
   matchInvoiceToRecordsCallable,
   approveVendorInvoiceImport,
+  configureInvoiceTrainingAdmin,
+  getInvoiceTrainingAdminStatus,
+  getVendorTrainingPlaybook,
+  saveInvoiceTrainingLesson,
+  saveVendorTrainingPlaybook,
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,

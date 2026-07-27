@@ -13,8 +13,8 @@ const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFr
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
-const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
-const redactLessonNote_1 = require("./invoice/aiShadow/redactLessonNote");
+const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
+const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
 function getDb() {
@@ -362,30 +362,24 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         });
     });
     let trainingLessonWrote = false;
-    const redactedNote = (0, redactLessonNote_1.redactLessonNote)(correctionNoteRaw);
-    if ((0, redactLessonNote_1.isSafeLessonNote)(redactedNote)) {
-        const vendorKey = (typeof importDoc.detectedVendorName === "string" &&
-            importDoc.detectedVendorName.trim()
-            ? importDoc.detectedVendorName
-            : importDoc.parserFormatId === "johnstone"
-                ? "johnstone"
-                : "unknown-vendor");
-        try {
-            const lesson = await (0, vendorTrainingMd_1.appendVendorTrainingLesson)({
-                vendorKey,
-                correctionNote: redactedNote,
-                atIso: now,
+    let trainingLessonPendingAdminReview = false;
+    let trainingLessonAlertEmailed = false;
+    if (correctionNoteRaw.trim()) {
+        const vendorKey = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
+        const lesson = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+            vendorKey,
+            correctionNoteRaw,
+            importId,
+            atIso: now,
+        });
+        trainingLessonWrote = lesson.trainingLessonWrote;
+        trainingLessonPendingAdminReview = lesson.trainingLessonPendingAdminReview;
+        trainingLessonAlertEmailed = lesson.trainingLessonAlertEmailed;
+        if (lesson.trainingLessonWrote) {
+            await importRef.update({
+                trainingLessonAppendedAt: now,
+                updatedAt: now,
             });
-            trainingLessonWrote = lesson.wrote;
-            if (lesson.wrote) {
-                await importRef.update({
-                    trainingLessonAppendedAt: now,
-                    updatedAt: now,
-                });
-            }
-        }
-        catch {
-            trainingLessonWrote = false;
         }
     }
     return {
@@ -396,6 +390,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         shellCreated: true,
         jobCreated: shell.jobCreated,
         trainingLessonWrote,
+        trainingLessonPendingAdminReview,
+        trainingLessonAlertEmailed,
     };
 });
 //# sourceMappingURL=approveVendorInvoiceImport.js.map

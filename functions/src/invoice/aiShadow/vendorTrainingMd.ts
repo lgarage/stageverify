@@ -78,3 +78,27 @@ export async function appendVendorTrainingLesson(input: {
   });
   return { wrote: true };
 }
+
+/** Full replace of vendor training MD (Admin editor). Size-capped only. */
+export async function writeVendorTrainingMd(input: {
+  vendorKey: string;
+  markdown: string;
+}): Promise<{ wrote: boolean; reason?: string }> {
+  const markdown = input.markdown.replace(/\r\n/g, "\n");
+  if (!markdown.trim()) {
+    return { wrote: false, reason: "md_empty" };
+  }
+  if (Buffer.byteLength(markdown, "utf8") > MAX_VENDOR_MD_BYTES) {
+    return { wrote: false, reason: "md_size_cap" };
+  }
+  const path = vendorTrainingObjectPath(input.vendorKey);
+  const file = storage().file(path);
+  await file.save(markdown, {
+    contentType: "text/markdown; charset=utf-8",
+    resumable: false,
+    metadata: {
+      cacheControl: "private, max-age=0",
+    },
+  });
+  return { wrote: true };
+}
