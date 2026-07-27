@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-24",
+  "lastRun": "2026-07-27",
   "batch": "away-118..121 + away-123 overnight verify batch",
   "results": [
     {
@@ -229,6 +229,13 @@
       "status": "built",
       "commit": "361fd81",
       "note": "D-42 contrast backfill pickup/receive/vendor"
+    },
+    {
+      "id": "away-136",
+      "title": "Invoice training Admin + Save lesson + alert email",
+      "status": "built",
+      "commit": "a9cc73c",
+      "note": "\\"
     }
   ],
   "summary": "away-130 shipped 2026-07-17; queue empty except blocked away-069; MVP 99.60%"
