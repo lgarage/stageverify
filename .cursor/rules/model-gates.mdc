@@ -82,7 +82,7 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 **Trigger:** **Two consecutive fails** on the **same task/ship scope** → the **next attempt (3rd try) is automatic D-50** (**D-55**): any mix of implement+verify, `npm run build`, Playwright/`verify:*`, and Ship Verifier FAILs counts; **fingerprint match not required** for D-50 on the 3rd try. Includes post–stall-advisor and post–Sonnet-diagnose on the 2nd fail — those lanes do **not** authorize a Composer-only 3rd attempt. **Automatic** — not gated on Dan saying "escalate."
 
-**Phase A — Agree (readonly Tasks):** Orchestrator (usually Composer) synthesizes failure history + fingerprints → dispatch **Grok** (`cursor-grok-4.5-high-fast` or `grok-4.5-fast-xhigh`, `generalPurpose`, `readonly`) and **Sonnet 4.6** (`claude-4.6-sonnet-high-thinking` then medium per D-38 if rejected, `generalPurpose` or `security-review` when CF/rules/auth in scope — **diagnose/Agree only**, not implementation) → peer deliberate until **Agree** on root cause + **exact fix plan** (file paths, acceptance = named `verify:*` PASS). Max 3 Agree cycles; unresolved → present both positions to Dan. **Evidence:** `stuck-task-agree: <grok-task-id> + <sonnet-task-id>` + model lines + verdict **Agree** (or `escalated to Dan`).
+**Phase A — Agree (readonly Tasks):** Orchestrator (usually Composer) synthesizes failure history + fingerprints → dispatch **Grok** (`cursor-grok-4.5-high-fast`, `generalPurpose`, `readonly`) and **Sonnet 4.6** (`claude-4.6-sonnet-medium-thinking` then high per D-38 if rejected, `generalPurpose` or `security-review` when CF/rules/auth in scope — **diagnose/Agree only**, not implementation) → peer deliberate until **Agree** on root cause + **exact fix plan** (file paths, acceptance = named `verify:*` PASS). Max 3 Agree cycles; unresolved → present both positions to Dan. **Evidence:** `stuck-task-agree: <grok-task-id> + <sonnet-task-id>` + model lines + verdict **Agree** (or `escalated to Dan`).
 
 **Phase B — Implement (Grok carve-out):** **Grok** (Task `generalPurpose`, `cursor-grok-4.5-high-fast` or orchestrating Grok parent **only for this stuck scope**) writes product code per agreed plan — **overrides D-43/D-37 Composer-only implementer lock for this stuck task only**. Grok **still never** commits, pushes, or deploys (ship lock unchanged). **Evidence:** `stuck-implementer: grok (<task-id or inline session>)`.
 
@@ -99,14 +99,14 @@ Dispatch exactly **one** read-only Task when **2nd consecutive fail** on the sam
 ```text
 Task({
   subagent_type: "generalPurpose",
-  model: "grok-4.5-fast-xhigh",
+  model: "cursor-grok-4.5-high-fast",
   readonly: true,
   description: "Stall advisor",
   prompt: "…symptom, fingerprint, task scope, files touched, prior fix attempts, self-trace block… Return hypotheses + ranked next experiments only — no implementation."
 })
 ```
 
-**Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: grok-4.5-fast-xhigh`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
+**Evidence:** completion report MUST include `stall-advisor: <task-id>` + `model: cursor-grok-4.5-high-fast`, or `stall-advisor: N/A (fingerprints differed)`. Missing Task id when trigger fired = **NOT RUN**.
 
 **When NOT to invoke:** 1st fail only (including 1st Ship Verifier FAIL); 2nd fail with different fingerprint on implement+verify (→ Sonnet diagnose per § 2-fail); security-gate Sonnet; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task/ship scope** — after **two consecutive fails**, **3rd try = D-50** § 3-fail (**D-55** — not a second stall-advisor; not another Composer-only retry; no 4th retrospective Ship Verifier close without Agree — **D-54**).
 
@@ -115,6 +115,10 @@ Task({
 ## Security gate
 
 Invocation, model lock, and evidence requirements: **`security-review-gate.mdc`** (sole authoritative copy). Run **before push** — not after commit. Never self-report PASS from Composer inline review.
+
+## Task model start failures (Couldn't start)
+
+UI **"New subagent → Couldn't start"**, Task **"Invalid model selection"**, or **"Model could not be resolved"** = **platform rejection of that slug** — not a soft skip. Immediately retry with the next allowlisted slug for that lane (`fallback-from:`). Grok verifier/stall/ship/planning/Q&A Tasks use **`cursor-grok-4.5-high-fast` only** (do not dispatch `grok-4.5-fast-xhigh`). Security gate preference: **`claude-4.6-sonnet-medium-thinking` first**, then `claude-4.6-sonnet-high-thinking` per `security-review-gate.mdc`. Do not halt the verify/ship loop on the first failed start when another allowlisted slug remains.
 
 ## Post-change model audit
 
@@ -176,7 +180,7 @@ Verifier findings are proposals, not orders — the verifier is a peer, never th
 
 | Repair class | Verifier model | Task type |
 |---|---|---|
-| UI / verify script / logic (default) | Grok 4.5 Fast | `generalPurpose`, `readonly`, `model: grok-4.5-fast-xhigh` |
+| UI / verify script / logic (default) | Grok 4.5 Fast | `generalPurpose`, `readonly`, `model: cursor-grok-4.5-high-fast` |
 | 2nd consecutive same failure fingerprint (D-19) | Grok stall-advisor first; Sonnet diagnose-only if still stuck | unchanged § 2-fail / Grok stall-advisor |
 | Security / auth / rules / CF touched in repair | Sonnet 4.6 | `security-review`, Sonnet gate slug per `security-review-gate.mdc` D-38 allowlist |
 | Fable-spec phase or architecture ambiguity | Fable 5 | `work-verifier` per § Work Verifier |
@@ -186,7 +190,7 @@ Verifier findings are proposals, not orders — the verifier is a peer, never th
 ```text
 Task({
   subagent_type: "generalPurpose",
-  model: "grok-4.5-fast-xhigh",
+  model: "cursor-grok-4.5-high-fast",
   readonly: true,
   description: "Repair verifier",
   prompt: "…repair scope, symptom, files touched, verify evidence… PASS/FAIL + exact fix list if FAIL."
@@ -214,7 +218,7 @@ Task({
 ```text
 Task({
   subagent_type: "generalPurpose",
-  model: "grok-4.5-fast-xhigh",
+  model: "cursor-grok-4.5-high-fast",
   readonly: true,
   description: "Planning verifier",
   prompt: "…planning question, synthesized draft, scout sources cited… Cross-check: CURRENT_STATE wins over roadmap; away:next head; no invented away IDs; recent main commits/ships not omitted; prod verify caveats; tier/approval gates accurate; known gotchas (e.g. hideSeedDemoRows). PASS | PARTIAL | FAIL + exact fix list if not PASS."
@@ -223,7 +227,7 @@ Task({
 
 **Grok checks (mandatory):** `CURRENT_STATE.md` wins over `docs/roadmap.md`; `npm run away:next -- --minimal` queue head; no invented away IDs; recent ships not omitted; prod verify caveats; tier/approval gates accurate; known gotchas from `gotcha-map.json` (e.g. `hideSeedDemoRows`).
 
-**Evidence (mandatory on planning answers):** `planning-verifier: <task-id>` + `model: grok-4.5-fast-xhigh` + verdict **PASS** required before present; `fix-verified: <re-verify task-id>` when Grok flagged issues and Composer revised. Missing Task id when trigger fired = **NOT RUN** — do not present ranked options.
+**Evidence (mandatory on planning answers):** `planning-verifier: <task-id>` + `model: cursor-grok-4.5-high-fast` + verdict **PASS** required before present; `fix-verified: <re-verify task-id>` when Grok flagged issues and Composer revised. Missing Task id when trigger fired = **NOT RUN** — do not present ranked options.
 
 **Orthogonal roles:** Planning verifier = pre-present planning/roadmap/queue accuracy; Repair verifier = Dan repair intent; Ship Verifier = post-ship; stall-advisor = same-failure pivot (D-19); Critical Reviewer = pre-decision on new gates/architecture. Same Grok slug; dispatch per context — never satisfy planning + repair + ship + stall with one Task unless explicitly same scope.
 
@@ -242,14 +246,14 @@ Task({
 ```text
 Task({
   subagent_type: "generalPurpose",
-  model: "grok-4.5-fast-xhigh",
+  model: "cursor-grok-4.5-high-fast",
   readonly: true,
   description: "Q&A verifier",
   prompt: "…Dan's question, draft answer, sources cited… Cross-check facts vs repo/docs; flag wrong terms (e.g. built=done); missing caveats; contradictions. PASS | PARTIAL | FAIL + exact fix list if not PASS."
 })
 ```
 
-**Evidence (mandatory on Q&A answers):** `qa-verifier: <task-id>` + `model: grok-4.5-fast-xhigh`; `fix-verified: <re-verify task-id>` when Grok flagged issues and Composer revised. Use `qa-verifier: N/A (trivial)` or `qa-verifier: N/A (planning-verifier)` when skipped. Missing Task id when trigger fired = **NOT RUN**.
+**Evidence (mandatory on Q&A answers):** `qa-verifier: <task-id>` + `model: cursor-grok-4.5-high-fast`; `fix-verified: <re-verify task-id>` when Grok flagged issues and Composer revised. Use `qa-verifier: N/A (trivial)` or `qa-verifier: N/A (planning-verifier)` when skipped. Missing Task id when trigger fired = **NOT RUN**.
 
 **Orthogonal roles:** Q&A verifier = pre-present factual/explanatory accuracy; Planning verifier = ranked options/roadmap; Repair/Ship/stall/Critical = unchanged. Same Grok slug; one Task per role per event.
 
@@ -349,7 +353,7 @@ Task({
 
 **Substantive ship (path-classified — NEVER by commit message prefix):** any pushed commit(s) touching `src/`, `functions/src/`, `public/`, `index.html`, or behavior-bearing `scripts/*.mjs` — even if labeled `chore:`. Excluded: commits touching only `docs/`, `PROJECT_STATUS/`, `.cursor/`, README, or compiled `functions/lib` sync-only. Multi-commit ships (feature + fix in one session) = ONE verification covering the full range.
 
-**Dispatch + evidence:** after push, the conversation that shipped dispatches exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "grok-4.5-fast-xhigh"`, `readonly: true`). Completion report MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` — missing line = NOT RUN. **Blocking:** the next substantive ship in any conversation is blocked while a prior ship's verification is NOT RUN or has an unresolved FAIL — check CURRENT_STATE blockers.
+**Dispatch + evidence:** after push, the conversation that shipped dispatches exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "cursor-grok-4.5-high-fast"`, `readonly: true`). Completion report MUST include `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` — missing line = NOT RUN. **Blocking:** the next substantive ship in any conversation is blocked while a prior ship's verification is NOT RUN or has an unresolved FAIL — check CURRENT_STATE blockers.
 
 **Loop bounds (D-54 + D-55 — consecutive FAILs on same task/ship scope):**
 
@@ -366,7 +370,7 @@ Non-evidence FAILs (scope drift, ambiguity): fix-closure on 1st FAIL only when c
 
 ## Critical Reviewer auto-invoke (Grok — Dan 2026-07-08)
 
-Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "grok-4.5-fast-xhigh"`, `readonly: true`) BEFORE finalizing or presenting, when ANY of:
+Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: "cursor-grok-4.5-high-fast"`, `readonly: true`) BEFORE finalizing or presenting, when ANY of:
 
 - New `.cursor/rules/` file, or an edit changing >30 lines of an existing rule/protocol file
 - A plan with ≥3 phases or touching ≥5 files is about to be presented for approval

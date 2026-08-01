@@ -7,14 +7,18 @@ alwaysApply: true
 
 > **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = **`security-gate-id`** + **`model:`** line + verdict + invocation evidence.
 
-**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38):**
+**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38, amended 2026-08-01):**
 
-1. `claude-4.6-sonnet-high-thinking`
-2. `claude-4.6-sonnet-medium-thinking` (legacy primary)
+1. `claude-4.6-sonnet-medium-thinking` (platform-accepted primary)
+2. `claude-4.6-sonnet-high-thinking` (still allowlisted for evidence / fallback if platform accepts)
 
-Dispatch the FIRST slug the platform accepts. A lower slug may be used ONLY after a real Task rejection of every higher slug — record `fallback-from: <rejected slug(s)>` in the evidence block. Inventing slugs or substituting any non-allowlist model = gate NOT RUN.
+Dispatch the FIRST slug in preference order that the platform accepts. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>` in the evidence block. Inventing slugs or substituting any non-allowlist model = gate NOT RUN.
+
+**Task start failures count as rejection:** UI **"Couldn't start"** / Task **"Invalid model selection"** / **"Model could not be resolved"** → immediately retry the next allowlist slug (`fallback-from:`). Do not stop the gate loop on the first failed start.
 
 **Hard STOP (Dan 2026-07-18):** If the platform rejects **both** allowlist slugs, **STOP** — report gate **NOT RUN** to Dan; do **not** push CF / auth / rules. Do **not** substitute `claude-sonnet-5-thinking-high`, Opus, Composer, `generalPurpose`, or any other slug. **Sonnet 5** may become the gate model **only** after Dan one-shot approval **and** one calibration run in `PROJECT_STATUS/verifier-log.jsonl` **and** `scripts/gate-check.mjs` `ALLOWED_GATE_MODELS` updated in the same commit (D-38) — new-model-release alone never reopens this list (D-16).
+
+**Prompt hygiene:** `Diff:` must be exactly `uncommitted changes` or `branch changes` — no prose after that line in the Diff field (extra text → subagent won't start).
 
 ## Mandatory invocation
 

@@ -36,13 +36,14 @@ import { fileURLToPath } from "node:url";
 export const SECURITY_GATE_ID_RE =
   /security-gate-id:\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
+/** Preference order (D-38 amend 2026-08-01): medium first — high often fails Task start. */
 export const ALLOWED_GATE_MODELS = [
-  "claude-4.6-sonnet-high-thinking",
   "claude-4.6-sonnet-medium-thinking",
+  "claude-4.6-sonnet-high-thinking",
 ];
 
-/** @deprecated Use ALLOWED_GATE_MODELS — kept for tests referencing legacy primary slug */
-export const REQUIRED_MODEL_LINE = `model: ${ALLOWED_GATE_MODELS[1]}`;
+/** @deprecated Use ALLOWED_GATE_MODELS — kept for tests referencing primary slug */
+export const REQUIRED_MODEL_LINE = `model: ${ALLOWED_GATE_MODELS[0]}`;
 
 export const MISSING_MODEL_LINE_HINT = `model: <allowlisted slug per D-38 (${ALLOWED_GATE_MODELS.join(" | ")})>`;
 

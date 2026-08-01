@@ -1088,22 +1088,31 @@
         "cursor-grok-4.5-high-fast",
         "Model could not be resolved",
         "Invalid model selection",
+        "Couldn't start",
+        "New subagent Couldn't start",
         "ship verifier model",
-        "Task model slug"
+        "Task model slug",
+        "claude-4.6-sonnet-high-thinking"
       ],
       "orchestratorSteps": [],
       "dossierTags": [],
       "lessonsSection": "process-agents",
-      "files": [],
-      "rules": ["model-gates.mdc"],
+      "files": [
+        ".cursor/rules/model-gates.mdc",
+        ".cursor/rules/security-review-gate.mdc",
+        "scripts/gate-check.mjs"
+      ],
+      "rules": ["model-gates.mdc", "security-review-gate.mdc"],
       "commands": [],
       "gateCandidate": true,
       "injectBefore": [
         "Ship Verifier Task",
         "Planning/Q&A/Repair Verifier Task",
-        "dispatching Grok via Task"
+        "dispatching Grok via Task",
+        "security-review Task",
+        "Couldn't start subagent"
       ],
-      "warning": "Task `model` must resolve on the current platform allowlist. On 2026-07-19 v0.0.87 ship-verifier dispatch, `grok-4.5-fast-xhigh` (still named in some rules) was rejected once with \"Model could not be resolved\"; retry with `cursor-grok-4.5-high-fast` succeeded. Same slug may work or fail across sessions — on rejection, retry once using a slug from the error’s Allowed model slugs list."
+      "warning": "Task `model` must be on the current Cursor Task allowlist. Dead/rejected slugs cause UI \"New subagent → Couldn't start\" / Invalid model selection. Grok lanes: always `cursor-grok-4.5-high-fast` — never `grok-4.5-fast-xhigh`. Security gate (D-38 amend 2026-08-01): try `claude-4.6-sonnet-medium-thinking` first, then `claude-4.6-sonnet-high-thinking`. Treat Couldn't start as rejection → retry next allowlisted slug with fallback-from:. Diff field for security-review must be exactly `uncommitted changes` or `branch changes`."
     },
     {
       "id": "subagent-transcript-stuck",

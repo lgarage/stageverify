@@ -145,7 +145,7 @@ See `model-gates.mdc` § 2-fail + § Grok stall-advisor. Sonnet stays mandatory 
 
 Purpose: skeptical outside-party review before major architecture, harness, or workflow decisions are finalized. A different model family has uncorrelated blind spots and no authorship bias — pilot run 2026-07-08 caught a factual error (aecs install state) and two design flaws (Phase 4 silent attach failure, inverted path-classifier risk) that two same-model review passes missed.
 
-- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true`, never edits code
+- Model: `cursor-grok-4.5-high-fast` via generalPurpose Task, `readonly: true`, never edits code
 - Triggers + exclusions (SSOT): `.cursor/rules/model-gates.mdc` § Critical Reviewer auto-invoke
 - Never overrides Fable (architecture), Sonnet 4.6 (security verdict), or Composer (build/ship)
 - Required output, exactly five sections: strongest concern · simplification opportunities · hidden risks · alternative approach · final recommendation with confidence
@@ -166,7 +166,7 @@ Purpose: **tier 3 (rare, expensive)** deep verification — semantic drift a pat
 
 Purpose: **tier 1 (cheap)** post-ship verification after EVERY substantive ship — scope fidelity, correctness, and whether the Sonnet security gate should have fired but didn't. Never judges security itself — directs Composer to invoke the Sonnet gate when a security-relevant diff shipped without a `security-gate-id`.
 
-- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true` — never edits code
+- Model: `cursor-grok-4.5-high-fast` via generalPurpose Task, `readonly: true` — never edits code
 - **SSOT:** `model-gates.mdc` § Ship Verifier auto-invoke — substantive-ship path classification (`src/`, `functions/src/`, `public/`, `index.html`, behavior-bearing `scripts/*.mjs`; never commit-prefix), one Task per ship (multi-commit = one range), `ship-verifier:` report line, blocking semantics, 1-fix-cycle loop with escalation to Fable (ambiguity/architecture) or Dan.
 - Distinct from the Critical Reviewer role (same model, pre-decision devil's advocate — separate triggers).
 
@@ -174,6 +174,6 @@ Purpose: **tier 1 (cheap)** post-ship verification after EVERY substantive ship 
 
 Purpose: **tier 1b (cheap)** mid-task pivot when Composer hits the **same failure twice** — ranked hypotheses and next experiments only; Composer implements after. Not post-ship (Ship Verifier) and not pre-decision review (Critical Reviewer).
 
-- Model: `grok-4.5-fast-xhigh` via generalPurpose Task, `readonly: true` — never edits code
+- Model: `cursor-grok-4.5-high-fast` via generalPurpose Task, `readonly: true` — never edits code
 - **SSOT:** `model-gates.mdc` § Grok stall-advisor auto-invoke — same failure fingerprint table, one Task per fingerprint per task scope, `stall-advisor:` report line
 - Sonnet diagnose-only runs on **2nd fail, different fingerprint** (before 3rd fail) — **3rd consecutive fail on same task scope → D-50** Grok implement after Agree — see § 2-fail + § 3-fail
