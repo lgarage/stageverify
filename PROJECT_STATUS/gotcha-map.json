@@ -1358,9 +1358,12 @@
       "id": "powershell-inline-command-mangle",
       "match": [
         "PowerShell mangling",
+        "PowerShell mangles",
         "inline node -e",
+        "inline script",
         "EmptyVariableReference",
         "Missing type name after '['",
+        "ParserError",
         "powershell inline unreliable",
         "script file better approach"
       ],
@@ -1376,7 +1379,7 @@
         "inline multiline shell",
         "PowerShell cursor terminal"
       ],
-      "warning": "Cursor's PowerShell shell mangles complex inline commands (node -e with regex `${}`, brackets, quotes, HEREDOC) — ParserError / EmptyVariableReference / Missing type name after '['. Prefer writing a short script file under scripts/ (or temp then delete) and running `node scripts/….mjs`. Related: powershell5-no-ampersand-chaining (&& / HEREDOC). Dan standing preference 2026-08-01."
+      "warning": "HARD STOP (Dan 2026-08-01, restated): Cursor PowerShell mangles inline scripts — especially `node -e '…'` with quotes, regex `${}`, brackets, or multiline. Do not retry the same inline form. Write `scripts/_tmp-….mjs` (or a kept script), run `node scripts/….mjs`, delete temps when done. Also in alwaysApply `agent-ops.mdc` § During work. Related: powershell5-no-ampersand-chaining (&& / HEREDOC)."
     },
     {
       "id": "delivery-consistency-ready-for-pickup-skip",
