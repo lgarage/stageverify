@@ -303,9 +303,7 @@ async function writeReviewRecords(
     const parsedLines = sanitizeParsedLines(proc.parsed.lines);
     const reviewError = issueReviewError(proc, row.error);
     const creditReturnSkip =
-      proc.reviewStatus === "rejected" &&
-      isCreditReturnInvoice(proc.parsed, proc.page.extractedText) &&
-      !proc.duplicate;
+      isCreditReturnInvoice(proc.parsed, proc.page.extractedText) && !proc.duplicate;
     const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,

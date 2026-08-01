@@ -32,6 +32,10 @@ import {
   splitExtractedTextIntoInvoiceDocuments,
 } from "../src/dispatcher/invoice/invoiceDocumentSplit.ts";
 import { INVOICE_PAGE_BOUNDARY } from "../src/dispatcher/invoice/pdfTextAdapter.ts";
+import {
+  isCreditReturnImportDoc,
+  isCreditReturnInvoice,
+} from "../src/dispatcher/invoice/creditReturnSkip.ts";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -879,6 +883,40 @@ if (siouxSplitDocs.length < 4) {
   console.log(
     `  PASS sioux falls 4-page → ${siouxSplitDocs.length} documents (CREDIT/3316448A, ${siouxExpectedInvoices.join(", ")})`,
   );
+}
+
+console.log("\n--- Branch CREDIT header-only (0 lines) auto-skip ---");
+{
+  const branchCreditText =
+    "Customer # Order Date Sales Order # Buyer Customer P/O # Ship Via\n" +
+    "12345 2026-07-24 Buyer Ship Via Sales Customer P/O\n" +
+    "BRANCH CREDIT\n";
+  const branchCreditPage = {
+    pageId: "inv-branch-credit-skip",
+    importBatchId: "batch-branch-credit-skip",
+    pageIndexInBatch: 0,
+    extractedText: branchCreditText,
+  };
+  const branchCreditResult = processInvoicePage(branchCreditPage, existing);
+  if (branchCreditResult.reviewStatus !== "rejected") {
+    failures.push(
+      `branch CREDIT 0-line doc: expected reviewStatus rejected, got ${branchCreditResult.reviewStatus}`,
+    );
+  }
+  if (
+    !isCreditReturnInvoice(branchCreditResult.parsed, branchCreditPage.extractedText)
+  ) {
+    failures.push("branch CREDIT 0-line doc: isCreditReturnInvoice should be true");
+  }
+  const headerOnlyCredit = {
+    parsedHeader: { vendorBranchName: "CREDIT" },
+    parsedLines: [],
+    orderNotes: [],
+  };
+  if (!isCreditReturnImportDoc(headerOnlyCredit)) {
+    failures.push("vendorBranchName CREDIT: isCreditReturnImportDoc should be true");
+  }
+  console.log("  PASS branch CREDIT header-only → rejected + import-doc detection");
 }
 
 const attachmentSplitDocs = splitExtractedTextIntoInvoiceDocuments(

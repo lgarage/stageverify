@@ -25,6 +25,7 @@ import {
 } from "./invoiceReviewHeaderHelpers";
 import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
+import { creditReturnSkipLabel } from "./creditReturnSkip";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -39,15 +40,18 @@ function StatusChip({
   importStatus,
   reviewStatus,
   orderNotes,
+  skipReason,
 }: {
   importStatus: string;
   reviewStatus: VendorInvoiceImportReview["reviewStatus"];
   orderNotes?: string[];
+  skipReason?: string;
 }) {
   const importLabel = vendorInvoiceImportDisplayLabelForRow(
     importStatus as VendorInvoiceImportStatus,
     orderNotes,
   );
+  const skipLabel = creditReturnSkipLabel(skipReason);
   const isWillCall = importStatus === "pickup_at_vendor";
   const isDeliverToSite =
     importStatus === "pending" &&
@@ -104,6 +108,22 @@ function StatusChip({
       >
         {reviewStatusLabel(reviewStatus)}
       </span>
+      {skipLabel ? (
+        <span
+          data-testid="invoice-review-credit-skip-chip"
+          style={{
+            backgroundColor: "#f3f4f6",
+            color: "#374151",
+            fontWeight: 600,
+            fontSize: 11,
+            padding: "3px 8px",
+            borderRadius: 999,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {skipLabel}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -702,6 +722,7 @@ export function InvoiceReviewPanel({
                       importStatus={row.importStatus}
                       reviewStatus={row.reviewStatus}
                       orderNotes={row.orderNotes}
+                      skipReason={row.skipReason}
                     />
                     <AutoImportSuggestionBadge importRow={row} compact />
                     {codContext && <CodPaymentChip label={codContext.chipLabel} />}

@@ -1,27 +1,58 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.creditReturnSkipLabel = creditReturnSkipLabel;
+exports.creditReturnSkipFields = creditReturnSkipFields;
 exports.isCreditReturnInvoice = isCreditReturnInvoice;
 exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCreditReturns;
 exports.isCreditReturnImportDoc = isCreditReturnImportDoc;
 exports.shouldApplyNowDismissCreditImport = shouldApplyNowDismissCreditImport;
 exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
+exports.CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
+function parsedBranchIsCredit(branchRaw) {
+    const branch = (branchRaw ?? "").trim();
+    return branch.length > 0 && /^CREDIT$/i.test(branch);
+}
+function pageTextSignalsBranchCredit(text) {
+    return (/\bBranch\s*[=:]\s*CREDIT\b/i.test(text) ||
+        /\bBRANCH\s+CREDIT\b/i.test(text));
+}
+/** User-visible label when skipReason is credit_return. */
+function creditReturnSkipLabel(skipReason) {
+    if (skipReason === exports.CREDIT_RETURN_SKIP_REASON)
+        return exports.CREDIT_RETURN_SKIP_LABEL;
+    return null;
+}
+/** Firestore patch fields when auto-skipping a credit/return import. */
+function creditReturnSkipFields(now) {
+    return {
+        reviewStatus: "rejected",
+        skipReason: exports.CREDIT_RETURN_SKIP_REASON,
+        rejectedAt: now,
+        rejectedBy: "system:credit_return_skip",
+        humanReviewRequired: false,
+        updatedAt: now,
+    };
+}
 /** Structural signals — auto-skip on ingest / refresh (regex-owned routing). */
 function isCreditReturnInvoice(parsed, pageText) {
     const text = pageText ?? "";
     if (/^\s*CREDIT\b/m.test(text))
         return true;
-    if (/\bBranch\s*[=:]\s*CREDIT\b/i.test(text))
+    if (pageTextSignalsBranchCredit(text))
         return true;
     if (/\bCREDIT\s+MEMO\b/i.test(text))
+        return true;
+    if (parsedBranchIsCredit(parsed.header.vendorBranchName))
         return true;
     const po = (parsed.header.customerPoOrReference ?? "").trim();
     if (/\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po))
         return true;
     const lines = parsed.lines.filter((l) => !l.excludeFromExpectedItems);
     const scanLines = lines.length > 0 ? lines : parsed.lines;
-    if (scanLines.length === 0)
-        return false;
+    if (scanLines.length === 0) {
+        return parsedBranchIsCredit(parsed.header.vendorBranchName);
+    }
     const anyNegShip = scanLines.some((l) => l.quantityShipped < 0);
     const anyReturnLine = parsed.lines.some((l) => l.lineType === "return");
     const returnFromInvoice = parsed.lines.some((l) => /return from invoice/i.test(l.description ?? "")) ||
@@ -53,10 +84,13 @@ function correctionNoteTeachesIgnoreCreditReturns(note) {
 }
 function isCreditReturnImportDoc(doc) {
     const header = doc.parsedHeader ?? {};
+    const branch = String(header.vendorBranchName ?? "").trim();
+    if (parsedBranchIsCredit(branch))
+        return true;
     const po = String(header.customerPoOrReference ?? "").trim();
     const lines = doc.parsedLines ?? [];
     if (lines.length === 0) {
-        return /\bRETURN\b/i.test(po);
+        return /\bRETURN\b/i.test(po) || parsedBranchIsCredit(branch);
     }
     const anyNegShip = lines.some((l) => (l.quantityShipped ?? 0) < 0);
     const anyReturnLine = lines.some((l) => l.lineType === "return");

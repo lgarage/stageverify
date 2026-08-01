@@ -50,6 +50,8 @@ function sanitizeVendorInvoiceImportForClient(doc) {
         linkedDeliveryOrderId: doc.linkedDeliveryOrderId,
         approvedAt: doc.approvedAt,
         rejectedAt: doc.rejectedAt,
+        rejectedBy: doc.rejectedBy,
+        skipReason: doc.skipReason,
         autoImportEligible: doc.autoImportEligible,
         autoImportConfidence: doc.autoImportConfidence,
         autoImportReasons: (doc.autoImportReasons ?? []).slice(0, 12),

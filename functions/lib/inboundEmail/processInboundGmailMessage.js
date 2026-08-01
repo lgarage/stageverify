@@ -223,9 +223,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const proc = row.processing;
         const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
         const reviewError = issueReviewError(proc, row.error);
-        const creditReturnSkip = proc.reviewStatus === "rejected" &&
-            (0, creditReturnSkip_1.isCreditReturnInvoice)(proc.parsed, proc.page.extractedText) &&
-            !proc.duplicate;
+        const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(proc.parsed, proc.page.extractedText) && !proc.duplicate;
         const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
         const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
             importStatus: proc.importStatus,

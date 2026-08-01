@@ -508,6 +508,49 @@ async function main() {
     await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
     console.log("PASS: back to review queue from rejected list");
 
+    // CREDIT/return auto-skip: pending queue must not show Branch CREDIT memos.
+    const pendingPanel = page.getByTestId("invoice-review-panel");
+    const pendingText = (await pendingPanel.innerText()).trim();
+    if (/\bBranch\b[\s\S]{0,24}\bCREDIT\b/i.test(pendingText)) {
+      throw new Error(
+        "Pending review queue still shows Branch CREDIT import — credit/return auto-skip failed",
+      );
+    }
+    console.log("PASS: no Branch CREDIT row in pending review queue");
+
+    await rejectedLink.click();
+    await page.getByTestId("invoice-review-rejected-list").waitFor({ timeout: 15_000 });
+    await page.waitForFunction(
+      () => {
+        const list = document.querySelector('[data-testid="invoice-review-rejected-list"]');
+        if (!list) return false;
+        const loading = list.textContent?.includes("Loading…");
+        const rows = list.querySelectorAll('[data-testid^="invoice-review-queue-row-"]').length;
+        const empty = list.querySelector('[data-testid="invoice-review-rejected-empty"]');
+        return !loading && (rows > 0 || !!empty);
+      },
+      { timeout: 30_000 },
+    );
+    const creditSkipChip = page.getByTestId("invoice-review-credit-skip-chip");
+    const rejectedListText = (
+      await page.getByTestId("invoice-review-rejected-list").innerText()
+    ).trim();
+    const hasCreditSkipChip = (await creditSkipChip.count()) > 0;
+    const hasSkipCopy = /Skipped\s*[—–-]\s*credit\/return/i.test(rejectedListText);
+    if (!hasCreditSkipChip && !hasSkipCopy) {
+      if (/No rejected invoices/i.test(rejectedListText)) {
+        console.log(
+          "SKIP: rejected list empty — no credit skip chip to assert (env may lack CREDIT import)",
+        );
+      } else {
+        throw new Error(
+          "Rejected list has rows but no Skipped — credit/return label for auto-skipped CREDIT import",
+        );
+      }
+    } else {
+      console.log("PASS: rejected list shows Skipped — credit/return for auto-skipped import");
+    }
+
     console.log("\nverify-invoice-review: PASS");
   } finally {
     await browser.close();

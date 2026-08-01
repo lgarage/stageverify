@@ -9,6 +9,7 @@ const https_1 = require("firebase-functions/v2/https");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const recoverStrandedProcessing_1 = require("./inboundEmail/recoverStrandedProcessing");
 const sanitizeVendorInvoiceImport_1 = require("./inboundEmail/sanitizeVendorInvoiceImport");
+const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
 const COLLECTION = "inboundEmailProcessing";
@@ -18,6 +19,25 @@ const MAX_TEXT_PREVIEW = 4000;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 function getDb() {
     return admin.firestore();
+}
+/** Move legacy pending credit/return imports to rejected+skipReason on list load. */
+async function migratePendingCreditReturnImports(docs) {
+    const db = getDb();
+    const now = new Date().toISOString();
+    const out = [];
+    for (const doc of docs) {
+        if (doc.reviewStatus === "pending_review" &&
+            !doc.duplicate &&
+            (0, creditReturnSkip_1.isCreditReturnImportDoc)(doc)) {
+            const patch = (0, creditReturnSkip_1.creditReturnSkipFields)(now);
+            await db.collection(IMPORTS_COLLECTION).doc(doc.id).set(patch, { merge: true });
+            out.push({ ...doc, ...patch });
+        }
+        else {
+            out.push(doc);
+        }
+    }
+    return out;
 }
 async function loadGmailRefreshToken() {
     const conn = await getDb().collection("emailProviderConnections").doc("gmail").get();
@@ -99,7 +119,9 @@ exports.listVendorInvoiceImports = (0, https_1.onCall)({ region: "us-central1" }
         query = query.where("inboundEmailProcessingId", "==", inboundId);
     }
     const snap = await query.limit(limit).get();
-    const items = snap.docs.map((d) => (0, sanitizeVendorInvoiceImport_1.sanitizeVendorInvoiceImportForClient)(d.data()));
+    const raw = snap.docs.map((d) => d.data());
+    const migrated = await migratePendingCreditReturnImports(raw);
+    const items = migrated.map((d) => (0, sanitizeVendorInvoiceImport_1.sanitizeVendorInvoiceImportForClient)(d));
     return { items, count: items.length };
 });
 exports.getVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {

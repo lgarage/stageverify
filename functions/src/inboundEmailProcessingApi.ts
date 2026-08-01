@@ -7,6 +7,10 @@ import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboun
 import { clampListLimit, requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { recoverStrandedInboundProcessingList } from "./inboundEmail/recoverStrandedProcessing";
 import { sanitizeVendorInvoiceImportForClient } from "./inboundEmail/sanitizeVendorInvoiceImport";
+import {
+  creditReturnSkipFields,
+  isCreditReturnImportDoc,
+} from "./invoice/creditReturnSkip";
 import { gmailClientId, gmailClientSecret } from "./gmailApi";
 import {
   downloadGmailAttachment,
@@ -23,6 +27,31 @@ const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 function getDb() {
   return admin.firestore();
+}
+
+/** Move legacy pending credit/return imports to rejected+skipReason on list load. */
+async function migratePendingCreditReturnImports(
+  docs: VendorInvoiceImportDoc[],
+): Promise<VendorInvoiceImportDoc[]> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const out: VendorInvoiceImportDoc[] = [];
+
+  for (const doc of docs) {
+    if (
+      doc.reviewStatus === "pending_review" &&
+      !doc.duplicate &&
+      isCreditReturnImportDoc(doc)
+    ) {
+      const patch = creditReturnSkipFields(now);
+      await db.collection(IMPORTS_COLLECTION).doc(doc.id).set(patch, { merge: true });
+      out.push({ ...doc, ...patch });
+    } else {
+      out.push(doc);
+    }
+  }
+
+  return out;
 }
 
 async function loadGmailRefreshToken(): Promise<string> {
@@ -132,9 +161,9 @@ export const listVendorInvoiceImports = onCall(
       query = query.where("inboundEmailProcessingId", "==", inboundId);
     }
     const snap = await query.limit(limit).get();
-    const items = snap.docs.map((d) =>
-      sanitizeVendorInvoiceImportForClient(d.data() as VendorInvoiceImportDoc),
-    );
+    const raw = snap.docs.map((d) => d.data() as VendorInvoiceImportDoc);
+    const migrated = await migratePendingCreditReturnImports(raw);
+    const items = migrated.map((d) => sanitizeVendorInvoiceImportForClient(d));
     return { items, count: items.length };
   },
 );
