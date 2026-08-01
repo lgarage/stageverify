@@ -1307,6 +1307,29 @@
       "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
       "commands": ["npm run verify:invoice-review"],
       "warning": "verify:invoice-review credit chip / reopen / advisory asserts may log SKIP (not FAIL) when the Firestore env has no pending or rejected credit_return rows (e.g. fresh dev, prod without 3316448 fixture). SKIP means insufficient fixture data — not a product regression. Do not treat SKIP as ship blocker unless Dan asked for fixture seeding in that env."
+    },
+    {
+      "id": "playwright-cli-screenshot-unreliable",
+      "match": [
+        "playwright screenshot",
+        "npx playwright screenshot",
+        "storage-state unknown option",
+        "D-51 before after screenshot",
+        "playwright CLI changed"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": ["scripts/playwright-auth-setup.mjs"],
+      "rules": ["ui-before-after.mdc", "composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": [],
+      "gateCandidate": false,
+      "injectBefore": [
+        "D-51 before/after screenshot",
+        "playwright screenshot CLI",
+        "npx playwright screenshot"
+      ],
+      "warning": "Playwright CLI screenshot flags drift (e.g. `npx playwright screenshot --storage-state` → unknown option). Prefer a small Node script using `import { chromium } from 'playwright'` + `page.screenshot()` (login via STAGEVERIFY_TEST_* or storageState when valid). Do not rely on CLI for D-51 before/after on protected routes. Dan standing preference 2026-08-01."
     }
   ]
 }
