@@ -54,12 +54,12 @@
     },
     {
       "id": "delivery-display",
-      "match": ["drawer", "list filter", "readiness", "partial", "delivery display", "qty 0", "staging assignment"],
+      "match": ["drawer", "list filter", "readiness", "partial", "delivery display", "qty 0", "staging assignment", "Ready for Pickup skip"],
       "orchestratorSteps": [6],
       "dossierTags": ["delivery-display-wiring"],
       "files": ["src/dispatcher/deliveryDisplayHelpers.ts"],
       "rules": [],
-      "commands": ["npm run dossier:slice -- --tag delivery-display-wiring", "npm run verify:delivery-consistency"]
+      "commands": ["npm run dossier:slice -- --tag delivery-display-wiring", "npm run verify:delivery-consistency", "npm run context:gotcha -- --task \"Ready for Pickup skip\""]
     },
     {
       "id": "dispatcher-nav",
@@ -1377,6 +1377,30 @@
         "PowerShell cursor terminal"
       ],
       "warning": "Cursor's PowerShell shell mangles complex inline commands (node -e with regex `${}`, brackets, quotes, HEREDOC) — ParserError / EmptyVariableReference / Missing type name after '['. Prefer writing a short script file under scripts/ (or temp then delete) and running `node scripts/….mjs`. Related: powershell5-no-ampersand-chaining (&& / HEREDOC). Dan standing preference 2026-08-01."
+    },
+    {
+      "id": "delivery-consistency-ready-for-pickup-skip",
+      "match": [
+        "Ready for Pickup row present for order check",
+        "Ready for Pickup skip",
+        "verify:delivery-consistency",
+        "delivery-consistency Ready for Pickup",
+        "ready for pickup skipped",
+        "drawer order check skipped"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["delivery-display-wiring"],
+      "lessonsSection": "ship-verify",
+      "files": ["scripts/verify-delivery-list-drawer-consistency.mjs"],
+      "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": ["npm run verify:delivery-consistency"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "verify:delivery-consistency",
+        "delivery drawer consistency",
+        "Ready for Pickup order check"
+      ],
+      "warning": "verify:delivery-consistency may FAIL with a single check: \"Ready for Pickup row present for order check — skipped\" when no Ready for Pickup row is on the default live board (fixture/live-data absence). Pre-existing live-data flake — not a regression from drawer/banner/list UI ships. Do not treat that lone skip as a product bug; judge other asserts + targeted readiness/banner tests. Dan standing preference 2026-08-01."
     }
   ]
 }
