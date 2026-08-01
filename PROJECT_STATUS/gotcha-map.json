@@ -1181,6 +1181,132 @@
         "npm run verify:dispatcher-nav"
       ],
       "warning": "Needs Review strip cards are live vendorEmailEvents (pending_review inbound) — not delivery jobs; client cannot write vendorEmailEvents (rules block). Dismiss → rejected + audit fields via dismissVendorEmailEventCallable (transaction); undo → reopenVendorEmailEventCallable clears rejectedAt/rejectedBy. UI: 30s undo banner after dismiss. Fixture proposals in dev have no eventId — Dismiss/Undo only on live Firestore rows."
+    },
+    {
+      "id": "johnstone-credit-return-parse",
+      "match": [
+        "johnstone credit return",
+        "CREDIT memo parse",
+        "vendorBranchName CREDIT",
+        "3316448A",
+        "return from invoice",
+        "credit return invoice parser",
+        "sioux falls credit split"
+      ],
+      "orchestratorSteps": [6, 7],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "functions/src/invoice/parseJohnstoneInvoice.ts",
+        "src/dispatcher/invoice/parseJohnstoneInvoice.ts",
+        "src/dispatcher/invoice/creditReturnSkip.ts",
+        "scripts/test-invoice-parser.mjs",
+        "scripts/fixtures/sioux-falls-4page-20260725.txt"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": ["npm run test:invoice-parser"],
+      "gateCandidate": true,
+      "injectBefore": [
+        "parsing Johnstone CREDIT memo",
+        "credit return invoice #",
+        "return from invoice line"
+      ],
+      "warning": "Johnstone CREDIT/return memos: header-only vendorBranchName=CREDIT (Branch=CREDIT in page text); invoice # may be alphanumeric (3316448A) on the CREDIT doc — never take inv # from line text \"Return from Invoice #…\" (that is the source invoice, not this memo's #). CREDIT lines often have negative qty and no B/O columns. Fixture: sioux-falls 4-page split → CREDIT doc 3316448A. Gate: npm run test:invoice-parser (sioux falls CREDIT assertions). Product routing: D-58 — pending advisory, no ingest auto-reject."
+    },
+    {
+      "id": "invoice-credit-reopen-no-rereject",
+      "match": [
+        "credit return reopen",
+        "reopen credit import",
+        "skipReason credit_return",
+        "credit list migration",
+        "auto-reject credit",
+        "invoice credit pending migration"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "functions/src/approveVendorInvoiceImport.ts",
+        "functions/src/inboundEmailProcessingApi.ts",
+        "functions/src/inboundEmail/processInboundGmailMessage.ts",
+        "src/dispatcher/invoice/creditReturnSkip.ts"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [
+        "npm run verify:invoice-review",
+        "npm run test:approve-vendor-invoice-import"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "reopen rejected credit import",
+        "credit_return skipReason",
+        "invoice list load migration"
+      ],
+      "warning": "D-58 (v0.0.184): CREDIT/return imports must NOT auto-reject on ingest or list load. Re-open action must FieldValue.delete() skipReason (and rejectedAt/rejectedBy) so import returns to pending_review — do NOT re-apply credit_return skip on refresh/list migration. v0.0.182/183 auto-skip was reversed; do NOT resurrect ingest auto-skip or client-side migrations that re-reject credit_return. Manual Reject sets skipReason; pending queue shows advisory only."
+    },
+    {
+      "id": "invoice-credit-reject-reason-ux",
+      "match": [
+        "credit reject reason",
+        "invoice inspect block reason",
+        "skip banner credit",
+        "credit advisory chip",
+        "Skipped — credit/return",
+        "Credit/return — reject manually"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": [],
+      "lessonsSection": "invoice-parser",
+      "files": [
+        "src/dispatcher/invoice/invoiceExpectedFieldsChecklist.ts",
+        "src/dispatcher/invoice/InvoiceParsedInspectModal.tsx",
+        "src/dispatcher/invoice/InvoiceReviewPanel.tsx",
+        "src/dispatcher/invoice/creditReturnSkip.ts"
+      ],
+      "rules": [],
+      "commands": ["npm run verify:invoice-review"],
+      "warning": "Invoice Review reject-reason UX (v0.0.183–184): prefer credit/skip advisory (\"Credit/return — reject manually\" on pending; \"Skipped — credit/return\" on rejected with skipReason) over raw parse Block as the primary reject reason in inspect modal and checklist. Parse gaps may still show as secondary detail when advisory/skip label is present — do not let generic parse Block overshadow credit-specific copy."
+    },
+    {
+      "id": "security-gate-diff-literal",
+      "match": [
+        "security-review Diff",
+        "security gate diff",
+        "uncommitted changes",
+        "branch changes",
+        "security-review Task prompt"
+      ],
+      "orchestratorSteps": [6],
+      "dossierTags": ["backend-critical"],
+      "lessonsSection": "process-agents",
+      "files": [".cursor/rules/security-review-gate.mdc"],
+      "rules": ["security-review-gate.mdc", "model-gates.mdc", "ship-loop.mdc"],
+      "commands": [],
+      "gateCandidate": true,
+      "injectBefore": [
+        "dispatching security-review Task",
+        "security gate NOT RUN",
+        "CF push before security gate"
+      ],
+      "warning": "security-review Task prompt Diff field must be literally `uncommitted changes` or `branch changes` only — not a prose summary, not a file list, not a natural-language diff description. Wrong Diff literal can cause gate NOT RUN or scope mismatch. See security-review-gate.mdc mandatory invocation block."
+    },
+    {
+      "id": "verify-invoice-credit-chip-skip",
+      "match": [
+        "verify invoice credit chip",
+        "verify:invoice-review credit",
+        "credit advisory SKIP verify",
+        "3316448 verify skip",
+        "no credit rows env"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": ["scripts/verify-invoice-review.mjs"],
+      "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": ["npm run verify:invoice-review"],
+      "warning": "verify:invoice-review credit chip / reopen / advisory asserts may log SKIP (not FAIL) when the Firestore env has no pending or rejected credit_return rows (e.g. fresh dev, prod without 3316448 fixture). SKIP means insufficient fixture data — not a product regression. Do not treat SKIP as ship blocker unless Dan asked for fixture seeding in that env."
     }
   ]
 }
