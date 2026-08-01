@@ -7,7 +7,8 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- Last shipped: **v0.0.187** — Drawer banner Email Vendor opens Vendor Communications modal (no mailto)
+- Last shipped: **v0.0.188** — Will-Call drawer: BO-only Order Summary, BACKORDERED badge, View PDF
+- Prior: **v0.0.187** — Drawer banner Email Vendor opens Vendor Communications modal (no mailto)
 - Prior: **v0.0.186** — Drawer attention banner: Why lists missing/partial items only
 - Prior: **harness** — Grok → `cursor-grok-4.5-high-fast`; D-38 medium-thinking first
 - Prior: **v0.0.185** — CREDIT/return parse fix; **CF deployed** 2026-08-01

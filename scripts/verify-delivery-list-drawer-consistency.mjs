@@ -18,10 +18,13 @@ import {
 } from "./dispatcherVerifyHelpers.mjs";
 import {
   computeDeliveryDisplayState,
+  buildIssueSummaryPanelData,
   DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY,
   isDispatcherTableStagingActionRequired,
   isWillCallPickupStagingListNa,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
+import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
+import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
 import { isInvoiceShellNoShopStaging } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
 
@@ -181,6 +184,62 @@ function assertOfflineStagingActionRules() {
     !isWillCallPickupStagingListNa(pendingNoStaging),
   );
 
+  const fulfillmentOnlyWillCall = {
+    ...willCallShell,
+    status: "pending",
+    invoiceImportStatus: "pending",
+    invoiceFulfillmentMethod: "will_call_pickup",
+  };
+  const fulfillmentReadiness = computeDeliveryReadiness(
+    fulfillmentOnlyWillCall,
+    zeroReceivedItems,
+  );
+  record(
+    "offline — fulfillment-only will_call_pickup status label",
+    deliveryReadinessDisplayLabel(
+      fulfillmentOnlyWillCall,
+      fulfillmentReadiness,
+      zeroReceivedItems,
+    ) === "Will-Call / Pickup",
+  );
+
+  const willCallBoItems = [
+    {
+      id: "offline-wc-bo",
+      deliveryOrderId: "offline-willcall",
+      sku: "BO-1",
+      description: "Backordered widget",
+      qtyOrdered: 2,
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 2,
+      status: "backordered",
+    },
+    {
+      id: "offline-wc-nd",
+      deliveryOrderId: "offline-willcall",
+      sku: "ND-1",
+      description: "Not delivered widget",
+      qtyOrdered: 1,
+      qtyReceived: 0,
+      qtyMissing: 1,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "pending",
+    },
+  ];
+  const willCallBoPanel = buildIssueSummaryPanelData(
+    fulfillmentOnlyWillCall,
+    willCallBoItems,
+  );
+  record(
+    "offline — will-call Order Summary Backordered rows only",
+    willCallBoPanel.issueRows.length === 1 &&
+      willCallBoPanel.issueRows[0].status === "Backordered",
+    willCallBoPanel.issueRows.map((r) => r.status).join(","),
+  );
+
   const deliverToSiteShell = {
     ...pendingNoStaging,
     id: "offline-deliver-site",
@@ -200,6 +259,128 @@ function assertOfflineStagingActionRules() {
 }
 
 assertOfflineStagingActionRules();
+
+async function assertOrderSummaryWillCallUi(page, record) {
+  const ord002Opened = await openOrderDrawer(page, "ORD-002");
+  if (!ord002Opened) {
+    record("ORD-002 row present for BACKORDERED badge", false);
+    return;
+  }
+
+  const badge = page.getByTestId("issue-summary-backordered-badge").first();
+  record(
+    "ORD-002 — BACKORDERED badge visible",
+    (await badge.count()) > 0 && (await badge.isVisible()),
+  );
+  if ((await badge.count()) > 0) {
+    const badgeText = (await badge.innerText()).trim();
+    record(
+      "ORD-002 — BACKORDERED badge label",
+      badgeText === "BACKORDERED",
+      badgeText,
+    );
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="issue-summary-table"]',
+        elements: [
+          {
+            name: "BACKORDERED badge",
+            selector: '[data-testid="issue-summary-backordered-badge"]',
+            large: false,
+          },
+        ],
+      });
+      record("ORD-002 — BACKORDERED badge contrast (D-42)", true);
+    } catch (err) {
+      record(
+        "ORD-002 — BACKORDERED badge contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
+  const pdfBtn = page.getByTestId("delivery-drawer-view-original-pdf");
+  record(
+    "ORD-002 — View original PDF button in Order Summary header",
+    (await pdfBtn.count()) > 0,
+  );
+  if ((await pdfBtn.count()) > 0) {
+    record(
+      "ORD-002 — View original PDF disabled without import id",
+      await pdfBtn.isDisabled(),
+    );
+    const title = (await pdfBtn.getAttribute("title")) ?? "";
+    record(
+      "ORD-002 — View original PDF title when no import id",
+      /no linked invoice import/i.test(title),
+      title,
+    );
+  }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+  await page
+    .getByTestId("issue-summary-panel")
+    .waitFor({ state: "hidden", timeout: 10_000 })
+    .catch(() => {});
+  await page.goto(`${appBase}/#/dispatcher`, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(1200);
+  await page.locator("table tbody tr").first().waitFor({ timeout: 20_000 });
+
+  const rows = page.locator("table tbody tr");
+  const count = await rows.count();
+  let willCallOrderNumber = null;
+  let willCallListStatus = null;
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    const statusText = (await row.locator("td").first().innerText()).trim();
+    if (statusText === "Will-Call / Pickup") {
+      willCallListStatus = statusText;
+      willCallOrderNumber = (await row.locator("td").nth(4).innerText()).trim();
+      break;
+    }
+  }
+
+  if (!willCallOrderNumber) {
+    record(
+      "Will-Call / Pickup list row for drawer label check",
+      true,
+      "skipped — no will-call row in live table (offline label asserts cover)",
+    );
+    return;
+  }
+
+  const opened = await openOrderDrawer(page, willCallOrderNumber);
+  record(
+    "Will-Call list row opened for drawer label check",
+    opened,
+    willCallOrderNumber,
+  );
+  if (!opened) return;
+
+  const statusLines = await page.getByTestId("issue-summary-lines").locator("li").allInnerTexts();
+  const deliveryStatusLine = statusLines.find((line) =>
+    line.startsWith("Delivery Status:"),
+  );
+  const drawerStatus = deliveryStatusLine?.replace("Delivery Status:", "").trim() ?? "";
+  record(
+    "Will-Call drawer delivery status matches list",
+    drawerStatus === willCallListStatus,
+    `list=${willCallListStatus}, drawer=${drawerStatus}`,
+  );
+
+  const importPdfBtn = page.getByTestId("delivery-drawer-view-original-pdf");
+  if ((await importPdfBtn.count()) > 0 && !(await importPdfBtn.isDisabled())) {
+    record("Will-Call row — View original PDF enabled when import linked", true);
+  } else if ((await importPdfBtn.count()) > 0) {
+    record(
+      "Will-Call row — View original PDF present (disabled OK without import)",
+      true,
+      await importPdfBtn.getAttribute("title"),
+    );
+  }
+}
 
 async function assertStagingLocationCard(page, record, label, expectAssigned) {
   const basicsStaging = page.getByTestId("delivery-basics-staging-locations");
@@ -1390,7 +1571,12 @@ async function assertOrd006EmailReviewAction(page, record) {
   await issuePanel.waitFor({ state: "visible", timeout: 20_000 });
   const orderSummaryTitle = await issuePanel.evaluate((el) => {
     const h3 = el.querySelector("h3");
-    return h3?.textContent?.trim() ?? "";
+    const titleSpan = h3?.querySelector("span span:last-child");
+    if (titleSpan?.textContent?.trim()) {
+      return titleSpan.textContent.trim();
+    }
+    const h3Text = h3?.textContent?.trim() ?? "";
+    return h3Text.replace(/View original PDF.*$/i, "").trim();
   });
   record(
     "Order Summary panel title",
@@ -2116,6 +2302,8 @@ async function assertOrd006EmailReviewAction(page, record) {
 
     await assertLegacyDrawerActionsRemoved(page, record, orderNumber);
   }
+
+  await assertOrderSummaryWillCallUi(page, record);
 
   await page.screenshot({
     path: resolve(screenshotDir, "drawer-after-away-073-correction.png"),

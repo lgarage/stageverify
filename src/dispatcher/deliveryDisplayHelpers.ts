@@ -1025,6 +1025,10 @@ export function buildIssueSummaryPanelData(
     });
   }
 
+  const filteredIssueRows = isWillCallPickupStagingListNa(delivery)
+    ? issueRows.filter((row) => row.status === "Backordered")
+    : issueRows;
+
   const receivedItems: ReceivedItemRow[] = items
     .filter((item) => effectiveItemQtyReceived(delivery, item) > 0)
     .map((item) => ({
@@ -1037,13 +1041,13 @@ export function buildIssueSummaryPanelData(
     delivery,
     items,
     materialIssues,
-    issueRows,
+    filteredIssueRows,
   );
   const openIssueExplanations = buildOpenIssueExplanations(
     delivery,
     items,
     materialIssues,
-    issueRows,
+    filteredIssueRows,
     options,
   );
 
@@ -1053,7 +1057,7 @@ export function buildIssueSummaryPanelData(
     itemsTotalCount,
     openIssuesCount,
     openIssueExplanations,
-    issueRows,
+    issueRows: filteredIssueRows,
     receivedItems,
   };
 }

@@ -2,6 +2,7 @@ import type { DeliveryOrder, Item, Job, MaterialIssue } from "./models";
 import {
   countOpenBlockingIssues,
   isReservedDisplayState,
+  isWillCallPickupStagingListNa,
 } from "./deliveryDisplayHelpers";
 import { vendorInvoiceImportDisplayLabel } from "./invoice/invoiceDisplayHelpers";
 import type {
@@ -28,7 +29,7 @@ export function deliveryReadinessDisplayLabel(
   ) {
     return "Complete";
   }
-  if (delivery.invoiceImportStatus === "pickup_at_vendor") {
+  if (isWillCallPickupStagingListNa(delivery)) {
     return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
   }
   if (delivery.invoiceImportStatus === "closed_picked_up") {

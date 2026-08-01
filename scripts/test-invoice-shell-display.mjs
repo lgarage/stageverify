@@ -105,6 +105,77 @@ assert(
   isWillCallPickupStagingListNa(willCallShellDelivery),
 );
 
+const willCallFulfillmentOnlyDelivery = {
+  ...willCallShellDelivery,
+  id: "delivery-willcall-fulfillment-only",
+  status: "pending",
+  invoiceImportStatus: "pending",
+  invoiceFulfillmentMethod: "will_call_pickup",
+};
+const willCallFulfillmentReadiness = computeDeliveryReadiness(
+  willCallFulfillmentOnlyDelivery,
+  willCallItems,
+);
+assert(
+  "fulfillment-only will_call_pickup status label is Will-Call / Pickup",
+  deliveryReadinessDisplayLabel(
+    willCallFulfillmentOnlyDelivery,
+    willCallFulfillmentReadiness,
+    willCallItems,
+  ) === "Will-Call / Pickup",
+);
+
+const willCallMixedItems = [
+  {
+    id: "item-wc-bo",
+    deliveryOrderId: "delivery-willcall-bo",
+    description: "Backordered part",
+    qtyOrdered: 2,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 2,
+    status: "backordered",
+  },
+  {
+    id: "item-wc-missing",
+    deliveryOrderId: "delivery-willcall-bo",
+    description: "Not shipped yet",
+    qtyOrdered: 1,
+    qtyReceived: 0,
+    qtyMissing: 1,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "pending",
+  },
+  {
+    id: "item-wc-partial",
+    deliveryOrderId: "delivery-willcall-bo",
+    description: "Partial line",
+    qtyOrdered: 4,
+    qtyReceived: 1,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "partial",
+  },
+];
+const willCallBoPanel = buildIssueSummaryPanelData(
+  {
+    ...willCallShellDelivery,
+    id: "delivery-willcall-bo",
+    invoiceFulfillmentMethod: "will_call_pickup",
+  },
+  willCallMixedItems,
+);
+assert(
+  "will-call Order Summary keeps Backordered rows only",
+  willCallBoPanel.issueRows.length === 1 &&
+    willCallBoPanel.issueRows[0].status === "Backordered" &&
+    willCallBoPanel.issueRows[0].itemId === "item-wc-bo",
+  `rows=${willCallBoPanel.issueRows.map((r) => r.status).join(",")}`,
+);
+
 assert(
   "deliver-to-site skips shop staging",
   isInvoiceShellNoShopStaging({

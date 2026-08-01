@@ -6,7 +6,33 @@ import {
   ITEM_ISSUE_STATUS_COLOR,
   type ItemIssueDisplayStatus,
 } from "../deliveryDisplayHelpers";
+import { useVendorInvoicePdfViewer } from "../invoice/useVendorInvoicePdfViewer";
 import { DeliverToSitePanel } from "./DeliverToSitePanel";
+
+const VIEW_PDF_BTN = {
+  backgroundColor: "#fff",
+  color: "#0a3161",
+  border: "1px solid #0a3161",
+  borderRadius: 6,
+  padding: "6px 12px",
+  fontWeight: 600,
+  fontSize: 12,
+  fontFamily: "inherit",
+  cursor: "pointer",
+} as const;
+
+const BACKORDERED_BADGE = {
+  display: "inline-block",
+  backgroundColor: "#ffedd5",
+  border: "2px solid #c2410c",
+  borderRadius: 999,
+  padding: "2px 8px",
+  fontWeight: 800,
+  fontSize: 11,
+  color: "#7c2d12",
+  letterSpacing: "0.04em",
+  textTransform: "uppercase" as const,
+};
 
 /** Option A — editable receipt states written via updateItemQty. */
 export type OrderSummaryEditableStatus = "Not Delivered" | "Delivered";
@@ -30,6 +56,15 @@ export function IssueSummaryPanel({
   ) => Promise<void>;
 }) {
   const [receivedExpanded, setReceivedExpanded] = useState(false);
+  const vendorInvoiceImportId = details.delivery.vendorInvoiceImportId?.trim() ?? "";
+  const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
+    useVendorInvoicePdfViewer();
+  const pdfUnavailable = vendorInvoiceImportId
+    ? pdfUnavailableMessage(vendorInvoiceImportId)
+    : null;
+  const pdfBusy = vendorInvoiceImportId
+    ? pdfLoading(vendorInvoiceImportId)
+    : false;
 
   const summary = useMemo(
     () =>
@@ -62,21 +97,75 @@ export function IssueSummaryPanel({
           letterSpacing: "0.10em",
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: 8,
         }}
       >
-        <span
-          style={{
-            display: "inline-block",
-            width: 16,
-            height: 2,
-            backgroundColor: navy,
-            borderRadius: 2,
-            flexShrink: 0,
-          }}
-        />
-        Order Summary
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 16,
+              height: 2,
+              backgroundColor: navy,
+              borderRadius: 2,
+              flexShrink: 0,
+            }}
+          />
+          Order Summary
+        </span>
+        {vendorInvoiceImportId ? (
+          <button
+            type="button"
+            data-testid="delivery-drawer-view-original-pdf"
+            disabled={pdfBusy || Boolean(pdfUnavailable)}
+            title={
+              pdfUnavailable ??
+              "Open the vendor invoice PDF in a new browser tab"
+            }
+            onClick={() => void viewPdf(vendorInvoiceImportId)}
+            style={{
+              ...VIEW_PDF_BTN,
+              fontFamily: font,
+              cursor:
+                pdfBusy || pdfUnavailable ? "not-allowed" : "pointer",
+              opacity: pdfBusy || pdfUnavailable ? 0.55 : 1,
+              flexShrink: 0,
+            }}
+          >
+            {pdfBusy ? "Loading PDF…" : "View original PDF"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            data-testid="delivery-drawer-view-original-pdf"
+            disabled
+            title="No linked invoice import — PDF unavailable"
+            style={{
+              ...VIEW_PDF_BTN,
+              fontFamily: font,
+              cursor: "not-allowed",
+              opacity: 0.45,
+              flexShrink: 0,
+            }}
+          >
+            View original PDF
+          </button>
+        )}
       </h3>
+      {pdfUnavailable ? (
+        <p
+          data-testid="delivery-drawer-pdf-unavailable"
+          style={{
+            margin: "0 0 10px",
+            fontSize: 12,
+            color: "#9a3412",
+            lineHeight: 1.4,
+          }}
+        >
+          {pdfUnavailable}
+        </p>
+      ) : null}
 
       <div
         style={{
@@ -338,6 +427,13 @@ function IssueTableRow({
           <option value="Not Delivered">Not Delivered</option>
           <option value="Delivered">Delivered</option>
         </select>
+      ) : row.status === "Backordered" ? (
+        <span
+          data-testid="issue-summary-backordered-badge"
+          style={BACKORDERED_BADGE}
+        >
+          BACKORDERED
+        </span>
       ) : (
         <span
           data-testid={`issue-summary-status-${row.itemId}`}
