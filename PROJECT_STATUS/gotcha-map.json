@@ -1211,7 +1211,7 @@
         "credit return invoice #",
         "return from invoice line"
       ],
-      "warning": "Johnstone CREDIT/return memos: header-only vendorBranchName=CREDIT (Branch=CREDIT in page text); invoice # may be alphanumeric (3316448A) on the CREDIT doc — never take inv # from line text \"Return from Invoice #…\" (that is the source invoice, not this memo's #). CREDIT lines often have negative qty and no B/O columns. Fixture: sioux-falls 4-page split → CREDIT doc 3316448A. Gate: npm run test:invoice-parser (sioux falls CREDIT assertions). Product routing: D-58 — pending advisory, no ingest auto-reject."
+      "warning": "Johnstone CREDIT/return memos: never store bare CREDIT as vendorBranchName (doc-type first line ≠ branch). Canonical captureLabeledField on wide header row can poison values (Customer#→Order, SO#→Buyer) — sanitize label tokens; keep specialized Johnstone merge when return lines exist (do not fall back to pure canonical). Invoice # may be alphanumeric (3316448A) — never take inv # from line text \"Return from Invoice #…\". CREDIT lines: negative qty, often no B/O. Fixture: sioux-falls 4-page → 3316448A. Gate: npm run test:invoice-parser. D-58: pending advisory, no ingest auto-reject. Live Refresh needs CF deploy of parser."
     },
     {
       "id": "invoice-credit-reopen-no-rereject",

@@ -40,8 +40,18 @@ function buildParsedInvoice(page, routeFormatId) {
         };
     }
     if (routeFormatId === "johnstone") {
-        const merged = (0, mergeParsedInvoices_1.mergeParsedInvoices)(canonical, (0, parseJohnstoneInvoice_1.parseJohnstoneInvoicePage)(page));
+        const specialized = (0, parseJohnstoneInvoice_1.parseJohnstoneInvoicePage)(page);
+        const merged = (0, mergeParsedInvoices_1.mergeParsedInvoices)(canonical, specialized);
         if ((0, mergeParsedInvoices_1.specializedParseSucceeded)(merged, "johnstone")) {
+            return { parsed: merged, formatId: "johnstone" };
+        }
+        // Keep specialized merge for CREDIT/return — never drop return lines for pure canonical
+        const keepSpecialized = specialized.lines.length > 0 ||
+            Boolean(specialized.header.vendorInvoiceNumber?.trim()) ||
+            Boolean(specialized.header.vendorOrderNumber?.trim()) ||
+            (0, creditReturnSkip_1.isCreditReturnInvoice)(merged, page.extractedText) ||
+            (0, creditReturnSkip_1.isCreditReturnInvoice)(specialized, page.extractedText);
+        if (keepSpecialized) {
             return { parsed: merged, formatId: "johnstone" };
         }
         return {
@@ -58,8 +68,16 @@ function processInvoicePage(page, existing, options) {
     const fingerprint = fingerprintForFormat(formatId, page);
     const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(parsed, page.extractedText);
     let importStatus = (0, inferImportStatus_1.deriveImportStatus)(parsed, formatId);
+    let parsedWithNotes = parsed;
     if (creditReturnSkip) {
         importStatus = (0, creditReturnSkip_1.importStatusForCreditSkip)(parsed, page.extractedText, importStatus);
+        const hasCreditNote = parsed.orderNotes.some((n) => /CREDIT\/return memo/i.test(n));
+        if (!hasCreditNote) {
+            parsedWithNotes = {
+                ...parsed,
+                orderNotes: [...parsed.orderNotes, "CREDIT/return memo"],
+            };
+        }
     }
     const confidence = (0, inferImportStatus_1.scoreInvoiceConfidence)(parsed, formatId);
     const duplicateOfPage = existing.byPageId.get(page.pageId);
@@ -87,7 +105,7 @@ function processInvoicePage(page, existing, options) {
         : (0, parseCanonicalInvoice_1.detectVendorNameFromText)(page.extractedText);
     return {
         page,
-        parsed,
+        parsed: parsedWithNotes,
         importStatus,
         confidenceTier: confidence.tier,
         confidenceScore: confidence.score,

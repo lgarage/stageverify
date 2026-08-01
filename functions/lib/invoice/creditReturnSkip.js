@@ -100,6 +100,9 @@ function isCreditReturnImportDoc(doc) {
     if (parsedBranchIsCredit(branch))
         return true;
     const po = String(header.customerPoOrReference ?? "").trim();
+    const notes = doc.orderNotes ?? [];
+    if (notes.some((n) => /CREDIT\/return memo/i.test(n)))
+        return true;
     const lines = doc.parsedLines ?? [];
     if (lines.length === 0) {
         return /\bRETURN\b/i.test(po) || parsedBranchIsCredit(branch);
@@ -108,7 +111,6 @@ function isCreditReturnImportDoc(doc) {
     const anyReturnLine = lines.some((l) => l.lineType === "return");
     const returnDesc = lines.some((l) => /return from invoice/i.test(l.description ?? ""));
     const returnPo = /\bRETURN\b/i.test(po);
-    const notes = doc.orderNotes ?? [];
     const noteReturn = notes.some((n) => /return from invoice/i.test(n));
     if (anyReturnLine && anyNegShip)
         return true;
@@ -119,6 +121,8 @@ function isCreditReturnImportDoc(doc) {
     if (lines.every((l) => (l.quantityShipped ?? 0) < 0))
         return true;
     if (returnPo && anyNegShip)
+        return true;
+    if (returnPo && anyReturnLine)
         return true;
     return false;
 }

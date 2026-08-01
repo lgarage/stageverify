@@ -6,8 +6,9 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.184** — Invoice Review credit/return manual-reject: pending advisory (no auto-reject), Re-open clears skipReason, list migration disabled
-- Future agents (credit/return): **D-58** + gotcha-map `johnstone-credit-return-parse`, `invoice-credit-*`
+- Last shipped: **v0.0.185** — CREDIT/return parse: reject canonical label-token headers (Customer#≠Order), keep Johnstone return lines, advisory copy; CF deploy needed for live Refresh
+- Future agents (credit/return): **D-58** + gotcha-map `johnstone-credit-return-parse`, `invoice-credit-*`; Refresh after CF deploy
+- Prior: **v0.0.184** — Invoice Review credit/return manual-reject: pending advisory (no auto-reject), Re-open clears skipReason, list migration disabled
 - Prior: **v0.0.183** — CREDIT memo parse + inspect reject-reason UX (3316448A lines, skip banner, Refresh on rejected credits)
 - Prior: **v0.0.182** — CREDIT/return auto-skip repair: branch=CREDIT detection, pending migration on list, skip label in Rejected
 - Prior: **v0.0.181** — Invoice CREDIT/return apply-now dismiss + ingest auto-skip; B/O incomplete UI copy

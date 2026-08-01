@@ -2,10 +2,40 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mergeParsedInvoices = mergeParsedInvoices;
 exports.specializedParseSucceeded = specializedParseSucceeded;
+/** Reject Johnstone wide-header label tokens left by canonical capture. */
+function isPoisonedHeaderValue(value) {
+    const trimmed = value.trim();
+    if (!trimmed)
+        return true;
+    if (/^(?:Order|Date|Buyer|Ship|Via|Salesman|Customer|Invoice|Sales|To|Number|No\.?|Account|CREDIT)$/i.test(trimmed)) {
+        return true;
+    }
+    if (/\b(?:Ship\s+Via|Salesman|Customer\s+P\/?O|Order\s+Date|Sales\s+Order)\b/i.test(trimmed)) {
+        return true;
+    }
+    if (/^(?:Ship\s+To|Sold\s+To)\b/i.test(trimmed))
+        return true;
+    return false;
+}
 function mergeHeader(canonical, specialized) {
-    const merged = { ...canonical };
+    const cleanedCanonical = { ...canonical };
+    for (const [key, value] of Object.entries(cleanedCanonical)) {
+        if (typeof value === "string" && isPoisonedHeaderValue(value)) {
+            cleanedCanonical[key] = key === "fulfillmentMethod" || key === "shipCompletePolicy"
+                ? value
+                : "";
+        }
+    }
+    // Never keep bare CREDIT as branch from canonical first-line grab
+    if (typeof cleanedCanonical.vendorBranchName === "string" &&
+        /^CREDIT$/i.test(cleanedCanonical.vendorBranchName.trim())) {
+        cleanedCanonical.vendorBranchName = "";
+    }
+    const merged = { ...cleanedCanonical };
     for (const [key, value] of Object.entries(specialized)) {
         if (typeof value === "string" && value.trim()) {
+            if (isPoisonedHeaderValue(value))
+                continue;
             merged[key] = value;
         }
         else if (typeof value === "boolean") {
@@ -59,13 +89,20 @@ function mergeParsedInvoices(canonical, specialized) {
     merged.parseWarnings = reconcileParseWarnings(merged, specialized);
     return merged;
 }
+function isPlausibleIdentity(value) {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed || isPoisonedHeaderValue(trimmed))
+        return false;
+    return /\d/.test(trimmed);
+}
 function specializedParseSucceeded(merged, formatId) {
     const productLines = merged.lines.filter((l) => l.lineType === "product" && !l.excludeFromExpectedItems);
     if (formatId === "johnstone") {
-        if (productLines.length > 0)
+        // Any lines count — CREDIT returns are lineType "return" (excluded from expected)
+        if (merged.lines.length > 0)
             return true;
-        const hasIdentity = Boolean(merged.header.vendorInvoiceNumber || merged.header.vendorOrderNumber);
-        return hasIdentity && merged.lines.length > 0;
+        return (isPlausibleIdentity(merged.header.vendorInvoiceNumber) ||
+            isPlausibleIdentity(merged.header.vendorOrderNumber));
     }
     if (productLines.length === 0)
         return false;

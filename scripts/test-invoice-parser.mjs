@@ -884,9 +884,42 @@ if (siouxSplitDocs.length < 4) {
         `sioux falls CREDIT doc: expected vendorInvoiceNumber 3316448A, got ${creditResult.parsed.header.vendorInvoiceNumber || "(empty)"}`,
       );
     }
+    if (creditResult.parsed.header.customerAccountNumber !== "0018114") {
+      failures.push(
+        `sioux falls CREDIT doc: expected customerAccountNumber 0018114, got ${creditResult.parsed.header.customerAccountNumber || "(empty)"}`,
+      );
+    }
+    if (!/GAVIN\s+PHILIPPON/i.test(creditResult.parsed.header.buyerName ?? "")) {
+      failures.push(
+        `sioux falls CREDIT doc: expected buyer GAVIN PHILIPPON, got ${creditResult.parsed.header.buyerName || "(empty)"}`,
+      );
+    }
+    if (/^CREDIT$/i.test(creditResult.parsed.header.vendorBranchName ?? "")) {
+      failures.push(
+        "sioux falls CREDIT doc: vendorBranchName must not be bare CREDIT",
+      );
+    }
     if (creditResult.parsed.lines.length < 1) {
       failures.push(
         `sioux falls CREDIT doc: expected >=1 parsed line, got ${creditResult.parsed.lines.length}`,
+      );
+    }
+    const creditProduct = creditResult.parsed.lines.find((l) =>
+      /^B50-968$/i.test(l.vendorProductNumber ?? ""),
+    );
+    if (!creditProduct) {
+      failures.push("sioux falls CREDIT doc: expected line product B50-968");
+    }
+    if (
+      !isCreditReturnInvoice(creditResult.parsed, creditDoc) ||
+      !isCreditReturnImportDoc({
+        parsedHeader: creditResult.parsed.header,
+        parsedLines: creditResult.parsed.lines,
+        orderNotes: creditResult.parsed.orderNotes,
+      })
+    ) {
+      failures.push(
+        "sioux falls CREDIT doc: expected credit/return advisory detection without Branch=CREDIT",
       );
     }
     if (creditResult.importStatus === "issue") {
@@ -931,7 +964,55 @@ console.log("\n--- Branch CREDIT header-only (0 lines) pending advisory ---");
   if (!isCreditReturnImportDoc(headerOnlyCredit)) {
     failures.push("vendorBranchName CREDIT: isCreditReturnImportDoc should be true");
   }
-  console.log("  PASS branch CREDIT header-only → rejected + import-doc detection");
+  if (/^CREDIT$/i.test(branchCreditResult.parsed.header.vendorBranchName ?? "")) {
+    failures.push(
+      "branch CREDIT 0-line doc: vendorBranchName must not be bare CREDIT after parse",
+    );
+  }
+  console.log("  PASS branch CREDIT header-only → pending advisory + import-doc detection");
+}
+
+console.log("\n--- Canonical label-row poison must not become header values ---");
+{
+  const labelPoisonText = `CREDIT
+Page 1/1
+Sold To Ship To
+Customer # Order Date Sales Order # Buyer Customer P/O # Ship Via Salesman
+Invoice # Invoice Date Ship Date
+LN QNTY ORD QNTY SHIP`;
+  const poisonPage = {
+    pageId: "inv-credit-label-poison",
+    importBatchId: "batch-credit-label-poison",
+    pageIndexInBatch: 0,
+    extractedText: labelPoisonText,
+  };
+  const poisonResult = processInvoicePage(poisonPage, existing);
+  const h = poisonResult.parsed.header;
+  if (h.customerAccountNumber === "Order" || /^(?:Order|Buyer)$/i.test(h.customerAccountNumber ?? "")) {
+    failures.push(
+      `label poison: customerAccountNumber must not be a label token, got ${h.customerAccountNumber || "(empty)"}`,
+    );
+  }
+  if (h.vendorOrderNumber === "Buyer" || /^Buyer$/i.test(h.vendorOrderNumber ?? "")) {
+    failures.push(
+      `label poison: vendorOrderNumber must not be Buyer, got ${h.vendorOrderNumber || "(empty)"}`,
+    );
+  }
+  if (/Ship\s+Via|Salesman|Customer\s+P\/O/i.test(h.buyerName ?? "")) {
+    failures.push(
+      `label poison: buyerName must not contain header labels, got ${h.buyerName || "(empty)"}`,
+    );
+  }
+  if (/^Ship\s+To$/i.test(h.soldToName ?? "")) {
+    failures.push("label poison: soldToName must not be Ship To");
+  }
+  if (/^CREDIT$/i.test(h.vendorBranchName ?? "")) {
+    failures.push("label poison: vendorBranchName must not be CREDIT");
+  }
+  if (!isCreditReturnInvoice(poisonResult.parsed, labelPoisonText)) {
+    failures.push("label poison CREDIT doc: isCreditReturnInvoice should still be true");
+  }
+  console.log("  PASS label-row poison rejected; CREDIT advisory signals preserved");
 }
 
 const attachmentSplitDocs = splitExtractedTextIntoInvoiceDocuments(

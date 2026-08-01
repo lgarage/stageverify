@@ -207,7 +207,7 @@ function parseTabularHeaderBlock(text) {
                     partial.shipDate = invRow[3];
             }
         }
-        if (/^Customer\s*#\s+Order\s+Date\s+Sales\s+Order\s*#\s+Buyer\s+Customer\s+P\/O\s*#\s+Ship\s+Via/i.test(labelLine)) {
+        if (/^Customer\s*#\s+Order\s+Date\s+Sales\s+Order\s*#\s+Buyer\s+Customer\s+P\/O\s*#\s+Ship\s+Via(?:\s+Salesman)?/i.test(labelLine)) {
             const wide = valueLine.match(/^(\d{3,10})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{3,10})\s+(.+)\s+(\d+|[A-Z]{2,5})\s*$/);
             if (wide) {
                 partial.customerAccountNumber = wide[1];
@@ -233,13 +233,28 @@ function parseTabularHeaderBlock(text) {
     return partial;
 }
 /** Label on one line, value on the next — common in PDF extraction. */
+function isStackedLabelNoise(value) {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed)
+        return true;
+    return /^(?:Order\s+Date|Sales\s+Order|Customer\s+P\/?O|Ship\s+Via|Buyer|Invoice\s*#|Invoice\s+Date|Ship\s+Date|Freight|Terms|Job\s+Number|#)/i.test(trimmed);
+}
 function parseStackedLabelValuePairs(text) {
     const partial = {};
     partial.customerAccountNumber = capture(/Customer\s*#\s*\n\s*(\d{3,10})/i, text);
     partial.vendorOrderNumber = capture(/Sales\s+Order\s*#\s*\n\s*(\d{3,10})/i, text);
-    partial.vendorInvoiceNumber = capture(/Invoice\s*#\s*\n\s*([A-Z0-9-]+)/i, text);
-    partial.customerPoOrReference = capture(/(?:Customer|Cust)\s+P\/O\s*#?\s*\n\s*(.+)/i, text);
-    partial.buyerName = capture(/Buyer\s*\n\s*(.+)/i, text);
+    const stackedInv = capture(/Invoice\s*#\s*\n\s*([A-Z0-9-]+)/i, text);
+    if (stackedInv && !isStackedLabelNoise(stackedInv) && /\d/.test(stackedInv)) {
+        partial.vendorInvoiceNumber = stackedInv;
+    }
+    const stackedPo = capture(/(?:Customer|Cust)\s+P\/O\s*#?\s*\n\s*(.+)/i, text);
+    if (stackedPo && !isStackedLabelNoise(stackedPo)) {
+        partial.customerPoOrReference = stackedPo;
+    }
+    const stackedBuyer = capture(/Buyer\s*\n\s*(.+)/i, text);
+    if (stackedBuyer && !isStackedLabelNoise(stackedBuyer)) {
+        partial.buyerName = stackedBuyer;
+    }
     const orderDateRaw = capture(/Order\s+Date\s*\n\s*([\d/-]+)/i, text);
     if (orderDateRaw)
         partial.orderDate = orderDateRaw;

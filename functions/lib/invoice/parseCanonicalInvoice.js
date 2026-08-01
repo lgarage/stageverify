@@ -41,6 +41,31 @@ function normalizeDate(raw) {
     }
     return trimmed;
 }
+/** Header-grid labels that must never be stored as field values. */
+const HEADER_LABEL_TOKEN = /^(?:Order|Date|Buyer|Ship|Via|Salesman|Customer|Invoice|Sales|To|Number|No\.?|Account|Freight|Terms|Job|P\/?O|#)$/i;
+function isHeaderLabelToken(value) {
+    const trimmed = value.trim();
+    if (!trimmed)
+        return true;
+    if (HEADER_LABEL_TOKEN.test(trimmed))
+        return true;
+    // Multi-token bleed from wide Johnstone label row
+    if (/^(?:Order\s+Date|Ship\s+Via|Sales\s+Order|Customer\s+P\/?O|Ship\s+To|Sold\s+To|Invoice\s+Date|Ship\s+Date)\b/i.test(trimmed)) {
+        return true;
+    }
+    if (/\b(?:Ship\s+Via|Salesman|Customer\s+P\/?O|Order\s+Date)\b/i.test(trimmed)) {
+        return true;
+    }
+    return false;
+}
+function sanitizeHeaderCapture(raw, opts) {
+    const trimmed = raw?.trim() ?? "";
+    if (!trimmed || isHeaderLabelToken(trimmed))
+        return "";
+    if (opts?.digitsOnly && !/^\d{3,10}$/.test(trimmed))
+        return "";
+    return trimmed;
+}
 function extractVendorCompanyName(text) {
     const lines = text
         .split("\n")
@@ -48,31 +73,34 @@ function extractVendorCompanyName(text) {
         .filter(Boolean)
         .slice(0, 8);
     for (const line of lines) {
+        if (/^CREDIT\b/i.test(line))
+            continue;
         if (canonicalInvoiceSchema_1.VENDOR_COMPANY_SUFFIX.test(line) && line.length <= 80) {
             return line;
         }
     }
-    return lines[0] ?? "";
+    const fallback = lines.find((line) => !/^CREDIT\b/i.test(line) && !/^Page\s+\d/i.test(line));
+    return fallback ?? "";
 }
 function extractCanonicalHeader(text) {
     const warnings = [];
     const valueToken = String.raw `([^\n\r]+)`;
     const dateToken = String.raw `(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})`;
     const vendorInvoiceNumber = sanitizeInvoiceNumber(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.vendorInvoiceNumber, String.raw `([A-Z0-9][A-Z0-9-]{1,40})`, text) ?? capture(/Ticket\s*:\s*([A-Z0-9][A-Z0-9-]{1,40})/i, text));
-    const vendorOrderNumber = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.vendorOrderNumber, String.raw `([A-Z0-9][A-Z0-9-]{1,40})`, text) ?? "";
-    const customerPoOrReference = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.customerPoOrReference, valueToken, text)
+    const vendorOrderNumber = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.vendorOrderNumber, String.raw `([A-Z0-9][A-Z0-9-]{1,40})`, text));
+    const customerPoOrReference = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.customerPoOrReference, valueToken, text)
         ?.trim()
         .replace(/\s{2,}Account\b.*$/i, "")
         .replace(/\s{2,}Ship\b.*$/i, "")
-        .trim() ?? "";
-    const customerAccountNumber = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.customerAccountNumber, String.raw `([A-Z0-9-]{2,40})`, text) ?? "";
+        .trim());
+    const customerAccountNumber = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.customerAccountNumber, String.raw `([A-Z0-9-]{2,40})`, text), { digitsOnly: true });
     const orderDateRaw = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.orderDate, dateToken, text) ?? "";
     const invoiceDateRaw = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.invoiceDate, dateToken, text) ?? "";
     const shipDateRaw = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.shipDate, dateToken, text) ?? "";
-    const shipViaRaw = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.shipViaRaw, valueToken, text) ?? "";
-    const soldToName = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.soldToName, valueToken, text)?.trim() ?? "";
-    const shipToName = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.shipToName, valueToken, text)?.trim() ?? "";
-    const buyerName = captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.buyerName, valueToken, text)?.trim() ?? "";
+    const shipViaRaw = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.shipViaRaw, valueToken, text));
+    const soldToName = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.soldToName, valueToken, text)?.trim());
+    const shipToName = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.shipToName, valueToken, text)?.trim());
+    const buyerName = sanitizeHeaderCapture(captureLabeledField(canonicalInvoiceSchema_1.CANONICAL_HEADER_LABELS.buyerName, valueToken, text)?.trim());
     const vendorBranchName = extractVendorCompanyName(text);
     if (!vendorInvoiceNumber)
         warnings.push("missing vendorInvoiceNumber");

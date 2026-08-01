@@ -65,8 +65,19 @@ function buildParsedInvoice(
     };
   }
   if (routeFormatId === "johnstone") {
-    const merged = mergeParsedInvoices(canonical, parseJohnstoneInvoicePage(page));
+    const specialized = parseJohnstoneInvoicePage(page);
+    const merged = mergeParsedInvoices(canonical, specialized);
     if (specializedParseSucceeded(merged, "johnstone")) {
+      return { parsed: merged, formatId: "johnstone" };
+    }
+    // Keep specialized merge for CREDIT/return — never drop return lines for pure canonical
+    const keepSpecialized =
+      specialized.lines.length > 0 ||
+      Boolean(specialized.header.vendorInvoiceNumber?.trim()) ||
+      Boolean(specialized.header.vendorOrderNumber?.trim()) ||
+      isCreditReturnInvoice(merged, page.extractedText) ||
+      isCreditReturnInvoice(specialized, page.extractedText);
+    if (keepSpecialized) {
       return { parsed: merged, formatId: "johnstone" };
     }
     return {
@@ -90,12 +101,22 @@ export function processInvoicePage(
   const fingerprint = fingerprintForFormat(formatId, page);
   const creditReturnSkip = isCreditReturnInvoice(parsed, page.extractedText);
   let importStatus = deriveImportStatus(parsed, formatId);
+  let parsedWithNotes = parsed;
   if (creditReturnSkip) {
     importStatus = importStatusForCreditSkip(
       parsed,
       page.extractedText,
       importStatus,
     );
+    const hasCreditNote = parsed.orderNotes.some((n) =>
+      /CREDIT\/return memo/i.test(n),
+    );
+    if (!hasCreditNote) {
+      parsedWithNotes = {
+        ...parsed,
+        orderNotes: [...parsed.orderNotes, "CREDIT/return memo"],
+      };
+    }
   }
   const confidence = scoreInvoiceConfidence(parsed, formatId);
 
@@ -127,7 +148,7 @@ export function processInvoicePage(
 
   return {
     page,
-    parsed,
+    parsed: parsedWithNotes,
     importStatus,
     confidenceTier: confidence.tier,
     confidenceScore: confidence.score,

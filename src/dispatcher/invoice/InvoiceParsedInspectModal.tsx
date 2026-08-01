@@ -566,7 +566,12 @@ export function InvoiceParsedInspectModal({
                 fontSize: 12,
               }}
             >
-              <strong>Parse gaps on skipped credit:</strong> {checklist.parseGapReason}
+              <strong>
+                {creditSkipLabel
+                  ? "Parse gaps on skipped credit:"
+                  : "Parse gaps (credit/return):"}
+              </strong>{" "}
+              {checklist.parseGapReason}
             </div>
           )}
           {!creditSkipLabel && !creditAdvisoryLabel && checklist.blockReason && (
