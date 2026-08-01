@@ -867,15 +867,23 @@
         "powershell chaining",
         "command chaining",
         "powershell &&",
-        "cmd1 && cmd2"
+        "cmd1 && cmd2",
+        "PowerShell does not support &&",
+        "semicolons instead of &&"
       ],
       "orchestratorSteps": [],
       "dossierTags": [],
       "lessonsSection": "process-agents",
       "files": [],
-      "rules": [],
+      "rules": ["agent-ops.mdc"],
       "commands": [],
-      "warning": "Windows PowerShell 5 rejects `&&` chaining — \"The token '&&' is not a valid statement separator\" (unlike PS7+/bash). Shell commands on this machine run under PS5-compatible PowerShell: never write `cmd1 && cmd2`. Use `;` when the second command can run regardless of the first's failure; when it must only run on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08). Also: bash HEREDOC (`cat <<'EOF'`) is not valid in PS5 — use `git commit -m \"title\" -m \"body\"` or a here-string (`@'...'@`) instead (observed 2026-07-19)."
+      "gateCandidate": false,
+      "injectBefore": [
+        "powershell &&",
+        "command chaining Windows",
+        "Shell tool PowerShell"
+      ],
+      "warning": "Windows PowerShell does not support `&&` — never write `cmd1 && cmd2` (PS5: \"The token '&&' is not a valid statement separator\"). Dan standing preference (2026-08-01): use semicolons (`;`) instead for sequential commands. When a later step must run only on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08). Also: bash HEREDOC (`cat <<'EOF'`) is not valid in PS5 — use `git commit -m \"title\" -m \"body\"`, a here-string (`@'...'@` | Set-Content … -F), or a script file (see powershell-inline-command-mangle)."
     },
     {
       "id": "shop-map-svg-stroke-hit-target",
