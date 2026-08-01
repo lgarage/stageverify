@@ -888,6 +888,7 @@ export function DetailContent({
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onReviewVendorEmail={expandEmailEvidenceReview}
+          onEmailVendor={() => setDrawerEmailModalOpen(true)}
         />
         <IssueSummaryPanel
           details={details}

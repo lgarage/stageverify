@@ -6,6 +6,7 @@
 
 1. `PROJECT_STATUS/CURRENT_STATE.md` — always first: phase, blockers, last shipped.
 2. `PROJECT_STATUS/MEMORY.md` — this router + narrow "what's next".
+3. **D-47 (every edit):** conf ≥ 97% before any file write — `confidence-gate.mdc` (alwaysApply); Solution Verifier when D-36 triggers, in addition to conf bar.
 
 **On demand (not session start):** `svscope_simple.md` (scope disputes) · **`PROJECT_STATUS/MVP_PATH.md`** (MVP %, fastest path, planning/priority) · **`npm run away:next -- --packet`** (coding sessions — queue brief + dossier slices first) · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
 

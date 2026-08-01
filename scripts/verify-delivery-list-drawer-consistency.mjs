@@ -566,6 +566,45 @@ async function getActionButtonRows(page) {
   });
 }
 
+/** Banner Email Vendor opens modal (no mailto) when visible in fixture. */
+async function assertDrawerEmailVendorOpensModal(page, record, label) {
+  const emailVendorBtn = page.getByTestId("drawer-action-email-vendor");
+  if ((await emailVendorBtn.count()) === 0) {
+    record(`${label} — banner Email Vendor modal (skipped)`, true, "button not in fixture");
+    return;
+  }
+
+  const tagName = await emailVendorBtn.first().evaluate((el) => el.tagName);
+  record(
+    `${label} — banner Email Vendor is button (not mailto link)`,
+    tagName === "BUTTON",
+    `tag=${tagName}`,
+  );
+  const href = await emailVendorBtn.first().getAttribute("href").catch(() => null);
+  record(
+    `${label} — banner Email Vendor has no mailto href`,
+    href === null || !/^mailto:/i.test(href),
+    href ?? "no href",
+  );
+
+  await emailVendorBtn.first().click();
+  await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
+  record(
+    `${label} — banner Email Vendor opens vendor communications modal`,
+    await page.getByTestId("vendor-communications-modal").isVisible(),
+  );
+
+  await page
+    .getByTestId("vendor-communications-modal")
+    .getByRole("button", { name: "Close" })
+    .click();
+  await page.getByTestId("vendor-communications-modal").waitFor({
+    state: "hidden",
+    timeout: 10_000,
+  });
+  record(`${label} — vendor communications modal closes`, true);
+}
+
 async function assertLegacyDrawerActionsRemoved(page, record, label) {
   record(
     `${label} — Review parsed invoice removed`,
@@ -1787,6 +1826,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
 
     await assertLegacyDrawerActionsRemoved(page, record, "ORD-002");
+    await assertDrawerEmailVendorOpensModal(page, record, "ORD-002");
 
     const ord002Revoke = page.getByTestId("revoke-pickup-link");
     if ((await ord002Revoke.count()) > 0) {

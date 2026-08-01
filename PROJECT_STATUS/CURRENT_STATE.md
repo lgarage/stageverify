@@ -5,32 +5,16 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
-- **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.186** — Drawer attention banner: Why lists missing/partial items only (not backorder prose; Order Summary owns BO)
-- Prior: **harness** — Task slug alignment: Grok → `cursor-grok-4.5-high-fast`; D-38 medium-thinking first; Couldn't start = retry next slug
-- Prior: **v0.0.185** — CREDIT/return parse fix; **CF deployed** 2026-08-01 (`firebase deploy --only functions`, Dan OK) — Refresh credit imports to reparse
-- Future agents (credit/return): **D-58** + gotcha-map `johnstone-credit-return-parse`; open credit row → **Refresh** after CF deploy
-- Prior: **v0.0.184** — Invoice Review credit/return manual-reject: pending advisory (no auto-reject), Re-open clears skipReason, list migration disabled
-- Prior: **v0.0.183** — CREDIT memo parse + inspect reject-reason UX (3316448A lines, skip banner, Refresh on rejected credits)
-- Prior: **v0.0.182** — CREDIT/return auto-skip repair: branch=CREDIT detection, pending migration on list, skip label in Rejected
-- Prior: **v0.0.181** — Invoice CREDIT/return apply-now dismiss + ingest auto-skip; B/O incomplete UI copy
-- Prior: **v0.0.179** — Invoice AI shadow always validates Flash-Lite with Gemini 3.6 Flash (CF deploy).
-- Prior: **v0.0.178** — Invoice Review training note panel polish (full-width card above Approve/Reject).
-- Prior: **v0.0.177** — Johnstone invoice AI shadow (Vertex lite→3.6, flag-gated) + Invoice Review training notes → GCS playbook.
-- Prior: **v0.0.176** — Complete filter shows red count badge of finished deliveries.
-- Prior: **v0.0.175** — Johnstone multi-invoice PDF split restored (tabular Invoice # + no merge when both pages lack #); CF deployed.
-- Prior: **v0.0.174** — Complete label; default hide finished jobs; Complete filter opt-in; deliver-to-site clears staging (CF mirror committed, not deployed).
-- Prior: **v0.0.173** — Staging map catch-all marker opens view-only status drawer (pending count + note).
-- Prior: **v0.0.172** — Filter by Status chips no longer shift on toggle (stable 2px border; Clear always mounted).
-- Prior: **v0.0.171** — Staging map occupancy uses same prod delivery filter as Deliveries board staging (`hideSeedDemoRows` + invoice); `verify:shop-map` chip/map color parity.
-- Prior: **v0.0.170** — Staging Map: removed single-spot **Print label (CODE)** toolbar button; batch **Print location labels** only (`#/zones/print-labels`).
-- Prior: **v0.0.169** — List/drawer: **blocking-only** open issues for status labels; **Awaiting Delivery** before **Reserved**; drawer vendor-comms hidden (verify harness); ORD-005 fixture stability.
-- Prior: **v0.0.168** — Status **Awaiting Delivery** (yellow badge) for 0-received inbound orders; v0.0.167 compact chips + Will-Call N/A/Pickup summary.
-- Prior: **v0.0.166** — Deliveries list: map-matching staging chips + color legend; red staging pill; no full-row orange action rows.
-- Prior: **v0.0.165** — Staging Map ready-for-pickup spots **purple** `#7c3aed` (SpotMapColor `purple`; dashboard STATUS_BADGE unchanged).
-- Prior: **v0.0.163** — 2×4 print labels: gutter, QR clearance (144px), typography, asymmetric padding for code centering.
-- Prior: **v0.0.162** — Batch `#/zones/print-labels`: Full page vs 2×4 toggle, print-only DOM, `LocationSignLabel2x4Sheet`.
-- Prior: **v0.0.161** — Print location labels picker lists only visible Staging Map slots (D-52/D-53 SSOT); orphan Firestore zones excluded.
+- **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
+- **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
+- Last shipped: **v0.0.187** — Drawer banner Email Vendor opens Vendor Communications modal (no mailto)
+- Prior: **v0.0.186** — Drawer attention banner: Why lists missing/partial items only
+- Prior: **harness** — Grok → `cursor-grok-4.5-high-fast`; D-38 medium-thinking first
+- Prior: **v0.0.185** — CREDIT/return parse fix; **CF deployed** 2026-08-01
+- Prior: **v0.0.181–184** — Invoice CREDIT/return manual-reject, memo parse, auto-skip repair
+- Prior: **v0.0.176–179** — Invoice AI shadow, training notes, Complete filter badge
+- Prior: **v0.0.170–175** — Staging map/labels, Johnstone PDF split, Complete filter
+- Prior: **v0.0.161–169** — List/drawer blocking-only issues, Awaiting Delivery, vendor-comms hidden
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:settings-office-receivers` / `:prod`; `verify:management-catch-all` / `:prod`; `verify:settings-management-pins`; `verify:pickup` / `:prod`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`

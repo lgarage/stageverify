@@ -22,6 +22,7 @@ export function DrawerActionBanner({
   onResolveBlockingIssue,
   onReviewIssues,
   onReviewVendorEmail,
+  onEmailVendor,
 }: {
   details: DeliveryDetails;
   navy: string;
@@ -29,6 +30,7 @@ export function DrawerActionBanner({
   onResolveBlockingIssue?: () => void;
   onReviewIssues?: () => void;
   onReviewVendorEmail?: () => void;
+  onEmailVendor?: () => void;
 }) {
   const [callVendorOpen, setCallVendorOpen] = useState(false);
 
@@ -38,13 +40,6 @@ export function DrawerActionBanner({
   const vendorEmail = vendor.email?.trim() ?? "";
   const vendorAddress = vendor.address?.trim() ?? "";
   const telHref = vendorPhone ? `tel:${telDigits(vendorPhone)}` : null;
-  const mailtoHref = vendorEmail
-    ? `mailto:${encodeURIComponent(vendorEmail)}?subject=${encodeURIComponent(
-        delivery.orderNumber
-          ? `Delivery ${delivery.orderNumber} — follow up`
-          : "Delivery follow up",
-      )}`
-    : null;
 
   const displayState = useMemo(
     () => computeDeliveryDisplayState(delivery, items, materialIssues),
@@ -363,10 +358,11 @@ export function DrawerActionBanner({
                 Call Vendor
               </button>
             )}
-            {bannerContent.showEmailVendor && mailtoHref && (
-              <a
-                href={mailtoHref}
+            {bannerContent.showEmailVendor && onEmailVendor && (
+              <button
+                type="button"
                 data-testid="drawer-action-email-vendor"
+                onClick={() => onEmailVendor()}
                 style={{
                   padding: "7px 12px",
                   borderRadius: 6,
@@ -377,12 +373,10 @@ export function DrawerActionBanner({
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: font,
-                  textDecoration: "none",
-                  display: "inline-block",
                 }}
               >
                 Email Vendor
-              </a>
+              </button>
             )}
           </div>
         )}
