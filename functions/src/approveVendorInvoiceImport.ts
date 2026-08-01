@@ -23,6 +23,7 @@ import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCor
 import { vendorKeyFromImportDoc } from "./invoice/aiShadow/adminConfig";
 import {
   CREDIT_RETURN_SKIP_REASON,
+  isCreditReturnImportDoc,
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
 
@@ -141,6 +142,7 @@ export const approveVendorInvoiceImport = onCall(
           reviewStatus: "pending_review",
           rejectedAt: FieldValue.delete(),
           rejectedBy: FieldValue.delete(),
+          skipReason: FieldValue.delete(),
           updatedAt: now,
           importDecisionLog: appendDecisionLogUpdate(
             fresh,
@@ -237,6 +239,9 @@ export const approveVendorInvoiceImport = onCall(
         }
         tx.update(importRef, {
           reviewStatus: "rejected",
+          ...(isCreditReturnImportDoc(fresh)
+            ? { skipReason: CREDIT_RETURN_SKIP_REASON }
+            : {}),
           rejectedAt: now,
           rejectedBy: uid,
           updatedAt: now,

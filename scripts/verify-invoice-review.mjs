@@ -524,17 +524,10 @@ async function main() {
     await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
     console.log("PASS: back to review queue from rejected list");
 
-    // CREDIT/return auto-skip: pending queue must not show Branch CREDIT memos.
-    const pendingPanel = page.getByTestId("invoice-review-panel");
-    const pendingText = (await pendingPanel.innerText()).trim();
-    if (/\bBranch\b[\s\S]{0,24}\bCREDIT\b/i.test(pendingText)) {
-      throw new Error(
-        "Pending review queue still shows Branch CREDIT import — credit/return auto-skip failed",
-      );
-    }
-    console.log("PASS: no Branch CREDIT row in pending review queue");
-
-    await rejectedLink.click();
+    // Credit/return: pending queue shows advisory (not auto-rejected); Re-open restores pending.
+    let creditReopenedId = null;
+    const rejectedLink2 = page.getByTestId("invoice-review-rejected-link");
+    await rejectedLink2.click();
     await page.getByTestId("invoice-review-rejected-list").waitFor({ timeout: 15_000 });
     await page.waitForFunction(
       () => {
@@ -547,24 +540,95 @@ async function main() {
       },
       { timeout: 30_000 },
     );
-    const creditSkipChip = page.getByTestId("invoice-review-credit-skip-chip");
-    const rejectedListText = (
-      await page.getByTestId("invoice-review-rejected-list").innerText()
-    ).trim();
-    const hasCreditSkipChip = (await creditSkipChip.count()) > 0;
-    const hasSkipCopy = /Skipped\s*[—–-]\s*credit\/return/i.test(rejectedListText);
-    if (!hasCreditSkipChip && !hasSkipCopy) {
-      if (/No rejected invoices/i.test(rejectedListText)) {
-        console.log(
-          "SKIP: rejected list empty — no credit skip chip to assert (env may lack CREDIT import)",
-        );
-      } else {
-        throw new Error(
-          "Rejected list has rows but no Skipped — credit/return label for auto-skipped CREDIT import",
-        );
+
+    const rejectedCreditRow = page
+      .locator('[data-testid^="invoice-review-queue-row-"]')
+      .filter({ hasText: /Skipped\s*[—–-]\s*credit\/return|Credit memo|3316448|CREDIT/i })
+      .first();
+    if ((await rejectedCreditRow.count()) > 0) {
+      const rowTestId = await rejectedCreditRow.getAttribute("data-testid");
+      creditReopenedId = rowTestId?.replace("invoice-review-queue-row-", "") ?? null;
+      if (creditReopenedId) {
+        const reopenBtn = page.getByTestId(`invoice-review-reopen-${creditReopenedId}`);
+        await reopenBtn.waitFor({ timeout: 5000 });
+        await reopenBtn.click();
+        await page.waitForTimeout(2500);
+        console.log(`PASS: Re-open clicked for credit import ${creditReopenedId}`);
       }
     } else {
-      console.log("PASS: rejected list shows Skipped — credit/return for auto-skipped import");
+      console.log(
+        "SKIP: no legacy auto-rejected credit row — reopen step not exercised (env may lack CREDIT import)",
+      );
+    }
+
+    const pendingQueueVisible = await page
+      .getByTestId("invoice-review-queue")
+      .isVisible()
+      .catch(() => false);
+    if (!pendingQueueVisible) {
+      await page.getByTestId("invoice-review-back-to-queue").click();
+      await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
+    }
+
+    await page.waitForFunction(
+      () => {
+        const panel = document.querySelector('[data-testid="invoice-review-panel"]');
+        if (!panel) return false;
+        const loading = panel.textContent?.includes("Loading…");
+        const rows = panel.querySelectorAll('[data-testid^="invoice-review-queue-row-"]').length;
+        const empty = panel.querySelector('[data-testid="invoice-review-empty"]');
+        const advisory = panel.querySelector('[data-testid="invoice-review-credit-advisory-chip"]');
+        return !loading && (rows > 0 || !!empty || !!advisory);
+      },
+      { timeout: 30_000 },
+    );
+
+    const pendingPanel = page.getByTestId("invoice-review-panel");
+    const pendingText = (await pendingPanel.innerText()).trim();
+    const advisoryChip = page.getByTestId("invoice-review-credit-advisory-chip");
+    const hasAdvisoryChip = (await advisoryChip.count()) > 0;
+    const hasAdvisoryCopy = /Credit\/return\s*[—–-]\s*reject manually/i.test(pendingText);
+
+    if (creditReopenedId) {
+      const reopenedRow = page.getByTestId(`invoice-review-queue-row-${creditReopenedId}`);
+      if (!(await reopenedRow.isVisible().catch(() => false))) {
+        throw new Error(
+          `Re-opened credit import ${creditReopenedId} not visible in pending review queue`,
+        );
+      }
+      console.log(`PASS: Re-opened credit import ${creditReopenedId} in pending queue`);
+    }
+
+    if (!hasAdvisoryChip && !hasAdvisoryCopy) {
+      const creditRowPending = page
+        .locator('[data-testid^="invoice-review-queue-row-"]')
+        .filter({ hasText: /Credit memo|3316448|Branch[\s\S]{0,12}CREDIT/i });
+      if ((await creditRowPending.count()) > 0) {
+        throw new Error(
+          "Pending credit/return row visible but missing Credit/return — reject manually advisory",
+        );
+      }
+      console.log(
+        "SKIP: pending queue has no credit/return import — advisory chip not asserted",
+      );
+    } else {
+      console.log("PASS: pending queue shows Credit/return — reject manually advisory");
+      if (creditReopenedId) {
+        await page
+          .getByTestId(`invoice-review-row-content-${creditReopenedId}`)
+          .click();
+        await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+        const modalAdvisory = page.getByTestId("invoice-parsed-inspect-credit-advisory");
+        if ((await modalAdvisory.count()) === 0) {
+          throw new Error("Re-opened credit inspect modal missing credit advisory banner");
+        }
+        const modalText = (await page.getByTestId("invoice-parsed-inspect-panel").innerText()).trim();
+        if (!/Credit\/return\s*[—–-]\s*reject manually/i.test(modalText)) {
+          throw new Error("Inspect modal missing Credit/return — reject manually copy");
+        }
+        console.log("PASS: inspect modal shows credit/return reject-manually advisory");
+        await page.getByTestId("invoice-parsed-inspect-close").click();
+      }
     }
 
     console.log("\nverify-invoice-review: PASS");

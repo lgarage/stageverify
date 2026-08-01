@@ -129,7 +129,9 @@ export function queueRowTitle(importRow: VendorInvoiceImportReview): string {
   const header = importRow.parsedHeader;
   const invoiceNum = readInvoiceHeaderField(header, "vendorInvoiceNumber");
   const orderNum = readInvoiceHeaderField(header, "vendorOrderNumber");
+  const branch = readInvoiceHeaderField(header, "vendorBranchName");
   if (invoiceNum) return `Invoice ${invoiceNum}`;
+  if (/^CREDIT$/i.test(branch?.trim() ?? "")) return "Credit memo";
   if (orderNum) return `S/O ${orderNum}`;
   return importRow.pageId;
 }

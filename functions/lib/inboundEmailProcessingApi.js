@@ -9,7 +9,6 @@ const https_1 = require("firebase-functions/v2/https");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const recoverStrandedProcessing_1 = require("./inboundEmail/recoverStrandedProcessing");
 const sanitizeVendorInvoiceImport_1 = require("./inboundEmail/sanitizeVendorInvoiceImport");
-const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
 const COLLECTION = "inboundEmailProcessing";
@@ -20,24 +19,9 @@ const MAX_PDF_BYTES = 5 * 1024 * 1024;
 function getDb() {
     return admin.firestore();
 }
-/** Move legacy pending credit/return imports to rejected+skipReason on list load. */
+/** Credit/return imports stay in pending review — no list-load migration to Rejected. */
 async function migratePendingCreditReturnImports(docs) {
-    const db = getDb();
-    const now = new Date().toISOString();
-    const out = [];
-    for (const doc of docs) {
-        if (doc.reviewStatus === "pending_review" &&
-            !doc.duplicate &&
-            (0, creditReturnSkip_1.isCreditReturnImportDoc)(doc)) {
-            const patch = (0, creditReturnSkip_1.creditReturnSkipFields)(now);
-            await db.collection(IMPORTS_COLLECTION).doc(doc.id).set(patch, { merge: true });
-            out.push({ ...doc, ...patch });
-        }
-        else {
-            out.push(doc);
-        }
-    }
-    return out;
+    return docs;
 }
 async function loadGmailRefreshToken() {
     const conn = await getDb().collection("emailProviderConnections").doc("gmail").get();

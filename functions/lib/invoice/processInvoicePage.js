@@ -66,10 +66,7 @@ function processInvoicePage(page, existing, options) {
     const duplicateOfFingerprint = existing.byFingerprint.get(fingerprint);
     const duplicate = Boolean(duplicateOfPage || duplicateOfFingerprint);
     let reviewStatus = "pending_review";
-    if (creditReturnSkip) {
-        reviewStatus = "rejected";
-    }
-    else if (duplicate) {
+    if (duplicate) {
         reviewStatus = "rejected";
     }
     else if (importStatus === "issue" || formatId === "unknown") {

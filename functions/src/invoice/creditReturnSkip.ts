@@ -6,7 +6,12 @@ import type { VendorInvoiceImportParsedLine } from "../inboundEmail/types";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 
+/** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 export const CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
+
+/** Pending queue — user must reject manually (no auto-reject on ingest). */
+export const CREDIT_RETURN_ADVISORY_LABEL =
+  "Credit/return — reject manually";
 
 function parsedBranchIsCredit(branchRaw: string | undefined): boolean {
   const branch = (branchRaw ?? "").trim();

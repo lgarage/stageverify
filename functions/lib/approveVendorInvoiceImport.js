@@ -90,6 +90,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 reviewStatus: "pending_review",
                 rejectedAt: firestore_1.FieldValue.delete(),
                 rejectedBy: firestore_1.FieldValue.delete(),
+                skipReason: firestore_1.FieldValue.delete(),
                 updatedAt: now,
                 importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("reopen", uid, now, eligibilityFromDoc(fresh))),
             });
@@ -158,6 +159,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             }
             tx.update(importRef, {
                 reviewStatus: "rejected",
+                ...((0, creditReturnSkip_1.isCreditReturnImportDoc)(fresh)
+                    ? { skipReason: creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON }
+                    : {}),
                 rejectedAt: now,
                 rejectedBy: uid,
                 updatedAt: now,

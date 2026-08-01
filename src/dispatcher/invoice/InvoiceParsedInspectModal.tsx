@@ -24,7 +24,7 @@ import {
   readInvoiceHeaderField,
   formatInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
-import { creditReturnSkipLabel, orderIncompleteMessage } from "./creditReturnSkip";
+import { creditReturnAdvisoryLabel, creditReturnSkipLabel, orderIncompleteMessage } from "./creditReturnSkip";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -253,6 +253,7 @@ export function InvoiceParsedInspectModal({
   const shipDateWarning = shipDateMissingWarning(importRow);
   const orderIncomplete = orderIncompleteMessage(importRow);
   const creditSkipLabel = creditReturnSkipLabel(importRow.skipReason);
+  const creditAdvisoryLabel = creditReturnAdvisoryLabel(importRow);
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
     !readOnly &&
@@ -261,7 +262,8 @@ export function InvoiceParsedInspectModal({
       Boolean(onRelinkToShell));
   const showReparse =
     Boolean(onReparse) &&
-    (isPending || (isRejected && importRow.skipReason === "credit_return")) &&
+    (isPending ||
+      (isRejected && importRow.skipReason === "credit_return")) &&
     !readOnly;
   const approveDisabled = actionLoading || approveBlocked;
   const invoiceDateLabel = formatInvoiceHeaderField(
@@ -518,6 +520,23 @@ export function InvoiceParsedInspectModal({
               </div>
             )}
           </div>
+          {creditAdvisoryLabel && (
+            <div
+              data-testid="invoice-parsed-inspect-credit-advisory"
+              style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                backgroundColor: "#fef2f2",
+                border: "2px solid #fca5a5",
+                borderRadius: 8,
+                color: "#991b1b",
+                fontWeight: 700,
+                fontSize: 14,
+              }}
+            >
+              {creditAdvisoryLabel}
+            </div>
+          )}
           {creditSkipLabel && (
             <div
               data-testid="invoice-parsed-inspect-skip-reason"
@@ -550,7 +569,7 @@ export function InvoiceParsedInspectModal({
               <strong>Parse gaps on skipped credit:</strong> {checklist.parseGapReason}
             </div>
           )}
-          {!creditSkipLabel && checklist.blockReason && (
+          {!creditSkipLabel && !creditAdvisoryLabel && checklist.blockReason && (
             <div
               data-testid="invoice-parsed-inspect-block-reason"
               style={{

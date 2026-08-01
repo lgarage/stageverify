@@ -25,7 +25,10 @@ import {
 } from "./invoiceReviewHeaderHelpers";
 import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
-import { creditReturnSkipLabel } from "./creditReturnSkip";
+import {
+  creditReturnAdvisoryLabel,
+  creditReturnSkipLabel,
+} from "./creditReturnSkip";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -41,17 +44,20 @@ function StatusChip({
   reviewStatus,
   orderNotes,
   skipReason,
+  creditAdvisory,
 }: {
   importStatus: string;
   reviewStatus: VendorInvoiceImportReview["reviewStatus"];
   orderNotes?: string[];
   skipReason?: string;
+  creditAdvisory?: string | null;
 }) {
   const importLabel = vendorInvoiceImportDisplayLabelForRow(
     importStatus as VendorInvoiceImportStatus,
     orderNotes,
   );
   const skipLabel = creditReturnSkipLabel(skipReason);
+  const advisoryLabel = creditAdvisory ?? null;
   const isWillCall = importStatus === "pickup_at_vendor";
   const isDeliverToSite =
     importStatus === "pending" &&
@@ -122,6 +128,23 @@ function StatusChip({
           }}
         >
           {skipLabel}
+        </span>
+      ) : null}
+      {advisoryLabel ? (
+        <span
+          data-testid="invoice-review-credit-advisory-chip"
+          style={{
+            backgroundColor: "#fef2f2",
+            color: "#991b1b",
+            fontWeight: 700,
+            fontSize: 11,
+            padding: "3px 8px",
+            borderRadius: 999,
+            whiteSpace: "nowrap",
+            border: "1px solid #fecaca",
+          }}
+        >
+          {advisoryLabel}
         </span>
       ) : null}
     </div>
@@ -723,6 +746,7 @@ export function InvoiceReviewPanel({
                       reviewStatus={row.reviewStatus}
                       orderNotes={row.orderNotes}
                       skipReason={row.skipReason}
+                      creditAdvisory={creditReturnAdvisoryLabel(row)}
                     />
                     <AutoImportSuggestionBadge importRow={row} compact />
                     {codContext && <CodPaymentChip label={codContext.chipLabel} />}

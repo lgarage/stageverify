@@ -231,7 +231,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
         const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(proc.parsed, proc.page.extractedText) && !proc.duplicate;
         const reviewError = issueReviewError(proc, row.error, creditReturnSkip);
-        const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
+        const inboundReviewStatus = "pending_review";
         const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
             importStatus: proc.importStatus,
             confidenceScore: proc.confidenceScore,
@@ -258,7 +258,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             importStatus: proc.importStatus,
             confidenceTier: proc.confidenceTier,
             confidenceScore: proc.confidenceScore,
-            humanReviewRequired: creditReturnSkip ? false : true,
+            humanReviewRequired: true,
             duplicate: proc.duplicate,
             parsedHeader: proc.parsed.header,
             parsedLines,
@@ -279,13 +279,6 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
             ...(reviewError ? { error: reviewError } : {}),
-            ...(creditReturnSkip
-                ? {
-                    skipReason: creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON,
-                    rejectedAt: now,
-                    rejectedBy: "system:credit_return_skip",
-                }
-                : {}),
         };
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {

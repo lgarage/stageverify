@@ -7,7 +7,12 @@ import type { VendorInvoiceImportStatus } from "./types";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 
+/** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 export const CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
+
+/** Pending queue — user must reject manually (no auto-reject on ingest). */
+export const CREDIT_RETURN_ADVISORY_LABEL =
+  "Credit/return — reject manually";
 
 function parsedBranchIsCredit(branchRaw: string | undefined): boolean {
   const branch = (branchRaw ?? "").trim();
@@ -24,6 +29,19 @@ function pageTextSignalsBranchCredit(text: string): boolean {
 /** User-visible label when skipReason is credit_return. */
 export function creditReturnSkipLabel(skipReason?: string): string | null {
   if (skipReason === CREDIT_RETURN_SKIP_REASON) return CREDIT_RETURN_SKIP_LABEL;
+  return null;
+}
+
+/** Pending credit/return imports — prominent advisory (not auto-rejected). */
+export function creditReturnAdvisoryLabel(
+  importRow: Pick<
+    VendorInvoiceImportReview,
+    "reviewStatus" | "parsedHeader" | "parsedLines" | "orderNotes" | "skipReason"
+  >,
+): string | null {
+  if (importRow.reviewStatus !== "pending_review") return null;
+  if (creditReturnSkipLabel(importRow.skipReason)) return null;
+  if (isCreditReturnImportDoc(importRow)) return CREDIT_RETURN_ADVISORY_LABEL;
   return null;
 }
 

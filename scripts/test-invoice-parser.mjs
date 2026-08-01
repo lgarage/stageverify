@@ -874,9 +874,9 @@ if (siouxSplitDocs.length < 4) {
       extractedText: creditDoc,
     };
     const creditResult = processInvoicePage(creditPage, existing);
-    if (creditResult.reviewStatus !== "rejected") {
+    if (creditResult.reviewStatus !== "pending_review") {
       failures.push(
-        `sioux falls CREDIT doc: expected reviewStatus rejected (auto-skip), got ${creditResult.reviewStatus}`,
+        `sioux falls CREDIT doc: expected reviewStatus pending_review (manual reject), got ${creditResult.reviewStatus}`,
       );
     }
     if (creditResult.parsed.header.vendorInvoiceNumber !== "3316448A") {
@@ -900,7 +900,7 @@ if (siouxSplitDocs.length < 4) {
   );
 }
 
-console.log("\n--- Branch CREDIT header-only (0 lines) auto-skip ---");
+console.log("\n--- Branch CREDIT header-only (0 lines) pending advisory ---");
 {
   const branchCreditText =
     "Customer # Order Date Sales Order # Buyer Customer P/O # Ship Via\n" +
@@ -913,9 +913,9 @@ console.log("\n--- Branch CREDIT header-only (0 lines) auto-skip ---");
     extractedText: branchCreditText,
   };
   const branchCreditResult = processInvoicePage(branchCreditPage, existing);
-  if (branchCreditResult.reviewStatus !== "rejected") {
+  if (branchCreditResult.reviewStatus !== "pending_review") {
     failures.push(
-      `branch CREDIT 0-line doc: expected reviewStatus rejected, got ${branchCreditResult.reviewStatus}`,
+      `branch CREDIT 0-line doc: expected reviewStatus pending_review, got ${branchCreditResult.reviewStatus}`,
     );
   }
   if (

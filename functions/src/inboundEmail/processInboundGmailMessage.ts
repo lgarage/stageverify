@@ -312,7 +312,7 @@ async function writeReviewRecords(
     const creditReturnSkip =
       isCreditReturnInvoice(proc.parsed, proc.page.extractedText) && !proc.duplicate;
     const reviewError = issueReviewError(proc, row.error, creditReturnSkip);
-    const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
+    const inboundReviewStatus = "pending_review";
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,
       confidenceScore: proc.confidenceScore,
@@ -340,7 +340,7 @@ async function writeReviewRecords(
       importStatus: proc.importStatus,
       confidenceTier: proc.confidenceTier,
       confidenceScore: proc.confidenceScore,
-      humanReviewRequired: creditReturnSkip ? false : true,
+      humanReviewRequired: true,
       duplicate: proc.duplicate,
       parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
       parsedLines,
@@ -361,13 +361,6 @@ async function writeReviewRecords(
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
       ...(reviewError ? { error: reviewError } : {}),
-      ...(creditReturnSkip
-        ? {
-            skipReason: CREDIT_RETURN_SKIP_REASON,
-            rejectedAt: now,
-            rejectedBy: "system:credit_return_skip",
-          }
-        : {}),
     };
 
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);

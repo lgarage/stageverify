@@ -7,10 +7,6 @@ import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboun
 import { clampListLimit, requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { recoverStrandedInboundProcessingList } from "./inboundEmail/recoverStrandedProcessing";
 import { sanitizeVendorInvoiceImportForClient } from "./inboundEmail/sanitizeVendorInvoiceImport";
-import {
-  creditReturnSkipFields,
-  isCreditReturnImportDoc,
-} from "./invoice/creditReturnSkip";
 import { gmailClientId, gmailClientSecret } from "./gmailApi";
 import {
   downloadGmailAttachment,
@@ -29,29 +25,11 @@ function getDb() {
   return admin.firestore();
 }
 
-/** Move legacy pending credit/return imports to rejected+skipReason on list load. */
+/** Credit/return imports stay in pending review — no list-load migration to Rejected. */
 async function migratePendingCreditReturnImports(
   docs: VendorInvoiceImportDoc[],
 ): Promise<VendorInvoiceImportDoc[]> {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const out: VendorInvoiceImportDoc[] = [];
-
-  for (const doc of docs) {
-    if (
-      doc.reviewStatus === "pending_review" &&
-      !doc.duplicate &&
-      isCreditReturnImportDoc(doc)
-    ) {
-      const patch = creditReturnSkipFields(now);
-      await db.collection(IMPORTS_COLLECTION).doc(doc.id).set(patch, { merge: true });
-      out.push({ ...doc, ...patch });
-    } else {
-      out.push(doc);
-    }
-  }
-
-  return out;
+  return docs;
 }
 
 async function loadGmailRefreshToken(): Promise<string> {

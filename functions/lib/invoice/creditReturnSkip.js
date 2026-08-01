@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
 exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
 exports.importStatusForCreditSkip = importStatusForCreditSkip;
@@ -9,7 +9,10 @@ exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCr
 exports.isCreditReturnImportDoc = isCreditReturnImportDoc;
 exports.shouldApplyNowDismissCreditImport = shouldApplyNowDismissCreditImport;
 exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
+/** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 exports.CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
+/** Pending queue — user must reject manually (no auto-reject on ingest). */
+exports.CREDIT_RETURN_ADVISORY_LABEL = "Credit/return — reject manually";
 function parsedBranchIsCredit(branchRaw) {
     const branch = (branchRaw ?? "").trim();
     return branch.length > 0 && /^CREDIT$/i.test(branch);

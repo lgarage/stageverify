@@ -2,7 +2,6 @@
  * Vendor invoice parse for inbound email — review-only path.
  * Hard rule: always pending_review; never auto_processed; no delivery writes.
  */
-import { isCreditReturnInvoice } from "./creditReturnSkip";
 import { adaptConcatenatedPdfText } from "./pdfTextAdapter";
 import { processInvoiceBatch } from "./processInvoiceBatch";
 import type { InvoiceBatchResult, InvoiceProcessingResult } from "./types";
@@ -10,13 +9,6 @@ import type { InvoiceBatchResult, InvoiceProcessingResult } from "./types";
 export function forceReviewOnlyStatus(
   result: InvoiceProcessingResult,
 ): InvoiceProcessingResult {
-  if (isCreditReturnInvoice(result.parsed, result.page.extractedText)) {
-    return {
-      ...result,
-      humanReviewRequired: false,
-      reviewStatus: "rejected",
-    };
-  }
   return {
     ...result,
     humanReviewRequired: true,

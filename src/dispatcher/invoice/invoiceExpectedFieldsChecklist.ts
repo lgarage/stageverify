@@ -9,7 +9,7 @@ import {
   readInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
-import { creditReturnSkipLabel } from "./creditReturnSkip";
+import { creditReturnAdvisoryLabel, creditReturnSkipLabel } from "./creditReturnSkip";
 
 export type ExpectedFieldStatus = "found" | "missing" | "questionable" | "na";
 
@@ -177,14 +177,15 @@ export function buildExpectedJohnstoneFieldChecklist(
   const siteConfirmed = context?.deliverToSiteConfirmed === true;
   const lineCount = importRow.parsedLineCount ?? importRow.parsedLines?.length ?? 0;
   const skipReasonLabel = creditReturnSkipLabel(importRow.skipReason);
+  const advisoryLabel = creditReturnAdvisoryLabel(importRow);
   const rawParseGap =
     importRow.error?.trim() ||
-    (approveBlocked && !skipReasonLabel
+    (approveBlocked && !skipReasonLabel && !advisoryLabel
       ? "Issue import — missing required fields (e.g. Invoice # on S/O confirmation)."
       : "");
   const parseGapReason =
-    skipReasonLabel && rawParseGap ? rawParseGap : undefined;
-  const blockReason = skipReasonLabel ?? rawParseGap;
+    (skipReasonLabel || advisoryLabel) && rawParseGap ? rawParseGap : undefined;
+  const blockReason = skipReasonLabel ?? advisoryLabel ?? rawParseGap;
 
   const zeroLinesNote =
     lineCount === 0
