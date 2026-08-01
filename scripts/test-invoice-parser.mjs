@@ -879,6 +879,21 @@ if (siouxSplitDocs.length < 4) {
         `sioux falls CREDIT doc: expected reviewStatus rejected (auto-skip), got ${creditResult.reviewStatus}`,
       );
     }
+    if (creditResult.parsed.header.vendorInvoiceNumber !== "3316448A") {
+      failures.push(
+        `sioux falls CREDIT doc: expected vendorInvoiceNumber 3316448A, got ${creditResult.parsed.header.vendorInvoiceNumber || "(empty)"}`,
+      );
+    }
+    if (creditResult.parsed.lines.length < 1) {
+      failures.push(
+        `sioux falls CREDIT doc: expected >=1 parsed line, got ${creditResult.parsed.lines.length}`,
+      );
+    }
+    if (creditResult.importStatus === "issue") {
+      failures.push(
+        `sioux falls CREDIT doc: importStatus should not be issue after parse, got ${creditResult.importStatus}`,
+      );
+    }
   }
   console.log(
     `  PASS sioux falls 4-page → ${siouxSplitDocs.length} documents (CREDIT/3316448A, ${siouxExpectedInvoices.join(", ")})`,

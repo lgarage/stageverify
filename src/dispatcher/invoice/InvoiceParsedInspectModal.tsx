@@ -24,7 +24,7 @@ import {
   readInvoiceHeaderField,
   formatInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
-import { orderIncompleteMessage } from "./creditReturnSkip";
+import { creditReturnSkipLabel, orderIncompleteMessage } from "./creditReturnSkip";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -252,13 +252,17 @@ export function InvoiceParsedInspectModal({
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
   const orderIncomplete = orderIncompleteMessage(importRow);
+  const creditSkipLabel = creditReturnSkipLabel(importRow.skipReason);
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
     !readOnly &&
     ((isPending && (onApprove || onReject)) ||
       (isRejected && (onApprove || onReopen)) ||
       Boolean(onRelinkToShell));
-  const showReparse = Boolean(onReparse) && isPending && !readOnly;
+  const showReparse =
+    Boolean(onReparse) &&
+    (isPending || (isRejected && importRow.skipReason === "credit_return")) &&
+    !readOnly;
   const approveDisabled = actionLoading || approveBlocked;
   const invoiceDateLabel = formatInvoiceHeaderField(
     readInvoiceHeaderField(importRow.parsedHeader, "invoiceDate"),
@@ -514,7 +518,39 @@ export function InvoiceParsedInspectModal({
               </div>
             )}
           </div>
-          {checklist.blockReason && (
+          {creditSkipLabel && (
+            <div
+              data-testid="invoice-parsed-inspect-skip-reason"
+              style={{
+                marginTop: 12,
+                padding: "8px 10px",
+                backgroundColor: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: 6,
+                color: NAVY,
+                fontWeight: 700,
+              }}
+            >
+              <strong>Reject reason:</strong> {creditSkipLabel}
+            </div>
+          )}
+          {checklist.parseGapReason && (
+            <div
+              data-testid="invoice-parsed-inspect-parse-gaps"
+              style={{
+                marginTop: 12,
+                padding: "8px 10px",
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e5e7eb",
+                borderRadius: 6,
+                color: MUTED,
+                fontSize: 12,
+              }}
+            >
+              <strong>Parse gaps on skipped credit:</strong> {checklist.parseGapReason}
+            </div>
+          )}
+          {!creditSkipLabel && checklist.blockReason && (
             <div
               data-testid="invoice-parsed-inspect-block-reason"
               style={{

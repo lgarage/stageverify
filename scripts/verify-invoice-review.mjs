@@ -494,6 +494,22 @@ async function main() {
       if (await modalReject.count()) {
         throw new Error("Rejected archive inspect modal should not show Reject");
       }
+      const skipReasonBanner = page.getByTestId("invoice-parsed-inspect-skip-reason");
+      const modalText = (await page.getByTestId("invoice-parsed-inspect-panel").innerText()).trim();
+      const hasSkipBanner = (await skipReasonBanner.count()) > 0;
+      const hasSkipCopy = /Skipped\s*[—–-]\s*credit\/return/i.test(modalText);
+      if (!hasSkipBanner && !hasSkipCopy) {
+        if (/Block reason:/i.test(modalText) && !/Reject reason:/i.test(modalText)) {
+          throw new Error(
+            "Rejected credit inspect modal shows Block reason without Skipped — credit/return reject reason",
+          );
+        }
+        console.log(
+          "SKIP: rejected inspect modal — no credit skip banner (row may not be credit_return import)",
+        );
+      } else {
+        console.log("PASS: rejected inspect modal shows Skipped — credit/return reject reason");
+      }
       console.log("PASS: rejected row opens inspect modal without Reject action");
       await page.getByTestId("invoice-parsed-inspect-close").click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({

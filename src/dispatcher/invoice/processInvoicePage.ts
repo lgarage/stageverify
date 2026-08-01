@@ -1,4 +1,4 @@
-import { isCreditReturnInvoice } from "./creditReturnSkip";
+import { isCreditReturnInvoice, importStatusForCreditSkip } from "./creditReturnSkip";
 import { deriveImportStatus, scoreInvoiceConfidence } from "./inferImportStatus";
 import { mergeParsedInvoices, specializedParseSucceeded } from "./mergeParsedInvoices";
 import {
@@ -88,14 +88,20 @@ export function processInvoicePage(
   const { parsed, formatId } = buildParsedInvoice(page, route.formatId);
 
   const fingerprint = fingerprintForFormat(formatId, page);
-  const importStatus = deriveImportStatus(parsed, formatId);
+  const creditReturnSkip = isCreditReturnInvoice(parsed, page.extractedText);
+  let importStatus = deriveImportStatus(parsed, formatId);
+  if (creditReturnSkip) {
+    importStatus = importStatusForCreditSkip(
+      parsed,
+      page.extractedText,
+      importStatus,
+    );
+  }
   const confidence = scoreInvoiceConfidence(parsed, formatId);
 
   const duplicateOfPage = existing.byPageId.get(page.pageId);
   const duplicateOfFingerprint = existing.byFingerprint.get(fingerprint);
   const duplicate = Boolean(duplicateOfPage || duplicateOfFingerprint);
-
-  const creditReturnSkip = isCreditReturnInvoice(parsed, page.extractedText);
 
   let reviewStatus: InvoiceProcessingResult["reviewStatus"] = "pending_review";
   if (creditReturnSkip) {

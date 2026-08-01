@@ -3,6 +3,7 @@
  */
 import type { ParsedJohnstoneInvoice } from "./types";
 import type { VendorInvoiceImportReview } from "../models";
+import type { VendorInvoiceImportStatus } from "./types";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 
@@ -24,6 +25,17 @@ function pageTextSignalsBranchCredit(text: string): boolean {
 export function creditReturnSkipLabel(skipReason?: string): string | null {
   if (skipReason === CREDIT_RETURN_SKIP_REASON) return CREDIT_RETURN_SKIP_LABEL;
   return null;
+}
+
+/** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */
+export function importStatusForCreditSkip(
+  parsed: ParsedJohnstoneInvoice,
+  pageText: string,
+  baseStatus: VendorInvoiceImportStatus,
+): VendorInvoiceImportStatus {
+  if (!isCreditReturnInvoice(parsed, pageText)) return baseStatus;
+  if (baseStatus === "issue") return "pending";
+  return baseStatus;
 }
 
 /** Structural signals — auto-skip on ingest / refresh (regex-owned routing). */

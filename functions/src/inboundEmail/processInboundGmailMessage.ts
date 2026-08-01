@@ -93,7 +93,9 @@ function issueReviewError(
     ReturnType<typeof parseInboundInvoiceText>["results"][number]["processing"]
   >,
   rowError?: string,
+  creditReturnSkip?: boolean,
 ): string | undefined {
+  if (creditReturnSkip) return undefined;
   if (rowError?.trim()) return rowError.trim();
   if (proc.importStatus !== "issue") return undefined;
   const warnings = proc.parsed.parseWarnings.filter(Boolean);
@@ -292,18 +294,24 @@ async function writeReviewRecords(
     reviewIds.push(reviewId);
 
     const existingSnap = await db.collection(REVIEW_COLLECTION).doc(reviewId).get();
-    const existingStatus = existingSnap.exists
-      ? (existingSnap.data() as VendorInvoiceImportDoc).reviewStatus
+    const existingData = existingSnap.exists
+      ? (existingSnap.data() as VendorInvoiceImportDoc)
       : undefined;
-    if (existingStatus === "approved" || existingStatus === "rejected") {
+    const existingStatus = existingData?.reviewStatus;
+    const existingCreditSkip =
+      existingData?.skipReason === CREDIT_RETURN_SKIP_REASON;
+    if (existingStatus === "approved") {
+      continue;
+    }
+    if (existingStatus === "rejected" && !existingCreditSkip) {
       continue;
     }
 
     const proc = row.processing;
     const parsedLines = sanitizeParsedLines(proc.parsed.lines);
-    const reviewError = issueReviewError(proc, row.error);
     const creditReturnSkip =
       isCreditReturnInvoice(proc.parsed, proc.page.extractedText) && !proc.duplicate;
+    const reviewError = issueReviewError(proc, row.error, creditReturnSkip);
     const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,
@@ -365,10 +373,16 @@ async function writeReviewRecords(
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
     await db.runTransaction(async (tx) => {
       const freshSnap = await tx.get(reviewRef);
-      const freshStatus = freshSnap.exists
-        ? (freshSnap.data() as VendorInvoiceImportDoc).reviewStatus
+      const freshData = freshSnap.exists
+        ? (freshSnap.data() as VendorInvoiceImportDoc)
         : undefined;
-      if (freshStatus === "approved" || freshStatus === "rejected") {
+      const freshStatus = freshData?.reviewStatus;
+      const freshCreditSkip =
+        freshData?.skipReason === CREDIT_RETURN_SKIP_REASON;
+      if (freshStatus === "approved") {
+        return;
+      }
+      if (freshStatus === "rejected" && !freshCreditSkip) {
         return;
       }
       tx.set(reviewRef, firestoreSafeValue(reviewDoc));
@@ -642,8 +656,14 @@ export async function reparseVendorInvoiceImportFromCache(
     throw new Error("Vendor invoice import not found.");
   }
   const importDoc = importSnap.data() as VendorInvoiceImportDoc;
-  if (importDoc.reviewStatus === "approved" || importDoc.reviewStatus === "rejected") {
-    throw new Error("Cannot re-parse an approved or rejected import.");
+  if (importDoc.reviewStatus === "approved") {
+    throw new Error("Cannot re-parse an approved import.");
+  }
+  if (
+    importDoc.reviewStatus === "rejected" &&
+    importDoc.skipReason !== CREDIT_RETURN_SKIP_REASON
+  ) {
+    throw new Error("Cannot re-parse a rejected import.");
   }
 
   const inboundId = importDoc.inboundEmailProcessingId?.trim();

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
 exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
+exports.importStatusForCreditSkip = importStatusForCreditSkip;
 exports.isCreditReturnInvoice = isCreditReturnInvoice;
 exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCreditReturns;
 exports.isCreditReturnImportDoc = isCreditReturnImportDoc;
@@ -33,6 +34,14 @@ function creditReturnSkipFields(now) {
         humanReviewRequired: false,
         updatedAt: now,
     };
+}
+/** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */
+function importStatusForCreditSkip(parsed, pageText, baseStatus) {
+    if (!isCreditReturnInvoice(parsed, pageText))
+        return baseStatus;
+    if (baseStatus === "issue")
+        return "pending";
+    return baseStatus;
 }
 /** Structural signals — auto-skip on ingest / refresh (regex-owned routing). */
 function isCreditReturnInvoice(parsed, pageText) {

@@ -49,21 +49,26 @@ function sanitizeInvoiceNumber(raw: string | undefined): string {
 }
 
 /** Try labeled / tabular captures; skip values rejected by sanitize (e.g. "Invoice" from "Invoice Date"). */
+function captureHeaderInvoiceNumber(text: string): string | undefined {
+  const labeled = capture(
+    /Invoice\s*#\s+(?!Invoice(?:\s+Date|\s*#)|Date\b)([A-Z0-9]*\d[A-Z0-9-]*)/i,
+    text,
+  );
+  if (labeled) return labeled;
+  return capture(/^([A-Z0-9-]*\d[A-Z0-9-]*)\s+\d{1,2}\/\d{1,2}\/\d{2,4}/m, text);
+}
+
 function extractVendorInvoiceNumber(
   text: string,
   tabular: Partial<ParsedInvoiceHeader>,
   stacked: Partial<ParsedInvoiceHeader>,
 ): string {
   const candidates = [
-    capture(/Invoice\s*#\s*:\s*(\d+)/i, text),
-    capture(/Invoice\s*#\s*:\s*([A-Z0-9-]+)/i, text),
     tabular.vendorInvoiceNumber,
     stacked.vendorInvoiceNumber,
-    capture(
-      /Invoice\s*#\s+(?!Invoice(?:\s+Date|\s*#))([A-Z0-9]*\d[A-Z0-9-]*)/i,
-      text,
-    ),
-    capture(/^([A-Z]?\d{5,})\s+\d{1,2}\/\d{1,2}\/\d{2,4}/m, text),
+    capture(/Invoice\s*#\s*:\s*(\d+)/i, text),
+    capture(/Invoice\s*#\s*:\s*([A-Z0-9-]+)/i, text),
+    captureHeaderInvoiceNumber(text),
   ];
   for (const raw of candidates) {
     const sanitized = sanitizeInvoiceNumber(raw);
@@ -110,9 +115,18 @@ function sanitizePoFromGridBleed(po: string, shipVia?: string): string {
   const hadSalesmanBleed = JOHNSTONE_SALESMAN_CODE.test(po);
   let value = trimPoValue(po);
   if (
+    shipVia &&
+    /^(?:PICKUP|WILL\s*[- ]?\s*CALL)$/i.test(shipVia.trim()) &&
+    /\s+PICKUP\s*$/i.test(value) &&
+    !/^RETURN\s+PICKUP\b/i.test(value)
+  ) {
+    value = value.replace(/\s+PICKUP\s*$/i, "").trim();
+  }
+  if (
     hadSalesmanBleed &&
     shipVia &&
-    /^(?:PICKUP|WILL\s*[- ]?\s*CALL)$/i.test(shipVia.trim())
+    /^(?:PICKUP|WILL\s*[- ]?\s*CALL)$/i.test(shipVia.trim()) &&
+    !/^RETURN\s+PICKUP\b/i.test(value)
   ) {
     value = value.replace(/\s+PICKUP\s*$/i, "").trim();
   }
@@ -126,6 +140,7 @@ function isPlausiblePoValue(raw: string | undefined): boolean {
   if (/^(?:Order Date|Buyer|Ship Via|Job Number|Invoice Date|Sales Order)$/i.test(value)) {
     return false;
   }
+  if (/\bShip\s+Via\b/i.test(value) && !/\bRETURN\b/i.test(value)) return false;
   return true;
 }
 
@@ -216,7 +231,7 @@ function parseTabularHeaderBlock(text: string): Partial<ParsedInvoiceHeader> {
 
     if (/^Invoice\s*#\s+Invoice\s+Date/i.test(labelLine)) {
       const invRow = valueLine.match(
-        /^([A-Z]?\d{5,})\s+(\d{1,2}\/\d{1,2}\/\d{2,4})(?:\s+(\d{1,2}\/\d{1,2}\/\d{2,4}))?/,
+        /^([A-Z0-9-]*\d[A-Z0-9-]*)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})(?:\s+(\d{1,2}\/\d{1,2}\/\d{2,4}))?/,
       );
       if (invRow) {
         partial.vendorInvoiceNumber = invRow[1];
@@ -327,6 +342,10 @@ const LINE_ROW =
 const LINE_ROW_EXTENDED =
   /^(\d+)\s+(\d+)\s+(-?\d+)\s+(\d+)\s+([A-Z][A-Z0-9-]+)\s+(\S+)\s+(.+)\s+(EA|PK|CS|BX|FT|LB|GAL|PR|RL|BG)\s+[\d.]+\s+[\d.]+\s+(\$[\d,.]+)\s*$/i;
 
+/** CREDIT memos: LN ord ship PRODUCT (no numeric B/O column) MFG DESC list net $ext */
+const LINE_ROW_CREDIT =
+  /^(\d+)\s+(-?\d+)\s+(-?\d+)\s+([A-Z0-9-]+)\s+(\S+)\s+(.+?)\s+[\d.]+\s+[\d.]+\s+(\$[\d,.-]+)/i;
+
 const LINE_TABLE_HEADER =
   /^(LN|QNTY|ORD|SHI|B\/O|PRODUCT|NUMBER|DESCRIPTION|PRICE|UOM|LIST|NET|EXTENSION)/i;
 
@@ -366,6 +385,8 @@ function isDescriptionContinuation(trimmed: string): boolean {
   if (isInvoiceFooterLine(trimmed)) return false;
   if (LINE_ROW.test(trimmed) || LINE_ROW_EXTENDED.test(trimmed)) return false;
   if (/REPAIR/i.test(trimmed)) return false;
+  if (/^If you have any questions/i.test(trimmed)) return false;
+  if (/^Merchandise\b/i.test(trimmed)) return false;
   if (/2 DAY LEAD|NON STOCK|RESTOCK FEE/i.test(trimmed)) return false;
   return true;
 }
@@ -437,6 +458,22 @@ function parseLineTableRows(lineSection: string, orderNotes: string[]): ParsedIn
       continue;
     }
     if (isLineTableNoise(trimmed)) continue;
+
+    const creditLine = trimmed.match(LINE_ROW_CREDIT);
+    if (creditLine) {
+      const [, ln, ord, ship, product, mfg, descBody, extension] = creditLine;
+      pushParsedLine(lines, {
+        lineNumber: Number(ln),
+        quantityOrdered: Number(ord),
+        quantityShipped: Number(ship),
+        quantityBackordered: 0,
+        vendorProductNumber: product ?? "",
+        manufacturerOrModelNumber: mfg,
+        description: descBody?.trim() ?? "",
+        lineExtension: extension,
+      });
+      continue;
+    }
 
     const extended = trimmed.match(LINE_ROW_EXTENDED);
     if (extended) {
@@ -674,14 +711,6 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     capture(/S\/O\s*(?:#|Number)?\s*:?\s*(\d{3,10})/i, text),
   );
   const vendorInvoiceNumber = extractVendorInvoiceNumber(text, tabular, stacked);
-  const customerPoRaw = pickPoValue(
-    capture(/Customer P\/O\s*#\s*:\s*(.+)/i, text),
-    tabular.customerPoOrReference,
-    stacked.customerPoOrReference,
-    capture(/(?:Customer|Cust)\s+P\/O\s*#?\s*:\s*(.+)/i, text),
-    captureLabeledField("Customer P/O", ".+", text),
-    captureLabeledField("Cust P/O", ".+", text),
-  );
   const quoteNumber = capture(/Quote\s*(?:Number|#)\s*:\s*(\S+)/i, text)
     ?? capture(/Invoice Message[\s\S]*?(Q\d+)/i, text);
   const orderDateRaw = firstNonEmpty(
@@ -711,7 +740,23 @@ export function parseJohnstoneInvoicePage(page: JohnstoneInvoicePageText): Parse
     tabular.shipViaRaw,
     parseShipViaToken(buyerRaw ?? ""),
   ) || undefined;
-  const customerPoOrReference = sanitizePoFromGridBleed(customerPoRaw, shipViaRaw);
+  const customerPoRaw = pickPoValue(
+    capture(/Customer P\/O\s*#\s*:\s*(.+)/i, text),
+    tabular.customerPoOrReference,
+    stacked.customerPoOrReference,
+    capture(/(?:Customer|Cust)\s+P\/O\s*#?\s*:\s*(.+)/i, text),
+    captureLabeledField("Customer P/O", ".+", text),
+    captureLabeledField("Cust P/O", ".+", text),
+  );
+  const stackedPoTrimmed = trimPoValue(stacked.customerPoOrReference ?? "");
+  let customerPoOrReference = sanitizePoFromGridBleed(customerPoRaw, shipViaRaw);
+  if (
+    stackedPoTrimmed &&
+    /^RETURN\s+PICKUP\b/i.test(stackedPoTrimmed) &&
+    customerPoOrReference === "RETURN"
+  ) {
+    customerPoOrReference = sanitizePoFromGridBleed(stackedPoTrimmed, shipViaRaw);
+  }
   const jobNumberRaw = capture(/Job Number\s*:\s*(.*)/i, text)?.trim();
 
   const remitTo = parseRemitToBlock(text);

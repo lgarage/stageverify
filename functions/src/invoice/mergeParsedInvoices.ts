@@ -84,6 +84,13 @@ export function specializedParseSucceeded(
   const productLines = merged.lines.filter(
     (l) => l.lineType === "product" && !l.excludeFromExpectedItems,
   );
+  if (formatId === "johnstone") {
+    if (productLines.length > 0) return true;
+    const hasIdentity = Boolean(
+      merged.header.vendorInvoiceNumber || merged.header.vendorOrderNumber,
+    );
+    return hasIdentity && merged.lines.length > 0;
+  }
   if (productLines.length === 0) return false;
   if (formatId === "first_supply") {
     return Boolean(merged.header.vendorInvoiceNumber);

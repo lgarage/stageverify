@@ -56,12 +56,15 @@ function processInvoicePage(page, existing, options) {
     const route = (0, vendorInvoiceRouter_1.routeInvoiceFormat)(page.extractedText, options?.routeHints);
     const { parsed, formatId } = buildParsedInvoice(page, route.formatId);
     const fingerprint = fingerprintForFormat(formatId, page);
-    const importStatus = (0, inferImportStatus_1.deriveImportStatus)(parsed, formatId);
+    const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(parsed, page.extractedText);
+    let importStatus = (0, inferImportStatus_1.deriveImportStatus)(parsed, formatId);
+    if (creditReturnSkip) {
+        importStatus = (0, creditReturnSkip_1.importStatusForCreditSkip)(parsed, page.extractedText, importStatus);
+    }
     const confidence = (0, inferImportStatus_1.scoreInvoiceConfidence)(parsed, formatId);
     const duplicateOfPage = existing.byPageId.get(page.pageId);
     const duplicateOfFingerprint = existing.byFingerprint.get(fingerprint);
     const duplicate = Boolean(duplicateOfPage || duplicateOfFingerprint);
-    const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(parsed, page.extractedText);
     let reviewStatus = "pending_review";
     if (creditReturnSkip) {
         reviewStatus = "rejected";

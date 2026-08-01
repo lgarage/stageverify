@@ -9,6 +9,7 @@ import {
   readInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
 import type { VendorInvoiceImportStatus } from "./types";
+import { creditReturnSkipLabel } from "./creditReturnSkip";
 
 export type ExpectedFieldStatus = "found" | "missing" | "questionable" | "na";
 
@@ -33,6 +34,10 @@ export interface ExpectedFieldsSummary {
   approvalEligibleLabel: "Yes" | "No" | "N/A";
   hideAutoImportSuggestion: boolean;
   blockReason: string;
+  /** When credit/return auto-skip — primary reject reason (not parse gaps). */
+  skipReasonLabel?: string;
+  /** Parse gaps on a skipped credit — secondary, informational. */
+  parseGapReason?: string;
   zeroLinesNote?: string;
   rows: ExpectedFieldRow[];
   lineRows: ExpectedFieldRow[];
@@ -171,11 +176,15 @@ export function buildExpectedJohnstoneFieldChecklist(
   const approveBlocked = importRow.importStatus === "issue";
   const siteConfirmed = context?.deliverToSiteConfirmed === true;
   const lineCount = importRow.parsedLineCount ?? importRow.parsedLines?.length ?? 0;
-  const blockReason =
+  const skipReasonLabel = creditReturnSkipLabel(importRow.skipReason);
+  const rawParseGap =
     importRow.error?.trim() ||
-    (approveBlocked
+    (approveBlocked && !skipReasonLabel
       ? "Issue import — missing required fields (e.g. Invoice # on S/O confirmation)."
       : "");
+  const parseGapReason =
+    skipReasonLabel && rawParseGap ? rawParseGap : undefined;
+  const blockReason = skipReasonLabel ?? rawParseGap;
 
   const zeroLinesNote =
     lineCount === 0
@@ -203,6 +212,8 @@ export function buildExpectedJohnstoneFieldChecklist(
         : "No",
     hideAutoImportSuggestion: siteConfirmed,
     blockReason,
+    skipReasonLabel: skipReasonLabel ?? undefined,
+    parseGapReason,
     zeroLinesNote,
     rows: buildHeaderRows(importRow),
     lineRows: buildLineRows(importRow),

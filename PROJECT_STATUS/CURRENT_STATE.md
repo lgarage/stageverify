@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **v0.0.182** — CREDIT/return auto-skip repair: branch=CREDIT detection, pending migration on list, skip label in Rejected
+- Last shipped: **v0.0.183** — CREDIT memo parse + inspect reject-reason UX (3316448A lines, skip banner, Refresh on rejected credits)
+- Prior: **v0.0.182** — CREDIT/return auto-skip repair: branch=CREDIT detection, pending migration on list, skip label in Rejected
 - Prior: **v0.0.181** — Invoice CREDIT/return apply-now dismiss + ingest auto-skip; B/O incomplete UI copy
 - Prior: **v0.0.179** — Invoice AI shadow always validates Flash-Lite with Gemini 3.6 Flash (CF deploy).
 - Prior: **v0.0.178** — Invoice Review training note panel polish (full-width card above Approve/Reject).

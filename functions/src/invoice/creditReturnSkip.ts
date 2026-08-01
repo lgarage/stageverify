@@ -1,7 +1,7 @@
 /**
  * Johnstone CREDIT / return memo detection and apply-now dismiss when training notes teach ignore.
  */
-import type { ParsedJohnstoneInvoice } from "./types";
+import type { ParsedJohnstoneInvoice, VendorInvoiceImportStatus } from "./types";
 import type { VendorInvoiceImportParsedLine } from "../inboundEmail/types";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
@@ -43,6 +43,17 @@ export function creditReturnSkipFields(now: string): {
     humanReviewRequired: false,
     updatedAt: now,
   };
+}
+
+/** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */
+export function importStatusForCreditSkip(
+  parsed: ParsedJohnstoneInvoice,
+  pageText: string,
+  baseStatus: VendorInvoiceImportStatus,
+): VendorInvoiceImportStatus {
+  if (!isCreditReturnInvoice(parsed, pageText)) return baseStatus;
+  if (baseStatus === "issue") return "pending";
+  return baseStatus;
 }
 
 /** Structural signals — auto-skip on ingest / refresh (regex-owned routing). */

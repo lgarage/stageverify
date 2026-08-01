@@ -985,7 +985,9 @@ export function InvoiceReviewPanel({
           reparseLoading={reparseLoadingId === inspectImport.id}
           reparseMessage={reparseMessage}
           onReparse={
-            inspectImport.reviewStatus === "pending_review"
+            inspectImport.reviewStatus === "pending_review" ||
+            (inspectImport.reviewStatus === "rejected" &&
+              inspectImport.skipReason === "credit_return")
               ? () => {
                   void handleReparse(inspectImport);
                 }

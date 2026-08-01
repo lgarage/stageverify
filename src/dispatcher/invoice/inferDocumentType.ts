@@ -3,15 +3,18 @@ import {
   normalizeParsedHeader,
   readInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
+import { isCreditReturnImportDoc } from "./creditReturnSkip";
 
 export type JohnstoneDocumentType =
   | "sales_order_confirmation"
   | "invoice"
+  | "credit_memo"
   | "unknown";
 
 const DOC_TYPE_LABELS: Record<JohnstoneDocumentType, string> = {
   sales_order_confirmation: "Sales order confirmation (S/O)",
   invoice: "Invoice",
+  credit_memo: "Credit memo (CREDIT)",
   unknown: "Unknown document type",
 };
 
@@ -26,6 +29,13 @@ export function documentTypeLabel(docType: JohnstoneDocumentType): string {
 export function inferDocumentType(
   importRow: VendorInvoiceImportReview,
 ): JohnstoneDocumentType {
+  if (
+    importRow.skipReason === "credit_return" ||
+    isCreditReturnImportDoc(importRow)
+  ) {
+    return "credit_memo";
+  }
+
   const header = normalizeParsedHeader(importRow.parsedHeader);
   const invoiceNum = readInvoiceHeaderField(header, "vendorInvoiceNumber");
   const orderNum = readInvoiceHeaderField(header, "vendorOrderNumber");

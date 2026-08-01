@@ -45,7 +45,9 @@ function sanitizeSubject(subject) {
 function sanitizeSender(sender) {
     return sender.slice(0, MAX_SENDER_LEN).toLowerCase();
 }
-function issueReviewError(proc, rowError) {
+function issueReviewError(proc, rowError, creditReturnSkip) {
+    if (creditReturnSkip)
+        return undefined;
     if (rowError?.trim())
         return rowError.trim();
     if (proc.importStatus !== "issue")
@@ -214,16 +216,21 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const reviewId = `vii-${inboundDoc.gmailMessageId}-${row.pageId}`;
         reviewIds.push(reviewId);
         const existingSnap = await db.collection(REVIEW_COLLECTION).doc(reviewId).get();
-        const existingStatus = existingSnap.exists
-            ? existingSnap.data().reviewStatus
+        const existingData = existingSnap.exists
+            ? existingSnap.data()
             : undefined;
-        if (existingStatus === "approved" || existingStatus === "rejected") {
+        const existingStatus = existingData?.reviewStatus;
+        const existingCreditSkip = existingData?.skipReason === creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON;
+        if (existingStatus === "approved") {
+            continue;
+        }
+        if (existingStatus === "rejected" && !existingCreditSkip) {
             continue;
         }
         const proc = row.processing;
         const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
-        const reviewError = issueReviewError(proc, row.error);
         const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(proc.parsed, proc.page.extractedText) && !proc.duplicate;
+        const reviewError = issueReviewError(proc, row.error, creditReturnSkip);
         const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
         const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
             importStatus: proc.importStatus,
@@ -283,10 +290,15 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {
             const freshSnap = await tx.get(reviewRef);
-            const freshStatus = freshSnap.exists
-                ? freshSnap.data().reviewStatus
+            const freshData = freshSnap.exists
+                ? freshSnap.data()
                 : undefined;
-            if (freshStatus === "approved" || freshStatus === "rejected") {
+            const freshStatus = freshData?.reviewStatus;
+            const freshCreditSkip = freshData?.skipReason === creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON;
+            if (freshStatus === "approved") {
+                return;
+            }
+            if (freshStatus === "rejected" && !freshCreditSkip) {
                 return;
             }
             tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(reviewDoc));
@@ -502,8 +514,12 @@ async function reparseVendorInvoiceImportFromCache(importId) {
         throw new Error("Vendor invoice import not found.");
     }
     const importDoc = importSnap.data();
-    if (importDoc.reviewStatus === "approved" || importDoc.reviewStatus === "rejected") {
-        throw new Error("Cannot re-parse an approved or rejected import.");
+    if (importDoc.reviewStatus === "approved") {
+        throw new Error("Cannot re-parse an approved import.");
+    }
+    if (importDoc.reviewStatus === "rejected" &&
+        importDoc.skipReason !== creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON) {
+        throw new Error("Cannot re-parse a rejected import.");
     }
     const inboundId = importDoc.inboundEmailProcessingId?.trim();
     if (!inboundId) {
