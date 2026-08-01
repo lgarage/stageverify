@@ -733,6 +733,18 @@ export function buildDrawerActionBannerContent(
     pushNext("Click Review Vendor Email to open matched email evidence below");
   }
 
+  const missingExceptionRows = exceptionRows.filter(
+    (row) => row.status === "Not Delivered",
+  );
+  const partialExceptionRows = exceptionRows.filter(
+    (row) => row.status === "Partial Delivery",
+  );
+  const backorderedExceptionRows = exceptionRows.filter(
+    (row) => row.status === "Backordered",
+  );
+  const itemDrivenBanner =
+    missingExceptionRows.length > 0 || partialExceptionRows.length > 0;
+
   if (!calmWaiting) {
     for (const reason of readinessBlockReasons) {
       if (
@@ -744,6 +756,16 @@ export function buildDrawerActionBannerContent(
       ) {
         continue;
       }
+      // Backorders appear in Order Summary — do not repeat in attention Why/Next
+      if (reason === "unresolved_backorder") continue;
+      // When listing missing/partial items, skip redundant pending-delivery prose
+      if (
+        itemDrivenBanner &&
+        (reason === "vendor_order_incomplete" ||
+          reason === "physical_dropoff_incomplete")
+      ) {
+        continue;
+      }
       const why = DISPATCHER_WHY_BY_BLOCK_REASON[reason];
       const next = DISPATCHER_NEXT_BY_BLOCK_REASON[reason];
       if (why) pushWhy(why);
@@ -751,6 +773,7 @@ export function buildDrawerActionBannerContent(
     }
 
     if (
+      !itemDrivenBanner &&
       vendorClaimsDelivered(delivery) &&
       panel.itemsReceivedCount < panel.itemsTotalCount
     ) {
@@ -775,11 +798,9 @@ export function buildDrawerActionBannerContent(
       }
     }
 
-    for (const row of exceptionRows) {
+    // Order Summary already lists Backordered — banner Why = missing + partial only
+    for (const row of [...missingExceptionRows, ...partialExceptionRows]) {
       pushWhy(explainItemIssueRow(row));
-      if (row.status === "Backordered" || row.status === "Partial Delivery") {
-        pushNext("Confirm backorder ETA or follow up on outstanding items with vendor");
-      }
     }
 
     if (
@@ -790,12 +811,45 @@ export function buildDrawerActionBannerContent(
       pushWhy("Received items do not have a staging location assigned");
       pushNext("Assign a staging location for received items");
     }
+
+    // When Why is only item exception lines, omit Next Step prose (buttons cover outreach)
+    if (
+      itemDrivenBanner &&
+      whyBullets.length > 0 &&
+      whyBullets.every((bullet) =>
+        [...missingExceptionRows, ...partialExceptionRows].some(
+          (row) => bullet === explainItemIssueRow(row),
+        ),
+      )
+    ) {
+      nextStepBullets.length = 0;
+      seenNext.clear();
+    }
+
+    // BO-only: Order Summary lists backorders — keep short headline + vendor CTAs, no Why/Next prose
+    if (
+      backorderedExceptionRows.length > 0 &&
+      missingExceptionRows.length === 0 &&
+      partialExceptionRows.length === 0 &&
+      openBlockingMaterialIssues(materialIssues).length === 0 &&
+      options?.emailReviewRequired !== true
+    ) {
+      whyBullets.length = 0;
+      seenWhy.clear();
+      nextStepBullets.length = 0;
+      seenNext.clear();
+    }
   }
+
+  const hasBackorderAttention =
+    backorderedExceptionRows.length > 0 ||
+    readinessBlockReasons.includes("unresolved_backorder");
 
   const attentionRequired =
     !display.readiness.readyForPickup &&
     !calmWaiting &&
     (whyBullets.length > 0 ||
+      hasBackorderAttention ||
       openBlockingMaterialIssues(materialIssues).length > 0 ||
       options?.emailReviewRequired === true) ||
     (deliverToSitePending && display.readiness.readyForPickup);
@@ -850,11 +904,34 @@ export function buildDrawerActionBannerContent(
       "No material received yet. No dispatcher action required unless overdue or vendor says delivered.";
   } else {
     bannerMode = "attention_required";
-    attentionHeadline =
-      whyBullets[0] ??
-      (display.readiness.readyForPickup
-        ? "Review required before pickup"
-        : "Order not ready for pickup — review exceptions below");
+    if (missingExceptionRows.length > 0) {
+      const n = missingExceptionRows.length;
+      attentionHeadline =
+        n === 1 ? "1 item missing" : `${n} items missing`;
+    } else if (
+      partialExceptionRows.length > 0 &&
+      backorderedExceptionRows.length === 0
+    ) {
+      const n = partialExceptionRows.length;
+      attentionHeadline =
+        n === 1
+          ? "1 item partially outstanding"
+          : `${n} items partially outstanding`;
+    } else if (
+      backorderedExceptionRows.length > 0 &&
+      missingExceptionRows.length === 0 &&
+      partialExceptionRows.length === 0
+    ) {
+      const n = backorderedExceptionRows.length;
+      attentionHeadline =
+        n === 1 ? "1 item backordered" : `${n} items backordered`;
+    } else {
+      attentionHeadline =
+        whyBullets[0] ??
+        (display.readiness.readyForPickup
+          ? "Review required before pickup"
+          : "Order not ready for pickup — review exceptions below");
+    }
   }
 
   return {

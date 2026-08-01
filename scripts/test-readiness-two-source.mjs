@@ -440,6 +440,109 @@ assert(
   "partial outstanding row counts as one exception issue",
 );
 
+// Attention banner: list missing items only — not backorder prose (Order Summary shows BO)
+const missingPlusBoDelivery = {
+  ...baseDelivery,
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "partial",
+};
+const missingPlusBoItems = [
+  {
+    ...completeItems[0],
+    id: "item-missing-banner",
+    qtyOrdered: 2,
+    qtyReceived: 0,
+    qtyMissing: 2,
+    qtyBackordered: 0,
+    status: "missing",
+    description: "MISSING WIDGET",
+  },
+  {
+    ...completeItems[1],
+    id: "item-bo-banner",
+    qtyOrdered: 3,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyBackordered: 3,
+    status: "backordered",
+    description: "BO WIDGET",
+  },
+];
+const missingPlusBoBanner = buildDrawerActionBannerContent(
+  missingPlusBoDelivery,
+  missingPlusBoItems,
+  [],
+  { vendorPhone: "555-0101", vendorEmail: "vendor@example.com" },
+);
+assert(
+  missingPlusBoBanner.bannerMode === "attention_required",
+  "missing+BO delivery shows attention banner",
+);
+assert(
+  /missing/i.test(missingPlusBoBanner.attentionHeadline),
+  "missing+BO headline prefers missing count",
+);
+assert(
+  missingPlusBoBanner.whyBullets.some((b) => /MISSING WIDGET/i.test(b)),
+  "banner Why lists missing item",
+);
+assert(
+  !missingPlusBoBanner.whyBullets.some((b) => /BO WIDGET|on backorder/i.test(b)),
+  "banner Why does not list backordered item (Order Summary owns BO)",
+);
+assert(
+  !missingPlusBoBanner.whyBullets.some((b) =>
+    /One or more items are on backorder|Vendor reported delivery/i.test(b),
+  ),
+  "banner Why omits backorder + vendor-mismatch prose when missing items listed",
+);
+assert(
+  missingPlusBoBanner.nextStepBullets.length === 0,
+  "banner Next Step empty when Why is only missing/partial item lines",
+);
+
+const boOnlyDelivery = {
+  ...baseDelivery,
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "partial",
+};
+const boOnlyItems = [
+  {
+    ...completeItems[0],
+    id: "item-bo-only",
+    qtyOrdered: 2,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyBackordered: 2,
+    status: "backordered",
+    description: "BO ONLY PART",
+  },
+];
+const boOnlyBanner = buildDrawerActionBannerContent(
+  boOnlyDelivery,
+  boOnlyItems,
+  [],
+  { vendorPhone: "555-0101", vendorEmail: "vendor@example.com" },
+);
+assert(
+  boOnlyBanner.bannerMode === "attention_required",
+  "BO-only delivery keeps attention banner mode",
+);
+assert(
+  /backordered/i.test(boOnlyBanner.attentionHeadline),
+  "BO-only headline names backordered count",
+);
+assert(
+  boOnlyBanner.whyBullets.length === 0 && boOnlyBanner.nextStepBullets.length === 0,
+  "BO-only banner has empty Why/Next (Order Summary lists BO)",
+);
+assert(
+  boOnlyBanner.showCallVendor === true && boOnlyBanner.showEmailVendor === true,
+  "BO-only still offers Call/Email vendor",
+);
+
 const staleOpenIssueDelivery = {
   ...baseDelivery,
   vendorOrderComplete: true,

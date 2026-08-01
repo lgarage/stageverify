@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **harness** — Task slug alignment: Grok → `cursor-grok-4.5-high-fast`; D-38 medium-thinking first; Couldn't start = retry next slug
+- Last shipped: **v0.0.186** — Drawer attention banner: Why lists missing/partial items only (not backorder prose; Order Summary owns BO)
+- Prior: **harness** — Task slug alignment: Grok → `cursor-grok-4.5-high-fast`; D-38 medium-thinking first; Couldn't start = retry next slug
 - Prior: **v0.0.185** — CREDIT/return parse fix; **CF deployed** 2026-08-01 (`firebase deploy --only functions`, Dan OK) — Refresh credit imports to reparse
 - Future agents (credit/return): **D-58** + gotcha-map `johnstone-credit-return-parse`; open credit row → **Refresh** after CF deploy
 - Prior: **v0.0.184** — Invoice Review credit/return manual-reject: pending advisory (no auto-reject), Re-open clears skipReason, list migration disabled
