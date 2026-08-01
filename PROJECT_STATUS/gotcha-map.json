@@ -1330,6 +1330,30 @@
         "npx playwright screenshot"
       ],
       "warning": "Playwright CLI screenshot flags drift (e.g. `npx playwright screenshot --storage-state` → unknown option). Prefer a small Node script using `import { chromium } from 'playwright'` + `page.screenshot()` (login via STAGEVERIFY_TEST_* or storageState when valid). Do not rely on CLI for D-51 before/after on protected routes. Dan standing preference 2026-08-01."
+    },
+    {
+      "id": "powershell-inline-command-mangle",
+      "match": [
+        "PowerShell mangling",
+        "inline node -e",
+        "EmptyVariableReference",
+        "Missing type name after '['",
+        "powershell inline unreliable",
+        "script file better approach"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": [],
+      "lessonsSection": "process-agents",
+      "files": ["scripts/"],
+      "rules": ["agent-ops.mdc"],
+      "commands": [],
+      "gateCandidate": false,
+      "injectBefore": [
+        "node -e PowerShell",
+        "inline multiline shell",
+        "PowerShell cursor terminal"
+      ],
+      "warning": "Cursor's PowerShell shell mangles complex inline commands (node -e with regex `${}`, brackets, quotes, HEREDOC) — ParserError / EmptyVariableReference / Missing type name after '['. Prefer writing a short script file under scripts/ (or temp then delete) and running `node scripts/….mjs`. Related: powershell5-no-ampersand-chaining (&& / HEREDOC). Dan standing preference 2026-08-01."
     }
   ]
 }
