@@ -24,6 +24,7 @@ import {
   readInvoiceHeaderField,
   formatInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
+import { orderIncompleteMessage } from "./creditReturnSkip";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -78,6 +79,7 @@ export function InvoiceParsedInspectModal({
   reparseMessage = null,
   readOnly = false,
   deliverToSiteConfirmed = false,
+  onImportDismissed,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -98,6 +100,8 @@ export function InvoiceParsedInspectModal({
   readOnly?: boolean;
   /** Linked delivery confirmed delivered to job site — suppress review-required UI. */
   deliverToSiteConfirmed?: boolean;
+  /** Called when Save lesson apply-now dismisses a CREDIT/return import. */
+  onImportDismissed?: () => void;
 }) {
   const [correctionNote, setCorrectionNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -206,8 +210,15 @@ export function InvoiceParsedInspectModal({
         correctionNote: note,
       });
       if (result.trainingLessonWrote) {
-        showToast(INVOICE_TRAINING_LESSON_TOAST);
+        showToast(
+          result.importDismissed
+            ? `${INVOICE_TRAINING_LESSON_TOAST} Credit/return import dismissed from queue.`
+            : INVOICE_TRAINING_LESSON_TOAST,
+        );
         setCorrectionNote("");
+        if (result.importDismissed) {
+          onImportDismissed?.();
+        }
       } else if (result.trainingLessonPendingAdminReview) {
         showToast(
           "This note is pending Admin review — patterns may need a fix before it can be saved.",
@@ -240,6 +251,7 @@ export function InvoiceParsedInspectModal({
   const approveBlocked = importRow.importStatus === "issue";
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
+  const orderIncomplete = orderIncompleteMessage(importRow);
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
     !readOnly &&
@@ -515,6 +527,22 @@ export function InvoiceParsedInspectModal({
               }}
             >
               <strong>Block reason:</strong> {checklist.blockReason}
+            </div>
+          )}
+          {orderIncomplete && (
+            <div
+              data-testid="invoice-parsed-inspect-incomplete-order"
+              style={{
+                marginTop: 12,
+                padding: "8px 10px",
+                backgroundColor: "#fff7ed",
+                border: "1px solid #fed7aa",
+                borderRadius: 6,
+                color: "#9a3412",
+                fontWeight: 600,
+              }}
+            >
+              {orderIncomplete}
             </div>
           )}
           {checklist.zeroLinesNote && (

@@ -1,3 +1,4 @@
+import { isCreditReturnInvoice } from "./creditReturnSkip";
 import { deriveImportStatus, scoreInvoiceConfidence } from "./inferImportStatus";
 import { mergeParsedInvoices, specializedParseSucceeded } from "./mergeParsedInvoices";
 import {
@@ -94,8 +95,12 @@ export function processInvoicePage(
   const duplicateOfFingerprint = existing.byFingerprint.get(fingerprint);
   const duplicate = Boolean(duplicateOfPage || duplicateOfFingerprint);
 
+  const creditReturnSkip = isCreditReturnInvoice(parsed, page.extractedText);
+
   let reviewStatus: InvoiceProcessingResult["reviewStatus"] = "pending_review";
-  if (duplicate) {
+  if (creditReturnSkip) {
+    reviewStatus = "rejected";
+  } else if (duplicate) {
     reviewStatus = "rejected";
   } else if (importStatus === "issue" || formatId === "unknown") {
     reviewStatus = "pending_review";

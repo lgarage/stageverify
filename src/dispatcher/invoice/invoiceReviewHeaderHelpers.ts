@@ -1,4 +1,5 @@
 import type { VendorInvoiceImportReview } from "../models";
+import { orderIncompleteMessage } from "./creditReturnSkip";
 
 /** Canonical ParsedInvoiceHeader keys → human labels for review + inspect UI. */
 export const INVOICE_HEADER_FIELD_LABELS: Record<string, string> = {
@@ -164,14 +165,20 @@ export function matchUnavailableReason(importRow: VendorInvoiceImportReview): st
 }
 
 export function queueRowIssueSummary(importRow: VendorInvoiceImportReview): string {
+  const incomplete = orderIncompleteMessage(importRow);
   const error = importRow.error?.trim();
-  if (error) return error;
+  if (error) return incomplete ? `${incomplete} ${error}` : error;
   const warnings = (importRow.parseWarnings ?? []).filter(Boolean);
-  if (warnings.length > 0) return warnings.join("; ");
-  if (importRow.importStatus === "issue") {
-    return "Parse issue — missing required fields (e.g. Invoice # on S/O confirmation).";
+  if (warnings.length > 0) {
+    const warnText = warnings.join("; ");
+    return incomplete ? `${incomplete} ${warnText}` : warnText;
   }
-  return "";
+  if (importRow.importStatus === "issue") {
+    const issueText =
+      "Parse issue — missing required fields (e.g. Invoice # on S/O confirmation).";
+    return incomplete ? `${incomplete} ${issueText}` : issueText;
+  }
+  return incomplete ?? "";
 }
 
 export function queueRowLineCount(importRow: VendorInvoiceImportReview): number {

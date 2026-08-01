@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processInvoicePage = processInvoicePage;
 exports.expectedInvoiceLines = expectedInvoiceLines;
+const creditReturnSkip_1 = require("./creditReturnSkip");
 const inferImportStatus_1 = require("./inferImportStatus");
 const mergeParsedInvoices_1 = require("./mergeParsedInvoices");
 const parseCanonicalInvoice_1 = require("./parseCanonicalInvoice");
@@ -60,8 +61,12 @@ function processInvoicePage(page, existing, options) {
     const duplicateOfPage = existing.byPageId.get(page.pageId);
     const duplicateOfFingerprint = existing.byFingerprint.get(fingerprint);
     const duplicate = Boolean(duplicateOfPage || duplicateOfFingerprint);
+    const creditReturnSkip = (0, creditReturnSkip_1.isCreditReturnInvoice)(parsed, page.extractedText);
     let reviewStatus = "pending_review";
-    if (duplicate) {
+    if (creditReturnSkip) {
+        reviewStatus = "rejected";
+    }
+    else if (duplicate) {
         reviewStatus = "rejected";
     }
     else if (importStatus === "issue" || formatId === "unknown") {

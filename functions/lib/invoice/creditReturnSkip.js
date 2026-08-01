@@ -1,0 +1,87 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.isCreditReturnInvoice = isCreditReturnInvoice;
+exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCreditReturns;
+exports.isCreditReturnImportDoc = isCreditReturnImportDoc;
+exports.shouldApplyNowDismissCreditImport = shouldApplyNowDismissCreditImport;
+exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
+/** Structural signals — auto-skip on ingest / refresh (regex-owned routing). */
+function isCreditReturnInvoice(parsed, pageText) {
+    const text = pageText ?? "";
+    if (/^\s*CREDIT\b/m.test(text))
+        return true;
+    if (/\bBranch\s*[=:]\s*CREDIT\b/i.test(text))
+        return true;
+    if (/\bCREDIT\s+MEMO\b/i.test(text))
+        return true;
+    const po = (parsed.header.customerPoOrReference ?? "").trim();
+    if (/\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po))
+        return true;
+    const lines = parsed.lines.filter((l) => !l.excludeFromExpectedItems);
+    const scanLines = lines.length > 0 ? lines : parsed.lines;
+    if (scanLines.length === 0)
+        return false;
+    const anyNegShip = scanLines.some((l) => l.quantityShipped < 0);
+    const anyReturnLine = parsed.lines.some((l) => l.lineType === "return");
+    const returnFromInvoice = parsed.lines.some((l) => /return from invoice/i.test(l.description ?? "")) ||
+        parsed.orderNotes.some((n) => /return from invoice/i.test(n));
+    if (anyReturnLine && anyNegShip)
+        return true;
+    if (returnFromInvoice && anyNegShip)
+        return true;
+    if (scanLines.every((l) => l.quantityShipped < 0))
+        return true;
+    return false;
+}
+/** Detect ignore-CREDIT/returns intent in a generalized training note. */
+function correctionNoteTeachesIgnoreCreditReturns(note) {
+    const n = note.trim();
+    if (!n)
+        return false;
+    if (/\bignore\b[\s\S]{0,40}\b(credit|returns?)\b/i.test(n))
+        return true;
+    if (/\bskip\b[\s\S]{0,40}\b(credit|returns?)\b/i.test(n))
+        return true;
+    if (/\bdismiss\b[\s\S]{0,40}\b(credit|returns?)\b/i.test(n))
+        return true;
+    if (/\b(credit|returns?)\b[\s\S]{0,40}\b(ignore|skip|dismiss)\b/i.test(n))
+        return true;
+    if (/\bCREDIT\b/.test(n) && /\b(ignore|skip|negative\s+qty)\b/i.test(n))
+        return true;
+    return false;
+}
+function isCreditReturnImportDoc(doc) {
+    const header = doc.parsedHeader ?? {};
+    const po = String(header.customerPoOrReference ?? "").trim();
+    const lines = doc.parsedLines ?? [];
+    if (lines.length === 0) {
+        return /\bRETURN\b/i.test(po);
+    }
+    const anyNegShip = lines.some((l) => (l.quantityShipped ?? 0) < 0);
+    const anyReturnLine = lines.some((l) => l.lineType === "return");
+    const returnDesc = lines.some((l) => /return from invoice/i.test(l.description ?? ""));
+    const returnPo = /\bRETURN\b/i.test(po);
+    const notes = doc.orderNotes ?? [];
+    const noteReturn = notes.some((n) => /return from invoice/i.test(n));
+    if (anyReturnLine && anyNegShip)
+        return true;
+    if (returnDesc && anyNegShip)
+        return true;
+    if (noteReturn && anyNegShip)
+        return true;
+    if (lines.every((l) => (l.quantityShipped ?? 0) < 0))
+        return true;
+    if (returnPo && anyNegShip)
+        return true;
+    return false;
+}
+/** Apply-now: dismiss current import when note teaches ignore and import is CREDIT/return. */
+function shouldApplyNowDismissCreditImport(note, doc) {
+    if (!correctionNoteTeachesIgnoreCreditReturns(note))
+        return false;
+    if (isCreditReturnImportDoc(doc))
+        return true;
+    return (/\b(?:ignore|skip|dismiss)\b/i.test(note) && /\bCREDIT\b/.test(note));
+}
+//# sourceMappingURL=creditReturnSkip.js.map

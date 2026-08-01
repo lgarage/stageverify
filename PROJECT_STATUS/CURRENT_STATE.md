@@ -6,7 +6,8 @@
 
 ## Snapshot
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17, post–vendor hub v0.0.44).
-- Last shipped: **away-136** — Invoice training Admin + Save lesson + alert email
+- Last shipped: **v0.0.181** — Invoice CREDIT/return apply-now dismiss + ingest auto-skip; B/O incomplete UI copy
+- Prior: **away-136** — Invoice training Admin + Save lesson + alert email
 - Prior: **v0.0.179** — Invoice AI shadow always validates Flash-Lite with Gemini 3.6 Flash (CF deploy).
 - Prior: **v0.0.178** — Invoice Review training note panel polish (full-width card above Approve/Reject).
 - Prior: **v0.0.177** — Johnstone invoice AI shadow (Vertex lite→3.6, flag-gated) + Invoice Review training notes → GCS playbook.

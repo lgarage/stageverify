@@ -11,6 +11,7 @@ const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
+const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 function getDb() {
     return admin.firestore();
 }
@@ -63,7 +64,7 @@ exports.configureInvoiceTrainingAdmin = (0, https_1.onCall)({ region: "us-centra
     };
 });
 exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const importId = typeof data.vendorInvoiceImportId === "string"
         ? data.vendorInvoiceImportId.trim()
@@ -83,13 +84,41 @@ exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" 
     const importDoc = snap.data();
     const vendorKey = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
     const now = new Date().toISOString();
+    const applyNowDismiss = importDoc.reviewStatus === "pending_review" &&
+        (0, creditReturnSkip_1.shouldApplyNowDismissCreditImport)(correctionNote, importDoc);
     const result = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
         vendorKey,
         correctionNoteRaw: correctionNote,
         importId,
         atIso: now,
     });
-    if (result.trainingLessonWrote) {
+    let importDismissed = false;
+    let reviewStatus = importDoc.reviewStatus ?? "pending_review";
+    if (result.trainingLessonWrote && applyNowDismiss) {
+        await getDb().runTransaction(async (tx) => {
+            const freshSnap = await tx.get(importRef);
+            if (!freshSnap.exists) {
+                throw new https_1.HttpsError("not-found", "Invoice import not found.");
+            }
+            const fresh = freshSnap.data();
+            if (fresh.reviewStatus !== "pending_review") {
+                return;
+            }
+            tx.update(importRef, {
+                reviewStatus: "rejected",
+                skipReason: creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON,
+                rejectedAt: now,
+                rejectedBy: uid,
+                trainingLessonAppendedAt: now,
+                updatedAt: now,
+            });
+            importDismissed = true;
+        });
+        if (importDismissed) {
+            reviewStatus = "rejected";
+        }
+    }
+    else if (result.trainingLessonWrote) {
         await importRef.update({
             trainingLessonAppendedAt: now,
             updatedAt: now,
@@ -98,6 +127,8 @@ exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" 
     return {
         vendorInvoiceImportId: importId,
         vendorKey: (0, vendorTrainingMd_1.sanitizeVendorKey)(vendorKey),
+        importDismissed,
+        reviewStatus,
         ...result,
     };
 });

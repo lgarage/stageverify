@@ -109,6 +109,8 @@ export interface VendorInvoiceImportDoc {
   approvedBy?: string;
   rejectedAt?: string;
   rejectedBy?: string;
+  /** Auto-skip reason when reviewStatus rejected without human action (e.g. credit_return). */
+  skipReason?: "credit_return" | string;
   /** Stage 1 — deterministic suggested-import eligibility (no CF auto-approve). */
   autoImportEligible?: boolean;
   autoImportConfidence?: number;

@@ -1,0 +1,118 @@
+/**
+ * Johnstone CREDIT / return memo detection and apply-now dismiss when training notes teach ignore.
+ */
+import type { ParsedJohnstoneInvoice } from "./types";
+import type { VendorInvoiceImportReview } from "../models";
+
+export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
+
+/** Structural signals — auto-skip on ingest / refresh (regex-owned routing). */
+export function isCreditReturnInvoice(
+  parsed: ParsedJohnstoneInvoice,
+  pageText: string,
+): boolean {
+  const text = pageText ?? "";
+  if (/^\s*CREDIT\b/m.test(text)) return true;
+  if (/\bBranch\s*[=:]\s*CREDIT\b/i.test(text)) return true;
+  if (/\bCREDIT\s+MEMO\b/i.test(text)) return true;
+
+  const po = (parsed.header.customerPoOrReference ?? "").trim();
+  if (/\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po)) return true;
+
+  const lines = parsed.lines.filter((l) => !l.excludeFromExpectedItems);
+  const scanLines = lines.length > 0 ? lines : parsed.lines;
+  if (scanLines.length === 0) return false;
+
+  const anyNegShip = scanLines.some((l) => l.quantityShipped < 0);
+  const anyReturnLine = parsed.lines.some((l) => l.lineType === "return");
+  const returnFromInvoice =
+    parsed.lines.some((l) => /return from invoice/i.test(l.description ?? "")) ||
+    parsed.orderNotes.some((n) => /return from invoice/i.test(n));
+
+  if (anyReturnLine && anyNegShip) return true;
+  if (returnFromInvoice && anyNegShip) return true;
+  if (scanLines.every((l) => l.quantityShipped < 0)) return true;
+
+  return false;
+}
+
+/** Detect ignore-CREDIT/returns intent in a generalized training note. */
+export function correctionNoteTeachesIgnoreCreditReturns(note: string): boolean {
+  const n = note.trim();
+  if (!n) return false;
+  if (/\bignore\b[\s\S]{0,40}\b(credit|returns?)\b/i.test(n)) return true;
+  if (/\bskip\b[\s\S]{0,40}\b(credit|returns?)\b/i.test(n)) return true;
+  if (/\bdismiss\b[\s\S]{0,40}\b(credit|returns?)\b/i.test(n)) return true;
+  if (/\b(credit|returns?)\b[\s\S]{0,40}\b(ignore|skip|dismiss)\b/i.test(n)) return true;
+  if (/\bCREDIT\b/.test(n) && /\b(ignore|skip|negative\s+qty)\b/i.test(n)) return true;
+  return false;
+}
+
+export function isCreditReturnImportDoc(
+  doc: Pick<
+    VendorInvoiceImportReview,
+    "parsedHeader" | "parsedLines" | "orderNotes"
+  >,
+): boolean {
+  const header = doc.parsedHeader ?? {};
+  const po = String(header.customerPoOrReference ?? "").trim();
+  const lines = doc.parsedLines ?? [];
+  if (lines.length === 0) {
+    return /\bRETURN\b/i.test(po);
+  }
+
+  const anyNegShip = lines.some((l) => (l.quantityShipped ?? 0) < 0);
+  const anyReturnLine = lines.some((l) => l.lineType === "return");
+  const returnDesc = lines.some((l) =>
+    /return from invoice/i.test(l.description ?? ""),
+  );
+  const returnPo = /\bRETURN\b/i.test(po);
+  const notes = doc.orderNotes ?? [];
+  const noteReturn = notes.some((n) => /return from invoice/i.test(n));
+
+  if (anyReturnLine && anyNegShip) return true;
+  if (returnDesc && anyNegShip) return true;
+  if (noteReturn && anyNegShip) return true;
+  if (lines.every((l) => (l.quantityShipped ?? 0) < 0)) return true;
+  if (returnPo && anyNegShip) return true;
+
+  return false;
+}
+
+/** Apply-now: dismiss current import when note teaches ignore and import is CREDIT/return. */
+export function shouldApplyNowDismissCreditImport(
+  note: string,
+  doc: Pick<
+    VendorInvoiceImportReview,
+    "parsedHeader" | "parsedLines" | "orderNotes"
+  >,
+): boolean {
+  if (!correctionNoteTeachesIgnoreCreditReturns(note)) return false;
+  if (isCreditReturnImportDoc(doc)) return true;
+  return (
+    /\b(?:ignore|skip|dismiss)\b/i.test(note) && /\bCREDIT\b/.test(note)
+  );
+}
+
+/** User-visible incomplete order copy when B/O or partial ship lines exist. */
+export function orderIncompleteMessage(
+  importRow: Pick<
+    VendorInvoiceImportReview,
+    "importStatus" | "parsedLines" | "parsedLineCount"
+  >,
+): string | null {
+  if (importRow.importStatus === "partial") {
+    return "Order not complete — backordered or partially shipped lines remain.";
+  }
+  const lines = importRow.parsedLines ?? [];
+  const hasBo = lines.some((l) => (l.quantityBackordered ?? 0) > 0);
+  const hasPartialShip = lines.some(
+    (l) =>
+      (l.quantityShipped ?? 0) < (l.quantityOrdered ?? 0) &&
+      (l.quantityBackordered ?? 0) === 0,
+  );
+  if (hasBo || hasPartialShip) {
+    return "Order not complete — backordered or partially shipped lines remain.";
+  }
+  return null;
+}

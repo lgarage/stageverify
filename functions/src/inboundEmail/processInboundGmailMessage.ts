@@ -20,6 +20,7 @@ import {
 import { preferredPreParseFormat } from "../invoice/invoiceDocumentSplit";
 import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
 import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
+import { isCreditReturnInvoice, CREDIT_RETURN_SKIP_REASON } from "../invoice/creditReturnSkip";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import {
   isInvoiceAiShadowEnabled,
@@ -301,6 +302,11 @@ async function writeReviewRecords(
     const proc = row.processing;
     const parsedLines = sanitizeParsedLines(proc.parsed.lines);
     const reviewError = issueReviewError(proc, row.error);
+    const creditReturnSkip =
+      proc.reviewStatus === "rejected" &&
+      isCreditReturnInvoice(proc.parsed, proc.page.extractedText) &&
+      !proc.duplicate;
+    const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,
       confidenceScore: proc.confidenceScore,
@@ -324,11 +330,11 @@ async function writeReviewRecords(
       importBatchId: batchResult.importBatchId,
       pageId: row.pageId,
       pageIndexInBatch: row.pageIndexInBatch,
-      reviewStatus: "pending_review",
+      reviewStatus: inboundReviewStatus,
       importStatus: proc.importStatus,
       confidenceTier: proc.confidenceTier,
       confidenceScore: proc.confidenceScore,
-      humanReviewRequired: true,
+      humanReviewRequired: creditReturnSkip ? false : true,
       duplicate: proc.duplicate,
       parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
       parsedLines,
@@ -349,6 +355,13 @@ async function writeReviewRecords(
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
       ...(reviewError ? { error: reviewError } : {}),
+      ...(creditReturnSkip
+        ? {
+            skipReason: CREDIT_RETURN_SKIP_REASON,
+            rejectedAt: now,
+            rejectedBy: "system:credit_return_skip",
+          }
+        : {}),
     };
 
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);

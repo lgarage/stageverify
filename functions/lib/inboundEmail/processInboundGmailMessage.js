@@ -15,6 +15,7 @@ const normalizePdfText_1 = require("./normalizePdfText");
 const invoiceDocumentSplit_1 = require("../invoice/invoiceDocumentSplit");
 const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
 const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
+const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
 const runInvoiceAiShadow_1 = require("../invoice/aiShadow/runInvoiceAiShadow");
 const firestoreSafeValue_1 = require("./firestoreSafeValue");
@@ -222,6 +223,10 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const proc = row.processing;
         const parsedLines = (0, sanitizeParsedLines_1.sanitizeParsedLines)(proc.parsed.lines);
         const reviewError = issueReviewError(proc, row.error);
+        const creditReturnSkip = proc.reviewStatus === "rejected" &&
+            (0, creditReturnSkip_1.isCreditReturnInvoice)(proc.parsed, proc.page.extractedText) &&
+            !proc.duplicate;
+        const inboundReviewStatus = creditReturnSkip ? "rejected" : "pending_review";
         const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
             importStatus: proc.importStatus,
             confidenceScore: proc.confidenceScore,
@@ -244,11 +249,11 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             importBatchId: batchResult.importBatchId,
             pageId: row.pageId,
             pageIndexInBatch: row.pageIndexInBatch,
-            reviewStatus: "pending_review",
+            reviewStatus: inboundReviewStatus,
             importStatus: proc.importStatus,
             confidenceTier: proc.confidenceTier,
             confidenceScore: proc.confidenceScore,
-            humanReviewRequired: true,
+            humanReviewRequired: creditReturnSkip ? false : true,
             duplicate: proc.duplicate,
             parsedHeader: proc.parsed.header,
             parsedLines,
@@ -269,6 +274,13 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
             ...(reviewError ? { error: reviewError } : {}),
+            ...(creditReturnSkip
+                ? {
+                    skipReason: creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON,
+                    rejectedAt: now,
+                    rejectedBy: "system:credit_return_skip",
+                }
+                : {}),
         };
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {

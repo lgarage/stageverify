@@ -20,6 +20,11 @@ import {
   writeVendorTrainingMd,
 } from "./invoice/aiShadow/vendorTrainingMd";
 import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCore";
+import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
+import {
+  CREDIT_RETURN_SKIP_REASON,
+  shouldApplyNowDismissCreditImport,
+} from "./invoice/creditReturnSkip";
 
 function getDb() {
   return admin.firestore();
@@ -101,7 +106,7 @@ export const configureInvoiceTrainingAdmin = onCall(
 export const saveInvoiceTrainingLesson = onCall(
   { region: "us-central1" },
   async (request) => {
-    await requireDispatcherAuth(request);
+    const uid = await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as {
       vendorInvoiceImportId?: unknown;
       correctionNote?: unknown;
@@ -130,12 +135,12 @@ export const saveInvoiceTrainingLesson = onCall(
     if (!snap.exists) {
       throw new HttpsError("not-found", "Invoice import not found.");
     }
-    const importDoc = snap.data() as {
-      detectedVendorName?: string;
-      parserFormatId?: string;
-    };
+    const importDoc = snap.data() as VendorInvoiceImportDoc;
     const vendorKey = vendorKeyFromImportDoc(importDoc);
     const now = new Date().toISOString();
+    const applyNowDismiss =
+      importDoc.reviewStatus === "pending_review" &&
+      shouldApplyNowDismissCreditImport(correctionNote, importDoc);
     const result = await saveTrainingLessonCore({
       vendorKey,
       correctionNoteRaw: correctionNote,
@@ -143,7 +148,32 @@ export const saveInvoiceTrainingLesson = onCall(
       atIso: now,
     });
 
-    if (result.trainingLessonWrote) {
+    let importDismissed = false;
+    let reviewStatus = importDoc.reviewStatus ?? "pending_review";
+    if (result.trainingLessonWrote && applyNowDismiss) {
+      await getDb().runTransaction(async (tx) => {
+        const freshSnap = await tx.get(importRef);
+        if (!freshSnap.exists) {
+          throw new HttpsError("not-found", "Invoice import not found.");
+        }
+        const fresh = freshSnap.data() as VendorInvoiceImportDoc;
+        if (fresh.reviewStatus !== "pending_review") {
+          return;
+        }
+        tx.update(importRef, {
+          reviewStatus: "rejected",
+          skipReason: CREDIT_RETURN_SKIP_REASON,
+          rejectedAt: now,
+          rejectedBy: uid,
+          trainingLessonAppendedAt: now,
+          updatedAt: now,
+        });
+        importDismissed = true;
+      });
+      if (importDismissed) {
+        reviewStatus = "rejected";
+      }
+    } else if (result.trainingLessonWrote) {
       await importRef.update({
         trainingLessonAppendedAt: now,
         updatedAt: now,
@@ -153,6 +183,8 @@ export const saveInvoiceTrainingLesson = onCall(
     return {
       vendorInvoiceImportId: importId,
       vendorKey: sanitizeVendorKey(vendorKey),
+      importDismissed,
+      reviewStatus,
       ...result,
     };
   },

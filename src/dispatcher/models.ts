@@ -1232,6 +1232,8 @@ export interface VendorInvoiceImportReview {
   linkedDeliveryOrderId?: string;
   approvedAt?: string;
   rejectedAt?: string;
+  /** Auto-skip reason when reviewStatus rejected without manual reject (e.g. credit_return). */
+  skipReason?: "credit_return" | string;
   /** Stage 1 — suggested import eligibility (no automatic CF approve). */
   autoImportEligible?: boolean;
   autoImportConfidence?: number;
@@ -1316,6 +1318,8 @@ export interface ApproveVendorInvoiceImportResult {
   trainingLessonPendingAdminReview?: boolean;
   /** True when a pending-Admin alert email was sent. */
   trainingLessonAlertEmailed?: boolean;
+  /** True when approve-with-note or save-lesson dismissed a CREDIT/return import. */
+  importDismissed?: boolean;
 }
 
 export interface InvoiceTrainingAdminStatus {
@@ -1332,6 +1336,8 @@ export interface SaveInvoiceTrainingLessonResult {
   trainingLessonPendingAdminReview: boolean;
   trainingLessonAlertEmailed: boolean;
   reason?: string;
+  importDismissed?: boolean;
+  reviewStatus?: string;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

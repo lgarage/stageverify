@@ -272,7 +272,7 @@ const FIXTURE_EXPECTATIONS = {
     customerPoOrReference: "La Crosse PF",
     fulfillmentMethod: "delivery",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     quoteNumber: "Q618468",
     expectedLineCount: 2,
     notAutoProcessed: true,
@@ -311,7 +311,7 @@ const FIXTURE_EXPECTATIONS = {
     customerPoOrReference: "PLANET FITNESS PICKUP",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -319,7 +319,7 @@ const FIXTURE_EXPECTATIONS = {
     customerPoOrReference: "TRUCK STOCK PICKUP",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -327,7 +327,7 @@ const FIXTURE_EXPECTATIONS = {
     customerPoOrReference: "La Crosse PF",
     fulfillmentMethod: "delivery",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -335,7 +335,7 @@ const FIXTURE_EXPECTATIONS = {
     customerPoOrReference: "KALAFAT Tuesday John",
     fulfillmentMethod: "unknown",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -344,7 +344,7 @@ const FIXTURE_EXPECTATIONS = {
     fulfillmentMethod: "delivery",
     shipCompletePolicy: "unknown",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -353,7 +353,7 @@ const FIXTURE_EXPECTATIONS = {
     fulfillmentMethod: "delivery",
     shipCompletePolicy: "hold_until_complete",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -362,7 +362,7 @@ const FIXTURE_EXPECTATIONS = {
     fulfillmentMethod: "delivery",
     shipCompletePolicy: "unknown",
     importStatus: "partial",
-    displayLabel: "Partial",
+    displayLabel: "Partial — order not complete",
     humanReviewRequired: true,
     notAutoProcessed: true,
   },
@@ -862,6 +862,19 @@ if (siouxSplitDocs.length < 4) {
     failures.push(
       `sioux falls split: CREDIT doc expected header inv 3316448A, got ${extractHeaderInvoiceNumber(creditDoc) || "(empty)"}`,
     );
+  } else {
+    const creditPage = {
+      pageId: "inv-sioux-credit-skip",
+      importBatchId: "batch-sioux-credit-skip",
+      pageIndexInBatch: 0,
+      extractedText: creditDoc,
+    };
+    const creditResult = processInvoicePage(creditPage, existing);
+    if (creditResult.reviewStatus !== "rejected") {
+      failures.push(
+        `sioux falls CREDIT doc: expected reviewStatus rejected (auto-skip), got ${creditResult.reviewStatus}`,
+      );
+    }
   }
   console.log(
     `  PASS sioux falls 4-page → ${siouxSplitDocs.length} documents (CREDIT/3316448A, ${siouxExpectedInvoices.join(", ")})`,

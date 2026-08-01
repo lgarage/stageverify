@@ -394,6 +394,27 @@ export function InvoiceReviewPanel({
           ? { correctionNote: correctionNote.trim() }
           : {}),
       });
+      if (result.importDismissed) {
+        const lessonNote = result.trainingLessonWrote
+          ? " Training lesson saved for future invoices."
+          : result.trainingLessonPendingAdminReview
+            ? " Training note pending Admin review."
+            : "";
+        setSuccessMessage(`Credit/return import dismissed from queue.${lessonNote}`);
+        if (result.trainingLessonWrote) {
+          showTrainingToast(INVOICE_TRAINING_LESSON_TOAST);
+        } else if (result.trainingLessonPendingAdminReview) {
+          showTrainingToast(
+            "This note is pending Admin review — patterns may need a fix before it can be saved.",
+          );
+        }
+        setInspectImport(null);
+        await loadQueue();
+        if (onApproveSuccess) {
+          await onApproveSuccess();
+        }
+        return;
+      }
       if (result.shellError?.trim()) {
         setError(result.shellError);
         setInspectImport(null);
@@ -981,6 +1002,10 @@ export function InvoiceReviewPanel({
                 }
               : undefined
           }
+          onImportDismissed={() => {
+            setInspectImport(null);
+            void loadQueue();
+          }}
         />
       )}
     </div>

@@ -21,6 +21,10 @@ import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCore";
 import { vendorKeyFromImportDoc } from "./invoice/aiShadow/adminConfig";
+import {
+  CREDIT_RETURN_SKIP_REASON,
+  shouldApplyNowDismissCreditImport,
+} from "./invoice/creditReturnSkip";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -166,6 +170,56 @@ export const approveVendorInvoiceImport = onCall(
         "failed-precondition",
         "Cannot approve — import has parse issues. Reject or wait for a valid invoice.",
       );
+    }
+
+    if (
+      action === "approve" &&
+      correctionNoteRaw.trim() &&
+      importDoc.reviewStatus === "pending_review" &&
+      shouldApplyNowDismissCreditImport(correctionNoteRaw, importDoc)
+    ) {
+      const vendorKey = vendorKeyFromImportDoc(importDoc);
+      const lesson = await saveTrainingLessonCore({
+        vendorKey,
+        correctionNoteRaw,
+        importId,
+        atIso: now,
+      });
+      await getDb().runTransaction(async (tx) => {
+        const freshImport = await tx.get(importRef);
+        if (!freshImport.exists) {
+          throw new HttpsError("not-found", "Vendor invoice import not found.");
+        }
+        const fresh = freshImport.data() as VendorInvoiceImportDoc;
+        if (fresh.reviewStatus !== "pending_review") {
+          throw new HttpsError(
+            "failed-precondition",
+            `Import already ${fresh.reviewStatus}.`,
+          );
+        }
+        tx.update(importRef, {
+          reviewStatus: "rejected",
+          skipReason: CREDIT_RETURN_SKIP_REASON,
+          rejectedAt: now,
+          rejectedBy: uid,
+          updatedAt: now,
+          ...(lesson.trainingLessonWrote
+            ? { trainingLessonAppendedAt: now }
+            : {}),
+          importDecisionLog: appendDecisionLogUpdate(
+            fresh,
+            buildImportDecisionLogEntry("reject", uid, now, eligibilityFromDoc(fresh)),
+          ),
+        });
+      });
+      return {
+        vendorInvoiceImportId: importId,
+        reviewStatus: "rejected",
+        importDismissed: true,
+        trainingLessonWrote: lesson.trainingLessonWrote,
+        trainingLessonPendingAdminReview: lesson.trainingLessonPendingAdminReview,
+        trainingLessonAlertEmailed: lesson.trainingLessonAlertEmailed,
+      };
     }
 
     if (action === "reject") {

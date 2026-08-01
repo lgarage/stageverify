@@ -6,9 +6,17 @@ exports.parseInboundInvoiceText = parseInboundInvoiceText;
  * Vendor invoice parse for inbound email — review-only path.
  * Hard rule: always pending_review; never auto_processed; no delivery writes.
  */
+const creditReturnSkip_1 = require("./creditReturnSkip");
 const pdfTextAdapter_1 = require("./pdfTextAdapter");
 const processInvoiceBatch_1 = require("./processInvoiceBatch");
 function forceReviewOnlyStatus(result) {
+    if ((0, creditReturnSkip_1.isCreditReturnInvoice)(result.parsed, result.page.extractedText)) {
+        return {
+            ...result,
+            humanReviewRequired: false,
+            reviewStatus: "rejected",
+        };
+    }
     return {
         ...result,
         humanReviewRequired: true,
