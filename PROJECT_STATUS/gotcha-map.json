@@ -869,7 +869,11 @@
         "powershell &&",
         "cmd1 && cmd2",
         "PowerShell does not support &&",
-        "semicolons instead of &&"
+        "semicolons instead of &&",
+        "PowerShell does not support heredocs",
+        "heredoc",
+        "cat <<'EOF'",
+        "bash HEREDOC"
       ],
       "orchestratorSteps": [],
       "dossierTags": [],
@@ -881,9 +885,11 @@
       "injectBefore": [
         "powershell &&",
         "command chaining Windows",
-        "Shell tool PowerShell"
+        "Shell tool PowerShell",
+        "git commit HEREDOC",
+        "cat <<EOF"
       ],
-      "warning": "Windows PowerShell does not support `&&` — never write `cmd1 && cmd2` (PS5: \"The token '&&' is not a valid statement separator\"). Dan standing preference (2026-08-01): use semicolons (`;`) instead for sequential commands. When a later step must run only on success, run commands separately or gate with `$LASTEXITCODE` / `if ($?) { ... }` (observed 2026-07-08). Also: bash HEREDOC (`cat <<'EOF'`) is not valid in PS5 — use `git commit -m \"title\" -m \"body\"`, a here-string (`@'...'@` | Set-Content … -F), or a script file (see powershell-inline-command-mangle)."
+      "warning": "Windows PowerShell does not support bash HEREDOCs (`cat <<'EOF'` / `$(cat <<'EOF' …)`) — Dan standing preference 2026-08-01: never use them in Shell tool commands. For commit messages use `git commit -m \"title\" -m \"body\"`, a PowerShell here-string written to a temp file (`@'…'@ | Set-Content …; git commit -F …`), or a short script file. PowerShell also does not support `&&` — use `;` for sequential commands; when a later step must run only on success, run separately or gate with `$LASTEXITCODE` / `if ($?) { … }` (observed 2026-07-08). See also powershell-inline-command-mangle."
     },
     {
       "id": "shop-map-svg-stroke-hit-target",
