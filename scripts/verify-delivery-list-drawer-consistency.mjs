@@ -775,6 +775,46 @@ async function assertDrawerEmailVendorOpensModal(page, record, label) {
     await page.getByTestId("vendor-communications-modal").isVisible(),
   );
 
+  // Wait for async vendor email events + issue draft prefill to settle.
+  await page
+    .waitForFunction(
+      () => {
+        const subject = document.querySelector('[data-testid="vendor-comms-subject"]');
+        return subject instanceof HTMLInputElement && subject.value.trim().length > 0;
+      },
+      { timeout: 12_000 },
+    )
+    .catch(() => {});
+
+  const helperText = (
+    await page.getByTestId("vendor-comms-helper").innerText().catch(() => "")
+  ).trim();
+  const isReplyThread = /Replying to the vendor/i.test(helperText);
+  const subject = (
+    await page.getByTestId("vendor-comms-subject").inputValue()
+  ).trim();
+  const body = (await page.getByTestId("vendor-comms-body").inputValue()).trim();
+  const emDash = "\u2014";
+
+  if (!isReplyThread) {
+    record(
+      `${label} — vendor comms issue draft subject uses em dash`,
+      subject.startsWith(`${label} ${emDash}`),
+      subject || "empty",
+    );
+    record(
+      `${label} — vendor comms issue draft body prefilled on new thread`,
+      body.length > 0,
+      body.slice(0, 100) || "empty",
+    );
+  } else {
+    record(
+      `${label} — vendor comms issue draft (skipped inbound reply thread)`,
+      true,
+      `subject=${subject.slice(0, 60)}`,
+    );
+  }
+
   const vendorSelect = page.getByTestId("vendor-comms-vendor");
   const vendorValue = await vendorSelect.inputValue();
   record(

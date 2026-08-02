@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -70,6 +71,10 @@ import { ResolveIssueModal } from "./ResolveIssueModal";
 import { VendorCommunicationsPanel } from "./VendorCommunicationsPanel";
 import { VendorCommunicationsModal } from "./VendorCommunicationsModal";
 import { mergeVendorIntoList } from "./vendorCommsPrefillHelpers";
+import {
+  buildVendorCommsIssueBody,
+  buildVendorCommsIssueSubject,
+} from "./vendorCommsIssueDraft";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
@@ -296,6 +301,15 @@ export function DetailContent({
     setActivityHistoryFullView(false);
     setDrawerEmailModalOpen(false);
   }, [details?.delivery.id]);
+
+  const vendorCommsInitialSubject = useMemo(
+    () => (details ? buildVendorCommsIssueSubject(details) : ""),
+    [details],
+  );
+  const vendorCommsInitialBody = useMemo(
+    () => (details ? buildVendorCommsIssueBody(details) : ""),
+    [details],
+  );
 
   const expandVendorCommunications = () => {
     setVendorCommsExpandSignal((value) => value + 1);
@@ -1573,6 +1587,8 @@ export function DetailContent({
         initialVendorEmail={details.vendor.email}
         initialVendorName={details.vendor.name}
         initialDeliveryOrderId={details.delivery.id}
+        initialSubject={vendorCommsInitialSubject}
+        initialBody={vendorCommsInitialBody}
         navy={navy}
         font={font}
         onClose={() => setDrawerEmailModalOpen(false)}

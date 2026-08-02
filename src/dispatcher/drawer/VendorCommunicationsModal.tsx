@@ -30,6 +30,8 @@ export function VendorCommunicationsModal({
   initialVendorEmail,
   initialVendorName,
   initialDeliveryOrderId,
+  initialSubject,
+  initialBody,
   onClose,
   onSuccess,
   onSend,
@@ -48,6 +50,10 @@ export function VendorCommunicationsModal({
   initialVendorName?: string;
   /** Pre-select delivery when opened from delivery drawer. */
   initialDeliveryOrderId?: string;
+  /** Issue-thread subject when no inbound reply (drawer Email Vendor). */
+  initialSubject?: string;
+  /** Issue-thread body when no inbound reply (drawer Email Vendor). */
+  initialBody?: string;
   onClose: () => void;
   onSuccess?: () => void;
   onSend: (input: {
@@ -139,7 +145,15 @@ export function VendorCommunicationsModal({
     setTo(baseEmail);
     setSubject("");
 
-    if (!initialDeliveryOrderId) return;
+    const applyIssueDraftIfNewThread = () => {
+      setSubject(initialSubject ?? "");
+      setBody(initialBody ?? "");
+    };
+
+    if (!initialDeliveryOrderId) {
+      applyIssueDraftIfNewThread();
+      return;
+    }
 
     let cancelled = false;
     setEventsLoading(true);
@@ -159,16 +173,20 @@ export function VendorCommunicationsModal({
           setSubject(
             replySubjectFromInbound(
               inbound,
-              resolved?.name
-                ? `Delivery follow up — ${resolved.name}`
-                : "Delivery follow up",
+              initialSubject ??
+                (resolved?.name
+                  ? `Delivery follow up — ${resolved.name}`
+                  : "Delivery follow up"),
             ),
           );
+        } else {
+          applyIssueDraftIfNewThread();
         }
       })
       .catch(() => {
         if (!cancelled) {
           setTo(baseEmail);
+          applyIssueDraftIfNewThread();
         }
       })
       .finally(() => {
@@ -184,6 +202,8 @@ export function VendorCommunicationsModal({
     initialVendorEmail,
     initialVendorName,
     initialDeliveryOrderId,
+    initialSubject,
+    initialBody,
     vendors,
     deliveries,
   ]);
