@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import { NAVY } from "../../theme/brandColors";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export const CATCH_ALL_STATUS_NOTE =

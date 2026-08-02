@@ -43,9 +43,8 @@ import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { TechnicianSettingsPanel } from "./TechnicianSettingsPanel";
 import { OfficeReceiversSettingsPanel } from "./OfficeReceiversSettingsPanel";
 import { ManagementSettingsPanel } from "./ManagementSettingsPanel";
+import { NAVY, RED } from "./theme/brandColors";
 
-const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const STAGING_SPOT_TYPES = ["ground", "shelf", "bin", "other"] as const;
@@ -220,7 +219,7 @@ export function SettingsPage() {
     if (!el) return;
     window.setTimeout(() => {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
-      el.style.outline = "2px solid #0a3161";
+      el.style.outline = `2px solid ${NAVY}`;
       window.setTimeout(() => {
         el.style.outline = "";
       }, 2500);
@@ -408,10 +407,10 @@ export function SettingsPage() {
   };
 
   const cardStyle = {
-    backgroundColor: "#fff",
-    border: "1px solid #dde1e7",
-    borderRadius: 8,
-    boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
+    backgroundColor: "var(--color-panel-bg)",
+    border: "1px solid var(--color-border)",
+    borderRadius: 16,
+    boxShadow: "0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px var(--color-glow)",
   };
 
   const startEditSpot = (spot: StagingLocation) => {
@@ -491,12 +490,12 @@ export function SettingsPage() {
   const inputStyle: CSSProperties = {
     width: "100%",
     padding: "10px 12px",
-    border: "1.5px solid #ccd0d7",
+    border: "1.5px solid var(--color-border)",
     borderRadius: 6,
     fontSize: 14,
-    color: "#333",
+    color: "var(--color-panel-text)",
     outline: "none",
-    backgroundColor: "#fff",
+    backgroundColor: "var(--color-panel-input-bg)",
     fontFamily: FONT,
     boxSizing: "border-box",
   };
@@ -505,7 +504,7 @@ export function SettingsPage() {
     display: "block",
     fontSize: 13,
     fontWeight: 700,
-    color: "#6b7280",
+    color: "var(--color-panel-muted)",
     marginBottom: 6,
   };
 
@@ -519,7 +518,7 @@ export function SettingsPage() {
       {/* Main content */}
       <div
         className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#f0f2f5" }}
+        style={{ backgroundColor: "var(--color-bg-primary)" }}
       >
         <DispatcherPortalTopBar
           title="Settings"
@@ -532,7 +531,7 @@ export function SettingsPage() {
 
         <div
           className={PORTAL_SCROLL_CLASS}
-          style={{ backgroundColor: "#f0f2f5" }}
+          style={{ backgroundColor: "var(--color-bg-primary)" }}
         >
         <div
           style={{
@@ -607,9 +606,9 @@ export function SettingsPage() {
                   border: "1.5px solid #ccd0d7",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
+                  color: "var(--color-panel-text)",
                   outline: "none",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--color-panel-bg)",
                   fontFamily: FONT,
                   boxSizing: "border-box",
                 }}
@@ -641,9 +640,9 @@ export function SettingsPage() {
                   border: "1.5px solid #ccd0d7",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
+                  color: "var(--color-panel-text)",
                   outline: "none",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--color-panel-bg)",
                   fontFamily: FONT,
                   boxSizing: "border-box",
                 }}
@@ -675,8 +674,8 @@ export function SettingsPage() {
                   border: "1.5px solid #ccd0d7",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
-                  backgroundColor: "#fff",
+                  color: "var(--color-panel-text)",
+                  backgroundColor: "var(--color-panel-bg)",
                   fontFamily: FONT,
                 }}
               >
@@ -691,7 +690,7 @@ export function SettingsPage() {
                   padding: "8px 18px",
                   borderRadius: 4,
                   border: "none",
-                  backgroundColor: savingRevert ? "#f3f4f6" : NAVY,
+                  backgroundColor: savingRevert ? "var(--color-bg-surface)" : NAVY,
                   color: savingRevert ? "#9ca3af" : "#fff",
                   fontWeight: 700,
                   fontSize: 13,
@@ -825,7 +824,7 @@ export function SettingsPage() {
                       padding: "14px 16px",
                       borderRadius: 8,
                       border: "1px solid #e5e7eb",
-                      backgroundColor: "#fafafa",
+                      backgroundColor: "var(--color-bg-surface)",
                       maxWidth: 560,
                       marginBottom: 16,
                     }}
@@ -943,7 +942,7 @@ export function SettingsPage() {
                             color:
                               connectingGmail || loadingGmailConnection
                                 ? "#9ca3af"
-                                : "#fff",
+                                : "var(--color-panel-bg)",
                             fontWeight: 700,
                             fontSize: 13,
                             cursor:
@@ -966,7 +965,7 @@ export function SettingsPage() {
                             padding: "8px 16px",
                             borderRadius: 4,
                             border: "1px solid #d1d5db",
-                            backgroundColor: disconnectingGmail ? "#f3f4f6" : "#fff",
+                            backgroundColor: disconnectingGmail ? "#f3f4f6" : "var(--color-panel-bg)",
                             color: disconnectingGmail ? "#9ca3af" : "#374151",
                             fontWeight: 700,
                             fontSize: 13,
@@ -1075,7 +1074,7 @@ export function SettingsPage() {
                       padding: "16px 16px 14px",
                       border: "1px solid #d1d5db",
                       borderRadius: 8,
-                      backgroundColor: "#f8fafc",
+                      backgroundColor: "var(--color-bg-surface)",
                       maxWidth: 560,
                     }}
                   >
@@ -1128,7 +1127,7 @@ export function SettingsPage() {
                         borderRadius: 6,
                         fontSize: 13,
                         color: "#111827",
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--color-panel-bg)",
                         marginBottom: 10,
                         fontFamily: FONT,
                       }}
@@ -1169,7 +1168,7 @@ export function SettingsPage() {
                         borderRadius: 6,
                         fontSize: 13,
                         color: "#111827",
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--color-panel-bg)",
                         marginBottom: 10,
                         fontFamily: FONT,
                       }}
@@ -1229,7 +1228,7 @@ export function SettingsPage() {
                           !invoiceTrainingAlertEmail.trim() ||
                           invoiceTrainingAdminPassword.length < 8
                             ? "#9ca3af"
-                            : "#fff",
+                            : "var(--color-panel-bg)",
                         fontWeight: 700,
                         fontSize: 13,
                         cursor:
@@ -1265,7 +1264,7 @@ export function SettingsPage() {
                         padding: "8px 18px",
                         borderRadius: 4,
                         border: "none",
-                        backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
+                        backgroundColor: savingEmail ? "var(--color-bg-surface)" : NAVY,
                         color: savingEmail ? "#9ca3af" : "#fff",
                         fontWeight: 700,
                         fontSize: 13,
@@ -1315,7 +1314,7 @@ export function SettingsPage() {
                       padding: "12px 14px",
                       borderRadius: 8,
                       border: "1px solid #e5e7eb",
-                      backgroundColor: "#fafafa",
+                      backgroundColor: "var(--color-bg-surface)",
                       maxWidth: 560,
                     }}
                   >
@@ -1360,7 +1359,7 @@ export function SettingsPage() {
                           backgroundColor:
                             connectingGmail || loadingGmailConnection ? "#e5e7eb" : NAVY,
                           color:
-                            connectingGmail || loadingGmailConnection ? "#9ca3af" : "#fff",
+                            connectingGmail || loadingGmailConnection ? "#9ca3af" : "var(--color-panel-bg)",
                           fontWeight: 700,
                           fontSize: 13,
                           cursor:
@@ -1449,7 +1448,7 @@ export function SettingsPage() {
                         padding: "8px 18px",
                         borderRadius: 4,
                         border: "none",
-                        backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
+                        backgroundColor: savingEmail ? "var(--color-bg-surface)" : NAVY,
                         color: savingEmail ? "#9ca3af" : "#fff",
                         fontWeight: 700,
                         fontSize: 13,
@@ -1575,7 +1574,7 @@ export function SettingsPage() {
                     color: "#9ca3af",
                     margin: "0 0 16px",
                     padding: "12px 14px",
-                    backgroundColor: "#f8fafc",
+                    backgroundColor: "var(--color-bg-surface)",
                     border: "1px solid #eaecf0",
                     borderRadius: 6,
                   }}
@@ -1632,7 +1631,7 @@ export function SettingsPage() {
                         const rowTestCode =
                           spot.mapLayoutSlot ?? row.layoutSlot ?? spot.code;
                         const isEditing = editingSpotId === spot.id;
-                        const rowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                        const rowBg = idx % 2 === 0 ? "var(--color-panel-bg)" : "var(--color-bg-surface)";
                         const tdBase: CSSProperties = {
                           padding: "10px 12px",
                           borderBottom: "1px solid #eaecf0",
@@ -1643,12 +1642,12 @@ export function SettingsPage() {
                           border: "1.5px solid #ccd0d7",
                           borderRadius: 4,
                           fontSize: 13,
-                          color: "#333",
+                          color: "var(--color-panel-text)",
                           fontFamily: FONT,
                           outline: "none",
                           width: "100%",
                           boxSizing: "border-box",
-                          backgroundColor: "#fff",
+                          backgroundColor: "var(--color-panel-bg)",
                         };
                         const rowConflict =
                           isEditing &&
@@ -1697,7 +1696,7 @@ export function SettingsPage() {
                             </td>
                             <td
                               data-testid={`spot-label-${spot.code}`}
-                              style={{ ...tdBase, color: "#333" }}
+                              style={{ ...tdBase, color: "var(--color-panel-text)" }}
                             >
                               {isEditing && editForm ? (
                                 <input
@@ -1715,7 +1714,7 @@ export function SettingsPage() {
                                 spot.label
                               )}
                             </td>
-                            <td style={{ ...tdBase, color: "#333" }}>
+                            <td style={{ ...tdBase, color: "var(--color-panel-text)" }}>
                               {isEditing && editForm ? (
                                 <select
                                   style={inlineInput}
@@ -1742,7 +1741,7 @@ export function SettingsPage() {
                                 STAGING_TYPE_LABELS[spot.type]
                               )}
                             </td>
-                            <td style={{ ...tdBase, color: "#333" }}>
+                            <td style={{ ...tdBase, color: "var(--color-panel-text)" }}>
                               {isEditing && editForm ? (
                                 <select
                                   style={inlineInput}
@@ -1779,7 +1778,7 @@ export function SettingsPage() {
                                 </span>
                               )}
                             </td>
-                            <td style={{ ...tdBase, color: "#333" }}>
+                            <td style={{ ...tdBase, color: "var(--color-panel-text)" }}>
                               {isEditing && editForm ? (
                                 <input
                                   type="number"
@@ -1816,7 +1815,7 @@ export function SettingsPage() {
                                       backgroundColor: saveDisabled
                                         ? "#e5e7eb"
                                         : NAVY,
-                                      color: saveDisabled ? "#9ca3af" : "#fff",
+                                      color: saveDisabled ? "#9ca3af" : "var(--color-panel-bg)",
                                       fontSize: 12,
                                       fontWeight: 600,
                                       cursor: saveDisabled
@@ -1835,7 +1834,7 @@ export function SettingsPage() {
                                       padding: "3px 10px",
                                       borderRadius: 4,
                                       border: "1.5px solid #ccd0d7",
-                                      backgroundColor: "#fff",
+                                      backgroundColor: "var(--color-panel-bg)",
                                       color: "#6b7280",
                                       fontSize: 12,
                                       fontWeight: 600,
@@ -1856,9 +1855,9 @@ export function SettingsPage() {
                                   style={{
                                     padding: "3px 10px",
                                     borderRadius: 4,
-                                    border: "1.5px solid #0a3161",
-                                    backgroundColor: "#fff",
-                                    color: "#0a3161",
+                                    border: `1.5px solid ${NAVY}`,
+                                    backgroundColor: "var(--color-panel-bg)",
+                                    color: NAVY,
                                     fontSize: 12,
                                     fontWeight: 600,
                                     cursor: "pointer",

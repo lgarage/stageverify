@@ -5,9 +5,8 @@ import { signOutWithConfirm } from "./signOutWithConfirm";
 import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
 import { CatchAllDeliveryTopBarEntry } from "./dispatcher/CatchAllDeliveryTopBarEntry";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
+import { NAVY, RED } from "./theme/brandColors";
 
-const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export type DispatcherPortalTopBarProps = {
@@ -50,8 +49,8 @@ export function DispatcherPortalTopBar({
       data-testid="dispatcher-portal-topbar"
       className={PORTAL_TOPBAR_CLASS}
       style={{
-        backgroundColor: "#fff",
-        borderBottom: "1px solid #e0e3e8",
+        backgroundColor: "var(--color-panel-bg)",
+        borderBottom: "1px solid var(--color-border)",
         height: 52,
         padding: "0 20px",
         boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
@@ -73,9 +72,9 @@ export function DispatcherPortalTopBar({
           whiteSpace: "nowrap",
         }}
       >
-        <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>{title}</span>
+        <span style={{ color: "var(--color-panel-text)", fontWeight: 700, fontSize: 15 }}>{title}</span>
         {subtitle ? (
-          <span style={{ color: "#6b7280", fontSize: 13 }}> / {subtitle}</span>
+          <span style={{ color: "var(--color-panel-muted)", fontSize: 13 }}> / {subtitle}</span>
         ) : null}
       </div>
       <div
@@ -133,9 +132,12 @@ export function DispatcherPortalTopBar({
             style={{
               padding: "5px 12px",
               borderRadius: 4,
-              border: `1.5px solid ${NAVY}`,
-              backgroundColor: refreshBusy || refreshDisabled ? "#f3f4f6" : "#fff",
-              color: refreshBusy || refreshDisabled ? "#374151" : NAVY,
+              border: "1.5px solid var(--color-border)",
+              backgroundColor:
+                refreshBusy || refreshDisabled
+                  ? "var(--color-bg-surface)"
+                  : "var(--color-panel-bg)",
+              color: "var(--color-panel-text)",
               fontWeight: 700,
               fontSize: 12,
               cursor: refreshBusy || refreshDisabled ? "not-allowed" : "pointer",
@@ -151,7 +153,9 @@ export function DispatcherPortalTopBar({
             data-testid="gmail-sync-message"
             style={{
               fontSize: 12,
-              color: gmailSyncMessage.includes("failed") ? "#b91c1c" : "#166534",
+              color: gmailSyncMessage.includes("failed")
+                ? "var(--color-accent-red)"
+                : "var(--color-accent-green)",
               fontWeight: 600,
               maxWidth: 360,
             }}
@@ -164,7 +168,7 @@ export function DispatcherPortalTopBar({
             data-testid="dispatcher-topbar-last-updated"
             style={{
               fontSize: 12,
-              color: "#6b7280",
+              color: "var(--color-panel-muted)",
               whiteSpace: "nowrap",
               flexShrink: 1,
               minWidth: 0,
@@ -174,7 +178,7 @@ export function DispatcherPortalTopBar({
             }}
           >
             Last updated:{" "}
-            <span style={{ fontWeight: 600, color: "#374151" }}>
+            <span style={{ fontWeight: 600, color: "var(--color-panel-text)" }}>
               {lastUpdated ?? "Loading…"}
             </span>
           </div>
@@ -186,9 +190,9 @@ export function DispatcherPortalTopBar({
           style={{
             padding: "5px 12px",
             borderRadius: 4,
-            border: `1.5px solid ${NAVY}`,
-            backgroundColor: "#fff",
-            color: NAVY,
+            border: "1.5px solid var(--color-border)",
+            backgroundColor: "var(--color-panel-bg)",
+            color: "var(--color-panel-text)",
             fontWeight: 600,
             fontSize: 12,
             cursor: "pointer",

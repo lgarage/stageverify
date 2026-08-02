@@ -316,7 +316,7 @@ export function VendorCommunicationsModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 60,
+        zIndex: 200,
         padding: 16,
       }}
       onClick={onClose}

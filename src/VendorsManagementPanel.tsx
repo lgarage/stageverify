@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, type CSSProperties, type FormEvent } from "react";
 import type { Vendor } from "./dispatcher/models";
 import { listVendors, createVendor, updateVendor } from "./dispatcher/firestoreService";
+import { NAVY, RED } from "./theme/brandColors";
 
-const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function formatPhone(raw: string): string {
