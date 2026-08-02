@@ -775,6 +775,57 @@ async function assertDrawerEmailVendorOpensModal(page, record, label) {
     await page.getByTestId("vendor-communications-modal").isVisible(),
   );
 
+  const vendorSelect = page.getByTestId("vendor-comms-vendor");
+  const vendorValue = await vendorSelect.inputValue();
+  record(
+    `${label} — vendor comms vendor pre-selected when delivery has vendor`,
+    vendorValue.length > 0,
+    vendorValue || "empty",
+  );
+
+  const toEmail = (await page.getByTestId("vendor-comms-to").inputValue()).trim();
+  record(
+    `${label} — vendor comms email prefilled from delivery vendor`,
+    toEmail.includes("@"),
+    toEmail || "empty",
+  );
+
+  await page
+    .getByTestId("vendor-communications-modal")
+    .getByRole("button", { name: "Close" })
+    .click();
+  await page.getByTestId("vendor-communications-modal").waitFor({
+    state: "hidden",
+    timeout: 10_000,
+  });
+
+  const callVendorBtn = page.getByTestId("drawer-action-call-vendor");
+  let callVendorEmail = "";
+  if ((await callVendorBtn.count()) > 0) {
+    await callVendorBtn.first().click();
+    await page.getByTestId("call-vendor-modal").waitFor({ timeout: 10_000 });
+    callVendorEmail = (
+      await page.getByTestId("call-vendor-email").innerText().catch(() => "")
+    ).trim();
+    await page.getByTestId("call-vendor-close").click();
+    await page.getByTestId("call-vendor-modal").waitFor({
+      state: "hidden",
+      timeout: 10_000,
+    });
+    await emailVendorBtn.first().click();
+    await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
+    const toEmailAfterReopen = (
+      await page.getByTestId("vendor-comms-to").inputValue()
+    ).trim();
+    if (callVendorEmail.includes("@")) {
+      record(
+        `${label} — vendor comms email matches Call Vendor details`,
+        toEmailAfterReopen.toLowerCase() === callVendorEmail.toLowerCase(),
+        `modal=${toEmailAfterReopen} call=${callVendorEmail}`,
+      );
+    }
+  }
+
   await page
     .getByTestId("vendor-communications-modal")
     .getByRole("button", { name: "Close" })

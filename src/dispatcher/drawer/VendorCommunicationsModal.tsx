@@ -12,6 +12,7 @@ import {
   DRAWER_MODAL_INPUT_STYLE,
   DRAWER_MODAL_LABEL_STYLE,
 } from "./resolveIssueDefaults";
+import { resolveVendorForComms } from "./vendorCommsPrefillHelpers";
 
 function isValidEmail(value: string): boolean {
   const trimmed = value.trim();
@@ -26,6 +27,8 @@ export function VendorCommunicationsModal({
   navy,
   font,
   initialVendorId,
+  initialVendorEmail,
+  initialVendorName,
   initialDeliveryOrderId,
   onClose,
   onSuccess,
@@ -39,6 +42,10 @@ export function VendorCommunicationsModal({
   font: string;
   /** Pre-select vendor when opened from delivery drawer. */
   initialVendorId?: string;
+  /** Delivery vendor email when opened from delivery drawer. */
+  initialVendorEmail?: string;
+  /** Delivery vendor name hint for orphaned id / name match. */
+  initialVendorName?: string;
   /** Pre-select delivery when opened from delivery drawer. */
   initialDeliveryOrderId?: string;
   onClose: () => void;
@@ -104,7 +111,18 @@ export function VendorCommunicationsModal({
 
   useEffect(() => {
     if (!open) return;
-    setVendorId(initialVendorId ?? "");
+
+    const vendorList = vendors ?? [];
+    const deliveryRow = initialDeliveryOrderId
+      ? deliveries.find((d) => d.deliveryId === initialDeliveryOrderId)
+      : undefined;
+    const resolved = resolveVendorForComms({
+      vendors: vendorList,
+      initialVendorId,
+      vendorNameHint: initialVendorName ?? deliveryRow?.vendorName,
+    });
+
+    setVendorId(resolved?.id ?? "");
     setDeliveryOrderId(initialDeliveryOrderId ?? "");
     setAdditionalEmails("");
     setBody("");
@@ -114,8 +132,11 @@ export function VendorCommunicationsModal({
     setValidationError(null);
     setReplyFromInbound(false);
     setReplyHeaders({});
-    const presetVendor = (vendors ?? []).find((v) => v.id === initialVendorId);
-    setTo(presetVendor?.email?.trim() ?? "");
+    const baseEmail =
+      initialVendorEmail?.trim() ||
+      resolved?.email?.trim() ||
+      "";
+    setTo(baseEmail);
     setSubject("");
 
     if (!initialDeliveryOrderId) return;
@@ -125,7 +146,8 @@ export function VendorCommunicationsModal({
     void listVendorEmailEventsForDelivery(initialDeliveryOrderId)
       .then((events) => {
         if (cancelled) return;
-        const vendorEmailOnFile = presetVendor?.email?.trim() ?? "";
+        const vendorEmailOnFile =
+          resolved?.email?.trim() ?? initialVendorEmail?.trim() ?? "";
         const inbound = latestTrustedInboundVendorEmailEvent(events);
         const primaryTo = primaryRecipientFromEvents(events, vendorEmailOnFile);
         if (primaryTo) {
@@ -137,8 +159,8 @@ export function VendorCommunicationsModal({
           setSubject(
             replySubjectFromInbound(
               inbound,
-              presetVendor?.name
-                ? `Delivery follow up — ${presetVendor.name}`
+              resolved?.name
+                ? `Delivery follow up — ${resolved.name}`
                 : "Delivery follow up",
             ),
           );
@@ -146,7 +168,7 @@ export function VendorCommunicationsModal({
       })
       .catch(() => {
         if (!cancelled) {
-          setTo(presetVendor?.email?.trim() ?? "");
+          setTo(baseEmail);
         }
       })
       .finally(() => {
@@ -156,7 +178,15 @@ export function VendorCommunicationsModal({
     return () => {
       cancelled = true;
     };
-  }, [open, initialVendorId, initialDeliveryOrderId, vendors]);
+  }, [
+    open,
+    initialVendorId,
+    initialVendorEmail,
+    initialVendorName,
+    initialDeliveryOrderId,
+    vendors,
+    deliveries,
+  ]);
 
   useEffect(() => {
     if (!vendorId || initialDeliveryOrderId) return;
@@ -169,8 +199,28 @@ export function VendorCommunicationsModal({
   useEffect(() => {
     if (!deliveryOrderId) return;
     const row = sortedDeliveries.find((d) => d.deliveryId === deliveryOrderId);
-    if (row && !vendorId) {
-      const match = sortedVendors.find((v) => v.name === row.vendorName);
+    if (!row) return;
+
+    const vendorInOptions =
+      !!vendorId && sortedVendors.some((v) => v.id === vendorId);
+
+    if (vendorId && !vendorInOptions) {
+      const match = resolveVendorForComms({
+        vendors: sortedVendors,
+        vendorNameHint: row.vendorName,
+      });
+      setVendorId(match?.id ?? "");
+      if (match?.email?.trim()) {
+        setTo((prev) => prev.trim() || match.email!.trim());
+      }
+      return;
+    }
+
+    if (!vendorId) {
+      const match = resolveVendorForComms({
+        vendors: sortedVendors,
+        vendorNameHint: row.vendorName,
+      });
       if (match) {
         setVendorId(match.id);
         if (match.email?.trim() && !to.trim()) {

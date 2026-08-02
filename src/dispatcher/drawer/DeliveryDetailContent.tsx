@@ -69,6 +69,7 @@ import {
 import { ResolveIssueModal } from "./ResolveIssueModal";
 import { VendorCommunicationsPanel } from "./VendorCommunicationsPanel";
 import { VendorCommunicationsModal } from "./VendorCommunicationsModal";
+import { mergeVendorIntoList } from "./vendorCommsPrefillHelpers";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
@@ -1565,10 +1566,12 @@ export function DetailContent({
       )}
       <VendorCommunicationsModal
         open={drawerEmailModalOpen}
-        vendors={portalVendors}
+        vendors={mergeVendorIntoList(portalVendors ?? [], details.vendor)}
         deliveries={[drawerDeliveryRow]}
         emailProviderConnected={emailProviderConnected}
         initialVendorId={details.vendor.id}
+        initialVendorEmail={details.vendor.email}
+        initialVendorName={details.vendor.name}
         initialDeliveryOrderId={details.delivery.id}
         navy={navy}
         font={font}
