@@ -209,6 +209,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Dual dark/light theme (2026-08-02, v0.0.191, PR #29)** — Dark default + StageVerify-branded light mode; `data-theme` on `document.documentElement`; CSS `--color-*` tokens; ThemeProvider + `localStorage` key `stageverify-theme`; FOUC inline script in `index.html`; BR ThemeToggle on dispatcher top bar + mobile surfaces. UI-only; no CF/rules. Verify: `verify:dispatcher-nav`, `verify:pickup`, `verify:settings-technicians`, `verify:receive` (+ `:prod` nav/pickup/settings).
+
 **Batch print labels size + print-only (2026-07-25, v0.0.162, shipped)** — `#/zones/print-labels`: Full page vs 2×4 label toggle, summary copy, no on-screen preview (print-stage off-screen); new `LocationSignLabel2x4Sheet` (8-up letter). Verify: `verify:location-scan` / `:prod`.
 
 **Print location labels picker = map SSOT (2026-07-25, v0.0.161, D-52/D-53 gap-close)** — `#/zones/print-labels` batch picker uses `filterStagingLocationsOnShopMap` / `shopMapLayoutExtras` (same membership + D-53 order as Settings); no longer lists orphan/active-only Firestore zones. Verify: `verify:location-scan` (picker ↔ map parity, select-all count, D-53 order).
