@@ -109,3 +109,4 @@
 {"date":"2026-08-01","role":"ship","verdict":"PASS","taskId":"d39f068f-177f-4f65-8298-d18aaddcb9d0","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-01","role":"ship","verdict":"PASS","taskId":"419d061d-cb8f-469a-8590-8f689b196a5b","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-02","role":"critical","verdict":"PASS","taskId":"bed28ac3-62ca-46ac-94b5-972d91f24207","model":"cursor-grok-4.5-high-fast","real":"na","note":"dual theme Critical Reviewer Agree pre-ship"}
+{"date":"2026-08-02","role":"ship","verdict":"PASS","taskId":"bdca29ae-c07d-47cb-8ca2-d4b72350af19","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-verified after ui-playwright d1f17ac3 + build-checker fd04a317"}
