@@ -13,8 +13,8 @@ import {
   technicianCanReceiveReleases,
   todayReleaseDateUtc,
 } from "../technicianReleaseHelpers";
+import { NAVY } from "../../theme/brandColors";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
 const MUTED = "#6b7280";

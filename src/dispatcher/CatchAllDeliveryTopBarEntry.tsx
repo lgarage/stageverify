@@ -5,8 +5,8 @@ import {
   subscribeAppSettings,
   updateAppSettings,
 } from "./firestoreService";
+import { NAVY } from "../theme/brandColors";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function CatchAllDeliveryTopBarEntry() {

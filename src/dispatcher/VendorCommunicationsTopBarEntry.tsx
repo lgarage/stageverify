@@ -3,8 +3,8 @@ import { useDispatcherPortal } from "./DispatcherPortalContext";
 import { VendorCommunicationsModal } from "./drawer/VendorCommunicationsModal";
 import { firestoreDataService, sendVendorEmail } from "./firestoreService";
 import type { DeliveryListRow } from "./models";
+import { NAVY } from "../theme/brandColors";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function VendorCommunicationsTopBarEntry() {

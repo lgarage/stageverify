@@ -7,9 +7,8 @@ import {
   deactivateShopStockMapping,
 } from "./dispatcher/firestoreService";
 import { formatMappingLocationHeader } from "./dispatcher/shopStockMapping";
+import { NAVY, RED } from "./theme/brandColors";
 
-const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const cardStyle: CSSProperties = {

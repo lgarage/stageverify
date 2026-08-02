@@ -65,10 +65,10 @@ import {
 import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupancyCompute";
 import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
+import { NAVY } from "./theme/brandColors";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const NUDGE_SYMBOL_FONT = `${FONT}, "Segoe UI Symbol", "Noto Sans Symbols", sans-serif`;
-const NAVY = "#0a3161";
 /** Bright yellow for print/vendor YOU ARE HERE circle (wall poster). */
 const YOU_ARE_HERE_YELLOW = "#FFE600";
 /** Outer S1/S2 frame stroke — internal bay dividers must match exactly. */

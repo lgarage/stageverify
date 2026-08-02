@@ -15,11 +15,11 @@ import {
   upsertManagementPinClient,
 } from "./phase2CallableClients";
 import { sortStagingLocationsForList } from "./dispatcher/stagingMapSync";
+import { NAVY } from "./theme/brandColors";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const TEXT = "#333";
 const MUTED = "#6b7280";
-const NAVY = "#0a3161";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",

@@ -1,18 +1,81 @@
 @import "tailwindcss";
 
+/*
+ * Theme SSOT — existing --color-* names flip with data-theme.
+ * Dark = default (FOUC script + ThemeProvider). Light = StageVerify-branded pair.
+ */
 @theme {
-  --color-bg-primary: #0f172a; /* Dark navy */
-  --color-bg-secondary: #1e293b;
-  --color-bg-card: #1e293b;
-  --color-bg-surface: #334155;
-  --color-accent: #3b82f6; /* Softer blue */
-  --color-accent-green: #10b981;
-  --color-accent-amber: #f59e0b;
+  --color-bg-primary: #080b16;
+  --color-bg-secondary: #0f172a;
+  --color-bg-card: #1a1c20;
+  --color-bg-surface: #23262b;
+  --color-accent: #2788ff;
+  --color-accent-green: #35c98a;
+  --color-accent-amber: #f1b43c;
   --color-accent-orange: #f97316;
-  --color-accent-red: #ef4444;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-border: #334155;
+  --color-accent-red: #ef6d73;
+  --color-accent-brand-red: #bf0a30;
+  --color-brand-navy: #0a3161;
+  --color-text-primary: #f7f9fc;
+  --color-text-secondary: #9ca7b6;
+  --color-border: #363b43;
+  --color-panel-bg: #1a1c20;
+  --color-panel-text: #f7f9fc;
+  --color-panel-muted: #9ca7b6;
+  --color-panel-input-bg: #0f172a;
+  --color-glow: rgba(39, 136, 255, 0.18);
+  --radius-card: 16px;
+}
+
+html[data-theme="dark"],
+html:not([data-theme]) {
+  color-scheme: dark;
+  --color-bg-primary: #080b16;
+  --color-bg-secondary: #0f172a;
+  --color-bg-card: #1a1c20;
+  --color-bg-surface: #23262b;
+  --color-accent: #2788ff;
+  --color-accent-green: #35c98a;
+  --color-accent-amber: #f1b43c;
+  --color-accent-orange: #f97316;
+  --color-accent-red: #ef6d73;
+  --color-accent-brand-red: #bf0a30;
+  --color-brand-navy: #0a3161;
+  --color-text-primary: #f7f9fc;
+  --color-text-secondary: #9ca7b6;
+  --color-border: #363b43;
+  --color-panel-bg: #1a1c20;
+  --color-panel-text: #f7f9fc;
+  --color-panel-muted: #9ca7b6;
+  --color-panel-input-bg: #0f172a;
+  --color-glow: rgba(39, 136, 255, 0.18);
+  --sv-navy: var(--color-brand-navy);
+  --sv-sidebar-bg: linear-gradient(180deg, #11194f 0%, #080d2b 100%);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --color-bg-primary: #eef2f8;
+  --color-bg-secondary: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-surface: #f4f7fb;
+  --color-accent: #1a6aff;
+  --color-accent-green: #18a66a;
+  --color-accent-amber: #e6a117;
+  --color-accent-orange: #ea580c;
+  --color-accent-red: #d94b51;
+  --color-accent-brand-red: #bf0a30;
+  --color-brand-navy: #0a3161;
+  --color-text-primary: #17243a;
+  --color-text-secondary: #66768d;
+  --color-border: #dce4ee;
+  --color-panel-bg: #ffffff;
+  --color-panel-text: #333333;
+  --color-panel-muted: #6b7280;
+  --color-panel-input-bg: #ffffff;
+  --color-glow: rgba(10, 49, 97, 0.08);
+  --sv-navy: var(--color-brand-navy);
+  --sv-sidebar-bg: linear-gradient(180deg, #0a3161 0%, #071a38 100%);
 }
 
 * {
@@ -29,6 +92,11 @@ html {
 
 body {
   background-color: var(--color-bg-primary);
+  background-image: radial-gradient(
+    circle at 86% 2%,
+    color-mix(in srgb, var(--color-accent) 18%, transparent) 0%,
+    transparent 29%
+  );
   color: var(--color-text-primary);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   line-height: normal;
@@ -58,6 +126,7 @@ body {
   max-height: 100dvh;
   display: flex;
   overflow: hidden;
+  background: var(--color-bg-primary);
 }
 
 .portal-sidebar {
@@ -68,8 +137,8 @@ body {
   height: 100%;
   min-height: 0;
   z-index: 20;
-  background-color: #0a3161;
-  box-shadow: rgba(0, 0, 0, 0.15) 2px 0px 10px 0px;
+  background: var(--sv-sidebar-bg, var(--color-brand-navy));
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.25);
 }
 
 @media (min-width: 768px) {
@@ -85,17 +154,75 @@ body {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 86% 2%,
+      color-mix(in srgb, var(--color-accent) 14%, transparent) 0%,
+      transparent 32%
+    ),
+    var(--color-bg-primary);
 }
 
 .portal-topbar {
   flex-shrink: 0;
   z-index: 10;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  /* Avoid backdrop-filter here — it creates a containing block that traps
+     position:fixed modals opened from the top bar (e.g. Vendor Communications). */
 }
 
 .portal-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+.sv-card {
+  background: color-mix(in srgb, var(--color-bg-card) 92%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--color-glow);
+  backdrop-filter: blur(8px);
+}
+
+.sv-theme-toggle {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  /* Below vendor/comms modals (z≈60) and typical dialog stacks */
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg-card) 92%, transparent);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.sv-theme-toggle:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+}
+
+@media print {
+  .sv-theme-toggle {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -168,7 +295,7 @@ button:active {
   height: 44px;
 }
 .stepper-btn:active {
-  background: #475569;
+  background: var(--color-border);
 }
 .stepper-btn:disabled {
   opacity: 0.3;
@@ -180,7 +307,7 @@ button:active {
   justify-content: center;
   width: 100%;
   padding: 14px 20px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -209,7 +336,6 @@ button:active {
   background: var(--color-accent-orange);
 }
 
-/* Scanner Animation */
 @keyframes scan-line {
   0%,
   100% {
@@ -240,12 +366,12 @@ button:active {
 @keyframes zone-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
-    border-color: rgb(59, 130, 246);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 60%, transparent);
+    border-color: var(--color-accent);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
-    border-color: rgb(96, 165, 250);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-color: color-mix(in srgb, var(--color-accent) 70%, white);
   }
 }
 .animate-zone-pulse {
@@ -261,10 +387,6 @@ button:active {
   }
 }
 
-/**
- * Vendor mobile hub: top + bottom action bars never scroll; only middle scrolls.
- * Uses svh (small viewport) so Safari's bottom URL bar does not cover CTAs.
- */
 .vendor-mobile-shell {
   position: fixed;
   inset: 0;
@@ -274,6 +396,7 @@ button:active {
   max-height: 100svh;
   overflow: hidden;
   width: 100%;
+  background: var(--color-bg-primary);
 }
 
 .vendor-hub-layout {
@@ -316,7 +439,6 @@ button:active {
   }
 }
 
-/* html5-qrcode injects <video> into the reader div — fill viewport on phones */
 .qr-scanner-reader video {
   width: 100% !important;
   height: 100% !important;

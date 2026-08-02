@@ -35,10 +35,10 @@ import {
 } from "./dispatcher/deliveryDisplayHelpers";
 import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
+import { NAVY } from "./theme/brandColors";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
-const NAVY = "#0a3161";
 const COMPLETE_FILTER_BADGE_RED = "#bf0a30";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -350,7 +350,7 @@ export function DispatcherDashboardPage() {
       {/* ── Main Content ─────────────────────────────────────────── */}
       <div
         className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#f0f2f5" }}
+        style={{ backgroundColor: "var(--color-bg-primary)" }}
       >
         <DispatcherPortalTopBar
           title="Dispatcher Dashboard"
@@ -366,7 +366,7 @@ export function DispatcherDashboardPage() {
         {/* Page content — scrolls independently of sidebar and top bar */}
         <div
           className={PORTAL_SCROLL_CLASS}
-          style={{ backgroundColor: "#f0f2f5" }}
+          style={{ backgroundColor: "var(--color-bg-primary)" }}
         >
         <div
           style={{
@@ -409,7 +409,7 @@ export function DispatcherDashboardPage() {
           {/* ── Search / Filter card ── */}
           <div
             style={{
-              backgroundColor: "#fff",
+              backgroundColor: "var(--color-panel-bg)",
               border: "1px solid #dde1e7",
               borderRadius: 8,
               boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
@@ -469,9 +469,9 @@ export function DispatcherDashboardPage() {
                       border: "1.5px solid #ccd0d7",
                       borderRadius: 6,
                       fontSize: 16,
-                      color: "#333",
+                      color: "var(--color-panel-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--color-panel-bg)",
                       fontFamily: FONT,
                       transition: "border-color 0.15s, box-shadow 0.15s",
                     }}
@@ -617,7 +617,7 @@ export function DispatcherDashboardPage() {
                       letterSpacing: "normal",
                       boxSizing: "border-box",
                       border: "2px solid #ccd0d7",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--color-panel-bg)",
                       color: hasActiveFilters ? "#ef4444" : "#d1d5db",
                       cursor: hasActiveFilters ? "pointer" : "default",
                       outline: "none",
@@ -636,7 +636,7 @@ export function DispatcherDashboardPage() {
           <div
             id="portal-deliveries"
             style={{
-              backgroundColor: "#fff",
+              backgroundColor: "var(--color-panel-bg)",
               border: "1px solid #dde1e7",
               borderRadius: 8,
               boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
@@ -817,7 +817,7 @@ export function DispatcherDashboardPage() {
                   {paged.items.map((row, idx) => {
                     const selected = selectedDeliveryId === row.deliveryId;
                     const b = listStatusBadge(row);
-                    const defaultRowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                    const defaultRowBg = idx % 2 === 0 ? "var(--color-panel-bg)" : "var(--color-bg-surface)";
                     const rowBg = selected ? "#eef4ff" : defaultRowBg;
                     const cellMuted = "#666";
                     const cellStrong = "#111";
@@ -875,7 +875,7 @@ export function DispatcherDashboardPage() {
                             e.currentTarget as HTMLElement
                           ).style.backgroundColor = selected
                             ? "#eef4ff"
-                            : "#f5f8ff";
+                            : "var(--color-bg-surface)";
                         }}
                         onBlur={(e) => {
                           (
@@ -1176,7 +1176,7 @@ export function DispatcherDashboardPage() {
                               void selectDelivery(row.deliveryId);
                             }}
                             style={{
-                              backgroundColor: selected ? NAVY : "#fff",
+                              backgroundColor: selected ? NAVY : "var(--color-panel-bg)",
                               color: selected ? "#fff" : NAVY,
                               border: `1.5px solid ${NAVY}`,
                               borderRadius: 4,
@@ -1197,7 +1197,7 @@ export function DispatcherDashboardPage() {
                             onMouseLeave={(e) => {
                               const el = e.currentTarget as HTMLElement;
                               if (!selected) {
-                                el.style.backgroundColor = "#fff";
+                                el.style.backgroundColor = "var(--color-panel-bg)";
                                 el.style.color = NAVY;
                               }
                             }}
@@ -1229,7 +1229,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             fontSize: 16,
                             fontWeight: 700,
-                            color: "#333",
+                            color: "var(--color-panel-text)",
                             margin: 0,
                           }}
                         >
@@ -1259,7 +1259,7 @@ export function DispatcherDashboardPage() {
                               padding: "8px 18px",
                               borderRadius: 4,
                               border: `1.5px solid ${NAVY}`,
-                              backgroundColor: "#fff",
+                              backgroundColor: "var(--color-panel-bg)",
                               color: NAVY,
                               fontWeight: 600,
                               fontSize: 13,
@@ -1287,13 +1287,13 @@ export function DispatcherDashboardPage() {
                 gap: 12,
                 padding: "12px 20px",
                 borderTop: "1px solid #eaecf0",
-                backgroundColor: "#fafbfc",
+                backgroundColor: "var(--color-bg-surface)",
               }}
             >
               <span style={{ fontSize: 13, color: "#6b7280" }}>
                 Showing{" "}
-                <strong style={{ color: "#333" }}>{paged.items.length}</strong>{" "}
-                of <strong style={{ color: "#333" }}>{paged.totalItems}</strong>{" "}
+                <strong style={{ color: "var(--color-panel-text)" }}>{paged.items.length}</strong>{" "}
+                of <strong style={{ color: "var(--color-panel-text)" }}>{paged.totalItems}</strong>{" "}
                 deliveries
               </span>
 
@@ -1380,8 +1380,8 @@ function PagBtn({
         padding: "5px 10px",
         borderRadius: 4,
         border: active ? `2px solid ${navy}` : "1px solid #ccd0d7",
-        backgroundColor: active ? navy : "#fff",
-        color: active ? "#fff" : disabled ? "#9ca3af" : "#333",
+        backgroundColor: active ? navy : "var(--color-panel-bg)",
+        color: active ? "#fff" : disabled ? "var(--color-panel-muted)" : "var(--color-panel-text)",
         fontWeight: active ? 700 : 500,
         fontSize: 13,
         cursor: disabled ? "not-allowed" : "pointer",

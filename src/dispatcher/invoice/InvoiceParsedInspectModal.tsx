@@ -25,9 +25,8 @@ import {
   formatInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
 import { creditReturnAdvisoryLabel, creditReturnSkipLabel, orderIncompleteMessage } from "./creditReturnSkip";
+import { NAVY, RED } from "../../theme/brandColors";
 
-const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const CELL_TEXT = "#111827";
 const MUTED = "#4b5563";

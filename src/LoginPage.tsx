@@ -2,9 +2,8 @@ import { useState, type FormEvent } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "./firebase";
+import { NAVY, RED } from "./theme/brandColors";
 
-const NAVY = "#0a3161";
-const RED = "#bf0a30";
 
 function authErrorMessage(code: string): string {
   switch (code) {

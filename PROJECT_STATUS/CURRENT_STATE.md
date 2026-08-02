@@ -8,17 +8,11 @@
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
 - Last shipped: **v0.0.189** — Email Vendor modal prefills vendor + email from delivery
+- **In flight [fast-safe]:** **v0.0.190** dual theme (dark default + StageVerify light + BR toggle) on branch `theme/dual-mode-modernize` — UI-only; no `functions/**`. Agree: Critical Reviewer `bed28ac3-62ca-46ac-94b5-972d91f24207`. Local verify: `build` + `verify:dispatcher-nav` + `verify:pickup` + `verify:settings-technicians` PASS; receive D-42 PASS (script exit hang).
 - Prior: **v0.0.188** — Will-Call drawer: BO-only Order Summary, BACKORDERED badge, View PDF
-- Prior: **v0.0.187** — Drawer banner Email Vendor opens Vendor Communications modal (no mailto)
-- Prior: **v0.0.186** — Drawer attention banner: Why lists missing/partial items only
 - Prior: **harness** — Grok → `cursor-grok-4.5-high-fast`; D-38 medium-thinking first
-- Prior: **v0.0.185** — CREDIT/return parse fix; **CF deployed** 2026-08-01
-- Prior: **v0.0.181–184** — Invoice CREDIT/return manual-reject, memo parse, auto-skip repair
-- Prior: **v0.0.176–179** — Invoice AI shadow, training notes, Complete filter badge
-- Prior: **v0.0.170–175** — Staging map/labels, Johnstone PDF split, Complete filter
-- Prior: **v0.0.161–169** — List/drawer blocking-only issues, Awaiting Delivery, vendor-comms hidden
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
-- **Verify:** `verify:settings-office-receivers` / `:prod`; `verify:management-catch-all` / `:prod`; `verify:settings-management-pins`; `verify:pickup` / `:prod`.
+- **Verify:** `verify:dispatcher-nav` / `:prod`; `verify:pickup` / `:prod`; `verify:settings-technicians` / `:prod`; `verify:receive`.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
 
 ## Active Blockers
@@ -26,7 +20,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Post-queue:** see `docs/project_state.md` immediate next steps.
+- **Close theme ship on `theme/dual-mode-modernize`:** delete `scripts/_tmp-*`; Grok UI Playwright + Build Checker; merge `main`; `npm run deploy`; prod verifies; Ship Verifier. `ui-before-after:` in-session compare (dispatcher, settings, pickup, receive, login × dark/light) — do not re-fake befores. Then see `docs/project_state.md`.
 
 ## Queued product (deferred)
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
