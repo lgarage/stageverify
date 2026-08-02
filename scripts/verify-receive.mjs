@@ -144,7 +144,7 @@ loadEnvLocal();
       "SKIP legacy adjust flow: app settings use exception_only vendor mode.",
     );
     await browser.close();
-    return;
+    process.exit(0);
   }
 
   await assertReadableTextContrast(page, RECEIVE_CHECKIN_CONTRAST_SPEC);
@@ -172,6 +172,7 @@ loadEnvLocal();
 
   console.log("PASS: Receive check-in adjust + partial order UI verified.");
   await browser.close();
+  process.exit(0);
 })().catch(async (err) => {
   console.error("FAIL:", err.message ?? err);
   process.exit(1);
