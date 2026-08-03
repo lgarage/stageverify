@@ -29,8 +29,8 @@ import {
   creditReturnAdvisoryLabel,
   creditReturnSkipLabel,
 } from "./creditReturnSkip";
-import { NAVY } from "../../theme/brandColors";
 
+const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function reviewStatusLabel(status: VendorInvoiceImportReview["reviewStatus"]): string {

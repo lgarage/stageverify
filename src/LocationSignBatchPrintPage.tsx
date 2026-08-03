@@ -22,11 +22,11 @@ import {
   normalizeLocationSignCode,
   useLocationSignPrintDocumentTitle,
 } from "./LocationSignPrintSheet";
-import { NAVY } from "./theme/brandColors";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+const NAVY = "#0a3161";
 const SIZE_TOGGLE_ACTIVE = "#facc15";
 const SIZE_TOGGLE_ACTIVE_TEXT = "#111827";
 

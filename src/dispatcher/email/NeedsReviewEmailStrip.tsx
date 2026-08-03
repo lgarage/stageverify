@@ -16,10 +16,10 @@ import {
 import type { VendorEmailEvent } from "../models";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
 import { HandleArrivalModal } from "./HandleArrivalModal";
-import { NAVY, RED } from "../../theme/brandColors";
 
+const NAVY = "#0a3161";
+const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-
 function liveEventToProposal(event: VendorEmailEvent): ProposedEmailUpdate {
   const originalBody = event.bodyText ?? event.bodyExcerpt ?? "";
   return {

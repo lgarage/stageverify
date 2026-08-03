@@ -3,8 +3,8 @@ import {
   resolveAutoImportEligibility,
   type ImportDecisionMode,
 } from "./computeAutoImportEligibility";
-import { NAVY } from "../../theme/brandColors";
 
+const NAVY = "#0a3161";
 
 const MODE_STYLES: Record<
   ImportDecisionMode,

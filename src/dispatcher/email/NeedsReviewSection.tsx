@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import type { VendorInvoiceImportReview } from "../models";
 import { InvoiceReviewPanel } from "../invoice/InvoiceReviewPanel";
 import { NeedsReviewEmailStrip } from "./NeedsReviewEmailStrip";
-import { NAVY } from "../../theme/brandColors";
 
+const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**

@@ -7,8 +7,9 @@ import {
   PORTAL_SETTINGS_ITEM,
   isPortalNavItemActive,
 } from "./dispatcherPortalNav";
-import { NAVY, RED } from "./theme/brandColors";
 
+const NAVY = "#0a3161";
+const RED = "#bf0a30";
 
 function navLinkStyle(active: boolean): CSSProperties {
   return active

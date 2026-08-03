@@ -11,8 +11,8 @@ import { DeliverToSitePanel } from "./DeliverToSitePanel";
 
 const VIEW_PDF_BTN = {
   backgroundColor: "#fff",
-  color: "var(--color-brand-navy)",
-  border: "1px solid var(--color-brand-navy)",
+  color: "#0a3161",
+  border: "1px solid #0a3161",
   borderRadius: 6,
   padding: "6px 12px",
   fontWeight: 600,

@@ -73,8 +73,9 @@ import type { MapZoneSavePayload, ShopFloorMapHandle } from "./ShopFloorMap";
 import { ShopFloorMap } from "./ShopFloorMap";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 import { CatchAllStatusDrawer } from "./dispatcher/drawer/CatchAllStatusDrawer";
-import { NAVY, RED } from "./theme/brandColors";
 
+const NAVY = "#0a3161";
+const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const ZONE_TYPES = ["ground", "shelf", "bin", "other"] as const;
 type ZoneType = (typeof ZONE_TYPES)[number];

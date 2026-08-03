@@ -1,8 +1,8 @@
 import type { InvoiceMatchResult, VendorInvoiceImportReview } from "../models";
 import { formatInvoiceMatchReasons } from "./invoiceMatchReasonLabels";
 import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
-import { NAVY } from "../../theme/brandColors";
 
+const NAVY = "#0a3161";
 
 /** Informational only — Approve always creates a new shell; linking was removed. */
 export function InvoiceDeliveryMatchSection({

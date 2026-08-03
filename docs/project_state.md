@@ -209,7 +209,7 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
-**Dual dark/light theme (2026-08-02, v0.0.191, PR #29)** — Dark default + StageVerify-branded light mode; `data-theme` on `document.documentElement`; CSS `--color-*` tokens; ThemeProvider + `localStorage` key `stageverify-theme`; FOUC inline script in `index.html`; BR ThemeToggle on dispatcher top bar + mobile surfaces. UI-only; no CF/rules. Verify: `verify:dispatcher-nav`, `verify:pickup`, `verify:settings-technicians`, `verify:receive` (+ `:prod` nav/pickup/settings).
+**Theme revert (2026-08-03, v0.0.194)** — Reverted dual dark/light theme modernize (PR #29 / merge `1e16628`): removed ThemeProvider, ThemeToggle, FOUC `data-theme` script, and `brandColors` CSS-var wrappers. Pre-theme UI chrome restored; later product (Handle arrival, vendor comms issue draft) kept. Verify: `verify:dispatcher-nav`, `verify:settings-technicians`, `verify:pickup`.
 
 **Batch print labels size + print-only (2026-07-25, v0.0.162, shipped)** — `#/zones/print-labels`: Full page vs 2×4 label toggle, summary copy, no on-screen preview (print-stage off-screen); new `LocationSignLabel2x4Sheet` (8-up letter). Verify: `verify:location-scan` / `:prod`.
 

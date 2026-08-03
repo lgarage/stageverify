@@ -14,8 +14,8 @@ import { ISSUE_RESOLUTION_TYPE_LABEL, type IssueResolutionType } from "../models
 import type { DeliveryDetails, DeliveryStatus, StagingLocation } from "../index";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
 import { DetailContent } from "./DeliveryDetailContent";
-import { NAVY } from "../../theme/brandColors";
 
+const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 type Props = {

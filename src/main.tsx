@@ -8,8 +8,6 @@ import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
 import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
-import { ThemeProvider } from "./theme/ThemeProvider";
-import { ThemeToggle } from "./theme/ThemeToggle";
 
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
 const CheckinToReceiveRedirect = lazy(() =>
@@ -86,43 +84,40 @@ const root = createRoot(document.getElementById("root")!);
 const renderApp = () => {
   root.render(
     <StrictMode>
-      <ThemeProvider>
-        <AuthProvider>
-          <HashRouter>
-            <Suspense fallback={<div style={{ color: "var(--color-text-secondary)", padding: "2rem", textAlign: "center" }}>Loading…</div>}>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/pickup" element={<PickupPortalPage />} />
-                <Route path="/p" element={<CompactPickupRedirect />} />
-                <Route path="/checkin/:orderId" element={<CheckinToReceiveRedirect />} />
-                <Route path="/receive" element={<ReceivingPage />} />
-                <Route path="/s" element={<LocationScanPage />} />
-                <Route path="/r" element={<CompactReceiveRedirect />} />
-                <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
-                <Route path="/demo/pickup-scan" element={<PickupDemoScanPage />} />
-                <Route path="/display" element={<EntryDisplayPage />} />
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<DispatcherPortalRouteLayout />}>
-                    <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/vendors" element={<VendorsPage />} />
-                    <Route path="/invoice-review" element={<InvoiceReviewPage />} />
-                    <Route path="/zones" element={<ZoneManagementPage />} />
-                    <Route path="/zones/print-label" element={<LocationSignPrintPage />} />
-                    <Route
-                      path="/zones/print-labels"
-                      element={<LocationSignBatchPrintPage />}
-                    />
-                  </Route>
-                  <Route path="/hub" element={<MobileHubPage />} />
+      <AuthProvider>
+        <HashRouter>
+          <Suspense fallback={<div style={{ color: "#888", padding: "2rem", textAlign: "center" }}>Loading…</div>}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/pickup" element={<PickupPortalPage />} />
+              <Route path="/p" element={<CompactPickupRedirect />} />
+              <Route path="/checkin/:orderId" element={<CheckinToReceiveRedirect />} />
+              <Route path="/receive" element={<ReceivingPage />} />
+              <Route path="/s" element={<LocationScanPage />} />
+              <Route path="/r" element={<CompactReceiveRedirect />} />
+              <Route path="/demo/vendor-scan" element={<VendorDemoScanPage />} />
+              <Route path="/demo/pickup-scan" element={<PickupDemoScanPage />} />
+              <Route path="/display" element={<EntryDisplayPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<DispatcherPortalRouteLayout />}>
+                  <Route path="/dispatcher" element={<DispatcherDashboardPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/vendors" element={<VendorsPage />} />
+                  <Route path="/invoice-review" element={<InvoiceReviewPage />} />
+                  <Route path="/zones" element={<ZoneManagementPage />} />
+                  <Route path="/zones/print-label" element={<LocationSignPrintPage />} />
+                  <Route
+                    path="/zones/print-labels"
+                    element={<LocationSignBatchPrintPage />}
+                  />
                 </Route>
-                <Route path="/" element={<RootRedirect />} />
-              </Routes>
-            </Suspense>
-            <ThemeToggle />
-          </HashRouter>
-        </AuthProvider>
-      </ThemeProvider>
+                <Route path="/hub" element={<MobileHubPage />} />
+              </Route>
+              <Route path="/" element={<RootRedirect />} />
+            </Routes>
+          </Suspense>
+        </HashRouter>
+      </AuthProvider>
     </StrictMode>,
   );
 };
