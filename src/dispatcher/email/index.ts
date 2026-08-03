@@ -8,3 +8,4 @@ export * from "./getProposedEmailUpdates";
 export * from "./emailReviewHelpers";
 export * from "./NeedsReviewEmailStrip";
 export * from "./NeedsReviewSection";
+export * from "./HandleArrivalModal";

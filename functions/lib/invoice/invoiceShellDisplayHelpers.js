@@ -1,9 +1,42 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isInvoiceShellNoShopStaging = isInvoiceShellNoShopStaging;
+exports.skipsShopStaging = skipsShopStaging;
 exports.extractDeliverToSiteLabel = extractDeliverToSiteLabel;
 exports.jobNameFromInvoicePo = jobNameFromInvoicePo;
 exports.jobNameFromInvoiceContext = jobNameFromInvoiceContext;
 exports.resolveShellDeliveryStatus = resolveShellDeliveryStatus;
+const SHELL_DELIVERY_ID_PREFIX = "delivery-vii-";
+function isVerifiedInvoiceShell(delivery) {
+    if (delivery.createdFromInvoiceImport === true)
+        return true;
+    const id = delivery.id?.trim();
+    if (id?.startsWith(SHELL_DELIVERY_ID_PREFIX))
+        return true;
+    const importId = delivery.vendorInvoiceImportId?.trim();
+    if (importId && id === `${SHELL_DELIVERY_ID_PREFIX}${importId}`)
+        return true;
+    return false;
+}
+function isInvoiceShellNoShopStaging(delivery) {
+    if (!isVerifiedInvoiceShell(delivery))
+        return false;
+    if (delivery.invoiceImportStatus === "pickup_at_vendor")
+        return true;
+    if (delivery.invoiceImportStatus === "closed_picked_up")
+        return true;
+    if (delivery.invoiceFulfillmentMethod === "will_call_pickup")
+        return true;
+    if (delivery.invoiceDeliverToSite === true)
+        return true;
+    return false;
+}
+function skipsShopStaging(delivery) {
+    if (isInvoiceShellNoShopStaging(delivery))
+        return true;
+    return (delivery.invoiceImportStatus === "pickup_at_vendor" ||
+        delivery.invoiceFulfillmentMethod === "will_call_pickup");
+}
 /** Extract job-site destination from parsed order notes (e.g. DELIVER TO: Planet Fitness Hartford). */
 function extractDeliverToSiteLabel(orderNotes) {
     for (let index = 0; index < orderNotes.length; index += 1) {

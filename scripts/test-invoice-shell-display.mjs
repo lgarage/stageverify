@@ -10,6 +10,7 @@ import {
   jobNameFromInvoiceContext,
   resolveDeliveryPoNumber,
   resolveShellDeliveryStatus,
+  skipsShopStaging,
 } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
 import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
@@ -22,6 +23,7 @@ import {
   rowMatchesOverviewStatusFilter,
   DELIVERY_OVERVIEW_STATUS_ORDER,
   isWillCallPickupStagingListNa,
+  isDispatcherTableStagingActionRequired,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
 let passed = 0;
@@ -199,6 +201,32 @@ assert(
   "pickup_at_vendor alone does not skip staging without invoice shell marker",
   !isInvoiceShellNoShopStaging({
     invoiceImportStatus: "pickup_at_vendor",
+    createdFromInvoiceImport: false,
+  }),
+);
+
+assert(
+  "Branch-B will-call skips shop staging via skipsShopStaging (non-shell)",
+  skipsShopStaging({
+    invoiceImportStatus: "pickup_at_vendor",
+    createdFromInvoiceImport: false,
+  }),
+);
+
+assert(
+  "Branch-B will_call_pickup skips dispatcher table staging action",
+  !isDispatcherTableStagingActionRequired({
+    status: "partial",
+    invoiceFulfillmentMethod: "will_call_pickup",
+    createdFromInvoiceImport: false,
+  }),
+);
+
+assert(
+  "normal shop delivery still flags missing staging in table",
+  isDispatcherTableStagingActionRequired({
+    invoiceImportStatus: "pending",
+    status: "partial",
     createdFromInvoiceImport: false,
   }),
 );

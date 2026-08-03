@@ -1140,6 +1140,10 @@ export interface VendorEmailEvent {
   rawPayloadRef?: string;
   duplicateOfEventId?: string;
   appliedAt?: string;
+  appliedBy?: string;
+  applyAction?: "shop_location" | "pickup_at_vendor";
+  stagingCode?: string;
+  dispatcherApplyNote?: string;
   /** Outbound audit fields — populated when direction is outbound (Phase 6+). */
   sentBy?: string;
   sentAt?: string;

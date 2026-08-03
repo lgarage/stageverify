@@ -10,9 +10,12 @@ import {
   listDismissedInboundVendorEmailEvents,
   dismissVendorEmailEvent,
   reopenVendorEmailEvent,
+  fetchDeliveryBackorderSummariesByIds,
+  type DeliveryBackorderSummary,
 } from "../firestoreService";
 import type { VendorEmailEvent } from "../models";
 import type { ProposedEmailUpdate } from "./getProposedEmailUpdates";
+import { HandleArrivalModal } from "./HandleArrivalModal";
 import { NAVY, RED } from "../../theme/brandColors";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -99,6 +102,31 @@ export function NeedsReviewEmailStrip() {
     return filterNeedsReviewEmails(all);
   }, [liveEvents, liveLoaded]);
 
+  const linkedDeliveryIds = useMemo(() => {
+    const ids = needsReview
+      .map((row) => row.matchedDeliveryOrderId?.trim())
+      .filter((id): id is string => Boolean(id));
+    return [...new Set(ids)];
+  }, [needsReview]);
+
+  useEffect(() => {
+    if (linkedDeliveryIds.length === 0) {
+      setBackorderByDeliveryId(new Map());
+      return;
+    }
+    let cancelled = false;
+    void fetchDeliveryBackorderSummariesByIds(linkedDeliveryIds)
+      .then((map) => {
+        if (!cancelled) setBackorderByDeliveryId(map);
+      })
+      .catch(() => {
+        if (!cancelled) setBackorderByDeliveryId(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedDeliveryIds.join("|")]);
+
   const [expanded, setExpanded] = useState(false);
   const [dismissedExpanded, setDismissedExpanded] = useState(false);
   const [openOriginalId, setOpenOriginalId] = useState<string | null>(null);
@@ -106,6 +134,15 @@ export function NeedsReviewEmailStrip() {
   const [dismissError, setDismissError] = useState<string | null>(null);
   const [undoLoadingId, setUndoLoadingId] = useState<string | null>(null);
   const [undoError, setUndoError] = useState<string | null>(null);
+  const [backorderByDeliveryId, setBackorderByDeliveryId] = useState<
+    Map<string, DeliveryBackorderSummary>
+  >(new Map());
+  const [handleArrivalTarget, setHandleArrivalTarget] = useState<{
+    eventId: string;
+    messageId: string;
+    deliveryOrderId: string;
+    excerpt: string;
+  } | null>(null);
   const stripRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -256,18 +293,38 @@ export function NeedsReviewEmailStrip() {
                   {dismissError}
                 </p>
               )}
-              {needsReview.map((row) => (
-                <NeedsReviewEmailCard
-                  key={row.messageId}
-                  row={row}
-                  openOriginalId={openOriginalId}
-                  dismissingId={dismissingId}
-                  onToggleOriginal={(messageId) =>
-                    setOpenOriginalId((prev) => (prev === messageId ? null : messageId))
-                  }
-                  onDismiss={handleDismiss}
-                />
-              ))}
+              {needsReview.map((row) => {
+                const deliveryId = row.matchedDeliveryOrderId?.trim() ?? "";
+                const backorderSummary = deliveryId
+                  ? backorderByDeliveryId.get(deliveryId)
+                  : undefined;
+                const showHandleArrival =
+                  Boolean(row.eventId) &&
+                  Boolean(deliveryId) &&
+                  (backorderSummary?.lines.length ?? 0) > 0;
+                return (
+                  <NeedsReviewEmailCard
+                    key={row.messageId}
+                    row={row}
+                    openOriginalId={openOriginalId}
+                    dismissingId={dismissingId}
+                    showHandleArrival={showHandleArrival}
+                    onHandleArrival={() => {
+                      if (!row.eventId || !deliveryId || !backorderSummary) return;
+                      setHandleArrivalTarget({
+                        eventId: row.eventId,
+                        messageId: row.messageId,
+                        deliveryOrderId: deliveryId,
+                        excerpt: row.bodyExcerpt || formatEmailReviewPreview(row).replyPreview,
+                      });
+                    }}
+                    onToggleOriginal={(messageId) =>
+                      setOpenOriginalId((prev) => (prev === messageId ? null : messageId))
+                    }
+                    onDismiss={handleDismiss}
+                  />
+                );
+              })}
             </div>
           )}
         </>
@@ -292,6 +349,26 @@ export function NeedsReviewEmailStrip() {
         onToggle={() => setDismissedExpanded((v) => !v)}
         onUndo={(event) => void handleUndoDismiss(event)}
       />
+
+      {handleArrivalTarget && (
+        <HandleArrivalModal
+          open
+          eventId={handleArrivalTarget.eventId}
+          messageId={handleArrivalTarget.messageId}
+          deliveryOrderId={handleArrivalTarget.deliveryOrderId}
+          excerpt={handleArrivalTarget.excerpt}
+          backorderLines={
+            backorderByDeliveryId.get(handleArrivalTarget.deliveryOrderId)?.lines ??
+            []
+          }
+          onClose={() => setHandleArrivalTarget(null)}
+          onApplied={() => {
+            const handledId = handleArrivalTarget.eventId;
+            setLiveEvents((prev) => prev.filter((e) => e.id !== handledId));
+            setHandleArrivalTarget(null);
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -300,12 +377,16 @@ function NeedsReviewEmailCard({
   row,
   openOriginalId,
   dismissingId,
+  showHandleArrival,
+  onHandleArrival,
   onToggleOriginal,
   onDismiss,
 }: {
   row: ProposedEmailUpdate;
   openOriginalId: string | null;
   dismissingId: string | null;
+  showHandleArrival: boolean;
+  onHandleArrival: () => void;
   onToggleOriginal: (messageId: string) => void;
   onDismiss: (eventId: string, sourceMessageId: string) => void;
 }) {
@@ -404,6 +485,25 @@ function NeedsReviewEmailCard({
         >
           {showOriginal ? "Hide Original Email" : "Show Original Email"}
         </button>
+        {row.eventId && showHandleArrival && (
+          <button
+            type="button"
+            data-testid={`needs-review-handle-arrival-${row.messageId}`}
+            onClick={onHandleArrival}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 4,
+              border: `1px solid ${NAVY}`,
+              backgroundColor: NAVY,
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Handle arrival
+          </button>
+        )}
         {row.eventId && (
           <button
             type="button"

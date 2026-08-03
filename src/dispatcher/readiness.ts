@@ -7,7 +7,7 @@ import type {
   VendorDeliveryMode,
 } from "./models";
 import { getAllStagingLocationIds } from "./models";
-import { isInvoiceShellNoShopStaging } from "./invoice/invoiceShellDisplayHelpers";
+import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 
 /** Evidence sources distinguishable in audit history. */
 export type ReadinessEvidenceSource =
@@ -122,7 +122,7 @@ export function buildDeliveryReadinessEvidence(
   options?: ReadinessComputeOptions,
 ): DeliveryReadinessEvidence {
   const blockReasons: string[] = [];
-  const skipShopReceipt = isInvoiceShellNoShopStaging(delivery);
+  const skipShopReceipt = skipsShopStaging(delivery);
   const vendorOrderComplete = delivery.vendorOrderComplete === true;
   const physicalDropoffComplete = computePhysicalDropoffComplete(
     delivery,

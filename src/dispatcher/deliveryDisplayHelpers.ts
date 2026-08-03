@@ -17,8 +17,9 @@ import {
 import {
   buildDeliverToSiteIssueSummary,
   isDeliverToSiteConfirmed,
-  isInvoiceShellNoShopStaging,
+  isWillCallPickupStagingListNa,
   resolveDeliveryPoNumber,
+  skipsShopStaging,
 } from "./invoice/invoiceShellDisplayHelpers";
 import {
   AWAITING_DELIVERY_STATUS_LABEL,
@@ -189,17 +190,7 @@ export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
   "Staging spot needs to be assigned";
 
 /** Deliveries list Staging Loc. column — vendor will-call (no shop staging). */
-export function isWillCallPickupStagingListNa(
-  delivery: Pick<
-    DeliveryOrder,
-    "invoiceImportStatus" | "invoiceFulfillmentMethod"
-  >,
-): boolean {
-  return (
-    delivery.invoiceImportStatus === "pickup_at_vendor" ||
-    delivery.invoiceFulfillmentMethod === "will_call_pickup"
-  );
-}
+export { isWillCallPickupStagingListNa } from "./invoice/invoiceShellDisplayHelpers";
 
 /**
  * Dispatcher deliveries table: unassigned staging flag for Issue Summary pill.
@@ -218,7 +209,7 @@ export function isDispatcherTableStagingActionRequired(
   >,
 ): boolean {
   if (delivery.status === "installed") return false;
-  if (isInvoiceShellNoShopStaging(delivery)) return false;
+  if (skipsShopStaging(delivery)) return false;
   return !delivery.stagingLocationId?.trim();
 }
 
@@ -302,7 +293,7 @@ function buildBlockerLabels(
   if (
     !delivery.stagingLocationId?.trim() &&
     items.some((item) => item.qtyReceived > 0) &&
-    !isInvoiceShellNoShopStaging(delivery) &&
+    !skipsShopStaging(delivery) &&
     !labels.includes("Staging location not assigned")
   ) {
     labels.push("Staging location not assigned");
@@ -535,7 +526,7 @@ function shouldIncludeReadinessBlockReasonForBanner(
   delivery: DeliveryOrder,
 ): boolean {
   if (
-    isInvoiceShellNoShopStaging(delivery) &&
+    skipsShopStaging(delivery) &&
     (reason === "physical_dropoff_incomplete" ||
       reason === "staging_assignment_incomplete")
   ) {
@@ -806,7 +797,7 @@ export function buildDrawerActionBannerContent(
     if (
       !delivery.stagingLocationId?.trim() &&
       items.some((item) => item.qtyReceived > 0) &&
-      !isInvoiceShellNoShopStaging(delivery)
+      !skipsShopStaging(delivery)
     ) {
       pushWhy("Received items do not have a staging location assigned");
       pushNext("Assign a staging location for received items");

@@ -44,6 +44,7 @@ import {
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
 import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
+import { applyVendorReplyClearBackorder } from "./applyVendorReplyClearBackorder";
 import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
 import { releasePlannedStagingLocation } from "./releasePlannedStagingLocation";
 import { getVendorReceiveDetails } from "./getVendorReceiveDetails";
@@ -249,4 +250,5 @@ export {
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,
+  applyVendorReplyClearBackorder,
 };

@@ -7,8 +7,8 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- Last shipped: **v0.0.192** — vendor comms issue draft (subject `${orderNumber} — ${headline}` em dash + body prefill on new thread from drawer Email Vendor).
-- Prior: **v0.0.191** — dual dark/light theme (dark default + StageVerify-branded light + BR toggle); `data-theme` SSOT; ThemeProvider + localStorage; FOUC guard in `index.html`. UI-only; no `functions/**`.
+- Last shipped: **v0.0.193** — Needs Review **Handle arrival**: clear backorder on vendor reply (shop staging or will-call); `applyVendorReplyClearBackorder` CF + shared `skipsShopStaging` readiness skip.
+- Prior: **v0.0.192** — vendor comms issue draft (subject `${orderNumber} — ${headline}` em dash + body prefill on new thread from drawer Email Vendor).
 - Prior: **v0.0.188** — Will-Call drawer: BO-only Order Summary, BACKORDERED badge, View PDF
 - Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
 - **Verify:** `verify:dispatcher-nav` / `:prod`; `verify:pickup` / `:prod`; `verify:settings-technicians` / `:prod`; `verify:receive` (exit hang fixed).

@@ -114,6 +114,32 @@ export function isInvoiceShellNoShopStaging(
   return false;
 }
 
+/** Branch-B will-call / pickup-at-vendor — list column shows N/A for staging. */
+export function isWillCallPickupStagingListNa(
+  delivery: Pick<
+    InvoiceShellStagingFields,
+    "invoiceImportStatus" | "invoiceFulfillmentMethod"
+  >,
+): boolean {
+  return (
+    delivery.invoiceImportStatus === "pickup_at_vendor" ||
+    delivery.invoiceFulfillmentMethod === "will_call_pickup"
+  );
+}
+
+/**
+ * SSOT: deliveries that skip shop physical receipt + staging readiness gates.
+ * Verified invoice shells OR explicit will-call / pickup-at-vendor fulfillment.
+ */
+export function skipsShopStaging(
+  delivery: InvoiceShellStagingFields,
+): boolean {
+  return (
+    isInvoiceShellNoShopStaging(delivery) ||
+    isWillCallPickupStagingListNa(delivery)
+  );
+}
+
 /** True when dispatcher confirmed delivery to the parsed job-site location. */
 export function isDeliverToSiteConfirmed(
   delivery: Pick<DeliveryOrder, "invoiceDeliverToSiteConfirmed">,
