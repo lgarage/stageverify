@@ -53,8 +53,8 @@ import {
   formatActivityHistoryMeta,
 } from "../deliveryDisplayHelpers";
 import {
-  isInvoiceShellNoShopStaging,
   resolveDeliveryPoNumber,
+  skipsShopStaging,
 } from "../invoice/invoiceShellDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
@@ -517,7 +517,7 @@ export function DetailContent({
     ).length,
     missingStagingAssignment: !details.stagingLocation,
   };
-  const shopStagingRequired = !isInvoiceShellNoShopStaging(delivery);
+  const shopStagingRequired = !skipsShopStaging(delivery);
 
   const handleAssignLocationNavigate = () => {
     if (onNavigateToAssignLocation) {

@@ -1,5 +1,8 @@
 /** Server-side two-source readiness (mirrors src/dispatcher/readiness.ts). */
 
+import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
+import type { InvoiceFulfillmentMethod } from "./invoice/types";
+
 export type DeliveryStatus =
   | "pending"
   | "shipped"
@@ -20,6 +23,7 @@ export type ReadinessStatus =
 export type VendorDeliveryMode = "full_checkin" | "exception_only";
 
 export interface DeliveryDoc {
+  id?: string;
   status: DeliveryStatus;
   vendorOrderComplete?: boolean;
   vendorOrderCompleteAt?: string;
@@ -35,6 +39,11 @@ export interface DeliveryDoc {
   stagingLocationId?: string;
   additionalStagingLocationIds?: string[];
   openBlockingIssueCount?: number;
+  vendorInvoiceImportId?: string;
+  invoiceImportStatus?: string;
+  invoiceFulfillmentMethod?: InvoiceFulfillmentMethod;
+  invoiceDeliverToSite?: boolean;
+  createdFromInvoiceImport?: boolean;
 }
 
 export interface ItemDoc {
@@ -146,10 +155,13 @@ export function computeDeliveryReadiness(
   const blockReasons: string[] = [];
   const vendorOrderComplete = delivery.vendorOrderComplete === true;
   const blockingIssues = (delivery.openBlockingIssueCount ?? 0) > 0;
+  const skipShopReceipt = skipsShopStaging(delivery);
 
   if (!vendorOrderComplete) blockReasons.push("vendor_order_incomplete");
-  if (!physicalDropoffComplete) blockReasons.push("physical_dropoff_incomplete");
-  if (!stagingAssignmentComplete) {
+  if (!physicalDropoffComplete && !skipShopReceipt) {
+    blockReasons.push("physical_dropoff_incomplete");
+  }
+  if (!stagingAssignmentComplete && !skipShopReceipt) {
     blockReasons.push("staging_assignment_incomplete");
   }
   if (blockingIssues) blockReasons.push("unresolved_blocking_issues");

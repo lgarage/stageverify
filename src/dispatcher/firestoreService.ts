@@ -2418,6 +2418,33 @@ const reopenVendorEmailEventCallable = httpsCallable<
   { ok: boolean; vendorEmailEventId: string; reviewStatus: "pending_review" }
 >(functions, "reopenVendorEmailEventCallable");
 
+export interface BackorderLineSummary {
+  id: string;
+  description: string;
+  qtyBackordered: number;
+}
+
+export interface DeliveryBackorderSummary {
+  lines: BackorderLineSummary[];
+}
+
+const applyVendorReplyClearBackorderCallable = httpsCallable<
+  {
+    eventId: string;
+    action: "shop_location" | "pickup_at_vendor";
+    stagingLocationId?: string;
+    dispatcherApplyNote?: string;
+  },
+  {
+    ok: boolean;
+    eventId: string;
+    deliveryOrderId: string;
+    action: string;
+    clearedBackorderLineCount: number;
+    readinessRecalculated: boolean;
+  }
+>(functions, "applyVendorReplyClearBackorder");
+
 export interface VendorInvoicePdfPayload {
   filename: string;
   mimeType: string;
@@ -2476,6 +2503,54 @@ export async function reopenVendorEmailEvent(
   vendorEmailEventId: string,
 ): Promise<{ ok: boolean; vendorEmailEventId: string; reviewStatus: "pending_review" }> {
   const response = await reopenVendorEmailEventCallable({ vendorEmailEventId });
+  return response.data;
+}
+
+/** Batch backorder line summaries for Needs Review Handle arrival (≤10 delivery ids per query). */
+export async function fetchDeliveryBackorderSummariesByIds(
+  deliveryOrderIds: string[],
+): Promise<Map<string, DeliveryBackorderSummary>> {
+  const unique = [...new Set(deliveryOrderIds.map((id) => id.trim()).filter(Boolean))];
+  const result = new Map<string, DeliveryBackorderSummary>();
+  if (unique.length === 0) return result;
+
+  for (let i = 0; i < unique.length; i += 10) {
+    const chunk = unique.slice(i, i + 10);
+    const snap = await getDocs(
+      query(collection(db, "items"), where("deliveryOrderId", "in", chunk)),
+    );
+    for (const itemDoc of snap.docs) {
+      const row = itemDoc.data();
+      const deliveryId = String(row.deliveryOrderId ?? "").trim();
+      const qtyBackordered = Number(row.qtyBackordered ?? 0);
+      if (!deliveryId || qtyBackordered <= 0) continue;
+      const existing = result.get(deliveryId) ?? { lines: [] };
+      existing.lines.push({
+        id: itemDoc.id,
+        description: String(row.description ?? "Item").trim() || "Item",
+        qtyBackordered,
+      });
+      result.set(deliveryId, existing);
+    }
+  }
+  return result;
+}
+
+/** Needs Review → Handle arrival: clear backorder + assign staging or will-call. */
+export async function applyVendorReplyClearBackorder(input: {
+  eventId: string;
+  action: "shop_location" | "pickup_at_vendor";
+  stagingLocationId?: string;
+  dispatcherApplyNote?: string;
+}): Promise<{
+  ok: boolean;
+  eventId: string;
+  deliveryOrderId: string;
+  action: string;
+  clearedBackorderLineCount: number;
+  readinessRecalculated: boolean;
+}> {
+  const response = await applyVendorReplyClearBackorderCallable(input);
   return response.data;
 }
 

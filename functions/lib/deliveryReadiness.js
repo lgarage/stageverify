@@ -5,6 +5,7 @@ exports.computePhysicalDropoffComplete = computePhysicalDropoffComplete;
 exports.computeStagingAssignmentComplete = computeStagingAssignmentComplete;
 exports.computeDeliveryReadiness = computeDeliveryReadiness;
 exports.isPickupEligible = isPickupEligible;
+const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 function hasOutstandingQuantities(items) {
     return items.some((item) => item.qtyReceived < item.qtyOrdered ||
         item.qtyMissing > 0 ||
@@ -55,11 +56,13 @@ function computeDeliveryReadiness(delivery, items, now, vendorDeliveryMode) {
     const blockReasons = [];
     const vendorOrderComplete = delivery.vendorOrderComplete === true;
     const blockingIssues = (delivery.openBlockingIssueCount ?? 0) > 0;
+    const skipShopReceipt = (0, invoiceShellDisplayHelpers_1.skipsShopStaging)(delivery);
     if (!vendorOrderComplete)
         blockReasons.push("vendor_order_incomplete");
-    if (!physicalDropoffComplete)
+    if (!physicalDropoffComplete && !skipShopReceipt) {
         blockReasons.push("physical_dropoff_incomplete");
-    if (!stagingAssignmentComplete) {
+    }
+    if (!stagingAssignmentComplete && !skipShopReceipt) {
         blockReasons.push("staging_assignment_incomplete");
     }
     if (blockingIssues)
