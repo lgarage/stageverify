@@ -176,7 +176,10 @@ export function buildExpectedJohnstoneFieldChecklist(
   const approveBlocked = importRow.importStatus === "issue";
   const siteConfirmed = context?.deliverToSiteConfirmed === true;
   const lineCount = importRow.parsedLineCount ?? importRow.parsedLines?.length ?? 0;
-  const skipReasonLabel = creditReturnSkipLabel(importRow.skipReason);
+  const skipReasonLabel = creditReturnSkipLabel(
+    importRow.skipReason,
+    importRow.rejectedBy,
+  );
   const advisoryLabel = creditReturnAdvisoryLabel(importRow);
   const rawParseGap =
     importRow.error?.trim() ||

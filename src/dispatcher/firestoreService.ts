@@ -75,6 +75,8 @@ import type {
   ApproveVendorInvoiceImportResult,
   InvoiceTrainingAdminStatus,
   SaveInvoiceTrainingLessonResult,
+  ConfirmVendorIgnoreRuleResult,
+  VendorIgnoreRule,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -2393,6 +2395,26 @@ const saveVendorTrainingPlaybookCallable = httpsCallable<
   { vendorKey: string; wrote: boolean }
 >(functions, "saveVendorTrainingPlaybook");
 
+const confirmVendorIgnoreRuleCallable = httpsCallable<
+  { vendorInvoiceImportId: string; confirm: boolean },
+  ConfirmVendorIgnoreRuleResult
+>(functions, "confirmVendorIgnoreRule");
+
+const listVendorIgnoreRulesCallable = httpsCallable<
+  { password: string },
+  { rules: VendorIgnoreRule[] }
+>(functions, "listVendorIgnoreRulesCallable");
+
+const updateVendorIgnoreRuleCallable = httpsCallable<
+  { password: string; vendorKey: string; ignoreCreditReturns: boolean },
+  { rule: VendorIgnoreRule }
+>(functions, "updateVendorIgnoreRuleCallable");
+
+const deleteVendorIgnoreRuleCallable = httpsCallable<
+  { password: string; vendorKey: string },
+  { vendorKey: string; deleted: boolean }
+>(functions, "deleteVendorIgnoreRuleCallable");
+
 const getVendorInvoiceImportCallable = httpsCallable<
   { id: string },
   VendorInvoiceImportReview
@@ -2618,9 +2640,45 @@ export async function saveVendorTrainingPlaybook(input: {
   return response.data;
 }
 
+export async function confirmVendorIgnoreRule(input: {
+  vendorInvoiceImportId: string;
+  confirm: boolean;
+}): Promise<ConfirmVendorIgnoreRuleResult> {
+  const response = await confirmVendorIgnoreRuleCallable(input);
+  return response.data;
+}
+
+export async function listVendorIgnoreRules(input: {
+  password: string;
+}): Promise<VendorIgnoreRule[]> {
+  const response = await listVendorIgnoreRulesCallable(input);
+  return response.data.rules ?? [];
+}
+
+export async function updateVendorIgnoreRule(input: {
+  password: string;
+  vendorKey: string;
+  ignoreCreditReturns: boolean;
+}): Promise<VendorIgnoreRule> {
+  const response = await updateVendorIgnoreRuleCallable(input);
+  return response.data.rule;
+}
+
+export async function deleteVendorIgnoreRule(input: {
+  password: string;
+  vendorKey: string;
+}): Promise<{ vendorKey: string; deleted: boolean }> {
+  const response = await deleteVendorIgnoreRuleCallable(input);
+  return response.data;
+}
+
 /** Toast copy when a training lesson or Admin MD save succeeds. */
 export const INVOICE_TRAINING_LESSON_TOAST =
   "Got it — new rule added to internal notes for the next similar invoice.";
+
+/** Toast when teach-chat yes arms a Firestore ignore rule. */
+export const VENDOR_IGNORE_RULE_TOAST =
+  "Got it — future CREDIT/return memos for this vendor will be skipped. Manage in Settings → Invoice training Admin.";
 
 function invoiceShellBackfillCandidate(
   row: VendorInvoiceImportReview,

@@ -38,4 +38,14 @@ const stored = hashPinForStorage(password);
 assert.equal(pinMatches({ pinHash: stored }, password), true);
 assert.equal(pinMatches({ pinHash: stored }, "wrong-password"), false);
 
+const {
+  isArmableVendorKey,
+} = require(path.join(
+  root,
+  "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
+));
+assert.equal(isArmableVendorKey("johnstone"), true);
+assert.equal(isArmableVendorKey("unknown-vendor"), false);
+assert.equal(isArmableVendorKey(""), false);
+
 console.log("test-invoice-training-admin: PASS");

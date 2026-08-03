@@ -20,7 +20,16 @@ import {
 import { preferredPreParseFormat } from "../invoice/invoiceDocumentSplit";
 import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
 import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
-import { isCreditReturnInvoice, CREDIT_RETURN_SKIP_REASON } from "../invoice/creditReturnSkip";
+import {
+  isCreditReturnInvoice,
+  CREDIT_RETURN_SKIP_REASON,
+  creditReturnSkipFields,
+} from "../invoice/creditReturnSkip";
+import {
+  isArmableVendorKey,
+  vendorIgnoresCreditReturns,
+} from "../invoice/aiShadow/vendorIgnoreRules";
+import { vendorKeyFromImportDoc } from "../invoice/aiShadow/adminConfig";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import {
   isInvoiceAiShadowEnabled,
@@ -312,7 +321,22 @@ async function writeReviewRecords(
     const creditReturnSkip =
       isCreditReturnInvoice(proc.parsed, proc.page.extractedText) && !proc.duplicate;
     const reviewError = issueReviewError(proc, row.error, creditReturnSkip);
-    const inboundReviewStatus = "pending_review";
+    const isNewImport = !existingSnap.exists;
+    const vendorKeyRaw = vendorKeyFromImportDoc({
+      detectedVendorName: proc.detectedVendorName,
+      parserFormatId: proc.parserFormatId,
+    });
+    const ignoreRuleArmed =
+      isArmableVendorKey(vendorKeyRaw) &&
+      (await vendorIgnoresCreditReturns(db, vendorKeyRaw));
+    // New credit/return + taught ignore rule → auto-skip. Re-opened imports stay pending.
+    const autoSkipCredit =
+      isNewImport && creditReturnSkip && ignoreRuleArmed;
+    // Preserve existing system credit skips on reprocess when rule still armed.
+    const preserveSystemCreditSkip =
+      existingCreditSkip &&
+      existingData?.rejectedBy === "system:credit_return_skip" &&
+      ignoreRuleArmed;
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,
       confidenceScore: proc.confidenceScore,
@@ -329,6 +353,10 @@ async function writeReviewRecords(
       existingSnap.exists && (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         ? (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         : now;
+    const skipFields =
+      autoSkipCredit || preserveSystemCreditSkip
+        ? creditReturnSkipFields(now)
+        : null;
     const reviewDoc: VendorInvoiceImportDoc = {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
@@ -336,18 +364,20 @@ async function writeReviewRecords(
       importBatchId: batchResult.importBatchId,
       pageId: row.pageId,
       pageIndexInBatch: row.pageIndexInBatch,
-      reviewStatus: inboundReviewStatus,
+      reviewStatus: skipFields ? skipFields.reviewStatus : "pending_review",
       importStatus: proc.importStatus,
       confidenceTier: proc.confidenceTier,
       confidenceScore: proc.confidenceScore,
-      humanReviewRequired: true,
+      humanReviewRequired: skipFields
+        ? skipFields.humanReviewRequired
+        : true,
       duplicate: proc.duplicate,
       parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
       parsedLines,
       parsedLineCount: parsedLines.length,
       parseWarnings: proc.parsed.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
-      outcome: "needs_review",
+      outcome: skipFields ? "skipped" : "needs_review",
       autoImportEligible: eligibility.autoImportEligible,
       autoImportConfidence: eligibility.autoImportConfidence,
       autoImportReasons: eligibility.autoImportReasons,
@@ -361,6 +391,13 @@ async function writeReviewRecords(
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
       ...(reviewError ? { error: reviewError } : {}),
+      ...(skipFields
+        ? {
+            skipReason: skipFields.skipReason,
+            rejectedAt: skipFields.rejectedAt,
+            rejectedBy: skipFields.rejectedBy,
+          }
+        : {}),
     };
 
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
@@ -376,6 +413,25 @@ async function writeReviewRecords(
         return;
       }
       if (freshStatus === "rejected" && !freshCreditSkip) {
+        return;
+      }
+      // User re-opened a credit skip (pending, no skipReason) — do not re-auto-skip.
+      if (
+        freshSnap.exists &&
+        freshStatus === "pending_review" &&
+        !freshCreditSkip &&
+        !isNewImport
+      ) {
+        const reopenSafeDoc = {
+          ...reviewDoc,
+          reviewStatus: "pending_review" as const,
+          humanReviewRequired: true,
+          outcome: "needs_review" as const,
+        };
+        delete (reopenSafeDoc as { skipReason?: string }).skipReason;
+        delete (reopenSafeDoc as { rejectedAt?: string }).rejectedAt;
+        delete (reopenSafeDoc as { rejectedBy?: string }).rejectedBy;
+        tx.set(reviewRef, firestoreSafeValue(reopenSafeDoc));
         return;
       }
       tx.set(reviewRef, firestoreSafeValue(reviewDoc));

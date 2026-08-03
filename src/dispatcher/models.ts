@@ -1236,6 +1236,7 @@ export interface VendorInvoiceImportReview {
   linkedDeliveryOrderId?: string;
   approvedAt?: string;
   rejectedAt?: string;
+  rejectedBy?: string;
   /** Auto-skip reason when reviewStatus rejected without manual reject (e.g. credit_return). */
   skipReason?: "credit_return" | string;
   /** Stage 1 — suggested import eligibility (no automatic CF approve). */
@@ -1342,6 +1343,25 @@ export interface SaveInvoiceTrainingLessonResult {
   reason?: string;
   importDismissed?: boolean;
   reviewStatus?: string;
+}
+
+/** Firestore vendorInvoiceIgnoreRules/{vendorKey} — CF-managed. */
+export interface VendorIgnoreRule {
+  vendorKey: string;
+  ignoreCreditReturns: boolean;
+  taughtBy: string;
+  taughtAt: string;
+  updatedAt: string;
+  updatedBy: string;
+  sourceImportId?: string;
+}
+
+export interface ConfirmVendorIgnoreRuleResult {
+  vendorKey: string;
+  ignoreCreditReturns: boolean;
+  importDismissed: boolean;
+  reviewStatus: string;
+  rule: VendorIgnoreRule;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

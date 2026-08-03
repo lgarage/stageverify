@@ -6,6 +6,7 @@ import {
   type StagingLocation,
   type VendorDeliveryMode,
   type AppSettings,
+  type VendorIgnoreRule,
 } from "./dispatcher/models";
 import {
   findStagingLocationByCode,
@@ -22,7 +23,10 @@ import {
   initiateGmailOAuth,
   disconnectGmailOAuth,
   configureInvoiceTrainingAdmin,
+  deleteVendorIgnoreRule,
   getInvoiceTrainingAdminStatus,
+  listVendorIgnoreRules,
+  updateVendorIgnoreRule,
 } from "./dispatcher/firestoreService";
 import {
   stagingListRowsForShopMap,
@@ -120,6 +124,15 @@ export function SettingsPage() {
   const [savingTrainingAdmin, setSavingTrainingAdmin] = useState(false);
   const [trainingAdminSaved, setTrainingAdminSaved] = useState(false);
   const [trainingAdminError, setTrainingAdminError] = useState<string | null>(
+    null,
+  );
+  const [ignoreRulesPassword, setIgnoreRulesPassword] = useState("");
+  const [ignoreRules, setIgnoreRules] = useState<VendorIgnoreRule[] | null>(
+    null,
+  );
+  const [ignoreRulesLoading, setIgnoreRulesLoading] = useState(false);
+  const [ignoreRulesError, setIgnoreRulesError] = useState<string | null>(null);
+  const [ignoreRulesBusyKey, setIgnoreRulesBusyKey] = useState<string | null>(
     null,
   );
   const [savingRevert, setSavingRevert] = useState(false);
@@ -378,6 +391,70 @@ export function SettingsPage() {
       );
     } finally {
       setSavingTrainingAdmin(false);
+    }
+  };
+
+  const loadIgnoreRules = async () => {
+    if (!ignoreRulesPassword.trim() || ignoreRulesLoading) return;
+    setIgnoreRulesLoading(true);
+    setIgnoreRulesError(null);
+    try {
+      const rules = await listVendorIgnoreRules({
+        password: ignoreRulesPassword,
+      });
+      setIgnoreRules(rules);
+    } catch (err) {
+      setIgnoreRules(null);
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Could not load ignore rules.",
+      );
+    } finally {
+      setIgnoreRulesLoading(false);
+    }
+  };
+
+  const toggleIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
+    setIgnoreRulesBusyKey(rule.vendorKey);
+    setIgnoreRulesError(null);
+    try {
+      const updated = await updateVendorIgnoreRule({
+        password: ignoreRulesPassword,
+        vendorKey: rule.vendorKey,
+        ignoreCreditReturns: !rule.ignoreCreditReturns,
+      });
+      setIgnoreRules((prev) =>
+        (prev ?? []).map((r) =>
+          r.vendorKey === updated.vendorKey ? updated : r,
+        ),
+      );
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Could not update rule.",
+      );
+    } finally {
+      setIgnoreRulesBusyKey(null);
+    }
+  };
+
+  const removeIgnoreRule = async (vendorKey: string) => {
+    if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
+    setIgnoreRulesBusyKey(vendorKey);
+    setIgnoreRulesError(null);
+    try {
+      await deleteVendorIgnoreRule({
+        password: ignoreRulesPassword,
+        vendorKey,
+      });
+      setIgnoreRules((prev) =>
+        (prev ?? []).filter((r) => r.vendorKey !== vendorKey),
+      );
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Could not delete rule.",
+      );
+    } finally {
+      setIgnoreRulesBusyKey(null);
     }
   };
 
@@ -1099,8 +1176,9 @@ export function SettingsPage() {
                       }}
                     >
                       Alert email (safety-reject notifications) and Admin password
-                      for editing vendor training playbooks. Dispatcher only. Password
-                      is stored as a hash — never shown again.
+                      for editing vendor training playbooks and remembered ignore
+                      rules. Dispatcher only. Password is stored as a hash — never
+                      shown again.
                     </p>
                     <label
                       style={{
@@ -1247,6 +1325,245 @@ export function SettingsPage() {
                           ? "Saved"
                           : "Save Admin email & password"}
                     </button>
+                    <div
+                      data-testid="settings-invoice-ignore-rules"
+                      style={{
+                        marginTop: 18,
+                        paddingTop: 14,
+                        borderTop: "1px solid #d1d5db",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: NAVY,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Remembered ignore rules
+                      </div>
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 12,
+                          color: "#4b5563",
+                          lineHeight: 1.45,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Rules taught from Parsed import (reply yes). Only Admin can
+                        change them here — saves update Firestore immediately.
+                      </p>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#374151",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Admin password to unlock rules
+                      </label>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 8,
+                          alignItems: "center",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <input
+                          type="password"
+                          data-testid="invoice-ignore-rules-password"
+                          value={ignoreRulesPassword}
+                          onChange={(e) =>
+                            setIgnoreRulesPassword(e.target.value)
+                          }
+                          placeholder="Admin password"
+                          autoComplete="current-password"
+                          style={{
+                            flex: "1 1 180px",
+                            boxSizing: "border-box",
+                            padding: "8px 10px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: 6,
+                            fontSize: 13,
+                            color: "#111827",
+                            backgroundColor: "#fff",
+                            fontFamily: FONT,
+                          }}
+                        />
+                        <button
+                          type="button"
+                          data-testid="load-invoice-ignore-rules"
+                          onClick={() => void loadIgnoreRules()}
+                          disabled={
+                            ignoreRulesLoading ||
+                            ignoreRulesPassword.trim().length < 8
+                          }
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 4,
+                            border: "none",
+                            backgroundColor:
+                              ignoreRulesLoading ||
+                              ignoreRulesPassword.trim().length < 8
+                                ? "#f3f4f6"
+                                : NAVY,
+                            color:
+                              ignoreRulesLoading ||
+                              ignoreRulesPassword.trim().length < 8
+                                ? "#9ca3af"
+                                : "#fff",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            cursor:
+                              ignoreRulesLoading ||
+                              ignoreRulesPassword.trim().length < 8
+                                ? "not-allowed"
+                                : "pointer",
+                            fontFamily: FONT,
+                          }}
+                        >
+                          {ignoreRulesLoading ? "Loading…" : "Unlock rules"}
+                        </button>
+                      </div>
+                      {ignoreRulesError && (
+                        <p
+                          data-testid="invoice-ignore-rules-error"
+                          style={{
+                            margin: "0 0 8px",
+                            fontSize: 12,
+                            color: RED,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {ignoreRulesError}
+                        </p>
+                      )}
+                      {ignoreRules && ignoreRules.length === 0 && (
+                        <p
+                          data-testid="invoice-ignore-rules-empty"
+                          style={{
+                            margin: 0,
+                            fontSize: 12,
+                            color: "#6b7280",
+                            fontWeight: 500,
+                          }}
+                        >
+                          No ignore rules yet. Teach one from a CREDIT/return in
+                          Parsed import.
+                        </p>
+                      )}
+                      {ignoreRules && ignoreRules.length > 0 && (
+                        <ul
+                          data-testid="invoice-ignore-rules-list"
+                          style={{
+                            listStyle: "none",
+                            margin: 0,
+                            padding: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          {ignoreRules.map((rule) => (
+                            <li
+                              key={rule.vendorKey}
+                              data-testid={`invoice-ignore-rule-${rule.vendorKey}`}
+                              style={{
+                                padding: "10px 12px",
+                                backgroundColor: "#fff",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 6,
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 8,
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                              }}
+                            >
+                              <div style={{ minWidth: 0, flex: "1 1 160px" }}>
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: "#111827",
+                                  }}
+                                >
+                                  {rule.vendorKey}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color: "#6b7280",
+                                    fontWeight: 500,
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  Skip future CREDIT/returns:{" "}
+                                  {rule.ignoreCreditReturns ? "ON" : "OFF"}
+                                  {rule.updatedAt
+                                    ? ` · updated ${rule.updatedAt.slice(0, 10)}`
+                                    : ""}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button
+                                  type="button"
+                                  data-testid={`toggle-ignore-rule-${rule.vendorKey}`}
+                                  disabled={ignoreRulesBusyKey === rule.vendorKey}
+                                  onClick={() => void toggleIgnoreRule(rule)}
+                                  style={{
+                                    padding: "6px 10px",
+                                    borderRadius: 4,
+                                    border: `1px solid ${NAVY}`,
+                                    backgroundColor: "#fff",
+                                    color: NAVY,
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                    cursor:
+                                      ignoreRulesBusyKey === rule.vendorKey
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    fontFamily: FONT,
+                                  }}
+                                >
+                                  {rule.ignoreCreditReturns ? "Turn off" : "Turn on"}
+                                </button>
+                                <button
+                                  type="button"
+                                  data-testid={`delete-ignore-rule-${rule.vendorKey}`}
+                                  disabled={ignoreRulesBusyKey === rule.vendorKey}
+                                  onClick={() =>
+                                    void removeIgnoreRule(rule.vendorKey)
+                                  }
+                                  style={{
+                                    padding: "6px 10px",
+                                    borderRadius: 4,
+                                    border: `1px solid ${RED}`,
+                                    backgroundColor: "#fff",
+                                    color: RED,
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                    cursor:
+                                      ignoreRulesBusyKey === rule.vendorKey
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    fontFamily: FONT,
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                   <div
                     style={{

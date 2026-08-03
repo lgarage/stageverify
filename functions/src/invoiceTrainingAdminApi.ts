@@ -23,8 +23,15 @@ import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCor
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 import {
   CREDIT_RETURN_SKIP_REASON,
+  creditReturnSkipFields,
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
+import {
+  deleteVendorIgnoreRule,
+  isArmableVendorKey,
+  listVendorIgnoreRules,
+  upsertVendorIgnoreRule,
+} from "./invoice/aiShadow/vendorIgnoreRules";
 
 function getDb() {
   return admin.firestore();
@@ -259,5 +266,160 @@ export const saveVendorTrainingPlaybook = onCall(
       );
     }
     return { vendorKey, wrote: true };
+  },
+);
+
+/**
+ * Teach-chat consent: dispatcher confirms "yes" after echo → arm ignore rule in Firestore.
+ * Optionally dismisses the current CREDIT/return import.
+ */
+export const confirmVendorIgnoreRule = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = await requireDispatcherAuth(request);
+    const data = (request.data ?? {}) as {
+      vendorInvoiceImportId?: unknown;
+      confirm?: unknown;
+    };
+    const importId =
+      typeof data.vendorInvoiceImportId === "string"
+        ? data.vendorInvoiceImportId.trim()
+        : "";
+    if (!importId || importId.length > 200) {
+      throw new HttpsError(
+        "invalid-argument",
+        "vendorInvoiceImportId is required.",
+      );
+    }
+    if (data.confirm !== true) {
+      throw new HttpsError(
+        "invalid-argument",
+        "confirm must be true after the teach-chat echo.",
+      );
+    }
+
+    const importRef = getDb().collection("vendorInvoiceImports").doc(importId);
+    const snap = await importRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Invoice import not found.");
+    }
+    const importDoc = snap.data() as VendorInvoiceImportDoc;
+    const vendorKeyRaw = vendorKeyFromImportDoc(importDoc);
+    if (!isArmableVendorKey(vendorKeyRaw)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cannot arm an ignore rule for an unknown vendor. Link a vendor name first.",
+      );
+    }
+
+    const rule = await upsertVendorIgnoreRule(getDb(), {
+      vendorKey: vendorKeyRaw,
+      ignoreCreditReturns: true,
+      uid,
+      sourceImportId: importId,
+    });
+
+    const now = new Date().toISOString();
+    let importDismissed = false;
+    let reviewStatus = importDoc.reviewStatus ?? "pending_review";
+    if (
+      importDoc.reviewStatus === "pending_review" &&
+      shouldApplyNowDismissCreditImport(
+        "ignore credit returns from now on",
+        importDoc,
+      )
+    ) {
+      const skip = creditReturnSkipFields(now);
+      await getDb().runTransaction(async (tx) => {
+        const freshSnap = await tx.get(importRef);
+        if (!freshSnap.exists) {
+          throw new HttpsError("not-found", "Invoice import not found.");
+        }
+        const fresh = freshSnap.data() as VendorInvoiceImportDoc;
+        if (fresh.reviewStatus !== "pending_review") {
+          return;
+        }
+        tx.update(importRef, {
+          ...skip,
+          rejectedBy: skip.rejectedBy,
+        });
+        importDismissed = true;
+      });
+      if (importDismissed) {
+        reviewStatus = "rejected";
+      }
+    }
+
+    return {
+      vendorKey: rule.vendorKey,
+      ignoreCreditReturns: rule.ignoreCreditReturns,
+      importDismissed,
+      reviewStatus,
+      rule,
+    };
+  },
+);
+
+/** Admin password-gated list of Firestore ignore rules. */
+export const listVendorIgnoreRulesCallable = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    await requireDispatcherAuth(request);
+    await requirePassword(request.data);
+    const rules = await listVendorIgnoreRules(getDb());
+    return { rules };
+  },
+);
+
+/** Admin password-gated update (toggle) of a Firestore ignore rule. */
+export const updateVendorIgnoreRuleCallable = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = await requireDispatcherAuth(request);
+    await requirePassword(request.data);
+    const data = (request.data ?? {}) as {
+      vendorKey?: unknown;
+      ignoreCreditReturns?: unknown;
+    };
+    const vendorKeyRaw =
+      typeof data.vendorKey === "string" ? data.vendorKey.trim() : "";
+    if (!vendorKeyRaw || !isArmableVendorKey(vendorKeyRaw)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid vendorKey is required.",
+      );
+    }
+    if (typeof data.ignoreCreditReturns !== "boolean") {
+      throw new HttpsError(
+        "invalid-argument",
+        "ignoreCreditReturns must be a boolean.",
+      );
+    }
+    const rule = await upsertVendorIgnoreRule(getDb(), {
+      vendorKey: vendorKeyRaw,
+      ignoreCreditReturns: data.ignoreCreditReturns,
+      uid,
+    });
+    return { rule };
+  },
+);
+
+/** Admin password-gated delete of a Firestore ignore rule. */
+export const deleteVendorIgnoreRuleCallable = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    await requireDispatcherAuth(request);
+    await requirePassword(request.data);
+    const data = (request.data ?? {}) as { vendorKey?: unknown };
+    const vendorKeyRaw =
+      typeof data.vendorKey === "string" ? data.vendorKey.trim() : "";
+    if (!vendorKeyRaw || !isArmableVendorKey(vendorKeyRaw)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid vendorKey is required.",
+      );
+    }
+    const result = await deleteVendorIgnoreRule(getDb(), vendorKeyRaw);
+    return { vendorKey: sanitizeVendorKey(vendorKeyRaw), ...result };
   },
 );

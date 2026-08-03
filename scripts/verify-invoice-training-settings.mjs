@@ -45,6 +45,9 @@ async function main() {
     await page.getByTestId("invoice-training-alert-email").waitFor({ timeout: 5000 });
     await page.getByTestId("invoice-training-admin-password").waitFor({ timeout: 5000 });
     await page.getByTestId("save-invoice-training-admin").waitFor({ timeout: 5000 });
+    await page.getByTestId("settings-invoice-ignore-rules").waitFor({ timeout: 5000 });
+    await page.getByTestId("invoice-ignore-rules-password").waitFor({ timeout: 5000 });
+    await page.getByTestId("load-invoice-ignore-rules").waitFor({ timeout: 5000 });
     console.log("PASS: Invoice training Admin settings section visible");
 
     await assertReadableTextContrast(page, {
@@ -57,6 +60,10 @@ async function main() {
         {
           name: "password input",
           selector: '[data-testid="invoice-training-admin-password"]',
+        },
+        {
+          name: "ignore rules password",
+          selector: '[data-testid="invoice-ignore-rules-password"]',
         },
       ],
     });

@@ -204,6 +204,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Vendor ignore rules (e.g. skip future CREDIT/returns) — CF Admin SDK only.
+    match /vendorInvoiceIgnoreRules/{vendorKey} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }

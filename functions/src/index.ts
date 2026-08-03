@@ -36,10 +36,14 @@ import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
 import {
   configureInvoiceTrainingAdmin,
+  confirmVendorIgnoreRule,
+  deleteVendorIgnoreRuleCallable,
   getInvoiceTrainingAdminStatus,
   getVendorTrainingPlaybook,
+  listVendorIgnoreRulesCallable,
   saveInvoiceTrainingLesson,
   saveVendorTrainingPlaybook,
+  updateVendorIgnoreRuleCallable,
 } from "./invoiceTrainingAdminApi";
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
@@ -243,10 +247,14 @@ export {
   matchInvoiceToRecordsCallable,
   approveVendorInvoiceImport,
   configureInvoiceTrainingAdmin,
+  confirmVendorIgnoreRule,
+  deleteVendorIgnoreRuleCallable,
   getInvoiceTrainingAdminStatus,
   getVendorTrainingPlaybook,
+  listVendorIgnoreRulesCallable,
   saveInvoiceTrainingLesson,
   saveVendorTrainingPlaybook,
+  updateVendorIgnoreRuleCallable,
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,

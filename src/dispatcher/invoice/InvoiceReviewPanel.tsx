@@ -44,19 +44,21 @@ function StatusChip({
   reviewStatus,
   orderNotes,
   skipReason,
+  rejectedBy,
   creditAdvisory,
 }: {
   importStatus: string;
   reviewStatus: VendorInvoiceImportReview["reviewStatus"];
   orderNotes?: string[];
   skipReason?: string;
+  rejectedBy?: string;
   creditAdvisory?: string | null;
 }) {
   const importLabel = vendorInvoiceImportDisplayLabelForRow(
     importStatus as VendorInvoiceImportStatus,
     orderNotes,
   );
-  const skipLabel = creditReturnSkipLabel(skipReason);
+  const skipLabel = creditReturnSkipLabel(skipReason, rejectedBy);
   const advisoryLabel = creditAdvisory ?? null;
   const isWillCall = importStatus === "pickup_at_vendor";
   const isDeliverToSite =
@@ -746,6 +748,7 @@ export function InvoiceReviewPanel({
                       reviewStatus={row.reviewStatus}
                       orderNotes={row.orderNotes}
                       skipReason={row.skipReason}
+                      rejectedBy={row.rejectedBy}
                       creditAdvisory={creditReturnAdvisoryLabel(row)}
                     />
                     <AutoImportSuggestionBadge importRow={row} compact />

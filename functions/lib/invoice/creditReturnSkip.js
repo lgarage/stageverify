@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
 exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
 exports.importStatusForCreditSkip = importStatusForCreditSkip;
@@ -11,6 +11,8 @@ exports.shouldApplyNowDismissCreditImport = shouldApplyNowDismissCreditImport;
 exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 exports.CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
+/** System auto-skip after vendor ignore rule taught + confirmed. */
+exports.CREDIT_RETURN_AUTO_SKIP_LABEL = "Auto-skipped — vendor ignore rule";
 /** Pending queue — user must reject manually (no auto-reject on ingest). */
 exports.CREDIT_RETURN_ADVISORY_LABEL = "Credit/return — reject manually";
 function parsedBranchIsCredit(branchRaw) {
@@ -22,10 +24,13 @@ function pageTextSignalsBranchCredit(text) {
         /\bBRANCH\s+CREDIT\b/i.test(text));
 }
 /** User-visible label when skipReason is credit_return. */
-function creditReturnSkipLabel(skipReason) {
-    if (skipReason === exports.CREDIT_RETURN_SKIP_REASON)
-        return exports.CREDIT_RETURN_SKIP_LABEL;
-    return null;
+function creditReturnSkipLabel(skipReason, rejectedBy) {
+    if (skipReason !== exports.CREDIT_RETURN_SKIP_REASON)
+        return null;
+    if (rejectedBy === "system:credit_return_skip") {
+        return exports.CREDIT_RETURN_AUTO_SKIP_LABEL;
+    }
+    return exports.CREDIT_RETURN_SKIP_LABEL;
 }
 /** Firestore patch fields when auto-skipping a credit/return import. */
 function creditReturnSkipFields(now) {

@@ -4,12 +4,20 @@ import type {
   VendorInvoiceImportReview,
 } from "../models";
 import {
+  confirmVendorIgnoreRule,
   getInvoiceTrainingAdminStatus,
   getVendorTrainingPlaybook,
   INVOICE_TRAINING_LESSON_TOAST,
   saveInvoiceTrainingLesson,
   saveVendorTrainingPlaybook,
+  VENDOR_IGNORE_RULE_TOAST,
 } from "../firestoreService";
+import {
+  interpretTeachNote,
+  isTeachConsentNo,
+  isTeachConsentYes,
+  type TeachChatPhase,
+} from "./teachIgnoreChat";
 import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChecklist";
 import { useVendorInvoicePdfViewer } from "./useVendorInvoicePdfViewer";
 import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
@@ -106,6 +114,8 @@ export function InvoiceParsedInspectModal({
   const [correctionNote, setCorrectionNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
+  const [teachPhase, setTeachPhase] = useState<TeachChatPhase>("idle");
+  const [teachEcho, setTeachEcho] = useState<string | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
   const [adminPasswordPrompt, setAdminPasswordPrompt] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
@@ -200,9 +210,70 @@ export function InvoiceParsedInspectModal({
     }
   };
 
-  const handleSaveLesson = async () => {
+  const vendorDisplayForTeach =
+    (typeof importRow.detectedVendorName === "string" &&
+      importRow.detectedVendorName.trim()) ||
+    (importRow.parserFormatId === "johnstone" ? "Johnstone" : "this vendor");
+
+  const resetTeachChat = () => {
+    setTeachPhase("idle");
+    setTeachEcho(null);
+    setCorrectionNote("");
+  };
+
+  const handleTeachSend = async () => {
     const note = correctionNote.trim();
     if (!note || saveLessonLoading) return;
+
+    if (teachPhase === "pending_confirm" || teachPhase === "clarifying") {
+      if (isTeachConsentNo(note)) {
+        resetTeachChat();
+        showToast("OK — no ignore rule saved.");
+        return;
+      }
+      if (!isTeachConsentYes(note)) {
+        showToast('Reply "yes" to confirm, or "no" to cancel.');
+        return;
+      }
+      setSaveLessonLoading(true);
+      try {
+        const result = await confirmVendorIgnoreRule({
+          vendorInvoiceImportId: importRow.id,
+          confirm: true,
+        });
+        showToast(
+          result.importDismissed
+            ? `${VENDOR_IGNORE_RULE_TOAST} This import was dismissed.`
+            : VENDOR_IGNORE_RULE_TOAST,
+        );
+        resetTeachChat();
+        if (result.importDismissed) {
+          onImportDismissed?.();
+        }
+      } catch (err) {
+        showToast(
+          err instanceof Error ? err.message : "Could not save ignore rule.",
+        );
+      } finally {
+        setSaveLessonLoading(false);
+      }
+      return;
+    }
+
+    const intent = interpretTeachNote(note, vendorDisplayForTeach);
+    if (intent.kind === "ignore_credit_returns") {
+      setTeachEcho(intent.echo);
+      setTeachPhase("pending_confirm");
+      setCorrectionNote("");
+      return;
+    }
+    if (intent.kind === "ambiguous") {
+      setTeachEcho(intent.echo);
+      setTeachPhase("clarifying");
+      setCorrectionNote("");
+      return;
+    }
+
     setSaveLessonLoading(true);
     try {
       const result = await saveInvoiceTrainingLesson({
@@ -252,7 +323,10 @@ export function InvoiceParsedInspectModal({
   const matchUnavailable = matchUnavailableReason(importRow);
   const shipDateWarning = shipDateMissingWarning(importRow);
   const orderIncomplete = orderIncompleteMessage(importRow);
-  const creditSkipLabel = creditReturnSkipLabel(importRow.skipReason);
+  const creditSkipLabel = creditReturnSkipLabel(
+    importRow.skipReason,
+    importRow.rejectedBy,
+  );
   const creditAdvisoryLabel = creditReturnAdvisoryLabel(importRow);
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
@@ -867,14 +941,39 @@ export function InvoiceParsedInspectModal({
                     fontFamily: FONT,
                   }}
                 >
-                  Teach the AI what to look for on the next similar invoice and the
-                  proper fix. Use patterns only — no invoice numbers, POs, or addresses.
+                  Tell it what to do next time (e.g. ignore CREDIT memos). It will
+                  repeat back what it heard — reply yes to confirm. Patterns only —
+                  no invoice numbers, POs, or addresses. Rules also live in Settings
+                  (Admin).
                 </p>
+                {teachEcho && (
+                  <div
+                    data-testid="invoice-teach-echo"
+                    style={{
+                      margin: "0 0 10px",
+                      padding: "10px 12px",
+                      backgroundColor: "#fff",
+                      border: "1px solid #93c5fd",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                      color: NAVY,
+                      fontWeight: 600,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {teachEcho}
+                  </div>
+                )}
                 <textarea
                   data-testid="invoice-parsed-inspect-correction-note"
                   value={correctionNote}
                   onChange={(e) => setCorrectionNote(e.target.value)}
-                  placeholder="Example: When Ship Via is WILL CALL, set fulfillment to will_call_pickup — not delivery."
+                  placeholder={
+                    teachPhase === "idle"
+                      ? "Example: Ignore CREDIT/return memos from this vendor from now on."
+                      : 'Type "yes" to confirm, or "no" to cancel.'
+                  }
                   rows={3}
                   disabled={actionLoading || saveLessonLoading}
                   style={{
@@ -926,7 +1025,7 @@ export function InvoiceParsedInspectModal({
                     saveLessonLoading ||
                     !correctionNote.trim()
                   }
-                  onClick={() => void handleSaveLesson()}
+                  onClick={() => void handleTeachSend()}
                   style={{
                     backgroundColor: "#fff",
                     color: NAVY,
@@ -950,7 +1049,11 @@ export function InvoiceParsedInspectModal({
                     fontFamily: FONT,
                   }}
                 >
-                  {saveLessonLoading ? "Saving…" : "Save lesson"}
+                  {saveLessonLoading
+                    ? "Saving…"
+                    : teachPhase === "idle"
+                      ? "Send"
+                      : "Confirm"}
                 </button>
               )}
               {onReject && isPending && (

@@ -102,7 +102,7 @@ export interface VendorInvoiceImportDoc {
   parsedLineCount: number;
   parseWarnings: string[];
   orderNotes: string[];
-  outcome: "needs_review" | "failed";
+  outcome: "needs_review" | "failed" | "skipped";
   error?: string;
   linkedDeliveryOrderId?: string;
   approvedAt?: string;

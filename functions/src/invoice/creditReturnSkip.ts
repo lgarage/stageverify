@@ -9,6 +9,10 @@ export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 export const CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
 
+/** System auto-skip after vendor ignore rule taught + confirmed. */
+export const CREDIT_RETURN_AUTO_SKIP_LABEL =
+  "Auto-skipped — vendor ignore rule";
+
 /** Pending queue — user must reject manually (no auto-reject on ingest). */
 export const CREDIT_RETURN_ADVISORY_LABEL =
   "Credit/return — reject manually";
@@ -26,9 +30,15 @@ function pageTextSignalsBranchCredit(text: string): boolean {
 }
 
 /** User-visible label when skipReason is credit_return. */
-export function creditReturnSkipLabel(skipReason?: string): string | null {
-  if (skipReason === CREDIT_RETURN_SKIP_REASON) return CREDIT_RETURN_SKIP_LABEL;
-  return null;
+export function creditReturnSkipLabel(
+  skipReason?: string,
+  rejectedBy?: string,
+): string | null {
+  if (skipReason !== CREDIT_RETURN_SKIP_REASON) return null;
+  if (rejectedBy === "system:credit_return_skip") {
+    return CREDIT_RETURN_AUTO_SKIP_LABEL;
+  }
+  return CREDIT_RETURN_SKIP_LABEL;
 }
 
 /** Firestore patch fields when auto-skipping a credit/return import. */
