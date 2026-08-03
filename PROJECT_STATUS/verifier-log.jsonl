@@ -116,3 +116,5 @@
 {"date":"2026-08-03","role":"ship","verdict":"PASS","taskId":"bc-1468a99a-5d98-5a9c-8ab4-cd17fe430130","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.193 Handle arrival; CF deploy blocked FIREBASE_TOKEN"}
 {"date":"2026-08-03","role":"security","verdict":"PASS","taskId":"0d566536-eacb-4c57-a39a-1a47f22fc14e","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
 {"date":"2026-08-03","role":"ship","verdict":"PASS","taskId":"6ea0d6a4-527e-4632-9305-76a3582bd095","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-03","role":"ship","verdict":"PASS","taskId":"dd1538f7-edc3-46cc-a036-5804967920f4","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-03","role":"security","verdict":"PASS","taskId":"5847fd80-8a2c-4bab-a38d-35cbdafb3dcf","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
