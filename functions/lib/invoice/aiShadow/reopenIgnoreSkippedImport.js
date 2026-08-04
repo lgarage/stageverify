@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CIRCUIT_BREAKER_REOPEN_THRESHOLD = void 0;
+exports.BULK_REOPEN_MAX_PROCESS = exports.CIRCUIT_BREAKER_REOPEN_THRESHOLD = void 0;
 exports.qualifiesForCircuitBreakerReopen = qualifiesForCircuitBreakerReopen;
 exports.reopenVendorInvoiceImportCore = reopenVendorInvoiceImportCore;
 exports.bulkReopenImportsSkippedByRuleCore = bulkReopenImportsSkippedByRuleCore;
@@ -15,6 +15,8 @@ const ignoreRuleAudit_1 = require("./ignoreRuleAudit");
 const adminConfig_1 = require("./adminConfig");
 const notifyTrainingLessonPending_1 = require("./notifyTrainingLessonPending");
 exports.CIRCUIT_BREAKER_REOPEN_THRESHOLD = 2;
+/** Max imports processed per bulk reopen (single-field query + in-memory filter). */
+exports.BULK_REOPEN_MAX_PROCESS = 200;
 const MAX_DECISION_LOG = 20;
 function qualifiesForCircuitBreakerReopen(doc) {
     return (doc.rejectedBy === "system:document_ignore_skip" &&
@@ -163,6 +165,10 @@ async function reopenVendorInvoiceImportCore(db, input) {
         autoDisabled: circuit.autoDisabled,
     };
 }
+function isBulkReopenCandidate(data) {
+    return (data.reviewStatus === "rejected" &&
+        data.rejectedBy === "system:document_ignore_skip");
+}
 /** Bulk reopen all rejected document-ignore skips for one rule (manager). */
 async function bulkReopenImportsSkippedByRuleCore(db, input) {
     const ruleId = input.ruleId.trim();
@@ -172,14 +178,16 @@ async function bulkReopenImportsSkippedByRuleCore(db, input) {
     const snap = await db
         .collection("vendorInvoiceImports")
         .where("matchedRuleId", "==", ruleId)
-        .where("reviewStatus", "==", "rejected")
-        .where("rejectedBy", "==", "system:document_ignore_skip")
         .get();
+    const candidates = snap.docs.filter((docSnap) => isBulkReopenCandidate(docSnap.data()));
+    const matchedTotal = candidates.length;
+    const toProcess = candidates.slice(0, exports.BULK_REOPEN_MAX_PROCESS);
+    const truncated = matchedTotal > exports.BULK_REOPEN_MAX_PROCESS;
     let reopened = 0;
     let skipped = 0;
     let autoDisabled = false;
     let lastReopenCount;
-    for (const docSnap of snap.docs) {
+    for (const docSnap of toProcess) {
         const result = await reopenVendorInvoiceImportCore(db, {
             importId: docSnap.id,
             actorUid: input.actorUid,
@@ -197,11 +205,12 @@ async function bulkReopenImportsSkippedByRuleCore(db, input) {
     }
     return {
         ruleId,
-        scanned: snap.size,
+        scanned: toProcess.length,
         reopened,
         skipped,
         autoDisabled,
         reopenCount: lastReopenCount,
+        ...(truncated ? { truncated: true, matchedTotal } : {}),
     };
 }
 //# sourceMappingURL=reopenIgnoreSkippedImport.js.map

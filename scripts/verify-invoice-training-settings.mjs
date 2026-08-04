@@ -102,7 +102,7 @@ async function main() {
     const adminPassword = resolveInvoiceTrainingAdminPassword();
     if (!adminPassword) {
       console.log(
-        "SKIP: unlock-gated P5 asserts — set STAGEVERIFY_INVOICE_TRAINING_ADMIN_PASSWORD (8+ chars) to exercise ignore-rules unlock flow",
+        "SKIP: unlock-gated P5/P6 asserts — set STAGEVERIFY_INVOICE_TRAINING_ADMIN_PASSWORD (8+ chars) to exercise ignore-rules unlock flow",
       );
       console.log("verify-invoice-training-settings: PASS");
       return;
@@ -171,6 +171,65 @@ async function main() {
       console.log("PASS: ignore-rule audit panel opens");
     } else {
       console.log("PASS: no ignore rules — audit panel step skipped");
+    }
+
+    const reopenCountBadges = page.locator('[data-testid^="ignore-rule-reopen-count-"]');
+    const autoDisabledBadges = page.locator('[data-testid^="ignore-rule-auto-disabled-"]');
+    const reopenCountN = await reopenCountBadges.count();
+    const autoDisabledN = await autoDisabledBadges.count();
+    if (reopenCountN > 0) {
+      console.log(`PASS: P6 ignore-rule-reopen-count visible (${reopenCountN})`);
+    } else {
+      console.log("PASS: P6 ignore-rule-reopen-count optional — none with reopenCount > 0");
+    }
+    if (autoDisabledN > 0) {
+      console.log(`PASS: P6 ignore-rule-auto-disabled visible (${autoDisabledN})`);
+    } else {
+      console.log("PASS: P6 ignore-rule-auto-disabled optional — none auto-disabled");
+    }
+
+    const listVisible = await page.getByTestId("invoice-ignore-rules-list").isVisible();
+    const ruleRows = page.locator('[data-testid^="invoice-ignore-rule-"]');
+    let activeDisabledCount = 0;
+    if (listVisible) {
+      const ruleCount = await ruleRows.count();
+      for (let i = 0; i < ruleCount; i++) {
+        const row = ruleRows.nth(i);
+        if (!(await row.isVisible())) continue;
+        const statusBadge = row.locator('[data-testid^="ignore-rule-status-"]');
+        if ((await statusBadge.count()) === 0) continue;
+        const statusText = (await statusBadge.innerText()).trim().toLowerCase();
+        if (statusText === "active" || statusText === "disabled") {
+          activeDisabledCount++;
+        }
+      }
+    }
+
+    const bulkButtons = page.locator('[data-testid^="bulk-reopen-ignore-rule-"]');
+    const bulkCount = await bulkButtons.count();
+    if (isManager && activeDisabledCount > 0) {
+      if (bulkCount < 1) {
+        throw new Error(
+          "P6: manager session with visible active/disabled rules must show bulk-reopen-ignore-rule-*",
+        );
+      }
+      console.log(`PASS: P6 bulk-reopen-ignore-rule visible (${bulkCount})`);
+      const p6ContrastElements = [
+        {
+          name: "bulk reopen skipped imports",
+          selector: '[data-testid^="bulk-reopen-ignore-rule-"]',
+          optional: true,
+        },
+      ];
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="settings-invoice-ignore-rules"]',
+        elements: p6ContrastElements,
+      });
+      console.log("PASS: P6 bulk-reopen button contrast");
+    } else if (isManager) {
+      console.log("PASS: P6 bulk-reopen optional — no visible active/disabled rules");
+    } else {
+      console.log("PASS: P6 bulk-reopen N/A — readonly session");
     }
 
     console.log("verify-invoice-training-settings: PASS");

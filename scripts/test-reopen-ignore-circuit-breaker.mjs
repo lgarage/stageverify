@@ -15,6 +15,7 @@ const {
   reopenVendorInvoiceImportCore,
   bulkReopenImportsSkippedByRuleCore,
   CIRCUIT_BREAKER_REOPEN_THRESHOLD,
+  BULK_REOPEN_MAX_PROCESS,
 } = require(path.join(
   root,
   "functions/lib/invoice/aiShadow/reopenIgnoreSkippedImport.js",
@@ -25,6 +26,7 @@ const { VENDOR_IGNORE_RULES_COLLECTION } = require(path.join(
 ));
 
 assert.equal(CIRCUIT_BREAKER_REOPEN_THRESHOLD, 2);
+assert.equal(BULK_REOPEN_MAX_PROCESS, 200);
 
 assert.equal(
   qualifiesForCircuitBreakerReopen({
@@ -284,5 +286,55 @@ assert.equal(bulkResult.scanned, 2);
 assert.equal(bulkResult.reopened, 2);
 assert.equal(bulkResult.autoDisabled, true);
 assert.equal(bulkDb._store[VENDOR_IGNORE_RULES_COLLECTION][ruleId].status, "disabled");
+
+const filterDb = makeMockDb({
+  vendorInvoiceImports: {
+    "skip-match": {
+      reviewStatus: "rejected",
+      rejectedBy: "system:document_ignore_skip",
+      matchedRuleId: ruleId,
+      importStatus: "pending",
+      parsedHeader: {},
+      parsedLines: [],
+      parsedLineCount: 0,
+      pageId: "f1",
+    },
+    "wrong-rejector": {
+      reviewStatus: "rejected",
+      rejectedBy: "dispatcher-uid",
+      matchedRuleId: ruleId,
+      importStatus: "pending",
+      parsedHeader: {},
+      parsedLines: [],
+      parsedLineCount: 0,
+      pageId: "f2",
+    },
+    "pending-not-rejected": {
+      reviewStatus: "pending_review",
+      matchedRuleId: ruleId,
+      importStatus: "pending",
+      parsedHeader: {},
+      parsedLines: [],
+      parsedLineCount: 0,
+      pageId: "f3",
+    },
+  },
+  [VENDOR_IGNORE_RULES_COLLECTION]: {
+    [ruleId]: {
+      status: "active",
+      enabled: true,
+      reopenCount: 0,
+      vendorKey: "johnstone",
+    },
+  },
+});
+
+const filterResult = await bulkReopenImportsSkippedByRuleCore(filterDb, {
+  ruleId,
+  actorUid: uid,
+});
+assert.equal(filterResult.scanned, 1);
+assert.equal(filterResult.reopened, 1);
+assert.equal(filterResult.truncated, undefined);
 
 console.log("test-reopen-ignore-circuit-breaker: PASS");

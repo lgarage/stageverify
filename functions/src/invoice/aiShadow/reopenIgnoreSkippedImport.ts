@@ -18,6 +18,9 @@ import { notifyTrainingLessonPendingAdmin } from "./notifyTrainingLessonPending"
 
 export const CIRCUIT_BREAKER_REOPEN_THRESHOLD = 2;
 
+/** Max imports processed per bulk reopen (single-field query + in-memory filter). */
+export const BULK_REOPEN_MAX_PROCESS = 200;
+
 const MAX_DECISION_LOG = 20;
 
 export function qualifiesForCircuitBreakerReopen(doc: {
@@ -231,6 +234,13 @@ export async function reopenVendorInvoiceImportCore(
   };
 }
 
+function isBulkReopenCandidate(data: VendorInvoiceImportDoc): boolean {
+  return (
+    data.reviewStatus === "rejected" &&
+    data.rejectedBy === "system:document_ignore_skip"
+  );
+}
+
 /** Bulk reopen all rejected document-ignore skips for one rule (manager). */
 export async function bulkReopenImportsSkippedByRuleCore(
   db: Firestore,
@@ -242,6 +252,8 @@ export async function bulkReopenImportsSkippedByRuleCore(
   skipped: number;
   autoDisabled: boolean;
   reopenCount?: number;
+  truncated?: boolean;
+  matchedTotal?: number;
 }> {
   const ruleId = input.ruleId.trim();
   if (!ruleId) {
@@ -250,16 +262,21 @@ export async function bulkReopenImportsSkippedByRuleCore(
   const snap = await db
     .collection("vendorInvoiceImports")
     .where("matchedRuleId", "==", ruleId)
-    .where("reviewStatus", "==", "rejected")
-    .where("rejectedBy", "==", "system:document_ignore_skip")
     .get();
+
+  const candidates = snap.docs.filter((docSnap) =>
+    isBulkReopenCandidate(docSnap.data() as VendorInvoiceImportDoc),
+  );
+  const matchedTotal = candidates.length;
+  const toProcess = candidates.slice(0, BULK_REOPEN_MAX_PROCESS);
+  const truncated = matchedTotal > BULK_REOPEN_MAX_PROCESS;
 
   let reopened = 0;
   let skipped = 0;
   let autoDisabled = false;
   let lastReopenCount: number | undefined;
 
-  for (const docSnap of snap.docs) {
+  for (const docSnap of toProcess) {
     const result = await reopenVendorInvoiceImportCore(db, {
       importId: docSnap.id,
       actorUid: input.actorUid,
@@ -275,10 +292,11 @@ export async function bulkReopenImportsSkippedByRuleCore(
 
   return {
     ruleId,
-    scanned: snap.size,
+    scanned: toProcess.length,
     reopened,
     skipped,
     autoDisabled,
     reopenCount: lastReopenCount,
+    ...(truncated ? { truncated: true as const, matchedTotal } : {}),
   };
 }
