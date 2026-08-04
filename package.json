@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.203",
+  "version": "0.0.204",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -132,6 +132,7 @@
     "test:vendor-email-reply-router": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-vendor-email-reply-router.mjs\"",
     "test:invoice-parser": "npx tsx scripts/test-invoice-parser.mjs",
     "test:invoice-ai-shadow": "cd functions && npm run build && cd .. && node scripts/test-invoice-ai-shadow.mjs",
+    "test:training-note-p7": "cd functions && npm run build && cd .. && node scripts/test-training-note-p7.mjs",
     "test:invoice-training-admin": "cd functions && npm run build && cd .. && node scripts/test-invoice-training-admin.mjs",
     "test:reopen-ignore-circuit-breaker": "cd functions && npm run build && cd .. && node scripts/test-reopen-ignore-circuit-breaker.mjs",
     "test:strong-invoice-signals": "cd functions && npm run build && cd .. && node scripts/test-strong-invoice-signals.mjs",

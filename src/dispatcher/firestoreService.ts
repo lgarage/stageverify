@@ -79,6 +79,8 @@ import type {
   ProposeVendorIgnoreRuleResult,
   VendorIgnoreRule,
   IgnoreRuleAuditEvent,
+  PreviewTrainingLessonRedactionResult,
+  TrainingNoteAuditEntry,
   MigrateLegacyVendorIgnoreRulesResult,
   BulkReopenImportsSkippedByRuleResult,
   DispatcherRoleDoc,
@@ -2401,7 +2403,12 @@ const saveVendorTrainingPlaybookCallable = httpsCallable<
 >(functions, "saveVendorTrainingPlaybook");
 
 const confirmVendorIgnoreRuleCallable = httpsCallable<
-  { vendorInvoiceImportId: string; confirm: boolean; echoToken?: string },
+  {
+    vendorInvoiceImportId: string;
+    confirm: boolean;
+    echoToken?: string;
+    trainingNote?: string;
+  },
   ConfirmVendorIgnoreRuleResult
 >(functions, "confirmVendorIgnoreRule");
 
@@ -2465,6 +2472,16 @@ const listIgnoreRuleAuditEventsCallable = httpsCallable<
   { password: string; ruleId: string; limit?: number },
   { events: IgnoreRuleAuditEvent[] }
 >(functions, "listIgnoreRuleAuditEventsCallable");
+
+const previewTrainingLessonRedactionCallable = httpsCallable<
+  { note: string },
+  PreviewTrainingLessonRedactionResult
+>(functions, "previewTrainingLessonRedaction");
+
+const listTrainingNoteAuditCallable = httpsCallable<
+  { password?: string; limit?: number },
+  { entries: TrainingNoteAuditEntry[] }
+>(functions, "listTrainingNoteAuditCallable");
 
 const migrateLegacyVendorIgnoreRulesCallable = httpsCallable<
   Record<string, never>,
@@ -2683,6 +2700,21 @@ export async function saveInvoiceTrainingLesson(input: {
   return response.data;
 }
 
+export async function previewTrainingLessonRedaction(input: {
+  note: string;
+}): Promise<PreviewTrainingLessonRedactionResult> {
+  const response = await previewTrainingLessonRedactionCallable(input);
+  return response.data;
+}
+
+export async function listTrainingNoteAudit(input: {
+  password?: string;
+  limit?: number;
+}): Promise<TrainingNoteAuditEntry[]> {
+  const response = await listTrainingNoteAuditCallable(input);
+  return response.data.entries;
+}
+
 export async function getVendorTrainingPlaybook(input: {
   password: string;
   vendorKey?: string;
@@ -2712,6 +2744,7 @@ export async function confirmVendorIgnoreRule(input: {
   vendorInvoiceImportId: string;
   confirm: boolean;
   echoToken?: string;
+  trainingNote?: string;
 }): Promise<ConfirmVendorIgnoreRuleResult> {
   const response = await confirmVendorIgnoreRuleCallable(input);
   return response.data;

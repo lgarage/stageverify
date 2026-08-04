@@ -471,6 +471,35 @@ try {
     fail("client write ignoreRuleAuditEvents should be denied", err);
   }
 
+  console.log("\n=== trainingNoteAudit + trainingLessonRateLimits (D-59 P7) ===\n");
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "dispatcher-p7"), {
+      active: true,
+    });
+  });
+  const dispatcherP7 = testEnv.authenticatedContext("dispatcher-p7");
+  for (const [coll, docId] of [
+    ["trainingNoteAudit", "note-seed"],
+    ["trainingLessonRateLimits", "uid-seed"],
+  ]) {
+    try {
+      await assertFails(
+        getDoc(doc(dispatcherP7.firestore(), coll, docId)),
+      );
+      pass(`dispatcher read ${coll} denied`);
+    } catch (err) {
+      fail(`dispatcher read ${coll} should be denied`, err);
+    }
+    try {
+      await assertFails(
+        setDoc(doc(dispatcherP7.firestore(), coll, docId), { uid: "x" }),
+      );
+      pass(`client write ${coll} denied`);
+    } catch (err) {
+      fail(`client write ${coll} should be denied`, err);
+    }
+  }
+
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);
   if (failed > 0) process.exit(1);
 } finally {

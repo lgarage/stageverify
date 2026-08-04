@@ -7,6 +7,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   requireDispatcherAuth,
   requireManagerAuth,
+  hasManagerRole,
+  clampListLimit,
 } from "./inboundEmail/dispatcherAuth";
 import {
   asAdminPassword,
@@ -22,7 +24,9 @@ import {
   sanitizeVendorKey,
   writeVendorTrainingMd,
 } from "./invoice/aiShadow/vendorTrainingMd";
-import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCore";
+import { saveTrainingLessonCore, recordIgnoreLaneTrainingNote } from "./invoice/aiShadow/saveTrainingLessonCore";
+import { classifyLessonNoteRejection } from "./invoice/aiShadow/classifyLessonNoteRejection";
+import { listTrainingNoteAudit } from "./invoice/aiShadow/trainingNoteAudit";
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 import {
   CREDIT_RETURN_SKIP_REASON,
@@ -189,11 +193,19 @@ export const saveInvoiceTrainingLesson = onCall(
       importDoc.reviewStatus === "pending_review" &&
       shouldApplyNowDismissCreditImport(correctionNote, importDoc);
     const result = await saveTrainingLessonCore({
+      uid,
       vendorKey,
       correctionNoteRaw: correctionNote,
       importId,
       atIso: now,
     });
+
+    if (result.reason === "rate_limited") {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Training note limit reached (20 per hour). Try again later.",
+      );
+    }
 
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
@@ -234,6 +246,43 @@ export const saveInvoiceTrainingLesson = onCall(
       reviewStatus,
       ...result,
     };
+  },
+);
+
+export const previewTrainingLessonRedaction = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    await requireDispatcherAuth(request);
+    const data = (request.data ?? {}) as { note?: unknown };
+    const note = typeof data.note === "string" ? data.note : "";
+    const preview = classifyLessonNoteRejection(note);
+    return {
+      noteRedacted: preview.noteRedacted,
+      safe: preview.safe,
+      ...(preview.rejectClass ? { rejectClass: preview.rejectClass } : {}),
+    };
+  },
+);
+
+/** Manager or dispatcher+admin password — recent training-note audit (D-59 P7). */
+export const listTrainingNoteAuditCallable = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = await requireDispatcherAuth(request);
+    const data = (request.data ?? {}) as {
+      password?: unknown;
+      limit?: unknown;
+    };
+    const isManager = await hasManagerRole(uid);
+    if (!isManager) {
+      await requirePassword(data);
+    }
+    const limit = clampListLimit(data.limit, 20, 100);
+    const entries = await listTrainingNoteAudit(getDb(), {
+      limit,
+      includeRaw: true,
+    });
+    return { entries };
   },
 );
 
@@ -506,6 +555,7 @@ export const confirmVendorIgnoreRule = onCall(
       vendorInvoiceImportId?: unknown;
       confirm?: unknown;
       echoToken?: unknown;
+      trainingNote?: unknown;
     };
     const importId =
       typeof data.vendorInvoiceImportId === "string"
@@ -643,6 +693,29 @@ export const confirmVendorIgnoreRule = onCall(
       });
       if (importDismissed) {
         reviewStatus = "rejected";
+      }
+    }
+
+    const trainingNoteRaw =
+      typeof data.trainingNote === "string" ? data.trainingNote.trim() : "";
+    if (trainingNoteRaw) {
+      if (trainingNoteRaw.length > 800) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Training note must be 800 characters or fewer.",
+        );
+      }
+      const ignoreNote = await recordIgnoreLaneTrainingNote({
+        uid,
+        importId,
+        vendorKey: rule.vendorKey,
+        noteRaw: trainingNoteRaw,
+      });
+      if (ignoreNote.reason === "rate_limited") {
+        throw new HttpsError(
+          "resource-exhausted",
+          "Training note limit reached (20 per hour). Try again later.",
+        );
       }
     }
 

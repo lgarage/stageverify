@@ -1414,6 +1414,32 @@ export interface IgnoreRuleAuditEvent {
   detail?: string;
 }
 
+export type TrainingNoteAuditLane = "playbook" | "ignore";
+
+export type LessonNoteRejectClass =
+  | "empty_note"
+  | "note_too_long"
+  | "contains_email"
+  | "contains_long_number";
+
+export interface PreviewTrainingLessonRedactionResult {
+  noteRedacted: string;
+  safe: boolean;
+  rejectClass?: LessonNoteRejectClass;
+}
+
+export interface TrainingNoteAuditEntry {
+  id: string;
+  uid: string;
+  importId: string;
+  vendorKey: string;
+  noteRedacted: string;
+  noteRaw?: string;
+  lane: TrainingNoteAuditLane;
+  createdAt: string;
+  expireAt: string;
+}
+
 export interface MigrateLegacyVendorIgnoreRulesResult {
   scanned: number;
   migrated: number;

@@ -8,11 +8,13 @@ import {
   getInvoiceTrainingAdminStatus,
   getVendorTrainingPlaybook,
   INVOICE_TRAINING_LESSON_TOAST,
+  previewTrainingLessonRedaction,
   proposeVendorIgnoreRule,
   saveInvoiceTrainingLesson,
   saveVendorTrainingPlaybook,
   VENDOR_IGNORE_RULE_TOAST,
 } from "../firestoreService";
+import type { LessonNoteRejectClass } from "../models";
 import {
   interpretTeachNote,
   isTeachConsentNo,
@@ -74,6 +76,13 @@ function dash(value: string | number | undefined | null): string {
   return String(value);
 }
 
+const REJECT_CLASS_LABELS: Record<LessonNoteRejectClass, string> = {
+  empty_note: "Note is empty.",
+  note_too_long: "Note exceeds 800 characters.",
+  contains_email: "Note contains an email address.",
+  contains_long_number: "Note contains a long numeric identifier.",
+};
+
 export function InvoiceParsedInspectModal({
   importRow,
   onClose,
@@ -131,6 +140,13 @@ export function InvoiceParsedInspectModal({
     password: string;
   } | null>(null);
   const [mdSaveLoading, setMdSaveLoading] = useState(false);
+  const [stashedTrainingNote, setStashedTrainingNote] = useState("");
+  const [lessonPreview, setLessonPreview] = useState<{
+    note: string;
+    noteRedacted: string;
+    safe: boolean;
+    rejectClass?: LessonNoteRejectClass;
+  } | null>(null);
   const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
     useVendorInvoicePdfViewer();
 
@@ -223,6 +239,38 @@ export function InvoiceParsedInspectModal({
     setTeachEcho(null);
     setTeachEchoToken(null);
     setCorrectionNote("");
+    setStashedTrainingNote("");
+  };
+
+  const persistPlaybookLesson = async (note: string) => {
+    const result = await saveInvoiceTrainingLesson({
+      vendorInvoiceImportId: importRow.id,
+      correctionNote: note,
+    });
+    if (result.trainingLessonWrote) {
+      showToast(
+        result.importDismissed
+          ? `${INVOICE_TRAINING_LESSON_TOAST} Credit/return import dismissed from queue.`
+          : INVOICE_TRAINING_LESSON_TOAST,
+      );
+      setCorrectionNote("");
+      setLessonPreview(null);
+      if (result.importDismissed) {
+        onImportDismissed?.();
+      }
+    } else if (result.trainingLessonPendingAdminReview) {
+      showToast(
+        "This note is pending Admin review — patterns may need a fix before it can be saved.",
+      );
+    } else if (result.reason === "rate_limited") {
+      showToast("Training note limit reached (20 per hour). Try again later.");
+    } else {
+      showToast(
+        result.reason === "empty"
+          ? "Enter a training note first."
+          : "Lesson was not saved. Try a more general pattern.",
+      );
+    }
   };
 
   const handleTeachSend = async () => {
@@ -249,6 +297,9 @@ export function InvoiceParsedInspectModal({
           vendorInvoiceImportId: importRow.id,
           confirm: true,
           echoToken: teachEchoToken,
+          ...(stashedTrainingNote.trim()
+            ? { trainingNote: stashedTrainingNote.trim() }
+            : {}),
         });
         showToast(
           result.importDismissed
@@ -273,6 +324,7 @@ export function InvoiceParsedInspectModal({
     if (intent.kind === "ignore_document_type") {
       setSaveLessonLoading(true);
       try {
+        setStashedTrainingNote(note);
         const proposal = await proposeVendorIgnoreRule({
           vendorInvoiceImportId: importRow.id,
         });
@@ -298,37 +350,32 @@ export function InvoiceParsedInspectModal({
 
     setSaveLessonLoading(true);
     try {
-      const result = await saveInvoiceTrainingLesson({
-        vendorInvoiceImportId: importRow.id,
-        correctionNote: note,
+      const preview = await previewTrainingLessonRedaction({ note });
+      setLessonPreview({
+        note,
+        noteRedacted: preview.noteRedacted,
+        safe: preview.safe,
+        rejectClass: preview.rejectClass,
       });
-      if (result.trainingLessonWrote) {
-        showToast(
-          result.importDismissed
-            ? `${INVOICE_TRAINING_LESSON_TOAST} Credit/return import dismissed from queue.`
-            : INVOICE_TRAINING_LESSON_TOAST,
-        );
-        setCorrectionNote("");
-        if (result.importDismissed) {
-          onImportDismissed?.();
-        }
-      } else if (result.trainingLessonPendingAdminReview) {
-        showToast(
-          "This note is pending Admin review — patterns may need a fix before it can be saved.",
-        );
-      } else {
-        showToast(
-          result.reason === "empty"
-            ? "Enter a training note first."
-            : "Lesson was not saved. Try a more general pattern.",
-        );
-      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Preview failed.");
+    } finally {
+      setSaveLessonLoading(false);
+    }
+  };
+
+  const handlePreviewSave = async () => {
+    if (!lessonPreview?.safe) return;
+    setSaveLessonLoading(true);
+    try {
+      await persistPlaybookLesson(lessonPreview.note);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Save lesson failed.");
     } finally {
       setSaveLessonLoading(false);
     }
   };
+
   const checklist = buildExpectedJohnstoneFieldChecklist(importRow, {
     deliverToSiteConfirmed,
   });
@@ -1167,7 +1214,13 @@ export function InvoiceParsedInspectModal({
                   type="button"
                   data-testid="invoice-parsed-inspect-approve"
                   disabled={approveDisabled}
-                  title={approveBlocked ? "Approve blocked for issue imports" : undefined}
+                  title={
+                    approveBlocked
+                      ? "Approve blocked for issue imports"
+                      : correctionNote.trim()
+                        ? "Approving also saves your note as a lesson."
+                        : undefined
+                  }
                   onClick={() => onApprove(correctionNote.trim() || undefined)}
                   style={{
                     backgroundColor: NAVY,
@@ -1189,6 +1242,122 @@ export function InvoiceParsedInspectModal({
           </div>
         )}
       </div>
+
+      {lessonPreview && (
+        <div
+          data-testid="invoice-training-lesson-preview-dialog"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10003,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => {
+            if (!saveLessonLoading) setLessonPreview(null);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 10,
+              padding: 24,
+              width: "100%",
+              maxWidth: 480,
+              color: CELL_TEXT,
+              fontFamily: FONT,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 8px", color: NAVY, fontSize: 18 }}>
+              {lessonPreview.safe
+                ? "Confirm training lesson"
+                : "Note cannot be saved"}
+            </h3>
+            {lessonPreview.safe ? (
+              <>
+                <p
+                  data-testid="invoice-training-lesson-preview-heading"
+                  style={{ margin: "0 0 12px", fontSize: 13, color: MUTED }}
+                >
+                  Here&apos;s exactly what will be stored:
+                </p>
+                <p
+                  data-testid="invoice-training-lesson-preview-redacted"
+                  style={{
+                    margin: "0 0 16px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    color: CELL_TEXT,
+                    fontWeight: 600,
+                  }}
+                >
+                  {lessonPreview.noteRedacted}
+                </p>
+              </>
+            ) : (
+              <p
+                data-testid="invoice-training-lesson-preview-reject"
+                style={{
+                  margin: "0 0 16px",
+                  fontSize: 13,
+                  color: "#991b1b",
+                  fontWeight: 600,
+                }}
+              >
+                {lessonPreview.rejectClass
+                  ? REJECT_CLASS_LABELS[lessonPreview.rejectClass]
+                  : "This note cannot be stored safely."}
+              </p>
+            )}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                data-testid="invoice-training-lesson-preview-cancel"
+                disabled={saveLessonLoading}
+                onClick={() => setLessonPreview(null)}
+                style={{ ...HEADER_BTN }}
+              >
+                Cancel
+              </button>
+              {lessonPreview.safe && (
+                <button
+                  type="button"
+                  data-testid="invoice-training-lesson-preview-save"
+                  disabled={saveLessonLoading}
+                  onClick={() => void handlePreviewSave()}
+                  style={{
+                    backgroundColor: NAVY,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "8px 14px",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: saveLessonLoading ? "not-allowed" : "pointer",
+                    fontFamily: FONT,
+                  }}
+                >
+                  {saveLessonLoading ? "Saving…" : "Save lesson"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div

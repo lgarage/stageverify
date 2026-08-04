@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bulkReopenImportsSkippedByRule = exports.migrateLegacyVendorIgnoreRules = exports.listIgnoreRuleAuditEventsCallable = exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.archiveVendorIgnoreRule = exports.activateVendorIgnoreRule = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
+exports.bulkReopenImportsSkippedByRule = exports.migrateLegacyVendorIgnoreRules = exports.listIgnoreRuleAuditEventsCallable = exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.archiveVendorIgnoreRule = exports.activateVendorIgnoreRule = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.listTrainingNoteAuditCallable = exports.previewTrainingLessonRedaction = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
 /**
  * Invoice training Admin — configure alert email/password, Save lesson, MD editor.
  * Password hash in invoiceTrainingAdminSecrets (CF-only). Never in public appSettings.
@@ -11,6 +11,8 @@ const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
+const classifyLessonNoteRejection_1 = require("./invoice/aiShadow/classifyLessonNoteRejection");
+const trainingNoteAudit_1 = require("./invoice/aiShadow/trainingNoteAudit");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("./invoice/aiShadow/vendorIgnoreRules");
 const vendorIgnoreEcho_1 = require("./invoice/vendorIgnoreEcho");
@@ -103,11 +105,15 @@ exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" 
     const applyNowDismiss = importDoc.reviewStatus === "pending_review" &&
         (0, creditReturnSkip_1.shouldApplyNowDismissCreditImport)(correctionNote, importDoc);
     const result = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+        uid,
         vendorKey,
         correctionNoteRaw: correctionNote,
         importId,
         atIso: now,
     });
+    if (result.reason === "rate_limited") {
+        throw new https_1.HttpsError("resource-exhausted", "Training note limit reached (20 per hour). Try again later.");
+    }
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
     if (result.trainingLessonWrote && applyNowDismiss) {
@@ -147,6 +153,32 @@ exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" 
         reviewStatus,
         ...result,
     };
+});
+exports.previewTrainingLessonRedaction = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const data = (request.data ?? {});
+    const note = typeof data.note === "string" ? data.note : "";
+    const preview = (0, classifyLessonNoteRejection_1.classifyLessonNoteRejection)(note);
+    return {
+        noteRedacted: preview.noteRedacted,
+        safe: preview.safe,
+        ...(preview.rejectClass ? { rejectClass: preview.rejectClass } : {}),
+    };
+});
+/** Manager or dispatcher+admin password — recent training-note audit (D-59 P7). */
+exports.listTrainingNoteAuditCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const data = (request.data ?? {});
+    const isManager = await (0, dispatcherAuth_1.hasManagerRole)(uid);
+    if (!isManager) {
+        await requirePassword(data);
+    }
+    const limit = (0, dispatcherAuth_1.clampListLimit)(data.limit, 20, 100);
+    const entries = await (0, trainingNoteAudit_1.listTrainingNoteAudit)(getDb(), {
+        limit,
+        includeRaw: true,
+    });
+    return { entries };
 });
 exports.getVendorTrainingPlaybook = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
@@ -441,6 +473,21 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
         });
         if (importDismissed) {
             reviewStatus = "rejected";
+        }
+    }
+    const trainingNoteRaw = typeof data.trainingNote === "string" ? data.trainingNote.trim() : "";
+    if (trainingNoteRaw) {
+        if (trainingNoteRaw.length > 800) {
+            throw new https_1.HttpsError("invalid-argument", "Training note must be 800 characters or fewer.");
+        }
+        const ignoreNote = await (0, saveTrainingLessonCore_1.recordIgnoreLaneTrainingNote)({
+            uid,
+            importId,
+            vendorKey: rule.vendorKey,
+            noteRaw: trainingNoteRaw,
+        });
+        if (ignoreNote.reason === "rate_limited") {
+            throw new https_1.HttpsError("resource-exhausted", "Training note limit reached (20 per hour). Try again later.");
         }
     }
     return {

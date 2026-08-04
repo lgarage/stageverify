@@ -124,6 +124,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         (0, creditReturnSkip_1.shouldApplyNowDismissCreditImport)(correctionNoteRaw, importDoc)) {
         const vendorKey = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
         const lesson = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+            uid,
             vendorKey,
             correctionNoteRaw,
             importId,
@@ -425,6 +426,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if (correctionNoteRaw.trim()) {
         const vendorKey = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
         const lesson = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+            uid,
             vendorKey,
             correctionNoteRaw,
             importId,

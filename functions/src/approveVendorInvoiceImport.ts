@@ -192,6 +192,7 @@ export const approveVendorInvoiceImport = onCall(
     ) {
       const vendorKey = vendorKeyFromImportDoc(importDoc);
       const lesson = await saveTrainingLessonCore({
+        uid,
         vendorKey,
         correctionNoteRaw,
         importId,
@@ -611,6 +612,7 @@ export const approveVendorInvoiceImport = onCall(
     if (correctionNoteRaw.trim()) {
       const vendorKey = vendorKeyFromImportDoc(importDoc);
       const lesson = await saveTrainingLessonCore({
+        uid,
         vendorKey,
         correctionNoteRaw,
         importId,

@@ -131,3 +131,4 @@
 {"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"48297f10-08ab-472a-8665-198c1f6ac004","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P5"}
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"1b739a0a-18b1-43d3-b37a-675cae10a1d5","model":"cursor-grok-4.5-high-fast","real":"na","note":"P6 fix-closure"}
 {"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"04a100c8-df55-4b9c-8ab9-72f9c0f2230f","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P6"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"8aa37ff5-9132-41d2-b93e-08e70b389ae5","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"D-59 P7 rules+CF; fallback-from medium"}

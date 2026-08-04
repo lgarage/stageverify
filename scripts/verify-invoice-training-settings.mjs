@@ -160,6 +160,9 @@ async function main() {
     });
     console.log("PASS: unlock-gated ignore-rules contrast");
 
+    await page.getByTestId("load-training-note-audit").waitFor({ timeout: 5000 });
+    console.log("PASS: training note audit load button visible");
+
     const auditButton = page.locator('[data-testid^="audit-ignore-rule-"]').first();
     if ((await auditButton.count()) > 0) {
       const testId = await auditButton.getAttribute("data-testid");

@@ -215,6 +215,15 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Raw training-note audit — CF Admin SDK only; TTL on expireAt (D-59 P7).
+    match /trainingNoteAudit/{noteId} {
+      allow read, write: if false;
+    }
+
+    match /trainingLessonRateLimits/{uid} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }

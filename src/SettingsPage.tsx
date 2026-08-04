@@ -9,6 +9,7 @@ import {
   type VendorIgnoreRule,
   type VendorIgnoreRuleStatus,
   type IgnoreRuleAuditEvent,
+  type TrainingNoteAuditEntry,
 } from "./dispatcher/models";
 import {
   findStagingLocationByCode,
@@ -31,6 +32,7 @@ import {
   getMyDispatcherRole,
   listVendorIgnoreRules,
   listIgnoreRuleAuditEvents,
+  listTrainingNoteAudit,
   migrateLegacyVendorIgnoreRules,
   bulkReopenImportsSkippedByRule,
   updateVendorIgnoreRule,
@@ -161,6 +163,13 @@ export function SettingsPage() {
     Record<string, string>
   >({});
   const [isIgnoreRulesManager, setIsIgnoreRulesManager] = useState(false);
+  const [trainingNoteAuditEntries, setTrainingNoteAuditEntries] = useState<
+    TrainingNoteAuditEntry[] | null
+  >(null);
+  const [trainingNoteAuditLoading, setTrainingNoteAuditLoading] = useState(false);
+  const [trainingNoteAuditError, setTrainingNoteAuditError] = useState<
+    string | null
+  >(null);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -550,6 +559,33 @@ export function SettingsPage() {
       setIgnoreRuleAuditKey(null);
     } finally {
       setIgnoreRuleAuditLoading(false);
+    }
+  };
+
+  const loadTrainingNoteAudit = async () => {
+    if (
+      !isIgnoreRulesManager &&
+      ignoreRulesPassword.trim().length < 8
+    ) {
+      return;
+    }
+    setTrainingNoteAuditLoading(true);
+    setTrainingNoteAuditError(null);
+    try {
+      const entries = await listTrainingNoteAudit({
+        ...(isIgnoreRulesManager
+          ? {}
+          : { password: ignoreRulesPassword }),
+        limit: 15,
+      });
+      setTrainingNoteAuditEntries(entries);
+    } catch (err) {
+      setTrainingNoteAuditError(
+        err instanceof Error ? err.message : "Could not load note audit.",
+      );
+      setTrainingNoteAuditEntries(null);
+    } finally {
+      setTrainingNoteAuditLoading(false);
     }
   };
 
@@ -2223,6 +2259,145 @@ export function SettingsPage() {
                           })}
                         </ul>
                       )}
+                    </div>
+                    <div
+                      data-testid="settings-training-note-audit"
+                      style={{
+                        marginTop: 18,
+                        paddingTop: 14,
+                        borderTop: "1px solid #d1d5db",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: NAVY,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Recent training notes (90-day audit)
+                      </div>
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 12,
+                          color: "#4b5563",
+                          lineHeight: 1.45,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Redacted notes stored with lessons and ignore proposals.
+                        Raw text visible to managers and Admin password holders
+                        only.
+                      </p>
+                      <button
+                        type="button"
+                        data-testid="load-training-note-audit"
+                        disabled={
+                          trainingNoteAuditLoading ||
+                          (!isIgnoreRulesManager &&
+                            ignoreRulesPassword.trim().length < 8)
+                        }
+                        onClick={() => void loadTrainingNoteAudit()}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 4,
+                          border: "1px solid #d1d5db",
+                          backgroundColor: "#fff",
+                          color: "#374151",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor:
+                            trainingNoteAuditLoading ||
+                            (!isIgnoreRulesManager &&
+                              ignoreRulesPassword.trim().length < 8)
+                              ? "not-allowed"
+                              : "pointer",
+                          fontFamily: FONT,
+                          marginBottom: 10,
+                        }}
+                      >
+                        {trainingNoteAuditLoading
+                          ? "Loading…"
+                          : "Load recent notes"}
+                      </button>
+                      {trainingNoteAuditError && (
+                        <p
+                          data-testid="training-note-audit-error"
+                          style={{
+                            margin: "0 0 8px",
+                            fontSize: 12,
+                            color: RED,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {trainingNoteAuditError}
+                        </p>
+                      )}
+                      {trainingNoteAuditEntries &&
+                        trainingNoteAuditEntries.length === 0 && (
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#6b7280",
+                              fontWeight: 600,
+                            }}
+                          >
+                            No training notes recorded yet.
+                          </p>
+                        )}
+                      {trainingNoteAuditEntries &&
+                        trainingNoteAuditEntries.length > 0 && (
+                          <ul
+                            style={{
+                              listStyle: "none",
+                              margin: 0,
+                              padding: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 8,
+                            }}
+                          >
+                            {trainingNoteAuditEntries.map((entry) => (
+                              <li
+                                key={entry.id}
+                                data-testid={`training-note-audit-${entry.id}`}
+                                style={{
+                                  padding: "8px 10px",
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  color: "#374151",
+                                }}
+                              >
+                                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                                  {entry.lane} · {entry.vendorKey} ·{" "}
+                                  {entry.createdAt.slice(0, 19)}
+                                </div>
+                                <div
+                                  data-testid={`training-note-audit-redacted-${entry.id}`}
+                                  style={{ fontWeight: 600 }}
+                                >
+                                  {entry.noteRedacted}
+                                </div>
+                                {entry.noteRaw && (
+                                  <div
+                                    data-testid={`training-note-audit-raw-${entry.id}`}
+                                    style={{
+                                      marginTop: 4,
+                                      color: "#6b7280",
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    Raw: {entry.noteRaw}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                     </div>
                   </div>
                   <div
