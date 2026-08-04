@@ -7,9 +7,9 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- Last shipped: **v0.0.196** — Teach-chat ignore any document type (D-58 fingerprint) + Settings Admin; ingest auto-skip (review-queue only).
+- Last shipped: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board (`pickup_at_vendor` → `ready_for_pickup` + label order).
+- Prior: **v0.0.196** — Teach-chat ignore any document type (D-58 fingerprint) + Settings Admin; ingest auto-skip.
 - Spec: **D-59** training-note hardening — `docs/training-note-ignore-spec.md` (P1 next when building).
-- **In flight (uncommitted):** job release Unassign; Will-Call shells on Deliveries board.
 - Active Phase: Location-first Phase 6 Slice C (C1 shipped) — Slice B audit walk next.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · `stageverify-db`
 
@@ -18,7 +18,8 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Ship in flight:** unassign + will-call board visibility — verify `verify:dispatcher-job-release`, `test:invoice-shell-display`, `build:functions`; parent bumps version + deploy.
+- Confirm live: INV-6168732 / will-call rows on default Deliveries; Unassign on Released To.
+- **Location-first Phase 6 Slice B** audit walk — see `docs/project_state.md` and `docs/roadmap.md`.
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client (dispatcher-only and/or CF-only); high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

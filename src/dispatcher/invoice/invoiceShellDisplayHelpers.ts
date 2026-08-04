@@ -173,7 +173,7 @@ export function resolveShellDeliveryStatus(
     return "complete";
   }
   if (importStatus === "closed_picked_up") return "picked_up";
-  if (importStatus === "pickup_at_vendor") return "complete";
+  if (importStatus === "pickup_at_vendor") return "ready_for_pickup";
   if (importStatus === "partial") return "partial";
   if (importStatus === "issue") return "issue";
   if (importStatus === "ready_for_pickup") return "complete";

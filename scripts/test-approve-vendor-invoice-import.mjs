@@ -369,7 +369,7 @@ const shellDelivery = shellDeliverySnap.data() ?? {};
 if (
   shellDelivery.vendorInvoiceImportId === "vii-review-only-test" &&
   shellDelivery.invoiceImportStatus === "pickup_at_vendor" &&
-  shellDelivery.status === "complete" &&
+  shellDelivery.status === "ready_for_pickup" &&
   shellDelivery.stagingLocationId === undefined &&
   shellDelivery.readinessStatus === undefined
 ) {

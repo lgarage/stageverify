@@ -6,6 +6,7 @@ import { firestoreDataService, listTechnicians } from "./dispatcher/firestoreSer
 import {
   loadTodayJobReleasedToEntries,
   type ReleasedToEntry,
+  unassignJobFromTechniciansForToday,
 } from "./dispatcher/technicianReleaseHelpers";
 import { resolveTechnicianBadgeStyle } from "./dispatcher/technicianBadgeColors";
 import type { Technician } from "./dispatcher/models";
@@ -227,6 +228,15 @@ export function DispatcherDashboardPage() {
       setJobReleasedToEntries(new Map());
     }
   }, []);
+
+  const handleUnassignJobFromTable = useCallback(
+    async (jobId: string, technicianIds: string[]) => {
+      if (technicianIds.length === 0) return;
+      await unassignJobFromTechniciansForToday(jobId, technicianIds);
+      await fetchReleaseMap();
+    },
+    [fetchReleaseMap],
+  );
 
   /* ── Data fetching ── */
   const fetchAllData = useCallback(async () => {
@@ -1159,6 +1169,41 @@ export function DispatcherDashboardPage() {
                                     </span>
                                   );
                                 })}
+                                <button
+                                  type="button"
+                                  data-testid={`released-to-unassign-${row.deliveryId}`}
+                                  title="Unassign from technician"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const techIds = entries.map(
+                                      (entry) => entry.technicianId,
+                                    );
+                                    void handleUnassignJobFromTable(
+                                      row.jobId,
+                                      techIds,
+                                    );
+                                  }}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 22,
+                                    height: 22,
+                                    padding: 0,
+                                    borderRadius: 999,
+                                    border: "1px solid #ccd0d7",
+                                    backgroundColor: "#fff",
+                                    color: "#6b7280",
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                    lineHeight: 1,
+                                    cursor: "pointer",
+                                    fontFamily: FONT,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  ×
+                                </button>
                               </span>
                             );
                           })()}

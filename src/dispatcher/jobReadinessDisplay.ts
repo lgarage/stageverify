@@ -21,7 +21,6 @@ export function deliveryReadinessDisplayLabel(
   materialIssues?: MaterialIssue[],
 ): string {
   if (
-    delivery.status === "complete" ||
     delivery.status === "picked_up" ||
     delivery.status === "installed" ||
     (delivery.invoiceDeliverToSite === true &&
@@ -31,6 +30,9 @@ export function deliveryReadinessDisplayLabel(
   }
   if (isWillCallPickupStagingListNa(delivery)) {
     return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
+  }
+  if (delivery.status === "complete") {
+    return "Complete";
   }
   if (delivery.invoiceImportStatus === "closed_picked_up") {
     return vendorInvoiceImportDisplayLabel("closed_picked_up").replace(/\.$/, "");

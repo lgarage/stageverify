@@ -110,10 +110,44 @@ async function assertAssignedView(page) {
   await page
     .getByTestId("job-release-to-technician-panel")
     .waitFor({ timeout: 20_000 });
+  await page
+    .getByTestId("job-release-to-technician-panel")
+    .scrollIntoViewIfNeeded();
+  await page.waitForFunction(
+    () => {
+      const edit = document.querySelector('[data-testid="job-release-edit-btn"]');
+      const select = document.querySelector(
+        '[data-testid="job-release-technician-select"]',
+      );
+      const panel = document.querySelector(
+        '[data-testid="job-release-to-technician-panel"]',
+      );
+      const loading = panel?.textContent?.includes("Loading");
+      const editVisible =
+        edit instanceof HTMLElement && edit.offsetParent !== null;
+      const selectVisible =
+        select instanceof HTMLElement && select.offsetParent !== null;
+      return editVisible || selectVisible || !loading;
+    },
+    { timeout: 30_000 },
+  );
   const editBtn = page.getByTestId("job-release-edit-btn");
   const techSelect = page.getByTestId("job-release-technician-select");
   const alreadyAssigned =
     (await editBtn.count()) > 0 && (await editBtn.isVisible());
+
+  let firstTechValue = "";
+  const loadFirstTechValue = async () => {
+    const options = techSelect.locator("option:not([value=''])");
+    const optionCount = await options.count();
+    if (optionCount === 0) {
+      throw new Error(
+        "No eligible technicians — add an active technician in Settings first.",
+      );
+    }
+    firstTechValue = (await options.first().getAttribute("value")) ?? "";
+    return firstTechValue;
+  };
 
   if (alreadyAssigned) {
     console.log("PASS: Job already released — assigned view (badge + Edit)");
@@ -136,15 +170,8 @@ async function assertAssignedView(page) {
   } else {
     await techSelect.waitFor({ state: "visible", timeout: 20_000 });
 
-    const options = techSelect.locator("option:not([value=''])");
-    const optionCount = await options.count();
-    if (optionCount === 0) {
-      throw new Error(
-        "No eligible technicians — add an active technician in Settings first.",
-      );
-    }
-    const firstTechValue = await options.first().getAttribute("value");
-    await techSelect.selectOption(firstTechValue ?? "");
+    await loadFirstTechValue();
+    await techSelect.selectOption(firstTechValue);
     await page.waitForFunction(() => {
       const btn = document.querySelector(
         '[data-testid="job-release-submit"]',
@@ -176,6 +203,49 @@ async function assertAssignedView(page) {
   await assertAssignedView(page);
   console.log("PASS: Edit → Cancel returns to badge + Edit view");
 
+  await page.getByTestId("job-release-edit-btn").click();
+  await techSelect.waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByTestId("job-release-unassign").waitFor({
+    state: "visible",
+    timeout: 10_000,
+  });
+  await page.getByTestId("job-release-unassign").click();
+  await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
+  const unassignError = page.getByTestId("job-release-error");
+  if ((await unassignError.count()) > 0 && (await unassignError.isVisible())) {
+    throw new Error(
+      `Unassign failed in drawer: ${(await unassignError.innerText()).trim()}`,
+    );
+  }
+  await techSelect.waitFor({ state: "visible", timeout: 10_000 });
+  console.log("PASS: Edit → Unassign clears assignment and shows picker");
+
+  if (!firstTechValue) {
+    await loadFirstTechValue();
+  }
+  await techSelect.selectOption(firstTechValue);
+  await page.getByTestId("job-release-submit").click();
+  await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
+  await assertAssignedView(page);
+  console.log("PASS: Re-release after unassign for table badge test");
+
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('[data-testid^="released-to-unassign-"]').length >
+        0 ||
+      document.querySelectorAll('[data-testid^="released-to-badge-"]').length > 0,
+    { timeout: 20_000 },
+  ).catch(() => {});
+
+  let tableDeliveryId = drawerOpen.deliveryId ?? "";
+  if (!tableDeliveryId) {
+    const unassignEl = page.locator('[data-testid^="released-to-unassign-"]').first();
+    if ((await unassignEl.count()) > 0) {
+      const testId = (await unassignEl.getAttribute("data-testid")) ?? "";
+      tableDeliveryId = testId.replace(/^released-to-unassign-/, "");
+    }
+  }
+
   const badgeCount = await page
     .locator('[data-testid^="released-to-badge-"]')
     .count();
@@ -184,8 +254,69 @@ async function assertAssignedView(page) {
     console.log("PASS: Released To table badge contrast");
   } else {
     console.log(
-      "SKIP: No Released To badges in table (none released today) — column + drawer panel verified",
+      "SKIP: No Released To badges in table after re-release — column + drawer panel verified",
     );
+  }
+
+  const tableUnassignBtn = page.locator(
+    `[data-testid="released-to-unassign-${tableDeliveryId}"]`,
+  );
+  if (tableDeliveryId && (await tableUnassignBtn.count()) > 0) {
+    await page.keyboard.press("Escape");
+    await page
+      .getByTestId("delivery-detail-drawer")
+      .waitFor({ state: "hidden", timeout: 10_000 })
+      .catch(() => {});
+    await page.waitForTimeout(500);
+    await tableUnassignBtn.click();
+    await page.waitForFunction(
+      (deliveryId) => {
+        const cell = document.querySelector(
+          `[data-testid="released-to-${deliveryId}"]`,
+        );
+        if (!cell) return false;
+        const badges = cell.querySelectorAll(
+          '[data-testid^="released-to-badge-"]',
+        );
+        const unassign = cell.querySelector(
+          `[data-testid="released-to-unassign-${deliveryId}"]`,
+        );
+        return badges.length === 0 && !unassign;
+      },
+      tableDeliveryId,
+      { timeout: 20_000 },
+    );
+    console.log("PASS: Table Released To × unassign clears badges");
+  } else {
+    const anyUnassign = page.locator('[data-testid^="released-to-unassign-"]');
+    if ((await anyUnassign.count()) > 0) {
+      const testId = (await anyUnassign.first().getAttribute("data-testid")) ?? "";
+      const deliveryId = testId.replace(/^released-to-unassign-/, "");
+      await page.keyboard.press("Escape");
+      await page
+        .getByTestId("delivery-detail-drawer")
+        .waitFor({ state: "hidden", timeout: 10_000 })
+        .catch(() => {});
+      await page.waitForTimeout(500);
+      await anyUnassign.first().click();
+      await page.waitForFunction(
+        (id) => {
+          const cell = document.querySelector(`[data-testid="released-to-${id}"]`);
+          if (!cell) return false;
+          return (
+            cell.querySelectorAll('[data-testid^="released-to-badge-"]').length ===
+              0 && !cell.querySelector(`[data-testid="released-to-unassign-${id}"]`)
+          );
+        },
+        deliveryId,
+        { timeout: 20_000 },
+      );
+      console.log("PASS: Table Released To × unassign clears badges");
+    } else {
+      console.log(
+        "SKIP: No table unassign control visible — drawer unassign verified",
+      );
+    }
   }
 
   await page.screenshot({

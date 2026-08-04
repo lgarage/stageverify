@@ -107,6 +107,25 @@ assert(
   isWillCallPickupStagingListNa(willCallShellDelivery),
 );
 
+const willCallReadiness = computeDeliveryReadiness(
+  willCallShellDelivery,
+  willCallItems,
+);
+assert(
+  "will-call shell with status complete shows Will-Call / Pickup label (not Complete)",
+  deliveryReadinessDisplayLabel(
+    willCallShellDelivery,
+    willCallReadiness,
+    willCallItems,
+  ) === "Will-Call / Pickup",
+);
+
+assert(
+  "pickup_at_vendor import maps to ready_for_pickup shell status",
+  resolveShellDeliveryStatus("pickup_at_vendor", "will_call_pickup", false) ===
+    "ready_for_pickup",
+);
+
 const willCallFulfillmentOnlyDelivery = {
   ...willCallShellDelivery,
   id: "delivery-willcall-fulfillment-only",

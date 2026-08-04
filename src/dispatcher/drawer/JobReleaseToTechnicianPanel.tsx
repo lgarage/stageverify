@@ -12,6 +12,7 @@ import {
   releaseJobToTechnicianForToday,
   technicianCanReceiveReleases,
   todayReleaseDateUtc,
+  unassignJobFromTechniciansForToday,
 } from "../technicianReleaseHelpers";
 
 const NAVY = "#0a3161";
@@ -167,6 +168,26 @@ export function JobReleaseToTechnicianPanel({
     setSelectedTechId("");
     setError(null);
     setMessage(null);
+  };
+
+  const handleUnassign = async () => {
+    const previousIds = releasedEntries.map((e) => e.technicianId);
+    if (previousIds.length === 0) return;
+    setReleasing(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await unassignJobFromTechniciansForToday(jobId, previousIds);
+      setEditMode(false);
+      setSelectedTechId("");
+      setMessage("Unassigned from technician for today.");
+      await reloadReleasedEntries();
+      await onReleased?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unassign failed.");
+    } finally {
+      setReleasing(false);
+    }
   };
 
   const actionBase = fullWidthActionBase(font);
@@ -351,25 +372,46 @@ export function JobReleaseToTechnicianPanel({
                   : "Release to technician"}
             </button>
             {isAssigned && editMode ? (
-              <button
-                type="button"
-                data-testid="job-release-cancel-edit"
-                disabled={releasing}
-                onClick={handleCancelEdit}
-                style={{
-                  ...actionBase,
-                  padding: "10px 14px",
-                  border: "1px solid #ccd0d7",
-                  backgroundColor: "#fff",
-                  color: TEXT,
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: releasing ? "not-allowed" : "pointer",
-                  boxShadow: "none",
-                }}
-              >
-                Cancel
-              </button>
+              <>
+                <button
+                  type="button"
+                  data-testid="job-release-unassign"
+                  disabled={releasing}
+                  onClick={() => void handleUnassign()}
+                  style={{
+                    ...actionBase,
+                    padding: "10px 14px",
+                    border: "1px solid #bf0a30",
+                    backgroundColor: releasing ? "#e5e7eb" : "#fff",
+                    color: releasing ? "#9ca3af" : "#bf0a30",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: releasing ? "not-allowed" : "pointer",
+                    boxShadow: "none",
+                  }}
+                >
+                  {releasing ? "Saving…" : "Unassign"}
+                </button>
+                <button
+                  type="button"
+                  data-testid="job-release-cancel-edit"
+                  disabled={releasing}
+                  onClick={handleCancelEdit}
+                  style={{
+                    ...actionBase,
+                    padding: "10px 14px",
+                    border: "1px solid #ccd0d7",
+                    backgroundColor: "#fff",
+                    color: TEXT,
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: releasing ? "not-allowed" : "pointer",
+                    boxShadow: "none",
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
             ) : null}
           </div>
         </>

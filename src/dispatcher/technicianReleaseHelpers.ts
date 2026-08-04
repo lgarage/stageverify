@@ -119,6 +119,27 @@ export async function reassignJobToTechnicianForToday(
   return releaseJobToTechnicianForToday(newTechnicianId, jobId);
 }
 
+/** Remove job from today's release list for given technician(s) — no re-release. */
+export async function unassignJobFromTechniciansForToday(
+  jobId: string,
+  previousTechnicianIds: string[],
+): Promise<void> {
+  const releaseDate = todayReleaseDateUtc();
+  const releases = await listTechnicianDayReleasesForDate(releaseDate);
+
+  for (const techId of previousTechnicianIds) {
+    const release = releases.find((r) => r.technicianId === techId);
+    const currentJobIds = release?.jobIds ?? [];
+    const nextJobIds = currentJobIds.filter((id) => id !== jobId);
+    await releaseJobsToTechnicianClient({
+      technicianId: techId,
+      jobIds: nextJobIds,
+      releaseDate,
+      replace: true,
+    });
+  }
+}
+
 /** Names of techs with this job in today's release list. */
 export function releasedTechnicianNamesForJob(
   jobId: string,
