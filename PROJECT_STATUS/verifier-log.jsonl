@@ -119,3 +119,7 @@
 {"date":"2026-08-03","role":"ship","verdict":"PASS","taskId":"dd1538f7-edc3-46cc-a036-5804967920f4","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-03","role":"security","verdict":"PASS","taskId":"5847fd80-8a2c-4bab-a38d-35cbdafb3dcf","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"59a0f702-ac79-4955-be46-78bf3b85967b","model":"cursor-grok-4.5-high-fast","real":"na","note":"c7834aa v0.0.196 fix-closure: ui-playwright 395483ae PASS, build-checker a572bf68 PASS, security-gate 413c2f54 PASS; closes 8264f94c timing FAIL"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"9f13bfc5-8452-4a49-b2ef-5c8127832e18","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
+{"date":"2026-08-04","role":"ship","verdict":"FAIL","taskId":"UNKNOWN","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P1 74414db missing:build-checker+ui-before-after+ui-playwright"}
+{"date":"2026-08-04","role":"ship","verdict":"FAIL","taskId":"44bf63ef-ef2b-4294-81cd-fe3f32c80437","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P1 74414db missing:build-checker+ui-before-after+ui-playwright (task-id correction; close-out in flight)"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"44bf63ef-ef2b-4294-81cd-fe3f32c80437","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P1 fix-closure 74414db+9002143+9d35678 evidence gaps closed"}
