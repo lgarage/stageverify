@@ -7,8 +7,14 @@ import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
 
+const args = process.argv.slice(2);
+const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
+const baseUrlIdx = args.indexOf("--base-url");
 const baseUrl =
-  process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
+  baseUrlFlag?.slice("--base-url=".length) ??
+  (baseUrlIdx >= 0 ? args[baseUrlIdx + 1] : undefined) ??
+  process.env.STAGEVERIFY_BASE_URL ??
+  "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
 const envPath = resolve(process.cwd(), ".env.local");
 if (existsSync(envPath)) {
