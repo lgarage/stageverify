@@ -78,6 +78,12 @@ import type {
   ConfirmVendorIgnoreRuleResult,
   ProposeVendorIgnoreRuleResult,
   VendorIgnoreRule,
+  IgnoreRuleAuditEvent,
+  PreviewTrainingLessonRedactionResult,
+  TrainingNoteAuditEntry,
+  MigrateLegacyVendorIgnoreRulesResult,
+  BulkReopenImportsSkippedByRuleResult,
+  DispatcherRoleDoc,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -2397,7 +2403,12 @@ const saveVendorTrainingPlaybookCallable = httpsCallable<
 >(functions, "saveVendorTrainingPlaybook");
 
 const confirmVendorIgnoreRuleCallable = httpsCallable<
-  { vendorInvoiceImportId: string; confirm: boolean; echoToken?: string },
+  {
+    vendorInvoiceImportId: string;
+    confirm: boolean;
+    echoToken?: string;
+    trainingNote?: string;
+  },
   ConfirmVendorIgnoreRuleResult
 >(functions, "confirmVendorIgnoreRule");
 
@@ -2413,7 +2424,7 @@ const listVendorIgnoreRulesCallable = httpsCallable<
 
 const updateVendorIgnoreRuleCallable = httpsCallable<
   {
-    password: string;
+    password?: string;
     vendorKey?: string;
     parserFormatId?: string;
     documentType?: string;
@@ -2426,14 +2437,61 @@ const updateVendorIgnoreRuleCallable = httpsCallable<
 
 const deleteVendorIgnoreRuleCallable = httpsCallable<
   {
-    password: string;
+    password?: string;
     vendorKey?: string;
     parserFormatId?: string;
     documentType?: string;
     ruleId?: string;
   },
-  { vendorKey: string; ruleId?: string; deleted: boolean }
+  { vendorKey: string; ruleId?: string; deleted: boolean; archived?: boolean; rule?: VendorIgnoreRule }
 >(functions, "deleteVendorIgnoreRuleCallable");
+
+const activateVendorIgnoreRuleCallable = httpsCallable<
+  {
+    vendorKey?: string;
+    parserFormatId?: string;
+    documentType?: string;
+    ruleId?: string;
+    senderDomains?: string[];
+  },
+  { rule: VendorIgnoreRule }
+>(functions, "activateVendorIgnoreRule");
+
+const archiveVendorIgnoreRuleCallable = httpsCallable<
+  {
+    vendorKey?: string;
+    parserFormatId?: string;
+    documentType?: string;
+    ruleId?: string;
+    reason?: string;
+  },
+  { rule: VendorIgnoreRule; archived: boolean }
+>(functions, "archiveVendorIgnoreRule");
+
+const listIgnoreRuleAuditEventsCallable = httpsCallable<
+  { password: string; ruleId: string; limit?: number },
+  { events: IgnoreRuleAuditEvent[] }
+>(functions, "listIgnoreRuleAuditEventsCallable");
+
+const previewTrainingLessonRedactionCallable = httpsCallable<
+  { note: string },
+  PreviewTrainingLessonRedactionResult
+>(functions, "previewTrainingLessonRedaction");
+
+const listTrainingNoteAuditCallable = httpsCallable<
+  { password?: string; limit?: number },
+  { entries: TrainingNoteAuditEntry[] }
+>(functions, "listTrainingNoteAuditCallable");
+
+const migrateLegacyVendorIgnoreRulesCallable = httpsCallable<
+  Record<string, never>,
+  MigrateLegacyVendorIgnoreRulesResult
+>(functions, "migrateLegacyVendorIgnoreRules");
+
+const bulkReopenImportsSkippedByRuleCallable = httpsCallable<
+  { ruleId: string },
+  BulkReopenImportsSkippedByRuleResult
+>(functions, "bulkReopenImportsSkippedByRule");
 
 const getVendorInvoiceImportCallable = httpsCallable<
   { id: string },
@@ -2642,6 +2700,21 @@ export async function saveInvoiceTrainingLesson(input: {
   return response.data;
 }
 
+export async function previewTrainingLessonRedaction(input: {
+  note: string;
+}): Promise<PreviewTrainingLessonRedactionResult> {
+  const response = await previewTrainingLessonRedactionCallable(input);
+  return response.data;
+}
+
+export async function listTrainingNoteAudit(input: {
+  password?: string;
+  limit?: number;
+}): Promise<TrainingNoteAuditEntry[]> {
+  const response = await listTrainingNoteAuditCallable(input);
+  return response.data.entries;
+}
+
 export async function getVendorTrainingPlaybook(input: {
   password: string;
   vendorKey?: string;
@@ -2671,6 +2744,7 @@ export async function confirmVendorIgnoreRule(input: {
   vendorInvoiceImportId: string;
   confirm: boolean;
   echoToken?: string;
+  trainingNote?: string;
 }): Promise<ConfirmVendorIgnoreRuleResult> {
   const response = await confirmVendorIgnoreRuleCallable(input);
   return response.data;
@@ -2684,7 +2758,7 @@ export async function listVendorIgnoreRules(input: {
 }
 
 export async function updateVendorIgnoreRule(input: {
-  password: string;
+  password?: string;
   vendorKey?: string;
   parserFormatId?: string;
   documentType?: string;
@@ -2696,24 +2770,87 @@ export async function updateVendorIgnoreRule(input: {
   return response.data.rule;
 }
 
-export async function deleteVendorIgnoreRule(input: {
-  password: string;
+export async function activateVendorIgnoreRule(input: {
   vendorKey?: string;
   parserFormatId?: string;
   documentType?: string;
   ruleId?: string;
-}): Promise<{ vendorKey: string; ruleId?: string; deleted: boolean }> {
+  senderDomains?: string[];
+}): Promise<VendorIgnoreRule> {
+  const response = await activateVendorIgnoreRuleCallable(input);
+  return response.data.rule;
+}
+
+export async function archiveVendorIgnoreRule(input: {
+  vendorKey?: string;
+  parserFormatId?: string;
+  documentType?: string;
+  ruleId?: string;
+  reason?: string;
+  password?: string;
+}): Promise<VendorIgnoreRule> {
+  if (input.password) {
+    const response = await deleteVendorIgnoreRuleCallable({
+      password: input.password,
+      vendorKey: input.vendorKey,
+      parserFormatId: input.parserFormatId,
+      documentType: input.documentType,
+      ruleId: input.ruleId,
+    });
+    return response.data.rule!;
+  }
+  const response = await archiveVendorIgnoreRuleCallable(input);
+  return response.data.rule;
+}
+
+export async function deleteVendorIgnoreRule(input: {
+  password?: string;
+  vendorKey?: string;
+  parserFormatId?: string;
+  documentType?: string;
+  ruleId?: string;
+}): Promise<{ vendorKey: string; ruleId?: string; deleted: boolean; archived?: boolean }> {
   const response = await deleteVendorIgnoreRuleCallable(input);
   return response.data;
+}
+
+export async function listIgnoreRuleAuditEvents(input: {
+  password: string;
+  ruleId: string;
+  limit?: number;
+}): Promise<IgnoreRuleAuditEvent[]> {
+  const response = await listIgnoreRuleAuditEventsCallable(input);
+  return response.data.events;
+}
+
+export async function migrateLegacyVendorIgnoreRules(): Promise<MigrateLegacyVendorIgnoreRulesResult> {
+  const response = await migrateLegacyVendorIgnoreRulesCallable({});
+  return response.data;
+}
+
+export async function bulkReopenImportsSkippedByRule(input: {
+  ruleId: string;
+}): Promise<BulkReopenImportsSkippedByRuleResult> {
+  const response = await bulkReopenImportsSkippedByRuleCallable(input);
+  return response.data;
+}
+
+/** Read dispatcherRoles/{uid} for manager UI hints (D-59 P2). */
+export async function getMyDispatcherRole(): Promise<DispatcherRoleDoc | null> {
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) return null;
+  const snap = await getDoc(doc(db, "dispatcherRoles", uid));
+  if (!snap.exists()) return null;
+  return snap.data() as DispatcherRoleDoc;
 }
 
 /** Toast copy when a training lesson or Admin MD save succeeds. */
 export const INVOICE_TRAINING_LESSON_TOAST =
   "Got it — new rule added to internal notes for the next similar invoice.";
 
-/** Toast when teach-chat yes arms a Firestore ignore rule. */
+/** Toast when teach-chat yes proposes an ignore rule (manager must activate). */
 export const VENDOR_IGNORE_RULE_TOAST =
-  "Got it — future documents of this type for this vendor will be skipped. Manage in Settings → Invoice training Admin.";
+  "Proposal saved — a manager must activate it in Settings → Invoice training Admin before future documents are skipped.";
 
 function invoiceShellBackfillCandidate(
   row: VendorInvoiceImportReview,

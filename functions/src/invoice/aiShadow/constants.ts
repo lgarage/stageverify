@@ -9,5 +9,9 @@ export const MODEL_FLASH_LITE = "gemini-3.5-flash-lite";
 export const MODEL_FLASH = "gemini-3.6-flash";
 
 export const MAX_LESSON_NOTE_CHARS = 800;
+/** D-59 P7 — playbook + ignore-lane notes per uid per rolling hour. */
+export const MAX_TRAINING_LESSONS_PER_HOUR_PER_UID = 20;
+/** Firestore TTL on trainingNoteAudit.expireAt (console policy). */
+export const TRAINING_NOTE_AUDIT_TTL_DAYS = 90;
 export const MAX_VENDOR_MD_BYTES = 120_000;
 export const MAX_EXTRACT_CHARS_FOR_MODEL = 24_000;

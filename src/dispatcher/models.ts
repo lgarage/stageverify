@@ -1239,6 +1239,10 @@ export interface VendorInvoiceImportReview {
   rejectedBy?: string;
   /** Auto-skip reason when reviewStatus rejected without manual reject (e.g. credit_return). */
   skipReason?: "credit_return" | string;
+  /** Set when a taught ignore rule matched but strong invoice signals blocked auto-skip. */
+  ignoreRuleSuppressedBy?: "strong_invoice_signals";
+  /** P5 — active ignore rule that auto-skipped this import. */
+  matchedRuleId?: string;
   /** Stage 1 — suggested import eligibility (no automatic CF approve). */
   autoImportEligible?: boolean;
   autoImportConfidence?: number;
@@ -1346,10 +1350,17 @@ export interface SaveInvoiceTrainingLessonResult {
 }
 
 /** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */
+export type VendorIgnoreRuleStatus =
+  | "proposed"
+  | "active"
+  | "disabled"
+  | "archived";
+
 export interface VendorIgnoreRule {
   vendorKey: string;
   parserFormatId: string;
   documentType: string;
+  status: VendorIgnoreRuleStatus;
   enabled: boolean;
   label: string;
   taughtBy: string;
@@ -1360,6 +1371,98 @@ export interface VendorIgnoreRule {
   ruleId?: string;
   /** Legacy / convenience for credit_memo rules. */
   ignoreCreditReturns?: boolean;
+  proposedBy?: string;
+  proposedAt?: string;
+  activatedBy?: string;
+  activatedAt?: string;
+  disabledBy?: string;
+  disabledAt?: string;
+  disabledReason?: string;
+  archivedBy?: string;
+  archivedAt?: string;
+  archivedReason?: string;
+  /** Pinned sender domains (max 5) — D-59 P3. */
+  senderDomains?: string[];
+  /** Grace window start for active rules without domains — D-59 P3. */
+  domainGraceStartedAt?: string;
+  /** P5 — inbound auto-skip match stats. */
+  matchCount?: number;
+  lastMatchedAt?: string;
+  lastMatchImportId?: string;
+  /** P6 — admin re-opens of document-ignore skips (circuit breaker). */
+  reopenCount?: number;
+}
+
+export type IgnoreRuleAuditEventType =
+  | "proposed"
+  | "activated"
+  | "deactivated_manual"
+  | "archived"
+  | "rule_matched"
+  | "match_suppressed_strong_signals"
+  | "match_reopened"
+  | "auto_disabled_false_positive"
+  | "validation_rejected";
+
+export interface IgnoreRuleAuditEvent {
+  id: string;
+  ruleId: string;
+  eventType: IgnoreRuleAuditEventType;
+  actorUid: string | "system";
+  atIso: string;
+  importId?: string;
+  detail?: string;
+}
+
+export type TrainingNoteAuditLane = "playbook" | "ignore";
+
+export type LessonNoteRejectClass =
+  | "empty_note"
+  | "note_too_long"
+  | "contains_email"
+  | "contains_long_number";
+
+export interface PreviewTrainingLessonRedactionResult {
+  noteRedacted: string;
+  safe: boolean;
+  rejectClass?: LessonNoteRejectClass;
+}
+
+export interface TrainingNoteAuditEntry {
+  id: string;
+  uid: string;
+  importId: string;
+  vendorKey: string;
+  noteRedacted: string;
+  noteRaw?: string;
+  lane: TrainingNoteAuditLane;
+  createdAt: string;
+  expireAt: string;
+}
+
+export interface MigrateLegacyVendorIgnoreRulesResult {
+  scanned: number;
+  migrated: number;
+  skipped: number;
+  proposedCount: number;
+  activeCount: number;
+  errors: string[];
+}
+
+export interface BulkReopenImportsSkippedByRuleResult {
+  ruleId: string;
+  scanned: number;
+  reopened: number;
+  skipped: number;
+  autoDisabled: boolean;
+  reopenCount?: number;
+}
+
+export interface DispatcherRoleDoc {
+  active?: boolean;
+  manager?: boolean;
+  email?: string;
+  updatedAt?: string;
 }
 
 export interface ConfirmVendorIgnoreRuleResult {

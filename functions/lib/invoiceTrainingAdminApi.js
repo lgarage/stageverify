@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
+exports.bulkReopenImportsSkippedByRule = exports.migrateLegacyVendorIgnoreRules = exports.listIgnoreRuleAuditEventsCallable = exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.archiveVendorIgnoreRule = exports.activateVendorIgnoreRule = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.listTrainingNoteAuditCallable = exports.previewTrainingLessonRedaction = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
 /**
  * Invoice training Admin — configure alert email/password, Save lesson, MD editor.
  * Password hash in invoiceTrainingAdminSecrets (CF-only). Never in public appSettings.
@@ -11,12 +11,27 @@ const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
+const classifyLessonNoteRejection_1 = require("./invoice/aiShadow/classifyLessonNoteRejection");
+const trainingNoteAudit_1 = require("./invoice/aiShadow/trainingNoteAudit");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("./invoice/aiShadow/vendorIgnoreRules");
 const vendorIgnoreEcho_1 = require("./invoice/vendorIgnoreEcho");
 const inferDocumentType_1 = require("./invoice/inferDocumentType");
+const ignoreRuleAudit_1 = require("./invoice/aiShadow/ignoreRuleAudit");
+const migrateLegacyVendorIgnoreRules_1 = require("./invoice/aiShadow/migrateLegacyVendorIgnoreRules");
+const ignoreRuleAudit_2 = require("./invoice/aiShadow/ignoreRuleAudit");
+const reopenIgnoreSkippedImport_1 = require("./invoice/aiShadow/reopenIgnoreSkippedImport");
 function getDb() {
     return admin.firestore();
+}
+async function auditRuleEvent(input) {
+    try {
+        await (0, ignoreRuleAudit_1.writeIgnoreRuleAuditEvent)(getDb(), input);
+    }
+    catch (err) {
+        console.error("ignoreRuleAudit write failed:", err);
+        throw err;
+    }
 }
 async function requirePassword(data) {
     const password = (0, adminConfig_1.asAdminPassword)(data?.password);
@@ -90,11 +105,15 @@ exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" 
     const applyNowDismiss = importDoc.reviewStatus === "pending_review" &&
         (0, creditReturnSkip_1.shouldApplyNowDismissCreditImport)(correctionNote, importDoc);
     const result = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+        uid,
         vendorKey,
         correctionNoteRaw: correctionNote,
         importId,
         atIso: now,
     });
+    if (result.reason === "rate_limited") {
+        throw new https_1.HttpsError("resource-exhausted", "Training note limit reached (20 per hour). Try again later.");
+    }
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
     if (result.trainingLessonWrote && applyNowDismiss) {
@@ -134,6 +153,32 @@ exports.saveInvoiceTrainingLesson = (0, https_1.onCall)({ region: "us-central1" 
         reviewStatus,
         ...result,
     };
+});
+exports.previewTrainingLessonRedaction = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const data = (request.data ?? {});
+    const note = typeof data.note === "string" ? data.note : "";
+    const preview = (0, classifyLessonNoteRejection_1.classifyLessonNoteRejection)(note);
+    return {
+        noteRedacted: preview.noteRedacted,
+        safe: preview.safe,
+        ...(preview.rejectClass ? { rejectClass: preview.rejectClass } : {}),
+    };
+});
+/** Manager or dispatcher+admin password — recent training-note audit (D-59 P7). */
+exports.listTrainingNoteAuditCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const data = (request.data ?? {});
+    const isManager = await (0, dispatcherAuth_1.hasManagerRole)(uid);
+    if (!isManager) {
+        await requirePassword(data);
+    }
+    const limit = (0, dispatcherAuth_1.clampListLimit)(data.limit, 20, 100);
+    const entries = await (0, trainingNoteAudit_1.listTrainingNoteAudit)(getDb(), {
+        limit,
+        includeRaw: true,
+    });
+    return { entries };
 });
 exports.getVendorTrainingPlaybook = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
@@ -239,11 +284,11 @@ async function senderDomainsForImport(importDoc) {
     const senderEmail = typeof inboundSnap.data()?.senderEmail === "string"
         ? inboundSnap.data().senderEmail
         : "";
-    const domain = (0, vendorIgnoreEcho_1.extractSenderDomain)(senderEmail);
-    if (!domain) {
+    const senderDomains = (0, vendorIgnoreEcho_1.normalizeSenderDomains)([senderEmail]);
+    if (senderDomains.length === 0) {
         throw new https_1.HttpsError("failed-precondition", "Cannot propose an ignore rule — sender email domain is unavailable.");
     }
-    return [domain];
+    return senderDomains;
 }
 function vendorLabelFromImport(importDoc) {
     if (typeof importDoc.detectedVendorName === "string" &&
@@ -259,7 +304,7 @@ function vendorLabelFromImport(importDoc) {
  * Rejects unknown type/format, invoice type, unknown-vendor (D-59 P1).
  */
 exports.proposeVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const importId = typeof data.vendorInvoiceImportId === "string"
         ? data.vendorInvoiceImportId.trim()
@@ -276,6 +321,13 @@ exports.proposeVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
     });
     const rejectReason = (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint);
     if (rejectReason) {
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "validation_rejected",
+            actorUid: uid,
+            importId,
+            detail: rejectReason,
+        });
         throw new https_1.HttpsError("failed-precondition", rejectReason);
     }
     const senderDomains = await senderDomainsForImport(importDoc);
@@ -337,6 +389,13 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
     });
     const rejectReason = (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint);
     if (rejectReason) {
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "validation_rejected",
+            actorUid: uid,
+            importId,
+            detail: rejectReason,
+        });
         throw new https_1.HttpsError("failed-precondition", rejectReason);
     }
     const senderDomains = await senderDomainsForImport(importDoc);
@@ -357,14 +416,26 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
     if (echoToken !== expectedToken) {
         throw new https_1.HttpsError("failed-precondition", "This import changed since the echo — propose the rule again to confirm.");
     }
+    const existingRule = await (0, vendorIgnoreRules_1.getVendorIgnoreRuleById)(getDb(), (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint));
+    const wasActive = existingRule?.status === "active";
+    const now = new Date().toISOString();
     let rule;
     try {
-        rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
-            fingerprint,
-            enabled: true,
-            uid,
-            sourceImportId: importId,
-        });
+        if (wasActive) {
+            // Idempotent: already active — do not downgrade to proposed.
+            rule = existingRule;
+        }
+        else {
+            rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
+                fingerprint,
+                status: "proposed",
+                uid,
+                sourceImportId: importId,
+                proposedBy: uid,
+                proposedAt: now,
+                senderDomains,
+            });
+        }
     }
     catch (err) {
         if (err instanceof Error && err.message === "fingerprint_not_armable") {
@@ -373,7 +444,14 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
         }
         throw err;
     }
-    const now = new Date().toISOString();
+    if (!wasActive) {
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "proposed",
+            actorUid: uid,
+            importId,
+        });
+    }
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
     if (importDoc.reviewStatus === "pending_review") {
@@ -397,6 +475,21 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
             reviewStatus = "rejected";
         }
     }
+    const trainingNoteRaw = typeof data.trainingNote === "string" ? data.trainingNote.trim() : "";
+    if (trainingNoteRaw) {
+        if (trainingNoteRaw.length > 800) {
+            throw new https_1.HttpsError("invalid-argument", "Training note must be 800 characters or fewer.");
+        }
+        const ignoreNote = await (0, saveTrainingLessonCore_1.recordIgnoreLaneTrainingNote)({
+            uid,
+            importId,
+            vendorKey: rule.vendorKey,
+            noteRaw: trainingNoteRaw,
+        });
+        if (ignoreNote.reason === "rate_limited") {
+            throw new https_1.HttpsError("resource-exhausted", "Training note limit reached (20 per hour). Try again later.");
+        }
+    }
     return {
         vendorKey: rule.vendorKey,
         ignoreCreditReturns: rule.documentType === "credit_memo" && rule.enabled,
@@ -406,26 +499,114 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
         echoSummary: `Skip future ${(0, inferDocumentType_1.documentTypeLabel)(rule.documentType)} for ${rule.vendorKey} (${rule.parserFormatId})`,
     };
 });
+function ruleToCallableResponse(rule) {
+    return {
+        ...rule,
+        ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(rule),
+        ignoreCreditReturns: rule.documentType === "credit_memo" && rule.status === "active",
+    };
+}
+/** Manager activates a proposed or disabled ignore rule (D-59 P2). */
+exports.activateVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    const data = (request.data ?? {});
+    const fingerprint = parseFingerprintFromAdminData(data);
+    if (!fingerprint || !(0, vendorIgnoreRules_1.isArmableFingerprint)(fingerprint)) {
+        const rejectDetail = fingerprint
+            ? ((0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint) ??
+                "This document type cannot be used for an ignore rule.")
+            : "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.";
+        await auditRuleEvent({
+            ruleId: typeof data.ruleId === "string" && data.ruleId.trim()
+                ? data.ruleId.trim()
+                : fingerprint
+                    ? (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint)
+                    : "unknown",
+            eventType: "validation_rejected",
+            actorUid: uid,
+            detail: rejectDetail,
+        });
+        throw new https_1.HttpsError("invalid-argument", rejectDetail);
+    }
+    try {
+        const rule = await (0, vendorIgnoreRules_1.activateVendorIgnoreRuleDoc)(getDb(), {
+            fingerprint,
+            uid,
+            senderDomains: data.senderDomains !== undefined
+                ? (0, vendorIgnoreEcho_1.normalizeSenderDomains)(data.senderDomains)
+                : undefined,
+        });
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "activated",
+            actorUid: uid,
+        });
+        return { rule: ruleToCallableResponse(rule) };
+    }
+    catch (err) {
+        if (err instanceof Error && err.message === "rule_not_found") {
+            throw new https_1.HttpsError("not-found", "Ignore rule not found.");
+        }
+        if (err instanceof Error && err.message === "rule_archived") {
+            throw new https_1.HttpsError("failed-precondition", "Archived rules cannot be activated — propose a new rule instead.");
+        }
+        if (err instanceof Error && err.message === "domains_required") {
+            throw new https_1.HttpsError("failed-precondition", "At least one sender domain is required to activate this rule.");
+        }
+        if (err instanceof Error && err.message === "fingerprint_not_armable") {
+            throw new https_1.HttpsError("failed-precondition", (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint) ??
+                "This document type cannot be used for an ignore rule.");
+        }
+        throw err;
+    }
+});
+/** Manager archives (declines) an ignore rule — status archived (D-59 P2). */
+exports.archiveVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    const data = (request.data ?? {});
+    const fingerprint = parseFingerprintFromAdminData(data);
+    if (!fingerprint || !(0, vendorIgnoreRules_1.isArmableVendorKey)(fingerprint.vendorKey)) {
+        throw new https_1.HttpsError("invalid-argument", "A valid ruleId or vendorKey + documentType is required.");
+    }
+    const reason = typeof data.reason === "string" ? data.reason.trim() : undefined;
+    try {
+        const rule = await (0, vendorIgnoreRules_1.archiveVendorIgnoreRuleDoc)(getDb(), {
+            fingerprint,
+            uid,
+            reason,
+        });
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "archived",
+            actorUid: uid,
+            detail: reason,
+        });
+        return { rule: ruleToCallableResponse(rule), archived: true };
+    }
+    catch (err) {
+        if (err instanceof Error && err.message === "rule_not_found") {
+            throw new https_1.HttpsError("not-found", "Ignore rule not found.");
+        }
+        throw err;
+    }
+});
 /** Admin password-gated list of Firestore ignore rules. */
 exports.listVendorIgnoreRulesCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     await requirePassword(request.data);
     const rules = await (0, vendorIgnoreRules_1.listVendorIgnoreRules)(getDb());
     return {
-        rules: rules.map((r) => ({
-            ...r,
-            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(r),
-            ignoreCreditReturns: r.documentType === "credit_memo" && r.enabled,
-        })),
+        rules: rules.map((r) => ruleToCallableResponse(r)),
     };
 });
-/** Admin password-gated update (toggle) of a Firestore ignore rule. */
+/**
+ * Legacy update callable — D-59 P2: disable only via manager auth; enable rejected.
+ * Admin-password toggle is read-only (permission error).
+ */
 exports.updateVendorIgnoreRuleCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
-    await requirePassword(request.data);
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     let fingerprint = parseFingerprintFromAdminData(data);
-    // Legacy toggle: vendorKey + ignoreCreditReturns only → credit_memo
     if (!fingerprint &&
         typeof data.vendorKey === "string" &&
         typeof data.ignoreCreditReturns === "boolean") {
@@ -441,38 +622,164 @@ exports.updateVendorIgnoreRuleCallable = (0, https_1.onCall)({ region: "us-centr
                 "This document type cannot be used for an ignore rule.")
             : "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.");
     }
-    const enabled = typeof data.enabled === "boolean"
+    const wantsEnable = typeof data.enabled === "boolean"
         ? data.enabled
         : typeof data.ignoreCreditReturns === "boolean"
             ? data.ignoreCreditReturns
-            : true;
-    const rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
-        fingerprint,
-        enabled,
-        uid,
-    });
-    return {
-        rule: {
-            ...rule,
-            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(rule),
-            ignoreCreditReturns: rule.documentType === "credit_memo" && rule.enabled,
-        },
-    };
+            : null;
+    if (wantsEnable === true) {
+        throw new https_1.HttpsError("failed-precondition", "Use activateVendorIgnoreRule to enable a proposed or disabled rule.");
+    }
+    if (wantsEnable !== false) {
+        throw new https_1.HttpsError("invalid-argument", "enabled must be false to disable a rule.");
+    }
+    // Admin-password-only callers cannot toggle (read-only after P2).
+    const password = (0, adminConfig_1.asAdminPassword)(data.password);
+    if (password) {
+        try {
+            const ok = await (0, adminConfig_1.verifyAdminPassword)(password);
+            if (ok) {
+                throw new https_1.HttpsError("permission-denied", "Ignore rule toggles require manager role — use Activate or Disable in Settings.");
+            }
+        }
+        catch (err) {
+            if (err instanceof https_1.HttpsError)
+                throw err;
+            if (err instanceof adminConfig_1.AdminPasswordLockedError) {
+                throw new https_1.HttpsError("resource-exhausted", err.message);
+            }
+            throw err;
+        }
+    }
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    try {
+        const rule = await (0, vendorIgnoreRules_1.disableVendorIgnoreRuleDoc)(getDb(), {
+            fingerprint,
+            uid,
+        });
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "deactivated_manual",
+            actorUid: uid,
+        });
+        return { rule: ruleToCallableResponse(rule) };
+    }
+    catch (err) {
+        if (err instanceof Error && err.message === "rule_not_found") {
+            throw new https_1.HttpsError("not-found", "Ignore rule not found.");
+        }
+        if (err instanceof Error && err.message === "rule_archived") {
+            throw new https_1.HttpsError("failed-precondition", "Archived rules cannot be disabled.");
+        }
+        throw err;
+    }
 });
-/** Admin password-gated delete of a Firestore ignore rule. */
+/**
+ * Admin password-gated delete re-routed to archive (D-59 P2 — no hard delete).
+ * Managers may also use archiveVendorIgnoreRule without admin password.
+ */
 exports.deleteVendorIgnoreRuleCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
-    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
-    await requirePassword(request.data);
+    let uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
     const fingerprint = parseFingerprintFromAdminData(data);
-    if (fingerprint && (0, vendorIgnoreRules_1.isArmableVendorKey)(fingerprint.vendorKey)) {
-        const result = await (0, vendorIgnoreRules_1.deleteVendorIgnoreRuleByFingerprint)(getDb(), fingerprint);
+    if (!fingerprint || !(0, vendorIgnoreRules_1.isArmableVendorKey)(fingerprint.vendorKey)) {
+        throw new https_1.HttpsError("invalid-argument", "A valid ruleId or vendorKey + documentType is required.");
+    }
+    const password = (0, adminConfig_1.asAdminPassword)(data.password);
+    let archivedVia = "manager";
+    if (password) {
+        try {
+            const ok = await (0, adminConfig_1.verifyAdminPassword)(password);
+            if (!ok) {
+                throw new https_1.HttpsError("permission-denied", "Incorrect Admin password.");
+            }
+        }
+        catch (err) {
+            if (err instanceof https_1.HttpsError)
+                throw err;
+            if (err instanceof adminConfig_1.AdminPasswordLockedError) {
+                throw new https_1.HttpsError("resource-exhausted", err.message);
+            }
+            throw err;
+        }
+        archivedVia = "admin_password";
+    }
+    else {
+        uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    }
+    try {
+        const rule = await (0, vendorIgnoreRules_1.archiveVendorIgnoreRuleDoc)(getDb(), {
+            fingerprint,
+            uid,
+            reason: archivedVia === "admin_password" ? "admin_delete" : "manual",
+        });
+        await auditRuleEvent({
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            eventType: "archived",
+            actorUid: uid,
+            detail: archivedVia === "admin_password" ? "admin_delete" : "manual",
+        });
         return {
             vendorKey: fingerprint.vendorKey,
             ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
-            ...result,
+            deleted: true,
+            archived: true,
+            rule: ruleToCallableResponse(rule),
         };
     }
-    throw new https_1.HttpsError("invalid-argument", "A valid ruleId or vendorKey + documentType is required.");
+    catch (err) {
+        if (err instanceof Error && err.message === "rule_not_found") {
+            throw new https_1.HttpsError("not-found", "Ignore rule not found.");
+        }
+        throw err;
+    }
+});
+/** Dispatcher + admin password — audit drill-in for one ignore rule (D-59 P5). */
+exports.listIgnoreRuleAuditEventsCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    await requirePassword(request.data);
+    const data = (request.data ?? {});
+    const ruleId = typeof data.ruleId === "string" ? data.ruleId.trim() : "";
+    if (!ruleId) {
+        throw new https_1.HttpsError("invalid-argument", "ruleId is required.");
+    }
+    const limit = typeof data.limit === "number" && Number.isFinite(data.limit)
+        ? data.limit
+        : undefined;
+    const events = await (0, ignoreRuleAudit_2.listIgnoreRuleAuditEvents)(getDb(), { ruleId, limit });
+    return { events };
+});
+/** Manager-only idempotent legacy vendor-only → 3-part rule migration (D-59 P5). */
+exports.migrateLegacyVendorIgnoreRules = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    void request;
+    const result = await (0, migrateLegacyVendorIgnoreRules_1.migrateLegacyVendorIgnoreRulesCore)(getDb(), uid);
+    return result;
+});
+/** Manager bulk-reopen imports auto-skipped by one ignore rule (D-59 P6). */
+exports.bulkReopenImportsSkippedByRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    const data = (request.data ?? {});
+    const ruleId = typeof data.ruleId === "string" ? data.ruleId.trim() : "";
+    if (!ruleId) {
+        throw new https_1.HttpsError("invalid-argument", "ruleId is required.");
+    }
+    const rule = await (0, vendorIgnoreRules_1.getVendorIgnoreRuleById)(getDb(), ruleId);
+    if (!rule) {
+        throw new https_1.HttpsError("not-found", "Ignore rule not found.");
+    }
+    try {
+        const result = await (0, reopenIgnoreSkippedImport_1.bulkReopenImportsSkippedByRuleCore)(getDb(), {
+            ruleId,
+            actorUid: uid,
+        });
+        return result;
+    }
+    catch (err) {
+        if (err instanceof Error && err.message === "rule_id_required") {
+            throw new https_1.HttpsError("invalid-argument", "ruleId is required.");
+        }
+        throw err;
+    }
 });
 //# sourceMappingURL=invoiceTrainingAdminApi.js.map

@@ -29,6 +29,7 @@ import {
   creditReturnAdvisoryLabel,
   creditReturnSkipLabel,
 } from "./creditReturnSkip";
+import { ignoreRuleSuppressedAdvisoryLabel } from "./ignoreRuleSuppressed";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -46,6 +47,7 @@ function StatusChip({
   skipReason,
   rejectedBy,
   creditAdvisory,
+  ignoreSuppressedAdvisory,
 }: {
   importStatus: string;
   reviewStatus: VendorInvoiceImportReview["reviewStatus"];
@@ -53,6 +55,7 @@ function StatusChip({
   skipReason?: string;
   rejectedBy?: string;
   creditAdvisory?: string | null;
+  ignoreSuppressedAdvisory?: string | null;
 }) {
   const importLabel = vendorInvoiceImportDisplayLabelForRow(
     importStatus as VendorInvoiceImportStatus,
@@ -60,6 +63,7 @@ function StatusChip({
   );
   const skipLabel = creditReturnSkipLabel(skipReason, rejectedBy);
   const advisoryLabel = creditAdvisory ?? null;
+  const ignoreSuppressedLabel = ignoreSuppressedAdvisory ?? null;
   const isWillCall = importStatus === "pickup_at_vendor";
   const isDeliverToSite =
     importStatus === "pending" &&
@@ -147,6 +151,23 @@ function StatusChip({
           }}
         >
           {advisoryLabel}
+        </span>
+      ) : null}
+      {ignoreSuppressedLabel ? (
+        <span
+          data-testid="invoice-review-ignore-suppressed-chip"
+          style={{
+            backgroundColor: "#fff7ed",
+            color: "#9a3412",
+            fontWeight: 700,
+            fontSize: 11,
+            padding: "3px 8px",
+            borderRadius: 999,
+            whiteSpace: "nowrap",
+            border: "1px solid #fed7aa",
+          }}
+        >
+          {ignoreSuppressedLabel}
         </span>
       ) : null}
     </div>
@@ -750,6 +771,7 @@ export function InvoiceReviewPanel({
                       skipReason={row.skipReason}
                       rejectedBy={row.rejectedBy}
                       creditAdvisory={creditReturnAdvisoryLabel(row)}
+                      ignoreSuppressedAdvisory={ignoreRuleSuppressedAdvisoryLabel(row)}
                     />
                     <AutoImportSuggestionBadge importRow={row} compact />
                     {codContext && <CodPaymentChip label={codContext.chipLabel} />}

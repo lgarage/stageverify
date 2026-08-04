@@ -124,3 +124,18 @@
 {"date":"2026-08-04","role":"ship","verdict":"FAIL","taskId":"44bf63ef-ef2b-4294-81cd-fe3f32c80437","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P1 74414db missing:build-checker+ui-before-after+ui-playwright (task-id correction; close-out in flight)"}
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"44bf63ef-ef2b-4294-81cd-fe3f32c80437","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P1 fix-closure 74414db+9002143+9d35678 evidence gaps closed"}
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"83d00a88-227a-4754-ae63-5f4f09ba86ca","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"be3da43d-80a0-4fcd-a448-d5c2c175ae0b","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"1d778293-0941-4ff8-9baa-3cfaf7564eb7","model":"claude-fable-5-thinking-high","real":"na","note":""}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"4dba0b45-197f-4bb7-a69d-3e1fd0609d64","model":"claude-4.6-sonnet-high-thinking","real":"na","note":""}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"20ae439c-e34c-485b-b764-1c9fe04f1fa2","model":"cursor-grok-4.5-high-fast","real":"na","note":"P3 fix-closure"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"4ea74502-6c46-4291-8b03-ddd5a9c55ded","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P3 HOSTNAME_RE"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"58353f96-4275-46ef-a577-f193a4688dfe","model":"cursor-grok-4.5-high-fast","real":"na","note":"P4"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"85710bd0-c371-42dd-a859-88bb572cb3ba","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P4"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"3e18e214-92be-4724-a77b-948d0e9b469e","model":"cursor-grok-4.5-high-fast","real":"na","note":"P5"}
+{"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"53136d38-9d41-432b-acab-660c6f4e9388","model":"claude-fable-5-thinking-high","real":"na","note":"P5"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"48297f10-08ab-472a-8665-198c1f6ac004","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P5"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"1b739a0a-18b1-43d3-b37a-675cae10a1d5","model":"cursor-grok-4.5-high-fast","real":"na","note":"P6 fix-closure"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"04a100c8-df55-4b9c-8ab9-72f9c0f2230f","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P6"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"8aa37ff5-9132-41d2-b93e-08e70b389ae5","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"D-59 P7 rules+CF; fallback-from medium"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"5ef656fe-a0f9-4e43-addd-be6a4c4b7c6e","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P7 branch push 6735802c"}
+{"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"f6ce3250-dd78-4e5b-84dc-d7d352338db7","model":"claude-fable-5-thinking-high","real":"na","note":"D-59 P7 phase boundary"}

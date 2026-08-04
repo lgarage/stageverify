@@ -43,6 +43,12 @@ const {
   isArmableFingerprint,
   ignoreRuleDocId,
   fingerprintFromImport,
+  vendorIgnoresFingerprint,
+  upsertVendorIgnoreRule,
+  activateVendorIgnoreRuleDoc,
+  isDomainGraceActive,
+  isDomainGraceExpired,
+  DOMAIN_GRACE_MS,
 } = require(path.join(
   root,
   "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
@@ -51,6 +57,7 @@ const {
   armableFingerprintError,
   computeEchoToken,
   extractSenderDomain,
+  normalizeSenderDomains,
 } = require(path.join(root, "functions/lib/invoice/vendorIgnoreEcho.js"));
 const {
   shouldApplyNowDismissCreditImport,
@@ -113,6 +120,17 @@ assert.equal(
 assert.equal(extractSenderDomain("Vendor <orders@johnstonesupply.com>"), "johnstonesupply.com");
 assert.equal(extractSenderDomain(""), null);
 
+assert.deepEqual(
+  normalizeSenderDomains(["orders@johnstonesupply.com", "vendor.com"]),
+  ["johnstonesupply.com", "vendor.com"],
+);
+assert.deepEqual(normalizeSenderDomains(["  BAD HOST ", ""]), []);
+assert.deepEqual(
+  normalizeSenderDomains(["user@evil.com\nX-Header: injected"]),
+  [],
+  "newline/injection in email domain must not pass normalizeSenderDomains",
+);
+
 const tokenA = computeEchoToken({
   importId: "imp-1",
   vendorKey: "johnstone",
@@ -140,5 +158,186 @@ assert.equal(
   }),
   false,
 );
+
+// D-59 P2: status enum + matching only when active
+assert.equal(isArmableFingerprint(creditFp), true);
+const creditId = ignoreRuleDocId(creditFp);
+
+// Mock Firestore for vendorIgnoresFingerprint status + domain gate
+class MockDoc {
+  constructor(id, data) {
+    this.id = id;
+    this._data = data;
+    this.exists = data != null;
+  }
+  data() {
+    return this._data;
+  }
+}
+class MockDocRef {
+  constructor(id, store) {
+    this.id = id;
+    this._store = store;
+  }
+  async get() {
+    const data = this._store[this.id];
+    return new MockDoc(this.id, data ?? null);
+  }
+  async set(payload, opts) {
+    const prev = this._store[this.id] ?? {};
+    if (opts?.merge) {
+      const next = { ...prev };
+      for (const [k, v] of Object.entries(payload)) {
+        if (v && typeof v === "object" && v._delete) {
+          delete next[k];
+        } else {
+          next[k] = v;
+        }
+      }
+      this._store[this.id] = next;
+    } else {
+      this._store[this.id] = payload;
+    }
+  }
+}
+class MockCollection {
+  constructor(docs) {
+    this._docs = docs;
+  }
+  doc(id) {
+    return new MockDocRef(id, this._docs);
+  }
+}
+class MockDb {
+  constructor(docs) {
+    this._docs = docs;
+  }
+  collection() {
+    return new MockCollection(this._docs);
+  }
+}
+
+const proposedDoc = {
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  documentType: "credit_memo",
+  status: "proposed",
+  enabled: false,
+  taughtBy: "u1",
+  taughtAt: "2026-01-01",
+  updatedAt: "2026-01-01",
+  updatedBy: "u1",
+  label: "Credit memo · johnstone",
+};
+const activeDoc = {
+  ...proposedDoc,
+  status: "active",
+  enabled: true,
+  senderDomains: ["johnstonesupply.com"],
+};
+
+assert.deepEqual(
+  await vendorIgnoresFingerprint(new MockDb({ [creditId]: proposedDoc }), creditFp),
+  { matched: false },
+  "proposed never matches",
+);
+assert.deepEqual(
+  await vendorIgnoresFingerprint(
+    new MockDb({ [creditId]: activeDoc }),
+    creditFp,
+    "Vendor <orders@johnstonesupply.com>",
+  ),
+  { matched: true, ruleId: creditId },
+  "active with matching domain matches",
+);
+assert.deepEqual(
+  await vendorIgnoresFingerprint(
+    new MockDb({ [creditId]: activeDoc }),
+    creditFp,
+    "other@foreign-vendor.com",
+  ),
+  { matched: false },
+  "foreign domain does not match",
+);
+
+const graceActiveDoc = {
+  ...proposedDoc,
+  status: "active",
+  enabled: true,
+  domainGraceStartedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+};
+assert.deepEqual(
+  await vendorIgnoresFingerprint(new MockDb({ [creditId]: graceActiveDoc }), creditFp),
+  { matched: true, ruleId: creditId },
+  "grace in-window matches without domains",
+);
+
+const expiredGraceDoc = {
+  ...graceActiveDoc,
+  domainGraceStartedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+};
+assert.deepEqual(
+  await vendorIgnoresFingerprint(new MockDb({ [creditId]: expiredGraceDoc }), creditFp),
+  { matched: false },
+  "grace expired does not match",
+);
+assert.equal(isDomainGraceActive(expiredGraceDoc), false);
+assert.equal(isDomainGraceExpired(expiredGraceDoc), true);
+assert.equal(DOMAIN_GRACE_MS, 7 * 24 * 60 * 60 * 1000);
+
+const legacyEnabledDoc = {
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  documentType: "credit_memo",
+  enabled: true,
+  taughtBy: "u1",
+  taughtAt: "2026-01-01",
+  updatedAt: "2026-01-01",
+  updatedBy: "u1",
+  label: "Credit memo · johnstone",
+  senderDomains: ["johnstonesupply.com"],
+};
+assert.deepEqual(
+  await vendorIgnoresFingerprint(
+    new MockDb({ [creditId]: legacyEnabledDoc }),
+    creditFp,
+    "orders@johnstonesupply.com",
+  ),
+  { matched: true, ruleId: creditId },
+  "grandfather enabled→active with domain matches",
+);
+
+const { deleteVendorIgnoreRule } = require(path.join(
+  root,
+  "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
+));
+await assert.rejects(
+  () => deleteVendorIgnoreRule(new MockDb({}), "legacy-id"),
+  /hard_delete_forbidden_use_archive/,
+  "hard delete helpers throw (D-59 P5 archive-only)",
+);
+
+// confirm persists senderDomains via upsert (proposed)
+const upsertDbDocs = {};
+const upsertDb = new MockDb(upsertDbDocs);
+const upserted = await upsertVendorIgnoreRule(upsertDb, {
+  fingerprint: creditFp,
+  status: "proposed",
+  uid: "u-propose",
+  senderDomains: ["johnstonesupply.com"],
+});
+assert.deepEqual(upserted.senderDomains, ["johnstonesupply.com"]);
+
+// activate zero domains fails
+upsertDbDocs[creditId] = { ...proposedDoc };
+try {
+  await activateVendorIgnoreRuleDoc(upsertDb, {
+    fingerprint: creditFp,
+    uid: "mgr",
+  });
+  assert.fail("activate without domains should throw");
+} catch (err) {
+  assert.equal(err.message, "domains_required");
+}
 
 console.log("test-invoice-training-admin: PASS");

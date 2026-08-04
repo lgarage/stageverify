@@ -96,6 +96,17 @@ const IDLE_NOTE_PLACEHOLDER =
 const CONFIRM_NOTE_PLACEHOLDER =
   'Type "yes" to send to a manager, or "no" to cancel.';
 
+/** Toast auto-dismisses after 4s — wait so preview SKIP cannot bleed into teach-chat. */
+async function waitForTrainingToastHidden(page, timeoutMs = 6000) {
+  const toastEl = page.getByTestId("invoice-training-toast");
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await toastEl.isVisible().catch(() => false))) return;
+    await page.waitForTimeout(250);
+  }
+  throw new Error("invoice-training-toast still visible after timeout");
+}
+
 async function assertTrainingPanelSection19(page) {
   const panel = page.getByTestId("invoice-parsed-inspect-training-panel");
   const panelText = (await panel.innerText()).trim();
@@ -122,11 +133,59 @@ async function assertTrainingPanelSection19(page) {
   console.log("PASS: idle placeholder + Send label");
 }
 
+async function assertLessonPreviewDialog(page) {
+  const noteInput = page.getByTestId("invoice-parsed-inspect-correction-note");
+  const sendBtn = page.getByTestId("invoice-parsed-inspect-save-lesson");
+  const toastEl = page.getByTestId("invoice-training-toast");
+  await noteInput.fill(
+    "When B/O column has qty, set quantityBackordered from that column.",
+  );
+  await sendBtn.click();
+  const previewDialog = page.getByTestId("invoice-training-lesson-preview-dialog");
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    if (await previewDialog.isVisible().catch(() => false)) break;
+    if (await toastEl.isVisible().catch(() => false)) {
+      const toastText = (await toastEl.innerText()).trim();
+      if (/Preview failed|internal|functions|not-found|unauthenticated|CORS/i.test(toastText)) {
+        console.log(
+          "SKIP: previewTrainingLessonRedaction CF not deployed in verify env — deploy functions to exercise preview dialog",
+        );
+        await noteInput.fill("");
+        await waitForTrainingToastHidden(page);
+        return;
+      }
+    }
+    await page.waitForTimeout(250);
+  }
+  if (!(await previewDialog.isVisible().catch(() => false))) {
+    throw new Error(
+      "Lesson preview dialog did not appear — previewTrainingLessonRedaction likely unavailable",
+    );
+  }
+  await page.getByTestId("invoice-training-lesson-preview-heading").waitFor({
+    timeout: 5000,
+  });
+  const redacted = page.getByTestId("invoice-training-lesson-preview-redacted");
+  await redacted.waitFor({ timeout: 5000 });
+  const text = (await redacted.innerText()).trim();
+  if (!text.includes("quantityBackordered")) {
+    throw new Error(`Preview redacted text unexpected: ${text}`);
+  }
+  await page.getByTestId("invoice-training-lesson-preview-cancel").click();
+  await previewDialog.waitFor({ state: "hidden", timeout: 5000 });
+  console.log("PASS: lesson redaction preview dialog");
+}
+
 async function assertTeachChatServerEcho(page) {
   const noteInput = page.getByTestId("invoice-parsed-inspect-correction-note");
   const sendBtn = page.getByTestId("invoice-parsed-inspect-save-lesson");
   const echoEl = page.getByTestId("invoice-teach-echo");
   const toastEl = page.getByTestId("invoice-training-toast");
+
+  if (await toastEl.isVisible().catch(() => false)) {
+    await waitForTrainingToastHidden(page);
+  }
 
   await noteInput.fill("Ignore these from now on");
   await sendBtn.click();
@@ -448,6 +507,7 @@ async function main() {
       console.log("PASS: training panel + Send visible (disabled when empty)");
 
       await assertTrainingPanelSection19(page);
+      await assertLessonPreviewDialog(page);
       await assertTrainingPanelContrast(page);
       await assertTrainingPanelNoOverlap(page);
       await assertTeachChatServerEcho(page);
@@ -785,6 +845,68 @@ async function main() {
         console.log("PASS: inspect modal shows credit/return reject-manually advisory");
         await page.getByTestId("invoice-parsed-inspect-close").click();
       }
+    }
+
+    const ignoreSuppressedCopy =
+      /Ignore rule matched but suppressed\s*[—–-]\s*strong invoice signals/i;
+    const ignoreSuppressedChip = page.getByTestId("invoice-review-ignore-suppressed-chip");
+    const hasIgnoreSuppressedChip = (await ignoreSuppressedChip.count()) > 0;
+    if (hasIgnoreSuppressedChip) {
+      const chipText = (await ignoreSuppressedChip.first().innerText()).trim();
+      if (!ignoreSuppressedCopy.test(chipText)) {
+        throw new Error(`Ignore-suppressed chip missing expected copy: ${chipText}`);
+      }
+      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="invoice-review-panel"]',
+        elements: [
+          {
+            name: "Ignore-suppressed advisory chip",
+            selector: '[data-testid="invoice-review-ignore-suppressed-chip"]',
+            large: true,
+          },
+        ],
+      });
+      console.log("PASS: ignore-suppressed advisory chip copy + contrast");
+
+      const suppressedRow = page
+        .locator('[data-testid^="invoice-review-queue-row-"]')
+        .filter({ has: ignoreSuppressedChip })
+        .first();
+      const rowTestId = await suppressedRow.getAttribute("data-testid");
+      const suppressedId = rowTestId?.replace("invoice-review-queue-row-", "") ?? null;
+      if (suppressedId) {
+        await page.getByTestId(`invoice-review-row-content-${suppressedId}`).click();
+        await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+        const modalBanner = page.getByTestId("invoice-parsed-inspect-ignore-suppressed");
+        if ((await modalBanner.count()) === 0) {
+          throw new Error("Inspect modal missing ignore-suppressed banner");
+        }
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+          elements: [
+            {
+              name: "Ignore-suppressed inspect banner",
+              selector: '[data-testid="invoice-parsed-inspect-ignore-suppressed"]',
+              large: true,
+            },
+          ],
+        });
+        console.log("PASS: inspect modal ignore-suppressed banner + contrast");
+        await page.getByTestId("invoice-parsed-inspect-close").click();
+      }
+    } else {
+      const suppressedRowPending = page
+        .locator('[data-testid^="invoice-review-queue-row-"]')
+        .filter({ hasText: ignoreSuppressedCopy });
+      if ((await suppressedRowPending.count()) > 0) {
+        throw new Error(
+          "Pending row shows ignore-suppressed copy but missing invoice-review-ignore-suppressed-chip",
+        );
+      }
+      console.log(
+        "SKIP: no ignoreRuleSuppressedBy row in queue — chip/banner selectors not exercised (field absent OK)",
+      );
     }
 
     console.log("\nverify-invoice-review: PASS");

@@ -235,7 +235,7 @@ Replace (in `InvoiceParsedInspectModal.tsx` Training-note section):
 
 - **Legacy credit rules** (vendorKey-only docs with `ignoreCreditReturns: true`): P5 runs a one-time CF-side migration writing explicit `vendorKey/parserFormatId/documentType/status` fields, replacing the read-time substring guess (Unsafe #10). Migration must **not** invent sender domains — legacy rules migrate to `status: "active"` **only if** a sender domain can be derived from their `sourceImportId`'s linked email; otherwise they become `status: "proposed"` pending manager re-activation with domains (surfaced in Settings). Original docs are updated in place (doc IDs preserved where they already use the 3-part form; legacy vendor-only IDs get new 3-part docs and the old doc archived, never deleted).
 - **Historical `skipReason` values are never rewritten** — `credit_return` and `document_ignore` history stays as-is; labels continue mapping both.
-- Existing enabled fingerprint rules created since v0.0.196: on P2 deploy, `enabled: true` maps to `status: "active"` (grandfathered — they had Dan-era consent); P3 then requires domains before they can *keep* matching (rules lacking domains are flagged and stop matching after a 7-day grace window announced in Settings — see §30 if Dan prefers immediate).
+- Existing enabled fingerprint rules created since v0.0.196: on P2 deploy, `enabled: true` maps to `status: "active"` (grandfathered — they had Dan-era consent); P3 then requires domains before they can *keep* matching. **Resolved 2026-08-04:** grandfathered domain-less actives use a **7-day grace** (`domainGraceStartedAt`); Settings flags grace vs expired; after grace they stop matching.
 - No deliveries/items/jobs data is touched by any migration.
 
 ## 21. Backward compatibility
@@ -338,7 +338,7 @@ Per repo harness, every phase: (1) pre-edit conf ≥97% + Solution Verifier per 
 ## 30. Open decisions
 
 1. **P8 structured-lesson engine** [Dan #8]: full spec, schema, and whether it launches shadow/review-only — deferred to its own approval. Reconciliation recorded: `fulfillment_mapping` is its first category [Dan #7]; nothing structured ships in P1–P7.
-2. **Grandfathered rules without sender domains (P3):** 7-day grace window vs immediate stop-matching — Dan to choose at P3 approval.
+2. ~~**Grandfathered rules without sender domains (P3):** 7-day grace window vs immediate stop-matching — Dan to choose at P3 approval.~~ **Closed 2026-08-04:** **7-day grace** chosen — grandfathered domain-less actives get `domainGraceStartedAt`; Settings shows grace vs expired; matching stops after grace.
 3. **Manager grant mechanism (P2):** ops script vs console edit; custom-claim fallback yes/no — Dan approves before P2 implementation.
 4. **`invoice` documentType armability:** removed as a consequence of [Dan #6]; revisit only if Dan wants an explicit override lane.
 5. **Rule expiry / duplicate-merge:** not requested; revisit after P6 telemetry exists.

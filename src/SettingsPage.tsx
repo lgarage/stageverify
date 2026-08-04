@@ -7,6 +7,9 @@ import {
   type VendorDeliveryMode,
   type AppSettings,
   type VendorIgnoreRule,
+  type VendorIgnoreRuleStatus,
+  type IgnoreRuleAuditEvent,
+  type TrainingNoteAuditEntry,
 } from "./dispatcher/models";
 import {
   findStagingLocationByCode,
@@ -23,9 +26,15 @@ import {
   initiateGmailOAuth,
   disconnectGmailOAuth,
   configureInvoiceTrainingAdmin,
-  deleteVendorIgnoreRule,
+  activateVendorIgnoreRule,
+  archiveVendorIgnoreRule,
   getInvoiceTrainingAdminStatus,
+  getMyDispatcherRole,
   listVendorIgnoreRules,
+  listIgnoreRuleAuditEvents,
+  listTrainingNoteAudit,
+  migrateLegacyVendorIgnoreRules,
+  bulkReopenImportsSkippedByRule,
   updateVendorIgnoreRule,
 } from "./dispatcher/firestoreService";
 import {
@@ -135,6 +144,32 @@ export function SettingsPage() {
   const [ignoreRulesBusyKey, setIgnoreRulesBusyKey] = useState<string | null>(
     null,
   );
+  const [showArchivedIgnoreRules, setShowArchivedIgnoreRules] = useState(false);
+  const [ignoreRuleAuditKey, setIgnoreRuleAuditKey] = useState<string | null>(
+    null,
+  );
+  const [ignoreRuleAuditEvents, setIgnoreRuleAuditEvents] = useState<
+    IgnoreRuleAuditEvent[] | null
+  >(null);
+  const [ignoreRuleAuditLoading, setIgnoreRuleAuditLoading] = useState(false);
+  const [legacyMigrationBusy, setLegacyMigrationBusy] = useState(false);
+  const [bulkReopenBusyKey, setBulkReopenBusyKey] = useState<string | null>(
+    null,
+  );
+  const [legacyMigrationMessage, setLegacyMigrationMessage] = useState<
+    string | null
+  >(null);
+  const [activateDomainsDraft, setActivateDomainsDraft] = useState<
+    Record<string, string>
+  >({});
+  const [isIgnoreRulesManager, setIsIgnoreRulesManager] = useState(false);
+  const [trainingNoteAuditEntries, setTrainingNoteAuditEntries] = useState<
+    TrainingNoteAuditEntry[] | null
+  >(null);
+  const [trainingNoteAuditLoading, setTrainingNoteAuditLoading] = useState(false);
+  const [trainingNoteAuditError, setTrainingNoteAuditError] = useState<
+    string | null
+  >(null);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -183,6 +218,12 @@ export function SettingsPage() {
     () => stagingSpotRows.map((row) => row.spot),
     [stagingSpotRows],
   );
+
+  useEffect(() => {
+    void getMyDispatcherRole().then((role) => {
+      setIsIgnoreRulesManager(role?.manager === true && role?.active !== false);
+    });
+  }, []);
 
   useEffect(() => {
     if (!lastUpdated) return;
@@ -417,53 +458,290 @@ export function SettingsPage() {
     rule.ruleId ||
     `${rule.vendorKey}__${rule.parserFormatId}__${rule.documentType}`;
 
-  const toggleIgnoreRule = async (rule: VendorIgnoreRule) => {
-    if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
+  const ignoreRuleStatusLabel = (status: VendorIgnoreRuleStatus) => {
+    switch (status) {
+      case "proposed":
+        return "Proposed";
+      case "active":
+        return "Active";
+      case "disabled":
+        return "Disabled";
+      case "archived":
+        return "Archived";
+      default:
+        return status;
+    }
+  };
+
+  const ignoreRuleStatusColor = (status: VendorIgnoreRuleStatus) => {
+    switch (status) {
+      case "proposed":
+        return "#b45309";
+      case "active":
+        return "#15803d";
+      case "disabled":
+        return "#6b7280";
+      case "archived":
+        return "#9ca3af";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  const DOMAIN_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  const ignoreRuleDomainFlag = (
+    rule: VendorIgnoreRule,
+  ): "ok" | "grace" | "expired" | null => {
+    const status = rule.status ?? (rule.enabled ? "active" : "disabled");
+    if (status !== "active") return null;
+    if (rule.senderDomains && rule.senderDomains.length > 0) return "ok";
+    if (!rule.domainGraceStartedAt) return "grace";
+    const startMs = Date.parse(rule.domainGraceStartedAt);
+    if (Number.isNaN(startMs)) return "grace";
+    return Date.now() >= startMs + DOMAIN_GRACE_MS ? "expired" : "grace";
+  };
+
+  const parseActivateDomains = (raw: string): string[] => {
+    const parts = raw
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const part of parts) {
+      const lower = part.toLowerCase();
+      const domain = lower.includes("@")
+        ? lower.split("@").pop()?.trim()
+        : lower;
+      if (!domain || seen.has(domain)) continue;
+      seen.add(domain);
+      out.push(domain);
+      if (out.length >= 5) break;
+    }
+    return out;
+  };
+
+  const patchIgnoreRule = (updated: VendorIgnoreRule) => {
+    setIgnoreRules((prev) =>
+      (prev ?? []).map((r) =>
+        ignoreRuleKey(r) === ignoreRuleKey(updated) ? updated : r,
+      ),
+    );
+  };
+
+  const visibleIgnoreRules = (ignoreRules ?? []).filter((r) =>
+    showArchivedIgnoreRules ? true : r.status !== "archived",
+  );
+
+  const loadIgnoreRuleAudit = async (rule: VendorIgnoreRule) => {
+    const key = ignoreRuleKey(rule);
+    if (!ignoreRulesPassword.trim()) return;
+    if (ignoreRuleAuditKey === key && ignoreRuleAuditEvents) {
+      setIgnoreRuleAuditKey(null);
+      setIgnoreRuleAuditEvents(null);
+      return;
+    }
+    setIgnoreRuleAuditLoading(true);
+    setIgnoreRuleAuditKey(key);
+    setIgnoreRuleAuditEvents(null);
+    setIgnoreRulesError(null);
+    try {
+      const events = await listIgnoreRuleAuditEvents({
+        password: ignoreRulesPassword,
+        ruleId: rule.ruleId ?? key,
+      });
+      setIgnoreRuleAuditEvents(events);
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Could not load audit events.",
+      );
+      setIgnoreRuleAuditKey(null);
+    } finally {
+      setIgnoreRuleAuditLoading(false);
+    }
+  };
+
+  const loadTrainingNoteAudit = async () => {
+    if (
+      !isIgnoreRulesManager &&
+      ignoreRulesPassword.trim().length < 8
+    ) {
+      return;
+    }
+    setTrainingNoteAuditLoading(true);
+    setTrainingNoteAuditError(null);
+    try {
+      const entries = await listTrainingNoteAudit({
+        ...(isIgnoreRulesManager
+          ? {}
+          : { password: ignoreRulesPassword }),
+        limit: 15,
+      });
+      setTrainingNoteAuditEntries(entries);
+    } catch (err) {
+      setTrainingNoteAuditError(
+        err instanceof Error ? err.message : "Could not load note audit.",
+      );
+      setTrainingNoteAuditEntries(null);
+    } finally {
+      setTrainingNoteAuditLoading(false);
+    }
+  };
+
+  const runLegacyMigration = async () => {
+    if (!isIgnoreRulesManager || legacyMigrationBusy) return;
+    setLegacyMigrationBusy(true);
+    setLegacyMigrationMessage(null);
+    setIgnoreRulesError(null);
+    try {
+      const result = await migrateLegacyVendorIgnoreRules();
+      setLegacyMigrationMessage(
+        `Migration: scanned ${result.scanned}, migrated ${result.migrated}, skipped ${result.skipped}, proposed ${result.proposedCount}.`,
+      );
+      if (ignoreRulesPassword.trim()) {
+        await loadIgnoreRules();
+      }
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Legacy migration failed.",
+      );
+    } finally {
+      setLegacyMigrationBusy(false);
+    }
+  };
+
+  const activateIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (!isIgnoreRulesManager || ignoreRulesBusyKey) return;
     const key = ignoreRuleKey(rule);
     setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
-      const updated = await updateVendorIgnoreRule({
-        password: ignoreRulesPassword,
+      const draftDomains = activateDomainsDraft[key]?.trim() ?? "";
+      const parsedDomains = draftDomains
+        ? parseActivateDomains(draftDomains)
+        : undefined;
+      const needsDomains =
+        !(rule.senderDomains && rule.senderDomains.length > 0) && !parsedDomains?.length;
+      if (needsDomains) {
+        setIgnoreRulesError(
+          "Enter at least one sender domain (e.g. vendor.com) to activate.",
+        );
+        return;
+      }
+      const updated = await activateVendorIgnoreRule({
         ruleId: rule.ruleId,
         vendorKey: rule.vendorKey,
         parserFormatId: rule.parserFormatId,
         documentType: rule.documentType,
-        enabled: !rule.enabled,
+        ...(parsedDomains?.length ? { senderDomains: parsedDomains } : {}),
       });
-      setIgnoreRules((prev) =>
-        (prev ?? []).map((r) =>
-          ignoreRuleKey(r) === ignoreRuleKey(updated) ? updated : r,
-        ),
-      );
+      patchIgnoreRule(updated);
+      setActivateDomainsDraft((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     } catch (err) {
       setIgnoreRulesError(
-        err instanceof Error ? err.message : "Could not update rule.",
+        err instanceof Error ? err.message : "Could not activate rule.",
       );
     } finally {
       setIgnoreRulesBusyKey(null);
     }
   };
 
-  const removeIgnoreRule = async (rule: VendorIgnoreRule) => {
-    if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
+  const disableIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (!isIgnoreRulesManager || ignoreRulesBusyKey) return;
     const key = ignoreRuleKey(rule);
     setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
-      await deleteVendorIgnoreRule({
-        password: ignoreRulesPassword,
+      const updated = await updateVendorIgnoreRule({
         ruleId: rule.ruleId,
         vendorKey: rule.vendorKey,
         parserFormatId: rule.parserFormatId,
         documentType: rule.documentType,
+        enabled: false,
       });
-      setIgnoreRules((prev) =>
-        (prev ?? []).filter((r) => ignoreRuleKey(r) !== key),
-      );
+      patchIgnoreRule(updated);
     } catch (err) {
       setIgnoreRulesError(
-        err instanceof Error ? err.message : "Could not delete rule.",
+        err instanceof Error ? err.message : "Could not disable rule.",
+      );
+    } finally {
+      setIgnoreRulesBusyKey(null);
+    }
+  };
+
+  const bulkReopenSkippedByRule = async (rule: VendorIgnoreRule) => {
+    if (!isIgnoreRulesManager || bulkReopenBusyKey || ignoreRulesBusyKey) return;
+    const key = ignoreRuleKey(rule);
+    const ruleId =
+      rule.ruleId ??
+      `${rule.vendorKey}__${rule.parserFormatId}__${rule.documentType}`;
+    setBulkReopenBusyKey(key);
+    setIgnoreRulesError(null);
+    try {
+      const result = await bulkReopenImportsSkippedByRule({ ruleId });
+      if (ignoreRulesPassword.trim()) {
+        await loadIgnoreRules();
+      }
+      if (result.reopened === 0) {
+        setIgnoreRulesError(
+          result.scanned === 0
+            ? "No rejected auto-skipped imports found for this rule."
+            : "No imports were reopened (they may already be pending).",
+        );
+      } else if (result.autoDisabled) {
+        setIgnoreRulesError(
+          `Re-opened ${result.reopened} import(s). Rule auto-disabled after ${result.reopenCount ?? 2} false-positive re-opens.`,
+        );
+      }
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error
+          ? err.message
+          : "Could not bulk re-open skipped imports.",
+      );
+    } finally {
+      setBulkReopenBusyKey(null);
+    }
+  };
+
+  const archiveIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (ignoreRulesBusyKey) return;
+    const key = ignoreRuleKey(rule);
+    setIgnoreRulesBusyKey(key);
+    setIgnoreRulesError(null);
+    try {
+      let updated: VendorIgnoreRule;
+      if (isIgnoreRulesManager) {
+        updated = await archiveVendorIgnoreRule({
+          ruleId: rule.ruleId,
+          vendorKey: rule.vendorKey,
+          parserFormatId: rule.parserFormatId,
+          documentType: rule.documentType,
+        });
+      } else if (ignoreRulesPassword.trim()) {
+        updated = await archiveVendorIgnoreRule({
+          password: ignoreRulesPassword,
+          ruleId: rule.ruleId,
+          vendorKey: rule.vendorKey,
+          parserFormatId: rule.parserFormatId,
+          documentType: rule.documentType,
+        });
+      } else {
+        throw new Error("Manager role or admin password required to archive.");
+      }
+      patchIgnoreRule(updated);
+      if (ignoreRuleAuditKey === key) {
+        setIgnoreRuleAuditKey(null);
+        setIgnoreRuleAuditEvents(null);
+      }
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Could not archive rule.",
       );
     } finally {
       setIgnoreRulesBusyKey(null);
@@ -1364,10 +1642,39 @@ export function SettingsPage() {
                           fontWeight: 500,
                         }}
                       >
-                        Rules taught from Parsed import (reply yes) for any document
-                        type. They only skip future review-queue imports — never
-                        delete deliveries or items. Disable or delete here to undo.
+                        Teach-chat proposals queue here until a manager activates
+                        them. Active rules skip future review-queue imports — never
+                        delete deliveries or items. Managers activate, disable, or
+                        archive (decline) rules.
                       </p>
+                      {isIgnoreRulesManager ? (
+                        <p
+                          data-testid="invoice-ignore-rules-manager-hint"
+                          style={{
+                            margin: "0 0 10px",
+                            fontSize: 12,
+                            color: "#15803d",
+                            fontWeight: 600,
+                          }}
+                        >
+                          You have manager role — Activate / Disable / Archive
+                          controls are enabled.
+                        </p>
+                      ) : (
+                        <p
+                          data-testid="invoice-ignore-rules-readonly-hint"
+                          style={{
+                            margin: "0 0 10px",
+                            fontSize: 12,
+                            color: "#6b7280",
+                            fontWeight: 500,
+                          }}
+                        >
+                          View-only unless you have manager role. Unlock with admin
+                          password to list rules; archive (decline) still works with
+                          password.
+                        </p>
+                      )}
                       <label
                         style={{
                           display: "block",
@@ -1443,7 +1750,68 @@ export function SettingsPage() {
                         >
                           {ignoreRulesLoading ? "Loading…" : "Unlock rules"}
                         </button>
+                        {ignoreRules && (
+                          <label
+                            data-testid="invoice-ignore-rules-show-archived"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "#374151",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={showArchivedIgnoreRules}
+                              onChange={(e) =>
+                                setShowArchivedIgnoreRules(e.target.checked)
+                              }
+                            />
+                            Show archived
+                          </label>
+                        )}
+                        {isIgnoreRulesManager && ignoreRules && (
+                          <button
+                            type="button"
+                            data-testid="migrate-legacy-ignore-rules"
+                            disabled={legacyMigrationBusy}
+                            onClick={() => void runLegacyMigration()}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: 4,
+                              border: `1px solid ${NAVY}`,
+                              backgroundColor: "#fff",
+                              color: NAVY,
+                              fontWeight: 700,
+                              fontSize: 12,
+                              cursor: legacyMigrationBusy
+                                ? "not-allowed"
+                                : "pointer",
+                              fontFamily: FONT,
+                            }}
+                          >
+                            {legacyMigrationBusy
+                              ? "Migrating…"
+                              : "Migrate legacy rules"}
+                          </button>
+                        )}
                       </div>
+                      {legacyMigrationMessage && (
+                        <p
+                          data-testid="legacy-ignore-migration-result"
+                          style={{
+                            margin: "0 0 10px",
+                            fontSize: 12,
+                            color: "#15803d",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {legacyMigrationMessage}
+                        </p>
+                      )}
                       {ignoreRulesError && (
                         <p
                           data-testid="invoice-ignore-rules-error"
@@ -1468,10 +1836,34 @@ export function SettingsPage() {
                           }}
                         >
                           No ignore rules yet. Teach one from a CREDIT/return in
-                          Parsed import.
+                          Parsed import — it will appear as Proposed until a manager
+                          activates it.
                         </p>
                       )}
-                      {ignoreRules && ignoreRules.length > 0 && (
+                      {ignoreRules &&
+                        ignoreRules.some((r) => r.status === "proposed") && (
+                          <div
+                            data-testid="invoice-ignore-rules-proposal-queue"
+                            style={{ marginBottom: 12 }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "#b45309",
+                                marginBottom: 6,
+                              }}
+                            >
+                              Proposal queue (
+                              {
+                                ignoreRules.filter((r) => r.status === "proposed")
+                                  .length
+                              }
+                              )
+                            </div>
+                          </div>
+                        )}
+                      {ignoreRules && visibleIgnoreRules.length > 0 && (
                         <ul
                           data-testid="invoice-ignore-rules-list"
                           style={{
@@ -1483,8 +1875,11 @@ export function SettingsPage() {
                             gap: 8,
                           }}
                         >
-                          {ignoreRules.map((rule) => {
+                          {visibleIgnoreRules.map((rule) => {
                             const key = ignoreRuleKey(rule);
+                            const status =
+                              rule.status ??
+                              (rule.enabled ? "active" : "disabled");
                             return (
                             <li
                               key={key}
@@ -1507,9 +1902,28 @@ export function SettingsPage() {
                                     fontSize: 13,
                                     fontWeight: 700,
                                     color: "#111827",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    flexWrap: "wrap",
                                   }}
                                 >
-                                  {rule.vendorKey}
+                                  <span>{rule.vendorKey}</span>
+                                  <span
+                                    data-testid={`ignore-rule-status-${key}`}
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.04em",
+                                      padding: "2px 6px",
+                                      borderRadius: 4,
+                                      backgroundColor: `${ignoreRuleStatusColor(status)}18`,
+                                      color: ignoreRuleStatusColor(status),
+                                    }}
+                                  >
+                                    {ignoreRuleStatusLabel(status)}
+                                  </span>
                                 </div>
                                 <div
                                   style={{
@@ -1521,41 +1935,239 @@ export function SettingsPage() {
                                 >
                                   {rule.label ||
                                     `${rule.documentType} · ${rule.parserFormatId}`}
-                                  {": "}
-                                  {rule.enabled ? "ON" : "OFF"}
+                                  {rule.senderDomains &&
+                                  rule.senderDomains.length > 0 ? (
+                                    <span
+                                      data-testid={`ignore-rule-domains-${key}`}
+                                    >
+                                      {" "}
+                                      · domains: {rule.senderDomains.join(", ")}
+                                    </span>
+                                  ) : null}
                                   {rule.updatedAt
                                     ? ` · updated ${rule.updatedAt.slice(0, 10)}`
                                     : ""}
+                                  {typeof rule.matchCount === "number" &&
+                                  rule.matchCount > 0 ? (
+                                    <span
+                                      data-testid={`ignore-rule-match-count-${key}`}
+                                    >
+                                      {" "}
+                                      · matches: {rule.matchCount}
+                                      {rule.lastMatchedAt
+                                        ? ` (last ${rule.lastMatchedAt.slice(0, 10)})`
+                                        : ""}
+                                    </span>
+                                  ) : null}
+                                  {typeof rule.reopenCount === "number" &&
+                                  rule.reopenCount > 0 ? (
+                                    <span
+                                      data-testid={`ignore-rule-reopen-count-${key}`}
+                                    >
+                                      {" "}
+                                      · re-opens: {rule.reopenCount}
+                                    </span>
+                                  ) : null}
+                                  {rule.disabledReason === "auto_false_positive" ? (
+                                    <span
+                                      data-testid={`ignore-rule-auto-disabled-${key}`}
+                                      style={{ color: RED }}
+                                    >
+                                      {" "}
+                                      · auto-disabled (false positive)
+                                    </span>
+                                  ) : null}
                                 </div>
+                                {ignoreRuleDomainFlag(rule) === "grace" && (
+                                  <div
+                                    data-testid={`ignore-rule-domain-grace-${key}`}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#b45309",
+                                      fontWeight: 600,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    Needs sender domains — 7-day grace active
+                                  </div>
+                                )}
+                                {ignoreRuleDomainFlag(rule) === "expired" && (
+                                  <div
+                                    data-testid={`ignore-rule-domain-expired-${key}`}
+                                    style={{
+                                      fontSize: 11,
+                                      color: RED,
+                                      fontWeight: 600,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    Grace expired — add sender domains to match
+                                    inbound mail
+                                  </div>
+                                )}
                               </div>
-                              <div style={{ display: "flex", gap: 6 }}>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                                {(status === "proposed" ||
+                                  status === "disabled") &&
+                                  isIgnoreRulesManager && (
+                                  <>
+                                    {!(rule.senderDomains && rule.senderDomains.length > 0) && (
+                                      <input
+                                        type="text"
+                                        data-testid={`activate-ignore-domains-${key}`}
+                                        placeholder="vendor.com"
+                                        value={activateDomainsDraft[key] ?? ""}
+                                        onChange={(e) =>
+                                          setActivateDomainsDraft((prev) => ({
+                                            ...prev,
+                                            [key]: e.target.value,
+                                          }))
+                                        }
+                                        style={{
+                                          padding: "6px 8px",
+                                          borderRadius: 4,
+                                          border: "1px solid #d1d5db",
+                                          fontSize: 12,
+                                          minWidth: 120,
+                                          color: "#111827",
+                                          backgroundColor: "#fff",
+                                          fontFamily: FONT,
+                                        }}
+                                      />
+                                    )}
+                                  <button
+                                    type="button"
+                                    data-testid={`activate-ignore-rule-${key}`}
+                                    disabled={ignoreRulesBusyKey === key}
+                                    onClick={() => void activateIgnoreRule(rule)}
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      border: "none",
+                                      backgroundColor: "#15803d",
+                                      color: "#fff",
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor:
+                                        ignoreRulesBusyKey === key
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    Activate
+                                  </button>
+                                  </>
+                                )}
+                                {status === "active" && isIgnoreRulesManager && (
+                                  <button
+                                    type="button"
+                                    data-testid={`disable-ignore-rule-${key}`}
+                                    disabled={ignoreRulesBusyKey === key}
+                                    onClick={() => void disableIgnoreRule(rule)}
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      border: `1px solid ${NAVY}`,
+                                      backgroundColor: "#fff",
+                                      color: NAVY,
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor:
+                                        ignoreRulesBusyKey === key
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    Disable
+                                  </button>
+                                )}
+                                {(status === "active" || status === "disabled") &&
+                                  isIgnoreRulesManager && (
+                                  <button
+                                    type="button"
+                                    data-testid={`bulk-reopen-ignore-rule-${key}`}
+                                    disabled={
+                                      bulkReopenBusyKey === key ||
+                                      ignoreRulesBusyKey === key
+                                    }
+                                    onClick={() =>
+                                      void bulkReopenSkippedByRule(rule)
+                                    }
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      border: `1px solid ${RED}`,
+                                      backgroundColor: "#fff",
+                                      color: RED,
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor:
+                                        bulkReopenBusyKey === key ||
+                                        ignoreRulesBusyKey === key
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    {bulkReopenBusyKey === key
+                                      ? "Re-opening…"
+                                      : "Re-open skipped"}
+                                  </button>
+                                )}
+                                {!isIgnoreRulesManager &&
+                                  (status === "proposed" ||
+                                    status === "active") && (
+                                  <span
+                                    data-testid={`toggle-ignore-rule-${key}`}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#6b7280",
+                                      fontWeight: 600,
+                                      padding: "6px 4px",
+                                    }}
+                                  >
+                                    Manager required to change
+                                  </span>
+                                )}
                                 <button
                                   type="button"
-                                  data-testid={`toggle-ignore-rule-${key}`}
-                                  disabled={ignoreRulesBusyKey === key}
-                                  onClick={() => void toggleIgnoreRule(rule)}
+                                  data-testid={`audit-ignore-rule-${key}`}
+                                  disabled={
+                                    ignoreRuleAuditLoading ||
+                                    ignoreRulesPassword.trim().length < 8
+                                  }
+                                  onClick={() => void loadIgnoreRuleAudit(rule)}
                                   style={{
                                     padding: "6px 10px",
                                     borderRadius: 4,
-                                    border: `1px solid ${NAVY}`,
+                                    border: "1px solid #d1d5db",
                                     backgroundColor: "#fff",
-                                    color: NAVY,
+                                    color: "#374151",
                                     fontWeight: 700,
                                     fontSize: 12,
                                     cursor:
-                                      ignoreRulesBusyKey === key
+                                      ignoreRuleAuditLoading ||
+                                      ignoreRulesPassword.trim().length < 8
                                         ? "not-allowed"
                                         : "pointer",
                                     fontFamily: FONT,
                                   }}
                                 >
-                                  {rule.enabled ? "Turn off" : "Turn on"}
+                                  {ignoreRuleAuditKey === key
+                                    ? "Hide audit"
+                                    : "Audit"}
                                 </button>
                                 <button
                                   type="button"
-                                  data-testid={`delete-ignore-rule-${key}`}
-                                  disabled={ignoreRulesBusyKey === key}
-                                  onClick={() => void removeIgnoreRule(rule)}
+                                  data-testid={`archive-ignore-rule-${key}`}
+                                  disabled={
+                                    ignoreRulesBusyKey === key ||
+                                    (!isIgnoreRulesManager &&
+                                      ignoreRulesPassword.trim().length < 8)
+                                  }
+                                  onClick={() => void archiveIgnoreRule(rule)}
                                   style={{
                                     padding: "6px 10px",
                                     borderRadius: 4,
@@ -1571,14 +2183,221 @@ export function SettingsPage() {
                                     fontFamily: FONT,
                                   }}
                                 >
-                                  Delete
+                                  Archive
                                 </button>
                               </div>
+                              {ignoreRuleAuditKey === key && (
+                                <div
+                                  data-testid={`ignore-rule-audit-panel-${key}`}
+                                  style={{
+                                    width: "100%",
+                                    marginTop: 8,
+                                    padding: "8px 10px",
+                                    backgroundColor: "#f9fafb",
+                                    borderRadius: 6,
+                                    border: "1px solid #e5e7eb",
+                                  }}
+                                >
+                                  {ignoreRuleAuditLoading ? (
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        color: "#6b7280",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Loading audit…
+                                    </span>
+                                  ) : ignoreRuleAuditEvents &&
+                                    ignoreRuleAuditEvents.length === 0 ? (
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        color: "#6b7280",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      No audit events yet.
+                                    </span>
+                                  ) : (
+                                    <ul
+                                      style={{
+                                        listStyle: "none",
+                                        margin: 0,
+                                        padding: 0,
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      {(ignoreRuleAuditEvents ?? []).map(
+                                        (ev) => (
+                                          <li
+                                            key={ev.id}
+                                            data-testid={`ignore-rule-audit-${ev.id}`}
+                                            style={{
+                                              fontSize: 11,
+                                              color: "#374151",
+                                              fontWeight: 500,
+                                            }}
+                                          >
+                                            <strong>{ev.eventType}</strong>
+                                            {" · "}
+                                            {ev.atIso.slice(0, 19)}
+                                            {" · "}
+                                            {ev.actorUid}
+                                            {ev.detail ? ` — ${ev.detail}` : ""}
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  )}
+                                </div>
+                              )}
                             </li>
                             );
                           })}
                         </ul>
                       )}
+                    </div>
+                    <div
+                      data-testid="settings-training-note-audit"
+                      style={{
+                        marginTop: 18,
+                        paddingTop: 14,
+                        borderTop: "1px solid #d1d5db",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: NAVY,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Recent training notes (90-day audit)
+                      </div>
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 12,
+                          color: "#4b5563",
+                          lineHeight: 1.45,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Redacted notes stored with lessons and ignore proposals.
+                        Raw text visible to managers and Admin password holders
+                        only.
+                      </p>
+                      <button
+                        type="button"
+                        data-testid="load-training-note-audit"
+                        disabled={
+                          trainingNoteAuditLoading ||
+                          (!isIgnoreRulesManager &&
+                            ignoreRulesPassword.trim().length < 8)
+                        }
+                        onClick={() => void loadTrainingNoteAudit()}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 4,
+                          border: "1px solid #d1d5db",
+                          backgroundColor: "#fff",
+                          color: "#374151",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor:
+                            trainingNoteAuditLoading ||
+                            (!isIgnoreRulesManager &&
+                              ignoreRulesPassword.trim().length < 8)
+                              ? "not-allowed"
+                              : "pointer",
+                          fontFamily: FONT,
+                          marginBottom: 10,
+                        }}
+                      >
+                        {trainingNoteAuditLoading
+                          ? "Loading…"
+                          : "Load recent notes"}
+                      </button>
+                      {trainingNoteAuditError && (
+                        <p
+                          data-testid="training-note-audit-error"
+                          style={{
+                            margin: "0 0 8px",
+                            fontSize: 12,
+                            color: RED,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {trainingNoteAuditError}
+                        </p>
+                      )}
+                      {trainingNoteAuditEntries &&
+                        trainingNoteAuditEntries.length === 0 && (
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#6b7280",
+                              fontWeight: 600,
+                            }}
+                          >
+                            No training notes recorded yet.
+                          </p>
+                        )}
+                      {trainingNoteAuditEntries &&
+                        trainingNoteAuditEntries.length > 0 && (
+                          <ul
+                            style={{
+                              listStyle: "none",
+                              margin: 0,
+                              padding: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 8,
+                            }}
+                          >
+                            {trainingNoteAuditEntries.map((entry) => (
+                              <li
+                                key={entry.id}
+                                data-testid={`training-note-audit-${entry.id}`}
+                                style={{
+                                  padding: "8px 10px",
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  color: "#374151",
+                                }}
+                              >
+                                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                                  {entry.lane} · {entry.vendorKey} ·{" "}
+                                  {entry.createdAt.slice(0, 19)}
+                                </div>
+                                <div
+                                  data-testid={`training-note-audit-redacted-${entry.id}`}
+                                  style={{ fontWeight: 600 }}
+                                >
+                                  {entry.noteRedacted}
+                                </div>
+                                {entry.noteRaw && (
+                                  <div
+                                    data-testid={`training-note-audit-raw-${entry.id}`}
+                                    style={{
+                                      marginTop: 4,
+                                      color: "#6b7280",
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    Raw: {entry.noteRaw}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                     </div>
                   </div>
                   <div

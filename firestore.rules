@@ -209,6 +209,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Immutable ignore-rule audit stream — dispatcher read; CF Admin SDK create only (D-59 P5).
+    match /ignoreRuleAuditEvents/{eventId} {
+      allow read: if isDispatcher();
+      allow create, update, delete: if false;
+    }
+
+    // Raw training-note audit — CF Admin SDK only; TTL on expireAt (D-59 P7).
+    match /trainingNoteAudit/{noteId} {
+      allow read, write: if false;
+    }
+
+    match /trainingLessonRateLimits/{uid} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }

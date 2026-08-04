@@ -2,7 +2,11 @@
  * Ensure STAGEVERIFY_TEST_EMAIL has dispatcherRoles/{uid} in production Firestore.
  * Requires Application Default Credentials (gcloud auth application-default login).
  *
- * Usage: node scripts/ensure-dispatcher-role.mjs
+ * Usage:
+ *   node scripts/ensure-dispatcher-role.mjs
+ *   node scripts/ensure-dispatcher-role.mjs --manager
+ *
+ * With --manager, merges { manager: true } (still ensures active dispatcher).
  */
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
@@ -10,6 +14,8 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const admin = require("../functions/node_modules/firebase-admin");
+
+const grantManager = process.argv.includes("--manager");
 
 const envPath = resolve(process.cwd(), ".env.local");
 if (existsSync(envPath)) {
@@ -35,13 +41,17 @@ if (!admin.apps.length) {
 }
 
 const user = await admin.auth().getUserByEmail(email);
+const rolePatch = {
+  active: true,
+  email,
+  updatedAt: new Date().toISOString(),
+  ...(grantManager ? { manager: true } : {}),
+};
 await admin.firestore().collection("dispatcherRoles").doc(user.uid).set(
-  {
-    active: true,
-    email,
-    updatedAt: new Date().toISOString(),
-  },
+  rolePatch,
   { merge: true },
 );
 
-console.log(`dispatcherRoles/${user.uid} ensured for ${email}`);
+console.log(
+  `dispatcherRoles/${user.uid} ensured for ${email}${grantManager ? " (manager: true)" : ""}`,
+);

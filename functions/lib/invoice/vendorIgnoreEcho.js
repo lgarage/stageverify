@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractSenderDomain = extractSenderDomain;
+exports.normalizeSenderDomains = normalizeSenderDomains;
 exports.computeEchoToken = computeEchoToken;
 exports.buildProposeEchoText = buildProposeEchoText;
 exports.armableFingerprintError = armableFingerprintError;
@@ -17,6 +18,47 @@ function extractSenderDomain(senderEmail) {
         return null;
     const domain = email.split("@")[1]?.trim();
     return domain && domain.length > 0 && domain.length <= 253 ? domain : null;
+}
+const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+/** Bare hostname or From-style email → lowercase domain; rejects junk. Max 5 unique. */
+function normalizeSenderDomains(raw) {
+    const inputs = [];
+    if (typeof raw === "string") {
+        inputs.push(raw);
+    }
+    else if (Array.isArray(raw)) {
+        for (const entry of raw) {
+            if (typeof entry === "string")
+                inputs.push(entry);
+        }
+    }
+    const out = [];
+    const seen = new Set();
+    for (const item of inputs) {
+        const trimmed = item.trim();
+        if (!trimmed)
+            continue;
+        let domain = extractSenderDomain(trimmed);
+        if (domain && !HOSTNAME_RE.test(domain))
+            domain = null;
+        if (!domain && !trimmed.includes("@")) {
+            const host = trimmed.toLowerCase();
+            if (host.length >= 3 &&
+                host.length <= 253 &&
+                !host.includes(" ") &&
+                !host.includes("/") &&
+                HOSTNAME_RE.test(host)) {
+                domain = host;
+            }
+        }
+        if (!domain || seen.has(domain))
+            continue;
+        seen.add(domain);
+        out.push(domain);
+        if (out.length >= 5)
+            break;
+    }
+    return out;
 }
 /** SHA-256 of importId|vendorKey|parserFormatId|documentType|senderDomainsJoined|importUpdatedAt */
 function computeEchoToken(input) {
