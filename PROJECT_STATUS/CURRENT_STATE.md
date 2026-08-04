@@ -7,9 +7,9 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- Last shipped: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board (`pickup_at_vendor` → `ready_for_pickup` + label order).
-- Prior: **v0.0.196** — Teach-chat ignore any document type (D-58 fingerprint) + Settings Admin; ingest auto-skip.
-- Spec: **D-59** P1 implemented (uncommitted) — server-echo propose/confirm + echoToken; never-unknown; credit dismiss fix; §19 wording. **Awaiting Dan CF deploy approval** (`firebase deploy --only functions`).
+- Last shipped: **v0.0.198** — D-59 P1 server-echo propose/confirm + echoToken; never-unknown; credit dismiss fix; §19 training-note wording (`74414db`).
+- Prior: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board.
+- **D-59 deploy:** gh-pages bundle on `main` @ `74414db` (deploy when parent ship loop runs). **CF** (`firebase deploy --only functions`) — Dan approval / may run separately; not required for P1 UI-only evidence close.
 - Active Phase: Location-first Phase 6 Slice C (C1 shipped) — Slice B audit walk next.
 - Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · `stageverify-db`
 
@@ -18,10 +18,10 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **D-59 P1:** Dan approves CF deploy → `firebase deploy --only functions --project stageverify-db` → `npm run deploy` (gh-pages) + prod verify. Then P2 (manager role).
+- **D-59:** Close P1 ship-verifier evidence (D-51 + CURRENT_STATE) → CF deploy when approved → prod verify → **P2** (manager role). UI Playwright verify script fixes in flight (separate worker).
 
 ## Queued product (deferred)
-- **After D-59 phases P1–P7:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client (dispatcher-only and/or CF-only); high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
+- **After D-59 phases P1–P7:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
 
 ## Canonical references
