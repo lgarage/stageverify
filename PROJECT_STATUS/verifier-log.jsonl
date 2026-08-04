@@ -140,3 +140,4 @@
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"5ef656fe-a0f9-4e43-addd-be6a4c4b7c6e","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 P7 branch push 6735802c"}
 {"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"f6ce3250-dd78-4e5b-84dc-d7d352338db7","model":"claude-fable-5-thinking-high","real":"na","note":"D-59 P7 phase boundary"}
 {"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"bf2570ff-62f6-4f8b-9983-f6a30c5cfe96","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"D-59 P2-P7 pre-firebase-deploy APPROVE"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"7b4c8e1f-dfd9-452f-87b4-fdce800ed4c5","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 partial deploy: gh-pages live; Firebase blocked no token"}
