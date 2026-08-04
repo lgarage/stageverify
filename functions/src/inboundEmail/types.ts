@@ -113,6 +113,8 @@ export interface VendorInvoiceImportDoc {
   skipReason?: "credit_return" | string;
   /** Set when a taught ignore rule matched but strong invoice signals blocked auto-skip. */
   ignoreRuleSuppressedBy?: "strong_invoice_signals";
+  /** P5 — active ignore rule that auto-skipped this import. */
+  matchedRuleId?: string;
   /** Stage 1 — deterministic suggested-import eligibility (no CF auto-approve). */
   autoImportEligible?: boolean;
   autoImportConfidence?: number;

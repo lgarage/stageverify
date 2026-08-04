@@ -236,27 +236,27 @@ const activeDoc = {
   senderDomains: ["johnstonesupply.com"],
 };
 
-assert.equal(
+assert.deepEqual(
   await vendorIgnoresFingerprint(new MockDb({ [creditId]: proposedDoc }), creditFp),
-  false,
+  { matched: false },
   "proposed never matches",
 );
-assert.equal(
+assert.deepEqual(
   await vendorIgnoresFingerprint(
     new MockDb({ [creditId]: activeDoc }),
     creditFp,
     "Vendor <orders@johnstonesupply.com>",
   ),
-  true,
+  { matched: true, ruleId: creditId },
   "active with matching domain matches",
 );
-assert.equal(
+assert.deepEqual(
   await vendorIgnoresFingerprint(
     new MockDb({ [creditId]: activeDoc }),
     creditFp,
     "other@foreign-vendor.com",
   ),
-  false,
+  { matched: false },
   "foreign domain does not match",
 );
 
@@ -266,9 +266,9 @@ const graceActiveDoc = {
   enabled: true,
   domainGraceStartedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
 };
-assert.equal(
+assert.deepEqual(
   await vendorIgnoresFingerprint(new MockDb({ [creditId]: graceActiveDoc }), creditFp),
-  true,
+  { matched: true, ruleId: creditId },
   "grace in-window matches without domains",
 );
 
@@ -276,9 +276,9 @@ const expiredGraceDoc = {
   ...graceActiveDoc,
   domainGraceStartedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
 };
-assert.equal(
+assert.deepEqual(
   await vendorIgnoresFingerprint(new MockDb({ [creditId]: expiredGraceDoc }), creditFp),
-  false,
+  { matched: false },
   "grace expired does not match",
 );
 assert.equal(isDomainGraceActive(expiredGraceDoc), false);
@@ -297,14 +297,24 @@ const legacyEnabledDoc = {
   label: "Credit memo · johnstone",
   senderDomains: ["johnstonesupply.com"],
 };
-assert.equal(
+assert.deepEqual(
   await vendorIgnoresFingerprint(
     new MockDb({ [creditId]: legacyEnabledDoc }),
     creditFp,
     "orders@johnstonesupply.com",
   ),
-  true,
+  { matched: true, ruleId: creditId },
   "grandfather enabled→active with domain matches",
+);
+
+const { deleteVendorIgnoreRule } = require(path.join(
+  root,
+  "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
+));
+await assert.rejects(
+  () => deleteVendorIgnoreRule(new MockDb({}), "legacy-id"),
+  /hard_delete_forbidden_use_archive/,
+  "hard delete helpers throw (D-59 P5 archive-only)",
 );
 
 // confirm persists senderDomains via upsert (proposed)

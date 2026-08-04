@@ -27,9 +27,11 @@ import {
 } from "../invoice/creditReturnSkip";
 import {
   fingerprintFromImport,
+  incrementVendorIgnoreRuleMatch,
   isArmableVendorKey,
   vendorIgnoresFingerprint,
 } from "../invoice/aiShadow/vendorIgnoreRules";
+import { writeIgnoreRuleAuditEvent } from "../invoice/aiShadow/ignoreRuleAudit";
 import {
   hasStrongInvoiceSignals,
   STRONG_INVOICE_SIGNALS_REASON,
@@ -344,9 +346,11 @@ async function writeReviewRecords(
       parserFormatId: proc.parserFormatId,
       importRow: provisionalImport,
     });
-    const ignoreRuleArmed =
-      isArmableVendorKey(vendorKeyRaw) &&
-      (await vendorIgnoresFingerprint(db, fingerprint, inboundDoc.senderEmail));
+    const ignoreMatch = isArmableVendorKey(vendorKeyRaw)
+      ? await vendorIgnoresFingerprint(db, fingerprint, inboundDoc.senderEmail)
+      : { matched: false as const };
+    const ignoreRuleArmed = ignoreMatch.matched;
+    const matchedRuleId = ignoreMatch.ruleId;
     const strongSignals = hasStrongInvoiceSignals({
       vendorInvoiceNumber: proc.parsed.header.vendorInvoiceNumber,
       extractedText: proc.page.extractedText,
@@ -380,6 +384,10 @@ async function writeReviewRecords(
       autoSkipDocument || preserveSystemSkip
         ? documentIgnoreSkipFields(now)
         : null;
+    const resolvedMatchedRuleId =
+      skipFields && matchedRuleId
+        ? existingData?.matchedRuleId ?? matchedRuleId
+        : undefined;
     const reviewDoc: VendorInvoiceImportDoc = {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
@@ -419,6 +427,9 @@ async function writeReviewRecords(
             skipReason: skipFields.skipReason,
             rejectedAt: skipFields.rejectedAt,
             rejectedBy: skipFields.rejectedBy,
+            ...(resolvedMatchedRuleId
+              ? { matchedRuleId: resolvedMatchedRuleId }
+              : {}),
           }
         : ignoreRuleArmed && strongSignals
           ? { ignoreRuleSuppressedBy: STRONG_INVOICE_SIGNALS_REASON }
@@ -455,11 +466,44 @@ async function writeReviewRecords(
         delete (reopenSafeDoc as { skipReason?: string }).skipReason;
         delete (reopenSafeDoc as { rejectedAt?: string }).rejectedAt;
         delete (reopenSafeDoc as { rejectedBy?: string }).rejectedBy;
+        delete (reopenSafeDoc as { matchedRuleId?: string }).matchedRuleId;
         tx.set(reviewRef, firestoreSafeValue(reopenSafeDoc));
         return;
       }
       tx.set(reviewRef, firestoreSafeValue(reviewDoc));
     });
+
+    if (autoSkipDocument && matchedRuleId) {
+      // Fail-open: email ingest must not abort when audit logging fails.
+      try {
+        await incrementVendorIgnoreRuleMatch(db, matchedRuleId, reviewId);
+        await writeIgnoreRuleAuditEvent(db, {
+          ruleId: matchedRuleId,
+          eventType: "rule_matched",
+          actorUid: "system",
+          importId: reviewId,
+        });
+      } catch (err) {
+        console.error("ignore rule match audit failed:", err);
+      }
+    } else if (
+      isNewImport &&
+      ignoreRuleArmed &&
+      strongSignals &&
+      matchedRuleId
+    ) {
+      // Fail-open: email ingest must not abort when audit logging fails.
+      try {
+        await writeIgnoreRuleAuditEvent(db, {
+          ruleId: matchedRuleId,
+          eventType: "match_suppressed_strong_signals",
+          actorUid: "system",
+          importId: reviewId,
+        });
+      } catch (err) {
+        console.error("ignore rule suppress audit failed:", err);
+      }
+    }
   }
 
   return reviewIds;

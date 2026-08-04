@@ -17,6 +17,7 @@ const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
 const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
+const ignoreRuleAudit_1 = require("../invoice/aiShadow/ignoreRuleAudit");
 const strongInvoiceSignals_1 = require("../invoice/strongInvoiceSignals");
 const adminConfig_1 = require("../invoice/aiShadow/adminConfig");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
@@ -253,8 +254,11 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             parserFormatId: proc.parserFormatId,
             importRow: provisionalImport,
         });
-        const ignoreRuleArmed = (0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw) &&
-            (await (0, vendorIgnoreRules_1.vendorIgnoresFingerprint)(db, fingerprint, inboundDoc.senderEmail));
+        const ignoreMatch = (0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw)
+            ? await (0, vendorIgnoreRules_1.vendorIgnoresFingerprint)(db, fingerprint, inboundDoc.senderEmail)
+            : { matched: false };
+        const ignoreRuleArmed = ignoreMatch.matched;
+        const matchedRuleId = ignoreMatch.ruleId;
         const strongSignals = (0, strongInvoiceSignals_1.hasStrongInvoiceSignals)({
             vendorInvoiceNumber: proc.parsed.header.vendorInvoiceNumber,
             extractedText: proc.page.extractedText,
@@ -284,6 +288,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const skipFields = autoSkipDocument || preserveSystemSkip
             ? (0, creditReturnSkip_1.documentIgnoreSkipFields)(now)
             : null;
+        const resolvedMatchedRuleId = skipFields && matchedRuleId
+            ? existingData?.matchedRuleId ?? matchedRuleId
+            : undefined;
         const reviewDoc = {
             id: reviewId,
             inboundEmailProcessingId: inboundDoc.id,
@@ -323,6 +330,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                     skipReason: skipFields.skipReason,
                     rejectedAt: skipFields.rejectedAt,
                     rejectedBy: skipFields.rejectedBy,
+                    ...(resolvedMatchedRuleId
+                        ? { matchedRuleId: resolvedMatchedRuleId }
+                        : {}),
                 }
                 : ignoreRuleArmed && strongSignals
                     ? { ignoreRuleSuppressedBy: strongInvoiceSignals_1.STRONG_INVOICE_SIGNALS_REASON }
@@ -356,11 +366,44 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 delete reopenSafeDoc.skipReason;
                 delete reopenSafeDoc.rejectedAt;
                 delete reopenSafeDoc.rejectedBy;
+                delete reopenSafeDoc.matchedRuleId;
                 tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(reopenSafeDoc));
                 return;
             }
             tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(reviewDoc));
         });
+        if (autoSkipDocument && matchedRuleId) {
+            // Fail-open: email ingest must not abort when audit logging fails.
+            try {
+                await (0, vendorIgnoreRules_1.incrementVendorIgnoreRuleMatch)(db, matchedRuleId, reviewId);
+                await (0, ignoreRuleAudit_1.writeIgnoreRuleAuditEvent)(db, {
+                    ruleId: matchedRuleId,
+                    eventType: "rule_matched",
+                    actorUid: "system",
+                    importId: reviewId,
+                });
+            }
+            catch (err) {
+                console.error("ignore rule match audit failed:", err);
+            }
+        }
+        else if (isNewImport &&
+            ignoreRuleArmed &&
+            strongSignals &&
+            matchedRuleId) {
+            // Fail-open: email ingest must not abort when audit logging fails.
+            try {
+                await (0, ignoreRuleAudit_1.writeIgnoreRuleAuditEvent)(db, {
+                    ruleId: matchedRuleId,
+                    eventType: "match_suppressed_strong_signals",
+                    actorUid: "system",
+                    importId: reviewId,
+                });
+            }
+            catch (err) {
+                console.error("ignore rule suppress audit failed:", err);
+            }
+        }
     }
     return reviewIds;
 }

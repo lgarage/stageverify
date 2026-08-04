@@ -78,6 +78,8 @@ import type {
   ConfirmVendorIgnoreRuleResult,
   ProposeVendorIgnoreRuleResult,
   VendorIgnoreRule,
+  IgnoreRuleAuditEvent,
+  MigrateLegacyVendorIgnoreRulesResult,
   DispatcherRoleDoc,
 } from "./models";
 import {
@@ -2458,6 +2460,16 @@ const archiveVendorIgnoreRuleCallable = httpsCallable<
   { rule: VendorIgnoreRule; archived: boolean }
 >(functions, "archiveVendorIgnoreRule");
 
+const listIgnoreRuleAuditEventsCallable = httpsCallable<
+  { password: string; ruleId: string; limit?: number },
+  { events: IgnoreRuleAuditEvent[] }
+>(functions, "listIgnoreRuleAuditEventsCallable");
+
+const migrateLegacyVendorIgnoreRulesCallable = httpsCallable<
+  Record<string, never>,
+  MigrateLegacyVendorIgnoreRulesResult
+>(functions, "migrateLegacyVendorIgnoreRules");
+
 const getVendorInvoiceImportCallable = httpsCallable<
   { id: string },
   VendorInvoiceImportReview
@@ -2760,6 +2772,20 @@ export async function deleteVendorIgnoreRule(input: {
   ruleId?: string;
 }): Promise<{ vendorKey: string; ruleId?: string; deleted: boolean; archived?: boolean }> {
   const response = await deleteVendorIgnoreRuleCallable(input);
+  return response.data;
+}
+
+export async function listIgnoreRuleAuditEvents(input: {
+  password: string;
+  ruleId: string;
+  limit?: number;
+}): Promise<IgnoreRuleAuditEvent[]> {
+  const response = await listIgnoreRuleAuditEventsCallable(input);
+  return response.data.events;
+}
+
+export async function migrateLegacyVendorIgnoreRules(): Promise<MigrateLegacyVendorIgnoreRulesResult> {
+  const response = await migrateLegacyVendorIgnoreRulesCallable({});
   return response.data;
 }
 

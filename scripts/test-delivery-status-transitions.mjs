@@ -12,7 +12,7 @@ import {
   assertFails,
   assertSucceeds,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 const PROJECT_ID = "stageverify-rules-test";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
@@ -432,6 +432,43 @@ try {
     pass("invalid status value denied");
   } catch (err) {
     fail("invalid status value should be denied", err);
+  }
+
+  console.log("\n=== ignoreRuleAuditEvents (D-59 P5) ===\n");
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "dispatcher-audit"), {
+      active: true,
+    });
+    await setDoc(doc(ctx.firestore(), "ignoreRuleAuditEvents", "evt-seed"), {
+      ruleId: "johnstone__johnstone__credit_memo",
+      eventType: "proposed",
+      actorUid: "system",
+      atIso: "2026-08-04T00:00:00.000Z",
+    });
+  });
+  const dispatcherAudit = testEnv.authenticatedContext("dispatcher-audit");
+  try {
+    await assertSucceeds(
+      getDoc(
+        doc(dispatcherAudit.firestore(), "ignoreRuleAuditEvents", "evt-seed"),
+      ),
+    );
+    pass("dispatcher read ignoreRuleAuditEvents allowed");
+  } catch (err) {
+    fail("dispatcher read ignoreRuleAuditEvents should be allowed", err);
+  }
+  try {
+    await assertFails(
+      setDoc(doc(dispatcherAudit.firestore(), "ignoreRuleAuditEvents", "evt-forged"), {
+        ruleId: "forged",
+        eventType: "activated",
+        actorUid: "attacker",
+        atIso: new Date().toISOString(),
+      }),
+    );
+    pass("client write ignoreRuleAuditEvents denied");
+  } catch (err) {
+    fail("client write ignoreRuleAuditEvents should be denied", err);
   }
 
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);

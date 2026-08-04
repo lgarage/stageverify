@@ -9,6 +9,7 @@ exports.ignoreRuleDocId = ignoreRuleDocId;
 exports.fingerprintFromImport = fingerprintFromImport;
 exports.getVendorIgnoreRuleById = getVendorIgnoreRuleById;
 exports.vendorIgnoresFingerprint = vendorIgnoresFingerprint;
+exports.incrementVendorIgnoreRuleMatch = incrementVendorIgnoreRuleMatch;
 exports.upsertVendorIgnoreRule = upsertVendorIgnoreRule;
 exports.activateVendorIgnoreRuleDoc = activateVendorIgnoreRuleDoc;
 exports.disableVendorIgnoreRuleDoc = disableVendorIgnoreRuleDoc;
@@ -178,6 +179,15 @@ function normalizeRuleDoc(docId, data) {
             data.domainGraceStartedAt
             ? { domainGraceStartedAt: data.domainGraceStartedAt }
             : {}),
+        ...(typeof data.matchCount === "number" && Number.isFinite(data.matchCount)
+            ? { matchCount: data.matchCount }
+            : {}),
+        ...(typeof data.lastMatchedAt === "string" && data.lastMatchedAt
+            ? { lastMatchedAt: data.lastMatchedAt }
+            : {}),
+        ...(typeof data.lastMatchImportId === "string" && data.lastMatchImportId
+            ? { lastMatchImportId: data.lastMatchImportId }
+            : {}),
     };
 }
 async function getVendorIgnoreRuleById(db, ruleId) {
@@ -237,20 +247,27 @@ async function activeRuleMatchesInbound(db, ruleId, rule, senderEmail) {
 }
 async function vendorIgnoresFingerprint(db, fp, senderEmail) {
     if (!isArmableFingerprint(fp))
-        return false;
+        return { matched: false };
     const id = ignoreRuleDocId(fp);
     const rule = await getVendorIgnoreRuleById(db, id);
     if (rule?.status === "active") {
-        return activeRuleMatchesInbound(db, id, rule, senderEmail);
+        const matched = await activeRuleMatchesInbound(db, id, rule, senderEmail);
+        return matched ? { matched: true, ruleId: id } : { matched: false };
     }
-    if (fp.documentType === "credit_memo") {
-        const legacyId = (0, vendorTrainingMd_1.sanitizeVendorKey)(fp.vendorKey);
-        const legacy = await getVendorIgnoreRuleById(db, legacyId);
-        if (legacy?.status === "active" && legacy.documentType === "credit_memo") {
-            return activeRuleMatchesInbound(db, legacyId, legacy, senderEmail);
-        }
-    }
-    return false;
+    return { matched: false };
+}
+/** P5 — increment match stats on rule doc (Admin SDK only). */
+async function incrementVendorIgnoreRuleMatch(db, ruleId, importId) {
+    const now = new Date().toISOString();
+    await db
+        .collection(exports.VENDOR_IGNORE_RULES_COLLECTION)
+        .doc(ruleId)
+        .set({
+        matchCount: firestore_1.FieldValue.increment(1),
+        lastMatchedAt: now,
+        lastMatchImportId: importId,
+        updatedAt: now,
+    }, { merge: true });
 }
 async function upsertVendorIgnoreRule(db, input) {
     const vendorKey = (0, vendorTrainingMd_1.sanitizeVendorKey)(input.fingerprint.vendorKey);
@@ -451,35 +468,12 @@ async function listVendorIgnoreRules(db) {
     });
     return rows;
 }
-/** @deprecated Prefer archiveVendorIgnoreRuleDoc — delete re-routed in D-59 P2. */
-async function deleteVendorIgnoreRule(db, ruleIdOrVendorKey) {
-    const raw = ruleIdOrVendorKey.trim();
-    if (!raw)
-        return { deleted: false };
-    const candidates = [raw, (0, vendorTrainingMd_1.sanitizeVendorKey)(raw)];
-    let deleted = false;
-    for (const id of candidates) {
-        const ref = db.collection(exports.VENDOR_IGNORE_RULES_COLLECTION).doc(id);
-        const snap = await ref.get();
-        if (snap.exists) {
-            await ref.delete();
-            deleted = true;
-        }
-    }
-    return { deleted };
+/** @deprecated Hard delete removed D-59 P5 — use archiveVendorIgnoreRuleDoc. */
+async function deleteVendorIgnoreRule(_db, _ruleIdOrVendorKey) {
+    throw new Error("hard_delete_forbidden_use_archive");
 }
-/** @deprecated Prefer archiveVendorIgnoreRuleDoc — delete re-routed in D-59 P2. */
-async function deleteVendorIgnoreRuleByFingerprint(db, fp) {
-    const id = ignoreRuleDocId(fp);
-    const ref = db.collection(exports.VENDOR_IGNORE_RULES_COLLECTION).doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) {
-        if (fp.documentType === "credit_memo") {
-            return deleteVendorIgnoreRule(db, fp.vendorKey);
-        }
-        return { deleted: false };
-    }
-    await ref.delete();
-    return { deleted: true };
+/** @deprecated Hard delete removed D-59 P5 — use archiveVendorIgnoreRuleDoc. */
+async function deleteVendorIgnoreRuleByFingerprint(_db, _fp) {
+    throw new Error("hard_delete_forbidden_use_archive");
 }
 //# sourceMappingURL=vendorIgnoreRules.js.map

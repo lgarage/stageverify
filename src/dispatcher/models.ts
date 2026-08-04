@@ -1241,6 +1241,8 @@ export interface VendorInvoiceImportReview {
   skipReason?: "credit_return" | string;
   /** Set when a taught ignore rule matched but strong invoice signals blocked auto-skip. */
   ignoreRuleSuppressedBy?: "strong_invoice_signals";
+  /** P5 — active ignore rule that auto-skipped this import. */
+  matchedRuleId?: string;
   /** Stage 1 — suggested import eligibility (no automatic CF approve). */
   autoImportEligible?: boolean;
   autoImportConfidence?: number;
@@ -1383,6 +1385,38 @@ export interface VendorIgnoreRule {
   senderDomains?: string[];
   /** Grace window start for active rules without domains — D-59 P3. */
   domainGraceStartedAt?: string;
+  /** P5 — inbound auto-skip match stats. */
+  matchCount?: number;
+  lastMatchedAt?: string;
+  lastMatchImportId?: string;
+}
+
+export type IgnoreRuleAuditEventType =
+  | "proposed"
+  | "activated"
+  | "deactivated_manual"
+  | "archived"
+  | "rule_matched"
+  | "match_suppressed_strong_signals"
+  | "validation_rejected";
+
+export interface IgnoreRuleAuditEvent {
+  id: string;
+  ruleId: string;
+  eventType: IgnoreRuleAuditEventType;
+  actorUid: string | "system";
+  atIso: string;
+  importId?: string;
+  detail?: string;
+}
+
+export interface MigrateLegacyVendorIgnoreRulesResult {
+  scanned: number;
+  migrated: number;
+  skipped: number;
+  proposedCount: number;
+  activeCount: number;
+  errors: string[];
 }
 
 export interface DispatcherRoleDoc {
