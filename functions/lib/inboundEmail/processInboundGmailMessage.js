@@ -253,7 +253,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             importRow: provisionalImport,
         });
         const ignoreRuleArmed = (0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw) &&
-            (await (0, vendorIgnoreRules_1.vendorIgnoresFingerprint)(db, fingerprint));
+            (await (0, vendorIgnoreRules_1.vendorIgnoresFingerprint)(db, fingerprint, inboundDoc.senderEmail));
         // New import + taught fingerprint → auto-skip. Re-opened imports stay pending.
         const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate;
         // Preserve existing system skips on reprocess when rule still armed.

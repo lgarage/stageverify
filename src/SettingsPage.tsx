@@ -138,6 +138,9 @@ export function SettingsPage() {
   const [ignoreRulesBusyKey, setIgnoreRulesBusyKey] = useState<string | null>(
     null,
   );
+  const [activateDomainsDraft, setActivateDomainsDraft] = useState<
+    Record<string, string>
+  >({});
   const [isIgnoreRulesManager, setIsIgnoreRulesManager] = useState(false);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
@@ -457,6 +460,40 @@ export function SettingsPage() {
     }
   };
 
+  const DOMAIN_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  const ignoreRuleDomainFlag = (
+    rule: VendorIgnoreRule,
+  ): "ok" | "grace" | "expired" | null => {
+    const status = rule.status ?? (rule.enabled ? "active" : "disabled");
+    if (status !== "active") return null;
+    if (rule.senderDomains && rule.senderDomains.length > 0) return "ok";
+    if (!rule.domainGraceStartedAt) return "grace";
+    const startMs = Date.parse(rule.domainGraceStartedAt);
+    if (Number.isNaN(startMs)) return "grace";
+    return Date.now() >= startMs + DOMAIN_GRACE_MS ? "expired" : "grace";
+  };
+
+  const parseActivateDomains = (raw: string): string[] => {
+    const parts = raw
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const part of parts) {
+      const lower = part.toLowerCase();
+      const domain = lower.includes("@")
+        ? lower.split("@").pop()?.trim()
+        : lower;
+      if (!domain || seen.has(domain)) continue;
+      seen.add(domain);
+      out.push(domain);
+      if (out.length >= 5) break;
+    }
+    return out;
+  };
+
   const patchIgnoreRule = (updated: VendorIgnoreRule) => {
     setIgnoreRules((prev) =>
       (prev ?? []).map((r) =>
@@ -471,13 +508,31 @@ export function SettingsPage() {
     setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
+      const draftDomains = activateDomainsDraft[key]?.trim() ?? "";
+      const parsedDomains = draftDomains
+        ? parseActivateDomains(draftDomains)
+        : undefined;
+      const needsDomains =
+        !(rule.senderDomains && rule.senderDomains.length > 0) && !parsedDomains?.length;
+      if (needsDomains) {
+        setIgnoreRulesError(
+          "Enter at least one sender domain (e.g. vendor.com) to activate.",
+        );
+        return;
+      }
       const updated = await activateVendorIgnoreRule({
         ruleId: rule.ruleId,
         vendorKey: rule.vendorKey,
         parserFormatId: rule.parserFormatId,
         documentType: rule.documentType,
+        ...(parsedDomains?.length ? { senderDomains: parsedDomains } : {}),
       });
       patchIgnoreRule(updated);
+      setActivateDomainsDraft((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     } catch (err) {
       setIgnoreRulesError(
         err instanceof Error ? err.message : "Could not activate rule.",
@@ -1674,15 +1729,76 @@ export function SettingsPage() {
                                 >
                                   {rule.label ||
                                     `${rule.documentType} · ${rule.parserFormatId}`}
+                                  {rule.senderDomains &&
+                                  rule.senderDomains.length > 0 ? (
+                                    <span
+                                      data-testid={`ignore-rule-domains-${key}`}
+                                    >
+                                      {" "}
+                                      · domains: {rule.senderDomains.join(", ")}
+                                    </span>
+                                  ) : null}
                                   {rule.updatedAt
                                     ? ` · updated ${rule.updatedAt.slice(0, 10)}`
                                     : ""}
                                 </div>
+                                {ignoreRuleDomainFlag(rule) === "grace" && (
+                                  <div
+                                    data-testid={`ignore-rule-domain-grace-${key}`}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#b45309",
+                                      fontWeight: 600,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    Needs sender domains — 7-day grace active
+                                  </div>
+                                )}
+                                {ignoreRuleDomainFlag(rule) === "expired" && (
+                                  <div
+                                    data-testid={`ignore-rule-domain-expired-${key}`}
+                                    style={{
+                                      fontSize: 11,
+                                      color: RED,
+                                      fontWeight: 600,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    Grace expired — add sender domains to match
+                                    inbound mail
+                                  </div>
+                                )}
                               </div>
-                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                                 {(status === "proposed" ||
                                   status === "disabled") &&
                                   isIgnoreRulesManager && (
+                                  <>
+                                    {!(rule.senderDomains && rule.senderDomains.length > 0) && (
+                                      <input
+                                        type="text"
+                                        data-testid={`activate-ignore-domains-${key}`}
+                                        placeholder="vendor.com"
+                                        value={activateDomainsDraft[key] ?? ""}
+                                        onChange={(e) =>
+                                          setActivateDomainsDraft((prev) => ({
+                                            ...prev,
+                                            [key]: e.target.value,
+                                          }))
+                                        }
+                                        style={{
+                                          padding: "6px 8px",
+                                          borderRadius: 4,
+                                          border: "1px solid #d1d5db",
+                                          fontSize: 12,
+                                          minWidth: 120,
+                                          color: "#111827",
+                                          backgroundColor: "#fff",
+                                          fontFamily: FONT,
+                                        }}
+                                      />
+                                    )}
                                   <button
                                     type="button"
                                     data-testid={`activate-ignore-rule-${key}`}
@@ -1705,6 +1821,7 @@ export function SettingsPage() {
                                   >
                                     Activate
                                   </button>
+                                  </>
                                 )}
                                 {status === "active" && isIgnoreRulesManager && (
                                   <button

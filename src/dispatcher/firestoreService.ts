@@ -2442,6 +2442,7 @@ const activateVendorIgnoreRuleCallable = httpsCallable<
     parserFormatId?: string;
     documentType?: string;
     ruleId?: string;
+    senderDomains?: string[];
   },
   { rule: VendorIgnoreRule }
 >(functions, "activateVendorIgnoreRule");
@@ -2723,6 +2724,7 @@ export async function activateVendorIgnoreRule(input: {
   parserFormatId?: string;
   documentType?: string;
   ruleId?: string;
+  senderDomains?: string[];
 }): Promise<VendorIgnoreRule> {
   const response = await activateVendorIgnoreRuleCallable(input);
   return response.data.rule;

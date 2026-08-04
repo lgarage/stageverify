@@ -7,8 +7,8 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
+- **WIP (branch `cursor/d59-p2-manager-role-7c0e`, not deployed):** D-59 P3 sender-domain pinning — `senderDomains` on rules, 7-day grace for domain-less actives, inbound domain match (v0.0.200). P2 manager lifecycle on same branch.
 - Last shipped: **v0.0.198** — D-59 P1 **LIVE** (server-echo propose/confirm + echoToken; never-unknown; credit dismiss fix; §19 training-note wording). Feature `74414db`; evidence `9002143` (D-51/CURRENT_STATE), `9d35678` (verify harness). **Prod verify:** `verify:invoice-review:prod` PASS.
-- **WIP (branch `cursor/d59-p2-manager-role-7c0e`, not deployed):** D-59 P2 manager role — `proposed|active|disabled|archived` lifecycle, `requireManagerAuth`, activate/archive callables, Settings proposal queue (v0.0.199).
 - Prior: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board.
 - **D-59 P1 deploy:** gh-pages **built** @ `74414db` · https://lgarage.github.io/stageverify · **CF** (`proposeVendorIgnoreRule` + updated functions on `stageverify-db`) **deployed**.
 - Active Phase: Location-first Phase 6 Slice C (C1 shipped) — Slice B audit walk next.
@@ -19,7 +19,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **D-59 P3:** Sender-domain pinning (after P2 merge + CF deploy on branch).
+- **D-59 P4:** Strong-signal guard (after P3 merge + CF deploy on branch).
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

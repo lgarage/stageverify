@@ -2,7 +2,7 @@
  * Vendor invoice ignore rules — Firestore SSOT for taught document fingerprints.
  * CF Admin SDK only; clients use callables.
  */
-import type { Firestore } from "firebase-admin/firestore";
+import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { sanitizeVendorKey } from "./vendorTrainingMd";
 import {
   documentTypeLabel,
@@ -12,8 +12,14 @@ import {
   type InvoiceParserFormatId,
   type InferDocumentTypeInput,
 } from "../inferDocumentType";
+import {
+  extractSenderDomain,
+  normalizeSenderDomains,
+} from "../vendorIgnoreEcho";
 
 export const VENDOR_IGNORE_RULES_COLLECTION = "vendorInvoiceIgnoreRules";
+
+export const DOMAIN_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type VendorIgnoreRuleStatus =
   | "proposed"
@@ -48,6 +54,10 @@ export type VendorIgnoreRuleDoc = VendorIgnoreFingerprint & {
   archivedBy?: string;
   archivedAt?: string;
   archivedReason?: string;
+  /** Pinned sender domains (max 5) — inbound From must match when non-empty. */
+  senderDomains?: string[];
+  /** ISO timestamp when 7-day grace began for active rules with no domains (P3). */
+  domainGraceStartedAt?: string;
 };
 
 export function isArmableVendorKey(raw: string): boolean {
@@ -66,6 +76,36 @@ export function isArmableFingerprint(fp: VendorIgnoreFingerprint): boolean {
     fp.documentType === "sales_order_confirmation" ||
     fp.documentType === "credit_memo"
   );
+}
+
+export function isDomainGraceActive(
+  rule: Pick<VendorIgnoreRuleDoc, "senderDomains" | "domainGraceStartedAt">,
+  now: Date = new Date(),
+): boolean {
+  const domains = rule.senderDomains ?? [];
+  if (domains.length > 0) return false;
+  const started = rule.domainGraceStartedAt;
+  if (!started) return true;
+  const startMs = Date.parse(started);
+  if (Number.isNaN(startMs)) return true;
+  return now.getTime() < startMs + DOMAIN_GRACE_MS;
+}
+
+export function isDomainGraceExpired(
+  rule: Pick<VendorIgnoreRuleDoc, "senderDomains" | "domainGraceStartedAt">,
+  now: Date = new Date(),
+): boolean {
+  const domains = rule.senderDomains ?? [];
+  if (domains.length > 0) return false;
+  const started = rule.domainGraceStartedAt;
+  if (!started) return false;
+  const startMs = Date.parse(started);
+  if (Number.isNaN(startMs)) return false;
+  return now.getTime() >= startMs + DOMAIN_GRACE_MS;
+}
+
+function readSenderDomains(data: Record<string, unknown>): string[] {
+  return normalizeSenderDomains(data.senderDomains);
 }
 
 export function ignoreRuleDocId(fp: VendorIgnoreFingerprint): string {
@@ -199,6 +239,13 @@ function normalizeRuleDoc(
     ...(typeof data.archivedReason === "string" && data.archivedReason
       ? { archivedReason: data.archivedReason }
       : {}),
+    ...(readSenderDomains(data).length > 0
+      ? { senderDomains: readSenderDomains(data) }
+      : {}),
+    ...(typeof data.domainGraceStartedAt === "string" &&
+    data.domainGraceStartedAt
+      ? { domainGraceStartedAt: data.domainGraceStartedAt }
+      : {}),
   };
 }
 
@@ -214,23 +261,75 @@ export async function getVendorIgnoreRuleById(
   return normalizeRuleDoc(snap.id, (snap.data() ?? {}) as Record<string, unknown>);
 }
 
+async function backfillDomainGraceIfNeeded(
+  db: Firestore,
+  ruleId: string,
+  rule: VendorIgnoreRuleDoc,
+): Promise<VendorIgnoreRuleDoc> {
+  if (rule.status !== "active") return rule;
+  if ((rule.senderDomains?.length ?? 0) > 0) return rule;
+  if (rule.domainGraceStartedAt) return rule;
+  const now = new Date().toISOString();
+  try {
+    await db
+      .collection(VENDOR_IGNORE_RULES_COLLECTION)
+      .doc(ruleId)
+      .set({ domainGraceStartedAt: now }, { merge: true });
+    return { ...rule, domainGraceStartedAt: now };
+  } catch {
+    return rule;
+  }
+}
+
+async function activeRuleMatchesInbound(
+  db: Firestore,
+  ruleId: string,
+  rule: VendorIgnoreRuleDoc,
+  senderEmail?: string,
+): Promise<boolean> {
+  const domains = rule.senderDomains ?? [];
+  if (domains.length > 0) {
+    const inboundDomain = senderEmail
+      ? extractSenderDomain(senderEmail)
+      : null;
+    if (!inboundDomain) return false;
+    return domains.includes(inboundDomain);
+  }
+
+  const now = new Date();
+  let graceRule = rule;
+  if (!rule.domainGraceStartedAt) {
+    const nowIso = now.toISOString();
+    try {
+      await db
+        .collection(VENDOR_IGNORE_RULES_COLLECTION)
+        .doc(ruleId)
+        .set({ domainGraceStartedAt: nowIso }, { merge: true });
+      graceRule = { ...rule, domainGraceStartedAt: nowIso };
+    } catch {
+      return true;
+    }
+  }
+  return isDomainGraceActive(graceRule, now);
+}
+
 export async function vendorIgnoresFingerprint(
   db: Firestore,
   fp: VendorIgnoreFingerprint,
+  senderEmail?: string,
 ): Promise<boolean> {
   if (!isArmableFingerprint(fp)) return false;
   const id = ignoreRuleDocId(fp);
   const rule = await getVendorIgnoreRuleById(db, id);
-  if (rule?.status === "active") return true;
+  if (rule?.status === "active") {
+    return activeRuleMatchesInbound(db, id, rule, senderEmail);
+  }
 
-  // Legacy credit rule stored under vendorKey only.
   if (fp.documentType === "credit_memo") {
-    const legacy = await getVendorIgnoreRuleById(
-      db,
-      sanitizeVendorKey(fp.vendorKey),
-    );
+    const legacyId = sanitizeVendorKey(fp.vendorKey);
+    const legacy = await getVendorIgnoreRuleById(db, legacyId);
     if (legacy?.status === "active" && legacy.documentType === "credit_memo") {
-      return true;
+      return activeRuleMatchesInbound(db, legacyId, legacy, senderEmail);
     }
   }
   return false;
@@ -254,6 +353,8 @@ export async function upsertVendorIgnoreRule(
     archivedBy?: string;
     archivedAt?: string;
     archivedReason?: string;
+    senderDomains?: string[];
+    clearDomainGrace?: boolean;
   },
 ): Promise<VendorIgnoreRuleDoc> {
   const vendorKey = sanitizeVendorKey(input.fingerprint.vendorKey);
@@ -271,6 +372,17 @@ export async function upsertVendorIgnoreRule(
   const taughtAt = existing?.taughtAt || input.taughtAt || now;
   const taughtBy = existing?.taughtBy || input.uid;
   const enabled = input.status === "active";
+  const mergedDomains =
+    input.senderDomains !== undefined
+      ? normalizeSenderDomains(input.senderDomains)
+      : existing?.senderDomains ?? [];
+  const clearGrace =
+    input.clearDomainGrace === true ||
+    (mergedDomains.length > 0 && existing?.domainGraceStartedAt != null);
+  const domainGraceStartedAt =
+    mergedDomains.length > 0
+      ? undefined
+      : existing?.domainGraceStartedAt;
   const doc: VendorIgnoreRuleDoc = {
     ...fingerprint,
     status: input.status,
@@ -280,6 +392,8 @@ export async function upsertVendorIgnoreRule(
     updatedAt: now,
     updatedBy: input.uid,
     label: `${documentTypeLabel(fingerprint.documentType)} · ${fingerprint.parserFormatId}`,
+    ...(mergedDomains.length > 0 ? { senderDomains: mergedDomains } : {}),
+    ...(domainGraceStartedAt ? { domainGraceStartedAt } : {}),
     ...(input.sourceImportId
       ? { sourceImportId: input.sourceImportId }
       : existing?.sourceImportId
@@ -316,9 +430,16 @@ export async function upsertVendorIgnoreRule(
       ? { archivedReason: input.archivedReason ?? existing!.archivedReason }
       : {}),
   };
-  await db.collection(VENDOR_IGNORE_RULES_COLLECTION).doc(id).set(doc, {
+  const writePayload: Record<string, unknown> = { ...doc };
+  if (clearGrace) {
+    writePayload.domainGraceStartedAt = FieldValue.delete();
+  }
+  await db.collection(VENDOR_IGNORE_RULES_COLLECTION).doc(id).set(writePayload, {
     merge: true,
   });
+  if (clearGrace) {
+    delete doc.domainGraceStartedAt;
+  }
   return doc;
 }
 
@@ -327,6 +448,7 @@ export async function activateVendorIgnoreRuleDoc(
   input: {
     fingerprint: VendorIgnoreFingerprint;
     uid: string;
+    senderDomains?: string[];
   },
 ): Promise<VendorIgnoreRuleDoc> {
   const existing = await getVendorIgnoreRuleById(
@@ -339,6 +461,16 @@ export async function activateVendorIgnoreRuleDoc(
   if (existing.status === "archived") {
     throw new Error("rule_archived");
   }
+  if (!isArmableFingerprint(input.fingerprint)) {
+    throw new Error("fingerprint_not_armable");
+  }
+  const mergedDomains = normalizeSenderDomains([
+    ...(existing.senderDomains ?? []),
+    ...(input.senderDomains ?? []),
+  ]);
+  if (mergedDomains.length < 1) {
+    throw new Error("domains_required");
+  }
   const now = new Date().toISOString();
   return upsertVendorIgnoreRule(db, {
     fingerprint: input.fingerprint,
@@ -350,6 +482,8 @@ export async function activateVendorIgnoreRuleDoc(
     taughtAt: existing.taughtAt,
     proposedBy: existing.proposedBy,
     proposedAt: existing.proposedAt,
+    senderDomains: mergedDomains,
+    clearDomainGrace: true,
   });
 }
 
@@ -437,7 +571,8 @@ export async function listVendorIgnoreRules(
     const id = ignoreRuleDocId(rule);
     if (seen.has(id)) continue;
     seen.add(id);
-    rows.push(rule);
+    const backfilled = await backfillDomainGraceIfNeeded(db, id, rule);
+    rows.push(backfilled);
   }
   rows.sort((a, b) => {
     const statusOrder = (s: VendorIgnoreRuleStatus) => {

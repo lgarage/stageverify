@@ -373,6 +373,7 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
                 sourceImportId: importId,
                 proposedBy: uid,
                 proposedAt: now,
+                senderDomains,
             });
         }
     }
@@ -437,6 +438,9 @@ exports.activateVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }
         const rule = await (0, vendorIgnoreRules_1.activateVendorIgnoreRuleDoc)(getDb(), {
             fingerprint,
             uid,
+            senderDomains: data.senderDomains !== undefined
+                ? (0, vendorIgnoreEcho_1.normalizeSenderDomains)(data.senderDomains)
+                : undefined,
         });
         return { rule: ruleToCallableResponse(rule) };
     }
@@ -446,6 +450,13 @@ exports.activateVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }
         }
         if (err instanceof Error && err.message === "rule_archived") {
             throw new https_1.HttpsError("failed-precondition", "Archived rules cannot be activated — propose a new rule instead.");
+        }
+        if (err instanceof Error && err.message === "domains_required") {
+            throw new https_1.HttpsError("failed-precondition", "At least one sender domain is required to activate this rule.");
+        }
+        if (err instanceof Error && err.message === "fingerprint_not_armable") {
+            throw new https_1.HttpsError("failed-precondition", (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint) ??
+                "This document type cannot be used for an ignore rule.");
         }
         throw err;
     }

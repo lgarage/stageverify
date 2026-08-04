@@ -1377,6 +1377,10 @@ export interface VendorIgnoreRule {
   archivedBy?: string;
   archivedAt?: string;
   archivedReason?: string;
+  /** Pinned sender domains (max 5) — D-59 P3. */
+  senderDomains?: string[];
+  /** Grace window start for active rules without domains — D-59 P3. */
+  domainGraceStartedAt?: string;
 }
 
 export interface DispatcherRoleDoc {

@@ -47,6 +47,7 @@ import {
   buildProposeEchoText,
   computeEchoToken,
   extractSenderDomain,
+  normalizeSenderDomains,
 } from "./invoice/vendorIgnoreEcho";
 import {
   documentTypeLabel,
@@ -565,6 +566,7 @@ export const confirmVendorIgnoreRule = onCall(
           sourceImportId: importId,
           proposedBy: uid,
           proposedAt: now,
+          senderDomains,
         });
       }
     } catch (err) {
@@ -631,6 +633,7 @@ export const activateVendorIgnoreRule = onCall(
       parserFormatId?: unknown;
       documentType?: unknown;
       ruleId?: unknown;
+      senderDomains?: unknown;
     };
     const fingerprint = parseFingerprintFromAdminData(data);
     if (!fingerprint || !isArmableFingerprint(fingerprint)) {
@@ -646,6 +649,10 @@ export const activateVendorIgnoreRule = onCall(
       const rule = await activateVendorIgnoreRuleDoc(getDb(), {
         fingerprint,
         uid,
+        senderDomains:
+          data.senderDomains !== undefined
+            ? normalizeSenderDomains(data.senderDomains)
+            : undefined,
       });
       return { rule: ruleToCallableResponse(rule) };
     } catch (err) {
@@ -656,6 +663,19 @@ export const activateVendorIgnoreRule = onCall(
         throw new HttpsError(
           "failed-precondition",
           "Archived rules cannot be activated — propose a new rule instead.",
+        );
+      }
+      if (err instanceof Error && err.message === "domains_required") {
+        throw new HttpsError(
+          "failed-precondition",
+          "At least one sender domain is required to activate this rule.",
+        );
+      }
+      if (err instanceof Error && err.message === "fingerprint_not_armable") {
+        throw new HttpsError(
+          "failed-precondition",
+          armableFingerprintError(fingerprint) ??
+            "This document type cannot be used for an ignore rule.",
         );
       }
       throw err;
