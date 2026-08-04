@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.migrateLegacyVendorIgnoreRules = exports.listIgnoreRuleAuditEventsCallable = exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.archiveVendorIgnoreRule = exports.activateVendorIgnoreRule = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
+exports.bulkReopenImportsSkippedByRule = exports.migrateLegacyVendorIgnoreRules = exports.listIgnoreRuleAuditEventsCallable = exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.archiveVendorIgnoreRule = exports.activateVendorIgnoreRule = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
 /**
  * Invoice training Admin — configure alert email/password, Save lesson, MD editor.
  * Password hash in invoiceTrainingAdminSecrets (CF-only). Never in public appSettings.
@@ -18,6 +18,7 @@ const inferDocumentType_1 = require("./invoice/inferDocumentType");
 const ignoreRuleAudit_1 = require("./invoice/aiShadow/ignoreRuleAudit");
 const migrateLegacyVendorIgnoreRules_1 = require("./invoice/aiShadow/migrateLegacyVendorIgnoreRules");
 const ignoreRuleAudit_2 = require("./invoice/aiShadow/ignoreRuleAudit");
+const reopenIgnoreSkippedImport_1 = require("./invoice/aiShadow/reopenIgnoreSkippedImport");
 function getDb() {
     return admin.firestore();
 }
@@ -707,5 +708,31 @@ exports.migrateLegacyVendorIgnoreRules = (0, https_1.onCall)({ region: "us-centr
     void request;
     const result = await (0, migrateLegacyVendorIgnoreRules_1.migrateLegacyVendorIgnoreRulesCore)(getDb(), uid);
     return result;
+});
+/** Manager bulk-reopen imports auto-skipped by one ignore rule (D-59 P6). */
+exports.bulkReopenImportsSkippedByRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    const data = (request.data ?? {});
+    const ruleId = typeof data.ruleId === "string" ? data.ruleId.trim() : "";
+    if (!ruleId) {
+        throw new https_1.HttpsError("invalid-argument", "ruleId is required.");
+    }
+    const rule = await (0, vendorIgnoreRules_1.getVendorIgnoreRuleById)(getDb(), ruleId);
+    if (!rule) {
+        throw new https_1.HttpsError("not-found", "Ignore rule not found.");
+    }
+    try {
+        const result = await (0, reopenIgnoreSkippedImport_1.bulkReopenImportsSkippedByRuleCore)(getDb(), {
+            ruleId,
+            actorUid: uid,
+        });
+        return result;
+    }
+    catch (err) {
+        if (err instanceof Error && err.message === "rule_id_required") {
+            throw new https_1.HttpsError("invalid-argument", "ruleId is required.");
+        }
+        throw err;
+    }
 });
 //# sourceMappingURL=invoiceTrainingAdminApi.js.map

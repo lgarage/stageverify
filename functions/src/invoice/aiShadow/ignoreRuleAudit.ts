@@ -13,6 +13,8 @@ export type IgnoreRuleAuditEventType =
   | "archived"
   | "rule_matched"
   | "match_suppressed_strong_signals"
+  | "match_reopened"
+  | "auto_disabled_false_positive"
   | "validation_rejected";
 
 export type IgnoreRuleAuditEventDoc = {

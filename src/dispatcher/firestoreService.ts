@@ -80,6 +80,7 @@ import type {
   VendorIgnoreRule,
   IgnoreRuleAuditEvent,
   MigrateLegacyVendorIgnoreRulesResult,
+  BulkReopenImportsSkippedByRuleResult,
   DispatcherRoleDoc,
 } from "./models";
 import {
@@ -2470,6 +2471,11 @@ const migrateLegacyVendorIgnoreRulesCallable = httpsCallable<
   MigrateLegacyVendorIgnoreRulesResult
 >(functions, "migrateLegacyVendorIgnoreRules");
 
+const bulkReopenImportsSkippedByRuleCallable = httpsCallable<
+  { ruleId: string },
+  BulkReopenImportsSkippedByRuleResult
+>(functions, "bulkReopenImportsSkippedByRule");
+
 const getVendorInvoiceImportCallable = httpsCallable<
   { id: string },
   VendorInvoiceImportReview
@@ -2786,6 +2792,13 @@ export async function listIgnoreRuleAuditEvents(input: {
 
 export async function migrateLegacyVendorIgnoreRules(): Promise<MigrateLegacyVendorIgnoreRulesResult> {
   const response = await migrateLegacyVendorIgnoreRulesCallable({});
+  return response.data;
+}
+
+export async function bulkReopenImportsSkippedByRule(input: {
+  ruleId: string;
+}): Promise<BulkReopenImportsSkippedByRuleResult> {
+  const response = await bulkReopenImportsSkippedByRuleCallable(input);
   return response.data;
 }
 

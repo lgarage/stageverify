@@ -20,6 +20,7 @@ import {
 import type { VendorInvoiceImportDoc } from "./inboundEmail/types";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { saveTrainingLessonCore } from "./invoice/aiShadow/saveTrainingLessonCore";
+import { reopenVendorInvoiceImportCore } from "./invoice/aiShadow/reopenIgnoreSkippedImport";
 import { vendorKeyFromImportDoc } from "./invoice/aiShadow/adminConfig";
 import {
   CREDIT_RETURN_SKIP_REASON,
@@ -126,31 +127,40 @@ export const approveVendorInvoiceImport = onCall(
           `Import is ${importDoc.reviewStatus}; only rejected imports can be reopened.`,
         );
       }
-      await getDb().runTransaction(async (tx) => {
-        const freshImport = await tx.get(importRef);
-        if (!freshImport.exists) {
-          throw new HttpsError("not-found", "Vendor invoice import not found.");
-        }
-        const fresh = freshImport.data() as VendorInvoiceImportDoc;
-        if (fresh.reviewStatus !== "rejected") {
+      try {
+        const result = await reopenVendorInvoiceImportCore(getDb(), {
+          importId,
+          actorUid: uid,
+          now,
+        });
+        if (!result.reopened && result.skipped) {
           throw new HttpsError(
             "failed-precondition",
-            `Import is ${fresh.reviewStatus}; only rejected imports can be reopened.`,
+            result.reason === "already_pending"
+              ? "Import is already pending review."
+              : "Import cannot be reopened.",
           );
         }
-        tx.update(importRef, {
-          reviewStatus: "pending_review",
-          rejectedAt: FieldValue.delete(),
-          rejectedBy: FieldValue.delete(),
-          skipReason: FieldValue.delete(),
-          updatedAt: now,
-          importDecisionLog: appendDecisionLogUpdate(
-            fresh,
-            buildImportDecisionLogEntry("reopen", uid, now, eligibilityFromDoc(fresh)),
-          ),
-        });
-      });
-      return { vendorInvoiceImportId: importId, reviewStatus: "pending_review" };
+        return {
+          vendorInvoiceImportId: importId,
+          reviewStatus: "pending_review" as const,
+          ...(result.matchedRuleId ? { matchedRuleId: result.matchedRuleId } : {}),
+          ...(result.reopenCount != null ? { reopenCount: result.reopenCount } : {}),
+          ...(result.autoDisabled ? { ruleAutoDisabled: true } : {}),
+        };
+      } catch (err) {
+        if (err instanceof HttpsError) throw err;
+        if (err instanceof Error && err.message === "import_not_found") {
+          throw new HttpsError("not-found", "Vendor invoice import not found.");
+        }
+        if (err instanceof Error && err.message === "not_rejected") {
+          throw new HttpsError(
+            "failed-precondition",
+            `Import is not rejected; only rejected imports can be reopened.`,
+          );
+        }
+        throw err;
+      }
     }
 
     if (action === "reject" && importDoc.reviewStatus !== "pending_review") {

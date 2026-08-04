@@ -188,6 +188,9 @@ function normalizeRuleDoc(docId, data) {
         ...(typeof data.lastMatchImportId === "string" && data.lastMatchImportId
             ? { lastMatchImportId: data.lastMatchImportId }
             : {}),
+        ...(typeof data.reopenCount === "number" && Number.isFinite(data.reopenCount)
+            ? { reopenCount: data.reopenCount }
+            : {}),
     };
 }
 async function getVendorIgnoreRuleById(db, ruleId) {

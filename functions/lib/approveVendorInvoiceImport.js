@@ -14,6 +14,7 @@ const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpe
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
+const reopenIgnoreSkippedImport_1 = require("./invoice/aiShadow/reopenIgnoreSkippedImport");
 const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
@@ -77,25 +78,36 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         if (importDoc.reviewStatus !== "rejected") {
             throw new https_1.HttpsError("failed-precondition", `Import is ${importDoc.reviewStatus}; only rejected imports can be reopened.`);
         }
-        await getDb().runTransaction(async (tx) => {
-            const freshImport = await tx.get(importRef);
-            if (!freshImport.exists) {
+        try {
+            const result = await (0, reopenIgnoreSkippedImport_1.reopenVendorInvoiceImportCore)(getDb(), {
+                importId,
+                actorUid: uid,
+                now,
+            });
+            if (!result.reopened && result.skipped) {
+                throw new https_1.HttpsError("failed-precondition", result.reason === "already_pending"
+                    ? "Import is already pending review."
+                    : "Import cannot be reopened.");
+            }
+            return {
+                vendorInvoiceImportId: importId,
+                reviewStatus: "pending_review",
+                ...(result.matchedRuleId ? { matchedRuleId: result.matchedRuleId } : {}),
+                ...(result.reopenCount != null ? { reopenCount: result.reopenCount } : {}),
+                ...(result.autoDisabled ? { ruleAutoDisabled: true } : {}),
+            };
+        }
+        catch (err) {
+            if (err instanceof https_1.HttpsError)
+                throw err;
+            if (err instanceof Error && err.message === "import_not_found") {
                 throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
             }
-            const fresh = freshImport.data();
-            if (fresh.reviewStatus !== "rejected") {
-                throw new https_1.HttpsError("failed-precondition", `Import is ${fresh.reviewStatus}; only rejected imports can be reopened.`);
+            if (err instanceof Error && err.message === "not_rejected") {
+                throw new https_1.HttpsError("failed-precondition", `Import is not rejected; only rejected imports can be reopened.`);
             }
-            tx.update(importRef, {
-                reviewStatus: "pending_review",
-                rejectedAt: firestore_1.FieldValue.delete(),
-                rejectedBy: firestore_1.FieldValue.delete(),
-                skipReason: firestore_1.FieldValue.delete(),
-                updatedAt: now,
-                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("reopen", uid, now, eligibilityFromDoc(fresh))),
-            });
-        });
-        return { vendorInvoiceImportId: importId, reviewStatus: "pending_review" };
+            throw err;
+        }
     }
     if (action === "reject" && importDoc.reviewStatus !== "pending_review") {
         throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);

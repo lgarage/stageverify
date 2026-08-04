@@ -7,7 +7,7 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- **WIP (branch `cursor/d59-p2-manager-role-7c0e`, not deployed):** D-59 P5 audit stream + matchedRuleId + legacy migration (v0.0.202). P4 strong-invoice-signal suppression + P3 sender-domain pinning on same branch.
+- **WIP (branch `cursor/d59-p2-manager-role-7c0e`, not deployed):** D-59 P6 circuit breaker on reopen (v0.0.203). P5 audit stream + matchedRuleId + legacy migration shipped on branch.
 - Last shipped: **v0.0.198** — D-59 P1 **LIVE** (server-echo propose/confirm + echoToken; never-unknown; credit dismiss fix; §19 training-note wording). Feature `74414db`; evidence `9002143` (D-51/CURRENT_STATE), `9d35678` (verify harness). **Prod verify:** `verify:invoice-review:prod` PASS.
 - Prior: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board.
 - **D-59 P1 deploy:** gh-pages **built** @ `74414db` · https://lgarage.github.io/stageverify · **CF** (`proposeVendorIgnoreRule` + updated functions on `stageverify-db`) **deployed**.
@@ -19,7 +19,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **D-59 P6:** Circuit breaker on reopen (matchedRuleId + reopenCount → auto-disable).
+- **D-59 P7:** Raw-note 90-day audit (`trainingNoteAudit`) + redaction preview + lesson rate limit.
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

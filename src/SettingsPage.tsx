@@ -32,6 +32,7 @@ import {
   listVendorIgnoreRules,
   listIgnoreRuleAuditEvents,
   migrateLegacyVendorIgnoreRules,
+  bulkReopenImportsSkippedByRule,
   updateVendorIgnoreRule,
 } from "./dispatcher/firestoreService";
 import {
@@ -150,6 +151,9 @@ export function SettingsPage() {
   >(null);
   const [ignoreRuleAuditLoading, setIgnoreRuleAuditLoading] = useState(false);
   const [legacyMigrationBusy, setLegacyMigrationBusy] = useState(false);
+  const [bulkReopenBusyKey, setBulkReopenBusyKey] = useState<string | null>(
+    null,
+  );
   const [legacyMigrationMessage, setLegacyMigrationMessage] = useState<
     string | null
   >(null);
@@ -631,6 +635,41 @@ export function SettingsPage() {
       );
     } finally {
       setIgnoreRulesBusyKey(null);
+    }
+  };
+
+  const bulkReopenSkippedByRule = async (rule: VendorIgnoreRule) => {
+    if (!isIgnoreRulesManager || bulkReopenBusyKey || ignoreRulesBusyKey) return;
+    const key = ignoreRuleKey(rule);
+    const ruleId =
+      rule.ruleId ??
+      `${rule.vendorKey}__${rule.parserFormatId}__${rule.documentType}`;
+    setBulkReopenBusyKey(key);
+    setIgnoreRulesError(null);
+    try {
+      const result = await bulkReopenImportsSkippedByRule({ ruleId });
+      if (ignoreRulesPassword.trim()) {
+        await loadIgnoreRules();
+      }
+      if (result.reopened === 0) {
+        setIgnoreRulesError(
+          result.scanned === 0
+            ? "No rejected auto-skipped imports found for this rule."
+            : "No imports were reopened (they may already be pending).",
+        );
+      } else if (result.autoDisabled) {
+        setIgnoreRulesError(
+          `Re-opened ${result.reopened} import(s). Rule auto-disabled after ${result.reopenCount ?? 2} false-positive re-opens.`,
+        );
+      }
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error
+          ? err.message
+          : "Could not bulk re-open skipped imports.",
+      );
+    } finally {
+      setBulkReopenBusyKey(null);
     }
   };
 
@@ -1884,6 +1923,24 @@ export function SettingsPage() {
                                         : ""}
                                     </span>
                                   ) : null}
+                                  {typeof rule.reopenCount === "number" &&
+                                  rule.reopenCount > 0 ? (
+                                    <span
+                                      data-testid={`ignore-rule-reopen-count-${key}`}
+                                    >
+                                      {" "}
+                                      · re-opens: {rule.reopenCount}
+                                    </span>
+                                  ) : null}
+                                  {rule.disabledReason === "auto_false_positive" ? (
+                                    <span
+                                      data-testid={`ignore-rule-auto-disabled-${key}`}
+                                      style={{ color: RED }}
+                                    >
+                                      {" "}
+                                      · auto-disabled (false positive)
+                                    </span>
+                                  ) : null}
                                 </div>
                                 {ignoreRuleDomainFlag(rule) === "grace" && (
                                   <div
@@ -1988,6 +2045,39 @@ export function SettingsPage() {
                                     }}
                                   >
                                     Disable
+                                  </button>
+                                )}
+                                {(status === "active" || status === "disabled") &&
+                                  isIgnoreRulesManager && (
+                                  <button
+                                    type="button"
+                                    data-testid={`bulk-reopen-ignore-rule-${key}`}
+                                    disabled={
+                                      bulkReopenBusyKey === key ||
+                                      ignoreRulesBusyKey === key
+                                    }
+                                    onClick={() =>
+                                      void bulkReopenSkippedByRule(rule)
+                                    }
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      border: `1px solid ${RED}`,
+                                      backgroundColor: "#fff",
+                                      color: RED,
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor:
+                                        bulkReopenBusyKey === key ||
+                                        ignoreRulesBusyKey === key
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    {bulkReopenBusyKey === key
+                                      ? "Re-opening…"
+                                      : "Re-open skipped"}
                                   </button>
                                 )}
                                 {!isIgnoreRulesManager &&

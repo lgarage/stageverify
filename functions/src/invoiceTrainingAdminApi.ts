@@ -56,6 +56,7 @@ import {
 import { writeIgnoreRuleAuditEvent } from "./invoice/aiShadow/ignoreRuleAudit";
 import { migrateLegacyVendorIgnoreRulesCore } from "./invoice/aiShadow/migrateLegacyVendorIgnoreRules";
 import { listIgnoreRuleAuditEvents } from "./invoice/aiShadow/ignoreRuleAudit";
+import { bulkReopenImportsSkippedByRuleCore } from "./invoice/aiShadow/reopenIgnoreSkippedImport";
 
 function getDb() {
   return admin.firestore();
@@ -1001,5 +1002,35 @@ export const migrateLegacyVendorIgnoreRules = onCall(
     void request;
     const result = await migrateLegacyVendorIgnoreRulesCore(getDb(), uid);
     return result;
+  },
+);
+
+/** Manager bulk-reopen imports auto-skipped by one ignore rule (D-59 P6). */
+export const bulkReopenImportsSkippedByRule = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = await requireManagerAuth(request);
+    const data = (request.data ?? {}) as { ruleId?: unknown };
+    const ruleId =
+      typeof data.ruleId === "string" ? data.ruleId.trim() : "";
+    if (!ruleId) {
+      throw new HttpsError("invalid-argument", "ruleId is required.");
+    }
+    const rule = await getVendorIgnoreRuleById(getDb(), ruleId);
+    if (!rule) {
+      throw new HttpsError("not-found", "Ignore rule not found.");
+    }
+    try {
+      const result = await bulkReopenImportsSkippedByRuleCore(getDb(), {
+        ruleId,
+        actorUid: uid,
+      });
+      return result;
+    } catch (err) {
+      if (err instanceof Error && err.message === "rule_id_required") {
+        throw new HttpsError("invalid-argument", "ruleId is required.");
+      }
+      throw err;
+    }
   },
 );

@@ -1389,6 +1389,8 @@ export interface VendorIgnoreRule {
   matchCount?: number;
   lastMatchedAt?: string;
   lastMatchImportId?: string;
+  /** P6 — admin re-opens of document-ignore skips (circuit breaker). */
+  reopenCount?: number;
 }
 
 export type IgnoreRuleAuditEventType =
@@ -1398,6 +1400,8 @@ export type IgnoreRuleAuditEventType =
   | "archived"
   | "rule_matched"
   | "match_suppressed_strong_signals"
+  | "match_reopened"
+  | "auto_disabled_false_positive"
   | "validation_rejected";
 
 export interface IgnoreRuleAuditEvent {
@@ -1417,6 +1421,15 @@ export interface MigrateLegacyVendorIgnoreRulesResult {
   proposedCount: number;
   activeCount: number;
   errors: string[];
+}
+
+export interface BulkReopenImportsSkippedByRuleResult {
+  ruleId: string;
+  scanned: number;
+  reopened: number;
+  skipped: number;
+  autoDisabled: boolean;
+  reopenCount?: number;
 }
 
 export interface DispatcherRoleDoc {

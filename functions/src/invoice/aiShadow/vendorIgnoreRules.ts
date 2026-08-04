@@ -62,6 +62,8 @@ export type VendorIgnoreRuleDoc = VendorIgnoreFingerprint & {
   matchCount?: number;
   lastMatchedAt?: string;
   lastMatchImportId?: string;
+  /** P6 — admin re-opens of document-ignore skips (circuit breaker). */
+  reopenCount?: number;
 };
 
 export type VendorIgnoreMatchResult = {
@@ -263,6 +265,9 @@ function normalizeRuleDoc(
       : {}),
     ...(typeof data.lastMatchImportId === "string" && data.lastMatchImportId
       ? { lastMatchImportId: data.lastMatchImportId }
+      : {}),
+    ...(typeof data.reopenCount === "number" && Number.isFinite(data.reopenCount)
+      ? { reopenCount: data.reopenCount }
       : {}),
   };
 }
