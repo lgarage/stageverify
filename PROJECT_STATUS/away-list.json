@@ -26,6 +26,21 @@
       "acceptance": "Written spec only — no CF/UI implementation in this item.",
       "tier": "T3",
       "verifyBeforeNext": []
+    },
+    {
+      "id": "away-137",
+      "title": "Tighten Firestore deliveries/items client write rules (post D-59 phases)",
+      "status": "blocked",
+      "blockedReason": "Unblock only after D-59 training-note hardening phases P1–P7 are complete (docs/training-note-ignore-spec.md + CURRENT_STATE). Hot-tier deferred follow-up from Fable war-game Known limitation #9 / D-59.",
+      "scope": "High-risk firestore.rules hardening: today any authenticated client can create/update/delete `deliveries` and `items` (rules ~67–77). Tighten to dispatcher-only and/or CF-only writes so client cannot mutate those collections outside authorized callables. Do not widen to training-note ignore rules. STOP before implement — confirm deploy plan with Dan; Sonnet security gate before push; firebase deploy --only firestore:rules only with Dan deploy approval. Source: docs/training-note-ignore-spec.md §29 #9.",
+      "acceptance": "Client SDK create/update/delete on deliveries/items denied for non-dispatcher (and/or all clients if CF-only); dispatcher or CF paths still work for existing product flows; emulator rules tests cover deny + allow; Sonnet security-gate PASS + Dan deploy approval before rules deploy; CURRENT_STATE notes away-137 done.",
+      "tier": "T3",
+      "riskTier": "high-risk",
+      "danApproved": true,
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run test:firestore-rules"
+      ]
     }
   ]
 }

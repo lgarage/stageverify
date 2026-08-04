@@ -332,7 +332,7 @@ Per repo harness, every phase: (1) pre-edit conf ≥97% + Solution Verifier per 
 6. **Single-tenant assumptions** throughout; no tenant field exists (§11).
 7. **No layout/semantic fingerprinting:** similarity is 3 fields + sender; template-level collisions within one vendor/format/type are not distinguished.
 8. **Shared Admin password remains** for the MD editor and legacy surfaces after P2; per-user admin attribution there is incomplete.
-9. **Pre-existing, out of scope for this feature:** `firestore.rules:67-77` allow any authenticated client to create/update/delete `deliveries` and `items` directly. This materially weakens the platform's write-boundary story and should be a **separate high-risk task** (tighten to dispatcher-only and/or CF-only writes) — recommended to Dan independently of this spec.
+9. **Pre-existing, out of scope for this feature:** `firestore.rules:67-77` allow any authenticated client to create/update/delete `deliveries` and `items` directly. This materially weakens the platform's write-boundary story. **Tracked follow-up:** **away-137** (blocked until D-59 P1–P7 complete; also listed on hot-tier `CURRENT_STATE.md` Queued product). High-risk — tighten to dispatcher-only and/or CF-only writes.
 10. Approve+note conflation retained by explicit decision [Dan #12]; the UI hint (§19) is the only mitigation.
 
 ## 30. Open decisions

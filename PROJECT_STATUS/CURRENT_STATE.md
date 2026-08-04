@@ -7,22 +7,21 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** — conf ≥ 97% before any file edit (`confidence-gate.mdc`, alwaysApply).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- Last shipped: **v0.0.196** — Teach-chat ignore any Parsed import document type (fingerprint) → Firestore rules; Settings Admin; ingest auto-skip; D-58 safeguards (review-queue skip only, invoice warning, no unknown-vendor arm).
-- Prior: **v0.0.195** — Teach-chat ignore CREDIT/returns (echo→yes) → Firestore `vendorInvoiceIgnoreRules`; Settings Admin edit; ingest auto-skip new matches.
-- Prior: **v0.0.192** — vendor comms issue draft (subject `${orderNumber} — ${headline}` em dash + body prefill on new thread from drawer Email Vendor).
-- Prior: **v0.0.188** — Will-Call drawer: BO-only Order Summary, BACKORDERED badge, View PDF
-- Active Phase: **Location-first Phase 6 Slice C (C1 shipped)** — Slice B audit walk next.
-- **Verify:** `verify:dispatcher-nav` / `:prod`; `verify:pickup` / `:prod`; `verify:settings-technicians` / `:prod`; `verify:receive` (exit hang fixed).
-- Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · Firestore `stageverify-db`
+- Last shipped: **v0.0.196** — Teach-chat ignore any document type (D-58 fingerprint) + Settings Admin; ingest auto-skip (review-queue only).
+- Spec: **D-59** training-note hardening — `docs/training-note-ignore-spec.md` (P1 next when building).
+- **In flight (uncommitted):** job release Unassign; Will-Call shells on Deliveries board.
+- Active Phase: Location-first Phase 6 Slice C (C1 shipped) — Slice B audit walk next.
+- Stack: React 19 + TS, Vite 8, Firebase 11.x — https://lgarage.github.io/stageverify · `stageverify-db`
 
 ## Active Blockers
 1. **Shelving decision** — layout IDs provisional (default shop layout locked for v1 map).
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Location-first Phase 6 Slice B** audit walk — see `docs/project_state.md` and `docs/roadmap.md`.
+- **Ship in flight:** unassign + will-call board visibility — verify `verify:dispatcher-job-release`, `test:invoice-shell-display`, `build:functions`; parent bumps version + deploy.
 
 ## Queued product (deferred)
+- **After D-59 phases P1–P7:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client (dispatcher-only and/or CF-only); high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
 
 ## Canonical references
