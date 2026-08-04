@@ -239,11 +239,11 @@ async function senderDomainsForImport(importDoc) {
     const senderEmail = typeof inboundSnap.data()?.senderEmail === "string"
         ? inboundSnap.data().senderEmail
         : "";
-    const domain = (0, vendorIgnoreEcho_1.extractSenderDomain)(senderEmail);
-    if (!domain) {
+    const senderDomains = (0, vendorIgnoreEcho_1.normalizeSenderDomains)([senderEmail]);
+    if (senderDomains.length === 0) {
         throw new https_1.HttpsError("failed-precondition", "Cannot propose an ignore rule — sender email domain is unavailable.");
     }
-    return [domain];
+    return senderDomains;
 }
 function vendorLabelFromImport(importDoc) {
     if (typeof importDoc.detectedVendorName === "string" &&

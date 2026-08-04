@@ -46,7 +46,6 @@ import {
   armableFingerprintError,
   buildProposeEchoText,
   computeEchoToken,
-  extractSenderDomain,
   normalizeSenderDomains,
 } from "./invoice/vendorIgnoreEcho";
 import {
@@ -374,14 +373,14 @@ async function senderDomainsForImport(
     typeof inboundSnap.data()?.senderEmail === "string"
       ? inboundSnap.data()!.senderEmail
       : "";
-  const domain = extractSenderDomain(senderEmail);
-  if (!domain) {
+  const senderDomains = normalizeSenderDomains([senderEmail]);
+  if (senderDomains.length === 0) {
     throw new HttpsError(
       "failed-precondition",
       "Cannot propose an ignore rule — sender email domain is unavailable.",
     );
   }
-  return [domain];
+  return senderDomains;
 }
 
 function vendorLabelFromImport(importDoc: VendorInvoiceImportDoc): string {
