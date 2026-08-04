@@ -262,13 +262,20 @@ async function assertAssignedView(page) {
     `[data-testid="released-to-unassign-${tableDeliveryId}"]`,
   );
   if (tableDeliveryId && (await tableUnassignBtn.count()) > 0) {
-    await page.keyboard.press("Escape");
-    await page
-      .getByTestId("delivery-detail-drawer")
-      .waitFor({ state: "hidden", timeout: 10_000 })
-      .catch(() => {});
+    if (isProdLikeBase(baseUrl)) {
+      await page.evaluate(() => { window.location.hash = "/dispatcher"; });
+      await page.waitForTimeout(300);
+    }
+    const drawer = page.getByTestId("delivery-detail-drawer");
+    if (await drawer.isVisible().catch(() => false)) {
+      await drawer.getByRole("button", { name: /Close/i }).click();
+      await drawer.waitFor({ state: "hidden", timeout: 10_000 });
+    } else {
+      await page.keyboard.press("Escape");
+      await drawer.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    }
     await page.waitForTimeout(500);
-    await tableUnassignBtn.click();
+    await tableUnassignBtn.click({ trial: false });
     await page.waitForFunction(
       (deliveryId) => {
         const cell = document.querySelector(
@@ -292,11 +299,18 @@ async function assertAssignedView(page) {
     if ((await anyUnassign.count()) > 0) {
       const testId = (await anyUnassign.first().getAttribute("data-testid")) ?? "";
       const deliveryId = testId.replace(/^released-to-unassign-/, "");
-      await page.keyboard.press("Escape");
-      await page
-        .getByTestId("delivery-detail-drawer")
-        .waitFor({ state: "hidden", timeout: 10_000 })
-        .catch(() => {});
+      if (isProdLikeBase(baseUrl)) {
+        await page.evaluate(() => { window.location.hash = "/dispatcher"; });
+        await page.waitForTimeout(300);
+      }
+      const drawer = page.getByTestId("delivery-detail-drawer");
+      if (await drawer.isVisible().catch(() => false)) {
+        await drawer.getByRole("button", { name: /Close/i }).click();
+        await drawer.waitFor({ state: "hidden", timeout: 10_000 });
+      } else {
+        await page.keyboard.press("Escape");
+        await drawer.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+      }
       await page.waitForTimeout(500);
       await anyUnassign.first().click();
       await page.waitForFunction(
