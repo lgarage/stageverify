@@ -122,3 +122,5 @@
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"be3da43d-80a0-4fcd-a448-d5c2c175ae0b","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"1d778293-0941-4ff8-9baa-3cfaf7564eb7","model":"claude-fable-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"4dba0b45-197f-4bb7-a69d-3e1fd0609d64","model":"claude-4.6-sonnet-high-thinking","real":"na","note":""}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"20ae439c-e34c-485b-b764-1c9fe04f1fa2","model":"cursor-grok-4.5-high-fast","real":"na","note":"P3 fix-closure"}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"4ea74502-6c46-4291-8b03-ddd5a9c55ded","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"P3 HOSTNAME_RE"}
