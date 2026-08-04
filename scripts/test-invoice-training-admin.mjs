@@ -43,6 +43,7 @@ const {
   isArmableFingerprint,
   ignoreRuleDocId,
   fingerprintFromImport,
+  vendorIgnoresFingerprint,
 } = require(path.join(
   root,
   "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
@@ -139,6 +140,85 @@ assert.equal(
     orderNotes: [],
   }),
   false,
+);
+
+// D-59 P2: status enum + matching only when active
+assert.equal(isArmableFingerprint(creditFp), true);
+const creditId = ignoreRuleDocId(creditFp);
+
+// Mock Firestore for vendorIgnoresFingerprint status gate
+class MockDoc {
+  constructor(id, data) {
+    this.id = id;
+    this._data = data;
+    this.exists = data != null;
+  }
+  data() {
+    return this._data;
+  }
+}
+class MockCollection {
+  constructor(docs) {
+    this._docs = docs;
+  }
+  doc(id) {
+    return {
+      get: async () => {
+        const data = this._docs[id];
+        return new MockDoc(id, data ?? null);
+      },
+    };
+  }
+}
+class MockDb {
+  constructor(docs) {
+    this._docs = docs;
+  }
+  collection() {
+    return new MockCollection(this._docs);
+  }
+}
+
+const proposedDoc = {
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  documentType: "credit_memo",
+  status: "proposed",
+  enabled: false,
+  taughtBy: "u1",
+  taughtAt: "2026-01-01",
+  updatedAt: "2026-01-01",
+  updatedBy: "u1",
+  label: "Credit memo · johnstone",
+};
+const activeDoc = { ...proposedDoc, status: "active", enabled: true };
+
+assert.equal(
+  await vendorIgnoresFingerprint(new MockDb({ [creditId]: proposedDoc }), creditFp),
+  false,
+  "proposed never matches",
+);
+assert.equal(
+  await vendorIgnoresFingerprint(new MockDb({ [creditId]: activeDoc }), creditFp),
+  true,
+  "active matches",
+);
+
+const legacyEnabledDoc = {
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  documentType: "credit_memo",
+  enabled: true,
+  taughtBy: "u1",
+  taughtAt: "2026-01-01",
+  updatedAt: "2026-01-01",
+  updatedBy: "u1",
+  label: "Credit memo · johnstone",
+};
+assert.equal(
+  await vendorIgnoresFingerprint(new MockDb({ [creditId]: legacyEnabledDoc }), creditFp),
+  true,
+  "grandfather enabled→active matches",
 );
 
 console.log("test-invoice-training-admin: PASS");

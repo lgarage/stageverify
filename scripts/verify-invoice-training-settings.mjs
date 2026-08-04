@@ -48,6 +48,9 @@ async function main() {
     await page.getByTestId("settings-invoice-ignore-rules").waitFor({ timeout: 5000 });
     await page.getByTestId("invoice-ignore-rules-password").waitFor({ timeout: 5000 });
     await page.getByTestId("load-invoice-ignore-rules").waitFor({ timeout: 5000 });
+    await page.getByTestId("invoice-ignore-rules-readonly-hint").waitFor({
+      timeout: 5000,
+    });
     console.log("PASS: Invoice training Admin settings section visible");
 
     await assertReadableTextContrast(page, {

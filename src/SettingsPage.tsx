@@ -7,6 +7,7 @@ import {
   type VendorDeliveryMode,
   type AppSettings,
   type VendorIgnoreRule,
+  type VendorIgnoreRuleStatus,
 } from "./dispatcher/models";
 import {
   findStagingLocationByCode,
@@ -23,8 +24,10 @@ import {
   initiateGmailOAuth,
   disconnectGmailOAuth,
   configureInvoiceTrainingAdmin,
-  deleteVendorIgnoreRule,
+  activateVendorIgnoreRule,
+  archiveVendorIgnoreRule,
   getInvoiceTrainingAdminStatus,
+  getMyDispatcherRole,
   listVendorIgnoreRules,
   updateVendorIgnoreRule,
 } from "./dispatcher/firestoreService";
@@ -135,6 +138,7 @@ export function SettingsPage() {
   const [ignoreRulesBusyKey, setIgnoreRulesBusyKey] = useState<string | null>(
     null,
   );
+  const [isIgnoreRulesManager, setIsIgnoreRulesManager] = useState(false);
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -183,6 +187,12 @@ export function SettingsPage() {
     () => stagingSpotRows.map((row) => row.spot),
     [stagingSpotRows],
   );
+
+  useEffect(() => {
+    void getMyDispatcherRole().then((role) => {
+      setIsIgnoreRulesManager(role?.manager === true && role?.active !== false);
+    });
+  }, []);
 
   useEffect(() => {
     if (!lastUpdated) return;
@@ -417,53 +427,119 @@ export function SettingsPage() {
     rule.ruleId ||
     `${rule.vendorKey}__${rule.parserFormatId}__${rule.documentType}`;
 
-  const toggleIgnoreRule = async (rule: VendorIgnoreRule) => {
-    if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
+  const ignoreRuleStatusLabel = (status: VendorIgnoreRuleStatus) => {
+    switch (status) {
+      case "proposed":
+        return "Proposed";
+      case "active":
+        return "Active";
+      case "disabled":
+        return "Disabled";
+      case "archived":
+        return "Archived";
+      default:
+        return status;
+    }
+  };
+
+  const ignoreRuleStatusColor = (status: VendorIgnoreRuleStatus) => {
+    switch (status) {
+      case "proposed":
+        return "#b45309";
+      case "active":
+        return "#15803d";
+      case "disabled":
+        return "#6b7280";
+      case "archived":
+        return "#9ca3af";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  const patchIgnoreRule = (updated: VendorIgnoreRule) => {
+    setIgnoreRules((prev) =>
+      (prev ?? []).map((r) =>
+        ignoreRuleKey(r) === ignoreRuleKey(updated) ? updated : r,
+      ),
+    );
+  };
+
+  const activateIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (!isIgnoreRulesManager || ignoreRulesBusyKey) return;
     const key = ignoreRuleKey(rule);
     setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
-      const updated = await updateVendorIgnoreRule({
-        password: ignoreRulesPassword,
+      const updated = await activateVendorIgnoreRule({
         ruleId: rule.ruleId,
         vendorKey: rule.vendorKey,
         parserFormatId: rule.parserFormatId,
         documentType: rule.documentType,
-        enabled: !rule.enabled,
       });
-      setIgnoreRules((prev) =>
-        (prev ?? []).map((r) =>
-          ignoreRuleKey(r) === ignoreRuleKey(updated) ? updated : r,
-        ),
-      );
+      patchIgnoreRule(updated);
     } catch (err) {
       setIgnoreRulesError(
-        err instanceof Error ? err.message : "Could not update rule.",
+        err instanceof Error ? err.message : "Could not activate rule.",
       );
     } finally {
       setIgnoreRulesBusyKey(null);
     }
   };
 
-  const removeIgnoreRule = async (rule: VendorIgnoreRule) => {
-    if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
+  const disableIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (!isIgnoreRulesManager || ignoreRulesBusyKey) return;
     const key = ignoreRuleKey(rule);
     setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
-      await deleteVendorIgnoreRule({
-        password: ignoreRulesPassword,
+      const updated = await updateVendorIgnoreRule({
         ruleId: rule.ruleId,
         vendorKey: rule.vendorKey,
         parserFormatId: rule.parserFormatId,
         documentType: rule.documentType,
+        enabled: false,
       });
+      patchIgnoreRule(updated);
+    } catch (err) {
+      setIgnoreRulesError(
+        err instanceof Error ? err.message : "Could not disable rule.",
+      );
+    } finally {
+      setIgnoreRulesBusyKey(null);
+    }
+  };
+
+  const archiveIgnoreRule = async (rule: VendorIgnoreRule) => {
+    if (ignoreRulesBusyKey) return;
+    const key = ignoreRuleKey(rule);
+    setIgnoreRulesBusyKey(key);
+    setIgnoreRulesError(null);
+    try {
+      if (isIgnoreRulesManager) {
+        await archiveVendorIgnoreRule({
+          ruleId: rule.ruleId,
+          vendorKey: rule.vendorKey,
+          parserFormatId: rule.parserFormatId,
+          documentType: rule.documentType,
+        });
+      } else if (ignoreRulesPassword.trim()) {
+        await archiveVendorIgnoreRule({
+          password: ignoreRulesPassword,
+          ruleId: rule.ruleId,
+          vendorKey: rule.vendorKey,
+          parserFormatId: rule.parserFormatId,
+          documentType: rule.documentType,
+        });
+      } else {
+        throw new Error("Manager role or admin password required to archive.");
+      }
       setIgnoreRules((prev) =>
         (prev ?? []).filter((r) => ignoreRuleKey(r) !== key),
       );
     } catch (err) {
       setIgnoreRulesError(
-        err instanceof Error ? err.message : "Could not delete rule.",
+        err instanceof Error ? err.message : "Could not archive rule.",
       );
     } finally {
       setIgnoreRulesBusyKey(null);
@@ -1364,10 +1440,39 @@ export function SettingsPage() {
                           fontWeight: 500,
                         }}
                       >
-                        Rules taught from Parsed import (reply yes) for any document
-                        type. They only skip future review-queue imports — never
-                        delete deliveries or items. Disable or delete here to undo.
+                        Teach-chat proposals queue here until a manager activates
+                        them. Active rules skip future review-queue imports — never
+                        delete deliveries or items. Managers activate, disable, or
+                        archive (decline) rules.
                       </p>
+                      {isIgnoreRulesManager ? (
+                        <p
+                          data-testid="invoice-ignore-rules-manager-hint"
+                          style={{
+                            margin: "0 0 10px",
+                            fontSize: 12,
+                            color: "#15803d",
+                            fontWeight: 600,
+                          }}
+                        >
+                          You have manager role — Activate / Disable / Archive
+                          controls are enabled.
+                        </p>
+                      ) : (
+                        <p
+                          data-testid="invoice-ignore-rules-readonly-hint"
+                          style={{
+                            margin: "0 0 10px",
+                            fontSize: 12,
+                            color: "#6b7280",
+                            fontWeight: 500,
+                          }}
+                        >
+                          View-only unless you have manager role. Unlock with admin
+                          password to list rules; archive (decline) still works with
+                          password.
+                        </p>
+                      )}
                       <label
                         style={{
                           display: "block",
@@ -1468,9 +1573,33 @@ export function SettingsPage() {
                           }}
                         >
                           No ignore rules yet. Teach one from a CREDIT/return in
-                          Parsed import.
+                          Parsed import — it will appear as Proposed until a manager
+                          activates it.
                         </p>
                       )}
+                      {ignoreRules &&
+                        ignoreRules.some((r) => r.status === "proposed") && (
+                          <div
+                            data-testid="invoice-ignore-rules-proposal-queue"
+                            style={{ marginBottom: 12 }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "#b45309",
+                                marginBottom: 6,
+                              }}
+                            >
+                              Proposal queue (
+                              {
+                                ignoreRules.filter((r) => r.status === "proposed")
+                                  .length
+                              }
+                              )
+                            </div>
+                          </div>
+                        )}
                       {ignoreRules && ignoreRules.length > 0 && (
                         <ul
                           data-testid="invoice-ignore-rules-list"
@@ -1483,8 +1612,13 @@ export function SettingsPage() {
                             gap: 8,
                           }}
                         >
-                          {ignoreRules.map((rule) => {
+                          {ignoreRules
+                            .filter((r) => r.status !== "archived")
+                            .map((rule) => {
                             const key = ignoreRuleKey(rule);
+                            const status =
+                              rule.status ??
+                              (rule.enabled ? "active" : "disabled");
                             return (
                             <li
                               key={key}
@@ -1507,9 +1641,28 @@ export function SettingsPage() {
                                     fontSize: 13,
                                     fontWeight: 700,
                                     color: "#111827",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    flexWrap: "wrap",
                                   }}
                                 >
-                                  {rule.vendorKey}
+                                  <span>{rule.vendorKey}</span>
+                                  <span
+                                    data-testid={`ignore-rule-status-${key}`}
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.04em",
+                                      padding: "2px 6px",
+                                      borderRadius: 4,
+                                      backgroundColor: `${ignoreRuleStatusColor(status)}18`,
+                                      color: ignoreRuleStatusColor(status),
+                                    }}
+                                  >
+                                    {ignoreRuleStatusLabel(status)}
+                                  </span>
                                 </div>
                                 <div
                                   style={{
@@ -1521,41 +1674,86 @@ export function SettingsPage() {
                                 >
                                   {rule.label ||
                                     `${rule.documentType} · ${rule.parserFormatId}`}
-                                  {": "}
-                                  {rule.enabled ? "ON" : "OFF"}
                                   {rule.updatedAt
                                     ? ` · updated ${rule.updatedAt.slice(0, 10)}`
                                     : ""}
                                 </div>
                               </div>
-                              <div style={{ display: "flex", gap: 6 }}>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                {(status === "proposed" ||
+                                  status === "disabled") &&
+                                  isIgnoreRulesManager && (
+                                  <button
+                                    type="button"
+                                    data-testid={`activate-ignore-rule-${key}`}
+                                    disabled={ignoreRulesBusyKey === key}
+                                    onClick={() => void activateIgnoreRule(rule)}
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      border: "none",
+                                      backgroundColor: "#15803d",
+                                      color: "#fff",
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor:
+                                        ignoreRulesBusyKey === key
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    Activate
+                                  </button>
+                                )}
+                                {status === "active" && isIgnoreRulesManager && (
+                                  <button
+                                    type="button"
+                                    data-testid={`disable-ignore-rule-${key}`}
+                                    disabled={ignoreRulesBusyKey === key}
+                                    onClick={() => void disableIgnoreRule(rule)}
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      border: `1px solid ${NAVY}`,
+                                      backgroundColor: "#fff",
+                                      color: NAVY,
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor:
+                                        ignoreRulesBusyKey === key
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      fontFamily: FONT,
+                                    }}
+                                  >
+                                    Disable
+                                  </button>
+                                )}
+                                {!isIgnoreRulesManager &&
+                                  (status === "proposed" ||
+                                    status === "active") && (
+                                  <span
+                                    data-testid={`toggle-ignore-rule-${key}`}
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#6b7280",
+                                      fontWeight: 600,
+                                      padding: "6px 4px",
+                                    }}
+                                  >
+                                    Manager required to change
+                                  </span>
+                                )}
                                 <button
                                   type="button"
-                                  data-testid={`toggle-ignore-rule-${key}`}
-                                  disabled={ignoreRulesBusyKey === key}
-                                  onClick={() => void toggleIgnoreRule(rule)}
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderRadius: 4,
-                                    border: `1px solid ${NAVY}`,
-                                    backgroundColor: "#fff",
-                                    color: NAVY,
-                                    fontWeight: 700,
-                                    fontSize: 12,
-                                    cursor:
-                                      ignoreRulesBusyKey === key
-                                        ? "not-allowed"
-                                        : "pointer",
-                                    fontFamily: FONT,
-                                  }}
-                                >
-                                  {rule.enabled ? "Turn off" : "Turn on"}
-                                </button>
-                                <button
-                                  type="button"
-                                  data-testid={`delete-ignore-rule-${key}`}
-                                  disabled={ignoreRulesBusyKey === key}
-                                  onClick={() => void removeIgnoreRule(rule)}
+                                  data-testid={`archive-ignore-rule-${key}`}
+                                  disabled={
+                                    ignoreRulesBusyKey === key ||
+                                    (!isIgnoreRulesManager &&
+                                      ignoreRulesPassword.trim().length < 8)
+                                  }
+                                  onClick={() => void archiveIgnoreRule(rule)}
                                   style={{
                                     padding: "6px 10px",
                                     borderRadius: 4,
@@ -1571,7 +1769,7 @@ export function SettingsPage() {
                                     fontFamily: FONT,
                                   }}
                                 >
-                                  Delete
+                                  Archive
                                 </button>
                               </div>
                             </li>

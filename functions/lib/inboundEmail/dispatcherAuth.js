@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.hasManagerRole = hasManagerRole;
 exports.requireDispatcherAuth = requireDispatcherAuth;
+exports.requireManagerAuth = requireManagerAuth;
 exports.clampListLimit = clampListLimit;
 /**
  * Dispatcher-only callable auth — signed-in Firebase user with dispatcher role.
@@ -11,11 +13,19 @@ const DISPATCHER_ROLES_COLLECTION = "dispatcherRoles";
 function getDb() {
     return admin.firestore();
 }
+async function readDispatcherRoleDoc(uid) {
+    const roleSnap = await getDb()
+        .collection(DISPATCHER_ROLES_COLLECTION)
+        .doc(uid)
+        .get();
+    if (!roleSnap.exists)
+        return null;
+    return roleSnap.data();
+}
 async function hasDispatcherRole(uid) {
-    const roleSnap = await getDb().collection(DISPATCHER_ROLES_COLLECTION).doc(uid).get();
-    if (roleSnap.exists) {
-        const active = roleSnap.data().active;
-        return active !== false;
+    const role = await readDispatcherRoleDoc(uid);
+    if (role) {
+        return role.active !== false;
     }
     try {
         const user = await admin.auth().getUser(uid);
@@ -25,6 +35,13 @@ async function hasDispatcherRole(uid) {
         return false;
     }
 }
+/** D-59 P2: manager flag on dispatcherRoles/{uid} — no customClaims.manager. */
+async function hasManagerRole(uid) {
+    const role = await readDispatcherRoleDoc(uid);
+    if (!role || role.active === false)
+        return false;
+    return role.manager === true;
+}
 async function requireDispatcherAuth(request) {
     if (!request.auth?.uid) {
         throw new https_1.HttpsError("permission-denied", "Sign in as a dispatcher to use this feature.");
@@ -32,6 +49,14 @@ async function requireDispatcherAuth(request) {
     const uid = request.auth.uid;
     if (!(await hasDispatcherRole(uid))) {
         throw new https_1.HttpsError("permission-denied", "Dispatcher role required for this feature.");
+    }
+    return uid;
+}
+/** D-59 P2: signed-in dispatcher with manager === true on dispatcherRoles doc. */
+async function requireManagerAuth(request) {
+    const uid = await requireDispatcherAuth(request);
+    if (!(await hasManagerRole(uid))) {
+        throw new https_1.HttpsError("permission-denied", "Manager role required for this action.");
     }
     return uid;
 }

@@ -4,7 +4,10 @@
  */
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
+import {
+  requireDispatcherAuth,
+  requireManagerAuth,
+} from "./inboundEmail/dispatcherAuth";
 import {
   asAdminPassword,
   asAlertEmail,
@@ -27,8 +30,11 @@ import {
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
 import {
-  deleteVendorIgnoreRuleByFingerprint,
+  activateVendorIgnoreRuleDoc,
+  archiveVendorIgnoreRuleDoc,
+  disableVendorIgnoreRuleDoc,
   fingerprintFromImport,
+  getVendorIgnoreRuleById,
   ignoreRuleDocId,
   isArmableFingerprint,
   isArmableVendorKey,
@@ -541,14 +547,26 @@ export const confirmVendorIgnoreRule = onCall(
       );
     }
 
+    const existingRule = await getVendorIgnoreRuleById(
+      getDb(),
+      ignoreRuleDocId(fingerprint),
+    );
+    const now = new Date().toISOString();
     let rule;
     try {
-      rule = await upsertVendorIgnoreRule(getDb(), {
-        fingerprint,
-        enabled: true,
-        uid,
-        sourceImportId: importId,
-      });
+      if (existingRule?.status === "active") {
+        // Idempotent: already active — do not downgrade to proposed.
+        rule = existingRule;
+      } else {
+        rule = await upsertVendorIgnoreRule(getDb(), {
+          fingerprint,
+          status: "proposed",
+          uid,
+          sourceImportId: importId,
+          proposedBy: uid,
+          proposedAt: now,
+        });
+      }
     } catch (err) {
       if (err instanceof Error && err.message === "fingerprint_not_armable") {
         throw new HttpsError(
@@ -560,7 +578,6 @@ export const confirmVendorIgnoreRule = onCall(
       throw err;
     }
 
-    const now = new Date().toISOString();
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
     if (importDoc.reviewStatus === "pending_review") {
@@ -596,6 +613,93 @@ export const confirmVendorIgnoreRule = onCall(
   },
 );
 
+function ruleToCallableResponse(rule: Awaited<ReturnType<typeof upsertVendorIgnoreRule>>) {
+  return {
+    ...rule,
+    ruleId: ignoreRuleDocId(rule),
+    ignoreCreditReturns: rule.documentType === "credit_memo" && rule.status === "active",
+  };
+}
+
+/** Manager activates a proposed or disabled ignore rule (D-59 P2). */
+export const activateVendorIgnoreRule = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = await requireManagerAuth(request);
+    const data = (request.data ?? {}) as {
+      vendorKey?: unknown;
+      parserFormatId?: unknown;
+      documentType?: unknown;
+      ruleId?: unknown;
+    };
+    const fingerprint = parseFingerprintFromAdminData(data);
+    if (!fingerprint || !isArmableFingerprint(fingerprint)) {
+      throw new HttpsError(
+        "invalid-argument",
+        fingerprint
+          ? (armableFingerprintError(fingerprint) ??
+              "This document type cannot be used for an ignore rule.")
+          : "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.",
+      );
+    }
+    try {
+      const rule = await activateVendorIgnoreRuleDoc(getDb(), {
+        fingerprint,
+        uid,
+      });
+      return { rule: ruleToCallableResponse(rule) };
+    } catch (err) {
+      if (err instanceof Error && err.message === "rule_not_found") {
+        throw new HttpsError("not-found", "Ignore rule not found.");
+      }
+      if (err instanceof Error && err.message === "rule_archived") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Archived rules cannot be activated — propose a new rule instead.",
+        );
+      }
+      throw err;
+    }
+  },
+);
+
+/** Manager archives (declines) an ignore rule — status archived (D-59 P2). */
+export const archiveVendorIgnoreRule = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = await requireManagerAuth(request);
+    const data = (request.data ?? {}) as {
+      vendorKey?: unknown;
+      parserFormatId?: unknown;
+      documentType?: unknown;
+      ruleId?: unknown;
+      reason?: unknown;
+    };
+    const fingerprint = parseFingerprintFromAdminData(data);
+    if (!fingerprint || !isArmableVendorKey(fingerprint.vendorKey)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid ruleId or vendorKey + documentType is required.",
+      );
+    }
+    const reason =
+      typeof data.reason === "string" ? data.reason.trim() : undefined;
+    try {
+      const rule = await archiveVendorIgnoreRuleDoc(getDb(), {
+        fingerprint,
+        uid,
+        reason,
+      });
+      return { rule: ruleToCallableResponse(rule), archived: true };
+    } catch (err) {
+      if (err instanceof Error && err.message === "rule_not_found") {
+        throw new HttpsError("not-found", "Ignore rule not found.");
+      }
+      throw err;
+    }
+  },
+);
+
 /** Admin password-gated list of Firestore ignore rules. */
 export const listVendorIgnoreRulesCallable = onCall(
   { region: "us-central1" },
@@ -604,21 +708,19 @@ export const listVendorIgnoreRulesCallable = onCall(
     await requirePassword(request.data);
     const rules = await listVendorIgnoreRules(getDb());
     return {
-      rules: rules.map((r) => ({
-        ...r,
-        ruleId: ignoreRuleDocId(r),
-        ignoreCreditReturns: r.documentType === "credit_memo" && r.enabled,
-      })),
+      rules: rules.map((r) => ruleToCallableResponse(r)),
     };
   },
 );
 
-/** Admin password-gated update (toggle) of a Firestore ignore rule. */
+/**
+ * Legacy update callable — D-59 P2: disable only via manager auth; enable rejected.
+ * Admin-password toggle is read-only (permission error).
+ */
 export const updateVendorIgnoreRuleCallable = onCall(
   { region: "us-central1" },
   async (request) => {
-    const uid = await requireDispatcherAuth(request);
-    await requirePassword(request.data);
+    await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as {
       vendorKey?: unknown;
       parserFormatId?: unknown;
@@ -626,9 +728,9 @@ export const updateVendorIgnoreRuleCallable = onCall(
       ruleId?: unknown;
       enabled?: unknown;
       ignoreCreditReturns?: unknown;
+      password?: unknown;
     };
     let fingerprint = parseFingerprintFromAdminData(data);
-    // Legacy toggle: vendorKey + ignoreCreditReturns only → credit_memo
     if (
       !fingerprint &&
       typeof data.vendorKey === "string" &&
@@ -649,54 +751,124 @@ export const updateVendorIgnoreRuleCallable = onCall(
           : "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.",
       );
     }
-    const enabled =
+    const wantsEnable =
       typeof data.enabled === "boolean"
         ? data.enabled
         : typeof data.ignoreCreditReturns === "boolean"
           ? data.ignoreCreditReturns
-          : true;
-    const rule = await upsertVendorIgnoreRule(getDb(), {
-      fingerprint,
-      enabled,
-      uid,
-    });
-    return {
-      rule: {
-        ...rule,
-        ruleId: ignoreRuleDocId(rule),
-        ignoreCreditReturns: rule.documentType === "credit_memo" && rule.enabled,
-      },
-    };
+          : null;
+    if (wantsEnable === true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Use activateVendorIgnoreRule to enable a proposed or disabled rule.",
+      );
+    }
+    if (wantsEnable !== false) {
+      throw new HttpsError(
+        "invalid-argument",
+        "enabled must be false to disable a rule.",
+      );
+    }
+    // Admin-password-only callers cannot toggle (read-only after P2).
+    const password = asAdminPassword(data.password);
+    if (password) {
+      try {
+        const ok = await verifyAdminPassword(password);
+        if (ok) {
+          throw new HttpsError(
+            "permission-denied",
+            "Ignore rule toggles require manager role — use Activate or Disable in Settings.",
+          );
+        }
+      } catch (err) {
+        if (err instanceof HttpsError) throw err;
+        if (err instanceof AdminPasswordLockedError) {
+          throw new HttpsError("resource-exhausted", err.message);
+        }
+        throw err;
+      }
+    }
+    const uid = await requireManagerAuth(request);
+    try {
+      const rule = await disableVendorIgnoreRuleDoc(getDb(), {
+        fingerprint,
+        uid,
+      });
+      return { rule: ruleToCallableResponse(rule) };
+    } catch (err) {
+      if (err instanceof Error && err.message === "rule_not_found") {
+        throw new HttpsError("not-found", "Ignore rule not found.");
+      }
+      if (err instanceof Error && err.message === "rule_archived") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Archived rules cannot be disabled.",
+        );
+      }
+      throw err;
+    }
   },
 );
 
-/** Admin password-gated delete of a Firestore ignore rule. */
+/**
+ * Admin password-gated delete re-routed to archive (D-59 P2 — no hard delete).
+ * Managers may also use archiveVendorIgnoreRule without admin password.
+ */
 export const deleteVendorIgnoreRuleCallable = onCall(
   { region: "us-central1" },
   async (request) => {
-    await requireDispatcherAuth(request);
-    await requirePassword(request.data);
+    let uid = await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as {
       vendorKey?: unknown;
       parserFormatId?: unknown;
       documentType?: unknown;
       ruleId?: unknown;
+      password?: unknown;
     };
     const fingerprint = parseFingerprintFromAdminData(data);
-    if (fingerprint && isArmableVendorKey(fingerprint.vendorKey)) {
-      const result = await deleteVendorIgnoreRuleByFingerprint(
-        getDb(),
-        fingerprint,
+    if (!fingerprint || !isArmableVendorKey(fingerprint.vendorKey)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid ruleId or vendorKey + documentType is required.",
       );
+    }
+    const password = asAdminPassword(data.password);
+    let archivedVia: "admin_password" | "manager" = "manager";
+    if (password) {
+      try {
+        const ok = await verifyAdminPassword(password);
+        if (!ok) {
+          throw new HttpsError("permission-denied", "Incorrect Admin password.");
+        }
+      } catch (err) {
+        if (err instanceof HttpsError) throw err;
+        if (err instanceof AdminPasswordLockedError) {
+          throw new HttpsError("resource-exhausted", err.message);
+        }
+        throw err;
+      }
+      archivedVia = "admin_password";
+    } else {
+      uid = await requireManagerAuth(request);
+    }
+    try {
+      const rule = await archiveVendorIgnoreRuleDoc(getDb(), {
+        fingerprint,
+        uid,
+        reason: archivedVia === "admin_password" ? "admin_delete" : "manual",
+      });
       return {
         vendorKey: fingerprint.vendorKey,
         ruleId: ignoreRuleDocId(fingerprint),
-        ...result,
+        deleted: true,
+        archived: true,
+        rule: ruleToCallableResponse(rule),
       };
+    } catch (err) {
+      if (err instanceof Error && err.message === "rule_not_found") {
+        throw new HttpsError("not-found", "Ignore rule not found.");
+      }
+      throw err;
     }
-    throw new HttpsError(
-      "invalid-argument",
-      "A valid ruleId or vendorKey + documentType is required.",
-    );
   },
 );

@@ -8,6 +8,9 @@ exports.fingerprintFromImport = fingerprintFromImport;
 exports.getVendorIgnoreRuleById = getVendorIgnoreRuleById;
 exports.vendorIgnoresFingerprint = vendorIgnoresFingerprint;
 exports.upsertVendorIgnoreRule = upsertVendorIgnoreRule;
+exports.activateVendorIgnoreRuleDoc = activateVendorIgnoreRuleDoc;
+exports.disableVendorIgnoreRuleDoc = disableVendorIgnoreRuleDoc;
+exports.archiveVendorIgnoreRuleDoc = archiveVendorIgnoreRuleDoc;
 exports.listVendorIgnoreRules = listVendorIgnoreRules;
 exports.deleteVendorIgnoreRule = deleteVendorIgnoreRule;
 exports.deleteVendorIgnoreRuleByFingerprint = deleteVendorIgnoreRuleByFingerprint;
@@ -43,6 +46,16 @@ function fingerprintFromImport(input) {
         documentType: (0, inferDocumentType_1.inferDocumentType)(input.importRow),
     };
 }
+function resolveStatusFromLegacy(data, legacyEnabled) {
+    const raw = data.status;
+    if (raw === "proposed" ||
+        raw === "active" ||
+        raw === "disabled" ||
+        raw === "archived") {
+        return raw;
+    }
+    return legacyEnabled ? "active" : "disabled";
+}
 function normalizeRuleDoc(docId, data) {
     // Legacy: doc id was vendorKey only with ignoreCreditReturns boolean.
     const legacyCredit = data.ignoreCreditReturns === true &&
@@ -65,11 +78,13 @@ function normalizeRuleDoc(docId, data) {
     }
     if (!isArmableVendorKey(vendorKey))
         return null;
-    const enabled = typeof data.enabled === "boolean"
+    const legacyEnabled = typeof data.enabled === "boolean"
         ? data.enabled
         : legacyCredit
             ? true
             : data.ignoreCreditReturns === true;
+    const status = resolveStatusFromLegacy(data, legacyEnabled);
+    const enabled = status === "active";
     const fp = {
         vendorKey,
         parserFormatId,
@@ -77,6 +92,7 @@ function normalizeRuleDoc(docId, data) {
     };
     return {
         ...fp,
+        status,
         enabled,
         taughtBy: typeof data.taughtBy === "string" ? data.taughtBy : "",
         taughtAt: typeof data.taughtAt === "string" ? data.taughtAt : "",
@@ -89,6 +105,36 @@ function normalizeRuleDoc(docId, data) {
             ? { sourceImportId: data.sourceImportId }
             : {}),
         ...(legacyCredit ? { ignoreCreditReturns: true } : {}),
+        ...(typeof data.proposedBy === "string" && data.proposedBy
+            ? { proposedBy: data.proposedBy }
+            : {}),
+        ...(typeof data.proposedAt === "string" && data.proposedAt
+            ? { proposedAt: data.proposedAt }
+            : {}),
+        ...(typeof data.activatedBy === "string" && data.activatedBy
+            ? { activatedBy: data.activatedBy }
+            : {}),
+        ...(typeof data.activatedAt === "string" && data.activatedAt
+            ? { activatedAt: data.activatedAt }
+            : {}),
+        ...(typeof data.disabledBy === "string" && data.disabledBy
+            ? { disabledBy: data.disabledBy }
+            : {}),
+        ...(typeof data.disabledAt === "string" && data.disabledAt
+            ? { disabledAt: data.disabledAt }
+            : {}),
+        ...(typeof data.disabledReason === "string" && data.disabledReason
+            ? { disabledReason: data.disabledReason }
+            : {}),
+        ...(typeof data.archivedBy === "string" && data.archivedBy
+            ? { archivedBy: data.archivedBy }
+            : {}),
+        ...(typeof data.archivedAt === "string" && data.archivedAt
+            ? { archivedAt: data.archivedAt }
+            : {}),
+        ...(typeof data.archivedReason === "string" && data.archivedReason
+            ? { archivedReason: data.archivedReason }
+            : {}),
     };
 }
 async function getVendorIgnoreRuleById(db, ruleId) {
@@ -105,12 +151,12 @@ async function vendorIgnoresFingerprint(db, fp) {
         return false;
     const id = ignoreRuleDocId(fp);
     const rule = await getVendorIgnoreRuleById(db, id);
-    if (rule?.enabled)
+    if (rule?.status === "active")
         return true;
     // Legacy credit rule stored under vendorKey only.
     if (fp.documentType === "credit_memo") {
         const legacy = await getVendorIgnoreRuleById(db, (0, vendorTrainingMd_1.sanitizeVendorKey)(fp.vendorKey));
-        if (legacy?.enabled && legacy.documentType === "credit_memo") {
+        if (legacy?.status === "active" && legacy.documentType === "credit_memo") {
             return true;
         }
     }
@@ -131,9 +177,11 @@ async function upsertVendorIgnoreRule(db, input) {
     const now = new Date().toISOString();
     const taughtAt = existing?.taughtAt || input.taughtAt || now;
     const taughtBy = existing?.taughtBy || input.uid;
+    const enabled = input.status === "active";
     const doc = {
         ...fingerprint,
-        enabled: input.enabled,
+        status: input.status,
+        enabled,
         taughtBy,
         taughtAt,
         updatedAt: now,
@@ -144,11 +192,110 @@ async function upsertVendorIgnoreRule(db, input) {
             : existing?.sourceImportId
                 ? { sourceImportId: existing.sourceImportId }
                 : {}),
+        ...(input.proposedBy || existing?.proposedBy
+            ? { proposedBy: input.proposedBy ?? existing.proposedBy }
+            : {}),
+        ...(input.proposedAt || existing?.proposedAt
+            ? { proposedAt: input.proposedAt ?? existing.proposedAt }
+            : {}),
+        ...(input.activatedBy || existing?.activatedBy
+            ? { activatedBy: input.activatedBy ?? existing.activatedBy }
+            : {}),
+        ...(input.activatedAt || existing?.activatedAt
+            ? { activatedAt: input.activatedAt ?? existing.activatedAt }
+            : {}),
+        ...(input.disabledBy || existing?.disabledBy
+            ? { disabledBy: input.disabledBy ?? existing.disabledBy }
+            : {}),
+        ...(input.disabledAt || existing?.disabledAt
+            ? { disabledAt: input.disabledAt ?? existing.disabledAt }
+            : {}),
+        ...(input.disabledReason || existing?.disabledReason
+            ? { disabledReason: input.disabledReason ?? existing.disabledReason }
+            : {}),
+        ...(input.archivedBy || existing?.archivedBy
+            ? { archivedBy: input.archivedBy ?? existing.archivedBy }
+            : {}),
+        ...(input.archivedAt || existing?.archivedAt
+            ? { archivedAt: input.archivedAt ?? existing.archivedAt }
+            : {}),
+        ...(input.archivedReason || existing?.archivedReason
+            ? { archivedReason: input.archivedReason ?? existing.archivedReason }
+            : {}),
     };
     await db.collection(exports.VENDOR_IGNORE_RULES_COLLECTION).doc(id).set(doc, {
         merge: true,
     });
     return doc;
+}
+async function activateVendorIgnoreRuleDoc(db, input) {
+    const existing = await getVendorIgnoreRuleById(db, ignoreRuleDocId(input.fingerprint));
+    if (!existing) {
+        throw new Error("rule_not_found");
+    }
+    if (existing.status === "archived") {
+        throw new Error("rule_archived");
+    }
+    const now = new Date().toISOString();
+    return upsertVendorIgnoreRule(db, {
+        fingerprint: input.fingerprint,
+        status: "active",
+        uid: input.uid,
+        activatedBy: input.uid,
+        activatedAt: now,
+        sourceImportId: existing.sourceImportId,
+        taughtAt: existing.taughtAt,
+        proposedBy: existing.proposedBy,
+        proposedAt: existing.proposedAt,
+    });
+}
+async function disableVendorIgnoreRuleDoc(db, input) {
+    const existing = await getVendorIgnoreRuleById(db, ignoreRuleDocId(input.fingerprint));
+    if (!existing) {
+        throw new Error("rule_not_found");
+    }
+    if (existing.status === "archived") {
+        throw new Error("rule_archived");
+    }
+    const now = new Date().toISOString();
+    return upsertVendorIgnoreRule(db, {
+        fingerprint: input.fingerprint,
+        status: "disabled",
+        uid: input.uid,
+        disabledBy: input.uid,
+        disabledAt: now,
+        disabledReason: "manual",
+        sourceImportId: existing.sourceImportId,
+        taughtAt: existing.taughtAt,
+        proposedBy: existing.proposedBy,
+        proposedAt: existing.proposedAt,
+        activatedBy: existing.activatedBy,
+        activatedAt: existing.activatedAt,
+    });
+}
+async function archiveVendorIgnoreRuleDoc(db, input) {
+    const existing = await getVendorIgnoreRuleById(db, ignoreRuleDocId(input.fingerprint));
+    if (!existing) {
+        throw new Error("rule_not_found");
+    }
+    const now = new Date().toISOString();
+    return upsertVendorIgnoreRule(db, {
+        fingerprint: input.fingerprint,
+        status: "archived",
+        uid: input.uid,
+        archivedBy: input.uid,
+        archivedAt: now,
+        archivedReason: input.reason?.trim() || "manual",
+        sourceImportId: existing.sourceImportId,
+        taughtAt: existing.taughtAt,
+        proposedBy: existing.proposedBy,
+        proposedAt: existing.proposedAt,
+        activatedBy: existing.activatedBy,
+        activatedAt: existing.activatedAt,
+        disabledBy: existing.disabledBy,
+        disabledAt: existing.disabledAt,
+        disabledReason: existing.disabledReason,
+    });
 }
 async function listVendorIgnoreRules(db) {
     const snap = await db.collection(exports.VENDOR_IGNORE_RULES_COLLECTION).get();
@@ -165,6 +312,18 @@ async function listVendorIgnoreRules(db) {
         rows.push(rule);
     }
     rows.sort((a, b) => {
+        const statusOrder = (s) => {
+            if (s === "proposed")
+                return 0;
+            if (s === "active")
+                return 1;
+            if (s === "disabled")
+                return 2;
+            return 3;
+        };
+        const so = statusOrder(a.status) - statusOrder(b.status);
+        if (so !== 0)
+            return so;
         const vk = a.vendorKey.localeCompare(b.vendorKey);
         if (vk !== 0)
             return vk;
@@ -172,11 +331,11 @@ async function listVendorIgnoreRules(db) {
     });
     return rows;
 }
+/** @deprecated Prefer archiveVendorIgnoreRuleDoc — delete re-routed in D-59 P2. */
 async function deleteVendorIgnoreRule(db, ruleIdOrVendorKey) {
     const raw = ruleIdOrVendorKey.trim();
     if (!raw)
         return { deleted: false };
-    // Prefer fingerprint doc id; also try legacy vendor-only id.
     const candidates = [raw, (0, vendorTrainingMd_1.sanitizeVendorKey)(raw)];
     let deleted = false;
     for (const id of candidates) {
@@ -189,13 +348,12 @@ async function deleteVendorIgnoreRule(db, ruleIdOrVendorKey) {
     }
     return { deleted };
 }
-/** Delete by fingerprint fields. */
+/** @deprecated Prefer archiveVendorIgnoreRuleDoc — delete re-routed in D-59 P2. */
 async function deleteVendorIgnoreRuleByFingerprint(db, fp) {
     const id = ignoreRuleDocId(fp);
     const ref = db.collection(exports.VENDOR_IGNORE_RULES_COLLECTION).doc(id);
     const snap = await ref.get();
     if (!snap.exists) {
-        // Legacy credit doc
         if (fp.documentType === "credit_memo") {
             return deleteVendorIgnoreRule(db, fp.vendorKey);
         }

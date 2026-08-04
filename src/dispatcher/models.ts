@@ -1346,10 +1346,17 @@ export interface SaveInvoiceTrainingLessonResult {
 }
 
 /** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */
+export type VendorIgnoreRuleStatus =
+  | "proposed"
+  | "active"
+  | "disabled"
+  | "archived";
+
 export interface VendorIgnoreRule {
   vendorKey: string;
   parserFormatId: string;
   documentType: string;
+  status: VendorIgnoreRuleStatus;
   enabled: boolean;
   label: string;
   taughtBy: string;
@@ -1360,6 +1367,23 @@ export interface VendorIgnoreRule {
   ruleId?: string;
   /** Legacy / convenience for credit_memo rules. */
   ignoreCreditReturns?: boolean;
+  proposedBy?: string;
+  proposedAt?: string;
+  activatedBy?: string;
+  activatedAt?: string;
+  disabledBy?: string;
+  disabledAt?: string;
+  disabledReason?: string;
+  archivedBy?: string;
+  archivedAt?: string;
+  archivedReason?: string;
+}
+
+export interface DispatcherRoleDoc {
+  active?: boolean;
+  manager?: boolean;
+  email?: string;
+  updatedAt?: string;
 }
 
 export interface ConfirmVendorIgnoreRuleResult {

@@ -35,6 +35,8 @@ import {
 import { matchInvoiceToRecordsCallable } from "./matchInvoiceToRecordsCallable";
 import { approveVendorInvoiceImport } from "./approveVendorInvoiceImport";
 import {
+  activateVendorIgnoreRule,
+  archiveVendorIgnoreRule,
   configureInvoiceTrainingAdmin,
   confirmVendorIgnoreRule,
   deleteVendorIgnoreRuleCallable,
@@ -249,6 +251,8 @@ export {
   approveVendorInvoiceImport,
   configureInvoiceTrainingAdmin,
   confirmVendorIgnoreRule,
+  activateVendorIgnoreRule,
+  archiveVendorIgnoreRule,
   deleteVendorIgnoreRuleCallable,
   getInvoiceTrainingAdminStatus,
   getVendorTrainingPlaybook,
