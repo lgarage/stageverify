@@ -34,6 +34,7 @@ import {
   formatInvoiceHeaderField,
 } from "./invoiceReviewHeaderHelpers";
 import { creditReturnAdvisoryLabel, creditReturnSkipLabel, orderIncompleteMessage } from "./creditReturnSkip";
+import { ignoreRuleSuppressedAdvisoryLabel } from "./ignoreRuleSuppressed";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -349,6 +350,7 @@ export function InvoiceParsedInspectModal({
     importRow.rejectedBy,
   );
   const creditAdvisoryLabel = creditReturnAdvisoryLabel(importRow);
+  const ignoreSuppressedLabel = ignoreRuleSuppressedAdvisoryLabel(importRow);
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
     !readOnly &&
@@ -630,6 +632,23 @@ export function InvoiceParsedInspectModal({
               }}
             >
               {creditAdvisoryLabel}
+            </div>
+          )}
+          {ignoreSuppressedLabel && (
+            <div
+              data-testid="invoice-parsed-inspect-ignore-suppressed"
+              style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                backgroundColor: "#fff7ed",
+                border: "2px solid #fdba74",
+                borderRadius: 8,
+                color: "#9a3412",
+                fontWeight: 700,
+                fontSize: 14,
+              }}
+            >
+              {ignoreSuppressedLabel}
             </div>
           )}
           {creditSkipLabel && (

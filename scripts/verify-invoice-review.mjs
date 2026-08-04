@@ -787,6 +787,68 @@ async function main() {
       }
     }
 
+    const ignoreSuppressedCopy =
+      /Ignore rule matched but suppressed\s*[—–-]\s*strong invoice signals/i;
+    const ignoreSuppressedChip = page.getByTestId("invoice-review-ignore-suppressed-chip");
+    const hasIgnoreSuppressedChip = (await ignoreSuppressedChip.count()) > 0;
+    if (hasIgnoreSuppressedChip) {
+      const chipText = (await ignoreSuppressedChip.first().innerText()).trim();
+      if (!ignoreSuppressedCopy.test(chipText)) {
+        throw new Error(`Ignore-suppressed chip missing expected copy: ${chipText}`);
+      }
+      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="invoice-review-panel"]',
+        elements: [
+          {
+            name: "Ignore-suppressed advisory chip",
+            selector: '[data-testid="invoice-review-ignore-suppressed-chip"]',
+            large: true,
+          },
+        ],
+      });
+      console.log("PASS: ignore-suppressed advisory chip copy + contrast");
+
+      const suppressedRow = page
+        .locator('[data-testid^="invoice-review-queue-row-"]')
+        .filter({ has: ignoreSuppressedChip })
+        .first();
+      const rowTestId = await suppressedRow.getAttribute("data-testid");
+      const suppressedId = rowTestId?.replace("invoice-review-queue-row-", "") ?? null;
+      if (suppressedId) {
+        await page.getByTestId(`invoice-review-row-content-${suppressedId}`).click();
+        await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
+        const modalBanner = page.getByTestId("invoice-parsed-inspect-ignore-suppressed");
+        if ((await modalBanner.count()) === 0) {
+          throw new Error("Inspect modal missing ignore-suppressed banner");
+        }
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+          elements: [
+            {
+              name: "Ignore-suppressed inspect banner",
+              selector: '[data-testid="invoice-parsed-inspect-ignore-suppressed"]',
+              large: true,
+            },
+          ],
+        });
+        console.log("PASS: inspect modal ignore-suppressed banner + contrast");
+        await page.getByTestId("invoice-parsed-inspect-close").click();
+      }
+    } else {
+      const suppressedRowPending = page
+        .locator('[data-testid^="invoice-review-queue-row-"]')
+        .filter({ hasText: ignoreSuppressedCopy });
+      if ((await suppressedRowPending.count()) > 0) {
+        throw new Error(
+          "Pending row shows ignore-suppressed copy but missing invoice-review-ignore-suppressed-chip",
+        );
+      }
+      console.log(
+        "SKIP: no ignoreRuleSuppressedBy row in queue — chip/banner selectors not exercised (field absent OK)",
+      );
+    }
+
     console.log("\nverify-invoice-review: PASS");
   } finally {
     await browser.close();

@@ -17,6 +17,7 @@ const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
 const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
+const strongInvoiceSignals_1 = require("../invoice/strongInvoiceSignals");
 const adminConfig_1 = require("../invoice/aiShadow/adminConfig");
 const processInvoiceForInbound_1 = require("../invoice/processInvoiceForInbound");
 const runInvoiceAiShadow_1 = require("../invoice/aiShadow/runInvoiceAiShadow");
@@ -254,8 +255,12 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         });
         const ignoreRuleArmed = (0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw) &&
             (await (0, vendorIgnoreRules_1.vendorIgnoresFingerprint)(db, fingerprint, inboundDoc.senderEmail));
-        // New import + taught fingerprint → auto-skip. Re-opened imports stay pending.
-        const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate;
+        const strongSignals = (0, strongInvoiceSignals_1.hasStrongInvoiceSignals)({
+            vendorInvoiceNumber: proc.parsed.header.vendorInvoiceNumber,
+            extractedText: proc.page.extractedText,
+        });
+        // New import + taught fingerprint → auto-skip unless strong invoice signals. Re-opened imports stay pending.
+        const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate && !strongSignals;
         // Preserve existing system skips on reprocess when rule still armed.
         const preserveSystemSkip = existingSystemSkip &&
             (existingData?.rejectedBy === "system:credit_return_skip" ||
@@ -319,7 +324,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                     rejectedAt: skipFields.rejectedAt,
                     rejectedBy: skipFields.rejectedBy,
                 }
-                : {}),
+                : ignoreRuleArmed && strongSignals
+                    ? { ignoreRuleSuppressedBy: strongInvoiceSignals_1.STRONG_INVOICE_SIGNALS_REASON }
+                    : {}),
         };
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {

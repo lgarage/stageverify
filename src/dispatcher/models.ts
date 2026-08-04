@@ -1239,6 +1239,8 @@ export interface VendorInvoiceImportReview {
   rejectedBy?: string;
   /** Auto-skip reason when reviewStatus rejected without manual reject (e.g. credit_return). */
   skipReason?: "credit_return" | string;
+  /** Set when a taught ignore rule matched but strong invoice signals blocked auto-skip. */
+  ignoreRuleSuppressedBy?: "strong_invoice_signals";
   /** Stage 1 — suggested import eligibility (no automatic CF approve). */
   autoImportEligible?: boolean;
   autoImportConfidence?: number;

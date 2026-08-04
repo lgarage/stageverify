@@ -64,6 +64,7 @@ export function sanitizeVendorInvoiceImportForClient(
     rejectedAt: doc.rejectedAt,
     rejectedBy: doc.rejectedBy,
     skipReason: doc.skipReason,
+    ignoreRuleSuppressedBy: doc.ignoreRuleSuppressedBy,
     autoImportEligible: doc.autoImportEligible,
     autoImportConfidence: doc.autoImportConfidence,
     autoImportReasons: (doc.autoImportReasons ?? []).slice(0, 12),

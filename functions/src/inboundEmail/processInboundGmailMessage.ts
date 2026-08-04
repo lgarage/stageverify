@@ -30,6 +30,10 @@ import {
   isArmableVendorKey,
   vendorIgnoresFingerprint,
 } from "../invoice/aiShadow/vendorIgnoreRules";
+import {
+  hasStrongInvoiceSignals,
+  STRONG_INVOICE_SIGNALS_REASON,
+} from "../invoice/strongInvoiceSignals";
 import { vendorKeyFromImportDoc } from "../invoice/aiShadow/adminConfig";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
 import {
@@ -343,8 +347,13 @@ async function writeReviewRecords(
     const ignoreRuleArmed =
       isArmableVendorKey(vendorKeyRaw) &&
       (await vendorIgnoresFingerprint(db, fingerprint, inboundDoc.senderEmail));
-    // New import + taught fingerprint → auto-skip. Re-opened imports stay pending.
-    const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate;
+    const strongSignals = hasStrongInvoiceSignals({
+      vendorInvoiceNumber: proc.parsed.header.vendorInvoiceNumber,
+      extractedText: proc.page.extractedText,
+    });
+    // New import + taught fingerprint → auto-skip unless strong invoice signals. Re-opened imports stay pending.
+    const autoSkipDocument =
+      isNewImport && ignoreRuleArmed && !proc.duplicate && !strongSignals;
     // Preserve existing system skips on reprocess when rule still armed.
     const preserveSystemSkip =
       existingSystemSkip &&
@@ -411,7 +420,9 @@ async function writeReviewRecords(
             rejectedAt: skipFields.rejectedAt,
             rejectedBy: skipFields.rejectedBy,
           }
-        : {}),
+        : ignoreRuleArmed && strongSignals
+          ? { ignoreRuleSuppressedBy: STRONG_INVOICE_SIGNALS_REASON }
+          : {}),
     };
 
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
