@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.confirmVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
+exports.deleteVendorIgnoreRuleCallable = exports.updateVendorIgnoreRuleCallable = exports.listVendorIgnoreRulesCallable = exports.confirmVendorIgnoreRule = exports.proposeVendorIgnoreRule = exports.saveVendorTrainingPlaybook = exports.getVendorTrainingPlaybook = exports.saveInvoiceTrainingLesson = exports.configureInvoiceTrainingAdmin = exports.getInvoiceTrainingAdminStatus = void 0;
 /**
  * Invoice training Admin — configure alert email/password, Save lesson, MD editor.
  * Password hash in invoiceTrainingAdminSecrets (CF-only). Never in public appSettings.
@@ -13,6 +13,7 @@ const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("./invoice/aiShadow/vendorIgnoreRules");
+const vendorIgnoreEcho_1 = require("./invoice/vendorIgnoreEcho");
 const inferDocumentType_1 = require("./invoice/inferDocumentType");
 function getDb() {
     return admin.firestore();
@@ -212,8 +213,101 @@ function parseFingerprintFromAdminData(data) {
         documentType,
     };
 }
+async function loadImportForIgnoreRule(importId) {
+    const importRef = getDb().collection("vendorInvoiceImports").doc(importId);
+    const snap = await importRef.get();
+    if (!snap.exists) {
+        throw new https_1.HttpsError("not-found", "Invoice import not found.");
+    }
+    return {
+        ref: importRef,
+        doc: snap.data(),
+    };
+}
+async function senderDomainsForImport(importDoc) {
+    const inboundId = importDoc.inboundEmailProcessingId?.trim();
+    if (!inboundId) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot propose an ignore rule — source email is not linked to this import.");
+    }
+    const inboundSnap = await getDb()
+        .collection("inboundEmailProcessing")
+        .doc(inboundId)
+        .get();
+    if (!inboundSnap.exists) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot propose an ignore rule — source email record is missing.");
+    }
+    const senderEmail = typeof inboundSnap.data()?.senderEmail === "string"
+        ? inboundSnap.data().senderEmail
+        : "";
+    const domain = (0, vendorIgnoreEcho_1.extractSenderDomain)(senderEmail);
+    if (!domain) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot propose an ignore rule — sender email domain is unavailable.");
+    }
+    return [domain];
+}
+function vendorLabelFromImport(importDoc) {
+    if (typeof importDoc.detectedVendorName === "string" &&
+        importDoc.detectedVendorName.trim()) {
+        return importDoc.detectedVendorName.trim();
+    }
+    if (importDoc.parserFormatId === "johnstone")
+        return "Johnstone";
+    return importDoc.parserFormatId ?? "this vendor";
+}
 /**
- * Teach-chat consent: dispatcher confirms "yes" after echo → arm ignore rule in Firestore.
+ * Teach-chat propose: server computes fingerprint + echo + echoToken.
+ * Rejects unknown type/format, invoice type, unknown-vendor (D-59 P1).
+ */
+exports.proposeVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const data = (request.data ?? {});
+    const importId = typeof data.vendorInvoiceImportId === "string"
+        ? data.vendorInvoiceImportId.trim()
+        : "";
+    if (!importId || importId.length > 200) {
+        throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
+    }
+    const { doc: importDoc } = await loadImportForIgnoreRule(importId);
+    const vendorKeyRaw = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
+    const fingerprint = (0, vendorIgnoreRules_1.fingerprintFromImport)({
+        vendorKey: vendorKeyRaw,
+        parserFormatId: importDoc.parserFormatId,
+        importRow: importDoc,
+    });
+    const rejectReason = (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint);
+    if (rejectReason) {
+        throw new https_1.HttpsError("failed-precondition", rejectReason);
+    }
+    const senderDomains = await senderDomainsForImport(importDoc);
+    const importUpdatedAt = typeof importDoc.updatedAt === "string" && importDoc.updatedAt.trim()
+        ? importDoc.updatedAt.trim()
+        : "";
+    if (!importUpdatedAt) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot propose an ignore rule — import record is missing a timestamp.");
+    }
+    const echoToken = (0, vendorIgnoreEcho_1.computeEchoToken)({
+        importId,
+        vendorKey: fingerprint.vendorKey,
+        parserFormatId: fingerprint.parserFormatId,
+        documentType: fingerprint.documentType,
+        senderDomains,
+        importUpdatedAt,
+    });
+    const echoText = (0, vendorIgnoreEcho_1.buildProposeEchoText)({
+        fingerprint,
+        vendorLabel: vendorLabelFromImport(importDoc),
+        senderDomains,
+    });
+    return {
+        echoText,
+        echoToken,
+        fingerprint,
+        senderDomains,
+    };
+});
+/**
+ * Teach-chat consent: dispatcher confirms "yes" after server echo → arm ignore rule in Firestore.
+ * Requires valid echoToken bound to import content (D-59 P1).
  * Fingerprint is recomputed server-side from the import (not client-trusted).
  * SAFETY: only writes vendorInvoiceIgnoreRules + may reject the current import in
  * vendorInvoiceImports — never touches deliveries, items, or auto-approves.
@@ -230,27 +324,55 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
     if (data.confirm !== true) {
         throw new https_1.HttpsError("invalid-argument", "confirm must be true after the teach-chat echo.");
     }
-    const importRef = getDb().collection("vendorInvoiceImports").doc(importId);
-    const snap = await importRef.get();
-    if (!snap.exists) {
-        throw new https_1.HttpsError("not-found", "Invoice import not found.");
+    const echoToken = typeof data.echoToken === "string" ? data.echoToken.trim() : "";
+    if (!echoToken) {
+        throw new https_1.HttpsError("failed-precondition", "echoToken is required — propose the rule again to get a fresh echo.");
     }
-    const importDoc = snap.data();
+    const { ref: importRef, doc: importDoc } = await loadImportForIgnoreRule(importId);
     const vendorKeyRaw = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
-    if (!(0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw)) {
-        throw new https_1.HttpsError("failed-precondition", "Cannot arm an ignore rule for an unknown vendor. Link a vendor name first.");
-    }
     const fingerprint = (0, vendorIgnoreRules_1.fingerprintFromImport)({
         vendorKey: vendorKeyRaw,
         parserFormatId: importDoc.parserFormatId,
         importRow: importDoc,
     });
-    const rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
-        fingerprint,
-        enabled: true,
-        uid,
-        sourceImportId: importId,
+    const rejectReason = (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint);
+    if (rejectReason) {
+        throw new https_1.HttpsError("failed-precondition", rejectReason);
+    }
+    const senderDomains = await senderDomainsForImport(importDoc);
+    const importUpdatedAt = typeof importDoc.updatedAt === "string" && importDoc.updatedAt.trim()
+        ? importDoc.updatedAt.trim()
+        : "";
+    if (!importUpdatedAt) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot confirm — import record is missing a timestamp. Propose again.");
+    }
+    const expectedToken = (0, vendorIgnoreEcho_1.computeEchoToken)({
+        importId,
+        vendorKey: fingerprint.vendorKey,
+        parserFormatId: fingerprint.parserFormatId,
+        documentType: fingerprint.documentType,
+        senderDomains,
+        importUpdatedAt,
     });
+    if (echoToken !== expectedToken) {
+        throw new https_1.HttpsError("failed-precondition", "This import changed since the echo — propose the rule again to confirm.");
+    }
+    let rule;
+    try {
+        rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
+            fingerprint,
+            enabled: true,
+            uid,
+            sourceImportId: importId,
+        });
+    }
+    catch (err) {
+        if (err instanceof Error && err.message === "fingerprint_not_armable") {
+            throw new https_1.HttpsError("failed-precondition", (0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint) ??
+                "This document type cannot be used for an ignore rule.");
+        }
+        throw err;
+    }
     const now = new Date().toISOString();
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
@@ -313,8 +435,11 @@ exports.updateVendorIgnoreRuleCallable = (0, https_1.onCall)({ region: "us-centr
             documentType: "credit_memo",
         };
     }
-    if (!fingerprint || !(0, vendorIgnoreRules_1.isArmableVendorKey)(fingerprint.vendorKey)) {
-        throw new https_1.HttpsError("invalid-argument", "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.");
+    if (!fingerprint || !(0, vendorIgnoreRules_1.isArmableFingerprint)(fingerprint)) {
+        throw new https_1.HttpsError("invalid-argument", fingerprint
+            ? ((0, vendorIgnoreEcho_1.armableFingerprintError)(fingerprint) ??
+                "This document type cannot be used for an ignore rule.")
+            : "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.");
     }
     const enabled = typeof data.enabled === "boolean"
         ? data.enabled

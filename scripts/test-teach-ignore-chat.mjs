@@ -10,6 +10,7 @@ import {
   isTeachConsentYes,
   noteTeachesIgnoreFromNowOn,
 } from "../src/dispatcher/invoice/teachIgnoreChat.ts";
+import { shouldApplyNowDismissCreditImport } from "../src/dispatcher/invoice/creditReturnSkip.ts";
 
 assert.equal(isTeachConsentYes("yes"), true);
 assert.equal(isTeachConsentYes("YES."), true);
@@ -42,8 +43,6 @@ const ignore = interpretTeachNote(
   importRow,
 );
 assert.equal(ignore.kind, "ignore_document_type");
-assert.match(ignore.echo, /Reply yes to confirm/i);
-assert.ok(ignore.fingerprint.documentType);
 
 const invoiceRow = {
   ...importRow,
@@ -56,8 +55,6 @@ const invoiceIgnore = interpretTeachNote(
   invoiceRow,
 );
 assert.equal(invoiceIgnore.kind, "ignore_document_type");
-assert.match(invoiceIgnore.echo, /skip future INVOICES/i);
-assert.match(invoiceIgnore.echo, /WARNING/i);
 
 const unknownVendorRow = {
   ...importRow,
@@ -79,5 +76,23 @@ const lesson = interpretTeachNote(
   importRow,
 );
 assert.equal(lesson.kind, "playbook_lesson");
+
+// Unsafe #5: note-text-only credit dismiss removed (D-59 P1)
+assert.equal(
+  shouldApplyNowDismissCreditImport("ignore CREDIT returns from now on", {
+    parsedHeader: { vendorBranchName: "Main" },
+    parsedLines: [],
+    orderNotes: [],
+  }),
+  false,
+);
+assert.equal(
+  shouldApplyNowDismissCreditImport("ignore CREDIT returns from now on", {
+    parsedHeader: { vendorBranchName: "CREDIT" },
+    parsedLines: [{ quantityShipped: -1, lineType: "return" }],
+    orderNotes: [],
+  }),
+  true,
+);
 
 console.log("test-teach-ignore-chat: PASS");

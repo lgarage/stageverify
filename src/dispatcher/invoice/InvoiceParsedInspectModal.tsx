@@ -8,6 +8,7 @@ import {
   getInvoiceTrainingAdminStatus,
   getVendorTrainingPlaybook,
   INVOICE_TRAINING_LESSON_TOAST,
+  proposeVendorIgnoreRule,
   saveInvoiceTrainingLesson,
   saveVendorTrainingPlaybook,
   VENDOR_IGNORE_RULE_TOAST,
@@ -116,6 +117,7 @@ export function InvoiceParsedInspectModal({
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
   const [teachPhase, setTeachPhase] = useState<TeachChatPhase>("idle");
   const [teachEcho, setTeachEcho] = useState<string | null>(null);
+  const [teachEchoToken, setTeachEchoToken] = useState<string | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
   const [adminPasswordPrompt, setAdminPasswordPrompt] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
@@ -218,6 +220,7 @@ export function InvoiceParsedInspectModal({
   const resetTeachChat = () => {
     setTeachPhase("idle");
     setTeachEcho(null);
+    setTeachEchoToken(null);
     setCorrectionNote("");
   };
 
@@ -235,11 +238,16 @@ export function InvoiceParsedInspectModal({
         showToast('Reply "yes" to confirm, or "no" to cancel.');
         return;
       }
+      if (!teachEchoToken) {
+        showToast("Echo expired — send your ignore note again to get a fresh echo.");
+        return;
+      }
       setSaveLessonLoading(true);
       try {
         const result = await confirmVendorIgnoreRule({
           vendorInvoiceImportId: importRow.id,
           confirm: true,
+          echoToken: teachEchoToken,
         });
         showToast(
           result.importDismissed
@@ -262,9 +270,22 @@ export function InvoiceParsedInspectModal({
 
     const intent = interpretTeachNote(note, vendorDisplayForTeach, importRow);
     if (intent.kind === "ignore_document_type") {
-      setTeachEcho(intent.echo);
-      setTeachPhase("pending_confirm");
-      setCorrectionNote("");
+      setSaveLessonLoading(true);
+      try {
+        const proposal = await proposeVendorIgnoreRule({
+          vendorInvoiceImportId: importRow.id,
+        });
+        setTeachEcho(proposal.echoText);
+        setTeachEchoToken(proposal.echoToken);
+        setTeachPhase("pending_confirm");
+        setCorrectionNote("");
+      } catch (err) {
+        showToast(
+          err instanceof Error ? err.message : "Could not propose ignore rule.",
+        );
+      } finally {
+        setSaveLessonLoading(false);
+      }
       return;
     }
     if (intent.kind === "ambiguous") {
@@ -927,7 +948,7 @@ export function InvoiceParsedInspectModal({
                         color: "#6b7280",
                       }}
                     >
-                      optional
+                      Propose a reusable lesson — optional
                     </span>
                   </h3>
                 </div>
@@ -941,10 +962,10 @@ export function InvoiceParsedInspectModal({
                     fontFamily: FONT,
                   }}
                 >
-                  Tell it what to do next time (e.g. ignore these from now on). It
-                  will repeat back the document type it will skip — reply yes to
-                  confirm. Patterns only — no invoice numbers, POs, or addresses.
-                  Rules also live in Settings (Admin).
+                  StageVerify turns this note into a limited, reviewable rule.
+                  Lessons can&apos;t delete data, approve documents, send messages,
+                  or change access. Use patterns only — no invoice numbers, POs, or
+                  addresses.
                 </p>
                 {teachEcho && (
                   <div
@@ -971,8 +992,8 @@ export function InvoiceParsedInspectModal({
                   onChange={(e) => setCorrectionNote(e.target.value)}
                   placeholder={
                     teachPhase === "idle"
-                      ? "Example: Ignore these from now on."
-                      : 'Type "yes" to confirm, or "no" to cancel.'
+                      ? "Example: Ignore these order confirmations from now on."
+                      : 'Type "yes" to send to a manager, or "no" to cancel.'
                   }
                   rows={3}
                   disabled={actionLoading || saveLessonLoading}

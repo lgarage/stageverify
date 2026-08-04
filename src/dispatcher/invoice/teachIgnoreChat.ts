@@ -18,7 +18,7 @@ export type TeachIgnoreFingerprint = {
 };
 
 export type TeachIntent =
-  | { kind: "ignore_document_type"; echo: string; fingerprint: TeachIgnoreFingerprint }
+  | { kind: "ignore_document_type" }
   | { kind: "ambiguous"; echo: string }
   | { kind: "playbook_lesson" };
 
@@ -92,6 +92,16 @@ function buildIgnoreEcho(fp: TeachIgnoreFingerprint, vendorLabel: string): strin
   return `${base} Reply yes to confirm.`;
 }
 
+/** @deprecated Display-only — authoritative echo comes from proposeVendorIgnoreRule (D-59 P1). */
+export function buildClientIgnoreEchoPreview(
+  importRow: VendorInvoiceImportReview,
+  vendorDisplayName: string,
+): string {
+  const fingerprint = fingerprintForImport(importRow, vendorDisplayName);
+  const vendor = vendorDisplayName.trim() || "this vendor";
+  return buildIgnoreEcho(fingerprint, vendor);
+}
+
 export function interpretTeachNote(
   note: string,
   vendorDisplayName: string,
@@ -110,11 +120,7 @@ export function interpretTeachNote(
         echo: `I can't arm an ignore rule until this import has a known vendor name (not "unknown vendor"). Link or confirm the vendor first, then try again.`,
       };
     }
-    return {
-      kind: "ignore_document_type",
-      fingerprint,
-      echo: buildIgnoreEcho(fingerprint, vendor),
-    };
+    return { kind: "ignore_document_type" };
   }
 
   if (noteTeachesIgnoreFromNowOn(trimmed) && !importRow) {

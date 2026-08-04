@@ -197,8 +197,5 @@ export function shouldApplyNowDismissCreditImport(
   },
 ): boolean {
   if (!correctionNoteTeachesIgnoreCreditReturns(note)) return false;
-  if (isCreditReturnImportDoc(doc)) return true;
-  return (
-    /\b(?:ignore|skip|dismiss)\b/i.test(note) && /\bCREDIT\b/.test(note)
-  );
+  return isCreditReturnImportDoc(doc);
 }

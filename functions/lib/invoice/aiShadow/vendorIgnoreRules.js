@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VENDOR_IGNORE_RULES_COLLECTION = void 0;
 exports.isArmableVendorKey = isArmableVendorKey;
+exports.isArmableFingerprint = isArmableFingerprint;
 exports.ignoreRuleDocId = ignoreRuleDocId;
 exports.fingerprintFromImport = fingerprintFromImport;
 exports.getVendorIgnoreRuleById = getVendorIgnoreRuleById;
@@ -16,6 +17,18 @@ exports.VENDOR_IGNORE_RULES_COLLECTION = "vendorInvoiceIgnoreRules";
 function isArmableVendorKey(raw) {
     const key = (0, vendorTrainingMd_1.sanitizeVendorKey)(raw);
     return key !== "unknown-vendor" && key.length > 0;
+}
+/** Never-unknown + non-invoice enforcement (D-59 P1). */
+function isArmableFingerprint(fp) {
+    if (!isArmableVendorKey(fp.vendorKey))
+        return false;
+    if (fp.parserFormatId === "unknown")
+        return false;
+    if (fp.documentType === "unknown" || fp.documentType === "invoice") {
+        return false;
+    }
+    return (fp.documentType === "sales_order_confirmation" ||
+        fp.documentType === "credit_memo");
 }
 function ignoreRuleDocId(fp) {
     const vendorKey = (0, vendorTrainingMd_1.sanitizeVendorKey)(fp.vendorKey);
@@ -88,7 +101,7 @@ async function getVendorIgnoreRuleById(db, ruleId) {
     return normalizeRuleDoc(snap.id, (snap.data() ?? {}));
 }
 async function vendorIgnoresFingerprint(db, fp) {
-    if (!isArmableVendorKey(fp.vendorKey))
+    if (!isArmableFingerprint(fp))
         return false;
     const id = ignoreRuleDocId(fp);
     const rule = await getVendorIgnoreRuleById(db, id);
@@ -105,14 +118,14 @@ async function vendorIgnoresFingerprint(db, fp) {
 }
 async function upsertVendorIgnoreRule(db, input) {
     const vendorKey = (0, vendorTrainingMd_1.sanitizeVendorKey)(input.fingerprint.vendorKey);
-    if (!isArmableVendorKey(vendorKey)) {
-        throw new Error("unknown_vendor_not_armable");
-    }
     const fingerprint = {
         vendorKey,
         parserFormatId: (0, inferDocumentType_1.normalizeParserFormatId)(input.fingerprint.parserFormatId),
         documentType: input.fingerprint.documentType || "unknown",
     };
+    if (!isArmableFingerprint(fingerprint)) {
+        throw new Error("fingerprint_not_armable");
+    }
     const id = ignoreRuleDocId(fingerprint);
     const existing = await getVendorIgnoreRuleById(db, id);
     const now = new Date().toISOString();

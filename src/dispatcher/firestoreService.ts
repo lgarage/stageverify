@@ -76,6 +76,7 @@ import type {
   InvoiceTrainingAdminStatus,
   SaveInvoiceTrainingLessonResult,
   ConfirmVendorIgnoreRuleResult,
+  ProposeVendorIgnoreRuleResult,
   VendorIgnoreRule,
 } from "./models";
 import {
@@ -2396,9 +2397,14 @@ const saveVendorTrainingPlaybookCallable = httpsCallable<
 >(functions, "saveVendorTrainingPlaybook");
 
 const confirmVendorIgnoreRuleCallable = httpsCallable<
-  { vendorInvoiceImportId: string; confirm: boolean },
+  { vendorInvoiceImportId: string; confirm: boolean; echoToken?: string },
   ConfirmVendorIgnoreRuleResult
 >(functions, "confirmVendorIgnoreRule");
+
+const proposeVendorIgnoreRuleCallable = httpsCallable<
+  { vendorInvoiceImportId: string },
+  ProposeVendorIgnoreRuleResult
+>(functions, "proposeVendorIgnoreRule");
 
 const listVendorIgnoreRulesCallable = httpsCallable<
   { password: string },
@@ -2654,9 +2660,17 @@ export async function saveVendorTrainingPlaybook(input: {
   return response.data;
 }
 
+export async function proposeVendorIgnoreRule(input: {
+  vendorInvoiceImportId: string;
+}): Promise<ProposeVendorIgnoreRuleResult> {
+  const response = await proposeVendorIgnoreRuleCallable(input);
+  return response.data;
+}
+
 export async function confirmVendorIgnoreRule(input: {
   vendorInvoiceImportId: string;
   confirm: boolean;
+  echoToken?: string;
 }): Promise<ConfirmVendorIgnoreRuleResult> {
   const response = await confirmVendorIgnoreRuleCallable(input);
   return response.data;

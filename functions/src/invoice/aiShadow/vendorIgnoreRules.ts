@@ -38,6 +38,19 @@ export function isArmableVendorKey(raw: string): boolean {
   return key !== "unknown-vendor" && key.length > 0;
 }
 
+/** Never-unknown + non-invoice enforcement (D-59 P1). */
+export function isArmableFingerprint(fp: VendorIgnoreFingerprint): boolean {
+  if (!isArmableVendorKey(fp.vendorKey)) return false;
+  if (fp.parserFormatId === "unknown") return false;
+  if (fp.documentType === "unknown" || fp.documentType === "invoice") {
+    return false;
+  }
+  return (
+    fp.documentType === "sales_order_confirmation" ||
+    fp.documentType === "credit_memo"
+  );
+}
+
 export function ignoreRuleDocId(fp: VendorIgnoreFingerprint): string {
   const vendorKey = sanitizeVendorKey(fp.vendorKey);
   const format = normalizeParserFormatId(fp.parserFormatId);
@@ -138,7 +151,7 @@ export async function vendorIgnoresFingerprint(
   db: Firestore,
   fp: VendorIgnoreFingerprint,
 ): Promise<boolean> {
-  if (!isArmableVendorKey(fp.vendorKey)) return false;
+  if (!isArmableFingerprint(fp)) return false;
   const id = ignoreRuleDocId(fp);
   const rule = await getVendorIgnoreRuleById(db, id);
   if (rule?.enabled) return true;
@@ -167,14 +180,14 @@ export async function upsertVendorIgnoreRule(
   },
 ): Promise<VendorIgnoreRuleDoc> {
   const vendorKey = sanitizeVendorKey(input.fingerprint.vendorKey);
-  if (!isArmableVendorKey(vendorKey)) {
-    throw new Error("unknown_vendor_not_armable");
-  }
   const fingerprint: VendorIgnoreFingerprint = {
     vendorKey,
     parserFormatId: normalizeParserFormatId(input.fingerprint.parserFormatId),
     documentType: input.fingerprint.documentType || "unknown",
   };
+  if (!isArmableFingerprint(fingerprint)) {
+    throw new Error("fingerprint_not_armable");
+  }
   const id = ignoreRuleDocId(fingerprint);
   const existing = await getVendorIgnoreRuleById(db, id);
   const now = new Date().toISOString();

@@ -40,12 +40,21 @@ assert.equal(pinMatches({ pinHash: stored }, "wrong-password"), false);
 
 const {
   isArmableVendorKey,
+  isArmableFingerprint,
   ignoreRuleDocId,
   fingerprintFromImport,
 } = require(path.join(
   root,
   "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
 ));
+const {
+  armableFingerprintError,
+  computeEchoToken,
+  extractSenderDomain,
+} = require(path.join(root, "functions/lib/invoice/vendorIgnoreEcho.js"));
+const {
+  shouldApplyNowDismissCreditImport,
+} = require(path.join(root, "functions/lib/invoice/creditReturnSkip.js"));
 assert.equal(isArmableVendorKey("johnstone"), true);
 assert.equal(isArmableVendorKey("unknown-vendor"), false);
 assert.equal(isArmableVendorKey(""), false);
@@ -77,5 +86,59 @@ const creditFp = fingerprintFromImport({
   },
 });
 assert.equal(creditFp.documentType, "credit_memo");
+
+assert.equal(isArmableFingerprint(fp), false);
+assert.equal(isArmableFingerprint(creditFp), true);
+assert.match(
+  armableFingerprintError(fp),
+  /look like invoices/i,
+);
+assert.equal(
+  armableFingerprintError({
+    vendorKey: "johnstone",
+    parserFormatId: "unknown",
+    documentType: "credit_memo",
+  }),
+  "Cannot ignore documents with an unknown parser format — resolve the format first.",
+);
+assert.equal(
+  armableFingerprintError({
+    vendorKey: "johnstone",
+    parserFormatId: "johnstone",
+    documentType: "unknown",
+  }),
+  "Cannot ignore documents with an unknown type — the document must be classifiable first.",
+);
+
+assert.equal(extractSenderDomain("Vendor <orders@johnstonesupply.com>"), "johnstonesupply.com");
+assert.equal(extractSenderDomain(""), null);
+
+const tokenA = computeEchoToken({
+  importId: "imp-1",
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  documentType: "credit_memo",
+  senderDomains: ["johnstonesupply.com"],
+  importUpdatedAt: "2026-08-03T12:00:00.000Z",
+});
+const tokenB = computeEchoToken({
+  importId: "imp-1",
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  documentType: "credit_memo",
+  senderDomains: ["johnstonesupply.com"],
+  importUpdatedAt: "2026-08-03T12:00:01.000Z",
+});
+assert.notEqual(tokenA, tokenB);
+assert.equal(tokenA.length, 64);
+
+assert.equal(
+  shouldApplyNowDismissCreditImport("ignore CREDIT from now on", {
+    parsedHeader: { vendorBranchName: "Main" },
+    parsedLines: [],
+    orderNotes: [],
+  }),
+  false,
+);
 
 console.log("test-invoice-training-admin: PASS");

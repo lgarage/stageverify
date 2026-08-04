@@ -30,11 +30,18 @@ import {
   deleteVendorIgnoreRuleByFingerprint,
   fingerprintFromImport,
   ignoreRuleDocId,
+  isArmableFingerprint,
   isArmableVendorKey,
   listVendorIgnoreRules,
   upsertVendorIgnoreRule,
   type VendorIgnoreFingerprint,
 } from "./invoice/aiShadow/vendorIgnoreRules";
+import {
+  armableFingerprintError,
+  buildProposeEchoText,
+  computeEchoToken,
+  extractSenderDomain,
+} from "./invoice/vendorIgnoreEcho";
 import {
   documentTypeLabel,
   normalizeParserFormatId,
@@ -322,8 +329,139 @@ function parseFingerprintFromAdminData(data: {
   };
 }
 
+async function loadImportForIgnoreRule(
+  importId: string,
+): Promise<{ ref: FirebaseFirestore.DocumentReference; doc: VendorInvoiceImportDoc }> {
+  const importRef = getDb().collection("vendorInvoiceImports").doc(importId);
+  const snap = await importRef.get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Invoice import not found.");
+  }
+  return {
+    ref: importRef,
+    doc: snap.data() as VendorInvoiceImportDoc,
+  };
+}
+
+async function senderDomainsForImport(
+  importDoc: VendorInvoiceImportDoc,
+): Promise<string[]> {
+  const inboundId = importDoc.inboundEmailProcessingId?.trim();
+  if (!inboundId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cannot propose an ignore rule — source email is not linked to this import.",
+    );
+  }
+  const inboundSnap = await getDb()
+    .collection("inboundEmailProcessing")
+    .doc(inboundId)
+    .get();
+  if (!inboundSnap.exists) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cannot propose an ignore rule — source email record is missing.",
+    );
+  }
+  const senderEmail =
+    typeof inboundSnap.data()?.senderEmail === "string"
+      ? inboundSnap.data()!.senderEmail
+      : "";
+  const domain = extractSenderDomain(senderEmail);
+  if (!domain) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cannot propose an ignore rule — sender email domain is unavailable.",
+    );
+  }
+  return [domain];
+}
+
+function vendorLabelFromImport(importDoc: VendorInvoiceImportDoc): string {
+  if (
+    typeof importDoc.detectedVendorName === "string" &&
+    importDoc.detectedVendorName.trim()
+  ) {
+    return importDoc.detectedVendorName.trim();
+  }
+  if (importDoc.parserFormatId === "johnstone") return "Johnstone";
+  return importDoc.parserFormatId ?? "this vendor";
+}
+
 /**
- * Teach-chat consent: dispatcher confirms "yes" after echo → arm ignore rule in Firestore.
+ * Teach-chat propose: server computes fingerprint + echo + echoToken.
+ * Rejects unknown type/format, invoice type, unknown-vendor (D-59 P1).
+ */
+export const proposeVendorIgnoreRule = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    await requireDispatcherAuth(request);
+    const data = (request.data ?? {}) as {
+      vendorInvoiceImportId?: unknown;
+    };
+    const importId =
+      typeof data.vendorInvoiceImportId === "string"
+        ? data.vendorInvoiceImportId.trim()
+        : "";
+    if (!importId || importId.length > 200) {
+      throw new HttpsError(
+        "invalid-argument",
+        "vendorInvoiceImportId is required.",
+      );
+    }
+
+    const { doc: importDoc } = await loadImportForIgnoreRule(importId);
+    const vendorKeyRaw = vendorKeyFromImportDoc(importDoc);
+    const fingerprint = fingerprintFromImport({
+      vendorKey: vendorKeyRaw,
+      parserFormatId: importDoc.parserFormatId,
+      importRow: importDoc,
+    });
+
+    const rejectReason = armableFingerprintError(fingerprint);
+    if (rejectReason) {
+      throw new HttpsError("failed-precondition", rejectReason);
+    }
+
+    const senderDomains = await senderDomainsForImport(importDoc);
+    const importUpdatedAt =
+      typeof importDoc.updatedAt === "string" && importDoc.updatedAt.trim()
+        ? importDoc.updatedAt.trim()
+        : "";
+    if (!importUpdatedAt) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cannot propose an ignore rule — import record is missing a timestamp.",
+      );
+    }
+
+    const echoToken = computeEchoToken({
+      importId,
+      vendorKey: fingerprint.vendorKey,
+      parserFormatId: fingerprint.parserFormatId,
+      documentType: fingerprint.documentType,
+      senderDomains,
+      importUpdatedAt,
+    });
+
+    const echoText = buildProposeEchoText({
+      fingerprint,
+      vendorLabel: vendorLabelFromImport(importDoc),
+      senderDomains,
+    });
+
+    return {
+      echoText,
+      echoToken,
+      fingerprint,
+      senderDomains,
+    };
+  },
+);
+
+/**
+ * Teach-chat consent: dispatcher confirms "yes" after server echo → arm ignore rule in Firestore.
+ * Requires valid echoToken bound to import content (D-59 P1).
  * Fingerprint is recomputed server-side from the import (not client-trusted).
  * SAFETY: only writes vendorInvoiceIgnoreRules + may reject the current import in
  * vendorInvoiceImports — never touches deliveries, items, or auto-approves.
@@ -335,6 +473,7 @@ export const confirmVendorIgnoreRule = onCall(
     const data = (request.data ?? {}) as {
       vendorInvoiceImportId?: unknown;
       confirm?: unknown;
+      echoToken?: unknown;
     };
     const importId =
       typeof data.vendorInvoiceImportId === "string"
@@ -352,33 +491,74 @@ export const confirmVendorIgnoreRule = onCall(
         "confirm must be true after the teach-chat echo.",
       );
     }
-
-    const importRef = getDb().collection("vendorInvoiceImports").doc(importId);
-    const snap = await importRef.get();
-    if (!snap.exists) {
-      throw new HttpsError("not-found", "Invoice import not found.");
-    }
-    const importDoc = snap.data() as VendorInvoiceImportDoc;
-    const vendorKeyRaw = vendorKeyFromImportDoc(importDoc);
-    if (!isArmableVendorKey(vendorKeyRaw)) {
+    const echoToken =
+      typeof data.echoToken === "string" ? data.echoToken.trim() : "";
+    if (!echoToken) {
       throw new HttpsError(
         "failed-precondition",
-        "Cannot arm an ignore rule for an unknown vendor. Link a vendor name first.",
+        "echoToken is required — propose the rule again to get a fresh echo.",
       );
     }
 
+    const { ref: importRef, doc: importDoc } =
+      await loadImportForIgnoreRule(importId);
+    const vendorKeyRaw = vendorKeyFromImportDoc(importDoc);
     const fingerprint = fingerprintFromImport({
       vendorKey: vendorKeyRaw,
       parserFormatId: importDoc.parserFormatId,
       importRow: importDoc,
     });
 
-    const rule = await upsertVendorIgnoreRule(getDb(), {
-      fingerprint,
-      enabled: true,
-      uid,
-      sourceImportId: importId,
+    const rejectReason = armableFingerprintError(fingerprint);
+    if (rejectReason) {
+      throw new HttpsError("failed-precondition", rejectReason);
+    }
+
+    const senderDomains = await senderDomainsForImport(importDoc);
+    const importUpdatedAt =
+      typeof importDoc.updatedAt === "string" && importDoc.updatedAt.trim()
+        ? importDoc.updatedAt.trim()
+        : "";
+    if (!importUpdatedAt) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cannot confirm — import record is missing a timestamp. Propose again.",
+      );
+    }
+
+    const expectedToken = computeEchoToken({
+      importId,
+      vendorKey: fingerprint.vendorKey,
+      parserFormatId: fingerprint.parserFormatId,
+      documentType: fingerprint.documentType,
+      senderDomains,
+      importUpdatedAt,
     });
+    if (echoToken !== expectedToken) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This import changed since the echo — propose the rule again to confirm.",
+      );
+    }
+
+    let rule;
+    try {
+      rule = await upsertVendorIgnoreRule(getDb(), {
+        fingerprint,
+        enabled: true,
+        uid,
+        sourceImportId: importId,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === "fingerprint_not_armable") {
+        throw new HttpsError(
+          "failed-precondition",
+          armableFingerprintError(fingerprint) ??
+            "This document type cannot be used for an ignore rule.",
+        );
+      }
+      throw err;
+    }
 
     const now = new Date().toISOString();
     let importDismissed = false;
@@ -460,10 +640,13 @@ export const updateVendorIgnoreRuleCallable = onCall(
         documentType: "credit_memo",
       };
     }
-    if (!fingerprint || !isArmableVendorKey(fingerprint.vendorKey)) {
+    if (!fingerprint || !isArmableFingerprint(fingerprint)) {
       throw new HttpsError(
         "invalid-argument",
-        "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.",
+        fingerprint
+          ? (armableFingerprintError(fingerprint) ??
+              "This document type cannot be used for an ignore rule.")
+          : "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.",
       );
     }
     const enabled =

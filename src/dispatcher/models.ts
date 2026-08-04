@@ -1371,6 +1371,17 @@ export interface ConfirmVendorIgnoreRuleResult {
   echoSummary?: string;
 }
 
+export interface ProposeVendorIgnoreRuleResult {
+  echoText: string;
+  echoToken: string;
+  fingerprint: {
+    vendorKey: string;
+    parserFormatId: string;
+    documentType: string;
+  };
+  senderDomains: string[];
+}
+
 /** Forward-compatible stub — AI correction store Phase 8. */
 export interface AICorrection {
   id: string;
