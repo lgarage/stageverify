@@ -13,6 +13,7 @@ const vendorTrainingMd_1 = require("./invoice/aiShadow/vendorTrainingMd");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("./invoice/aiShadow/vendorIgnoreRules");
+const inferDocumentType_1 = require("./invoice/inferDocumentType");
 function getDb() {
     return admin.firestore();
 }
@@ -177,9 +178,45 @@ exports.saveVendorTrainingPlaybook = (0, https_1.onCall)({ region: "us-central1"
     }
     return { vendorKey, wrote: true };
 });
+function parseFingerprintFromAdminData(data) {
+    if (typeof data.ruleId === "string" && data.ruleId.includes("__")) {
+        const parts = data.ruleId.split("__");
+        if (parts.length >= 3) {
+            const documentType = parts[parts.length - 1];
+            const parserFormatId = (0, inferDocumentType_1.normalizeParserFormatId)(parts[parts.length - 2]);
+            const vendorKey = parts.slice(0, parts.length - 2).join("__");
+            if (documentType === "sales_order_confirmation" ||
+                documentType === "invoice" ||
+                documentType === "credit_memo" ||
+                documentType === "unknown") {
+                return {
+                    vendorKey: (0, vendorTrainingMd_1.sanitizeVendorKey)(vendorKey),
+                    parserFormatId,
+                    documentType,
+                };
+            }
+        }
+    }
+    const vendorKeyRaw = typeof data.vendorKey === "string" ? data.vendorKey.trim() : "";
+    const documentType = data.documentType;
+    if (!vendorKeyRaw ||
+        (documentType !== "sales_order_confirmation" &&
+            documentType !== "invoice" &&
+            documentType !== "credit_memo" &&
+            documentType !== "unknown")) {
+        return null;
+    }
+    return {
+        vendorKey: (0, vendorTrainingMd_1.sanitizeVendorKey)(vendorKeyRaw),
+        parserFormatId: (0, inferDocumentType_1.normalizeParserFormatId)(data.parserFormatId),
+        documentType,
+    };
+}
 /**
  * Teach-chat consent: dispatcher confirms "yes" after echo → arm ignore rule in Firestore.
- * Optionally dismisses the current CREDIT/return import.
+ * Fingerprint is recomputed server-side from the import (not client-trusted).
+ * SAFETY: only writes vendorInvoiceIgnoreRules + may reject the current import in
+ * vendorInvoiceImports — never touches deliveries, items, or auto-approves.
  */
 exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
@@ -203,18 +240,22 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
     if (!(0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw)) {
         throw new https_1.HttpsError("failed-precondition", "Cannot arm an ignore rule for an unknown vendor. Link a vendor name first.");
     }
-    const rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
+    const fingerprint = (0, vendorIgnoreRules_1.fingerprintFromImport)({
         vendorKey: vendorKeyRaw,
-        ignoreCreditReturns: true,
+        parserFormatId: importDoc.parserFormatId,
+        importRow: importDoc,
+    });
+    const rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
+        fingerprint,
+        enabled: true,
         uid,
         sourceImportId: importId,
     });
     const now = new Date().toISOString();
     let importDismissed = false;
     let reviewStatus = importDoc.reviewStatus ?? "pending_review";
-    if (importDoc.reviewStatus === "pending_review" &&
-        (0, creditReturnSkip_1.shouldApplyNowDismissCreditImport)("ignore credit returns from now on", importDoc)) {
-        const skip = (0, creditReturnSkip_1.creditReturnSkipFields)(now);
+    if (importDoc.reviewStatus === "pending_review") {
+        const skip = (0, creditReturnSkip_1.documentIgnoreSkipFields)(now);
         await getDb().runTransaction(async (tx) => {
             const freshSnap = await tx.get(importRef);
             if (!freshSnap.exists) {
@@ -236,10 +277,11 @@ exports.confirmVendorIgnoreRule = (0, https_1.onCall)({ region: "us-central1" },
     }
     return {
         vendorKey: rule.vendorKey,
-        ignoreCreditReturns: rule.ignoreCreditReturns,
+        ignoreCreditReturns: rule.documentType === "credit_memo" && rule.enabled,
         importDismissed,
         reviewStatus,
         rule,
+        echoSummary: `Skip future ${(0, inferDocumentType_1.documentTypeLabel)(rule.documentType)} for ${rule.vendorKey} (${rule.parserFormatId})`,
     };
 });
 /** Admin password-gated list of Firestore ignore rules. */
@@ -247,37 +289,65 @@ exports.listVendorIgnoreRulesCallable = (0, https_1.onCall)({ region: "us-centra
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     await requirePassword(request.data);
     const rules = await (0, vendorIgnoreRules_1.listVendorIgnoreRules)(getDb());
-    return { rules };
+    return {
+        rules: rules.map((r) => ({
+            ...r,
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(r),
+            ignoreCreditReturns: r.documentType === "credit_memo" && r.enabled,
+        })),
+    };
 });
 /** Admin password-gated update (toggle) of a Firestore ignore rule. */
 exports.updateVendorIgnoreRuleCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     await requirePassword(request.data);
     const data = (request.data ?? {});
-    const vendorKeyRaw = typeof data.vendorKey === "string" ? data.vendorKey.trim() : "";
-    if (!vendorKeyRaw || !(0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw)) {
-        throw new https_1.HttpsError("invalid-argument", "A valid vendorKey is required.");
+    let fingerprint = parseFingerprintFromAdminData(data);
+    // Legacy toggle: vendorKey + ignoreCreditReturns only → credit_memo
+    if (!fingerprint &&
+        typeof data.vendorKey === "string" &&
+        typeof data.ignoreCreditReturns === "boolean") {
+        fingerprint = {
+            vendorKey: (0, vendorTrainingMd_1.sanitizeVendorKey)(data.vendorKey),
+            parserFormatId: "johnstone",
+            documentType: "credit_memo",
+        };
     }
-    if (typeof data.ignoreCreditReturns !== "boolean") {
-        throw new https_1.HttpsError("invalid-argument", "ignoreCreditReturns must be a boolean.");
+    if (!fingerprint || !(0, vendorIgnoreRules_1.isArmableVendorKey)(fingerprint.vendorKey)) {
+        throw new https_1.HttpsError("invalid-argument", "A valid rule fingerprint (vendorKey + documentType) or ruleId is required.");
     }
+    const enabled = typeof data.enabled === "boolean"
+        ? data.enabled
+        : typeof data.ignoreCreditReturns === "boolean"
+            ? data.ignoreCreditReturns
+            : true;
     const rule = await (0, vendorIgnoreRules_1.upsertVendorIgnoreRule)(getDb(), {
-        vendorKey: vendorKeyRaw,
-        ignoreCreditReturns: data.ignoreCreditReturns,
+        fingerprint,
+        enabled,
         uid,
     });
-    return { rule };
+    return {
+        rule: {
+            ...rule,
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(rule),
+            ignoreCreditReturns: rule.documentType === "credit_memo" && rule.enabled,
+        },
+    };
 });
 /** Admin password-gated delete of a Firestore ignore rule. */
 exports.deleteVendorIgnoreRuleCallable = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     await requirePassword(request.data);
     const data = (request.data ?? {});
-    const vendorKeyRaw = typeof data.vendorKey === "string" ? data.vendorKey.trim() : "";
-    if (!vendorKeyRaw || !(0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw)) {
-        throw new https_1.HttpsError("invalid-argument", "A valid vendorKey is required.");
+    const fingerprint = parseFingerprintFromAdminData(data);
+    if (fingerprint && (0, vendorIgnoreRules_1.isArmableVendorKey)(fingerprint.vendorKey)) {
+        const result = await (0, vendorIgnoreRules_1.deleteVendorIgnoreRuleByFingerprint)(getDb(), fingerprint);
+        return {
+            vendorKey: fingerprint.vendorKey,
+            ruleId: (0, vendorIgnoreRules_1.ignoreRuleDocId)(fingerprint),
+            ...result,
+        };
     }
-    const result = await (0, vendorIgnoreRules_1.deleteVendorIgnoreRule)(getDb(), vendorKeyRaw);
-    return { vendorKey: (0, vendorTrainingMd_1.sanitizeVendorKey)(vendorKeyRaw), ...result };
+    throw new https_1.HttpsError("invalid-argument", "A valid ruleId or vendorKey + documentType is required.");
 });
 //# sourceMappingURL=invoiceTrainingAdminApi.js.map

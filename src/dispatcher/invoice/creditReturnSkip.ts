@@ -7,6 +7,9 @@ import type { VendorInvoiceImportStatus } from "./types";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 
+/** Taught fingerprint ignore (any document type) — system auto-skip. */
+export const DOCUMENT_IGNORE_SKIP_REASON = "document_ignore" as const;
+
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 export const CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
 
@@ -30,16 +33,29 @@ function pageTextSignalsBranchCredit(text: string): boolean {
   );
 }
 
-/** User-visible label when skipReason is credit_return. */
+/** User-visible label when skipReason is credit_return or document_ignore. */
 export function creditReturnSkipLabel(
   skipReason?: string,
   rejectedBy?: string,
 ): string | null {
+  if (skipReason === DOCUMENT_IGNORE_SKIP_REASON) {
+    return CREDIT_RETURN_AUTO_SKIP_LABEL;
+  }
   if (skipReason !== CREDIT_RETURN_SKIP_REASON) return null;
-  if (rejectedBy === "system:credit_return_skip") {
+  if (
+    rejectedBy === "system:credit_return_skip" ||
+    rejectedBy === "system:document_ignore_skip"
+  ) {
     return CREDIT_RETURN_AUTO_SKIP_LABEL;
   }
   return CREDIT_RETURN_SKIP_LABEL;
+}
+
+export function isSystemIgnoreSkipReason(skipReason?: string): boolean {
+  return (
+    skipReason === CREDIT_RETURN_SKIP_REASON ||
+    skipReason === DOCUMENT_IGNORE_SKIP_REASON
+  );
 }
 
 /** Pending credit/return imports — prominent advisory (not auto-rejected). */

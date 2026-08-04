@@ -6,6 +6,9 @@ import type { VendorInvoiceImportParsedLine } from "../inboundEmail/types";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 
+/** Taught fingerprint ignore (any document type) — review-queue auto-skip only. */
+export const DOCUMENT_IGNORE_SKIP_REASON = "document_ignore" as const;
+
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 export const CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
 
@@ -29,13 +32,19 @@ function pageTextSignalsBranchCredit(text: string): boolean {
   );
 }
 
-/** User-visible label when skipReason is credit_return. */
+/** User-visible label when skipReason is credit_return or document_ignore. */
 export function creditReturnSkipLabel(
   skipReason?: string,
   rejectedBy?: string,
 ): string | null {
+  if (skipReason === DOCUMENT_IGNORE_SKIP_REASON) {
+    return CREDIT_RETURN_AUTO_SKIP_LABEL;
+  }
   if (skipReason !== CREDIT_RETURN_SKIP_REASON) return null;
-  if (rejectedBy === "system:credit_return_skip") {
+  if (
+    rejectedBy === "system:credit_return_skip" ||
+    rejectedBy === "system:document_ignore_skip"
+  ) {
     return CREDIT_RETURN_AUTO_SKIP_LABEL;
   }
   return CREDIT_RETURN_SKIP_LABEL;
@@ -58,6 +67,32 @@ export function creditReturnSkipFields(now: string): {
     humanReviewRequired: false,
     updatedAt: now,
   };
+}
+
+/** Firestore patch when auto-skipping via taught document fingerprint. */
+export function documentIgnoreSkipFields(now: string): {
+  reviewStatus: "rejected";
+  skipReason: typeof DOCUMENT_IGNORE_SKIP_REASON;
+  rejectedAt: string;
+  rejectedBy: "system:document_ignore_skip";
+  humanReviewRequired: false;
+  updatedAt: string;
+} {
+  return {
+    reviewStatus: "rejected",
+    skipReason: DOCUMENT_IGNORE_SKIP_REASON,
+    rejectedAt: now,
+    rejectedBy: "system:document_ignore_skip",
+    humanReviewRequired: false,
+    updatedAt: now,
+  };
+}
+
+export function isSystemIgnoreSkipReason(skipReason?: string): boolean {
+  return (
+    skipReason === CREDIT_RETURN_SKIP_REASON ||
+    skipReason === DOCUMENT_IGNORE_SKIP_REASON
+  );
 }
 
 /** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */

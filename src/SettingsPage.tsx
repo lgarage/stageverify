@@ -413,19 +413,27 @@ export function SettingsPage() {
     }
   };
 
+  const ignoreRuleKey = (rule: VendorIgnoreRule) =>
+    rule.ruleId ||
+    `${rule.vendorKey}__${rule.parserFormatId}__${rule.documentType}`;
+
   const toggleIgnoreRule = async (rule: VendorIgnoreRule) => {
     if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
-    setIgnoreRulesBusyKey(rule.vendorKey);
+    const key = ignoreRuleKey(rule);
+    setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
       const updated = await updateVendorIgnoreRule({
         password: ignoreRulesPassword,
+        ruleId: rule.ruleId,
         vendorKey: rule.vendorKey,
-        ignoreCreditReturns: !rule.ignoreCreditReturns,
+        parserFormatId: rule.parserFormatId,
+        documentType: rule.documentType,
+        enabled: !rule.enabled,
       });
       setIgnoreRules((prev) =>
         (prev ?? []).map((r) =>
-          r.vendorKey === updated.vendorKey ? updated : r,
+          ignoreRuleKey(r) === ignoreRuleKey(updated) ? updated : r,
         ),
       );
     } catch (err) {
@@ -437,17 +445,21 @@ export function SettingsPage() {
     }
   };
 
-  const removeIgnoreRule = async (vendorKey: string) => {
+  const removeIgnoreRule = async (rule: VendorIgnoreRule) => {
     if (!ignoreRulesPassword.trim() || ignoreRulesBusyKey) return;
-    setIgnoreRulesBusyKey(vendorKey);
+    const key = ignoreRuleKey(rule);
+    setIgnoreRulesBusyKey(key);
     setIgnoreRulesError(null);
     try {
       await deleteVendorIgnoreRule({
         password: ignoreRulesPassword,
-        vendorKey,
+        ruleId: rule.ruleId,
+        vendorKey: rule.vendorKey,
+        parserFormatId: rule.parserFormatId,
+        documentType: rule.documentType,
       });
       setIgnoreRules((prev) =>
-        (prev ?? []).filter((r) => r.vendorKey !== vendorKey),
+        (prev ?? []).filter((r) => ignoreRuleKey(r) !== key),
       );
     } catch (err) {
       setIgnoreRulesError(
@@ -1352,8 +1364,9 @@ export function SettingsPage() {
                           fontWeight: 500,
                         }}
                       >
-                        Rules taught from Parsed import (reply yes). Only Admin can
-                        change them here — saves update Firestore immediately.
+                        Rules taught from Parsed import (reply yes) for any document
+                        type. They only skip future review-queue imports — never
+                        delete deliveries or items. Disable or delete here to undo.
                       </p>
                       <label
                         style={{
@@ -1470,10 +1483,12 @@ export function SettingsPage() {
                             gap: 8,
                           }}
                         >
-                          {ignoreRules.map((rule) => (
+                          {ignoreRules.map((rule) => {
+                            const key = ignoreRuleKey(rule);
+                            return (
                             <li
-                              key={rule.vendorKey}
-                              data-testid={`invoice-ignore-rule-${rule.vendorKey}`}
+                              key={key}
+                              data-testid={`invoice-ignore-rule-${key}`}
                               style={{
                                 padding: "10px 12px",
                                 backgroundColor: "#fff",
@@ -1504,8 +1519,10 @@ export function SettingsPage() {
                                     marginTop: 2,
                                   }}
                                 >
-                                  Skip future CREDIT/returns:{" "}
-                                  {rule.ignoreCreditReturns ? "ON" : "OFF"}
+                                  {rule.label ||
+                                    `${rule.documentType} · ${rule.parserFormatId}`}
+                                  {": "}
+                                  {rule.enabled ? "ON" : "OFF"}
                                   {rule.updatedAt
                                     ? ` · updated ${rule.updatedAt.slice(0, 10)}`
                                     : ""}
@@ -1514,8 +1531,8 @@ export function SettingsPage() {
                               <div style={{ display: "flex", gap: 6 }}>
                                 <button
                                   type="button"
-                                  data-testid={`toggle-ignore-rule-${rule.vendorKey}`}
-                                  disabled={ignoreRulesBusyKey === rule.vendorKey}
+                                  data-testid={`toggle-ignore-rule-${key}`}
+                                  disabled={ignoreRulesBusyKey === key}
                                   onClick={() => void toggleIgnoreRule(rule)}
                                   style={{
                                     padding: "6px 10px",
@@ -1526,21 +1543,19 @@ export function SettingsPage() {
                                     fontWeight: 700,
                                     fontSize: 12,
                                     cursor:
-                                      ignoreRulesBusyKey === rule.vendorKey
+                                      ignoreRulesBusyKey === key
                                         ? "not-allowed"
                                         : "pointer",
                                     fontFamily: FONT,
                                   }}
                                 >
-                                  {rule.ignoreCreditReturns ? "Turn off" : "Turn on"}
+                                  {rule.enabled ? "Turn off" : "Turn on"}
                                 </button>
                                 <button
                                   type="button"
-                                  data-testid={`delete-ignore-rule-${rule.vendorKey}`}
-                                  disabled={ignoreRulesBusyKey === rule.vendorKey}
-                                  onClick={() =>
-                                    void removeIgnoreRule(rule.vendorKey)
-                                  }
+                                  data-testid={`delete-ignore-rule-${key}`}
+                                  disabled={ignoreRulesBusyKey === key}
+                                  onClick={() => void removeIgnoreRule(rule)}
                                   style={{
                                     padding: "6px 10px",
                                     borderRadius: 4,
@@ -1550,7 +1565,7 @@ export function SettingsPage() {
                                     fontWeight: 700,
                                     fontSize: 12,
                                     cursor:
-                                      ignoreRulesBusyKey === rule.vendorKey
+                                      ignoreRulesBusyKey === key
                                         ? "not-allowed"
                                         : "pointer",
                                     fontFamily: FONT,
@@ -1560,7 +1575,8 @@ export function SettingsPage() {
                                 </button>
                               </div>
                             </li>
-                          ))}
+                            );
+                          })}
                         </ul>
                       )}
                     </div>

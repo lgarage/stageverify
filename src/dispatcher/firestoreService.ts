@@ -2406,13 +2406,27 @@ const listVendorIgnoreRulesCallable = httpsCallable<
 >(functions, "listVendorIgnoreRulesCallable");
 
 const updateVendorIgnoreRuleCallable = httpsCallable<
-  { password: string; vendorKey: string; ignoreCreditReturns: boolean },
+  {
+    password: string;
+    vendorKey?: string;
+    parserFormatId?: string;
+    documentType?: string;
+    ruleId?: string;
+    enabled?: boolean;
+    ignoreCreditReturns?: boolean;
+  },
   { rule: VendorIgnoreRule }
 >(functions, "updateVendorIgnoreRuleCallable");
 
 const deleteVendorIgnoreRuleCallable = httpsCallable<
-  { password: string; vendorKey: string },
-  { vendorKey: string; deleted: boolean }
+  {
+    password: string;
+    vendorKey?: string;
+    parserFormatId?: string;
+    documentType?: string;
+    ruleId?: string;
+  },
+  { vendorKey: string; ruleId?: string; deleted: boolean }
 >(functions, "deleteVendorIgnoreRuleCallable");
 
 const getVendorInvoiceImportCallable = httpsCallable<
@@ -2657,8 +2671,12 @@ export async function listVendorIgnoreRules(input: {
 
 export async function updateVendorIgnoreRule(input: {
   password: string;
-  vendorKey: string;
-  ignoreCreditReturns: boolean;
+  vendorKey?: string;
+  parserFormatId?: string;
+  documentType?: string;
+  ruleId?: string;
+  enabled?: boolean;
+  ignoreCreditReturns?: boolean;
 }): Promise<VendorIgnoreRule> {
   const response = await updateVendorIgnoreRuleCallable(input);
   return response.data.rule;
@@ -2666,8 +2684,11 @@ export async function updateVendorIgnoreRule(input: {
 
 export async function deleteVendorIgnoreRule(input: {
   password: string;
-  vendorKey: string;
-}): Promise<{ vendorKey: string; deleted: boolean }> {
+  vendorKey?: string;
+  parserFormatId?: string;
+  documentType?: string;
+  ruleId?: string;
+}): Promise<{ vendorKey: string; ruleId?: string; deleted: boolean }> {
   const response = await deleteVendorIgnoreRuleCallable(input);
   return response.data;
 }
@@ -2678,7 +2699,7 @@ export const INVOICE_TRAINING_LESSON_TOAST =
 
 /** Toast when teach-chat yes arms a Firestore ignore rule. */
 export const VENDOR_IGNORE_RULE_TOAST =
-  "Got it — future CREDIT/return memos for this vendor will be skipped. Manage in Settings → Invoice training Admin.";
+  "Got it — future documents of this type for this vendor will be skipped. Manage in Settings → Invoice training Admin.";
 
 function invoiceShellBackfillCandidate(
   row: VendorInvoiceImportReview,

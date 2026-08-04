@@ -1,14 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.DOCUMENT_IGNORE_SKIP_REASON = exports.CREDIT_RETURN_SKIP_REASON = void 0;
 exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
+exports.documentIgnoreSkipFields = documentIgnoreSkipFields;
+exports.isSystemIgnoreSkipReason = isSystemIgnoreSkipReason;
 exports.importStatusForCreditSkip = importStatusForCreditSkip;
 exports.isCreditReturnInvoice = isCreditReturnInvoice;
 exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCreditReturns;
 exports.isCreditReturnImportDoc = isCreditReturnImportDoc;
 exports.shouldApplyNowDismissCreditImport = shouldApplyNowDismissCreditImport;
 exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
+/** Taught fingerprint ignore (any document type) — review-queue auto-skip only. */
+exports.DOCUMENT_IGNORE_SKIP_REASON = "document_ignore";
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 exports.CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
 /** System auto-skip after vendor ignore rule taught + confirmed. */
@@ -23,11 +27,15 @@ function pageTextSignalsBranchCredit(text) {
     return (/\bBranch\s*[=:]\s*CREDIT\b/i.test(text) ||
         /\bBRANCH\s+CREDIT\b/i.test(text));
 }
-/** User-visible label when skipReason is credit_return. */
+/** User-visible label when skipReason is credit_return or document_ignore. */
 function creditReturnSkipLabel(skipReason, rejectedBy) {
+    if (skipReason === exports.DOCUMENT_IGNORE_SKIP_REASON) {
+        return exports.CREDIT_RETURN_AUTO_SKIP_LABEL;
+    }
     if (skipReason !== exports.CREDIT_RETURN_SKIP_REASON)
         return null;
-    if (rejectedBy === "system:credit_return_skip") {
+    if (rejectedBy === "system:credit_return_skip" ||
+        rejectedBy === "system:document_ignore_skip") {
         return exports.CREDIT_RETURN_AUTO_SKIP_LABEL;
     }
     return exports.CREDIT_RETURN_SKIP_LABEL;
@@ -42,6 +50,21 @@ function creditReturnSkipFields(now) {
         humanReviewRequired: false,
         updatedAt: now,
     };
+}
+/** Firestore patch when auto-skipping via taught document fingerprint. */
+function documentIgnoreSkipFields(now) {
+    return {
+        reviewStatus: "rejected",
+        skipReason: exports.DOCUMENT_IGNORE_SKIP_REASON,
+        rejectedAt: now,
+        rejectedBy: "system:document_ignore_skip",
+        humanReviewRequired: false,
+        updatedAt: now,
+    };
+}
+function isSystemIgnoreSkipReason(skipReason) {
+    return (skipReason === exports.CREDIT_RETURN_SKIP_REASON ||
+        skipReason === exports.DOCUMENT_IGNORE_SKIP_REASON);
 }
 /** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */
 function importStatusForCreditSkip(parsed, pageText, baseStatus) {

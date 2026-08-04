@@ -40,6 +40,8 @@ assert.equal(pinMatches({ pinHash: stored }, "wrong-password"), false);
 
 const {
   isArmableVendorKey,
+  ignoreRuleDocId,
+  fingerprintFromImport,
 } = require(path.join(
   root,
   "functions/lib/invoice/aiShadow/vendorIgnoreRules.js",
@@ -47,5 +49,33 @@ const {
 assert.equal(isArmableVendorKey("johnstone"), true);
 assert.equal(isArmableVendorKey("unknown-vendor"), false);
 assert.equal(isArmableVendorKey(""), false);
+
+const fp = fingerprintFromImport({
+  vendorKey: "Johnstone Supply",
+  parserFormatId: "johnstone",
+  importRow: {
+    parsedHeader: { vendorInvoiceNumber: "123" },
+    parsedLines: [],
+    orderNotes: [],
+    pageId: "page-1",
+  },
+});
+assert.equal(fp.documentType, "invoice");
+assert.equal(
+  ignoreRuleDocId(fp),
+  "johnstone-supply__johnstone__invoice",
+);
+
+const creditFp = fingerprintFromImport({
+  vendorKey: "johnstone",
+  parserFormatId: "johnstone",
+  importRow: {
+    parsedHeader: { vendorBranchName: "CREDIT" },
+    parsedLines: [],
+    orderNotes: [],
+    pageId: "page-2",
+  },
+});
+assert.equal(creditFp.documentType, "credit_memo");
 
 console.log("test-invoice-training-admin: PASS");

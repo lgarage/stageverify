@@ -1345,23 +1345,30 @@ export interface SaveInvoiceTrainingLessonResult {
   reviewStatus?: string;
 }
 
-/** Firestore vendorInvoiceIgnoreRules/{vendorKey} — CF-managed. */
+/** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */
 export interface VendorIgnoreRule {
   vendorKey: string;
-  ignoreCreditReturns: boolean;
+  parserFormatId: string;
+  documentType: string;
+  enabled: boolean;
+  label: string;
   taughtBy: string;
   taughtAt: string;
   updatedAt: string;
   updatedBy: string;
   sourceImportId?: string;
+  ruleId?: string;
+  /** Legacy / convenience for credit_memo rules. */
+  ignoreCreditReturns?: boolean;
 }
 
 export interface ConfirmVendorIgnoreRuleResult {
   vendorKey: string;
-  ignoreCreditReturns: boolean;
+  ignoreCreditReturns?: boolean;
   importDismissed: boolean;
   reviewStatus: string;
   rule: VendorIgnoreRule;
+  echoSummary?: string;
 }
 
 /** Forward-compatible stub — AI correction store Phase 8. */

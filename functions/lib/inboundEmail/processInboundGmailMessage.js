@@ -222,11 +222,11 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             ? existingSnap.data()
             : undefined;
         const existingStatus = existingData?.reviewStatus;
-        const existingCreditSkip = existingData?.skipReason === creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON;
+        const existingSystemSkip = (0, creditReturnSkip_1.isSystemIgnoreSkipReason)(existingData?.skipReason);
         if (existingStatus === "approved") {
             continue;
         }
-        if (existingStatus === "rejected" && !existingCreditSkip) {
+        if (existingStatus === "rejected" && !existingSystemSkip) {
             continue;
         }
         const proc = row.processing;
@@ -238,13 +238,28 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             detectedVendorName: proc.detectedVendorName,
             parserFormatId: proc.parserFormatId,
         });
+        const provisionalImport = {
+            skipReason: existingData?.skipReason,
+            parsedHeader: proc.parsed.header,
+            parsedLines,
+            orderNotes: proc.parsed.orderNotes,
+            parseWarnings: proc.parsed.parseWarnings,
+            importStatus: proc.importStatus,
+            pageId: row.pageId,
+        };
+        const fingerprint = (0, vendorIgnoreRules_1.fingerprintFromImport)({
+            vendorKey: vendorKeyRaw,
+            parserFormatId: proc.parserFormatId,
+            importRow: provisionalImport,
+        });
         const ignoreRuleArmed = (0, vendorIgnoreRules_1.isArmableVendorKey)(vendorKeyRaw) &&
-            (await (0, vendorIgnoreRules_1.vendorIgnoresCreditReturns)(db, vendorKeyRaw));
-        // New credit/return + taught ignore rule → auto-skip. Re-opened imports stay pending.
-        const autoSkipCredit = isNewImport && creditReturnSkip && ignoreRuleArmed;
-        // Preserve existing system credit skips on reprocess when rule still armed.
-        const preserveSystemCreditSkip = existingCreditSkip &&
-            existingData?.rejectedBy === "system:credit_return_skip" &&
+            (await (0, vendorIgnoreRules_1.vendorIgnoresFingerprint)(db, fingerprint));
+        // New import + taught fingerprint → auto-skip. Re-opened imports stay pending.
+        const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate;
+        // Preserve existing system skips on reprocess when rule still armed.
+        const preserveSystemSkip = existingSystemSkip &&
+            (existingData?.rejectedBy === "system:credit_return_skip" ||
+                existingData?.rejectedBy === "system:document_ignore_skip") &&
             ignoreRuleArmed;
         const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
             importStatus: proc.importStatus,
@@ -261,8 +276,8 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const createdAt = existingSnap.exists && existingSnap.data().createdAt
             ? existingSnap.data().createdAt
             : now;
-        const skipFields = autoSkipCredit || preserveSystemCreditSkip
-            ? (0, creditReturnSkip_1.creditReturnSkipFields)(now)
+        const skipFields = autoSkipDocument || preserveSystemSkip
+            ? (0, creditReturnSkip_1.documentIgnoreSkipFields)(now)
             : null;
         const reviewDoc = {
             id: reviewId,
@@ -313,17 +328,17 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ? freshSnap.data()
                 : undefined;
             const freshStatus = freshData?.reviewStatus;
-            const freshCreditSkip = freshData?.skipReason === creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON;
+            const freshSystemSkip = (0, creditReturnSkip_1.isSystemIgnoreSkipReason)(freshData?.skipReason);
             if (freshStatus === "approved") {
                 return;
             }
-            if (freshStatus === "rejected" && !freshCreditSkip) {
+            if (freshStatus === "rejected" && !freshSystemSkip) {
                 return;
             }
-            // User re-opened a credit skip (pending, no skipReason) — do not re-auto-skip.
+            // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
             if (freshSnap.exists &&
                 freshStatus === "pending_review" &&
-                !freshCreditSkip &&
+                !freshSystemSkip &&
                 !isNewImport) {
                 const reopenSafeDoc = {
                     ...reviewDoc,
@@ -554,7 +569,7 @@ async function reparseVendorInvoiceImportFromCache(importId) {
         throw new Error("Cannot re-parse an approved import.");
     }
     if (importDoc.reviewStatus === "rejected" &&
-        importDoc.skipReason !== creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON) {
+        !(0, creditReturnSkip_1.isSystemIgnoreSkipReason)(importDoc.skipReason)) {
         throw new Error("Cannot re-parse a rejected import.");
     }
     const inboundId = importDoc.inboundEmailProcessingId?.trim();

@@ -260,8 +260,8 @@ export function InvoiceParsedInspectModal({
       return;
     }
 
-    const intent = interpretTeachNote(note, vendorDisplayForTeach);
-    if (intent.kind === "ignore_credit_returns") {
+    const intent = interpretTeachNote(note, vendorDisplayForTeach, importRow);
+    if (intent.kind === "ignore_document_type") {
       setTeachEcho(intent.echo);
       setTeachPhase("pending_confirm");
       setCorrectionNote("");
@@ -941,10 +941,10 @@ export function InvoiceParsedInspectModal({
                     fontFamily: FONT,
                   }}
                 >
-                  Tell it what to do next time (e.g. ignore CREDIT memos). It will
-                  repeat back what it heard — reply yes to confirm. Patterns only —
-                  no invoice numbers, POs, or addresses. Rules also live in Settings
-                  (Admin).
+                  Tell it what to do next time (e.g. ignore these from now on). It
+                  will repeat back the document type it will skip — reply yes to
+                  confirm. Patterns only — no invoice numbers, POs, or addresses.
+                  Rules also live in Settings (Admin).
                 </p>
                 {teachEcho && (
                   <div
@@ -971,7 +971,7 @@ export function InvoiceParsedInspectModal({
                   onChange={(e) => setCorrectionNote(e.target.value)}
                   placeholder={
                     teachPhase === "idle"
-                      ? "Example: Ignore CREDIT/return memos from this vendor from now on."
+                      ? "Example: Ignore these from now on."
                       : 'Type "yes" to confirm, or "no" to cancel.'
                   }
                   rows={3}

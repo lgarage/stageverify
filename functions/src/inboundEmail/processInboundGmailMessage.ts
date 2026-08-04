@@ -22,12 +22,13 @@ import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
 import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
 import {
   isCreditReturnInvoice,
-  CREDIT_RETURN_SKIP_REASON,
-  creditReturnSkipFields,
+  documentIgnoreSkipFields,
+  isSystemIgnoreSkipReason,
 } from "../invoice/creditReturnSkip";
 import {
+  fingerprintFromImport,
   isArmableVendorKey,
-  vendorIgnoresCreditReturns,
+  vendorIgnoresFingerprint,
 } from "../invoice/aiShadow/vendorIgnoreRules";
 import { vendorKeyFromImportDoc } from "../invoice/aiShadow/adminConfig";
 import { parseInboundInvoiceText } from "../invoice/processInvoiceForInbound";
@@ -307,12 +308,11 @@ async function writeReviewRecords(
       ? (existingSnap.data() as VendorInvoiceImportDoc)
       : undefined;
     const existingStatus = existingData?.reviewStatus;
-    const existingCreditSkip =
-      existingData?.skipReason === CREDIT_RETURN_SKIP_REASON;
+    const existingSystemSkip = isSystemIgnoreSkipReason(existingData?.skipReason);
     if (existingStatus === "approved") {
       continue;
     }
-    if (existingStatus === "rejected" && !existingCreditSkip) {
+    if (existingStatus === "rejected" && !existingSystemSkip) {
       continue;
     }
 
@@ -326,16 +326,30 @@ async function writeReviewRecords(
       detectedVendorName: proc.detectedVendorName,
       parserFormatId: proc.parserFormatId,
     });
+    const provisionalImport = {
+      skipReason: existingData?.skipReason,
+      parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
+      parsedLines,
+      orderNotes: proc.parsed.orderNotes,
+      parseWarnings: proc.parsed.parseWarnings,
+      importStatus: proc.importStatus,
+      pageId: row.pageId,
+    };
+    const fingerprint = fingerprintFromImport({
+      vendorKey: vendorKeyRaw,
+      parserFormatId: proc.parserFormatId,
+      importRow: provisionalImport,
+    });
     const ignoreRuleArmed =
       isArmableVendorKey(vendorKeyRaw) &&
-      (await vendorIgnoresCreditReturns(db, vendorKeyRaw));
-    // New credit/return + taught ignore rule → auto-skip. Re-opened imports stay pending.
-    const autoSkipCredit =
-      isNewImport && creditReturnSkip && ignoreRuleArmed;
-    // Preserve existing system credit skips on reprocess when rule still armed.
-    const preserveSystemCreditSkip =
-      existingCreditSkip &&
-      existingData?.rejectedBy === "system:credit_return_skip" &&
+      (await vendorIgnoresFingerprint(db, fingerprint));
+    // New import + taught fingerprint → auto-skip. Re-opened imports stay pending.
+    const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate;
+    // Preserve existing system skips on reprocess when rule still armed.
+    const preserveSystemSkip =
+      existingSystemSkip &&
+      (existingData?.rejectedBy === "system:credit_return_skip" ||
+        existingData?.rejectedBy === "system:document_ignore_skip") &&
       ignoreRuleArmed;
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,
@@ -354,8 +368,8 @@ async function writeReviewRecords(
         ? (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         : now;
     const skipFields =
-      autoSkipCredit || preserveSystemCreditSkip
-        ? creditReturnSkipFields(now)
+      autoSkipDocument || preserveSystemSkip
+        ? documentIgnoreSkipFields(now)
         : null;
     const reviewDoc: VendorInvoiceImportDoc = {
       id: reviewId,
@@ -407,19 +421,18 @@ async function writeReviewRecords(
         ? (freshSnap.data() as VendorInvoiceImportDoc)
         : undefined;
       const freshStatus = freshData?.reviewStatus;
-      const freshCreditSkip =
-        freshData?.skipReason === CREDIT_RETURN_SKIP_REASON;
+      const freshSystemSkip = isSystemIgnoreSkipReason(freshData?.skipReason);
       if (freshStatus === "approved") {
         return;
       }
-      if (freshStatus === "rejected" && !freshCreditSkip) {
+      if (freshStatus === "rejected" && !freshSystemSkip) {
         return;
       }
-      // User re-opened a credit skip (pending, no skipReason) — do not re-auto-skip.
+      // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
       if (
         freshSnap.exists &&
         freshStatus === "pending_review" &&
-        !freshCreditSkip &&
+        !freshSystemSkip &&
         !isNewImport
       ) {
         const reopenSafeDoc = {
@@ -710,7 +723,7 @@ export async function reparseVendorInvoiceImportFromCache(
   }
   if (
     importDoc.reviewStatus === "rejected" &&
-    importDoc.skipReason !== CREDIT_RETURN_SKIP_REASON
+    !isSystemIgnoreSkipReason(importDoc.skipReason)
   ) {
     throw new Error("Cannot re-parse a rejected import.");
   }
