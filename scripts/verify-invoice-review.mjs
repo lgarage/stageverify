@@ -84,6 +84,175 @@ async function assertViewOriginalPdfButton(page) {
   console.log("PASS: Admin left of View original PDF; PDF left of Close");
 }
 
+const TRAINING_SECTION19_STRINGS = [
+  "Propose a reusable lesson — optional",
+  "StageVerify turns this note into a limited, reviewable rule",
+  "Lessons can't delete data, approve documents, send messages, or change access",
+  "Use patterns only — no invoice numbers, POs, or addresses",
+];
+
+const IDLE_NOTE_PLACEHOLDER =
+  "Example: Ignore these order confirmations from now on.";
+const CONFIRM_NOTE_PLACEHOLDER =
+  'Type "yes" to send to a manager, or "no" to cancel.';
+
+async function assertTrainingPanelSection19(page) {
+  const panel = page.getByTestId("invoice-parsed-inspect-training-panel");
+  const panelText = (await panel.innerText()).trim();
+  for (const snippet of TRAINING_SECTION19_STRINGS) {
+    if (!panelText.includes(snippet)) {
+      throw new Error(`Training panel missing §19 copy: "${snippet}"`);
+    }
+  }
+  console.log("PASS: training panel §19 wording visible");
+
+  const noteInput = page.getByTestId("invoice-parsed-inspect-correction-note");
+  const placeholder = await noteInput.getAttribute("placeholder");
+  if (placeholder !== IDLE_NOTE_PLACEHOLDER) {
+    throw new Error(
+      `Correction note idle placeholder expected "${IDLE_NOTE_PLACEHOLDER}", got "${placeholder}"`,
+    );
+  }
+
+  const sendBtn = page.getByTestId("invoice-parsed-inspect-save-lesson");
+  const sendLabel = (await sendBtn.innerText()).trim();
+  if (sendLabel !== "Send") {
+    throw new Error(`Save-lesson button label should be Send (not stale), got "${sendLabel}"`);
+  }
+  console.log("PASS: idle placeholder + Send label");
+}
+
+async function assertTeachChatServerEcho(page) {
+  const noteInput = page.getByTestId("invoice-parsed-inspect-correction-note");
+  const sendBtn = page.getByTestId("invoice-parsed-inspect-save-lesson");
+  const echoEl = page.getByTestId("invoice-teach-echo");
+  const toastEl = page.getByTestId("invoice-training-toast");
+
+  await noteInput.fill("Ignore these from now on");
+  await sendBtn.click();
+
+  const deadline = Date.now() + 45_000;
+  let sawEcho = false;
+  let sawProposeError = false;
+  let toastText = "";
+
+  while (Date.now() < deadline) {
+    if (await echoEl.isVisible().catch(() => false)) {
+      sawEcho = true;
+      break;
+    }
+    if (await toastEl.isVisible().catch(() => false)) {
+      toastText = (await toastEl.innerText()).trim();
+      if (
+        /Could not propose|Cannot ignore|Vendor unknown|unknown type|unknown parser|internal|functions|permission|unauthenticated/i.test(
+          toastText,
+        )
+      ) {
+        sawProposeError = true;
+        break;
+      }
+    }
+    await page.waitForTimeout(250);
+  }
+
+  if (sawProposeError) {
+    throw new Error(
+      `Teach-chat propose CF error (FAIL closed — no silent SKIP): ${toastText}`,
+    );
+  }
+  if (!sawEcho) {
+    throw new Error(
+      "Teach-chat server echo did not appear — proposeVendorIgnoreRule likely unavailable (deploy CF or run emulator). FAIL closed.",
+    );
+  }
+
+  const echoText = (await echoEl.innerText()).trim();
+  if (!echoText) {
+    throw new Error("invoice-teach-echo visible but empty");
+  }
+  if (!/automatically skip future/i.test(echoText)) {
+    throw new Error(`Echo missing document-type skip language: ${echoText}`);
+  }
+  if (!/\bformat:\s*\w+/i.test(echoText)) {
+    throw new Error(`Echo missing parser format fingerprint: ${echoText}`);
+  }
+  if (!/(recoverable|Rejected)/i.test(echoText)) {
+    throw new Error(`Echo missing recoverability language: ${echoText}`);
+  }
+  if (!/manager must activate/i.test(echoText)) {
+    throw new Error(`Echo missing manager-activation language: ${echoText}`);
+  }
+  console.log("PASS: teach-chat server echo (vendor/type/format + recoverability + manager)");
+
+  const placeholder = await noteInput.getAttribute("placeholder");
+  if (placeholder !== CONFIRM_NOTE_PLACEHOLDER) {
+    throw new Error(
+      `After echo, placeholder expected "${CONFIRM_NOTE_PLACEHOLDER}", got "${placeholder}"`,
+    );
+  }
+  const confirmLabel = (await sendBtn.innerText()).trim();
+  if (confirmLabel !== "Confirm") {
+    throw new Error(`After echo, button label expected Confirm, got "${confirmLabel}"`);
+  }
+  console.log("PASS: confirm placeholder + Confirm label after server echo");
+}
+
+async function assertTrainingPanelContrast(page, { includeEcho = false } = {}) {
+  const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+  const elements = [
+    {
+      name: "Training panel",
+      selector: '[data-testid="invoice-parsed-inspect-training-panel"]',
+      large: true,
+    },
+    {
+      name: "Correction note",
+      selector: '[data-testid="invoice-parsed-inspect-correction-note"]',
+    },
+    {
+      name: "Admin",
+      selector: '[data-testid="invoice-parsed-inspect-admin"]',
+    },
+    {
+      name: "Send/Confirm",
+      selector: '[data-testid="invoice-parsed-inspect-save-lesson"]',
+    },
+  ];
+  if (includeEcho) {
+    elements.push({
+      name: "Teach echo",
+      selector: '[data-testid="invoice-teach-echo"]',
+    });
+  }
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+    elements,
+  });
+  console.log(
+    includeEcho
+      ? "PASS: training panel + echo readable contrast"
+      : "PASS: training panel + Admin + Send readable contrast",
+  );
+}
+
+async function assertTrainingPanelNoOverlap(page) {
+  const { assertNoElementOverlap } = await import("./lib/ui-text-contrast-lib.mjs");
+  await assertNoElementOverlap(page, {
+    containerSelector: '[data-testid="invoice-parsed-inspect-actions"]',
+    elementSelectors: [
+      {
+        name: "training panel",
+        selector: '[data-testid="invoice-parsed-inspect-training-panel"]',
+      },
+      {
+        name: "action row Send",
+        selector: '[data-testid="invoice-parsed-inspect-save-lesson"]',
+      },
+    ],
+  });
+  console.log("PASS: training panel vs action row — no overlap");
+}
+
 async function assertViewOriginalPdfOpens(page) {
   const viewOriginalPdfBtn = page.getByTestId("invoice-parsed-inspect-view-original-pdf");
   if (await viewOriginalPdfBtn.isDisabled()) {
@@ -271,31 +440,18 @@ async function main() {
       await page.getByTestId("invoice-parsed-inspect-save-lesson").waitFor({
         timeout: 5000,
       });
-      const saveLessonDisabled = await page
-        .getByTestId("invoice-parsed-inspect-save-lesson")
-        .isDisabled();
-      if (!saveLessonDisabled) {
-        throw new Error("Save lesson should be disabled when training note is empty");
+      const sendBtnIdle = page.getByTestId("invoice-parsed-inspect-save-lesson");
+      const sendDisabledWhenEmpty = await sendBtnIdle.isDisabled();
+      if (!sendDisabledWhenEmpty) {
+        throw new Error("Send should be disabled when training note is empty");
       }
-      console.log("PASS: training panel + Save lesson visible (disabled when empty)");
+      console.log("PASS: training panel + Send visible (disabled when empty)");
 
-      const { assertReadableTextContrast } = await import(
-        "./lib/ui-text-contrast-lib.mjs"
-      );
-      await assertReadableTextContrast(page, {
-        rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
-        elements: [
-          {
-            name: "Admin",
-            selector: '[data-testid="invoice-parsed-inspect-admin"]',
-          },
-          {
-            name: "Save lesson",
-            selector: '[data-testid="invoice-parsed-inspect-save-lesson"]',
-          },
-        ],
-      });
-      console.log("PASS: Admin + Save lesson readable contrast");
+      await assertTrainingPanelSection19(page);
+      await assertTrainingPanelContrast(page);
+      await assertTrainingPanelNoOverlap(page);
+      await assertTeachChatServerEcho(page);
+      await assertTrainingPanelContrast(page, { includeEcho: true });
 
       const expectedFields = page.getByTestId("invoice-parsed-inspect-expected-fields");
       if (await expectedFields.count()) {
