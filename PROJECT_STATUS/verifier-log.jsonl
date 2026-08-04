@@ -119,3 +119,6 @@
 {"date":"2026-08-03","role":"ship","verdict":"PASS","taskId":"dd1538f7-edc3-46cc-a036-5804967920f4","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-03","role":"security","verdict":"PASS","taskId":"5847fd80-8a2c-4bab-a38d-35cbdafb3dcf","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"59a0f702-ac79-4955-be46-78bf3b85967b","model":"cursor-grok-4.5-high-fast","real":"na","note":"c7834aa v0.0.196 fix-closure: ui-playwright 395483ae PASS, build-checker a572bf68 PASS, security-gate 413c2f54 PASS; closes 8264f94c timing FAIL"}
+{"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"be3da43d-80a0-4fcd-a448-d5c2c175ae0b","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"1d778293-0941-4ff8-9baa-3cfaf7564eb7","model":"claude-fable-5-thinking-high","real":"na","note":""}
+{"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"4dba0b45-197f-4bb7-a69d-3e1fd0609d64","model":"claude-4.6-sonnet-high-thinking","real":"na","note":""}
