@@ -1,1 +1,0 @@
-import{Pn as e,hi as t,vi as n}from"./index-BLAb226U.js";var r=e();function i(){let{orderId:e}=n(),i=e?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
