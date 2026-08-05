@@ -1,0 +1,18 @@
+---
+description: End every action turn with DONE + short what-I-did + whether Dan must act.
+alwaysApply: true
+---
+
+# Done signal (Dan standing preference — D-61)
+
+**Authority:** Dan 2026-08-05. Platform parity (D-32).
+
+After every turn where you took action (tool use, deploy, edit, verify, investigate), end the reply with this block **last** (after audit tables, verifier lines, Remaining time options, gotchas/decisions):
+
+**DONE** — finished | blocked
+**What I did:** ≤2 short sentences, plain language. On substantive ships, reuse the same prose as **What we did** (do not write a second conflicting summary).
+**Your action:** concrete next step for Dan, or `Nothing needed from you.` If status is **blocked**, **Your action** MUST be a concrete Dan step (approve / secret / decide / wait) — never `Nothing needed from you.`
+
+Skip only for pure one-line Q&A with no tool actions and no state change.
+
+Complements `composer-orchestrator.mdc` completion report; does not replace verifier evidence lines.
