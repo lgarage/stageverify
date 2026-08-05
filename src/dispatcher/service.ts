@@ -100,7 +100,7 @@ export interface DispatcherDataService {
     stagingLocationIds?: string[],
     pickupToken?: string,
     technicianSessionToken?: string,
-  ): Promise<void>;
+  ): Promise<{ deliveryStatus: string; duplicate: boolean }>;
   updatePickupChecklist(
     deliveryId: string,
     jobId: string,

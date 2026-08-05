@@ -271,7 +271,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 }
             }
             else {
-                await shellRef.update((0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, importDoc, now));
+                await shellRef.update((0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, importDoc, now, shellSnap.data()));
                 for (const item of shell.expectedItems) {
                     await getDb().collection("items").doc(item.id).set(item, { merge: true });
                 }
@@ -312,7 +312,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 tx.set(shellRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
             }
             else {
-                tx.update(shellRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
+                tx.update(shellRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, shellSnap.data()));
             }
             for (const item of shell.expectedItems) {
                 tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
@@ -356,7 +356,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 const isInvoiceShell = linkedId === shell.deliveryOrderId ||
                     delivery.createdFromInvoiceImport === true;
                 if (isInvoiceShell) {
-                    await deliveryRef.update((0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, importDoc, now));
+                    await deliveryRef.update((0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, importDoc, now, deliverySnap.data()));
                 }
                 else if (missingStamp) {
                     await deliveryRef.update({
@@ -434,7 +434,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             else {
                 const existingData = existingDelivery.data();
                 if (existingData.createdFromInvoiceImport === true) {
-                    tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
+                    tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, existingDelivery.data()));
                 }
             }
             tx.update(importRef, {
@@ -472,7 +472,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
         }
         else {
-            tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now));
+            tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, existingDelivery.data()));
         }
         for (const item of shell.expectedItems) {
             tx.set(getDb().collection("items").doc(item.id), item, { merge: true });

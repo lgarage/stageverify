@@ -6,6 +6,7 @@ exports.scoreJobMatchFromInvoiceHints = scoreJobMatchFromInvoiceHints;
 exports.jobIdFromInvoicePoSlug = jobIdFromInvoicePoSlug;
 exports.jobNumberFromInvoiceHeader = jobNumberFromInvoiceHeader;
 exports.buildInvoiceDeliveryShellContext = buildInvoiceDeliveryShellContext;
+exports.isTerminalPickupShellDelivery = isTerminalPickupShellDelivery;
 exports.buildInvoiceShellPatchDocument = buildInvoiceShellPatchDocument;
 exports.buildDeliveryShellDocument = buildDeliveryShellDocument;
 const https_1 = require("firebase-functions/v2/https");
@@ -252,15 +253,26 @@ async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
         ...(deliverToLabel ? { invoiceDeliverToLabel: deliverToLabel } : {}),
     };
 }
+/** Terminal pickup — must not be downgraded by invoice shell refresh / Gmail re-sync. */
+function isTerminalPickupShellDelivery(delivery) {
+    if (!delivery)
+        return false;
+    if (delivery.status === "picked_up" || delivery.status === "installed") {
+        return true;
+    }
+    return delivery.invoiceImportStatus === "closed_picked_up";
+}
 /** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
-function buildInvoiceShellPatchDocument(shell, importId, importDoc, now) {
+function buildInvoiceShellPatchDocument(shell, importId, importDoc, now, existingDelivery) {
     const patch = {
-        status: shell.deliveryStatus,
         vendorInvoiceImportId: importId,
-        invoiceImportStatus: importDoc.importStatus,
         invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
         updatedAt: now,
     };
+    if (!isTerminalPickupShellDelivery(existingDelivery)) {
+        patch.status = shell.deliveryStatus;
+        patch.invoiceImportStatus = importDoc.importStatus;
+    }
     if (shell.invoiceDeliverToSite) {
         patch.invoiceDeliverToSite = true;
         if (shell.invoiceDeliverToLabel) {

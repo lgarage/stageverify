@@ -159,9 +159,16 @@ export function DeliveryDetailDrawer({
         undefined,
         operationId,
       );
+      pickupOperationIds.current.delete(deliveryId);
       const updatedDetails =
         await firestoreDataService.getDeliveryDetails(deliveryId);
       if (updatedDetails) {
+        if (updatedDetails.delivery.status !== "picked_up") {
+          setMutationError(
+            "Pickup saved but status did not update — refresh and try again.",
+          );
+          return;
+        }
         await refreshAfter(updatedDetails);
         closeAfterSuccessfulStatusChange();
       } else setMutationError("Failed to record pickup.");

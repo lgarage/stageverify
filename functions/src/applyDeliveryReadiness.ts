@@ -68,25 +68,46 @@ export async function applyDeliveryReadinessTransaction(
       vendorDeliveryMode,
     );
     const fromStatus = delivery.status as DeliveryStatus;
+    const lockedTerminal =
+      fromStatus === "picked_up" || fromStatus === "installed";
+    const closedPickedUp = delivery.invoiceImportStatus === "closed_picked_up";
 
-    tx.update(deliveryRef, {
+    const deliveryPatch: Record<string, unknown> = {
       physicalDropoffComplete: result.physicalDropoffComplete,
       physicalDropoffCompleteAt: result.physicalDropoffCompleteAt ?? null,
       stagingAssignmentComplete: result.stagingAssignmentComplete,
-      readinessStatus: result.readinessStatus,
       readinessBlockReasons: result.evidence.readinessBlockReasons,
-      status: result.deliveryStatus,
       updatedAt: now,
-    });
+    };
+    if (closedPickedUp) {
+      deliveryPatch.status = "picked_up";
+      deliveryPatch.readinessStatus = "picked_up";
+    } else if (!lockedTerminal) {
+      deliveryPatch.readinessStatus = result.readinessStatus;
+      deliveryPatch.status = result.deliveryStatus;
+    }
 
-    if (fromStatus !== result.deliveryStatus) {
+    tx.update(deliveryRef, deliveryPatch);
+
+    const effectiveStatus = lockedTerminal
+      ? fromStatus
+      : closedPickedUp
+        ? "picked_up"
+        : result.deliveryStatus;
+
+    const statusChanged =
+      !lockedTerminal &&
+      fromStatus !== effectiveStatus &&
+      (closedPickedUp || fromStatus !== result.deliveryStatus);
+
+    if (statusChanged) {
       const historyId = `event-readiness-${crypto.randomUUID()}`;
       tx.set(db.collection("statusHistory").doc(historyId), {
         id: historyId,
         entityType: "delivery_order",
         entityId: deliveryOrderId,
         fromStatus,
-        toStatus: result.deliveryStatus,
+        toStatus: effectiveStatus,
         reason: historyReason,
         actorType: "system",
         actorName: "StageVerify",
@@ -96,11 +117,12 @@ export async function applyDeliveryReadinessTransaction(
 
     return {
       deliveryOrderId,
-      readyForPickup: result.readyForPickup,
-      readinessStatus: result.readinessStatus,
-      deliveryStatus: result.deliveryStatus,
+      readyForPickup: lockedTerminal || closedPickedUp ? false : result.readyForPickup,
+      readinessStatus:
+        lockedTerminal || closedPickedUp ? "picked_up" : result.readinessStatus,
+      deliveryStatus: effectiveStatus,
       readinessBlockReasons: result.evidence.readinessBlockReasons,
-      statusChanged: fromStatus !== result.deliveryStatus,
+      statusChanged,
       fromStatus,
     };
   });

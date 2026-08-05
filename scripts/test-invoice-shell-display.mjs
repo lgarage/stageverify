@@ -12,6 +12,10 @@ import {
   resolveShellDeliveryStatus,
   skipsShopStaging,
 } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
+import {
+  buildInvoiceShellPatchDocument,
+  isTerminalPickupShellDelivery,
+} from "../functions/src/invoice/createDeliveryShellFromImport.ts";
 import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
 import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
 import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
@@ -581,6 +585,46 @@ assert(
   "delivered and picked_up are not delivery overview filter chips",
   !DELIVERY_OVERVIEW_STATUS_ORDER.includes("delivered") &&
     !DELIVERY_OVERVIEW_STATUS_ORDER.includes("picked_up"),
+);
+
+const shellPatchImportDoc = {
+  importStatus: "pickup_at_vendor",
+  parsedHeader: { fulfillmentMethod: "will_call_pickup" },
+};
+const shellPatchContext = {
+  deliveryOrderId: "delivery-vii-test",
+  deliveryStatus: "ready_for_pickup",
+  invoiceFulfillmentMethod: "will_call_pickup",
+};
+const pickedUpExisting = {
+  status: "picked_up",
+  invoiceImportStatus: "closed_picked_up",
+};
+const pickedUpPatch = buildInvoiceShellPatchDocument(
+  shellPatchContext,
+  "import-test",
+  shellPatchImportDoc,
+  "2026-08-05T00:00:00Z",
+  pickedUpExisting,
+);
+assert(
+  "invoice shell refresh preserves picked_up terminal status",
+  isTerminalPickupShellDelivery(pickedUpExisting) &&
+    pickedUpPatch.status === undefined &&
+    pickedUpPatch.invoiceImportStatus === undefined &&
+    pickedUpPatch.vendorInvoiceImportId === "import-test",
+);
+const freshPatch = buildInvoiceShellPatchDocument(
+  shellPatchContext,
+  "import-test",
+  shellPatchImportDoc,
+  "2026-08-05T00:00:00Z",
+  { status: "ready_for_pickup", invoiceImportStatus: "pickup_at_vendor" },
+);
+assert(
+  "invoice shell refresh still updates status for non-terminal deliveries",
+  freshPatch.status === "ready_for_pickup" &&
+    freshPatch.invoiceImportStatus === "pickup_at_vendor",
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

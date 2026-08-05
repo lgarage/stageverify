@@ -1331,7 +1331,7 @@ export class FirestoreDataService implements DispatcherDataService {
     stagingLocationIds?: string[],
     pickupToken?: string,
     technicianSessionToken?: string,
-  ): Promise<void> {
+  ): Promise<{ deliveryStatus: string; duplicate: boolean }> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) {
       throw new Error("Delivery not found");
@@ -1354,7 +1354,7 @@ export class FirestoreDataService implements DispatcherDataService {
     }
 
     const callable = httpsCallable(functions, "recordPickupEvent");
-    await callable({
+    const response = await callable({
       deliveryOrderId: deliveryId,
       jobId,
       technicianName: trimmedTechnician,
@@ -1365,6 +1365,17 @@ export class FirestoreDataService implements DispatcherDataService {
       ...(pickupToken ? { pickupToken } : {}),
       ...(technicianSessionToken ? { technicianSessionToken } : {}),
     });
+    const data = response.data as {
+      deliveryStatus?: string;
+      duplicate?: boolean;
+    };
+    const deliveryStatus = data.deliveryStatus?.trim() ?? "";
+    if (deliveryStatus !== "picked_up") {
+      throw new Error(
+        `Pickup did not persist (status: ${deliveryStatus || "unknown"}). Try again.`,
+      );
+    }
+    return { deliveryStatus, duplicate: data.duplicate === true };
   }
 
   async updatePickupChecklist(

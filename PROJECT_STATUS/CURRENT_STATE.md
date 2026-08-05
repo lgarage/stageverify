@@ -7,8 +7,8 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.212. **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** `recordPickupEvent` + `recalculateDeliveryReadiness` on `stageverify-db` (`4755802`); **reject-preserve Gmail sync** (`syncInboundGmail` + `reparseVendorInvoiceImportCallable`) @ v0.0.213 (`9529530`).
-- Last shipped: **v0.0.213** — CF: user-rejected invoice imports preserved on Gmail sync (`isSystemAutoRejectedImport` — only `system:*` rejectedBy may reparse); `test:preserve-user-rejected-import` PASS; CF deployed. [high-risk CF]
+- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.214 (pending push). **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** `recordPickupEvent` + `recalculateDeliveryReadiness` on `stageverify-db` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`); **will-call pickup preserve** @ v0.0.214 (pending CF deploy).
+- Last shipped: **v0.0.214** (pending push) — will-call Confirm Pickup stuck on board: invoice shell Gmail re-sync (`buildInvoiceShellPatchDocument`) was resetting `status`/`invoiceImportStatus` to `ready_for_pickup` after pickup; readiness recalc now preserves/repairs `closed_picked_up`; client validates CF `picked_up` before drawer close; `test:pickup-authority` + shell patch tests PASS. [high-risk CF]
 - Prior: **v0.0.211** — delivery drawer closes after successful STATUS workflow mutations (Confirm Pickup, revert, mark shipped, spot+ready_for_pickup, dropdown status); stays open while pickup/spot forms pending or on Cancel; `verify:delivery-drawer-status` PASS. [fast-safe UI]
 - Prior: **v0.0.209** (`c4d3f1f`) — delivery drawer: `pendingStatusSelection` keeps STATUS label + dropdown on Picked Up while pickup form pending; pickup CF errors surfaced in form; `verify:delivery-drawer-status` PASS local+prod. [fast-safe UI]
 - Prior: **v0.0.208** — will-call Confirm Pickup CF (`recordPickupEvent` skipsShopStaging path + `closed_picked_up`); client `closed_picked_up` → Picked Up chip + Complete board; `test:pickup-authority` + `test:invoice-shell-display` PASS; CF deployed (`4755802`); gh-pages LIVE. [high-risk CF + client display]
@@ -25,7 +25,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan: reject an invoice import manually → trigger Gmail sync/Refresh Now → confirm import stays rejected (not reopened as pending).
+- Dan: re-Confirm Pickup on INV-6168732 / INV-6167990 (or refresh board) — picked-up will-call shells should leave default Deliveries board and show under Picked Up filter only.
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

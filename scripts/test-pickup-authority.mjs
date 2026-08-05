@@ -358,6 +358,54 @@ try {
     );
   }
 
+  const recalcAfterWillCall = recalcPayload("del-willcall-pickup");
+  await seed(async (db) => {
+    await seedVendorSession(db, "del-willcall-pickup");
+  });
+  const recalcResult = await recalculateReadiness(recalcAfterWillCall);
+  if (recalcResult.data.deliveryStatus === "picked_up") {
+    pass("recalculate preserves will-call picked_up");
+  } else {
+    fail(
+      "recalculate after will-call pickup",
+      new Error(JSON.stringify(recalcResult.data)),
+    );
+  }
+
+  await seed(async (db) => {
+    const { updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "deliveries", "del-willcall-pickup"), {
+      status: "ready_for_pickup",
+      readinessStatus: "ready_for_pickup",
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  const recalcRepair = await recalculateReadiness(recalcAfterWillCall);
+  if (recalcRepair.data.deliveryStatus === "picked_up") {
+    pass("recalculate repairs status when invoiceImportStatus is closed_picked_up");
+  } else {
+    fail(
+      "recalculate repair closed_picked_up",
+      new Error(JSON.stringify(recalcRepair.data)),
+    );
+  }
+
+  let repairedDelivery = null;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const { getDoc } = await import("firebase/firestore");
+    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "del-willcall-pickup"));
+    repairedDelivery = snap.data();
+  });
+  if (repairedDelivery?.status === "picked_up") {
+    pass("recalculate writes picked_up when closed_picked_up was reset");
+  } else {
+    fail(
+      "recalculate repair write",
+      new Error(JSON.stringify(repairedDelivery?.status)),
+    );
+  }
+
   try {
     await recordPickup(
       await pickupPayload("del-ready-1", {

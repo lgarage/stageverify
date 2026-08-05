@@ -374,7 +374,13 @@ export const approveVendorInvoiceImport = onCall(
           }
         } else {
           await shellRef.update(
-            buildInvoiceShellPatchDocument(shell, importId, importDoc, now),
+            buildInvoiceShellPatchDocument(
+              shell,
+              importId,
+              importDoc,
+              now,
+              shellSnap.data(),
+            ),
           );
           for (const item of shell.expectedItems) {
             await getDb().collection("items").doc(item.id).set(item, { merge: true });
@@ -428,7 +434,13 @@ export const approveVendorInvoiceImport = onCall(
         } else {
           tx.update(
             shellRef,
-            buildInvoiceShellPatchDocument(shell, importId, fresh, now),
+            buildInvoiceShellPatchDocument(
+              shell,
+              importId,
+              fresh,
+              now,
+              shellSnap.data(),
+            ),
           );
         }
         for (const item of shell.expectedItems) {
@@ -494,7 +506,13 @@ export const approveVendorInvoiceImport = onCall(
             delivery.createdFromInvoiceImport === true;
           if (isInvoiceShell) {
             await deliveryRef.update(
-              buildInvoiceShellPatchDocument(shell, importId, importDoc, now),
+              buildInvoiceShellPatchDocument(
+                shell,
+                importId,
+                importDoc,
+                now,
+                deliverySnap.data(),
+              ),
             );
           } else if (missingStamp) {
             await deliveryRef.update({
@@ -594,7 +612,13 @@ export const approveVendorInvoiceImport = onCall(
           if (existingData.createdFromInvoiceImport === true) {
             tx.update(
               deliveryRef,
-              buildInvoiceShellPatchDocument(shell, importId, fresh, now),
+              buildInvoiceShellPatchDocument(
+                shell,
+                importId,
+                fresh,
+                now,
+                existingDelivery.data(),
+              ),
             );
           }
         }
@@ -657,7 +681,13 @@ export const approveVendorInvoiceImport = onCall(
       } else {
         tx.update(
           deliveryRef,
-          buildInvoiceShellPatchDocument(shell, importId, fresh, now),
+          buildInvoiceShellPatchDocument(
+            shell,
+            importId,
+            fresh,
+            now,
+            existingDelivery.data(),
+          ),
         );
       }
       for (const item of shell.expectedItems) {

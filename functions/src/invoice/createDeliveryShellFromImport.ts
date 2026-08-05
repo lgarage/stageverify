@@ -355,20 +355,39 @@ export async function buildInvoiceDeliveryShellContext(
   };
 }
 
+export type InvoiceShellPatchExistingDelivery = {
+  status?: string;
+  invoiceImportStatus?: string;
+};
+
+/** Terminal pickup — must not be downgraded by invoice shell refresh / Gmail re-sync. */
+export function isTerminalPickupShellDelivery(
+  delivery: InvoiceShellPatchExistingDelivery | null | undefined,
+): boolean {
+  if (!delivery) return false;
+  if (delivery.status === "picked_up" || delivery.status === "installed") {
+    return true;
+  }
+  return delivery.invoiceImportStatus === "closed_picked_up";
+}
+
 /** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
 export function buildInvoiceShellPatchDocument(
   shell: InvoiceShellContext,
   importId: string,
   importDoc: VendorInvoiceImportDoc,
   now: string,
+  existingDelivery?: InvoiceShellPatchExistingDelivery | null,
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {
-    status: shell.deliveryStatus,
     vendorInvoiceImportId: importId,
-    invoiceImportStatus: importDoc.importStatus,
     invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
     updatedAt: now,
   };
+  if (!isTerminalPickupShellDelivery(existingDelivery)) {
+    patch.status = shell.deliveryStatus;
+    patch.invoiceImportStatus = importDoc.importStatus;
+  }
   if (shell.invoiceDeliverToSite) {
     patch.invoiceDeliverToSite = true;
     if (shell.invoiceDeliverToLabel) {
