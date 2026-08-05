@@ -1,1 +1,0 @@
-import{Hi as e,Pn as t,zi as n}from"./index-CkE85r7B.js";var r=t();function i(){let{orderId:t}=e(),i=t?.trim()??``;return(0,r.jsx)(n,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};

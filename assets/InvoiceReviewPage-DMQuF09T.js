@@ -1,1 +1,0 @@
-import{Pn as e,zi as t}from"./index-CkE85r7B.js";var n=e();function r(){return(0,n.jsx)(t,{to:`/dispatcher?focus=needs-review`,replace:!0})}export{r as InvoiceReviewPage};
