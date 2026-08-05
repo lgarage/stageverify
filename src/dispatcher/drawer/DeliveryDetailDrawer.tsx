@@ -155,7 +155,11 @@ export function DeliveryDetailDrawer({
       if (updatedDetails) await refreshAfter(updatedDetails);
       else setMutationError("Failed to record pickup.");
     } catch (e) {
-      setMutationError("An unexpected error occurred while recording pickup.");
+      const message =
+        e instanceof Error && e.message.trim()
+          ? e.message
+          : "An unexpected error occurred while recording pickup.";
+      setMutationError(message);
       console.error(e);
     } finally {
       setMutationLoading(false);

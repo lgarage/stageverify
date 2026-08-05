@@ -151,6 +151,42 @@ const STATUS_CONTROL_CONTRAST = {
   await assertReadableTextContrast(page, STATUS_CONTROL_CONTRAST);
   console.log("PASS: D-42 contrast on status + fulfillment controls");
 
+  const pickedUpOption = statusDropdown.locator('option[value="picked_up"]');
+  if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
+    await statusDropdown.selectOption("picked_up");
+    await page.waitForTimeout(300);
+
+    const currentLabel = page.getByTestId("delivery-status-current-label");
+    const labelText = (await currentLabel.innerText()).trim();
+    if (!labelText.startsWith("Picked Up")) {
+      throw new Error(
+        `FAIL: Selecting Picked Up should update status label — got "${labelText}"`,
+      );
+    }
+    console.log("PASS: Status label shows Picked Up after dropdown selection");
+
+    const dropdownValue = await statusDropdown.inputValue();
+    if (dropdownValue !== "picked_up") {
+      throw new Error(
+        `FAIL: Dropdown should show picked_up after selection — got "${dropdownValue}"`,
+      );
+    }
+    console.log("PASS: Dropdown value is picked_up while pickup form pending");
+
+    const pickupInput = page.getByTestId("delivery-status-pickup-input");
+    await pickupInput.waitFor({ timeout: 5000 });
+    console.log("PASS: Who picked up? form visible after Picked Up selection");
+
+    const cancelBtn = pickupInput.getByRole("button", { name: "Cancel" });
+    await cancelBtn.click();
+    await page.waitForTimeout(300);
+    console.log("PASS: Cancelled pending pickup (no prod mutation)");
+  } else {
+    console.log(
+      "SKIP: picked_up option not enabled on fixture delivery (no transition available)",
+    );
+  }
+
   await page.screenshot({
     path: resolve(outDir, "delivery-drawer-status-controls.png"),
   });

@@ -656,6 +656,7 @@ export function DetailContent({
                 details={details}
                 stagingLocations={stagingLocations}
                 loading={mutationLoading}
+                pickupError={mutationError}
                 navy={navy}
                 font={font}
                 onUpdateStatus={onUpdateStatus}
@@ -1654,6 +1655,7 @@ function DeliveryStatusControls({
   details,
   stagingLocations,
   loading,
+  pickupError,
   navy,
   font,
   onUpdateStatus,
@@ -1666,6 +1668,7 @@ function DeliveryStatusControls({
   details: DeliveryDetails;
   stagingLocations: StagingLocation[];
   loading: boolean;
+  pickupError: string | null;
   navy: string;
   font: string;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
@@ -1680,6 +1683,8 @@ function DeliveryStatusControls({
   const delivery = details.delivery;
   const currentStatus = delivery.status;
   const [showPickupInput, setShowPickupInput] = useState(false);
+  const [pendingStatusSelection, setPendingStatusSelection] =
+    useState<DeliveryStatus | null>(null);
   const [showSpotPicker, setShowSpotPicker] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState(
     delivery.stagingLocationId ?? "",
@@ -1707,13 +1712,27 @@ function DeliveryStatusControls({
   const selectValue = DRAWER_STATUS_DROPDOWN_OPTIONS.includes(currentStatus)
     ? currentStatus
     : "";
+  const effectiveSelectValue = pendingStatusSelection ?? selectValue;
+  const statusLabelText =
+    pendingStatusSelection === "picked_up" || currentStatus === "picked_up"
+      ? DELIVERY_STATUS_LABEL.picked_up
+      : displayState.statusDisplayLabel;
 
   useEffect(() => {
     setSelectedSpotId(delivery.stagingLocationId ?? "");
     setShowPickupInput(false);
     setShowSpotPicker(false);
     setPickupTechnicianName("");
+    setPendingStatusSelection(null);
   }, [delivery.id, delivery.stagingLocationId]);
+
+  useEffect(() => {
+    if (currentStatus === "picked_up") {
+      setShowPickupInput(false);
+      setPendingStatusSelection(null);
+      setPickupTechnicianName("");
+    }
+  }, [currentStatus]);
 
   useEffect(() => {
     if (showPickupInput) {
@@ -1723,12 +1742,14 @@ function DeliveryStatusControls({
   }, [showPickupInput]);
 
   const handleStatusChange = (option: DeliveryStatus) => {
-    if (option === currentStatus) return;
+    if (option === currentStatus && option !== "picked_up") return;
     if (option === "picked_up") {
       setShowSpotPicker(false);
+      setPendingStatusSelection("picked_up");
       setShowPickupInput(true);
       return;
     }
+    setPendingStatusSelection(null);
     if (option === "ready_for_pickup") {
       setShowPickupInput(false);
       setShowSpotPicker(true);
@@ -1753,8 +1774,6 @@ function DeliveryStatusControls({
     const itemCount = details.items.length;
     const summary = itemCount === 1 ? "1 item" : `${itemCount} items`;
     void onRecordPickup(trimmedName, summary);
-    setShowPickupInput(false);
-    setPickupTechnicianName("");
   };
 
   const handleConfirmSpot = () => {
@@ -1801,7 +1820,7 @@ function DeliveryStatusControls({
             fontWeight: 600,
           }}
         >
-          {displayState.statusDisplayLabel}
+          {statusLabelText}
           <span style={{ color: "#6b7280", fontWeight: 500 }}>
             {" "}
             · {fulfillmentContextLabel}
@@ -1809,7 +1828,7 @@ function DeliveryStatusControls({
         </p>
         <select
           data-testid="delivery-status-dropdown"
-          value={selectValue}
+          value={effectiveSelectValue}
           disabled={loading || currentStatus === "issue"}
           onChange={(e) =>
             handleStatusChange(e.target.value as DeliveryStatus)
@@ -1826,7 +1845,7 @@ function DeliveryStatusControls({
             backgroundColor: "#fff",
           }}
         >
-          {!selectValue ? (
+          {!effectiveSelectValue ? (
             <option value="" disabled>
               {currentStatus === "issue"
                 ? "Issue — use Report Issue below"
@@ -2034,6 +2053,20 @@ function DeliveryStatusControls({
               marginBottom: 8,
             }}
           />
+          {pickupError && showPickupInput ? (
+            <p
+              data-testid="delivery-status-pickup-error"
+              role="alert"
+              style={{
+                margin: "0 0 8px",
+                fontSize: 12,
+                color: "#b91c1c",
+                fontWeight: 600,
+              }}
+            >
+              {pickupError}
+            </p>
+          ) : null}
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
@@ -2065,6 +2098,7 @@ function DeliveryStatusControls({
               onClick={() => {
                 setShowPickupInput(false);
                 setPickupTechnicianName("");
+                setPendingStatusSelection(null);
               }}
               disabled={loading}
               style={{
