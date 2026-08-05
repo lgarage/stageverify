@@ -7,9 +7,9 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** (bundle `index-BbmYlaD7.js`). **Firebase rules/functions NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`) but cloud missing `FIREBASE_TOKEN`. Console TTL on `trainingNoteAudit.expireAt` still needed after CF/rules deploy.
-- Last shipped: **v0.0.209** — delivery drawer: selecting Picked Up updates STATUS label + dropdown while pickup form pending; pickup CF errors surfaced in form; `verify:delivery-drawer-status` asserts Picked Up UI. [fast-safe UI]
-- Prior: **v0.0.208** — will-call Confirm Pickup CF (`recordPickupEvent` skipsShopStaging path + `closed_picked_up`); client `closed_picked_up` → Picked Up chip + Complete board; `test:pickup-authority` + `test:invoice-shell-display` PASS; **CF code on main — Firebase functions deploy WAITING ON DAN YES**; gh-pages LIVE for display fixes. [high-risk CF + client display]
+- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.209. **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** `recordPickupEvent` + `recalculateDeliveryReadiness` on `stageverify-db` (`4755802`).
+- Last shipped: **v0.0.209** (`c4d3f1f`) — delivery drawer: `pendingStatusSelection` keeps STATUS label + dropdown on Picked Up while pickup form pending; pickup CF errors surfaced in form; `verify:delivery-drawer-status` PASS local+prod. [fast-safe UI]
+- Prior: **v0.0.208** — will-call Confirm Pickup CF (`recordPickupEvent` skipsShopStaging path + `closed_picked_up`); client `closed_picked_up` → Picked Up chip + Complete board; `test:pickup-authority` + `test:invoice-shell-display` PASS; CF deployed (`4755802`); gh-pages LIVE. [high-risk CF + client display]
 - Prior: **v0.0.207** — delivery drawer status dropdown + drop-off/will-call fulfillment toggle under PO# (replaces Advanced Manual Controls); labels Ready for Pickup / Picked Up; `verify:delivery-drawer-status` PASS; D-62 post-D-50 retry rounds harness (`model-gates.mdc`, `DECISIONS.md`). [fast-safe UI + firestoreService client writes]
 - Prior: **v0.0.206** — D-60 dispatcher account provisioning: Settings manager panel (`listDispatchers`/`provisionDispatcher`/`deactivateDispatcher` CFs), `/no-access` page, `ProtectedRoute` gates `dispatcherRoles`; `verify:login` PASS; `verify:no-access` + `verify:settings-dispatchers` need env creds/manager grant.
 - Prior: **v0.0.205** — D-60 auth-native forgot-password on dispatcher login (`verify:login` PASS).
@@ -23,7 +23,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan approval → `firebase deploy --only functions --project stageverify-db` for will-call `recordPickupEvent` CF; until then prod pickup uses pre-ship CF behavior.
+- Dan: hard-refresh gh-pages → delivery drawer → select Picked Up → STATUS should show Picked Up; Confirm persists via deployed `recordPickupEvent` CF.
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
