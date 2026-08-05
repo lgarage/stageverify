@@ -5,6 +5,7 @@ exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
 exports.documentIgnoreSkipFields = documentIgnoreSkipFields;
 exports.isSystemIgnoreSkipReason = isSystemIgnoreSkipReason;
+exports.isSystemAutoRejectedImport = isSystemAutoRejectedImport;
 exports.importStatusForCreditSkip = importStatusForCreditSkip;
 exports.isCreditReturnInvoice = isCreditReturnInvoice;
 exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCreditReturns;
@@ -65,6 +66,16 @@ function documentIgnoreSkipFields(now) {
 function isSystemIgnoreSkipReason(skipReason) {
     return (skipReason === exports.CREDIT_RETURN_SKIP_REASON ||
         skipReason === exports.DOCUMENT_IGNORE_SKIP_REASON);
+}
+const SYSTEM_AUTO_REJECTED_BY = [
+    "system:credit_return_skip",
+    "system:document_ignore_skip",
+];
+/** Rejected by ingest/auto-skip — Gmail reparse may refresh. User rejections must never reopen. */
+function isSystemAutoRejectedImport(doc) {
+    return (doc?.reviewStatus === "rejected" &&
+        typeof doc.rejectedBy === "string" &&
+        SYSTEM_AUTO_REJECTED_BY.includes(doc.rejectedBy));
 }
 /** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */
 function importStatusForCreditSkip(parsed, pageText, baseStatus) {

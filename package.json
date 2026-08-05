@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.212",
+  "version": "0.0.213",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -145,6 +145,7 @@
     "test:training-note-p7": "cd functions && npm run build && cd .. && node scripts/test-training-note-p7.mjs",
     "test:invoice-training-admin": "cd functions && npm run build && cd .. && node scripts/test-invoice-training-admin.mjs",
     "test:reopen-ignore-circuit-breaker": "cd functions && npm run build && cd .. && node scripts/test-reopen-ignore-circuit-breaker.mjs",
+    "test:preserve-user-rejected-import": "cd functions && npm run build && cd .. && node scripts/test-preserve-user-rejected-import.mjs",
     "test:strong-invoice-signals": "cd functions && npm run build && cd .. && node scripts/test-strong-invoice-signals.mjs",
     "test:teach-ignore-chat": "npx tsx scripts/test-teach-ignore-chat.mjs",
     "test:auto-import-eligibility": "npx tsx scripts/test-auto-import-eligibility.mjs",

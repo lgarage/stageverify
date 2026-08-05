@@ -228,7 +228,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         if (existingStatus === "approved") {
             continue;
         }
-        if (existingStatus === "rejected" && !existingSystemSkip) {
+        if (existingStatus === "rejected" && !(0, creditReturnSkip_1.isSystemAutoRejectedImport)(existingData)) {
             continue;
         }
         const proc = row.processing;
@@ -349,7 +349,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             if (freshStatus === "approved") {
                 return;
             }
-            if (freshStatus === "rejected" && !freshSystemSkip) {
+            if (freshStatus === "rejected" && !(0, creditReturnSkip_1.isSystemAutoRejectedImport)(freshData)) {
                 return;
             }
             // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
@@ -619,7 +619,7 @@ async function reparseVendorInvoiceImportFromCache(importId) {
         throw new Error("Cannot re-parse an approved import.");
     }
     if (importDoc.reviewStatus === "rejected" &&
-        !(0, creditReturnSkip_1.isSystemIgnoreSkipReason)(importDoc.skipReason)) {
+        !(0, creditReturnSkip_1.isSystemAutoRejectedImport)(importDoc)) {
         throw new Error("Cannot re-parse a rejected import.");
     }
     const inboundId = importDoc.inboundEmailProcessingId?.trim();

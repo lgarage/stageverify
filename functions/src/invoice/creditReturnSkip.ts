@@ -95,6 +95,23 @@ export function isSystemIgnoreSkipReason(skipReason?: string): boolean {
   );
 }
 
+const SYSTEM_AUTO_REJECTED_BY = [
+  "system:credit_return_skip",
+  "system:document_ignore_skip",
+] as const;
+
+/** Rejected by ingest/auto-skip — Gmail reparse may refresh. User rejections must never reopen. */
+export function isSystemAutoRejectedImport(doc?: {
+  reviewStatus?: string;
+  rejectedBy?: string;
+}): boolean {
+  return (
+    doc?.reviewStatus === "rejected" &&
+    typeof doc.rejectedBy === "string" &&
+    (SYSTEM_AUTO_REJECTED_BY as readonly string[]).includes(doc.rejectedBy)
+  );
+}
+
 /** Credit/return memos are auto-skipped — do not surface as Issue when only return lines parsed. */
 export function importStatusForCreditSkip(
   parsed: ParsedJohnstoneInvoice,

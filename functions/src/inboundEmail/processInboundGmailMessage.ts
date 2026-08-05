@@ -23,6 +23,7 @@ import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibil
 import {
   isCreditReturnInvoice,
   documentIgnoreSkipFields,
+  isSystemAutoRejectedImport,
   isSystemIgnoreSkipReason,
 } from "../invoice/creditReturnSkip";
 import {
@@ -318,7 +319,7 @@ async function writeReviewRecords(
     if (existingStatus === "approved") {
       continue;
     }
-    if (existingStatus === "rejected" && !existingSystemSkip) {
+    if (existingStatus === "rejected" && !isSystemAutoRejectedImport(existingData)) {
       continue;
     }
 
@@ -447,7 +448,7 @@ async function writeReviewRecords(
       if (freshStatus === "approved") {
         return;
       }
-      if (freshStatus === "rejected" && !freshSystemSkip) {
+      if (freshStatus === "rejected" && !isSystemAutoRejectedImport(freshData)) {
         return;
       }
       // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
@@ -778,7 +779,7 @@ export async function reparseVendorInvoiceImportFromCache(
   }
   if (
     importDoc.reviewStatus === "rejected" &&
-    !isSystemIgnoreSkipReason(importDoc.skipReason)
+    !isSystemAutoRejectedImport(importDoc)
   ) {
     throw new Error("Cannot re-parse a rejected import.");
   }
