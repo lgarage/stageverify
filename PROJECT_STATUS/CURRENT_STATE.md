@@ -8,7 +8,7 @@
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
 - **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** (bundle `index-BbmYlaD7.js`). **Firebase rules/functions NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`) but cloud missing `FIREBASE_TOKEN`. Console TTL on `trainingNoteAudit.expireAt` still needed after CF/rules deploy.
-- Last shipped: **v0.0.204** frontend on gh-pages (D-59 P2–P7 UI); **CF/rules still P1-era until Firebase deploy**. Prior **v0.0.198** — D-59 P1 CF was LIVE (server-echo propose/confirm + echoToken; never-unknown; credit dismiss fix; §19 training-note wording). Feature `74414db`; evidence `9002143` (D-51/CURRENT_STATE), `9d35678` (verify harness). **Prod verify:** `verify:invoice-review:prod` PASS.
+- Last shipped: **v0.0.205** — D-60 auth-native forgot-password on dispatcher login (`sendPasswordResetEmail`; anti-enumeration unified message; `verify:login` PASS). Prior **v0.0.204** frontend on gh-pages (D-59 P2–P7 UI); **CF/rules still P1-era until Firebase deploy**.
 - Prior: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board.
 - **D-59 P1 deploy:** gh-pages **built** @ `74414db` · https://lgarage.github.io/stageverify · **CF** (`proposeVendorIgnoreRule` + updated functions on `stageverify-db`) **deployed**.
 - Active Phase: Location-first Phase 6 Slice C (C1 shipped) — Slice B audit walk next.
