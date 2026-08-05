@@ -161,6 +161,46 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         };
     }
     if (action === "reject") {
+        if (correctionNoteRaw.trim() &&
+            (0, creditReturnSkip_1.shouldApplyNowDismissCreditImport)(correctionNoteRaw, importDoc)) {
+            const vendorKey = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
+            const lesson = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+                uid,
+                vendorKey,
+                correctionNoteRaw,
+                importId,
+                atIso: now,
+            });
+            await getDb().runTransaction(async (tx) => {
+                const freshImport = await tx.get(importRef);
+                if (!freshImport.exists) {
+                    throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
+                }
+                const fresh = freshImport.data();
+                if (fresh.reviewStatus !== "pending_review") {
+                    throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
+                }
+                tx.update(importRef, {
+                    reviewStatus: "rejected",
+                    skipReason: creditReturnSkip_1.CREDIT_RETURN_SKIP_REASON,
+                    rejectedAt: now,
+                    rejectedBy: uid,
+                    updatedAt: now,
+                    ...(lesson.trainingLessonWrote
+                        ? { trainingLessonAppendedAt: now }
+                        : {}),
+                    importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("reject", uid, now, eligibilityFromDoc(fresh))),
+                });
+            });
+            return {
+                vendorInvoiceImportId: importId,
+                reviewStatus: "rejected",
+                importDismissed: true,
+                trainingLessonWrote: lesson.trainingLessonWrote,
+                trainingLessonPendingAdminReview: lesson.trainingLessonPendingAdminReview,
+                trainingLessonAlertEmailed: lesson.trainingLessonAlertEmailed,
+            };
+        }
         await getDb().runTransaction(async (tx) => {
             const freshImport = await tx.get(importRef);
             if (!freshImport.exists) {
@@ -181,7 +221,35 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("reject", uid, now, eligibilityFromDoc(fresh))),
             });
         });
-        return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
+        let trainingLessonWrote = false;
+        let trainingLessonPendingAdminReview = false;
+        let trainingLessonAlertEmailed = false;
+        if (correctionNoteRaw.trim()) {
+            const vendorKey = (0, adminConfig_1.vendorKeyFromImportDoc)(importDoc);
+            const lesson = await (0, saveTrainingLessonCore_1.saveTrainingLessonCore)({
+                uid,
+                vendorKey,
+                correctionNoteRaw,
+                importId,
+                atIso: now,
+            });
+            trainingLessonWrote = lesson.trainingLessonWrote;
+            trainingLessonPendingAdminReview = lesson.trainingLessonPendingAdminReview;
+            trainingLessonAlertEmailed = lesson.trainingLessonAlertEmailed;
+            if (lesson.trainingLessonWrote) {
+                await importRef.update({
+                    trainingLessonAppendedAt: now,
+                    updatedAt: now,
+                });
+            }
+        }
+        return {
+            vendorInvoiceImportId: importId,
+            reviewStatus: "rejected",
+            trainingLessonWrote,
+            trainingLessonPendingAdminReview,
+            trainingLessonAlertEmailed,
+        };
     }
     if (action === "relink_to_shell") {
         if (importDoc.reviewStatus !== "approved") {

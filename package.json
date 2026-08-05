@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.211",
+  "version": "0.0.212",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -61,6 +61,7 @@
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
+    "verify:invoice-reject-reason": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-training-settings": "node scripts/run-verify-with-learning.mjs --script verify:invoice-training-settings scripts/verify-invoice-training-settings.mjs",
     "verify:invoice-training-settings:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-training-settings:prod scripts/verify-invoice-training-settings.mjs --base-url=https://lgarage.github.io/stageverify",

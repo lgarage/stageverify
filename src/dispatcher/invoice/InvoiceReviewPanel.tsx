@@ -529,14 +529,27 @@ export function InvoiceReviewPanel({
     }
   };
 
-  const handleReject = async (row: VendorInvoiceImportReview) => {
+  const handleReject = async (
+    row: VendorInvoiceImportReview,
+    rejectLessonNote?: string,
+  ) => {
     setActionLoadingId(row.id);
     setError(null);
     try {
-      await approveVendorInvoiceImport({
+      const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "reject",
+        ...(rejectLessonNote?.trim()
+          ? { correctionNote: rejectLessonNote.trim() }
+          : {}),
       });
+      if (result.trainingLessonWrote) {
+        showTrainingToast(INVOICE_TRAINING_LESSON_TOAST);
+      } else if (result.trainingLessonPendingAdminReview) {
+        showTrainingToast(
+          "This note is pending Admin review — patterns may need a fix before it can be saved.",
+        );
+      }
       setInspectImport(null);
       await loadQueue();
     } catch (err) {
@@ -1055,8 +1068,8 @@ export function InvoiceReviewPanel({
           }
           onReject={
             inspectImport.reviewStatus === "pending_review"
-              ? () => {
-                  void handleReject(inspectImport);
+              ? (rejectLessonNote) => {
+                  void handleReject(inspectImport, rejectLessonNote);
                 }
               : undefined
           }

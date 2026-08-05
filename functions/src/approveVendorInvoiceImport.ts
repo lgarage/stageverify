@@ -236,6 +236,55 @@ export const approveVendorInvoiceImport = onCall(
     }
 
     if (action === "reject") {
+      if (
+        correctionNoteRaw.trim() &&
+        shouldApplyNowDismissCreditImport(correctionNoteRaw, importDoc)
+      ) {
+        const vendorKey = vendorKeyFromImportDoc(importDoc);
+        const lesson = await saveTrainingLessonCore({
+          uid,
+          vendorKey,
+          correctionNoteRaw,
+          importId,
+          atIso: now,
+        });
+        await getDb().runTransaction(async (tx) => {
+          const freshImport = await tx.get(importRef);
+          if (!freshImport.exists) {
+            throw new HttpsError("not-found", "Vendor invoice import not found.");
+          }
+          const fresh = freshImport.data() as VendorInvoiceImportDoc;
+          if (fresh.reviewStatus !== "pending_review") {
+            throw new HttpsError(
+              "failed-precondition",
+              `Import already ${fresh.reviewStatus}.`,
+            );
+          }
+          tx.update(importRef, {
+            reviewStatus: "rejected",
+            skipReason: CREDIT_RETURN_SKIP_REASON,
+            rejectedAt: now,
+            rejectedBy: uid,
+            updatedAt: now,
+            ...(lesson.trainingLessonWrote
+              ? { trainingLessonAppendedAt: now }
+              : {}),
+            importDecisionLog: appendDecisionLogUpdate(
+              fresh,
+              buildImportDecisionLogEntry("reject", uid, now, eligibilityFromDoc(fresh)),
+            ),
+          });
+        });
+        return {
+          vendorInvoiceImportId: importId,
+          reviewStatus: "rejected",
+          importDismissed: true,
+          trainingLessonWrote: lesson.trainingLessonWrote,
+          trainingLessonPendingAdminReview: lesson.trainingLessonPendingAdminReview,
+          trainingLessonAlertEmailed: lesson.trainingLessonAlertEmailed,
+        };
+      }
+
       await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -262,7 +311,37 @@ export const approveVendorInvoiceImport = onCall(
           ),
         });
       });
-      return { vendorInvoiceImportId: importId, reviewStatus: "rejected" };
+
+      let trainingLessonWrote = false;
+      let trainingLessonPendingAdminReview = false;
+      let trainingLessonAlertEmailed = false;
+      if (correctionNoteRaw.trim()) {
+        const vendorKey = vendorKeyFromImportDoc(importDoc);
+        const lesson = await saveTrainingLessonCore({
+          uid,
+          vendorKey,
+          correctionNoteRaw,
+          importId,
+          atIso: now,
+        });
+        trainingLessonWrote = lesson.trainingLessonWrote;
+        trainingLessonPendingAdminReview = lesson.trainingLessonPendingAdminReview;
+        trainingLessonAlertEmailed = lesson.trainingLessonAlertEmailed;
+        if (lesson.trainingLessonWrote) {
+          await importRef.update({
+            trainingLessonAppendedAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+
+      return {
+        vendorInvoiceImportId: importId,
+        reviewStatus: "rejected",
+        trainingLessonWrote,
+        trainingLessonPendingAdminReview,
+        trainingLessonAlertEmailed,
+      };
     }
 
     if (action === "relink_to_shell") {

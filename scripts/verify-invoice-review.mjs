@@ -358,6 +358,81 @@ async function assertViewOriginalPdfOpens(page) {
   }
 }
 
+async function assertRejectReasonDialog(page) {
+  const rejectBtn = page.getByTestId("invoice-parsed-inspect-reject");
+  if (!(await rejectBtn.isVisible().catch(() => false))) {
+    console.log("SKIP: reject button not visible — reject-reason dialog not exercised");
+    return;
+  }
+
+  await rejectBtn.click();
+  const dialog = page.getByTestId("invoice-reject-reason-dialog");
+  await dialog.waitFor({ timeout: 5000 });
+
+  const confirmBtn = page.getByTestId("invoice-reject-reason-confirm");
+  const select = page.getByTestId("invoice-reject-reason-select");
+  const creditAdvisory = page.getByTestId("invoice-parsed-inspect-credit-advisory");
+  const hasCreditAdvisory = (await creditAdvisory.count()) > 0;
+  const initialSelected = await select.inputValue();
+
+  if (hasCreditAdvisory) {
+    if (initialSelected !== "credit_return") {
+      throw new Error(
+        `Credit advisory import should pre-select credit_return, got "${initialSelected}"`,
+      );
+    }
+    if (await confirmBtn.isDisabled()) {
+      throw new Error(
+        "Reject confirm should enable when credit_return is pre-selected",
+      );
+    }
+    console.log("PASS: credit/return advisory pre-selects Credit/Return reason");
+  } else {
+    if (!(await confirmBtn.isDisabled())) {
+      throw new Error("Reject confirm should be disabled until a reason is selected");
+    }
+    await select.selectOption("parse_issue");
+    console.log("PASS: reject reason dropdown accepts selection");
+  }
+
+  console.log("PASS: reject-reason dialog opens with expected confirm gating");
+
+  const detail = page.getByTestId("invoice-reject-reason-detail");
+  await detail.fill("Test pattern detail for verify harness only.");
+  if (await confirmBtn.isDisabled()) {
+    throw new Error("Reject confirm should enable after reason selected");
+  }
+
+  const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="invoice-reject-reason-dialog"]',
+    elements: [
+      {
+        name: "Reject reason panel",
+        selector: '[data-testid="invoice-reject-reason-panel"]',
+        large: true,
+      },
+      {
+        name: "Reject reason select",
+        selector: '[data-testid="invoice-reject-reason-select"]',
+      },
+      {
+        name: "Reject reason detail",
+        selector: '[data-testid="invoice-reject-reason-detail"]',
+      },
+      {
+        name: "Reject confirm",
+        selector: '[data-testid="invoice-reject-reason-confirm"]',
+      },
+    ],
+  });
+  console.log("PASS: reject-reason dialog readable contrast (D-42)");
+
+  await page.getByTestId("invoice-reject-reason-cancel").click();
+  await dialog.waitFor({ state: "hidden", timeout: 5000 });
+  console.log("PASS: reject-reason dialog cancel closes without rejecting");
+}
+
 async function main() {
   if (!existsSync(authState)) {
     console.log("No auth state — run: node scripts/playwright-auth-setup.mjs");
@@ -512,6 +587,7 @@ async function main() {
       await assertTrainingPanelNoOverlap(page);
       await assertTeachChatServerEcho(page);
       await assertTrainingPanelContrast(page, { includeEcho: true });
+      await assertRejectReasonDialog(page);
 
       const expectedFields = page.getByTestId("invoice-parsed-inspect-expected-fields");
       if (await expectedFields.count()) {
