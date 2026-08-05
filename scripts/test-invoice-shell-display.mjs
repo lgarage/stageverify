@@ -512,6 +512,63 @@ assert(
     !rowMatchesOverviewStatusFilter(pickedUpListRow, "ready_for_pickup"),
 );
 
+const closedPickedUpDelivery = {
+  id: "delivery-closed-pu",
+  orderNumber: "6168732",
+  jobId: "job-1",
+  vendorId: "v-1",
+  vendorName: "Johnstone",
+  deliveryDate: "2026-01-08",
+  status: "pending",
+  vendorOrderComplete: true,
+  invoiceImportStatus: "closed_picked_up",
+  invoiceFulfillmentMethod: "will_call_pickup",
+  createdFromInvoiceImport: true,
+};
+const closedPickedUpItems = [
+  {
+    id: "item-closed-pu",
+    deliveryOrderId: "delivery-closed-pu",
+    description: "Filter",
+    qtyOrdered: 1,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "pending",
+  },
+];
+const closedPickedUpReadiness = computeDeliveryReadiness(
+  closedPickedUpDelivery,
+  closedPickedUpItems,
+);
+assert(
+  "closed_picked_up import maps readiness deliveryStatus to picked_up",
+  closedPickedUpReadiness.deliveryStatus === "picked_up",
+  closedPickedUpReadiness.deliveryStatus,
+);
+assert(
+  "closed_picked_up import display label is Picked Up",
+  deliveryReadinessDisplayLabel(
+    closedPickedUpDelivery,
+    closedPickedUpReadiness,
+    closedPickedUpItems,
+  ) === "Picked Up",
+);
+const closedPickedUpListRow = {
+  status: closedPickedUpReadiness.deliveryStatus,
+  statusDisplayLabel: deliveryReadinessDisplayLabel(
+    closedPickedUpDelivery,
+    closedPickedUpReadiness,
+    closedPickedUpItems,
+  ),
+};
+assert(
+  "closed_picked_up invoice rows hide from default board via complete filter",
+  isCompleteOverviewRow(closedPickedUpListRow) &&
+    rowMatchesOverviewStatusFilter(closedPickedUpListRow, "complete"),
+);
+
 assert(
   "legacy installed rows map to complete overview filter",
   rowMatchesOverviewStatusFilter(

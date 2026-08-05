@@ -169,11 +169,16 @@ export function computeDeliveryReadiness(
   items: Item[],
   options?: ReadinessComputeOptions,
 ): DeliveryReadinessResult {
-  if (delivery.status === "picked_up" || delivery.status === "installed") {
+  if (
+    delivery.status === "picked_up" ||
+    delivery.status === "installed" ||
+    delivery.invoiceImportStatus === "closed_picked_up"
+  ) {
     return {
       readyForPickup: false,
       readinessStatus: "picked_up",
-      deliveryStatus: delivery.status,
+      deliveryStatus:
+        delivery.status === "installed" ? "installed" : "picked_up",
       evidence: buildDeliveryReadinessEvidence(delivery, items, options),
     };
   }
@@ -309,10 +314,20 @@ export function isPickupEligible(
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return { eligible: false, reason: "already_picked_up" };
   }
-  if (
-    delivery.status !== "ready_for_pickup" &&
-    delivery.status !== "complete"
-  ) {
+
+  const skipShopStagingPickup = skipsShopStaging(delivery);
+  const allowedStatuses: DeliveryStatus[] = skipShopStagingPickup
+    ? [
+        "pending",
+        "shipped",
+        "arrived",
+        "partial",
+        "ready_for_pickup",
+        "complete",
+      ]
+    : ["ready_for_pickup", "complete"];
+
+  if (!allowedStatuses.includes(delivery.status)) {
     return { eligible: false, reason: "delivery_not_ready_for_pickup" };
   }
 

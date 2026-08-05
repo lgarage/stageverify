@@ -89,6 +89,17 @@ function computeDeliveryReadiness(delivery, items, now, vendorDeliveryMode) {
             stagingAssignmentComplete,
         };
     }
+    if (delivery.invoiceImportStatus === "closed_picked_up") {
+        return {
+            readyForPickup: false,
+            readinessStatus: "picked_up",
+            deliveryStatus: "picked_up",
+            evidence,
+            physicalDropoffComplete,
+            physicalDropoffCompleteAt,
+            stagingAssignmentComplete,
+        };
+    }
     const readyForPickup = blockReasons.length === 0;
     if (readyForPickup) {
         return {
@@ -139,8 +150,18 @@ function isPickupEligible(delivery, items, vendorDeliveryMode) {
     if (delivery.status === "picked_up" || delivery.status === "installed") {
         return { eligible: false, reason: "already_picked_up" };
     }
-    if (delivery.status !== "ready_for_pickup" &&
-        delivery.status !== "complete") {
+    const skipShopStagingPickup = (0, invoiceShellDisplayHelpers_1.skipsShopStaging)(delivery);
+    const allowedStatuses = skipShopStagingPickup
+        ? [
+            "pending",
+            "shipped",
+            "arrived",
+            "partial",
+            "ready_for_pickup",
+            "complete",
+        ]
+        : ["ready_for_pickup", "complete"];
+    if (!allowedStatuses.includes(delivery.status)) {
         return { eligible: false, reason: "delivery_not_ready_for_pickup" };
     }
     const readiness = computeDeliveryReadiness(delivery, items, new Date().toISOString(), vendorDeliveryMode);

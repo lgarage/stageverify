@@ -1301,6 +1301,7 @@ export function isCompleteOverviewRow(
   >,
 ): boolean {
   if (row.statusDisplayLabel === "Picked Up") return true;
+  if (row.statusDisplayLabel === "Closed / Picked Up") return true;
   return (
     row.status === "complete" ||
     row.status === "picked_up" ||

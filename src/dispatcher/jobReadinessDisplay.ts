@@ -23,6 +23,7 @@ export function deliveryReadinessDisplayLabel(
   if (
     delivery.status === "picked_up" ||
     delivery.status === "installed" ||
+    delivery.invoiceImportStatus === "closed_picked_up" ||
     (delivery.invoiceDeliverToSite === true &&
       delivery.invoiceDeliverToSiteConfirmed === true)
   ) {
@@ -33,9 +34,6 @@ export function deliveryReadinessDisplayLabel(
   }
   if (delivery.status === "complete") {
     return "Picked Up";
-  }
-  if (delivery.invoiceImportStatus === "closed_picked_up") {
-    return vendorInvoiceImportDisplayLabel("closed_picked_up").replace(/\.$/, "");
   }
   if (countOpenBlockingIssues(delivery, materialIssues) > 0) {
     return "Issue / Review Required";

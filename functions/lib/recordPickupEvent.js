@@ -4,6 +4,7 @@ exports.recordPickupEvent = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const deliveryReadiness_1 = require("./deliveryReadiness");
+const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const pickupAccessValidation_1 = require("./pickupAccessValidation");
 function getDb() {
     return admin.firestore();
@@ -146,7 +147,8 @@ exports.recordPickupEvent = (0, https_1.onCall)({
             };
         }
         const assignedLocations = allStagingIds(delivery);
-        if (assignedLocations.length === 0) {
+        const skipShopStagingPickup = (0, invoiceShellDisplayHelpers_1.skipsShopStaging)(delivery);
+        if (!skipShopStagingPickup && assignedLocations.length === 0) {
             throw new https_1.HttpsError("failed-precondition", "Delivery has no assigned staging locations.");
         }
         const itemsSnap = await tx.get(db
@@ -175,6 +177,86 @@ exports.recordPickupEvent = (0, https_1.onCall)({
         const eligibility = (0, deliveryReadiness_1.isPickupEligible)(delivery, items, vendorDeliveryMode);
         if (!eligibility.eligible) {
             throw new https_1.HttpsError("failed-precondition", `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`);
+        }
+        if (skipShopStagingPickup) {
+            const now = new Date().toISOString();
+            const pickupEventId = crypto.randomUUID();
+            const historyId = `event-${pickupEventId}`;
+            const qtyByMapping = new Map();
+            for (const line of delivery.shopStockLines ?? []) {
+                const mappingId = line.shopStockMappingId?.trim();
+                if (!mappingId)
+                    continue;
+                const qty = typeof line.qty === "number" && line.qty > 0 ? line.qty : 1;
+                qtyByMapping.set(mappingId, (qtyByMapping.get(mappingId) ?? 0) + qty);
+            }
+            const mappingSnaps = await Promise.all([...qtyByMapping.keys()].map((mappingId) => tx.get(db.collection("shopStockLocationMappings").doc(mappingId))));
+            const deliveryPatch = {
+                updatedAt: now,
+                status: "picked_up",
+                readinessStatus: "picked_up",
+                invoiceImportStatus: "closed_picked_up",
+                stagingLocationId: "",
+                additionalStagingLocationIds: [],
+                combinationStagingGroupId: "",
+                combinationMemberLocationIds: [],
+                pickedUpStagingLocationIds: [],
+                pickupCheckedItemIds: [],
+            };
+            tx.set(db.collection("pickupEvents").doc(pickupEventId), {
+                id: pickupEventId,
+                deliveryOrderId,
+                jobId,
+                technicianName: technicianIdentityName,
+                pickedUpAt: now,
+                itemsPickedSummary,
+                ...(notes ? { notes } : {}),
+                clientOperationId,
+                stagingLocationIds: [],
+            });
+            tx.update(deliveryRef, deliveryPatch);
+            tx.set(db.collection("statusHistory").doc(historyId), {
+                id: historyId,
+                entityType: "delivery_order",
+                entityId: deliveryOrderId,
+                fromStatus: delivery.status,
+                toStatus: "picked_up",
+                actorType: "technician",
+                actorName: technicianIdentityName,
+                createdAt: now,
+            });
+            for (const mappingSnap of mappingSnaps) {
+                if (!mappingSnap.exists)
+                    continue;
+                const mappingId = mappingSnap.id;
+                const qty = qtyByMapping.get(mappingId);
+                if (!qty)
+                    continue;
+                const data = mappingSnap.data();
+                const assigned = Math.max(0, data.qtyAssigned ?? 0);
+                const pickedUp = Math.max(0, data.qtyPickedUp ?? 0);
+                const applied = Math.min(qty, assigned > 0 ? assigned : qty);
+                tx.update(mappingSnap.ref, {
+                    qtyAssigned: Math.max(0, assigned - applied),
+                    qtyPickedUp: pickedUp + applied,
+                    updatedAt: now,
+                });
+            }
+            tx.set(idempotencyRef, {
+                deliveryOrderId,
+                jobId,
+                pickupEventId,
+                deliveryStatus: "picked_up",
+                pickedUpStagingLocationIds: [],
+                createdAt: now,
+            });
+            return {
+                duplicate: false,
+                pickupEventId,
+                deliveryStatus: "picked_up",
+                pickedUpStagingLocationIds: [],
+                fullyPicked: true,
+            };
         }
         if (!(0, deliveryReadiness_1.computePhysicalDropoffComplete)(delivery, items, vendorDeliveryMode)) {
             throw new https_1.HttpsError("failed-precondition", "Physical drop-off is incomplete for this delivery.");

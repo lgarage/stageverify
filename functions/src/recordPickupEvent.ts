@@ -6,6 +6,8 @@ import {
   type DeliveryDoc,
   type ItemDoc,
 } from "./deliveryReadiness";
+import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
+import type { InvoiceFulfillmentMethod } from "./invoice/types";
 import { assertPickupAccessForJob } from "./pickupAccessValidation";
 
 function getDb() {
@@ -58,6 +60,11 @@ interface DeliveryRecord extends DeliveryDoc {
   pickedUpStagingLocationIds?: string[];
   readinessStatus?: string;
   shopStockLines?: ShopStockLineRecord[];
+  vendorInvoiceImportId?: string;
+  invoiceImportStatus?: string;
+  invoiceFulfillmentMethod?: InvoiceFulfillmentMethod;
+  invoiceDeliverToSite?: boolean;
+  createdFromInvoiceImport?: boolean;
 }
 
 function asNonEmptyString(value: unknown, maxLen: number): string | null {
@@ -216,7 +223,9 @@ export const recordPickupEvent = onCall(
       }
 
       const assignedLocations = allStagingIds(delivery);
-      if (assignedLocations.length === 0) {
+      const skipShopStagingPickup = skipsShopStaging(delivery);
+
+      if (!skipShopStagingPickup && assignedLocations.length === 0) {
         throw new HttpsError(
           "failed-precondition",
           "Delivery has no assigned staging locations.",
@@ -272,6 +281,100 @@ export const recordPickupEvent = onCall(
           "failed-precondition",
           `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`,
         );
+      }
+
+      if (skipShopStagingPickup) {
+        const now = new Date().toISOString();
+        const pickupEventId = crypto.randomUUID();
+        const historyId = `event-${pickupEventId}`;
+
+        const qtyByMapping = new Map<string, number>();
+        for (const line of delivery.shopStockLines ?? []) {
+          const mappingId = line.shopStockMappingId?.trim();
+          if (!mappingId) continue;
+          const qty =
+            typeof line.qty === "number" && line.qty > 0 ? line.qty : 1;
+          qtyByMapping.set(mappingId, (qtyByMapping.get(mappingId) ?? 0) + qty);
+        }
+        const mappingSnaps = await Promise.all(
+          [...qtyByMapping.keys()].map((mappingId) =>
+            tx.get(db.collection("shopStockLocationMappings").doc(mappingId)),
+          ),
+        );
+
+        const deliveryPatch: Record<string, unknown> = {
+          updatedAt: now,
+          status: "picked_up",
+          readinessStatus: "picked_up",
+          invoiceImportStatus: "closed_picked_up",
+          stagingLocationId: "",
+          additionalStagingLocationIds: [],
+          combinationStagingGroupId: "",
+          combinationMemberLocationIds: [],
+          pickedUpStagingLocationIds: [],
+          pickupCheckedItemIds: [],
+        };
+
+        tx.set(db.collection("pickupEvents").doc(pickupEventId), {
+          id: pickupEventId,
+          deliveryOrderId,
+          jobId,
+          technicianName: technicianIdentityName,
+          pickedUpAt: now,
+          itemsPickedSummary,
+          ...(notes ? { notes } : {}),
+          clientOperationId,
+          stagingLocationIds: [],
+        });
+
+        tx.update(deliveryRef, deliveryPatch);
+
+        tx.set(db.collection("statusHistory").doc(historyId), {
+          id: historyId,
+          entityType: "delivery_order",
+          entityId: deliveryOrderId,
+          fromStatus: delivery.status,
+          toStatus: "picked_up",
+          actorType: "technician",
+          actorName: technicianIdentityName,
+          createdAt: now,
+        });
+
+        for (const mappingSnap of mappingSnaps) {
+          if (!mappingSnap.exists) continue;
+          const mappingId = mappingSnap.id;
+          const qty = qtyByMapping.get(mappingId);
+          if (!qty) continue;
+          const data = mappingSnap.data() as {
+            qtyAssigned?: number;
+            qtyPickedUp?: number;
+          };
+          const assigned = Math.max(0, data.qtyAssigned ?? 0);
+          const pickedUp = Math.max(0, data.qtyPickedUp ?? 0);
+          const applied = Math.min(qty, assigned > 0 ? assigned : qty);
+          tx.update(mappingSnap.ref, {
+            qtyAssigned: Math.max(0, assigned - applied),
+            qtyPickedUp: pickedUp + applied,
+            updatedAt: now,
+          });
+        }
+
+        tx.set(idempotencyRef, {
+          deliveryOrderId,
+          jobId,
+          pickupEventId,
+          deliveryStatus: "picked_up",
+          pickedUpStagingLocationIds: [],
+          createdAt: now,
+        });
+
+        return {
+          duplicate: false,
+          pickupEventId,
+          deliveryStatus: "picked_up",
+          pickedUpStagingLocationIds: [],
+          fullyPicked: true,
+        };
       }
 
       if (!computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode)) {

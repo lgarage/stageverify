@@ -296,6 +296,68 @@ try {
     pass("delivery without staging rejected");
   }
 
+  await seed(async (db) => {
+    await setDoc(doc(db, "deliveries", "del-willcall-pickup"), {
+      id: "del-willcall-pickup",
+      orderNumber: "ORD-WILLCALL",
+      jobId: "job-1",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-1",
+      deliveryDate: "2026-06-12",
+      status: "ready_for_pickup",
+      readinessStatus: "ready_for_pickup",
+      vendorOrderComplete: true,
+      physicalDropoffComplete: false,
+      stagingAssignmentComplete: false,
+      stagingLocationId: "",
+      invoiceFulfillmentMethod: "will_call_pickup",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "items", "del-willcall-pickup-item"), {
+      id: "del-willcall-pickup-item",
+      deliveryOrderId: "del-willcall-pickup",
+      description: "Will-call coil",
+      qtyOrdered: 1,
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "pending",
+    });
+  });
+
+  const willCallPickup = await recordPickup(
+    await pickupPayload("del-willcall-pickup", {
+      clientOperationId: "op-willcall-pickup",
+    }),
+  );
+  if (willCallPickup.data.deliveryStatus === "picked_up") {
+    pass("will-call pickup without staging succeeds");
+  } else {
+    fail("will-call pickup should set picked_up", new Error(JSON.stringify(willCallPickup.data)));
+  }
+
+  let willCallDelivery = null;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const { getDoc } = await import("firebase/firestore");
+    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "del-willcall-pickup"));
+    willCallDelivery = snap.data();
+  });
+  if (willCallDelivery?.status === "picked_up") {
+    pass("will-call delivery document status is picked_up");
+  } else {
+    fail("will-call delivery status", new Error(JSON.stringify(willCallDelivery)));
+  }
+  if (willCallDelivery?.invoiceImportStatus === "closed_picked_up") {
+    pass("will-call pickup sets invoiceImportStatus closed_picked_up");
+  } else {
+    fail(
+      "will-call invoiceImportStatus",
+      new Error(JSON.stringify(willCallDelivery?.invoiceImportStatus)),
+    );
+  }
+
   try {
     await recordPickup(
       await pickupPayload("del-ready-1", {
