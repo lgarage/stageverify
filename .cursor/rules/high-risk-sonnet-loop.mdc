@@ -1,0 +1,71 @@
+---
+description: High-risk ships — Sonnet instruct → Composer implement → Sonnet verify (blocking before commit).
+alwaysApply: true
+---
+
+# High-risk Sonnet instruct→verify loop (D-60)
+
+**Authority:** Dan 2026-08-05 standing preference. **Platform parity:** D-32 — desktop PC, mobile Cursor, cloud VM identical.
+
+## Trigger (same class as `ship-loop.mdc` high-risk)
+
+Any ship touching: `firestore.rules` (any diff); `functions/**` deploy/write paths; auth/session/token/route guards in `src/`; secrets/config (`firebase.json`, `.github/workflows/`); schema migrations; billing; data deletion; Gmail watch/Pub/Sub; `functions/package.json`; root `package.json` `scripts`/deploy wiring.
+
+**When tier is ambiguous → high-risk.** Dan explicit approval still required before Phase 1 (`ship-loop.mdc`).
+
+## Orthogonal roles (do not conflate)
+
+| Lane | When | Role |
+|------|------|------|
+| **D-60 Phase 1–3** | After Dan approval, before commit | Sonnet instruction packet + post-implement verify loop |
+| **D-38 security gate** | Before push | `security-review` diff security verdict — see `security-review-gate.mdc` |
+| **D-43 Grok lanes** | After Phase 3 PASS | Build Checker, Ship Verifier; UI Playwright **N/A** on high-risk (Sonnet owns Playwright here) |
+
+Phase 3 judges **packet compliance + acceptance scripts** — not a second D-38 security verdict.
+
+## Phase 1 — Instruct (Sonnet, readonly Task, before first product edit)
+
+After Dan approval, **before any product/code edit** in scope:
+
+1. Dispatch Sonnet 4.6 Task (`generalPurpose`, D-38 allowlist slug per `security-review-gate.mdc` — first accepted slug only).
+2. Sonnet drafts an **instruction packet** for Composer: files, constraints, security invariants from packet (not a gate verdict), acceptance = named `verify:*` / `test:*` scripts (+ Playwright routes if UI).
+3. Composer ↔ Sonnet peer deliberate (D-30) until **Agree** on packet. Max 3 cycles; unresolved → present both positions to Dan.
+
+**Subsumes D-36 on this scope:** `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)`.
+
+**Evidence (mandatory):** `sonnet-instruct: <task-id>` + `model:` + verdict **Agree**. Missing = **NOT RUN** — no implementation.
+
+## Phase 2 — Implement (Composer default)
+
+Composer implements **only** the agreed packet (D-43 implementer lock). **D-50 carve-out unchanged:** after stuck-task Agree, Grok may implement that stuck scope only; Phase 3 Sonnet verify still required before commit.
+
+## Phase 3 — Verify loop (Sonnet, blocking before commit)
+
+After Composer implements + `npm run build` clean:
+
+1. Dispatch Sonnet Task (same D-38 allowlist, readonly).
+2. Sonnet (a) reviews **uncommitted diff vs agreed packet**; (b) requires **named acceptance scripts PASS** — Composer/shell runs `verify:*` / `test:*`; Sonnet judges PASS/FAIL from evidence (D-37; Sonnet Task need not execute Playwright when worker evidence is complete).
+3. FAIL → exact fix list → Composer fixes → **same Sonnet** re-verifies (fix-closure). **Two consecutive Phase-3 FAILs** on scope → **D-50** (D-55); no unbounded Composer-only loops.
+4. **PASS required before `git commit`.** Composer never self-closes Sonnet verify findings.
+
+**Evidence (mandatory):** `sonnet-verify: <task-id>` + `model:` + verdict **PASS** + script names (e.g. `verify:firestore-rules PASS`). Missing = **NOT RUN** — do not commit/push.
+
+## Phase 4 — Existing ladder (after Phase 3 PASS, ordered)
+
+1. **UI:** `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)` — Grok D-45 does **not** replace Sonnet on high-risk. Valid N/A for D-54 Ship Verifier fingerprint (`missing:ui-playwright`).
+2. **D-51** before/after when visible UI in scope (complements Sonnet acceptance scripts).
+3. **Build Checker** (Grok) on uncommitted diff when D-43 triggers — after Phase 3 PASS.
+4. **`git commit`**
+5. **D-38 security gate** before push (`security-gate-id`) — mandatory on high-risk.
+6. Push/deploy → **Ship Verifier**.
+
+## Hard stops
+
+- **NEVER** commit/push high-risk without Phase 1 **Agree** + Phase 3 **PASS** + D-38 gate when triggered.
+- **NEVER** substitute Composer/Grok/Opus for Sonnet **instruct or verify** on high-risk (D-50 Grok **implement** carve-out unchanged).
+- **NEVER** weaken D-38 allowlist or use Sonnet 5 without D-38 promote ritual.
+- Mechanical CI/hooks (`gate-check`, pre-push) enforce D-38 evidence today; D-60 evidence is **report-line mandatory** until scripts updated.
+
+## Relation
+
+`ship-loop.mdc` (tier + approval) · `security-review-gate.mdc` (D-38) · `model-gates.mdc` (ladder) · `composer-grok-collab.mdc` (D-43 ordering) · `composer-orchestrator.mdc` (completion lines). On conflict about high-risk pre-commit verify, **this file wins** over Grok UI Playwright for Playwright ownership.

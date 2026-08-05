@@ -43,9 +43,9 @@ Phases 2b–4 unchanged; they still run after implement when triggered.
 ## When this applies
 
 - **Default:** Dan work directives / planned code changes that are substantive (T1+ feature work, multi-file, branching approach) — see D-36 trigger in `model-gates.mdc`.
-- **Skips for Phase 1 Solution Verifier** (unchanged — do not erase): T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed. Label with `solution-verifier: N/A (<reason>)`.
+- **Skips for Phase 1 Solution Verifier** (unchanged — do not erase): T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed; **high-risk → `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)`** per `high-risk-sonnet-loop.mdc`. Label with `solution-verifier: N/A (<reason>)`.
 - **Phase 3 Pre-commit check** still runs on substantive ships even when Phase 1 was skipped for T0 **if** the final uncommitted diff is multi-file or clearly branching (same post-hoc falsifiability as Ship Verifier). Pure T0 single-file unambiguous → `build-checker: N/A (T0 single-file unambiguous)`.
-- **Phase 2b UI Playwright Verifier** runs on any visible UI edit in `src/` (same trigger as D-42/D-45) — even when Solution Verifier was skipped for T0. Non-UI ships → `ui-playwright-verifier: N/A (no visible UI)`.
+- **Phase 2b UI Playwright Verifier** runs on any visible UI edit in `src/` (same trigger as D-42/D-45) — even when Solution Verifier was skipped for T0. **High-risk ships:** `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)`. Other non-UI → `ui-playwright-verifier: N/A (no visible UI)`.
 
 ## Evidence (mandatory)
 

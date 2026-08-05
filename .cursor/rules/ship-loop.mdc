@@ -21,7 +21,7 @@ Loop unchanged: build → verify → commit → push → `npm run deploy` (when 
 
 **Paths/changes:** `firestore.rules` (any diff, including comment-only), `functions/**` when deploying, auth/route guards, secrets/config (`firebase.json`, `.github/workflows/`, env), permissions, billing, data deletion, schema/data migrations, Gmail watch/Pub/Sub, `functions/package.json`; **any `src/` file implementing auth, route guards, session/token handling, or login logic** — the `src/` path prefix alone does NOT make a change fast-safe; **root `package.json` edits to the `scripts` section or deploy wiring** (e.g. the `deploy` script, build commands).
 
-Protocol: **STOP before implementation** — state plan + tier, wait for Dan's explicit approval. After approval: implement → **Sonnet security gate before push** (unchanged, orthogonal — still mandatory for `backend-write-critical` regardless of approval) → push → deploy **only if approval covered deploy**.
+Protocol: **STOP before implementation** — state plan + tier, wait for Dan's explicit approval. After approval: **`high-risk-sonnet-loop.mdc` D-60** (Sonnet instruct → Composer implement → Sonnet verify, blocking before commit) → **Sonnet security gate before push** (D-38, orthogonal pre-push diff verdict) → push → deploy **only if approval covered deploy**.
 
 **When tier is ambiguous, classify high-risk and ask — misclassifying down is the failure mode.**
 
