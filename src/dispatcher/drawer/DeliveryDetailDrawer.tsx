@@ -105,6 +105,11 @@ export function DeliveryDetailDrawer({
     await onDataChanged?.();
   };
 
+  /** Close drawer after a successful DeliveryStatus workflow mutation. */
+  const closeAfterSuccessfulStatusChange = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   const handleUpdateStatus = async (
     toStatus: DeliveryStatus,
     reason?: string,
@@ -118,8 +123,10 @@ export function DeliveryDetailDrawer({
         toStatus,
         reason,
       );
-      if (updatedDetails) await refreshAfter(updatedDetails);
-      else {
+      if (updatedDetails) {
+        await refreshAfter(updatedDetails);
+        closeAfterSuccessfulStatusChange();
+      } else {
         setMutationError(
           "Failed to update status. The transition may be invalid.",
         );
@@ -154,8 +161,10 @@ export function DeliveryDetailDrawer({
       );
       const updatedDetails =
         await firestoreDataService.getDeliveryDetails(deliveryId);
-      if (updatedDetails) await refreshAfter(updatedDetails);
-      else setMutationError("Failed to record pickup.");
+      if (updatedDetails) {
+        await refreshAfter(updatedDetails);
+        closeAfterSuccessfulStatusChange();
+      } else setMutationError("Failed to record pickup.");
     } catch (e) {
       setMutationError(formatPickupError(e));
       console.error(e);
@@ -200,8 +209,10 @@ export function DeliveryDetailDrawer({
         deliveryId,
         "dispatcher",
       );
-      if (updatedDetails) await refreshAfter(updatedDetails);
-      else setMutationError("Failed to revert status.");
+      if (updatedDetails) {
+        await refreshAfter(updatedDetails);
+        closeAfterSuccessfulStatusChange();
+      } else setMutationError("Failed to revert status.");
     } catch (e) {
       setMutationError("An unexpected error occurred while reverting status.");
       console.error(e);
@@ -218,8 +229,10 @@ export function DeliveryDetailDrawer({
       await markDeliveryShipped(deliveryId);
       const updatedDetails =
         await firestoreDataService.getDeliveryDetails(deliveryId);
-      if (updatedDetails) await refreshAfter(updatedDetails);
-      else setMutationError("Failed to mark delivery as shipped.");
+      if (updatedDetails) {
+        await refreshAfter(updatedDetails);
+        closeAfterSuccessfulStatusChange();
+      } else setMutationError("Failed to mark delivery as shipped.");
     } catch (e) {
       setMutationError("An unexpected error occurred while marking shipped.");
       console.error(e);
@@ -261,8 +274,10 @@ export function DeliveryDetailDrawer({
           deliveryId,
           spotId,
         );
-      if (updatedDetails) await refreshAfter(updatedDetails);
-      else {
+      if (updatedDetails) {
+        await refreshAfter(updatedDetails);
+        closeAfterSuccessfulStatusChange();
+      } else {
         setMutationError(
           "Failed to assign staging spot. The transition may be invalid.",
         );

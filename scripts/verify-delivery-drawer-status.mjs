@@ -76,6 +76,9 @@ const STATUS_CONTROL_CONTRAST = {
   await openDeliveryDrawerForNavVerify(page);
   console.log("PASS: Opened delivery drawer");
 
+  const drawer = page.getByTestId("delivery-detail-drawer");
+  await drawer.waitFor({ state: "visible", timeout: 20_000 });
+
   const basicsCard = page.getByTestId("delivery-basics-card");
   await basicsCard.waitFor({ timeout: 20_000 });
 
@@ -156,6 +159,9 @@ const STATUS_CONTROL_CONTRAST = {
     await statusDropdown.selectOption("picked_up");
     await page.waitForTimeout(300);
 
+    await drawer.waitFor({ state: "visible", timeout: 5000 });
+    console.log("PASS: Drawer stays open while pickup form is pending");
+
     const currentLabel = page.getByTestId("delivery-status-current-label");
     const labelText = (await currentLabel.innerText()).trim();
     if (!labelText.startsWith("Picked Up")) {
@@ -180,7 +186,34 @@ const STATUS_CONTROL_CONTRAST = {
     const cancelBtn = pickupInput.getByRole("button", { name: "Cancel" });
     await cancelBtn.click();
     await page.waitForTimeout(300);
-    console.log("PASS: Cancelled pending pickup (no prod mutation)");
+    await drawer.waitFor({ state: "visible", timeout: 5000 });
+    console.log("PASS: Drawer remains open after canceling pending pickup");
+
+    const allowStatusMutation =
+      process.env.STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY === "1";
+    if (allowStatusMutation) {
+      const currentStatusLabel = (
+        await page.getByTestId("delivery-status-current-label").innerText()
+      ).trim();
+      if (currentStatusLabel.startsWith("Ready for Pickup")) {
+        await statusDropdown.selectOption("picked_up");
+        await page.waitForTimeout(300);
+        await page
+          .getByTestId("delivery-status-pickup-name")
+          .fill("Verify Script Tech");
+        await pickupInput.getByRole("button", { name: "Confirm Pickup" }).click();
+        await drawer.waitFor({ state: "hidden", timeout: 20_000 });
+        console.log("PASS: Drawer closed after successful Confirm Pickup");
+      } else {
+        console.log(
+          "SKIP: STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY=1 but fixture not ready_for_pickup",
+        );
+      }
+    } else {
+      console.log(
+        "SKIP: Drawer close-on-success (set STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY=1 to enable)",
+      );
+    }
   } else {
     console.log(
       "SKIP: picked_up option not enabled on fixture delivery (no transition available)",
