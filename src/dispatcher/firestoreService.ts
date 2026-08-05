@@ -94,6 +94,7 @@ import {
   V2_COLLECTION_NAMES,
 } from "./models";
 import { findStagingLocationByCode } from "./stagingCode";
+import { isCreditReturnLinkedImport } from "./invoice/deliveryCreditReturn";
 import { resolvePickupClientOperationId } from "./pickupClientOperationId";
 import {
   computeJobReadiness,
@@ -202,6 +203,23 @@ async function fetchWhere<T>(
     query(collection(db, colName), where(field, "==", value)),
   );
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
+}
+
+async function fetchVendorInvoiceImportsByIds(
+  ids: string[],
+): Promise<Map<string, VendorInvoiceImportReview>> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  const result = new Map<string, VendorInvoiceImportReview>();
+  if (unique.length === 0) return result;
+
+  await Promise.all(
+    unique.map(async (id) => {
+      const snap = await getDoc(doc(db, "vendorInvoiceImports", id));
+      if (!snap.exists()) return;
+      result.set(id, { ...(snap.data() as VendorInvoiceImportReview), id: snap.id });
+    }),
+  );
+  return result;
 }
 
 /** Seed/demo deliveries from seedFirestore.ts — hidden on prod gh-pages list only. */
@@ -387,6 +405,11 @@ export class FirestoreDataService implements DispatcherDataService {
       materialIssuesByDelivery.set(issue.deliveryOrderId, list);
     }
 
+    const importIds = deliveries
+      .map((d) => d.vendorInvoiceImportId?.trim())
+      .filter((id): id is string => Boolean(id));
+    const importsById = await fetchVendorInvoiceImportsByIds(importIds);
+
     const hideSeedDemoRows = import.meta.env.PROD;
 
     const rows: DeliveryListRow[] = [];
@@ -424,6 +447,13 @@ export class FirestoreDataService implements DispatcherDataService {
         materialIssues,
         { jobPickupScheduled: Boolean(job.pickupScheduledAt) },
       );
+      const linkedImportId = delivery.vendorInvoiceImportId?.trim();
+      const linkedImport = linkedImportId
+        ? importsById.get(linkedImportId)
+        : undefined;
+      const creditReturnLinked = linkedImport
+        ? isCreditReturnLinkedImport(linkedImport)
+        : false;
 
       rows.push({
         deliveryId: delivery.id,
@@ -450,6 +480,7 @@ export class FirestoreDataService implements DispatcherDataService {
         stagingLocationListNotApplicable:
           delivery.invoiceImportStatus === "pickup_at_vendor" ||
           delivery.invoiceFulfillmentMethod === "will_call_pickup",
+        creditReturnLinked,
       });
     }
 

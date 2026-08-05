@@ -1551,6 +1551,8 @@ export interface DeliveryListRow {
   missingStagingAssignment: boolean;
   /** Will-Call pickup — list Staging Loc. shows N/A (not chips / Not Assigned). */
   stagingLocationListNotApplicable?: boolean;
+  /** Linked import is credit/return — show list badge. */
+  creditReturnLinked?: boolean;
 }
 
 export interface DeliveryDetails {

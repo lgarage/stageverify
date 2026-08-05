@@ -25,6 +25,14 @@ function getDb() {
 function canApproveReviewStatus(status) {
     return status === "pending_review" || status === "rejected";
 }
+/** Pending always; approved only when credit/return slipped into deliveries. */
+function canRejectReviewStatus(doc) {
+    if (doc.reviewStatus === "pending_review")
+        return true;
+    if (doc.reviewStatus === "approved" && (0, creditReturnSkip_1.isCreditReturnImportDoc)(doc))
+        return true;
+    return false;
+}
 function eligibilityFromDoc(doc) {
     return (0, computeAutoImportEligibility_1.computeAutoImportEligibility)({
         importStatus: doc.importStatus,
@@ -109,7 +117,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw err;
         }
     }
-    if (action === "reject" && importDoc.reviewStatus !== "pending_review") {
+    if (action === "reject" && !canRejectReviewStatus(importDoc)) {
         throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);
     }
     if (action === "approve" && !canApproveReviewStatus(importDoc.reviewStatus)) {
@@ -136,7 +144,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
             }
             const fresh = freshImport.data();
-            if (fresh.reviewStatus !== "pending_review") {
+            if (!canRejectReviewStatus(fresh)) {
                 throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
             }
             tx.update(importRef, {
@@ -177,7 +185,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                     throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
                 }
                 const fresh = freshImport.data();
-                if (fresh.reviewStatus !== "pending_review") {
+                if (!canRejectReviewStatus(fresh)) {
                     throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
                 }
                 tx.update(importRef, {
@@ -207,7 +215,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
             }
             const fresh = freshImport.data();
-            if (fresh.reviewStatus !== "pending_review") {
+            if (!canRejectReviewStatus(fresh)) {
                 throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
             }
             tx.update(importRef, {

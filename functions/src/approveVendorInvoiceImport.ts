@@ -39,6 +39,13 @@ function canApproveReviewStatus(status: VendorInvoiceImportDoc["reviewStatus"]):
   return status === "pending_review" || status === "rejected";
 }
 
+/** Pending always; approved only when credit/return slipped into deliveries. */
+function canRejectReviewStatus(doc: VendorInvoiceImportDoc): boolean {
+  if (doc.reviewStatus === "pending_review") return true;
+  if (doc.reviewStatus === "approved" && isCreditReturnImportDoc(doc)) return true;
+  return false;
+}
+
 function eligibilityFromDoc(doc: VendorInvoiceImportDoc) {
   return computeAutoImportEligibility({
     importStatus: doc.importStatus,
@@ -163,7 +170,7 @@ export const approveVendorInvoiceImport = onCall(
       }
     }
 
-    if (action === "reject" && importDoc.reviewStatus !== "pending_review") {
+    if (action === "reject" && !canRejectReviewStatus(importDoc)) {
       throw new HttpsError(
         "failed-precondition",
         `Import already ${importDoc.reviewStatus}.`,
@@ -204,7 +211,7 @@ export const approveVendorInvoiceImport = onCall(
           throw new HttpsError("not-found", "Vendor invoice import not found.");
         }
         const fresh = freshImport.data() as VendorInvoiceImportDoc;
-        if (fresh.reviewStatus !== "pending_review") {
+        if (!canRejectReviewStatus(fresh)) {
           throw new HttpsError(
             "failed-precondition",
             `Import already ${fresh.reviewStatus}.`,
@@ -254,7 +261,7 @@ export const approveVendorInvoiceImport = onCall(
             throw new HttpsError("not-found", "Vendor invoice import not found.");
           }
           const fresh = freshImport.data() as VendorInvoiceImportDoc;
-          if (fresh.reviewStatus !== "pending_review") {
+          if (!canRejectReviewStatus(fresh)) {
             throw new HttpsError(
               "failed-precondition",
               `Import already ${fresh.reviewStatus}.`,
@@ -291,7 +298,7 @@ export const approveVendorInvoiceImport = onCall(
           throw new HttpsError("not-found", "Vendor invoice import not found.");
         }
         const fresh = freshImport.data() as VendorInvoiceImportDoc;
-        if (fresh.reviewStatus !== "pending_review") {
+        if (!canRejectReviewStatus(fresh)) {
           throw new HttpsError(
             "failed-precondition",
             `Import already ${fresh.reviewStatus}.`,

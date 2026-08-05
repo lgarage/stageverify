@@ -12,6 +12,9 @@ import {
   sendVendorEmail,
   listVendorEmailEventsForDelivery,
   listShopStockMappings,
+  getVendorInvoiceImport,
+  approveVendorInvoiceImport,
+  INVOICE_TRAINING_LESSON_TOAST,
 } from "../firestoreService";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
 import {
@@ -78,6 +81,17 @@ import {
   buildVendorCommsIssueBody,
   buildVendorCommsIssueSubject,
 } from "./vendorCommsIssueDraft";
+import { CreditReturnDeliveryBanner } from "./CreditReturnDeliveryBanner";
+import {
+  buildDeliveryDrawerRejectLessonNote,
+  isCreditReturnLinkedImport,
+} from "../invoice/deliveryCreditReturn";
+import { InvoiceRejectReasonDialog } from "../invoice/InvoiceRejectReasonDialog";
+import {
+  defaultRejectReasonId,
+  type InvoiceRejectReasonId,
+} from "../invoice/invoiceRejectReasons";
+import type { VendorInvoiceImportReview } from "../models";
 import {
   buildSuggestedResolutionNote,
   defaultResolutionTypeForIssue,
@@ -236,6 +250,7 @@ export function DetailContent({
   onNavigateToAssignLocation,
   onNavigateToStagingMap,
   onJobReleased,
+  onImportRejected,
 }: {
   loading: boolean;
   error: string | null;
@@ -273,6 +288,7 @@ export function DetailContent({
   onNavigateToAssignLocation?: (deliveryId: string) => void;
   onNavigateToStagingMap?: (spotCode: string) => void;
   onJobReleased?: () => void | Promise<void>;
+  onImportRejected?: () => void | Promise<void>;
 }) {
   const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
   const [resolutionType, setResolutionType] =
@@ -302,6 +318,18 @@ export function DetailContent({
     Set<string>
   >(new Set());
   const [drawerEmailModalOpen, setDrawerEmailModalOpen] = useState(false);
+  const [linkedImport, setLinkedImport] =
+    useState<VendorInvoiceImportReview | null>(null);
+  const [linkedImportLoading, setLinkedImportLoading] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReasonId, setRejectReasonId] = useState<
+    InvoiceRejectReasonId | ""
+  >("");
+  const [rejectDetailText, setRejectDetailText] = useState("");
+  const [rejectActionLoading, setRejectActionLoading] = useState(false);
+  const [importRejectToast, setImportRejectToast] = useState<string | null>(
+    null,
+  );
   const { vendors: portalVendors } = useDispatcherPortal();
   const liveOccupancy = useLiveZoneOccupancy(Boolean(details));
 
@@ -309,7 +337,35 @@ export function DetailContent({
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
     setDrawerEmailModalOpen(false);
+    setRejectDialogOpen(false);
+    setRejectReasonId("");
+    setRejectDetailText("");
+    setImportRejectToast(null);
   }, [details?.delivery.id]);
+
+  useEffect(() => {
+    const importId = details?.delivery.vendorInvoiceImportId?.trim();
+    if (!importId) {
+      setLinkedImport(null);
+      setLinkedImportLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLinkedImportLoading(true);
+    void getVendorInvoiceImport(importId)
+      .then((row) => {
+        if (!cancelled) setLinkedImport(row);
+      })
+      .catch(() => {
+        if (!cancelled) setLinkedImport(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLinkedImportLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [details?.delivery.vendorInvoiceImportId]);
 
   const vendorCommsInitialSubject = useMemo(
     () => (details ? buildVendorCommsIssueSubject(details) : ""),
@@ -528,6 +584,71 @@ export function DetailContent({
   };
   const shopStagingRequired = !skipsShopStaging(delivery);
 
+  const showCreditReturnBanner =
+    linkedImport != null && isCreditReturnLinkedImport(linkedImport);
+
+  const openRejectDialog = () => {
+    setRejectReasonId(
+      defaultRejectReasonId(
+        linkedImport ? isCreditReturnLinkedImport(linkedImport) : false,
+      ),
+    );
+    setRejectDetailText("");
+    setRejectDialogOpen(true);
+  };
+
+  const closeRejectDialog = () => {
+    if (rejectActionLoading) return;
+    setRejectDialogOpen(false);
+    setRejectReasonId("");
+    setRejectDetailText("");
+  };
+
+  const confirmRejectLinkedImport = async () => {
+    if (!rejectReasonId || !delivery.vendorInvoiceImportId?.trim()) return;
+    const lessonNote = buildDeliveryDrawerRejectLessonNote(
+      rejectReasonId,
+      rejectDetailText,
+    );
+    setRejectActionLoading(true);
+    setImportRejectToast(null);
+    try {
+      const result = await approveVendorInvoiceImport({
+        vendorInvoiceImportId: delivery.vendorInvoiceImportId.trim(),
+        action: "reject",
+        correctionNote: lessonNote,
+      });
+      if (result.trainingLessonWrote) {
+        setImportRejectToast(INVOICE_TRAINING_LESSON_TOAST);
+      } else if (result.trainingLessonPendingAdminReview) {
+        setImportRejectToast(
+          "This note is pending Admin review — patterns may need a fix before it can be saved.",
+        );
+      } else {
+        setImportRejectToast("Linked import moved to Rejected Invoices.");
+      }
+      setLinkedImport((prev) =>
+        prev
+          ? {
+              ...prev,
+              reviewStatus: "rejected",
+              skipReason: "credit_return",
+            }
+          : prev,
+      );
+      setRejectDialogOpen(false);
+      setRejectReasonId("");
+      setRejectDetailText("");
+      await onImportRejected?.();
+    } catch (err) {
+      setImportRejectToast(
+        err instanceof Error ? err.message : "Failed to reject linked import.",
+      );
+    } finally {
+      setRejectActionLoading(false);
+    }
+  };
+
   const handleAssignLocationNavigate = () => {
     if (onNavigateToAssignLocation) {
       onNavigateToAssignLocation(delivery.id);
@@ -583,6 +704,34 @@ export function DetailContent({
           fontFamily: font,
         }}
       >
+        {showCreditReturnBanner ? (
+          <CreditReturnDeliveryBanner
+            importRow={linkedImport}
+            importId={delivery.vendorInvoiceImportId}
+            importLoading={linkedImportLoading}
+            font={font}
+            mutationLoading={mutationLoading || rejectActionLoading}
+            onRejectClick={openRejectDialog}
+          />
+        ) : null}
+        {importRejectToast ? (
+          <p
+            data-testid="delivery-import-reject-toast"
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: importRejectToast.includes("Failed") ? "#b91c1c" : "#166534",
+              backgroundColor: importRejectToast.includes("Failed")
+                ? "#fef2f2"
+                : "#ecfdf5",
+              border: `1px solid ${importRejectToast.includes("Failed") ? "#fecaca" : "#bbf7d0"}`,
+              borderRadius: 6,
+              padding: "8px 12px",
+            }}
+          >
+            {importRejectToast}
+          </p>
+        ) : null}
         {renderDrawerSection(
           "Delivery Basics",
           <>
@@ -1619,6 +1768,18 @@ export function DetailContent({
         onSend={async (input) => {
           await sendVendorEmail(input);
         }}
+      />
+      <InvoiceRejectReasonDialog
+        open={rejectDialogOpen}
+        title="Reject linked credit/return import?"
+        helpText="This moves the linked import to Rejected Invoices and saves a training lesson so credit/return memos do not create pickup-ready deliveries again."
+        reasonId={rejectReasonId}
+        detailText={rejectDetailText}
+        loading={rejectActionLoading}
+        onReasonIdChange={setRejectReasonId}
+        onDetailTextChange={setRejectDetailText}
+        onCancel={closeRejectDialog}
+        onConfirm={() => void confirmRejectLinkedImport()}
       />
     </>
   );

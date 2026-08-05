@@ -154,6 +154,57 @@ const STATUS_CONTROL_CONTRAST = {
   await assertReadableTextContrast(page, STATUS_CONTROL_CONTRAST);
   console.log("PASS: D-42 contrast on status + fulfillment controls");
 
+  const creditBanner = page.getByTestId("delivery-credit-return-banner");
+  if ((await creditBanner.count()) > 0) {
+    await creditBanner.waitFor({ timeout: 5000 });
+    const title = page.getByTestId("delivery-credit-return-banner-title");
+    const titleText = (await title.innerText()).trim();
+    if (!titleText.includes("Credit/Return")) {
+      throw new Error(
+        `FAIL: Credit/return banner title missing expected copy — got "${titleText}"`,
+      );
+    }
+    console.log("PASS: Credit/return banner visible with expected title");
+
+    await assertReadableTextContrast(page, {
+      rootSelector: '[data-testid="delivery-credit-return-banner"]',
+      elements: [
+        {
+          name: "credit return banner title",
+          selector: '[data-testid="delivery-credit-return-banner-title"]',
+          large: false,
+        },
+        {
+          name: "credit return banner body",
+          selector: '[data-testid="delivery-credit-return-banner-body"]',
+          large: false,
+        },
+      ],
+    });
+    console.log("PASS: D-42 contrast on credit/return banner");
+
+    const rejectBtn = page.getByTestId("delivery-credit-return-reject-btn");
+    if ((await rejectBtn.count()) > 0) {
+      console.log("PASS: Reject linked import button present on credit/return delivery");
+    } else {
+      const blocked = page.getByTestId("delivery-credit-return-reject-blocked");
+      if ((await blocked.count()) > 0) {
+        console.log("PASS: Credit/return banner shows reject blocked reason (import not rejectable)");
+      }
+    }
+  } else {
+    console.log(
+      "SKIP: No credit/return delivery in fixture — banner testids not exercised this run",
+    );
+  }
+
+  const listCreditBadge = page.locator('[data-testid^="delivery-list-credit-return-badge-"]');
+  if ((await listCreditBadge.count()) > 0) {
+    console.log("PASS: Deliveries list shows Credit/Return badge on linked row(s)");
+  } else {
+    console.log("SKIP: No credit/return rows in deliveries list this run");
+  }
+
   const pickedUpOption = statusDropdown.locator('option[value="picked_up"]');
   if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
     await statusDropdown.selectOption("picked_up");

@@ -927,6 +927,26 @@ export function DispatcherDashboardPage() {
                             />
                             {row.statusDisplayLabel}
                           </span>
+                          {row.creditReturnLinked ? (
+                            <span
+                              data-testid={`delivery-list-credit-return-badge-${row.deliveryId}`}
+                              title="Credit/return — do not stage or pickup"
+                              style={{
+                                display: "inline-flex",
+                                marginTop: 4,
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: "#991b1b",
+                                backgroundColor: "#fef2f2",
+                                border: "1px solid #fecaca",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Credit/Return
+                            </span>
+                          ) : null}
                         </td>
                         <td
                           style={{

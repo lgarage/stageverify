@@ -547,6 +547,7 @@ export function DeliveryDetailDrawer({
             onNavigateToAssignLocation={handleNavigateToAssignLocation}
             onNavigateToStagingMap={handleNavigateToStagingMap}
             onJobReleased={() => void onDataChanged?.()}
+            onImportRejected={() => void onDataChanged?.()}
           />
         </div>
       </div>
