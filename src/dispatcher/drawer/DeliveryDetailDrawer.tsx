@@ -226,6 +226,55 @@ export function DeliveryDetailDrawer({
     }
   };
 
+  const handleUpdateFulfillmentMethod = async (
+    method: "delivery" | "will_call_pickup",
+  ) => {
+    if (!deliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updatedDetails = await firestoreDataService.updateFulfillmentMethod(
+        deliveryId,
+        method,
+      );
+      if (updatedDetails) await refreshAfter(updatedDetails);
+      else setMutationError("Failed to update fulfillment method.");
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while updating fulfillment.",
+      );
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleStatusAndAssignSpot = async (spotId: string) => {
+    if (!deliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const updatedDetails =
+        await firestoreDataService.updateStatusAndAssignSpot(
+          deliveryId,
+          spotId,
+        );
+      if (updatedDetails) await refreshAfter(updatedDetails);
+      else {
+        setMutationError(
+          "Failed to assign staging spot. The transition may be invalid.",
+        );
+      }
+    } catch (e) {
+      setMutationError(
+        "An unexpected error occurred while assigning staging spot.",
+      );
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
   const handleUpdateIssueSummary = async (summary: string): Promise<void> => {
     if (!deliveryId) return;
     setMutationLoading(true);
@@ -462,6 +511,8 @@ export function DeliveryDetailDrawer({
             onRecordPickup={handleRecordPickup}
             onRevertStatus={handleRevertStatus}
             onMarkShipped={handleMarkShipped}
+            onUpdateFulfillmentMethod={handleUpdateFulfillmentMethod}
+            onStatusAndAssignSpot={handleStatusAndAssignSpot}
             onUpdateIssueSummary={handleUpdateIssueSummary}
             onSetDeliverToSiteConfirmed={handleSetDeliverToSiteConfirmed}
             onUpdateItemReceiptStatus={handleUpdateItemReceiptStatus}

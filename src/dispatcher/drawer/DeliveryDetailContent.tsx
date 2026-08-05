@@ -24,6 +24,7 @@ import {
   VALID_TRANSITIONS,
   type DeliveryDetails,
   type DeliveryListRow,
+  type DeliveryOrder,
   type DeliveryStatus,
   type Item,
   type PickupEvent,
@@ -51,6 +52,8 @@ import {
   sortActivityHistoryNewestFirst,
   formatActivityHistoryHeadline,
   formatActivityHistoryMeta,
+  computeDeliveryDisplayState,
+  isWillCallPickupStagingListNa,
 } from "../deliveryDisplayHelpers";
 import {
   resolveDeliveryPoNumber,
@@ -221,6 +224,8 @@ export function DetailContent({
   onRecordPickup,
   onRevertStatus,
   onMarkShipped,
+  onUpdateFulfillmentMethod,
+  onStatusAndAssignSpot,
   onUpdateIssueSummary,
   onSetDeliverToSiteConfirmed,
   onUpdateItemReceiptStatus,
@@ -243,6 +248,10 @@ export function DetailContent({
   onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
   onRevertStatus: () => Promise<void>;
   onMarkShipped: () => Promise<void>;
+  onUpdateFulfillmentMethod: (
+    method: "delivery" | "will_call_pickup",
+  ) => Promise<void>;
+  onStatusAndAssignSpot: (spotId: string) => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onSetDeliverToSiteConfirmed: (confirmed: boolean) => Promise<void>;
   onUpdateItemReceiptStatus: (
@@ -643,6 +652,19 @@ export function DetailContent({
                   <span style={{ color: "#333", textAlign: "right" }}>{value}</span>
                 </div>
               ))}
+              <DeliveryStatusControls
+                details={details}
+                stagingLocations={stagingLocations}
+                loading={mutationLoading}
+                navy={navy}
+                font={font}
+                onUpdateStatus={onUpdateStatus}
+                onRecordPickup={onRecordPickup}
+                onRevertStatus={onRevertStatus}
+                onMarkShipped={onMarkShipped}
+                onUpdateFulfillmentMethod={onUpdateFulfillmentMethod}
+                onStatusAndAssignSpot={onStatusAndAssignSpot}
+              />
               <div
                 data-testid="delivery-basics-staging-locations"
                 style={{
@@ -1197,9 +1219,6 @@ export function DetailContent({
           loading={mutationLoading}
           error={mutationError}
           onUpdateStatus={onUpdateStatus}
-          onRecordPickup={onRecordPickup}
-          onRevertStatus={onRevertStatus}
-          onMarkShipped={onMarkShipped}
           onUpdateIssueSummary={onUpdateIssueSummary}
           onUpdateShopStockPickList={onUpdateShopStockPickList}
           stagingLocations={stagingLocations}
@@ -1604,6 +1623,471 @@ export function DetailContent({
   );
 }
 
+/* ─── Delivery status + fulfillment (Delivery Basics) ─────────────────── */
+
+const DRAWER_STATUS_DROPDOWN_OPTIONS: DeliveryStatus[] = [
+  "pending",
+  "shipped",
+  "arrived",
+  "partial",
+  "ready_for_pickup",
+  "picked_up",
+];
+
+function drawerStatusOptionEnabled(
+  current: DeliveryStatus,
+  option: DeliveryStatus,
+  delivery: DeliveryOrder,
+): boolean {
+  if (
+    option === "ready_for_pickup" &&
+    isWillCallPickupStagingListNa(delivery)
+  ) {
+    return false;
+  }
+  const possibleNext = VALID_TRANSITIONS[current] ?? [];
+  const revertTarget = DISPATCHER_REVERT_TARGETS[current];
+  return possibleNext.includes(option) || revertTarget === option;
+}
+
+function DeliveryStatusControls({
+  details,
+  stagingLocations,
+  loading,
+  navy,
+  font,
+  onUpdateStatus,
+  onRecordPickup,
+  onRevertStatus,
+  onMarkShipped,
+  onUpdateFulfillmentMethod,
+  onStatusAndAssignSpot,
+}: {
+  details: DeliveryDetails;
+  stagingLocations: StagingLocation[];
+  loading: boolean;
+  navy: string;
+  font: string;
+  onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
+  onRevertStatus: () => Promise<void>;
+  onMarkShipped: () => Promise<void>;
+  onUpdateFulfillmentMethod: (
+    method: "delivery" | "will_call_pickup",
+  ) => Promise<void>;
+  onStatusAndAssignSpot: (spotId: string) => Promise<void>;
+}) {
+  const delivery = details.delivery;
+  const currentStatus = delivery.status;
+  const [showPickupInput, setShowPickupInput] = useState(false);
+  const [showSpotPicker, setShowSpotPicker] = useState(false);
+  const [selectedSpotId, setSelectedSpotId] = useState(
+    delivery.stagingLocationId ?? "",
+  );
+  const [pickupTechnicianName, setPickupTechnicianName] = useState("");
+  const pickupInputRef = useRef<HTMLInputElement>(null);
+
+  const displayState = useMemo(
+    () =>
+      computeDeliveryDisplayState(
+        delivery,
+        details.items,
+        details.materialIssues,
+      ),
+    [delivery, details.items, details.materialIssues],
+  );
+
+  const fulfillmentMethod =
+    delivery.invoiceFulfillmentMethod === "will_call_pickup"
+      ? "will_call_pickup"
+      : "delivery";
+  const fulfillmentContextLabel =
+    fulfillmentMethod === "will_call_pickup" ? "Will-call" : "Drop-off";
+
+  const selectValue = DRAWER_STATUS_DROPDOWN_OPTIONS.includes(currentStatus)
+    ? currentStatus
+    : "";
+
+  useEffect(() => {
+    setSelectedSpotId(delivery.stagingLocationId ?? "");
+    setShowPickupInput(false);
+    setShowSpotPicker(false);
+    setPickupTechnicianName("");
+  }, [delivery.id, delivery.stagingLocationId]);
+
+  useEffect(() => {
+    if (showPickupInput) {
+      const t = setTimeout(() => pickupInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [showPickupInput]);
+
+  const handleStatusChange = (option: DeliveryStatus) => {
+    if (option === currentStatus) return;
+    if (option === "picked_up") {
+      setShowSpotPicker(false);
+      setShowPickupInput(true);
+      return;
+    }
+    if (option === "ready_for_pickup") {
+      setShowPickupInput(false);
+      setShowSpotPicker(true);
+      return;
+    }
+    const revertTarget = DISPATCHER_REVERT_TARGETS[currentStatus];
+    const inTransitions = VALID_TRANSITIONS[currentStatus]?.includes(option);
+    if (option === revertTarget && !inTransitions) {
+      void onRevertStatus();
+      return;
+    }
+    if (option === "shipped" && currentStatus === "pending") {
+      void onMarkShipped();
+      return;
+    }
+    void onUpdateStatus(option);
+  };
+
+  const handleConfirmPickup = () => {
+    const trimmedName = pickupTechnicianName.trim();
+    if (!trimmedName) return;
+    const itemCount = details.items.length;
+    const summary = itemCount === 1 ? "1 item" : `${itemCount} items`;
+    void onRecordPickup(trimmedName, summary);
+    setShowPickupInput(false);
+    setPickupTechnicianName("");
+  };
+
+  const handleConfirmSpot = () => {
+    if (!selectedSpotId.trim()) return;
+    void onStatusAndAssignSpot(selectedSpotId);
+    setShowSpotPicker(false);
+  };
+
+  return (
+    <div
+      data-testid="delivery-status-controls"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        paddingTop: 4,
+        borderTop: "1px solid #e5e7eb",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <span
+          style={{
+            color: "#6b7280",
+            fontWeight: 700,
+            fontSize: 12,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}
+        >
+          Status
+        </span>
+        <p
+          data-testid="delivery-status-current-label"
+          style={{
+            margin: 0,
+            fontSize: 13,
+            color: "#333",
+            fontWeight: 600,
+          }}
+        >
+          {displayState.statusDisplayLabel}
+          <span style={{ color: "#6b7280", fontWeight: 500 }}>
+            {" "}
+            · {fulfillmentContextLabel}
+          </span>
+        </p>
+        <select
+          data-testid="delivery-status-dropdown"
+          value={selectValue}
+          disabled={loading || currentStatus === "issue"}
+          onChange={(e) =>
+            handleStatusChange(e.target.value as DeliveryStatus)
+          }
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "8px 10px",
+            border: "1.5px solid #ccd0d7",
+            borderRadius: 6,
+            fontSize: 14,
+            fontFamily: font,
+            color: "#111",
+            backgroundColor: "#fff",
+          }}
+        >
+          {!selectValue ? (
+            <option value="" disabled>
+              {currentStatus === "issue"
+                ? "Issue — use Report Issue below"
+                : DELIVERY_STATUS_LABEL[currentStatus] ?? currentStatus}
+            </option>
+          ) : null}
+          {DRAWER_STATUS_DROPDOWN_OPTIONS.map((option) => {
+            const enabled = drawerStatusOptionEnabled(
+              currentStatus,
+              option,
+              delivery,
+            );
+            return (
+              <option
+                key={option}
+                value={option}
+                disabled={!enabled}
+                style={{ color: enabled ? "#111" : "#9ca3af" }}
+              >
+                {DELIVERY_STATUS_LABEL[option]}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+
+      <div
+        data-testid="delivery-fulfillment-control"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <span
+          style={{
+            color: "#6b7280",
+            fontWeight: 700,
+            fontSize: 12,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}
+        >
+          Fulfillment
+        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(
+            [
+              ["delivery", "Drop-off"],
+              ["will_call_pickup", "Will-call"],
+            ] as const
+          ).map(([method, label]) => {
+            const active = fulfillmentMethod === method;
+            return (
+              <button
+                key={method}
+                type="button"
+                data-testid={`delivery-fulfillment-${method}`}
+                disabled={loading || active}
+                onClick={() => void onUpdateFulfillmentMethod(method)}
+                style={{
+                  flex: 1,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${active ? navy : "#ccd0d7"}`,
+                  backgroundColor: active ? navy : "#fff",
+                  color: active ? "#fff" : "#374151",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: loading || active ? "default" : "pointer",
+                  fontFamily: font,
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {showSpotPicker ? (
+        <div data-testid="delivery-status-spot-picker">
+          <label
+            htmlFor="delivery-status-spot-select"
+            style={{
+              display: "block",
+              marginBottom: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#374151",
+              fontFamily: font,
+            }}
+          >
+            Assign staging spot for Ready for Pickup
+          </label>
+          <select
+            id="delivery-status-spot-select"
+            data-testid="delivery-status-spot-select"
+            value={selectedSpotId}
+            disabled={loading}
+            onChange={(e) => setSelectedSpotId(e.target.value)}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              border: "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: font,
+              color: "#111",
+              backgroundColor: "#fff",
+              marginBottom: 8,
+            }}
+          >
+            <option value="">Select a spot…</option>
+            {stagingLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.code}
+                {loc.label ? ` — ${loc.label}` : ""}
+              </option>
+            ))}
+          </select>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={handleConfirmSpot}
+              disabled={loading || !selectedSpotId.trim()}
+              style={{
+                backgroundColor:
+                  loading || !selectedSpotId.trim() ? "#f3f4f6" : navy,
+                color:
+                  loading || !selectedSpotId.trim() ? "#9ca3af" : "#fff",
+                border: `1.5px solid ${
+                  loading || !selectedSpotId.trim() ? "#d1d5db" : navy
+                }`,
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor:
+                  loading || !selectedSpotId.trim()
+                    ? "not-allowed"
+                    : "pointer",
+                fontFamily: font,
+              }}
+            >
+              {loading ? "Saving…" : "Save spot + stage"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSpotPicker(false)}
+              disabled={loading}
+              style={{
+                backgroundColor: "#fff",
+                color: "#374151",
+                border: "1.5px solid #d1d5db",
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showPickupInput ? (
+        <div data-testid="delivery-status-pickup-input">
+          <label
+            htmlFor="delivery-status-pickup-name"
+            style={{
+              display: "block",
+              marginBottom: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#374151",
+              fontFamily: font,
+            }}
+          >
+            Who picked up?
+          </label>
+          <input
+            ref={pickupInputRef}
+            id="delivery-status-pickup-name"
+            type="text"
+            value={pickupTechnicianName}
+            onChange={(e) => setPickupTechnicianName(e.target.value)}
+            placeholder="Enter technician name"
+            disabled={loading}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 12px",
+              border: "1.5px solid #ccd0d7",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: font,
+              color: "#111",
+              backgroundColor: "#fff",
+              marginBottom: 8,
+            }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={handleConfirmPickup}
+              disabled={loading || !pickupTechnicianName.trim()}
+              style={{
+                backgroundColor:
+                  loading || !pickupTechnicianName.trim() ? "#f3f4f6" : navy,
+                color:
+                  loading || !pickupTechnicianName.trim() ? "#9ca3af" : "#fff",
+                border: `1.5px solid ${
+                  loading || !pickupTechnicianName.trim() ? "#d1d5db" : navy
+                }`,
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor:
+                  loading || !pickupTechnicianName.trim()
+                    ? "not-allowed"
+                    : "pointer",
+                fontFamily: font,
+              }}
+            >
+              {loading ? "Saving…" : "Confirm Pickup"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPickupInput(false);
+                setPickupTechnicianName("");
+              }}
+              disabled={loading}
+              style={{
+                backgroundColor: "#fff",
+                color: "#374151",
+                border: "1.5px solid #d1d5db",
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /* ─── Status Action Panel ────────────────────────────────────────────────── */
 
 function StatusActionPanel({
@@ -1611,9 +2095,6 @@ function StatusActionPanel({
   loading,
   error,
   onUpdateStatus,
-  onRecordPickup,
-  onRevertStatus,
-  onMarkShipped,
   onUpdateIssueSummary,
   onUpdateShopStockPickList,
   stagingLocations,
@@ -1624,9 +2105,6 @@ function StatusActionPanel({
   loading: boolean;
   error: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
-  onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
-  onRevertStatus: () => Promise<void>;
-  onMarkShipped: () => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onUpdateShopStockPickList: (
     items: string[],
@@ -1639,14 +2117,10 @@ function StatusActionPanel({
 }) {
   const [reason, setReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
-  const [showPickupInput, setShowPickupInput] = useState(false);
-  const [pickupTechnicianName, setPickupTechnicianName] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const pickupInputRef = useRef<HTMLInputElement>(null);
   const [editingIssue, setEditingIssue] = useState(false);
   const [editReason, setEditReason] = useState("");
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [stockToolsExpanded, setStockToolsExpanded] = useState(false);
   const [stockMappings, setStockMappings] = useState<ShopStockLocationMapping[]>([]);
   const [linkedMappingId, setLinkedMappingId] = useState("");
@@ -1682,19 +2156,10 @@ function StatusActionPanel({
 
   useEffect(() => {
     if (showReasonInput) {
-      // Small timeout ensures the element is fully mounted in the DOM
-      // before focus is called (required on iOS Safari inside fixed overlays)
       const t = setTimeout(() => textareaRef.current?.focus(), 50);
       return () => clearTimeout(t);
     }
   }, [showReasonInput]);
-
-  useEffect(() => {
-    if (showPickupInput) {
-      const t = setTimeout(() => pickupInputRef.current?.focus(), 50);
-      return () => clearTimeout(t);
-    }
-  }, [showPickupInput]);
 
   useEffect(() => {
     if (editingIssue) {
@@ -1703,36 +2168,7 @@ function StatusActionPanel({
     }
   }, [editingIssue]);
 
-  useEffect(() => {
-    if (showReasonInput || showPickupInput || editingIssue) {
-      setAdvancedExpanded(true);
-    }
-  }, [showReasonInput, showPickupInput, editingIssue]);
-
   const currentStatus = details.delivery.status;
-  const possibleNext = VALID_TRANSITIONS[currentStatus] ?? [];
-  const revertTarget = DISPATCHER_REVERT_TARGETS[currentStatus];
-
-  const handleActionClick = (nextStatus: DeliveryStatus) => {
-    if (nextStatus === "issue") {
-      setShowReasonInput(true);
-    } else if (nextStatus === "picked_up") {
-      setShowPickupInput(true);
-    } else {
-      void onUpdateStatus(nextStatus);
-    }
-  };
-
-  const handleConfirmPickup = () => {
-    const trimmedName = pickupTechnicianName.trim();
-    if (!trimmedName) return;
-    const itemCount = details.items.length;
-    const summary =
-      itemCount === 1 ? "1 item" : `${itemCount} items`;
-    void onRecordPickup(trimmedName, summary);
-    setShowPickupInput(false);
-    setPickupTechnicianName("");
-  };
 
   const handleConfirmIssue = () => {
     if (reason.trim()) {
@@ -1810,238 +2246,36 @@ function StatusActionPanel({
         </div>
       )}
 
-      {/* ── 2. Advanced Manual Controls (collapsed default) ── */}
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          data-testid="advanced-manual-controls-toggle"
-          aria-expanded={advancedExpanded}
-          onClick={() => setAdvancedExpanded((v) => !v)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            width: "100%",
-            padding: "8px 0",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            fontFamily: font,
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#9ca3af",
-            letterSpacing: "0.04em",
-            textAlign: "left",
-          }}
-        >
-          <span style={{ fontSize: 10, color: "#64748b" }}>
-            {advancedExpanded ? "▼" : "▶"}
-          </span>
-          <span data-testid="manual-controls-heading">Advanced Manual Controls</span>
-        </button>
-        <p
-          style={{
-            margin: "0 0 8px",
-            fontSize: 12,
-            color: "#6b7280",
-            lineHeight: 1.45,
-            fontFamily: font,
-          }}
-        >
-          Use only for admin correction or demo recovery.
-        </p>
-        {advancedExpanded && (
-          <div data-testid="advanced-manual-controls-section">
-      {currentStatus === "pending" && !showReasonInput && !showPickupInput && (
+      {/* Issue reporting — separate from status dropdown */}
+      {currentStatus !== "issue" && !showReasonInput ? (
         <div style={{ marginBottom: 12 }}>
           <button
-            onClick={() => void onMarkShipped()}
+            type="button"
+            data-testid="report-issue-button"
+            onClick={() => setShowReasonInput(true)}
             disabled={loading}
             style={{
-              backgroundColor: loading ? "#f3f4f6" : navy,
-              color: loading ? "#9ca3af" : "#fff",
-              border: `1.5px solid ${loading ? "#d1d5db" : navy}`,
+              backgroundColor: loading ? "#f3f4f6" : "#fff",
+              color: loading ? "#9ca3af" : "#c62828",
+              border: `1.5px solid ${loading ? "#d1d5db" : "#c62828"}`,
               borderRadius: 4,
               padding: "8px 14px",
               fontSize: 12,
               fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               fontFamily: font,
-              transition: "all 0.13s",
             }}
           >
-            {loading ? "Updating…" : "Mark Shipped"}
+            Report Issue
           </button>
         </div>
-      )}
-
-      {(possibleNext.length > 0 || revertTarget) &&
-        !showReasonInput &&
-        !showPickupInput && (
-        <div
-          data-testid="manual-controls-section"
-          style={{
-            marginTop: 16,
-            padding: "12px",
-            borderRadius: 8,
-            border: "1px dashed #d1d5db",
-            backgroundColor: "#fafafa",
-          }}
-        >
-          {possibleNext.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {possibleNext.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => handleActionClick(status)}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: loading ? "#f3f4f6" : "#fff",
-                    color: loading ? "#9ca3af" : "#6b7280",
-                    border: `1px solid ${loading ? "#d1d5db" : "#d1d5db"}`,
-                    borderRadius: 4,
-                    padding: "5px 10px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: loading ? "not-allowed" : "pointer",
-                    fontFamily: font,
-                    transition: "all 0.13s",
-                  }}
-                >
-                  {loading ? "Updating…" : `Mark ${DELIVERY_STATUS_LABEL[status]}`}
-                </button>
-              ))}
-            </div>
-          )}
-          {revertTarget && (
-            <div style={{ marginTop: possibleNext.length > 0 ? 10 : 0 }}>
-              <button
-                onClick={() => void onRevertStatus()}
-                disabled={loading}
-                style={{
-                  backgroundColor: loading ? "#f3f4f6" : "#fff",
-                  color: loading ? "#9ca3af" : "#9ca3af",
-                  border: `1px solid ${loading ? "#d1d5db" : "#d1d5db"}`,
-                  borderRadius: 4,
-                  padding: "5px 10px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontFamily: font,
-                  transition: "all 0.13s",
-                }}
-              >
-                {loading ? "Updating…" : `Revert to ${DELIVERY_STATUS_LABEL[revertTarget]}`}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {showPickupInput && (
-        <div>
-          <h3
-            style={{
-              margin: "16px 0 8px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: navy,
-              textTransform: "uppercase",
-              letterSpacing: "0.10em",
-            }}
-          >
-            Record Pickup
-          </h3>
-          <label
-            htmlFor="dispatcher-pickup-name"
-            style={{
-              display: "block",
-              marginBottom: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: "#374151",
-              fontFamily: font,
-            }}
-          >
-            Technician name
-          </label>
-          <input
-            ref={pickupInputRef}
-            id="dispatcher-pickup-name"
-            type="text"
-            autoFocus
-            value={pickupTechnicianName}
-            onChange={(e) => setPickupTechnicianName(e.target.value)}
-            placeholder="Enter technician name"
-            disabled={loading}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "8px 12px",
-              border: "1.5px solid #ccd0d7",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: font,
-              color: "#111",
-              backgroundColor: "#fff",
-              outline: "none",
-              marginBottom: 8,
-            }}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={handleConfirmPickup}
-              disabled={loading || !pickupTechnicianName.trim()}
-              style={{
-                backgroundColor:
-                  loading || !pickupTechnicianName.trim() ? "#f3f4f6" : navy,
-                color:
-                  loading || !pickupTechnicianName.trim() ? "#9ca3af" : "#fff",
-                border: `1.5px solid ${
-                  loading || !pickupTechnicianName.trim() ? "#d1d5db" : navy
-                }`,
-                borderRadius: 4,
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor:
-                  loading || !pickupTechnicianName.trim()
-                    ? "not-allowed"
-                    : "pointer",
-                fontFamily: font,
-              }}
-            >
-              {loading ? "Saving..." : "Confirm Pickup"}
-            </button>
-            <button
-              onClick={() => {
-                setShowPickupInput(false);
-                setPickupTechnicianName("");
-              }}
-              disabled={loading}
-              style={{
-                backgroundColor: "#fff",
-                color: "#374151",
-                border: "1.5px solid #d1d5db",
-                borderRadius: 4,
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: font,
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {showReasonInput && (
-        <div>
+        <div data-testid="report-issue-form">
           <h3
             style={{
-              margin: "16px 0 8px",
+              margin: "0 0 8px",
               fontSize: 11,
               fontWeight: 700,
               color: "#c62828",
@@ -2057,7 +2291,7 @@ function StatusActionPanel({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Briefly describe the issue..."
-            disabled={false}
+            disabled={loading}
             style={{
               width: "100%",
               boxSizing: "border-box",
@@ -2075,6 +2309,7 @@ function StatusActionPanel({
           />
           <div style={{ display: "flex", gap: 8 }}>
             <button
+              type="button"
               onClick={handleConfirmIssue}
               disabled={loading || !reason.trim()}
               style={{
@@ -2095,6 +2330,7 @@ function StatusActionPanel({
               {loading ? "Saving..." : "Confirm Issue"}
             </button>
             <button
+              type="button"
               onClick={() => {
                 setShowReasonInput(false);
                 setReason("");
@@ -2245,11 +2481,8 @@ function StatusActionPanel({
           </div>
         </div>
       )}
-          </div>
-        )}
-      </div>
 
-      {/* ── 3. Experimental Stock Tools (collapsed default) ── */}
+      {/* ── Experimental Stock Tools (collapsed default) ── */}
       <div style={{ marginTop: 16 }}>
         <button
           type="button"

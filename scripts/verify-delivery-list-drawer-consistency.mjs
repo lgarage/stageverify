@@ -989,8 +989,7 @@ async function reopenOrd005DrawerAfterPrep(page, drawerProbeOrder) {
 }
 
 async function assertLowerDrawerLayout(page, record, label) {
-  const stagingAssignment = page.getByTestId("staging-location-assignment");
-  const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
+  const statusControls = page.getByTestId("delivery-status-controls");
   const stockToggle = page.getByTestId("experimental-stock-tools-toggle");
 
   record(
@@ -1009,30 +1008,21 @@ async function assertLowerDrawerLayout(page, record, label) {
     assignHeadingText || "(absent)",
   );
 
-  const stagingBox =
-    (await stagingAssignment.count()) > 0
-      ? await stagingAssignment.boundingBox()
-      : null;
-  const advancedBox = await advancedToggle.boundingBox();
   record(
-    `${label} — staging assignment precedes Advanced Manual Controls`,
-    Boolean(
-      stagingBox && advancedBox && stagingBox.y < advancedBox.y,
-    ) ||
-      ((await stagingAssignment.count()) === 0 && advancedBox),
-    `staging y=${stagingBox?.y ?? "absent"}, advanced y=${advancedBox?.y ?? "?"}`,
+    `${label} — status controls present under Delivery Basics`,
+    (await statusControls.count()) > 0,
   );
-
   record(
-    `${label} — Advanced Manual Controls collapsed by default`,
-    (await advancedToggle.getAttribute("aria-expanded")) === "false",
-    `aria-expanded=${await advancedToggle.getAttribute("aria-expanded")}`,
+    `${label} — delivery status dropdown present`,
+    (await page.getByTestId("delivery-status-dropdown").count()) > 0,
   );
-
   record(
-    `${label} — Advanced Manual Controls heading text`,
-    (await page.getByTestId("manual-controls-heading").innerText()).trim() ===
-      "Advanced Manual Controls",
+    `${label} — fulfillment control present`,
+    (await page.getByTestId("delivery-fulfillment-control").count()) > 0,
+  );
+  record(
+    `${label} — Advanced Manual Controls removed`,
+    (await page.getByTestId("advanced-manual-controls-toggle").count()) === 0,
   );
 
   record(
@@ -1059,29 +1049,10 @@ async function assertLowerDrawerLayout(page, record, label) {
     record(`${label} — Delivery Basics card present for PO check`, false);
   }
 
-  const manualSection = page.getByTestId("manual-controls-section");
   record(
-    `${label} — manual mark buttons hidden when Advanced collapsed`,
-    (await manualSection.count()) === 0,
+    `${label} — manual mark buttons section removed`,
+    (await page.getByTestId("manual-controls-section").count()) === 0,
   );
-
-  await advancedToggle.click();
-  await page.waitForTimeout(300);
-  record(
-    `${label} — Advanced Manual Controls expands on click`,
-    (await advancedToggle.getAttribute("aria-expanded")) === "true",
-  );
-  if ((await manualSection.count()) > 0) {
-    const manualText = (await manualSection.innerText()).trim();
-    record(
-      `${label} — Advanced Manual Controls groups Mark buttons`,
-      (/Mark (Partial|Received)/i.test(manualText) || /Mark Shipped/i.test(manualText)) &&
-        /Mark Issue/i.test(manualText),
-      manualText.slice(0, 80),
-    );
-  } else {
-    record(`${label} — manual-controls-section present when expanded`, false);
-  }
 
   await stockToggle.click();
   await page.waitForTimeout(300);
@@ -1409,17 +1380,15 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
 
   await assertLegacyDrawerActionsRemoved(page, record, orderNumber);
 
-  const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
+  const statusControls = page.getByTestId("delivery-status-controls");
   record(
-    `${orderNumber} — Advanced Manual Controls collapsed by default`,
-    (await advancedToggle.getAttribute("aria-expanded")) === "false",
-    `aria-expanded=${await advancedToggle.getAttribute("aria-expanded")}`,
+    `${orderNumber} — status controls present in Delivery Basics`,
+    (await statusControls.count()) > 0,
   );
 
   record(
-    `${orderNumber} — Advanced Manual Controls heading text`,
-    (await page.getByTestId("manual-controls-heading").innerText()).trim() ===
-      "Advanced Manual Controls",
+    `${orderNumber} — Advanced Manual Controls removed`,
+    (await page.getByTestId("advanced-manual-controls-toggle").count()) === 0,
   );
 
   const stockToggle = page.getByTestId("experimental-stock-tools-toggle");
@@ -1436,7 +1405,7 @@ async function assertUniformDemoDrawerPresentation(page, record, orderNumber) {
   );
 
   record(
-    `${orderNumber} — manual mark buttons hidden when Advanced collapsed`,
+    `${orderNumber} — manual mark buttons section removed`,
     (await page.getByTestId("manual-controls-section").count()) === 0,
   );
 
@@ -1957,7 +1926,6 @@ async function assertOrd006EmailReviewAction(page, record) {
       (await page.getByTestId("generate-pickup-link").count()) === 0,
     );
 
-    const manualHeading = page.getByTestId("manual-controls-heading");
     const stagingAssign = page.getByTestId("staging-location-assignment");
     if ((await stagingAssign.count()) > 0) {
       await stagingAssign.scrollIntoViewIfNeeded();
@@ -1994,9 +1962,12 @@ async function assertOrd006EmailReviewAction(page, record) {
     await assertStagingOccupiedDropdown(page, record, "ORD-005");
 
     record(
-      "ORD-005 Advanced Manual Controls heading present",
-      (await manualHeading.count()) > 0 &&
-        (await manualHeading.innerText()).trim() === "Advanced Manual Controls",
+      "ORD-005 status dropdown present in Delivery Basics",
+      (await page.getByTestId("delivery-status-dropdown").count()) > 0,
+    );
+    record(
+      "ORD-005 Advanced Manual Controls removed",
+      (await page.getByTestId("advanced-manual-controls-toggle").count()) === 0,
     );
     record(
       "ORD-005 workflow status badge removed",
@@ -2009,10 +1980,9 @@ async function assertOrd006EmailReviewAction(page, record) {
 
     await assertLowerDrawerLayout(page, record, "ORD-005");
 
-    const manualControls = page.getByTestId("advanced-manual-controls-section");
     record(
-      "ORD-005 Advanced Manual Controls section present when expanded",
-      (await manualControls.count()) > 0,
+      "ORD-005 fulfillment control present",
+      (await page.getByTestId("delivery-fulfillment-control").count()) > 0,
     );
 
     record(
@@ -2266,7 +2236,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   await listSearch.fill("");
   await page.waitForTimeout(800);
 
-  const stagedFilter = page.getByRole("button", { name: "Staged", exact: true });
+  const stagedFilter = page.getByRole("button", { name: "Ready for Pickup", exact: true });
   if (await stagedFilter.isVisible().catch(() => false)) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);

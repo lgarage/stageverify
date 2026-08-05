@@ -8,7 +8,8 @@
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
 - **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** (bundle `index-BbmYlaD7.js`). **Firebase rules/functions NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`) but cloud missing `FIREBASE_TOKEN`. Console TTL on `trainingNoteAudit.expireAt` still needed after CF/rules deploy.
-- Last shipped: **v0.0.206** — D-60 dispatcher account provisioning: Settings manager panel (`listDispatchers`/`provisionDispatcher`/`deactivateDispatcher` CFs), `/no-access` page, `ProtectedRoute` gates `dispatcherRoles`; `verify:login` PASS; `verify:no-access` + `verify:settings-dispatchers` need env creds/manager grant.
+- Last shipped: **v0.0.207** — delivery drawer status dropdown + drop-off/will-call fulfillment toggle under PO# (replaces Advanced Manual Controls); labels Ready for Pickup / Picked Up; `verify:delivery-drawer-status` PASS; D-62 post-D-50 retry rounds harness (`model-gates.mdc`, `DECISIONS.md`); gh-pages deploy pending → done this ship. [fast-safe UI + firestoreService client writes]
+- Prior: **v0.0.206** — D-60 dispatcher account provisioning: Settings manager panel (`listDispatchers`/`provisionDispatcher`/`deactivateDispatcher` CFs), `/no-access` page, `ProtectedRoute` gates `dispatcherRoles`; `verify:login` PASS; `verify:no-access` + `verify:settings-dispatchers` need env creds/manager grant.
 - Prior: **v0.0.205** — D-60 auth-native forgot-password on dispatcher login (`verify:login` PASS).
 - Prior: **v0.0.197** — Dispatcher Unassign (drawer + table ×); will-call shells on default Deliveries board.
 - **D-59 P1 deploy:** gh-pages **built** @ `74414db` · https://lgarage.github.io/stageverify · **CF** (`proposeVendorIgnoreRule` + updated functions on `stageverify-db`) **deployed**.
@@ -20,7 +21,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Dan console:** run `node scripts/ensure-dispatcher-role.mjs --manager` (gcloud ADC); create no-role test Auth user + set `STAGEVERIFY_NO_ROLE_EMAIL`/`PASSWORD` for `verify:no-access`; deploy CF: `firebase deploy --only functions:listDispatchers,functions:provisionDispatcher,functions:deactivateDispatcher --project stageverify-db`; add `lgarage.github.io` to Firebase Auth authorized domains if needed.
+- Confirm live drawer status dropdown on https://lgarage.github.io/stageverify dispatcher → View delivery; `verify:delivery-drawer-status:prod` PASS post-deploy.
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

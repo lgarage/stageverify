@@ -45,6 +45,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-07-24: Dan-directed reopen (owner authority): Catch-all delivery top-bar button missing after UI ship despite build + verify pass — wanted mandatory before/after screenshot compare on every visible UI edit (chrome regressions), not build-only (D-51; complements D-42/D-45).
 - 2026-08-05: Dan-directed reopen (owner authority): pre-push D-38 security gate alone insufficient for high-risk CF/auth/rules — wanted mandatory Sonnet instruction packet before Composer codes + Sonnet verify loop (code + Playwright acceptance) blocking before commit (D-60).
 - 2026-08-05: Dan-directed reopen (owner authority): after agent actions Dan often could not tell if work was finished or whether he needed to do anything — wanted mandatory DONE + short what-I-did + Your action footer (D-61).
+- 2026-08-05: Dan-directed reopen (owner authority): after D-50 Grok implement still failing on same scope, wanted bounded post-D-50 retry (max 2 Agree→Grok rounds) before STOP/escalate — not unbounded Composer or Grok spin (D-62).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 

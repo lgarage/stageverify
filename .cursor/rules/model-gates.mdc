@@ -88,6 +88,8 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 **Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff: UI Playwright Verifier when visible UI; Build Checker before commit; **Composer** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Composer** is default implementer again for all new work (D-43 lock restored).
 
+**D-62 — Post-D-50 retry rounds (Dan 2026-08-05):** If after a completed **D-50 Phase A Agree → Phase B Grok implement** the **same task/ship scope** still fails under the same counted-fail classes as D-50 (implement+verify / build / Playwright / Ship Verifier — security-gate runs excluded), do **not** resume Composer-only implement+verify and do **not** open unbounded retries. Allow at most **2 additional retry rounds**, each = full **Phase A** (Grok↔Sonnet peer Agree on revised root cause + exact fix plan; Max 3 Agree peer iterations per round unchanged) → **Phase B** (Grok implements; still never commits/pushes/deploys) → Phase C ladder. **Grok remains stuck-scope implementer** across D-50 + D-62 rounds until ship closes or Dan escalate. Evidence each round: `stuck-task-agree: … (d62-round N/2)` + `stuck-implementer: grok …`. After **2** D-62 rounds still failing → **STOP** — escalate to Dan with clarifying questions (what's still broken, acceptance, scope); no 3rd D-62 round, no Composer spin. Amends D-50/D-55. Platform parity D-32.
+
 **Platform parity:** D-32 — identical on desktop PC, mobile Cursor, cloud VM.
 
 ## Grok stall-advisor auto-invoke (Dan 2026-07-10 — D-19)

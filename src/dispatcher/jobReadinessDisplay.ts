@@ -26,13 +26,13 @@ export function deliveryReadinessDisplayLabel(
     (delivery.invoiceDeliverToSite === true &&
       delivery.invoiceDeliverToSiteConfirmed === true)
   ) {
-    return "Complete";
+    return "Picked Up";
   }
   if (isWillCallPickupStagingListNa(delivery)) {
     return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
   }
   if (delivery.status === "complete") {
-    return "Complete";
+    return "Picked Up";
   }
   if (delivery.invoiceImportStatus === "closed_picked_up") {
     return vendorInvoiceImportDisplayLabel("closed_picked_up").replace(/\.$/, "");

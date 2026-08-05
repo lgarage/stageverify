@@ -1300,7 +1300,7 @@ export function isCompleteOverviewRow(
     "status" | "statusDisplayLabel"
   >,
 ): boolean {
-  if (row.statusDisplayLabel === "Complete") return true;
+  if (row.statusDisplayLabel === "Picked Up") return true;
   return (
     row.status === "complete" ||
     row.status === "picked_up" ||

@@ -105,7 +105,7 @@ function listStatusBadge(
   row: DeliveryListRow,
 ): (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus] {
   const label = row.statusDisplayLabel;
-  if (label === "Complete") return STATUS_BADGE.complete;
+  if (label === "Picked Up") return STATUS_BADGE.complete;
   if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Partial") return STATUS_BADGE.partial;
