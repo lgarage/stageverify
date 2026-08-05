@@ -2,9 +2,9 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 export function ProtectedRoute() {
-  const { user, loading } = useAuth();
+  const { user, loading, roleLoading, hasDispatcherAccess } = useAuth();
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div
         style={{
@@ -20,6 +20,10 @@ export function ProtectedRoute() {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!hasDispatcherAccess) {
+    return <Navigate to="/no-access" replace />;
   }
 
   return <Outlet />;

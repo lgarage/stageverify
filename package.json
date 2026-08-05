@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.205",
+  "version": "0.0.206",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -86,6 +86,10 @@
     "verify:pickup-issue-resolution:prod": "node scripts/run-verify-with-learning.mjs --script verify:pickup-issue-resolution:prod scripts/verify-pickup-issue-resolution-readback.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:login": "node scripts/run-verify-with-learning.mjs --script verify:login scripts/verify-login.mjs",
     "verify:login:prod": "node scripts/run-verify-with-learning.mjs --script verify:login:prod scripts/verify-login.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:no-access": "node scripts/run-verify-with-learning.mjs --script verify:no-access scripts/verify-no-access.mjs",
+    "verify:no-access:prod": "node scripts/run-verify-with-learning.mjs --script verify:no-access:prod scripts/verify-no-access.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:settings-dispatchers": "node scripts/run-verify-with-learning.mjs --script verify:settings-dispatchers scripts/verify-settings-dispatchers.mjs",
+    "verify:settings-dispatchers:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-dispatchers:prod scripts/verify-settings-dispatchers.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:privacy": "node scripts/verify-privacy-negative.mjs",
     "verify:privacy:prod": "node scripts/run-verify-with-learning.mjs --script verify:privacy:prod scripts/verify-privacy-negative.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:technician-door": "node scripts/verify-technician-pickup-door.mjs",

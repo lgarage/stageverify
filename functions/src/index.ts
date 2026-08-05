@@ -82,6 +82,11 @@ import { setManagementPin } from "./setManagementPin";
 import { listManagementPins } from "./listManagementPins";
 import { upsertManagementPin } from "./upsertManagementPin";
 import { deactivateManagementPin } from "./deactivateManagementPin";
+import {
+  listDispatchers,
+  provisionDispatcher,
+  deactivateDispatcher,
+} from "./dispatcherUserAdmin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 
@@ -235,6 +240,9 @@ export {
   listManagementPins,
   upsertManagementPin,
   deactivateManagementPin,
+  listDispatchers,
+  provisionDispatcher,
+  deactivateDispatcher,
   getTechnicianReleasedJobs,
   releaseJobsToTechnician,
   processInboundVendorEmail,

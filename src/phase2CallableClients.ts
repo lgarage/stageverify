@@ -215,6 +215,32 @@ export async function deactivateManagementPinClient(input: {
   return callCallable("deactivateManagementPin", input);
 }
 
+export async function listDispatchersClient(): Promise<{
+  dispatchers: import("./dispatcher/models").DispatcherAccountSummary[];
+}> {
+  return callCallable("listDispatchers", {});
+}
+
+export async function provisionDispatcherClient(input: {
+  email: string;
+  temporaryPassword?: string;
+  manager?: boolean;
+}): Promise<{
+  success: boolean;
+  uid: string;
+  email: string;
+  temporaryPassword: string;
+  manager: boolean;
+}> {
+  return callCallable("provisionDispatcher", input);
+}
+
+export async function deactivateDispatcherClient(input: {
+  uid: string;
+}): Promise<{ success: boolean }> {
+  return callCallable("deactivateDispatcher", input);
+}
+
 export async function getManagementWaitingPartsClient(input: {
   sessionToken: string;
 }): Promise<{

@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
+import { NoAccessPage } from "./NoAccessPage";
 import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
@@ -89,6 +90,7 @@ const renderApp = () => {
           <Suspense fallback={<div style={{ color: "#888", padding: "2rem", textAlign: "center" }}>Loading…</div>}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/no-access" element={<NoAccessPage />} />
               <Route path="/pickup" element={<PickupPortalPage />} />
               <Route path="/p" element={<CompactPickupRedirect />} />
               <Route path="/checkin/:orderId" element={<CheckinToReceiveRedirect />} />

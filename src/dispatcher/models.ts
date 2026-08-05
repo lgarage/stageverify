@@ -1465,6 +1465,15 @@ export interface DispatcherRoleDoc {
   updatedAt?: string;
 }
 
+/** Manager list row from listDispatchers CF (D-60). */
+export interface DispatcherAccountSummary {
+  uid: string;
+  email: string | null;
+  active: boolean;
+  manager: boolean;
+  updatedAt: string | null;
+}
+
 export interface ConfirmVendorIgnoreRuleResult {
   vendorKey: string;
   ignoreCreditReturns?: boolean;
