@@ -154,6 +154,62 @@ const STATUS_CONTROL_CONTRAST = {
   await assertReadableTextContrast(page, STATUS_CONTROL_CONTRAST);
   console.log("PASS: D-42 contrast on status + fulfillment controls");
 
+  const rejectOption = statusDropdown.locator(
+    `option[value="__reject_import__"]`,
+  );
+  if ((await rejectOption.count()) === 0) {
+    throw new Error("FAIL: Status dropdown missing Reject action option.");
+  }
+  const rejectLabel = (await rejectOption.innerText()).trim();
+  if (!rejectLabel.includes("Reject")) {
+    throw new Error(
+      `FAIL: Reject option label unexpected — got "${rejectLabel}"`,
+    );
+  }
+  console.log("PASS: Reject action option present in status dropdown");
+
+  const priorDropdownValue = await statusDropdown.inputValue();
+  await statusDropdown.selectOption({ value: "__reject_import__" });
+  await page.waitForTimeout(400);
+
+  const rejectDialog = page.getByTestId("invoice-reject-reason-dialog");
+  const rejectUnavailable = page.getByTestId("delivery-status-reject-unavailable");
+
+  if (await rejectDialog.isVisible().catch(() => false)) {
+    console.log("PASS: Reject opens invoice reject reason dialog");
+    await page.getByTestId("invoice-reject-reason-cancel").click();
+    await page.waitForTimeout(300);
+    await rejectDialog.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
+  } else if ((await rejectUnavailable.count()) > 0) {
+    const msg = (await rejectUnavailable.innerText()).trim();
+    if (!msg) {
+      throw new Error("FAIL: Reject unavailable message empty.");
+    }
+    console.log(`PASS: Reject shows cannot-reject message — "${msg.slice(0, 60)}…"`);
+  } else {
+    throw new Error(
+      "FAIL: Selecting Reject should open dialog or show cannot-reject message.",
+    );
+  }
+
+  const dropdownAfterReject = await statusDropdown.inputValue();
+  if (dropdownAfterReject === "__reject_import__") {
+    throw new Error(
+      "FAIL: Dropdown should not stay on Reject after action — still reject selected.",
+    );
+  }
+  if (
+    priorDropdownValue &&
+    priorDropdownValue !== "__reject_import__" &&
+    dropdownAfterReject !== priorDropdownValue
+  ) {
+    console.log(
+      `WARN: Dropdown value changed after reject attempt (${priorDropdownValue} → ${dropdownAfterReject}).`,
+    );
+  } else {
+    console.log("PASS: Dropdown retains delivery status after Reject action");
+  }
+
   const creditBanner = page.getByTestId("delivery-credit-return-banner");
   if ((await creditBanner.count()) > 0) {
     await creditBanner.waitFor({ timeout: 5000 });
@@ -185,12 +241,15 @@ const STATUS_CONTROL_CONTRAST = {
 
     const rejectBtn = page.getByTestId("delivery-credit-return-reject-btn");
     if ((await rejectBtn.count()) > 0) {
-      console.log("PASS: Reject linked import button present on credit/return delivery");
-    } else {
-      const blocked = page.getByTestId("delivery-credit-return-reject-blocked");
-      if ((await blocked.count()) > 0) {
-        console.log("PASS: Credit/return banner shows reject blocked reason (import not rejectable)");
-      }
+      throw new Error(
+        "FAIL: Redundant Reject linked import button should be removed — use Status dropdown.",
+      );
+    }
+    console.log("PASS: Credit/return banner has no duplicate reject button");
+
+    const blocked = page.getByTestId("delivery-credit-return-reject-blocked");
+    if ((await blocked.count()) > 0) {
+      console.log("PASS: Credit/return banner shows reject blocked reason (import not rejectable)");
     }
   } else {
     console.log(

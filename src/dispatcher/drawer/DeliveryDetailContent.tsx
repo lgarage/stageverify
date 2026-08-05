@@ -85,6 +85,7 @@ import { CreditReturnDeliveryBanner } from "./CreditReturnDeliveryBanner";
 import {
   buildDeliveryDrawerRejectLessonNote,
   isCreditReturnLinkedImport,
+  linkedImportRejectBlockedReason,
 } from "../invoice/deliveryCreditReturn";
 import { InvoiceRejectReasonDialog } from "../invoice/InvoiceRejectReasonDialog";
 import {
@@ -710,8 +711,6 @@ export function DetailContent({
             importId={delivery.vendorInvoiceImportId}
             importLoading={linkedImportLoading}
             font={font}
-            mutationLoading={mutationLoading || rejectActionLoading}
-            onRejectClick={openRejectDialog}
           />
         ) : null}
         {importRejectToast ? (
@@ -814,6 +813,15 @@ export function DetailContent({
                 onMarkShipped={onMarkShipped}
                 onUpdateFulfillmentMethod={onUpdateFulfillmentMethod}
                 onStatusAndAssignSpot={onStatusAndAssignSpot}
+                onRejectImport={openRejectDialog}
+                rejectImportBlockedReason={
+                  linkedImportLoading
+                    ? "Loading linked import…"
+                    : linkedImportRejectBlockedReason(
+                        linkedImport,
+                        delivery.vendorInvoiceImportId,
+                      )
+                }
               />
               <div
                 data-testid="delivery-basics-staging-locations"
@@ -1796,6 +1804,9 @@ const DRAWER_STATUS_DROPDOWN_OPTIONS: DeliveryStatus[] = [
   "picked_up",
 ];
 
+/** Action pseudo-value — not a DeliveryStatus; last option in status dropdown. */
+const DRAWER_STATUS_REJECT_ACTION = "__reject_import__";
+
 function drawerStatusOptionEnabled(
   current: DeliveryStatus,
   option: DeliveryStatus,
@@ -1825,6 +1836,8 @@ function DeliveryStatusControls({
   onMarkShipped,
   onUpdateFulfillmentMethod,
   onStatusAndAssignSpot,
+  onRejectImport,
+  rejectImportBlockedReason,
 }: {
   details: DeliveryDetails;
   stagingLocations: StagingLocation[];
@@ -1840,6 +1853,8 @@ function DeliveryStatusControls({
     method: "delivery" | "will_call_pickup",
   ) => Promise<void>;
   onStatusAndAssignSpot: (spotId: string) => Promise<void>;
+  onRejectImport: () => void;
+  rejectImportBlockedReason: string | null;
 }) {
   const delivery = details.delivery;
   const currentStatus = delivery.status;
@@ -1851,6 +1866,9 @@ function DeliveryStatusControls({
     delivery.stagingLocationId ?? "",
   );
   const [pickupTechnicianName, setPickupTechnicianName] = useState("");
+  const [rejectUnavailableMessage, setRejectUnavailableMessage] = useState<
+    string | null
+  >(null);
   const pickupInputRef = useRef<HTMLInputElement>(null);
 
   const displayState = useMemo(
@@ -1885,6 +1903,7 @@ function DeliveryStatusControls({
     setShowSpotPicker(false);
     setPickupTechnicianName("");
     setPendingStatusSelection(null);
+    setRejectUnavailableMessage(null);
   }, [delivery.id, delivery.stagingLocationId]);
 
   useEffect(() => {
@@ -1902,7 +1921,18 @@ function DeliveryStatusControls({
     }
   }, [showPickupInput]);
 
-  const handleStatusChange = (option: DeliveryStatus) => {
+  const handleStatusChange = (raw: string) => {
+    if (raw === DRAWER_STATUS_REJECT_ACTION) {
+      if (rejectImportBlockedReason) {
+        setRejectUnavailableMessage(rejectImportBlockedReason);
+        return;
+      }
+      setRejectUnavailableMessage(null);
+      onRejectImport();
+      return;
+    }
+    setRejectUnavailableMessage(null);
+    const option = raw as DeliveryStatus;
     if (option === currentStatus && option !== "picked_up") return;
     if (option === "picked_up") {
       setShowSpotPicker(false);
@@ -1991,9 +2021,7 @@ function DeliveryStatusControls({
           data-testid="delivery-status-dropdown"
           value={effectiveSelectValue}
           disabled={loading || currentStatus === "issue"}
-          onChange={(e) =>
-            handleStatusChange(e.target.value as DeliveryStatus)
-          }
+          onChange={(e) => handleStatusChange(e.target.value)}
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -2030,7 +2058,30 @@ function DeliveryStatusControls({
               </option>
             );
           })}
+          <option disabled value="__reject_separator__">
+            ──────────
+          </option>
+          <option
+            value={DRAWER_STATUS_REJECT_ACTION}
+            data-testid="delivery-status-reject-option"
+            style={{ color: "#b91c1c", fontWeight: 700 }}
+          >
+            Reject…
+          </option>
         </select>
+        {rejectUnavailableMessage ? (
+          <p
+            data-testid="delivery-status-reject-unavailable"
+            style={{
+              margin: "6px 0 0",
+              fontSize: 12,
+              color: "#b91c1c",
+              lineHeight: 1.4,
+            }}
+          >
+            {rejectUnavailableMessage}
+          </p>
+        ) : null}
       </div>
 
       <div

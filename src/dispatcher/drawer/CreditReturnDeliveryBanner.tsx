@@ -1,6 +1,5 @@
 import type { VendorInvoiceImportReview } from "../models";
 import {
-  canRejectLinkedImport,
   linkedImportRejectBlockedReason,
 } from "../invoice/deliveryCreditReturn";
 
@@ -13,22 +12,13 @@ export function CreditReturnDeliveryBanner({
   importId,
   importLoading,
   font,
-  mutationLoading,
-  onRejectClick,
 }: {
   importRow: VendorInvoiceImportReview | null;
   importId: string | undefined;
   importLoading: boolean;
   font: string;
-  mutationLoading: boolean;
-  onRejectClick: () => void;
 }) {
   const rejectBlocked = linkedImportRejectBlockedReason(importRow, importId);
-  const canReject =
-    Boolean(importId?.trim()) &&
-    !importLoading &&
-    importRow &&
-    canRejectLinkedImport(importRow);
 
   return (
     <div
@@ -82,8 +72,8 @@ export function CreditReturnDeliveryBanner({
             }}
           >
             This delivery is linked to a vendor credit or return memo, not shippable
-            material. Do not assign staging or mark ready for pickup — reject the
-            linked import to move it to Rejected Invoices and teach the parser.
+            material. Do not assign staging or mark ready for pickup — use Status →
+            Reject to move the linked import to Rejected Invoices and teach the parser.
           </p>
           {importLoading ? (
             <p style={{ margin: "8px 0 0", fontSize: 11, color: "#9ca3af" }}>
@@ -108,31 +98,6 @@ export function CreditReturnDeliveryBanner({
           ) : null}
         </div>
       </div>
-      {canReject ? (
-        <button
-          type="button"
-          data-testid="delivery-credit-return-reject-btn"
-          disabled={mutationLoading}
-          onClick={onRejectClick}
-          style={{
-            marginTop: 10,
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "8px 12px",
-            fontSize: 12,
-            fontWeight: 700,
-            fontFamily: font,
-            color: "#fff",
-            backgroundColor: RED,
-            border: "none",
-            borderRadius: 6,
-            cursor: mutationLoading ? "wait" : "pointer",
-            opacity: mutationLoading ? 0.7 : 1,
-          }}
-        >
-          Reject linked import…
-        </button>
-      ) : null}
     </div>
   );
 }

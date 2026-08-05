@@ -7,8 +7,9 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.215 (`eb000e7`). **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); prior `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
-- Last shipped: **v0.0.215** @ `eb000e7` — credit/return delivery banner + list badge; drawer Reject linked import (approved credit slip-throughs) via `approveVendorInvoiceImport` + training lesson; `verify:delivery-drawer-status` PASS local+prod. [high-risk CF + fast-safe UI]
+- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.216 (pending deploy). **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); prior `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
+- Last shipped: **v0.0.216** — delivery drawer STATUS dropdown **Reject…** action (opens reject-reason dialog → Rejected Invoices); credit/return banner kept, duplicate reject button removed; `verify:delivery-drawer-status` PASS local. [fast-safe UI]
+- Prior: **v0.0.215** @ `eb000e7` — credit/return delivery banner + list badge; drawer Reject linked import (approved credit slip-throughs) via `approveVendorInvoiceImport` + training lesson; `verify:delivery-drawer-status` PASS local+prod. [high-risk CF + fast-safe UI]
 - Prior: **v0.0.214** @ `ee696f3` — systemic will-call pickup preserve. [high-risk CF]
 - Prior: **v0.0.211** — delivery drawer closes after successful STATUS workflow mutations (Confirm Pickup, revert, mark shipped, spot+ready_for_pickup, dropdown status); stays open while pickup/spot forms pending or on Cancel; `verify:delivery-drawer-status` PASS. [fast-safe UI]
 - Prior: **v0.0.209** (`c4d3f1f`) — delivery drawer: `pendingStatusSelection` keeps STATUS label + dropdown on Picked Up while pickup form pending; pickup CF errors surfaced in form; `verify:delivery-drawer-status` PASS local+prod. [fast-safe UI]
@@ -26,7 +27,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan: hard-refresh Deliveries board; open a credit/return delivery — see banner + Reject linked import → Rejected Invoices; list rows show Credit/Return badge when linked import is credit memo.
+- Dan: hard-refresh Deliveries board; open any delivery drawer — use **Status → Reject…** (primary path) for linked imports; credit/return deliveries still show warning banner (no duplicate button).
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
