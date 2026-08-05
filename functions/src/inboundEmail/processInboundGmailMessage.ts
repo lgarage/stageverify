@@ -25,6 +25,7 @@ import {
   documentIgnoreSkipFields,
   isSystemAutoRejectedImport,
   isSystemIgnoreSkipReason,
+  resolveCreditReturnIngestSkip,
 } from "../invoice/creditReturnSkip";
 import {
   fingerprintFromImport,
@@ -359,12 +360,18 @@ async function writeReviewRecords(
     // New import + taught fingerprint → auto-skip unless strong invoice signals. Re-opened imports stay pending.
     const autoSkipDocument =
       isNewImport && ignoreRuleArmed && !proc.duplicate && !strongSignals;
-    // Preserve existing system skips on reprocess when rule still armed.
-    const preserveSystemSkip =
+    // Preserve document-ignore auto-skip on reprocess when rule still armed.
+    const preserveDocumentIgnoreSkip =
       existingSystemSkip &&
-      (existingData?.rejectedBy === "system:credit_return_skip" ||
-        existingData?.rejectedBy === "system:document_ignore_skip") &&
+      existingData?.rejectedBy === "system:document_ignore_skip" &&
       ignoreRuleArmed;
+    const creditIngestSkip = resolveCreditReturnIngestSkip({
+      isNewImport,
+      creditReturnSkip,
+      duplicate: proc.duplicate,
+      now,
+      existingRejectedBy: existingData?.rejectedBy,
+    });
     const eligibility = eligibilityFieldsFromInput({
       importStatus: proc.importStatus,
       confidenceScore: proc.confidenceScore,
@@ -376,15 +383,17 @@ async function writeReviewRecords(
       parsedLineCount: parsedLines.length,
       pageId: row.pageId,
       parserFormatId: proc.parserFormatId,
+      orderNotes: proc.parsed.orderNotes,
     });
     const createdAt =
       existingSnap.exists && (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         ? (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         : now;
     const skipFields =
-      autoSkipDocument || preserveSystemSkip
+      creditIngestSkip ??
+      (autoSkipDocument || preserveDocumentIgnoreSkip
         ? documentIgnoreSkipFields(now)
-        : null;
+        : null);
     const resolvedMatchedRuleId =
       skipFields && matchedRuleId
         ? existingData?.matchedRuleId ?? matchedRuleId

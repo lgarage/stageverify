@@ -488,6 +488,7 @@ export class FirestoreDataService implements DispatcherDataService {
       const defaultBoard =
         !q.statuses?.length && !(q.search && q.search.trim());
       if (defaultBoard && isCompleteOverviewRow(row)) return false;
+      if (defaultBoard && row.creditReturnLinked) return false;
       if (q.statuses?.length) {
         const matches = q.statuses.some((status) =>
           rowMatchesOverviewStatusFilter(row, status),

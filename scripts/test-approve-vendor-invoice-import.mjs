@@ -1093,6 +1093,80 @@ try {
   }
 }
 
+console.log("\n=== CF: credit/return approve blocked ===\n");
+
+const creditReturnLines = [
+  {
+    lineNumber: 1,
+    quantityOrdered: -1,
+    quantityShipped: -1,
+    quantityBackordered: 0,
+    vendorProductNumber: "B50-968",
+    description: "return from invoice 6167746",
+    filteredNotes: [],
+    lineType: "return",
+    excludeFromExpectedItems: false,
+  },
+];
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-credit-block-test"), {
+    id: "vii-credit-block-test",
+    inboundEmailProcessingId: "inbound-credit-block",
+    gmailMessageId: "msg-credit-block",
+    importBatchId: "batch-test",
+    pageId: "inv-credit-block",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 90,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: {
+      ...header,
+      vendorInvoiceNumber: "3316448A",
+      vendorBranchName: "Johnstone Supply",
+    },
+    parsedLines: creditReturnLines,
+    parsedLineCount: 1,
+    parseWarnings: [],
+    orderNotes: ["CREDIT/return memo"],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-credit-block-test",
+    action: "approve",
+  });
+  fail("credit/return approve should be rejected");
+} catch (err) {
+  const code = String(err?.code ?? "");
+  const message = String(err?.message ?? "");
+  if (
+    code.includes("failed-precondition") &&
+    /credit\/return/i.test(message)
+  ) {
+    pass("credit/return approve blocked — no delivery shell created");
+  } else {
+    fail("expected credit failed-precondition", { code, message });
+  }
+}
+
+const creditDeliverySnap = await getDoc(
+  doc(db, "deliveries", shellDeliveryIdForImport("vii-credit-block-test")),
+);
+if (!creditDeliverySnap.exists()) {
+  pass("credit approve did not create delivery shell");
+} else {
+  fail("credit approve created delivery shell", creditDeliverySnap.id);
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

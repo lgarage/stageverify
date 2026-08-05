@@ -44,11 +44,17 @@ function eligibilityFromDoc(doc) {
         parsedLines: doc.parsedLines,
         parsedLineCount: doc.parsedLineCount,
         pageId: doc.pageId,
+        orderNotes: doc.orderNotes,
     });
 }
 function appendDecisionLogUpdate(doc, entry) {
     const prior = doc.importDecisionLog ?? [];
     return [...prior, entry].slice(-MAX_DECISION_LOG);
+}
+function assertDeliveryAllowedForImport(doc) {
+    if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(doc)) {
+        throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+    }
 }
 exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
@@ -260,6 +266,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         };
     }
     if (action === "relink_to_shell") {
+        if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
+            throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+        }
         if (importDoc.reviewStatus !== "approved") {
             throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a separate delivery.");
         }
@@ -299,6 +308,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
             }
             const fresh = freshImport.data();
+            assertDeliveryAllowedForImport(fresh);
             if (fresh.reviewStatus !== "approved") {
                 throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a separate delivery.");
             }
@@ -350,6 +360,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         };
     }
     if (action === "create_shell") {
+        if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
+            throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+        }
         if (importDoc.reviewStatus !== "approved") {
             throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
         }
@@ -423,6 +436,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
             }
             const fresh = freshImport.data();
+            assertDeliveryAllowedForImport(fresh);
             if (fresh.reviewStatus !== "approved") {
                 throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
             }
@@ -461,6 +475,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         };
     }
     // Approve — always create/ensure this import's shell delivery.
+    if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
+        throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+    }
     const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
     const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
     await getDb().runTransaction(async (tx) => {
@@ -469,6 +486,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw new https_1.HttpsError("not-found", "Vendor invoice import not found.");
         }
         const fresh = freshImport.data();
+        assertDeliveryAllowedForImport(fresh);
         if (!canApproveReviewStatus(fresh.reviewStatus)) {
             throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
         }

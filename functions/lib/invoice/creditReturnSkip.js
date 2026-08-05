@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.DOCUMENT_IGNORE_SKIP_REASON = exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE = exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.DOCUMENT_IGNORE_SKIP_REASON = exports.CREDIT_RETURN_SKIP_REASON = void 0;
 exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
 exports.documentIgnoreSkipFields = documentIgnoreSkipFields;
@@ -11,6 +11,8 @@ exports.isCreditReturnInvoice = isCreditReturnInvoice;
 exports.correctionNoteTeachesIgnoreCreditReturns = correctionNoteTeachesIgnoreCreditReturns;
 exports.isCreditReturnImportDoc = isCreditReturnImportDoc;
 exports.shouldApplyNowDismissCreditImport = shouldApplyNowDismissCreditImport;
+exports.creditReturnBlocksDeliveryCreation = creditReturnBlocksDeliveryCreation;
+exports.resolveCreditReturnIngestSkip = resolveCreditReturnIngestSkip;
 exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
 /** Taught fingerprint ignore (any document type) — review-queue auto-skip only. */
 exports.DOCUMENT_IGNORE_SKIP_REASON = "document_ignore";
@@ -170,5 +172,22 @@ function shouldApplyNowDismissCreditImport(note, doc) {
     if (!correctionNoteTeachesIgnoreCreditReturns(note))
         return false;
     return isCreditReturnImportDoc(doc);
+}
+/** CF + ingest — credit/return memos must never become deliveries. */
+exports.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE = "Credit/return memos cannot become deliveries — reject or leave in Rejected Invoices.";
+function creditReturnBlocksDeliveryCreation(doc) {
+    if (doc.skipReason === exports.CREDIT_RETURN_SKIP_REASON)
+        return true;
+    return isCreditReturnImportDoc(doc);
+}
+/** Ingest: auto-reject structural credits on first write; preserve on reparse. */
+function resolveCreditReturnIngestSkip(input) {
+    if (input.duplicate || !input.creditReturnSkip)
+        return null;
+    const preserveCredit = input.existingRejectedBy === "system:credit_return_skip";
+    if (input.isNewImport || preserveCredit) {
+        return creditReturnSkipFields(input.now);
+    }
+    return null;
 }
 //# sourceMappingURL=creditReturnSkip.js.map

@@ -265,11 +265,17 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         });
         // New import + taught fingerprint → auto-skip unless strong invoice signals. Re-opened imports stay pending.
         const autoSkipDocument = isNewImport && ignoreRuleArmed && !proc.duplicate && !strongSignals;
-        // Preserve existing system skips on reprocess when rule still armed.
-        const preserveSystemSkip = existingSystemSkip &&
-            (existingData?.rejectedBy === "system:credit_return_skip" ||
-                existingData?.rejectedBy === "system:document_ignore_skip") &&
+        // Preserve document-ignore auto-skip on reprocess when rule still armed.
+        const preserveDocumentIgnoreSkip = existingSystemSkip &&
+            existingData?.rejectedBy === "system:document_ignore_skip" &&
             ignoreRuleArmed;
+        const creditIngestSkip = (0, creditReturnSkip_1.resolveCreditReturnIngestSkip)({
+            isNewImport,
+            creditReturnSkip,
+            duplicate: proc.duplicate,
+            now,
+            existingRejectedBy: existingData?.rejectedBy,
+        });
         const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
             importStatus: proc.importStatus,
             confidenceScore: proc.confidenceScore,
@@ -281,13 +287,15 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             parsedLineCount: parsedLines.length,
             pageId: row.pageId,
             parserFormatId: proc.parserFormatId,
+            orderNotes: proc.parsed.orderNotes,
         });
         const createdAt = existingSnap.exists && existingSnap.data().createdAt
             ? existingSnap.data().createdAt
             : now;
-        const skipFields = autoSkipDocument || preserveSystemSkip
-            ? (0, creditReturnSkip_1.documentIgnoreSkipFields)(now)
-            : null;
+        const skipFields = creditIngestSkip ??
+            (autoSkipDocument || preserveDocumentIgnoreSkip
+                ? (0, creditReturnSkip_1.documentIgnoreSkipFields)(now)
+                : null);
         const resolvedMatchedRuleId = skipFields && matchedRuleId
             ? existingData?.matchedRuleId ?? matchedRuleId
             : undefined;

@@ -24,6 +24,8 @@ import { reopenVendorInvoiceImportCore } from "./invoice/aiShadow/reopenIgnoreSk
 import { vendorKeyFromImportDoc } from "./invoice/aiShadow/adminConfig";
 import {
   CREDIT_RETURN_SKIP_REASON,
+  CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE,
+  creditReturnBlocksDeliveryCreation,
   isCreditReturnImportDoc,
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
@@ -57,6 +59,7 @@ function eligibilityFromDoc(doc: VendorInvoiceImportDoc) {
     parsedLines: doc.parsedLines,
     parsedLineCount: doc.parsedLineCount,
     pageId: doc.pageId,
+    orderNotes: doc.orderNotes,
   });
 }
 
@@ -66,6 +69,12 @@ function appendDecisionLogUpdate(
 ): VendorInvoiceImportDoc["importDecisionLog"] {
   const prior = doc.importDecisionLog ?? [];
   return [...prior, entry].slice(-MAX_DECISION_LOG);
+}
+
+function assertDeliveryAllowedForImport(doc: VendorInvoiceImportDoc): void {
+  if (creditReturnBlocksDeliveryCreation(doc)) {
+    throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+  }
 }
 
 export const approveVendorInvoiceImport = onCall(
@@ -352,6 +361,9 @@ export const approveVendorInvoiceImport = onCall(
     }
 
     if (action === "relink_to_shell") {
+      if (creditReturnBlocksDeliveryCreation(importDoc)) {
+        throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+      }
       if (importDoc.reviewStatus !== "approved") {
         throw new HttpsError(
           "failed-precondition",
@@ -409,6 +421,7 @@ export const approveVendorInvoiceImport = onCall(
           throw new HttpsError("not-found", "Vendor invoice import not found.");
         }
         const fresh = freshImport.data() as VendorInvoiceImportDoc;
+        assertDeliveryAllowedForImport(fresh);
         if (fresh.reviewStatus !== "approved") {
           throw new HttpsError(
             "failed-precondition",
@@ -491,6 +504,9 @@ export const approveVendorInvoiceImport = onCall(
     }
 
     if (action === "create_shell") {
+      if (creditReturnBlocksDeliveryCreation(importDoc)) {
+        throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+      }
       if (importDoc.reviewStatus !== "approved") {
         throw new HttpsError(
           "failed-precondition",
@@ -587,6 +603,7 @@ export const approveVendorInvoiceImport = onCall(
           throw new HttpsError("not-found", "Vendor invoice import not found.");
         }
         const fresh = freshImport.data() as VendorInvoiceImportDoc;
+        assertDeliveryAllowedForImport(fresh);
         if (fresh.reviewStatus !== "approved") {
           throw new HttpsError(
             "failed-precondition",
@@ -657,6 +674,9 @@ export const approveVendorInvoiceImport = onCall(
     }
 
     // Approve — always create/ensure this import's shell delivery.
+    if (creditReturnBlocksDeliveryCreation(importDoc)) {
+      throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+    }
     const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
     const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
 
@@ -666,6 +686,7 @@ export const approveVendorInvoiceImport = onCall(
         throw new HttpsError("not-found", "Vendor invoice import not found.");
       }
       const fresh = freshImport.data() as VendorInvoiceImportDoc;
+      assertDeliveryAllowedForImport(fresh);
       if (!canApproveReviewStatus(fresh.reviewStatus)) {
         throw new HttpsError(
           "failed-precondition",

@@ -2,6 +2,7 @@
  * Stage 1 — deterministic auto-import eligibility (client mirror; CF canonical in functions/src/invoice/).
  */
 import { INVOICE_AUTO_APPLY_CONFIDENCE } from "./types";
+import { isCreditReturnImportDoc } from "./creditReturnSkip";
 
 export type ImportDecisionMode = "suggested_import" | "review_required" | "blocked";
 
@@ -22,6 +23,7 @@ export interface AutoImportEligibilityInput {
   parsedLineCount?: number;
   pageId?: string;
   parserFormatId?: "johnstone" | "first_supply" | "generic" | "unknown";
+  orderNotes?: string[];
 }
 
 export interface AutoImportEligibilityResult {
@@ -95,6 +97,21 @@ export function computeAutoImportEligibility(
 
   if (input.duplicate) {
     reviewRequiredReasons.push("Duplicate of another import page");
+    return finalize(false, confidence, autoImportReasons, reviewRequiredReasons, "blocked");
+  }
+
+  if (
+    isCreditReturnImportDoc({
+      parsedHeader: input.parsedHeader,
+      parsedLines: input.parsedLines as Parameters<
+        typeof isCreditReturnImportDoc
+      >[0]["parsedLines"],
+      orderNotes: input.orderNotes,
+    })
+  ) {
+    reviewRequiredReasons.push(
+      "Credit/return memo — not valid for delivery import",
+    );
     return finalize(false, confidence, autoImportReasons, reviewRequiredReasons, "blocked");
   }
 

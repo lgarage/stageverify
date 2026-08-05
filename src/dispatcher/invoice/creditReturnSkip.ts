@@ -176,6 +176,20 @@ export function shouldApplyNowDismissCreditImport(
   return isCreditReturnImportDoc(doc);
 }
 
+/** CF + ingest — credit/return memos must never become deliveries. */
+export const CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE =
+  "Credit/return memos cannot become deliveries — reject or leave in Rejected Invoices.";
+
+export function creditReturnBlocksDeliveryCreation(
+  doc: Pick<
+    VendorInvoiceImportReview,
+    "parsedHeader" | "parsedLines" | "orderNotes" | "skipReason"
+  >,
+): boolean {
+  if (doc.skipReason === CREDIT_RETURN_SKIP_REASON) return true;
+  return isCreditReturnImportDoc(doc);
+}
+
 /** User-visible incomplete order copy when B/O or partial ship lines exist. */
 export function orderIncompleteMessage(
   importRow: Pick<

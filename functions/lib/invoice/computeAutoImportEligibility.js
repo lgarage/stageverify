@@ -9,6 +9,7 @@ exports.resolveAutoImportEligibility = resolveAutoImportEligibility;
  * Client mirror: src/dispatcher/invoice/computeAutoImportEligibility.ts
  */
 const types_1 = require("./types");
+const creditReturnSkip_1 = require("./creditReturnSkip");
 function headerStr(header, key) {
     const v = header[key];
     return typeof v === "string" ? v.trim() : "";
@@ -49,6 +50,14 @@ function computeAutoImportEligibility(input) {
     const lineCount = input.parsedLineCount ?? lines.length;
     if (input.duplicate) {
         reviewRequiredReasons.push("Duplicate of another import page");
+        return finalize(false, confidence, autoImportReasons, reviewRequiredReasons, "blocked");
+    }
+    if ((0, creditReturnSkip_1.isCreditReturnImportDoc)({
+        parsedHeader: input.parsedHeader,
+        parsedLines: input.parsedLines,
+        orderNotes: input.orderNotes,
+    })) {
+        reviewRequiredReasons.push("Credit/return memo — not valid for delivery import");
         return finalize(false, confidence, autoImportReasons, reviewRequiredReasons, "blocked");
     }
     if (input.importStatus === "issue") {

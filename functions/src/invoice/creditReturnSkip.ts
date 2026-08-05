@@ -216,3 +216,34 @@ export function shouldApplyNowDismissCreditImport(
   if (!correctionNoteTeachesIgnoreCreditReturns(note)) return false;
   return isCreditReturnImportDoc(doc);
 }
+
+/** CF + ingest — credit/return memos must never become deliveries. */
+export const CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE =
+  "Credit/return memos cannot become deliveries — reject or leave in Rejected Invoices.";
+
+export function creditReturnBlocksDeliveryCreation(doc: {
+  parsedHeader?: Record<string, unknown>;
+  parsedLines?: VendorInvoiceImportParsedLine[];
+  orderNotes?: string[];
+  skipReason?: string;
+}): boolean {
+  if (doc.skipReason === CREDIT_RETURN_SKIP_REASON) return true;
+  return isCreditReturnImportDoc(doc);
+}
+
+/** Ingest: auto-reject structural credits on first write; preserve on reparse. */
+export function resolveCreditReturnIngestSkip(input: {
+  isNewImport: boolean;
+  creditReturnSkip: boolean;
+  duplicate: boolean;
+  now: string;
+  existingRejectedBy?: string;
+}): ReturnType<typeof creditReturnSkipFields> | null {
+  if (input.duplicate || !input.creditReturnSkip) return null;
+  const preserveCredit =
+    input.existingRejectedBy === "system:credit_return_skip";
+  if (input.isNewImport || preserveCredit) {
+    return creditReturnSkipFields(input.now);
+  }
+  return null;
+}
