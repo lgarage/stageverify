@@ -200,9 +200,9 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review retu
 **Product / feature builds — Composer implements, Grok agrees + checks (D-43):** **Composer 2.5** is the default implementer. **Grok** Solution-Verifies before edit, **Build-Checks uncommitted diff before commit**, Ship-Verifies after push — **Grok never commits/pushes/deploys**; **Grok implements product code only** after **D-50** stuck-task Agree (stuck scope until ship closes). Non-Composer parents dispatch `composer-2.5-fast` — never `resume: "self"` except D-50 stuck scope after Agree. Dan should not restate this each turn.
 
 ### Completion report (mandatory)
-**Done signal (D-61):** every action turn ends with the footer in `.cursor/rules/done-signal.mdc` (**DONE** / **What I did** / **Your action**) — always last; complements this section; does not replace verifier evidence lines.
+**Done signal (D-61):** every action turn ends with the footer in `.cursor/rules/done-signal.mdc` (**DONE** / **What I did** / **Your action**) — always last; complements this section; does not replace verifier evidence lines. **One summary:** opening **What we did** and footer **What I did** share the same prose; footer **Your action** states whether Dan must act (`Nothing needed from you.` when not).
 
-After every **substantive task** (code, config, rules, docs, verify/ship), open the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). Not file lists, commit hashes, or audit tables.
+After every **substantive task** (code, config, rules, docs, verify/ship), **open** the done reply with **What we did** — 1–3 sentences in plain language describing what changed for Dan/product (user-visible behavior, data, or process). **Lead with this prose** — not file lists, commit hashes, or audit tables alone. Every **code/config/product edit or ship** requires this visible block plus D-61 footer; burying the human summary only in tables = not done.
 
 **MVP completion line (D-25):** when the task traces to `PROJECT_STATUS/MVP_PATH.md`, add `MVP completion: XX.XX%` per `.cursor/rules/mvp-completion-report.mdc` immediately after What we did. Skip for pure planning sessions; skip when work is not MVP-scoped.
 
