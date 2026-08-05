@@ -10,6 +10,8 @@ import {
   buildShopStockLinesFromPickList,
   shopStockLocationNoteFromLines,
 } from "../shopStockMapping";
+import { formatPickupError } from "../pickupErrors";
+import { newPickupClientOperationId } from "../pickupClientOperationId";
 import { ISSUE_RESOLUTION_TYPE_LABEL, type IssueResolutionType } from "../models";
 import type { DeliveryDetails, DeliveryStatus, StagingLocation } from "../index";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
@@ -140,7 +142,7 @@ export function DeliveryDetailDrawer({
     try {
       let operationId = pickupOperationIds.current.get(deliveryId);
       if (!operationId) {
-        operationId = `pickup-${deliveryId}-${crypto.randomUUID()}`;
+        operationId = newPickupClientOperationId();
         pickupOperationIds.current.set(deliveryId, operationId);
       }
       await firestoreDataService.recordPickupEvent(
@@ -155,11 +157,7 @@ export function DeliveryDetailDrawer({
       if (updatedDetails) await refreshAfter(updatedDetails);
       else setMutationError("Failed to record pickup.");
     } catch (e) {
-      const message =
-        e instanceof Error && e.message.trim()
-          ? e.message
-          : "An unexpected error occurred while recording pickup.";
-      setMutationError(message);
+      setMutationError(formatPickupError(e));
       console.error(e);
     } finally {
       setMutationLoading(false);

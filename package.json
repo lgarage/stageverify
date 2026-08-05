@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.209",
+  "version": "0.0.210",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -130,6 +130,7 @@
     "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:pickup-authority": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-pickup-authority.mjs\"",
+    "test:pickup-client-op-id": "node scripts/test-pickup-client-op-id.mjs",
     "test:auto-submit-readiness": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-auto-submit-readiness.mjs\"",
     "test:readiness": "npx tsx scripts/test-readiness-two-source.mjs",
     "test:readiness-persistence": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-readiness-persistence.mjs\"",

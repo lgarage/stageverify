@@ -26,6 +26,7 @@ import {
 } from "./dispatcher/shopStockPickList";
 import { shopStockPickListLabels } from "./dispatcher/shopStockMapping";
 import { formatPickupError } from "./dispatcher/pickupErrors";
+import { newPickupClientOperationId } from "./dispatcher/pickupClientOperationId";
 import {
   resolveZoneScanDisposition,
   syncScanIntent,
@@ -887,7 +888,7 @@ function JobPickupScreen({
 
       let operationId = pickupOperationIds.current.get(deliveryId);
       if (!operationId) {
-        operationId = `pickup-${deliveryId}-${crypto.randomUUID()}`;
+        operationId = newPickupClientOperationId();
         pickupOperationIds.current.set(deliveryId, operationId);
       }
 
@@ -1060,7 +1061,7 @@ function JobPickupScreen({
       for (const d of needsPickupRecord) {
         let operationId = pickupOperationIds.current.get(d.delivery.id);
         if (!operationId) {
-          operationId = `pickup-${d.delivery.id}-${crypto.randomUUID()}`;
+          operationId = newPickupClientOperationId();
           pickupOperationIds.current.set(d.delivery.id, operationId);
         }
         const stagingLocationIds = pickupStagingLocationIdsForDelivery(
@@ -1132,7 +1133,7 @@ function JobPickupScreen({
       for (const d of unchecked) {
         let operationId = pickupOperationIds.current.get(d.delivery.id);
         if (!operationId) {
-          operationId = `pickup-${d.delivery.id}-${crypto.randomUUID()}`;
+          operationId = newPickupClientOperationId();
           pickupOperationIds.current.set(d.delivery.id, operationId);
         }
         const stagingLocationIds = pickupStagingLocationIdsForDelivery(

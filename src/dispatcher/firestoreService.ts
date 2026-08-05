@@ -94,6 +94,7 @@ import {
   V2_COLLECTION_NAMES,
 } from "./models";
 import { findStagingLocationByCode } from "./stagingCode";
+import { resolvePickupClientOperationId } from "./pickupClientOperationId";
 import {
   computeJobReadiness,
   type JobReadinessResult,
@@ -1336,17 +1337,28 @@ export class FirestoreDataService implements DispatcherDataService {
       throw new Error("Delivery not found");
     }
     const delivery = deliverySnap.data() as DeliveryOrder;
-    const operationId = clientOperationId?.trim();
-    if (!operationId) {
-      throw new Error("clientOperationId is required for pickup.");
+    const operationId = resolvePickupClientOperationId(clientOperationId);
+    const jobId = delivery.jobId?.trim();
+    if (!jobId) {
+      throw new Error(
+        "This delivery is not linked to a job — cannot record pickup.",
+      );
+    }
+    const trimmedTechnician = technicianName.trim();
+    if (!trimmedTechnician) {
+      throw new Error("Technician name is required for pickup.");
+    }
+    const trimmedSummary = itemsPickedSummary.trim();
+    if (!trimmedSummary) {
+      throw new Error("Items picked summary is required for pickup.");
     }
 
     const callable = httpsCallable(functions, "recordPickupEvent");
     await callable({
       deliveryOrderId: deliveryId,
-      jobId: delivery.jobId,
-      technicianName,
-      itemsPickedSummary,
+      jobId,
+      technicianName: trimmedTechnician,
+      itemsPickedSummary: trimmedSummary,
       notes,
       clientOperationId: operationId,
       stagingLocationIds,
