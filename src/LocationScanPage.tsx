@@ -164,6 +164,10 @@ export function LocationScanPage() {
       setIsCatchAllParcelIntake(result.isCatchAllParcelIntake === true);
       if (intakeEnabled && isManagementPinSessionValid()) {
         setStep("mgmt-landing");
+      } else if (getActiveTechnicianSession()) {
+        // Same-shop resume: skip PIN; effect reloads day-release jobs.
+        setPinRole("technician");
+        setStep("pin");
       } else {
         setStep("pin");
       }
