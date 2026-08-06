@@ -7,8 +7,9 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.217 (pending deploy). **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** credit-return delivery block (ingest auto-reject + approve/create_shell/relink guard) @ v0.0.217; prior `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
-- Last shipped: **v0.0.217** — credit/return defense-in-depth: ingest auto-rejects structural credits to Rejected Invoices; CF blocks approve/create_shell/relink; auto-import blocked; default Deliveries board hides `creditReturnLinked`; `test:credit-return-delivery-block` + `test:approve-vendor-invoice-import` PASS. [high-risk CF + fast-safe client]
+- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.218 (pending deploy). **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** credit-return delivery block (ingest auto-reject + approve/create_shell/relink guard) @ v0.0.217; prior `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
+- Last shipped: **v0.0.218** — invoice reject dialog requires non-empty "Why was this rejected?" note for all reasons; shared `InvoiceRejectReasonDialog` deduped from inspect modal; `verify:invoice-review` + `verify:invoice-reject-reason` PASS. [fast-safe UI]
+- Prior: **v0.0.217** — credit/return defense-in-depth: ingest auto-rejects structural credits to Rejected Invoices; CF blocks approve/create_shell/relink; auto-import blocked; default Deliveries board hides `creditReturnLinked`; `test:credit-return-delivery-block` + `test:approve-vendor-invoice-import` PASS. [high-risk CF + fast-safe client]
 - Prior: **v0.0.216** @ `b9360d5` — delivery drawer STATUS dropdown **Reject…** action; credit/return banner kept; `verify:delivery-drawer-status` PASS. [fast-safe UI]
 - Prior: **v0.0.215** @ `eb000e7` — credit/return delivery banner + list badge; drawer Reject linked import (approved credit slip-throughs) via `approveVendorInvoiceImport` + training lesson; `verify:delivery-drawer-status` PASS local+prod. [high-risk CF + fast-safe UI]
 - Prior: **v0.0.214** @ `ee696f3` — systemic will-call pickup preserve. [high-risk CF]
@@ -28,7 +29,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan: hard-refresh Deliveries board — credit/return linked imports hidden on default board; new structural credits auto-land in Rejected Invoices on ingest; approve/create_shell/relink blocked server-side.
+- Dan: hard-refresh invoice review — reject import now requires a written "Why was this rejected?" note before confirm enables (all reason types).
 
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

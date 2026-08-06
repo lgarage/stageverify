@@ -375,32 +375,46 @@ async function assertRejectReasonDialog(page) {
   const hasCreditAdvisory = (await creditAdvisory.count()) > 0;
   const initialSelected = await select.inputValue();
 
+  const detail = page.getByTestId("invoice-reject-reason-detail");
+  const detailLabel = page.locator('label[for="invoice-reject-reason-detail"]');
+  const labelText = (await detailLabel.innerText()).trim();
+  if (!labelText.includes("Why was this rejected")) {
+    throw new Error(
+      `Reject note label should say "Why was this rejected?" — got "${labelText}"`,
+    );
+  }
+  console.log("PASS: reject note field labeled Why was this rejected?");
+
   if (hasCreditAdvisory) {
     if (initialSelected !== "credit_return") {
       throw new Error(
         `Credit advisory import should pre-select credit_return, got "${initialSelected}"`,
       );
     }
-    if (await confirmBtn.isDisabled()) {
+    if (!(await confirmBtn.isDisabled())) {
       throw new Error(
-        "Reject confirm should enable when credit_return is pre-selected",
+        "Reject confirm should stay disabled until a note is entered (even with credit_return pre-selected)",
       );
     }
     console.log("PASS: credit/return advisory pre-selects Credit/Return reason");
   } else {
     if (!(await confirmBtn.isDisabled())) {
-      throw new Error("Reject confirm should be disabled until a reason is selected");
+      throw new Error("Reject confirm should be disabled until reason and note are provided");
     }
     await select.selectOption("parse_issue");
+    if (!(await confirmBtn.isDisabled())) {
+      throw new Error(
+        "Reject confirm should stay disabled after reason selected until note is entered",
+      );
+    }
     console.log("PASS: reject reason dropdown accepts selection");
   }
 
   console.log("PASS: reject-reason dialog opens with expected confirm gating");
 
-  const detail = page.getByTestId("invoice-reject-reason-detail");
   await detail.fill("Test pattern detail for verify harness only.");
   if (await confirmBtn.isDisabled()) {
-    throw new Error("Reject confirm should enable after reason selected");
+    throw new Error("Reject confirm should enable after reason and note provided");
   }
 
   const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");

@@ -25,7 +25,7 @@ const HEADER_BTN = {
 export function InvoiceRejectReasonDialog({
   open,
   title = "Why reject this import?",
-  helpText = "Pick a reason and add detail if needed. StageVerify saves a generalized training lesson so future parses improve — not invoice-specific IDs.",
+  helpText = "Pick a known issue and explain why. StageVerify saves a generalized training lesson so future parses improve — not invoice-specific IDs.",
   confirmLabel = "Reject import",
   reasonId,
   detailText,
@@ -138,18 +138,15 @@ export function InvoiceRejectReasonDialog({
             marginBottom: 6,
           }}
         >
-          {reasonId === "other" ? "Reason (required)" : "Additional detail (optional)"}
+          Why was this rejected? <span style={{ fontWeight: 500, color: MUTED }}>(required)</span>
         </label>
         <textarea
           id="invoice-reject-reason-detail"
           data-testid="invoice-reject-reason-detail"
           value={detailText}
           onChange={(e) => onDetailTextChange(e.target.value)}
-          placeholder={
-            reasonId === "other"
-              ? "Describe why this import should be rejected…"
-              : "Optional pattern detail for the training lesson…"
-          }
+          placeholder="Describe why this import should be rejected — e.g. wrong vendor, duplicate PO, credit memo not an invoice…"
+          aria-required="true"
           rows={3}
           disabled={loading}
           style={{

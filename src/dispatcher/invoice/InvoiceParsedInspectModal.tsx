@@ -40,10 +40,10 @@ import { ignoreRuleSuppressedAdvisoryLabel } from "./ignoreRuleSuppressed";
 import {
   buildRejectLessonNote,
   defaultRejectReasonId,
-  INVOICE_REJECT_REASON_OPTIONS,
   rejectReasonConfirmEnabled,
   type InvoiceRejectReasonId,
 } from "./invoiceRejectReasons";
+import { InvoiceRejectReasonDialog } from "./InvoiceRejectReasonDialog";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -1280,179 +1280,16 @@ export function InvoiceParsedInspectModal({
         )}
       </div>
 
-      {rejectDialogOpen && (
-        <div
-          data-testid="invoice-reject-reason-dialog"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 10004,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-          }}
-          onClick={closeRejectDialog}
-        >
-          <div
-            data-testid="invoice-reject-reason-panel"
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 10,
-              padding: 24,
-              width: "100%",
-              maxWidth: 480,
-              color: CELL_TEXT,
-              fontFamily: FONT,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ margin: "0 0 8px", color: NAVY, fontSize: 18 }}>
-              Why reject this import?
-            </h3>
-            <p
-              data-testid="invoice-reject-reason-help"
-              style={{ margin: "0 0 14px", fontSize: 13, color: MUTED, lineHeight: 1.45 }}
-            >
-              Pick a reason and add detail if needed. StageVerify saves a generalized
-              training lesson so future parses improve — not invoice-specific IDs.
-            </p>
-            <label
-              htmlFor="invoice-reject-reason-select"
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 700,
-                color: NAVY,
-                marginBottom: 6,
-              }}
-            >
-              Known issue
-            </label>
-            <select
-              id="invoice-reject-reason-select"
-              data-testid="invoice-reject-reason-select"
-              value={rejectReasonId}
-              onChange={(e) =>
-                setRejectReasonId(e.target.value as InvoiceRejectReasonId | "")
-              }
-              disabled={actionLoading}
-              style={{
-                display: "block",
-                width: "100%",
-                boxSizing: "border-box",
-                fontSize: 13,
-                fontWeight: 500,
-                color: CELL_TEXT,
-                backgroundColor: "#fff",
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                padding: "10px 12px",
-                marginBottom: 14,
-                fontFamily: FONT,
-              }}
-            >
-              <option value="">Select a reason…</option>
-              {INVOICE_REJECT_REASON_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <label
-              htmlFor="invoice-reject-reason-detail"
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 700,
-                color: NAVY,
-                marginBottom: 6,
-              }}
-            >
-              {rejectReasonId === "other" ? "Reason (required)" : "Additional detail (optional)"}
-            </label>
-            <textarea
-              id="invoice-reject-reason-detail"
-              data-testid="invoice-reject-reason-detail"
-              value={rejectDetailText}
-              onChange={(e) => setRejectDetailText(e.target.value)}
-              placeholder={
-                rejectReasonId === "other"
-                  ? "Describe why this import should be rejected…"
-                  : "Optional pattern detail for the training lesson…"
-              }
-              rows={3}
-              disabled={actionLoading}
-              style={{
-                display: "block",
-                width: "100%",
-                boxSizing: "border-box",
-                fontSize: 13,
-                fontWeight: 500,
-                lineHeight: 1.45,
-                color: CELL_TEXT,
-                backgroundColor: "#fff",
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                padding: "12px 14px",
-                resize: "vertical",
-                minHeight: 72,
-                fontFamily: FONT,
-                marginBottom: 16,
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-              }}
-            >
-              <button
-                type="button"
-                data-testid="invoice-reject-reason-cancel"
-                disabled={actionLoading}
-                onClick={closeRejectDialog}
-                style={{ ...HEADER_BTN }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                data-testid="invoice-reject-reason-confirm"
-                disabled={
-                  actionLoading ||
-                  !rejectReasonConfirmEnabled(rejectReasonId, rejectDetailText)
-                }
-                onClick={confirmReject}
-                style={{
-                  backgroundColor: RED,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "8px 14px",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor:
-                    actionLoading ||
-                    !rejectReasonConfirmEnabled(rejectReasonId, rejectDetailText)
-                      ? "not-allowed"
-                      : "pointer",
-                  opacity:
-                    actionLoading ||
-                    !rejectReasonConfirmEnabled(rejectReasonId, rejectDetailText)
-                      ? 0.55
-                      : 1,
-                  fontFamily: FONT,
-                }}
-              >
-                {actionLoading ? "Rejecting…" : "Reject import"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <InvoiceRejectReasonDialog
+        open={rejectDialogOpen}
+        reasonId={rejectReasonId}
+        detailText={rejectDetailText}
+        loading={actionLoading}
+        onReasonIdChange={setRejectReasonId}
+        onDetailTextChange={setRejectDetailText}
+        onCancel={closeRejectDialog}
+        onConfirm={confirmReject}
+      />
 
       {lessonPreview && (
         <div

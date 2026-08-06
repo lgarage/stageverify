@@ -85,8 +85,7 @@ export function rejectReasonConfirmEnabled(
   detailText: string,
 ): boolean {
   if (!reasonId) return false;
-  if (reasonId === "other") return detailText.trim().length > 0;
-  return true;
+  return detailText.trim().length > 0;
 }
 
 /** Pre-select credit/return when the pending advisory is visible. */
