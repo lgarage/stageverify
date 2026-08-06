@@ -126,7 +126,7 @@ async function completePickupChecklist(page) {
   }
 
   await waitForDoneEnabled(page);
-  await page.getByRole("button", { name: /Order Pickup Complete/ }).click();
+  await page.getByRole("button", { name: /Complete Pickup/ }).click();
 
   const errorBanner = page.locator(
     "text=/Failed to record|permission denied|Cannot record pickup/i",
@@ -140,8 +140,8 @@ async function completePickupChecklist(page) {
     throw new Error(msg?.trim() ?? "Pickup error banner shown");
   }
 
-  await page.waitForSelector("text=All Items Picked Up!", { timeout: 20_000 });
-  console.log("PASS: All Items Picked Up! screen shown");
+  await page.waitForSelector("text=Picked Up", { timeout: 20_000 });
+  console.log("PASS: Picked Up screen shown");
 }
 
 const seedResult = spawnSync("npx", ["tsx", "scripts/seed-pickup-verify-readiness.mjs"], {
