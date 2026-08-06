@@ -33,9 +33,9 @@ import { ManagementCatchAllHub } from "./ManagementCatchAllHub";
 import {
   bindTechnicianSessionToJob,
   clearTechnicianPinSession,
+  getActiveTechnicianSession,
   getTechnicianSessionToken,
   isTechnicianPinSessionValid,
-  touchTechnicianPinSession,
 } from "./technicianPinSession";
 import {
   clearManagementPinSession,
@@ -55,10 +55,8 @@ import {
   getVendorRunSessionToken,
   isJobPinSessionValid,
   isVendorRunPinSessionValid,
-  touchVendorRunPinSession,
 } from "./vendorPinSession";
 import { isVendorSessionError } from "./vendorSessionErrors";
-import { useVendorPinActivity } from "./useVendorPinActivity";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 
@@ -166,6 +164,10 @@ export function LocationScanPage() {
       setIsCatchAllParcelIntake(result.isCatchAllParcelIntake === true);
       if (intakeEnabled && isManagementPinSessionValid()) {
         setStep("mgmt-landing");
+      } else if (getActiveTechnicianSession()) {
+        // Same-shop resume: skip PIN; effect reloads day-release jobs.
+        setPinRole("technician");
+        setStep("pin");
       } else {
         setStep("pin");
       }
@@ -366,7 +368,6 @@ export function LocationScanPage() {
         setTechnicianId(resolvedTechnicianId);
         setTechnicianName(result.technicianName);
         setReleasedJobs(result.jobs);
-        setScannedCode(result.scannedStagingLocationCode);
         setStep("tech-list");
       } catch (err) {
         setError(
@@ -395,6 +396,13 @@ export function LocationScanPage() {
     bindTechnicianSessionToJob(jobId);
     window.location.hash = `#/pickup?job=${encodeURIComponent(jobId)}&door=tech`;
   }, [technicianId]);
+
+  useEffect(() => {
+    if (step !== "pin" || pinRole !== "technician") return;
+    const active = getActiveTechnicianSession();
+    if (!active) return;
+    void loadTechnicianReleasedJobs(active.technicianId);
+  }, [step, pinRole, loadTechnicianReleasedJobs]);
 
   const handlePinSessionExpired = useCallback(() => {
     setDeliveryDetails(null);
@@ -425,33 +433,22 @@ export function LocationScanPage() {
     setStep("pin");
   }, []);
 
-  const activityKey =
-    deliveryDetails?.delivery.id ?? jobId ?? vendorId ?? locationCode;
-
-  useVendorPinActivity(
-    typeof activityKey === "string" ? activityKey : null,
-    handlePinSessionExpired,
-  );
-
   useEffect(() => {
-    if (!vendorId) return;
     const interval = window.setInterval(() => {
-      if (isVendorRunPinSessionValid(vendorId)) {
-        touchVendorRunPinSession(vendorId);
+      if (jobId && !isJobPinSessionValid(jobId)) {
+        handlePinSessionExpired();
+        return;
+      }
+      if (vendorId && !isVendorRunPinSessionValid(vendorId)) {
+        handlePinSessionExpired();
+        return;
+      }
+      if (technicianId && !isTechnicianPinSessionValid(technicianId)) {
+        handlePinSessionExpired();
       }
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, [vendorId]);
-
-  useEffect(() => {
-    if (!technicianId) return;
-    const interval = window.setInterval(() => {
-      if (isTechnicianPinSessionValid(technicianId)) {
-        touchTechnicianPinSession(technicianId);
-      }
-    }, 30_000);
-    return () => window.clearInterval(interval);
-  }, [technicianId]);
+  }, [jobId, vendorId, technicianId, handlePinSessionExpired]);
 
   const toggleChecked = (deliveryId: string, enabled: boolean) => {
     if (!enabled) return;
@@ -755,7 +752,6 @@ export function LocationScanPage() {
         ) : (
           <TechnicianPinGate
             stagingLocationCode={locationCode}
-            technicianIdForActivity={technicianId ?? undefined}
             onVerified={handleTechnicianPinVerified}
             onBack={() => setPinRole("vendor")}
           />
@@ -772,7 +768,7 @@ export function LocationScanPage() {
       >
         <div className="shrink-0 px-6 py-4 border-b border-border bg-bg-surface">
           <p className="text-xs uppercase tracking-widest text-text-secondary">
-            {scannedCode ? `You're at ${scannedCode}` : `Scanned ${branding.code}`}
+            {`You're at ${branding.code}`}
             {technicianName ? ` · ${technicianName}` : ""}
           </p>
           <h1 className="text-lg font-bold text-text-primary mt-1">

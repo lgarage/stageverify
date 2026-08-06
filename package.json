@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.219",
+  "version": "0.0.221",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -133,6 +133,7 @@
     "test:pickup-authority": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-pickup-authority.mjs\"",
     "test:pickup-client-op-id": "node scripts/test-pickup-client-op-id.mjs",
     "test:auto-submit-readiness": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-auto-submit-readiness.mjs\"",
+    "test:pin-session-validity": "npx tsx scripts/test-pin-session-validity.mjs",
     "test:readiness": "npx tsx scripts/test-readiness-two-source.mjs",
     "test:readiness-persistence": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-readiness-persistence.mjs\"",
     "test:demo-matrix": "npx tsx scripts/demo-delivery-matrix.mjs",

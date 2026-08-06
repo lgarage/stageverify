@@ -1,4 +1,4 @@
-/** Vendor PIN session — server token + client inactivity tracking. */
+/** Vendor PIN session — server token + fixed TTL (expiresAt). */
 
 export const VENDOR_PIN_SESSION_MS = 15 * 60 * 1000;
 const STORAGE_PREFIX = "sv-vendor-pin:";
@@ -7,12 +7,11 @@ export interface VendorPinSession {
   deliveryId: string;
   vendorId: string;
   vendorName: string;
-  lastActivityAt: number;
   /** Opaque token from verifyVendorPin CF. */
   sessionToken?: string;
   /** ISO expiry from server session doc. */
   expiresAt?: string;
-  /** Client inactivity window (minutes) from appSettings at PIN time. */
+  /** Minutes from appSettings at PIN time (informational; TTL is expiresAt). */
   sessionMinutes?: number;
 }
 
@@ -28,8 +27,7 @@ function readRaw(deliveryId: string): VendorPinSession | null {
     if (
       typeof parsed.deliveryId !== "string" ||
       typeof parsed.vendorId !== "string" ||
-      typeof parsed.vendorName !== "string" ||
-      typeof parsed.lastActivityAt !== "number"
+      typeof parsed.vendorName !== "string"
     ) {
       return null;
     }
@@ -42,18 +40,18 @@ function readRaw(deliveryId: string): VendorPinSession | null {
 function serverSessionExpired(session: {
   expiresAt?: string;
 }): boolean {
-  if (!session.expiresAt) return false;
+  if (!session.expiresAt) return true;
   const expiresMs = Date.parse(session.expiresAt);
   if (!Number.isFinite(expiresMs)) return true;
   return Date.now() >= expiresMs;
 }
 
-function clientInactivityExpired(session: {
-  lastActivityAt: number;
-  sessionMinutes?: number;
+function isSessionRecordValid(session: {
+  sessionToken?: string;
+  expiresAt?: string;
 }): boolean {
-  const minutes = session.sessionMinutes ?? VENDOR_PIN_SESSION_MS / 60_000;
-  return Date.now() - session.lastActivityAt >= minutes * 60_000;
+  if (!session.sessionToken || !session.expiresAt) return false;
+  return !serverSessionExpired(session);
 }
 
 export function hasPinSession(deliveryId: string): boolean {
@@ -62,8 +60,7 @@ export function hasPinSession(deliveryId: string): boolean {
 
 export function isPinSessionValid(deliveryId: string): boolean {
   const session = readRaw(deliveryId);
-  if (!session) return false;
-  if (serverSessionExpired(session) || clientInactivityExpired(session)) {
+  if (!session || !isSessionRecordValid(session)) {
     clearPinSession(deliveryId);
     return false;
   }
@@ -90,7 +87,6 @@ export interface JobPinSession {
   jobId: string;
   vendorId: string;
   vendorName: string;
-  lastActivityAt: number;
   sessionToken?: string;
   expiresAt?: string;
   sessionMinutes?: number;
@@ -109,8 +105,7 @@ function readJobRaw(jobId: string): JobPinSession | null {
     if (
       typeof parsed.jobId !== "string" ||
       typeof parsed.vendorId !== "string" ||
-      typeof parsed.vendorName !== "string" ||
-      typeof parsed.lastActivityAt !== "number"
+      typeof parsed.vendorName !== "string"
     ) {
       return null;
     }
@@ -122,8 +117,7 @@ function readJobRaw(jobId: string): JobPinSession | null {
 
 export function isJobPinSessionValid(jobId: string): boolean {
   const session = readJobRaw(jobId);
-  if (!session) return false;
-  if (serverSessionExpired(session) || clientInactivityExpired(session)) {
+  if (!session || !isSessionRecordValid(session)) {
     clearJobPinSession(jobId);
     return false;
   }
@@ -158,7 +152,6 @@ export function setJobPinSession(
     jobId,
     vendorId,
     vendorName,
-    lastActivityAt: Date.now(),
     sessionToken: options?.sessionToken,
     expiresAt: options?.expiresAt,
     sessionMinutes: options?.sessionMinutes,
@@ -166,16 +159,6 @@ export function setJobPinSession(
   };
   sessionStorage.setItem(jobStorageKey(jobId), JSON.stringify(session));
   return session;
-}
-
-export function touchJobPinSession(jobId: string): void {
-  const session = readJobRaw(jobId);
-  if (!session || serverSessionExpired(session)) {
-    clearJobPinSession(jobId);
-    return;
-  }
-  session.lastActivityAt = Date.now();
-  sessionStorage.setItem(jobStorageKey(jobId), JSON.stringify(session));
 }
 
 export function clearJobPinSession(jobId: string): void {
@@ -211,23 +194,12 @@ export function setPinSession(
     deliveryId,
     vendorId,
     vendorName,
-    lastActivityAt: Date.now(),
     sessionToken: options?.sessionToken,
     expiresAt: options?.expiresAt,
     sessionMinutes: options?.sessionMinutes,
   };
   sessionStorage.setItem(storageKey(deliveryId), JSON.stringify(session));
   return session;
-}
-
-export function touchPinSession(deliveryId: string): void {
-  const session = readRaw(deliveryId);
-  if (!session || serverSessionExpired(session)) {
-    clearPinSession(deliveryId);
-    return;
-  }
-  session.lastActivityAt = Date.now();
-  sessionStorage.setItem(storageKey(deliveryId), JSON.stringify(session));
 }
 
 export function clearPinSession(deliveryId: string): void {
@@ -240,7 +212,6 @@ export interface VendorRunPinSession {
   vendorId: string;
   vendorName: string;
   anchorDeliveryId: string;
-  lastActivityAt: number;
   sessionToken?: string;
   expiresAt?: string;
   sessionMinutes?: number;
@@ -259,8 +230,7 @@ function readVendorRunRaw(vendorId: string): VendorRunPinSession | null {
     if (
       typeof parsed.vendorId !== "string" ||
       typeof parsed.vendorName !== "string" ||
-      typeof parsed.anchorDeliveryId !== "string" ||
-      typeof parsed.lastActivityAt !== "number"
+      typeof parsed.anchorDeliveryId !== "string"
     ) {
       return null;
     }
@@ -272,8 +242,7 @@ function readVendorRunRaw(vendorId: string): VendorRunPinSession | null {
 
 export function isVendorRunPinSessionValid(vendorId: string): boolean {
   const session = readVendorRunRaw(vendorId);
-  if (!session) return false;
-  if (serverSessionExpired(session) || clientInactivityExpired(session)) {
+  if (!session || !isSessionRecordValid(session)) {
     clearVendorRunPinSession(vendorId);
     return false;
   }
@@ -310,7 +279,6 @@ export function setVendorRunPinSession(
     vendorId,
     vendorName,
     anchorDeliveryId,
-    lastActivityAt: Date.now(),
     sessionToken: options?.sessionToken,
     expiresAt: options?.expiresAt,
     sessionMinutes: options?.sessionMinutes,
@@ -318,16 +286,6 @@ export function setVendorRunPinSession(
   };
   sessionStorage.setItem(vendorRunStorageKey(vendorId), JSON.stringify(session));
   return session;
-}
-
-export function touchVendorRunPinSession(vendorId: string): void {
-  const session = readVendorRunRaw(vendorId);
-  if (!session || serverSessionExpired(session)) {
-    clearVendorRunPinSession(vendorId);
-    return;
-  }
-  session.lastActivityAt = Date.now();
-  sessionStorage.setItem(vendorRunStorageKey(vendorId), JSON.stringify(session));
 }
 
 export function clearVendorRunPinSession(vendorId: string): void {

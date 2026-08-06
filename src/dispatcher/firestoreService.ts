@@ -1450,6 +1450,7 @@ const DEFAULT_APP_SETTINGS: AppSettings = {
   autoSubmitMinutes: 30,
   vendorDeliveryMode: "full_checkin",
   vendorSessionMinutes: 15,
+  technicianSessionMinutes: 15,
   monitoringInboxEmail: "",
   emailMonitoringEnabled: false,
 };

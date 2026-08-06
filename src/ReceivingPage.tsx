@@ -23,7 +23,7 @@ import { resolveZoneScanDisposition } from "./scanRouting";
 import { VendorPinGate } from "./VendorPinGate";
 import { isPinSessionValid } from "./vendorPinSession";
 import { isVendorSessionError } from "./vendorSessionErrors";
-import { useVendorPinActivity } from "./useVendorPinActivity";
+import { useVendorPinSessionExpiry } from "./useVendorPinActivity";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
 import { NeedMoreSpaceButton } from "./NeedMoreSpaceButton";
 import {
@@ -219,7 +219,7 @@ export function ReceivingPage() {
     setStep("pin");
   }, []);
 
-  useVendorPinActivity(
+  useVendorPinSessionExpiry(
     deliveryDetails?.delivery.id ?? pendingDeliveryId,
     handlePinSessionExpired,
   );

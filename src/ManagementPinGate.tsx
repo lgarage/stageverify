@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAppSettings } from "./dispatcher/firestoreService";
 import { verifyManagementPin } from "./verifyManagementPinClient";
-import {
-  setManagementPinSession,
-  touchManagementPinSession,
-} from "./managementPinSession";
+import { setManagementPinSession } from "./managementPinSession";
 
 const KEYPAD = [
   ["1", "2", "3"],
@@ -84,13 +81,6 @@ export function ManagementPinGate({
     if (digits.length !== 4 || submitting || verified) return;
     void submitPin(digits.join(""));
   }, [digits, submitting, verified, submitPin]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      touchManagementPinSession();
-    }, 30_000);
-    return () => window.clearInterval(interval);
-  }, []);
 
   const locked = submitting || verified;
 

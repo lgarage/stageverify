@@ -6,7 +6,6 @@ export interface TechnicianPinSessionRecord {
   sessionToken: string;
   expiresAt: string;
   sessionMinutes: number;
-  lastActivityAt: number;
   scannedStagingLocationCode?: string;
 }
 
@@ -42,7 +41,6 @@ export function setTechnicianPinSession(
     sessionToken: opts.sessionToken,
     expiresAt: opts.expiresAt,
     sessionMinutes: opts.sessionMinutes,
-    lastActivityAt: Date.now(),
     scannedStagingLocationCode: opts.scannedStagingLocationCode,
   };
   writeAll(all);
@@ -69,17 +67,7 @@ export function isTechnicianPinSessionValid(technicianId: string): boolean {
   if (!record?.sessionToken || !record.expiresAt) return false;
   const expiresMs = Date.parse(record.expiresAt);
   if (!Number.isFinite(expiresMs) || Date.now() >= expiresMs) return false;
-  const inactivityMs = record.sessionMinutes * 60 * 1000;
-  if (Date.now() - record.lastActivityAt > inactivityMs) return false;
   return true;
-}
-
-export function touchTechnicianPinSession(technicianId: string): void {
-  const all = readAll();
-  const record = all[technicianId];
-  if (!record) return;
-  all[technicianId] = { ...record, lastActivityAt: Date.now() };
-  writeAll(all);
 }
 
 export function clearTechnicianPinSession(technicianId: string): void {
@@ -88,13 +76,16 @@ export function clearTechnicianPinSession(technicianId: string): void {
   writeAll(all);
 }
 
-/** Active technician session (most recently touched valid session). */
+/** Active technician session (longest remaining TTL among valid sessions). */
 export function getActiveTechnicianSession(): TechnicianPinSessionRecord | null {
   const all = readAll();
   let best: TechnicianPinSessionRecord | null = null;
   for (const record of Object.values(all)) {
     if (!isTechnicianPinSessionValid(record.technicianId)) continue;
-    if (!best || record.lastActivityAt > best.lastActivityAt) {
+    if (
+      !best ||
+      Date.parse(record.expiresAt) > Date.parse(best.expiresAt)
+    ) {
       best = record;
     }
   }

@@ -20,7 +20,6 @@ export interface ManagementPinSessionRecord {
   sessionToken: string;
   expiresAt: string;
   sessionMinutes: number;
-  lastActivityAt: number;
   scannedStagingLocationCode?: string;
   pinId?: string;
   /** UX cache — CF re-reads registry for enforcement. */
@@ -58,7 +57,6 @@ export function setManagementPinSession(opts: {
     sessionToken: opts.sessionToken,
     expiresAt: opts.expiresAt,
     sessionMinutes: opts.sessionMinutes,
-    lastActivityAt: Date.now(),
     scannedStagingLocationCode: opts.scannedStagingLocationCode,
     pinId: opts.pinId,
     permissions: normalizeManagementPinPermissions(opts.permissions),
@@ -90,15 +88,7 @@ export function isManagementPinSessionValid(): boolean {
   if (!record?.sessionToken || !record.expiresAt) return false;
   const expiresMs = Date.parse(record.expiresAt);
   if (!Number.isFinite(expiresMs) || Date.now() >= expiresMs) return false;
-  const inactivityMs = record.sessionMinutes * 60 * 1000;
-  if (Date.now() - record.lastActivityAt > inactivityMs) return false;
   return true;
-}
-
-export function touchManagementPinSession(): void {
-  const record = readRecord();
-  if (!record) return;
-  writeRecord({ ...record, lastActivityAt: Date.now() });
 }
 
 export function clearManagementPinSession(): void {

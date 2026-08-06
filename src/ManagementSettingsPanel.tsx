@@ -318,7 +318,7 @@ export function ManagementSettingsPanel() {
           Enable parcel intake
         </label>
         <label style={{ fontSize: 13, fontWeight: 700, color: MUTED }}>
-          Session TTL (min)
+          PIN session length (min, absolute TTL)
         </label>
         <input
           type="number"

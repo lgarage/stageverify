@@ -115,7 +115,7 @@ async function waitForDoneEnabled(page, timeoutMs = 30_000) {
   await page.waitForFunction(
     () => {
       const btn = [...document.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Order Pickup Complete"),
+        b.textContent?.includes("Complete Pickup"),
       );
       return btn && !btn.disabled;
     },
@@ -142,12 +142,12 @@ async function confirmAllPickupLocations(page) {
 
 async function assertLevel1CompletePickupGate(page) {
   const completeBtn = page.getByRole("button", {
-    name: /Order Pickup Complete/,
+    name: /Complete Pickup/,
   });
   await completeBtn.waitFor({ state: "visible", timeout: 15_000 });
   if (!(await completeBtn.isDisabled())) {
     throw new Error(
-      "Level 1 FAIL: Order Pickup Complete should stay disabled until all spots are confirmed.",
+      "Level 1 FAIL: Complete Pickup should stay disabled until all spots are confirmed.",
     );
   }
   const confirms = page.getByTestId("pickup-location-confirm");
@@ -246,14 +246,9 @@ async function runScenarioA(page, pickupToken) {
   }
   const itemRows = page.getByTestId("pickup-item-row");
   const itemCount = await itemRows.count();
-  console.log(`Checking ${itemCount} pickup item row(s)…`);
-  for (let i = 0; i < itemCount; i++) {
-    const row = itemRows.nth(i);
-    if ((await row.getAttribute("data-checked")) !== "true") {
-      await row.click();
-      await page.waitForTimeout(150);
-    }
-  }
+  console.log(
+    `Skipping item row clicks (${itemCount} row(s)) — item checkboxes are optional for Complete Pickup.`,
+  );
 
   const shopStates = page.getByTestId("shop-stock-pull-state");
   const shopCount = await shopStates.count();
@@ -330,7 +325,7 @@ async function runScenarioA(page, pickupToken) {
 
   await confirmAllPickupLocations(page);
   await waitForDoneEnabled(page);
-  await page.getByRole("button", { name: /Order Pickup Complete/ }).click();
+  await page.getByRole("button", { name: /Complete Pickup/ }).click();
 
   const errorBanner = page.locator(
     "text=/Failed to record|permission denied|Cannot record pickup/i",
@@ -344,12 +339,12 @@ async function runScenarioA(page, pickupToken) {
     throw new Error(msg?.trim() ?? "Pickup error banner shown");
   }
 
-  await page.waitForSelector("text=All Items Picked Up!", { timeout: 20_000 });
+  await page.waitForSelector("text=Picked Up", { timeout: 20_000 });
   await page.screenshot({
     path: resolve(outDir, "pickup-verify-after.png"),
     fullPage: true,
   });
-  console.log("Scenario A PASS: All Items Picked Up! screen shown.");
+  console.log("Scenario A PASS: Picked Up success screen shown.");
 }
 
 async function waitForPickupCard(page) {

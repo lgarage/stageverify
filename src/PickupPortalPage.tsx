@@ -84,16 +84,6 @@ function publicNotReadyDetailLabel(status: DeliveryStatus): string | null {
   return null;
 }
 
-function isStagedItemsCheckedOff(
-  delivery: DeliveryDetails,
-  checkedItemIds: Set<string>,
-): boolean {
-  return (
-    delivery.items.length === 0 ||
-    delivery.items.every((item) => checkedItemIds.has(item.id))
-  );
-}
-
 function isDeliveryAlreadyPickedUp(delivery: DeliveryDetails): boolean {
   const status = delivery.delivery.status;
   return status === "picked_up" || status === "installed";
@@ -1006,12 +996,9 @@ function JobPickupScreen({
   const isDeliveryChecklistComplete = useCallback(
     (d: DeliveryDetails): boolean => {
       if (!isPickupReady(d.delivery.status)) return true;
-      return (
-        isStagedItemsCheckedOff(d, checkedItemIds) &&
-        isShopStockCompleteForDelivery(d)
-      );
+      return isShopStockCompleteForDelivery(d);
     },
-    [checkedItemIds, isShopStockCompleteForDelivery],
+    [isShopStockCompleteForDelivery],
   );
 
   const pickupQueueDeliveries = deliveries.filter((d) =>
@@ -1111,7 +1098,7 @@ function JobPickupScreen({
     if (blockedByChecklist) {
       setError(
         allStagingLocationsConfirmed
-          ? "Auto-submit cancelled — check off all staged items and shop stock first."
+          ? "Auto-submit cancelled — confirm shop stock first."
           : "Auto-submit cancelled — confirm every pickup spot first.",
       );
       setAutoSubmitSecondsLeft(null);
@@ -1449,10 +1436,10 @@ function JobPickupScreen({
           <Svg d={icons.check} size={48} />
         </div>
         <h2 className="text-3xl font-bold text-text-primary mb-4">
-          All Items Picked Up!
+          Picked Up
         </h2>
         <p className="text-base text-text-secondary mb-2">
-          Staged materials and shop stock are complete for this job.
+          Pickup recorded for this job.
         </p>
         <p className="text-sm text-text-secondary mb-12">
           {zoneSummary(deliveries)}
@@ -2151,7 +2138,7 @@ function JobPickupScreen({
       >
         {readyToFinish && (
           <p className="text-center text-sm font-semibold text-accent-green mb-2">
-            All items picked up — tap Order Pickup Complete to finish
+            Ready — tap Complete Pickup to finish
           </p>
         )}
         {autoSubmitMinutes > 0 &&
@@ -2172,7 +2159,7 @@ function JobPickupScreen({
               : "opacity-50 cursor-not-allowed"
           }`}
         >
-          {submitting ? "Submitting…" : "Order Pickup Complete"}
+          {submitting ? "Submitting…" : "Complete Pickup"}
         </button>
       </div>
     </div>
