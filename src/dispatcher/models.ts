@@ -780,7 +780,7 @@ export interface AppSettings {
   entrywayEslTagId?: string;
   /** Vendor receive UX: full line-item check-in vs exception-only Delivered hub. */
   vendorDeliveryMode?: VendorDeliveryMode;
-  /** Minutes before vendor PIN session expires (server + client inactivity). Default 15. */
+  /** Minutes for vendor PIN session absolute TTL (server expiresAt). Default 15. */
   vendorSessionMinutes?: number;
   /** Optional shop geofence center (vendor receive warn/enforce). */
   shopLatitude?: number;

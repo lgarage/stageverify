@@ -119,6 +119,7 @@ export function SettingsPage() {
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
   const [vendorSessionMinutes, setVendorSessionMinutes] = useState(15);
+  const [technicianSessionMinutes, setTechnicianSessionMinutes] = useState(15);
   const [shopLatitude, setShopLatitude] = useState("");
   const [shopLongitude, setShopLongitude] = useState("");
   const [shopGeofenceRadiusMeters, setShopGeofenceRadiusMeters] = useState("");
@@ -236,6 +237,7 @@ export function SettingsPage() {
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
       setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
       setVendorSessionMinutes(settings.vendorSessionMinutes ?? 15);
+      setTechnicianSessionMinutes(settings.technicianSessionMinutes ?? 15);
       setShopLatitude(
         settings.shopLatitude != null ? String(settings.shopLatitude) : "",
       );
@@ -757,6 +759,7 @@ export function SettingsPage() {
         vendorRevertWindowMinutes: revertWindowMinutes,
         vendorDeliveryMode,
         vendorSessionMinutes,
+        technicianSessionMinutes,
         vendorGeofenceEnforce,
       };
       const lat = Number(shopLatitude);
@@ -992,7 +995,7 @@ export function SettingsPage() {
                   marginLeft: 8,
                 }}
               >
-                Vendor session TTL
+                PIN session length
               </label>
               <input
                 type="number"
@@ -1017,7 +1020,43 @@ export function SettingsPage() {
                 }}
               />
               <span style={{ fontSize: 13, color: "#6b7280" }}>
-                min (PIN re-prompt)
+                min (absolute TTL)
+              </span>
+              <label
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#6b7280",
+                  whiteSpace: "nowrap",
+                  marginLeft: 8,
+                }}
+              >
+                Technician PIN session length
+              </label>
+              <input
+                type="number"
+                min={5}
+                max={480}
+                value={technicianSessionMinutes}
+                onChange={(e) =>
+                  setTechnicianSessionMinutes(Number(e.target.value) || 15)
+                }
+                onBlur={() => void saveRevertWindow()}
+                style={{
+                  width: 80,
+                  padding: "10px 12px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  color: "#333",
+                  outline: "none",
+                  backgroundColor: "#fff",
+                  fontFamily: FONT,
+                  boxSizing: "border-box",
+                }}
+              />
+              <span style={{ fontSize: 13, color: "#6b7280" }}>
+                min (absolute TTL)
               </span>
               <label
                 style={{

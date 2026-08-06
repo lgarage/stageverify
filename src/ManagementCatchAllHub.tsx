@@ -10,7 +10,6 @@ import {
   getManagementSessionPermissions,
   getManagementSessionToken,
   isManagementPinSessionValid,
-  touchManagementPinSession,
 } from "./managementPinSession";
 
 interface ManagementCatchAllHubProps {
@@ -97,9 +96,7 @@ export function ManagementCatchAllHub({
     const interval = window.setInterval(() => {
       if (!isManagementPinSessionValid()) {
         onSessionExpired();
-        return;
       }
-      touchManagementPinSession();
     }, 30_000);
     return () => window.clearInterval(interval);
   }, [onSessionExpired]);

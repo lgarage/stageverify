@@ -3,22 +3,15 @@ import {
   clearPinSession,
   hasPinSession,
   isPinSessionValid,
-  touchPinSession,
 } from "./vendorPinSession";
 
-/** Re-prompt for PIN after 15 minutes of inactivity on an unlocked delivery. */
-export function useVendorPinActivity(
+/** Poll fixed TTL — re-prompt when server expiresAt passes (no activity extension). */
+export function useVendorPinSessionExpiry(
   deliveryId: string | null,
   onSessionExpired: () => void,
 ): void {
   useEffect(() => {
     if (!deliveryId) return;
-
-    const bump = () => {
-      if (isPinSessionValid(deliveryId)) {
-        touchPinSession(deliveryId);
-      }
-    };
 
     const interval = window.setInterval(() => {
       if (!hasPinSession(deliveryId)) return;
@@ -28,13 +21,8 @@ export function useVendorPinActivity(
       }
     }, 30_000);
 
-    window.addEventListener("pointerdown", bump);
-    window.addEventListener("keydown", bump);
-
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener("pointerdown", bump);
-      window.removeEventListener("keydown", bump);
     };
   }, [deliveryId, onSessionExpired]);
 }

@@ -6,9 +6,6 @@ import {
   setPinSession,
   setJobPinSession,
   setVendorRunPinSession,
-  touchPinSession,
-  touchJobPinSession,
-  VENDOR_PIN_SESSION_MS,
 } from "./vendorPinSession";
 
 const KEYPAD = [
@@ -69,8 +66,6 @@ export function VendorPinGate({
     stagingLocationCode && !deliveryId
       ? "Enter your job PIN, or your company PIN if dispatch enabled multi-site run."
       : "Enter the 4-digit PIN for this delivery.";
-
-  const activityKey = jobId ?? deliveryId ?? stagingLocationCode ?? "pin";
 
   const submitPin = useCallback(
     async (pin: string) => {
@@ -157,21 +152,6 @@ export function VendorPinGate({
     if (digits.length !== 4 || submitting || verified) return;
     void submitPin(digits.join(""));
   }, [digits, submitting, verified, submitPin]);
-
-  useEffect(() => {
-    const resetOnInactivity = () => {
-      if (jobId) touchJobPinSession(jobId);
-      else if (deliveryId) touchPinSession(deliveryId);
-    };
-    const interval = window.setInterval(() => {
-      resetOnInactivity();
-    }, VENDOR_PIN_SESSION_MS / 2);
-    window.addEventListener("pointerdown", resetOnInactivity);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("pointerdown", resetOnInactivity);
-    };
-  }, [activityKey, jobId, deliveryId]);
 
   const locked = submitting || verified;
 

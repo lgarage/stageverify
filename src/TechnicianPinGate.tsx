@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAppSettings } from "./dispatcher/firestoreService";
 import { verifyTechnicianPin } from "./verifyTechnicianPinClient";
-import {
-  setTechnicianPinSession,
-  touchTechnicianPinSession,
-} from "./technicianPinSession";
+import { setTechnicianPinSession } from "./technicianPinSession";
 
 const KEYPAD = [
   ["1", "2", "3"],
@@ -21,7 +18,6 @@ export interface TechnicianPinVerifiedPayload {
 
 interface TechnicianPinGateProps {
   stagingLocationCode: string;
-  technicianIdForActivity?: string;
   onVerified: (payload: TechnicianPinVerifiedPayload) => void;
   onBack?: () => void;
 }
@@ -41,7 +37,6 @@ function pinVerifyErrorMessage(err: unknown): string {
 
 export function TechnicianPinGate({
   stagingLocationCode,
-  technicianIdForActivity,
   onVerified,
   onBack,
 }: TechnicianPinGateProps) {
@@ -99,14 +94,6 @@ export function TechnicianPinGate({
     if (digits.length !== 4 || submitting || verified) return;
     void submitPin(digits.join(""));
   }, [digits, submitting, verified, submitPin]);
-
-  useEffect(() => {
-    if (!technicianIdForActivity) return;
-    const interval = window.setInterval(() => {
-      touchTechnicianPinSession(technicianIdForActivity);
-    }, 30_000);
-    return () => window.clearInterval(interval);
-  }, [technicianIdForActivity]);
 
   const locked = submitting || verified;
 
