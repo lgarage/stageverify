@@ -43,7 +43,7 @@ const FIRESTORE_HOST = /firestore\.googleapis\.com/;
   await page.getByTestId("public-network-retry").click();
   await page.waitForTimeout(3000);
   const pickupRecovered =
-    (await page.getByText(/Loading pickup list|Order Pickup Complete|No pickup-ready/).count()) >
+    (await page.getByText(/Loading pickup list|Complete Pickup|No pickup-ready/).count()) >
     0;
   if (!pickupRecovered) {
     throw new Error("Pickup retry did not recover from network failure.");

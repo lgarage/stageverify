@@ -71,7 +71,7 @@ async function waitForDoneEnabled(page, timeoutMs = 30_000) {
   await page.waitForFunction(
     () => {
       const btn = [...document.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Order Pickup Complete"),
+        b.textContent?.includes("Complete Pickup"),
       );
       return btn && !btn.disabled;
     },
