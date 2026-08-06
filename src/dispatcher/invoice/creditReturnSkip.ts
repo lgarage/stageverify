@@ -4,6 +4,10 @@
 import type { ParsedJohnstoneInvoice } from "./types";
 import type { VendorInvoiceImportReview } from "../models";
 import type { VendorInvoiceImportStatus } from "./types";
+import {
+  normalizeParsedHeader,
+  readInvoiceHeaderField,
+} from "./invoiceReviewHeaderHelpers";
 
 export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 
@@ -127,26 +131,39 @@ export function correctionNoteTeachesIgnoreCreditReturns(note: string): boolean 
   return false;
 }
 
+function coerceLineQty(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
 export function isCreditReturnImportDoc(
   doc: Pick<
     VendorInvoiceImportReview,
     "parsedHeader" | "parsedLines" | "orderNotes"
   >,
 ): boolean {
-  const header = doc.parsedHeader ?? {};
-  const branch = String(header.vendorBranchName ?? "").trim();
+  const header = normalizeParsedHeader(doc.parsedHeader);
+  const branch = readInvoiceHeaderField(header, "vendorBranchName");
   if (parsedBranchIsCredit(branch)) return true;
 
-  const po = String(header.customerPoOrReference ?? "").trim();
+  const po = readInvoiceHeaderField(header, "customerPoOrReference");
   const notes = doc.orderNotes ?? [];
   if (notes.some((n) => /CREDIT\/return memo/i.test(n))) return true;
 
-  const lines = doc.parsedLines ?? [];
+  const lines = (doc.parsedLines ?? []).map((line) => ({
+    ...line,
+    quantityShipped: coerceLineQty(line.quantityShipped),
+    quantityOrdered: coerceLineQty(line.quantityOrdered),
+  }));
   if (lines.length === 0) {
     return /\bRETURN\b/i.test(po) || parsedBranchIsCredit(branch);
   }
 
-  const anyNegShip = lines.some((l) => (l.quantityShipped ?? 0) < 0);
+  const anyNegShip = lines.some((l) => l.quantityShipped < 0);
   const anyReturnLine = lines.some((l) => l.lineType === "return");
   const returnDesc = lines.some((l) =>
     /return from invoice/i.test(l.description ?? ""),
@@ -157,7 +174,7 @@ export function isCreditReturnImportDoc(
   if (anyReturnLine && anyNegShip) return true;
   if (returnDesc && anyNegShip) return true;
   if (noteReturn && anyNegShip) return true;
-  if (lines.every((l) => (l.quantityShipped ?? 0) < 0)) return true;
+  if (lines.every((l) => l.quantityShipped < 0)) return true;
   if (returnPo && anyNegShip) return true;
   if (returnPo && anyReturnLine) return true;
 

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.218",
+  "version": "0.0.219",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -160,6 +160,7 @@
     "test:match-invoice-records": "cd functions && npm run build && cd .. && node scripts/test-match-invoice-records.mjs",
     "test:approve-vendor-invoice-import": "cd functions && npm run build && cd .. && node scripts/test-approve-vendor-invoice-import.mjs",
     "test:credit-return-delivery-block": "cd functions && npm run build && cd .. && node scripts/test-credit-return-delivery-block.mjs",
+    "test:delivery-credit-reject-gate": "npx tsx scripts/test-delivery-credit-reject-gate.mjs",
     "test:recover-stranded-processing": "cd functions && npm run build && cd .. && node scripts/test-recover-stranded-processing.mjs",
     "test:retry-on-error-inbound": "cd functions && npm run build && cd .. && node scripts/test-retry-on-error-inbound.mjs",
     "verify:inbound-email-ingest": "cd functions && npm run build && cd .. && npx tsx scripts/verify-inbound-email-ingest.mjs",

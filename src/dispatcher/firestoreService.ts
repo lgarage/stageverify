@@ -222,6 +222,16 @@ async function fetchVendorInvoiceImportsByIds(
   return result;
 }
 
+/** Drawer + list — full Firestore doc (same hydration as deliveries list credit badge). */
+export async function fetchVendorInvoiceImportById(
+  id: string,
+): Promise<VendorInvoiceImportReview | null> {
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  const imports = await fetchVendorInvoiceImportsByIds([trimmed]);
+  return imports.get(trimmed) ?? null;
+}
+
 /** Seed/demo deliveries from seedFirestore.ts — hidden on prod gh-pages list only. */
 const SEED_DEMO_DELIVERY_IDS = new Set([
   "delivery-1",

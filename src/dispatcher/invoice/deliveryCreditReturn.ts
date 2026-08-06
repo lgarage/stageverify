@@ -6,39 +6,44 @@ import {
   type InvoiceRejectReasonId,
 } from "./invoiceRejectReasons";
 
+type CreditDetectionImportRow = Pick<
+  VendorInvoiceImportReview,
+  "reviewStatus" | "parsedHeader" | "parsedLines" | "orderNotes" | "skipReason"
+> &
+  Partial<
+    Pick<
+      VendorInvoiceImportReview,
+      "reviewRequiredReasons" | "parseWarnings" | "importStatus" | "pageId"
+    >
+  >;
+
+function importReviewFlagsCreditReturn(
+  importRow: Pick<VendorInvoiceImportReview, "reviewRequiredReasons">,
+): boolean {
+  return (importRow.reviewRequiredReasons ?? []).some((reason) =>
+    /credit\/return/i.test(reason),
+  );
+}
+
 /** Linked import is a credit/return memo — not valid for staging or pickup. */
 export function isCreditReturnLinkedImport(
-  importRow: Pick<
-    VendorInvoiceImportReview,
-    | "parsedHeader"
-    | "parsedLines"
-    | "orderNotes"
-    | "skipReason"
-    | "reviewStatus"
-  >,
+  importRow: CreditDetectionImportRow,
 ): boolean {
   if (importRow.skipReason === "credit_return") return true;
+  if (importReviewFlagsCreditReturn(importRow)) return true;
   if (inferDocumentType(importRow as VendorInvoiceImportReview) === "credit_memo") {
     return true;
   }
   return isCreditReturnImportDoc(importRow);
 }
 
-/** Reject via approveVendorInvoiceImport — pending or approved credit/return slip-through. */
+/** Mirrors CF approveVendorInvoiceImport canRejectReviewStatus. */
 export function canRejectLinkedImport(
-  importRow: Pick<VendorInvoiceImportReview, "reviewStatus"> & {
-    parsedHeader?: VendorInvoiceImportReview["parsedHeader"];
-    parsedLines?: VendorInvoiceImportReview["parsedLines"];
-    orderNotes?: VendorInvoiceImportReview["orderNotes"];
-    skipReason?: VendorInvoiceImportReview["skipReason"];
-  },
+  importRow: CreditDetectionImportRow,
 ): boolean {
   if (importRow.reviewStatus === "pending_review") return true;
-  if (
-    importRow.reviewStatus === "approved" &&
-    isCreditReturnLinkedImport(importRow)
-  ) {
-    return true;
+  if (importRow.reviewStatus === "approved") {
+    return isCreditReturnLinkedImport(importRow);
   }
   return false;
 }

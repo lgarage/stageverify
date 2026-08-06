@@ -12,7 +12,7 @@ import {
   sendVendorEmail,
   listVendorEmailEventsForDelivery,
   listShopStockMappings,
-  getVendorInvoiceImport,
+  fetchVendorInvoiceImportById,
   approveVendorInvoiceImport,
   INVOICE_TRAINING_LESSON_TOAST,
 } from "../firestoreService";
@@ -353,7 +353,7 @@ export function DetailContent({
     }
     let cancelled = false;
     setLinkedImportLoading(true);
-    void getVendorInvoiceImport(importId)
+    void fetchVendorInvoiceImportById(importId)
       .then((row) => {
         if (!cancelled) setLinkedImport(row);
       })
