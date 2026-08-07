@@ -2,9 +2,10 @@
  * Playwright E2E: exception-only vendor Delivered hub workflow (CANONICAL prod test).
  *
  * Real parsed/approved ingest only — no demo defaults.
+ * Env reference: scripts/VERIFY_PROD_ENV.md (where to obtain STAGEVERIFY_RECEIVE_DELIVERY).
  *
  * Required env:
- *   STAGEVERIFY_RECEIVE_DELIVERY  — Firestore delivery id
+ *   STAGEVERIFY_RECEIVE_DELIVERY  — Firestore deliveries/ document id (not order #)
  *   STAGEVERIFY_VENDOR_ORDER      — order number shown on hub
  *   STAGEVERIFY_VENDOR_PIN        — vendor PIN for this delivery
  *   STAGEVERIFY_VENDOR_JOB        — job/site name asserted on hub

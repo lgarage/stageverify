@@ -28,7 +28,7 @@ function assert(condition, message) {
 
 // --- Case 1: simulated stale gh-pages prod failure → valid pending structure (dry-run) ---
 const simulatedStderr = `
-ASSERT FAILED: expected "All Items Picked Up!" but got old UI text
+ASSERT FAILED: expected "Picked Up" success screen but got old UI text (Complete Pickup)
 verify:pickup:prod — prod bundle may be stale; redeploy gh-pages first
 `;
 const captureResult = captureVerifyFailure({
