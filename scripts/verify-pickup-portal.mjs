@@ -359,19 +359,14 @@ async function waitForPickupCard(page) {
 /**
  * HashRouter ignores goto() to the same #/pickup?… URL (no remount).
  * Force a blank navigation first so fixture reseeds are visible.
- * Authenticate when needed: recordPickupEvent does a client getDoc(deliveries)
- * before the CF call, and live Firestore rules require auth for that read.
+ * Never Firebase-Auth the browser for Complete Pickup — that false-greens the
+ * real technician/token door (unauthenticated). Client pickup no longer
+ * getDoc(deliveries); CF authorizes via pickupToken / technicianSession.
  */
-async function remountPickupPortal(page, pickupToken, { authenticate = false } = {}) {
-  if (authenticate) {
-    console.log(
-      "Auth for Scenario A: live rules require auth for delivery getDoc inside recordPickupEvent…",
-    );
-    await ensureAuthenticated(page, appBase);
-  }
+async function remountPickupPortal(page, pickupToken) {
   await page.goto("about:blank", { waitUntil: "domcontentloaded", timeout: 15_000 });
   const remountUrl = `${appBase}/#/pickup?t=${pickupToken}&delivery=${deliveryId}`;
-  console.log(`Remounting pickup portal: ${remountUrl}`);
+  console.log(`Remounting pickup portal (unauthenticated): ${remountUrl}`);
   await page.goto(remountUrl, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -818,9 +813,9 @@ async function runDashboardBadgeCheck(browser) {
   try {
     await runScenarioB(page);
     await reseedPickupFixtureAfterScenarioB();
-    // Same-hash goto is a HashRouter no-op; remount + auth so Scenario A completion
-    // can pass live Firestore rules (client getDoc in recordPickupEvent).
-    await remountPickupPortal(page, pickupToken, { authenticate: true });
+    // Same-hash goto is a HashRouter no-op; remount unauthenticated so Scenario A
+    // exercises the real public token door (no dispatcher Firebase Auth).
+    await remountPickupPortal(page, pickupToken);
     await runScenarioA(page, pickupToken);
   } catch (err) {
     await page.screenshot({

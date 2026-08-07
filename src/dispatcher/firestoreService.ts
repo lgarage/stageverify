@@ -1366,6 +1366,7 @@ export class FirestoreDataService implements DispatcherDataService {
 
   async recordPickupEvent(
     deliveryId: string,
+    jobId: string,
     technicianName: string,
     itemsPickedSummary: string,
     notes?: string,
@@ -1374,14 +1375,13 @@ export class FirestoreDataService implements DispatcherDataService {
     pickupToken?: string,
     technicianSessionToken?: string,
   ): Promise<{ deliveryStatus: string; duplicate: boolean }> {
-    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
-    if (!deliverySnap.exists()) {
-      throw new Error("Delivery not found");
-    }
-    const delivery = deliverySnap.data() as DeliveryOrder;
+    // Do NOT client-read deliveries here — unauthenticated technician / token
+    // doors have no Firestore delivery read access. jobId comes from portal CF
+    // data (or the authenticated dispatcher drawer); the CF re-validates
+    // delivery.jobId match + pickupToken / technicianSession + day-release.
     const operationId = resolvePickupClientOperationId(clientOperationId);
-    const jobId = delivery.jobId?.trim();
-    if (!jobId) {
+    const trimmedJobId = jobId.trim();
+    if (!trimmedJobId) {
       throw new Error(
         "This delivery is not linked to a job — cannot record pickup.",
       );
@@ -1398,7 +1398,7 @@ export class FirestoreDataService implements DispatcherDataService {
     const callable = httpsCallable(functions, "recordPickupEvent");
     const response = await callable({
       deliveryOrderId: deliveryId,
-      jobId,
+      jobId: trimmedJobId,
       technicianName: trimmedTechnician,
       itemsPickedSummary: trimmedSummary,
       notes,
