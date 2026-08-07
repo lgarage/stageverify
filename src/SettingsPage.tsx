@@ -118,6 +118,11 @@ export function SettingsPage() {
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
+  /** YYYY-MM-DD or empty — maps to appSettings.stageVerifyActivatedAt */
+  const [stageVerifyActivatedAt, setStageVerifyActivatedAt] = useState("");
+  const [stageVerifyStartDateError, setStageVerifyStartDateError] = useState<
+    string | null
+  >(null);
   const [vendorSessionMinutes, setVendorSessionMinutes] = useState(15);
   const [technicianSessionMinutes, setTechnicianSessionMinutes] = useState(15);
   const [shopLatitude, setShopLatitude] = useState("");
@@ -236,6 +241,11 @@ export function SettingsPage() {
     void getAppSettings().then((settings) => {
       setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
       setVendorDeliveryMode(settings.vendorDeliveryMode ?? "full_checkin");
+      const startDate = settings.stageVerifyActivatedAt?.trim() ?? "";
+      setStageVerifyActivatedAt(
+        /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : "",
+      );
+      setStageVerifyStartDateError(null);
       setVendorSessionMinutes(settings.vendorSessionMinutes ?? 15);
       setTechnicianSessionMinutes(settings.technicianSessionMinutes ?? 15);
       setShopLatitude(
@@ -753,6 +763,12 @@ export function SettingsPage() {
 
   const saveRevertWindow = async () => {
     if (savingRevert) return;
+    const trimmedStart = stageVerifyActivatedAt.trim();
+    if (trimmedStart && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedStart)) {
+      setStageVerifyStartDateError("Use a calendar date (YYYY-MM-DD).");
+      return;
+    }
+    setStageVerifyStartDateError(null);
     setSavingRevert(true);
     try {
       const patch: Partial<AppSettings> = {
@@ -761,6 +777,8 @@ export function SettingsPage() {
         vendorSessionMinutes,
         technicianSessionMinutes,
         vendorGeofenceEnforce,
+        // Empty clears via deleteField — omit would leave the prior value on merge.
+        stageVerifyActivatedAt: trimmedStart ? trimmedStart : undefined,
       };
       const lat = Number(shopLatitude);
       const lng = Number(shopLongitude);
@@ -944,6 +962,64 @@ export function SettingsPage() {
               <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
                 Workflow
               </span>
+            </div>
+            <div
+              style={{
+                padding: "16px 20px 0",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <label
+                htmlFor="settings-stageverify-start-date"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#6b7280",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                StageVerify Start Date
+              </label>
+              <input
+                id="settings-stageverify-start-date"
+                data-testid="settings-stageverify-start-date"
+                type="date"
+                value={stageVerifyActivatedAt}
+                onChange={(e) => {
+                  setStageVerifyActivatedAt(e.target.value);
+                  setStageVerifyStartDateError(null);
+                }}
+                onBlur={() => void saveRevertWindow()}
+                style={{
+                  padding: "10px 12px",
+                  border: "1.5px solid #ccd0d7",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  color: "#333",
+                  outline: "none",
+                  backgroundColor: "#fff",
+                  fontFamily: FONT,
+                  boxSizing: "border-box",
+                }}
+              />
+              <span
+                data-testid="settings-stageverify-start-date-hint"
+                style={{ fontSize: 12, color: "#6b7280", maxWidth: 360 }}
+              >
+                Reporting baseline (“Since StageVerify started”). Does not change
+                past events. Clear and save to remove.
+              </span>
+              {stageVerifyStartDateError && (
+                <span
+                  role="alert"
+                  style={{ fontSize: 12, color: "#b91c1c", width: "100%" }}
+                >
+                  {stageVerifyStartDateError}
+                </span>
+              )}
             </div>
             <div
               style={{
