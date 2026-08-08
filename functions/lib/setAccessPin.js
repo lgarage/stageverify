@@ -167,7 +167,9 @@ exports.setAccessPin = (0, https_1.onCall)({
                 id: targetId,
                 label: mgmtBase.label ?? "Management PIN",
                 active: mgmtBase.active ?? true,
-                permissions: (0, managementPinRegistry_1.normalizeManagementPinPermissions)(null),
+                permissions: entitySnap.exists
+                    ? (0, managementPinRegistry_1.normalizeManagementPinPermissions)(mgmtBase.permissions)
+                    : (0, managementPinRegistry_1.normalizeManagementPinPermissions)(null),
                 createdAt: entitySnap.exists ? undefined : now,
                 ...managementEntityPatch(now),
             }, { merge: true });

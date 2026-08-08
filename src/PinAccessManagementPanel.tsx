@@ -213,6 +213,7 @@ type AdminAccessElevation = {
   expiresAt: string;
   revealedPin?: string;
   revealUnavailable?: boolean;
+  pinHidden?: boolean;
 };
 
 type AccessRow =
@@ -294,8 +295,41 @@ export function PinAccessManagementPanel({
     useState<AdminAccessElevation | null>(null);
   const adminAccessRef = useRef<AdminAccessElevation | null>(null);
   const adminAccessRequestRef = useRef(0);
+  const revealHideTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
   const [adminAccessBusy, setAdminAccessBusy] = useState(false);
+
+  const clearRevealHideTimer = useCallback(() => {
+    if (revealHideTimerRef.current !== null) {
+      window.clearTimeout(revealHideTimerRef.current);
+      revealHideTimerRef.current = null;
+    }
+  }, []);
+
+  const hideRevealedPin = useCallback(() => {
+    const current = adminAccessRef.current;
+    if (!current) return;
+    const hiddenElevation: AdminAccessElevation = {
+      token: current.token,
+      targetType: current.targetType,
+      targetId: current.targetId,
+      expiresAt: current.expiresAt,
+      pinHidden: true,
+    };
+    adminAccessRef.current = hiddenElevation;
+    setAdminAccess(hiddenElevation);
+  }, []);
+
+  const scheduleRevealHide = useCallback(
+    (revealedForMs: number) => {
+      clearRevealHideTimer();
+      revealHideTimerRef.current = window.setTimeout(() => {
+        revealHideTimerRef.current = null;
+        hideRevealedPin();
+      }, revealedForMs);
+    },
+    [clearRevealHideTimer, hideRevealedPin],
+  );
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -318,9 +352,10 @@ export function PinAccessManagementPanel({
   );
 
   const clearAdminAccess = useCallback(() => {
+    clearRevealHideTimer();
     adminAccessRef.current = null;
     setAdminAccess(null);
-  }, []);
+  }, [clearRevealHideTimer]);
 
   const revokeCurrentAdminAccess = useCallback(async () => {
     const current = adminAccessRef.current;
@@ -358,6 +393,10 @@ export function PinAccessManagementPanel({
     return () => {
       mountedRef.current = false;
       adminAccessRequestRef.current += 1;
+      if (revealHideTimerRef.current !== null) {
+        window.clearTimeout(revealHideTimerRef.current);
+        revealHideTimerRef.current = null;
+      }
       const current = adminAccessRef.current;
       adminAccessRef.current = null;
       if (current) {
@@ -664,9 +703,11 @@ export function PinAccessManagementPanel({
         const revealedElevation = {
           ...elevation,
           revealedPin: reveal.pin,
+          pinHidden: false,
         };
         adminAccessRef.current = revealedElevation;
         setAdminAccess(revealedElevation);
+        scheduleRevealHide(reveal.revealedForMs ?? 25000);
       } catch (err) {
         if (
           !mountedRef.current ||
@@ -1598,7 +1639,9 @@ export function PinAccessManagementPanel({
                   {elevation.revealedPin ??
                     (elevation.revealUnavailable
                       ? "Not revealable — set a new PIN"
-                      : "Checking current PIN…")}
+                      : elevation.pinHidden
+                        ? "••••"
+                        : "Checking current PIN…")}
                 </strong>
               </div>
               {renderNewPinInput()}
