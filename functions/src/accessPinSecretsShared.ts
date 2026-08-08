@@ -10,6 +10,9 @@ export const ADMIN_ACCESS_SESSIONS_COLLECTION = "adminAccessSessions";
 
 export type AccessPinTargetType = "technician" | "vendor" | "management";
 
+/** Audit target may include Auth dispatcher identities (not PIN secret targets). */
+export type PinAccessAuditTargetType = AccessPinTargetType | "dispatcher";
+
 export type AccessPinSecretDoc = {
   targetType: AccessPinTargetType;
   targetId: string;
@@ -34,11 +37,12 @@ export type PinAccessAuditAction =
   | "pin_revealed"
   | "pin_reveal_denied"
   | "pin_changed"
-  | "pin_change_denied";
+  | "pin_change_denied"
+  | "dispatcher_removed";
 
 export type PinAccessAuditDoc = {
   action: PinAccessAuditAction;
-  targetType: AccessPinTargetType;
+  targetType: PinAccessAuditTargetType;
   targetId: string;
   actorUid: string;
   createdAt: string;
@@ -79,7 +83,7 @@ export function parseAccessPinTargetType(
 /** Write audit entry — throws on failure (fail-closed for reveal path). */
 export async function writePinAccessAudit(input: {
   action: PinAccessAuditAction;
-  targetType: AccessPinTargetType;
+  targetType: PinAccessAuditTargetType;
   targetId: string;
   actorUid: string;
 }): Promise<string> {
@@ -99,7 +103,7 @@ export async function writePinAccessAudit(input: {
 /** Best-effort audit when manager check fails — never throws. */
 export async function writePinAccessAuditBestEffort(input: {
   action: PinAccessAuditAction;
-  targetType: AccessPinTargetType;
+  targetType: PinAccessAuditTargetType;
   targetId: string;
   actorUid?: string;
 }): Promise<void> {

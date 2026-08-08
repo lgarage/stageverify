@@ -84,6 +84,12 @@ const UNIFIED_ACCESS_CONTRAST_SPEC = {
       large: false,
       optional: true,
     },
+    {
+      name: "remove button",
+      selector: '[data-testid^="pin-access-remove-"]',
+      large: false,
+      optional: true,
+    },
   ],
 };
 
@@ -187,6 +193,109 @@ async function ensureAuthenticated(page) {
       }
     }
     console.log("PASS: Auth rows use unified Manager/Dispatcher type chips");
+
+    // Active Auth rows must not expose Remove; PIN rows must never have Remove.
+    for (const type of ["manager", "dispatcher"]) {
+      const activeRows = panel.locator(`[data-testid^="pin-access-row-${type}-"]`);
+      const n = await activeRows.count();
+      for (let i = 0; i < n; i += 1) {
+        const row = activeRows.nth(i);
+        const status = (await row.locator("td").nth(3).innerText()).trim();
+        const testid = await row.getAttribute("data-testid");
+        const uid = testid?.replace(`pin-access-row-${type}-`, "") ?? "";
+        if (status === "Active") {
+          if (
+            (await panel
+              .locator(`[data-testid="pin-access-remove-${type}-${uid}"]`)
+              .count()) !== 0
+          ) {
+            throw new Error(`Active ${type} ${uid} unexpectedly shows Remove.`);
+          }
+        }
+      }
+    }
+    for (const pinType of ["technician", "vendor", "management"]) {
+      const bad = await panel
+        .locator(`[data-testid^="pin-access-remove-${pinType}-"]`)
+        .count();
+      if (bad !== 0) {
+        throw new Error(`Remove must not appear on ${pinType} rows.`);
+      }
+    }
+    console.log("PASS: Remove absent on active Auth + all PIN rows");
+
+    // Provision → Deactivate → Remove throwaway dispatcher (never ops accounts).
+    // Cancel open manager wizard, then open a fresh Dispatcher Auth wizard.
+    const cancelWizard = panel.getByTestId("pin-access-cancel");
+    if ((await cancelWizard.count()) > 0) {
+      await cancelWizard.click();
+      await page.waitForTimeout(400);
+    }
+    await panel.getByTestId("pin-access-add-button").click();
+    await panel.getByTestId("pin-access-new-user-type").selectOption("dispatcher");
+    await panel.getByTestId("pin-access-wizard-next").click();
+    const throwawayEmail = `verify-remove-${Date.now()}@stageverify.dev`;
+    await panel.getByTestId("dispatcher-provision-email").waitFor({ timeout: 10_000 });
+    await panel.getByTestId("dispatcher-provision-email").fill(throwawayEmail);
+    await panel.getByTestId("dispatcher-provision-password").fill("TempPass9!");
+    await panel.getByTestId("dispatcher-provision-submit").click();
+    await page
+      .getByText(/account created|temporary password/i)
+      .first()
+      .waitFor({ timeout: 20_000 });
+    await panel.getByTestId("pin-access-roster").waitFor({ timeout: 15_000 });
+
+    const newRow = panel
+      .locator(`[data-testid^="pin-access-row-dispatcher-"]`)
+      .filter({ hasText: throwawayEmail })
+      .first();
+    await newRow.waitFor({ timeout: 20_000 });
+    const newTestId = await newRow.getAttribute("data-testid");
+    const newUid = newTestId?.replace("pin-access-row-dispatcher-", "") ?? "";
+    if (!newUid) throw new Error("Could not resolve provisioned dispatcher uid.");
+
+    if (
+      (await panel
+        .locator(`[data-testid="pin-access-remove-dispatcher-${newUid}"]`)
+        .count()) !== 0
+    ) {
+      throw new Error("Remove shown on newly provisioned active dispatcher.");
+    }
+    await panel
+      .locator(`[data-testid="pin-access-active-dispatcher-${newUid}"]`)
+      .click();
+    await page.waitForTimeout(1500);
+    const removeBtn = panel.locator(
+      `[data-testid="pin-access-remove-dispatcher-${newUid}"]`,
+    );
+    await removeBtn.waitFor({ timeout: 15_000 });
+    console.log("PASS: Remove appears only after Deactivate");
+
+    let dialogMessage = "";
+    page.once("dialog", (dialog) => {
+      dialogMessage = dialog.message();
+      void dialog.dismiss();
+    });
+    await removeBtn.click();
+    await page.waitForTimeout(500);
+    if (!dialogMessage.includes(throwawayEmail)) {
+      throw new Error(
+        `Remove confirm missing email. Got: ${dialogMessage || "(none)"}`,
+      );
+    }
+    if ((await newRow.count()) !== 1) {
+      throw new Error("Cancel/dismiss removed the account unexpectedly.");
+    }
+    console.log("PASS: Remove confirmation includes email; Cancel leaves account");
+
+    page.once("dialog", (dialog) => {
+      void dialog.accept();
+    });
+    await removeBtn.click();
+    await page
+      .locator(`[data-testid="pin-access-row-dispatcher-${newUid}"]`)
+      .waitFor({ state: "detached", timeout: 20_000 });
+    console.log("PASS: Remove deletes roster row for throwaway dispatcher");
 
     await assertReadableTextContrast(page, UNIFIED_ACCESS_CONTRAST_SPEC);
     console.log(

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deactivateDispatcher = exports.provisionDispatcher = exports.listDispatchers = void 0;
+exports.removeDispatcher = exports.deactivateDispatcher = exports.provisionDispatcher = exports.listDispatchers = void 0;
 /**
  * Manager-only dispatcher account provisioning (D-60).
  * Admin SDK creates Auth users + dispatcherRoles docs — no client writes.
@@ -9,7 +9,13 @@ const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
+const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
 const DISPATCHER_ROLES_COLLECTION = "dispatcherRoles";
+/** Hard-blocked from permanent removal (ops / primary test identities). */
+const PROTECTED_DISPATCHER_EMAILS = new Set([
+    "daday1974@gmail.com",
+    "test@stageverify.dev", // pragma: allowlist secret — ops allowlist, not a credential
+]);
 function getDb() {
     return admin.firestore();
 }
@@ -39,6 +45,8 @@ exports.listDispatchers = (0, https_1.onCall)({ region: "us-central1" }, async (
     const dispatchers = [];
     for (const roleDoc of snap.docs) {
         const data = roleDoc.data();
+        if (data.removed === true)
+            continue;
         let email = data.email ?? null;
         if (!email) {
             try {
@@ -140,5 +148,82 @@ exports.deactivateDispatcher = (0, https_1.onCall)({ region: "us-central1" }, as
         }
     }
     return { success: true };
+});
+/**
+ * Manager permanently removes an already-inactive dispatcher access identity.
+ * Deletes Firebase Auth user; tombstones dispatcherRoles (preserves history);
+ * writes pinAccessAudit dispatcher_removed. Never client-writable.
+ */
+exports.removeDispatcher = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const callerUid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+    const uid = request.data?.uid;
+    if (typeof uid !== "string" || !uid.trim()) {
+        throw new https_1.HttpsError("invalid-argument", "Dispatcher uid is required.");
+    }
+    const targetUid = uid.trim();
+    const roleRef = getDb().collection(DISPATCHER_ROLES_COLLECTION).doc(targetUid);
+    const roleSnap = await roleRef.get();
+    if (!roleSnap.exists) {
+        throw new https_1.HttpsError("not-found", "Dispatcher account not found.");
+    }
+    const roleData = roleSnap.data();
+    const roleEmail = typeof roleData.email === "string"
+        ? roleData.email.trim().toLowerCase()
+        : "";
+    let authEmail = "";
+    try {
+        const authUser = await admin.auth().getUser(targetUid);
+        authEmail =
+            typeof authUser.email === "string"
+                ? authUser.email.trim().toLowerCase()
+                : "";
+    }
+    catch (err) {
+        const code = err instanceof Error && "code" in err
+            ? String(err.code)
+            : "";
+        if (code !== "auth/user-not-found") {
+            throw new https_1.HttpsError("internal", "Could not resolve Auth identity for removal checks.");
+        }
+    }
+    if ((roleEmail && PROTECTED_DISPATCHER_EMAILS.has(roleEmail)) ||
+        (authEmail && PROTECTED_DISPATCHER_EMAILS.has(authEmail))) {
+        throw new https_1.HttpsError("failed-precondition", "This account cannot be removed.");
+    }
+    if (targetUid === callerUid) {
+        throw new https_1.HttpsError("failed-precondition", "You cannot remove your own dispatcher account.");
+    }
+    if (roleData.removed === true) {
+        throw new https_1.HttpsError("failed-precondition", "Account already removed.");
+    }
+    if (roleData.active !== false) {
+        throw new https_1.HttpsError("failed-precondition", "Deactivate this account before removing it.");
+    }
+    try {
+        await admin.auth().deleteUser(targetUid);
+    }
+    catch (err) {
+        const code = err instanceof Error && "code" in err
+            ? String(err.code)
+            : "";
+        if (code !== "auth/user-not-found") {
+            throw new https_1.HttpsError("internal", "Auth identity could not be removed. Retry or contact support.");
+        }
+    }
+    const now = new Date().toISOString();
+    await roleRef.set({
+        active: false,
+        removed: true,
+        removedAt: now,
+        removedBy: callerUid,
+        updatedAt: now,
+    }, { merge: true });
+    await (0, accessPinSecretsShared_1.writePinAccessAudit)({
+        action: "dispatcher_removed",
+        targetType: "dispatcher",
+        targetId: targetUid,
+        actorUid: callerUid,
+    });
+    return { success: true, uid: targetUid };
 });
 //# sourceMappingURL=dispatcherUserAdmin.js.map

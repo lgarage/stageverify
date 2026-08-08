@@ -28,6 +28,7 @@ import {
   listDispatchersClient,
   listManagementPinsClient,
   provisionDispatcherClient,
+  removeDispatcherClient,
   revealAccessPinClient,
   revokeAdminAccessSessionClient,
   setAccessPinClient,
@@ -596,6 +597,23 @@ export function PinAccessManagementPanel({
     } finally {
       setBusyId(null);
     }
+  };
+
+  const removeAccess = async (row: AccessRow) => {
+    if (row.type !== "manager" && row.type !== "dispatcher") return;
+    if (row.active) return;
+    const identity = row.name;
+    const confirmed = window.confirm(
+      `Remove access?\n\nThis permanently removes this inactive StageVerify access account:\n${identity}`,
+    );
+    if (!confirmed) return;
+    await runMutation(
+      row.id,
+      async () => {
+        await removeDispatcherClient({ uid: row.id });
+      },
+      `${typeLabels[row.type]} access removed.`,
+    );
   };
 
   const toggleActive = async (row: AccessRow) => {
@@ -1280,7 +1298,7 @@ export function PinAccessManagementPanel({
             <strong>{account.active ? "Active" : "Inactive"}</strong>
           </p>
         </div>
-        {account.active && (
+        {account.active ? (
           <div>
             <button
               data-testid={`dispatcher-deactivate-${account.uid}`}
@@ -1298,6 +1316,26 @@ export function PinAccessManagementPanel({
               style={secondaryButtonStyle}
             >
               {busyId === account.uid ? "Deactivating…" : "Deactivate"}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <button
+              data-testid={`dispatcher-remove-${account.uid}`}
+              type="button"
+              disabled={busyId === account.uid}
+              onClick={() =>
+                void removeAccess({
+                  type,
+                  id: account.uid,
+                  name: account.email ?? account.uid,
+                  active: account.active,
+                  accessMethod: "Email / Firebase Auth",
+                })
+              }
+              style={secondaryButtonStyle}
+            >
+              {busyId === account.uid ? "Removing…" : "Remove"}
             </button>
           </div>
         )}
@@ -2010,7 +2048,7 @@ export function PinAccessManagementPanel({
                           </button>
                           {(row.type === "manager" ||
                             row.type === "dispatcher") ? (
-                            row.active && (
+                            row.active ? (
                               <button
                                 data-testid={`pin-access-active-${row.type}-${row.id}`}
                                 type="button"
@@ -2019,6 +2057,16 @@ export function PinAccessManagementPanel({
                                 style={secondaryButtonStyle}
                               >
                                 Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                data-testid={`pin-access-remove-${row.type}-${row.id}`}
+                                type="button"
+                                disabled={busyId === row.id}
+                                onClick={() => void removeAccess(row)}
+                                style={secondaryButtonStyle}
+                              >
+                                {busyId === row.id ? "Removing…" : "Remove"}
                               </button>
                             )
                           ) : !(

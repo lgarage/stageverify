@@ -92,6 +92,7 @@ import {
   listDispatchers,
   provisionDispatcher,
   deactivateDispatcher,
+  removeDispatcher,
 } from "./dispatcherUserAdmin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
@@ -256,6 +257,7 @@ export {
   listDispatchers,
   provisionDispatcher,
   deactivateDispatcher,
+  removeDispatcher,
   getTechnicianReleasedJobs,
   recordTechnicianJobOpen,
   releaseJobsToTechnician,
