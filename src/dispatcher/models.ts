@@ -310,7 +310,15 @@ export interface Job {
 
 export interface Vendor {
   id: string;
+  /**
+   * Generated display name (`Company — Location`) or legacy flat name.
+   * Prefer `formatVendorDisplayName` for UI; keep `name` synced on save for denorm consumers.
+   */
   name: string;
+  /** Vendor company (e.g. Johnstone Supply). Soft-normalizes to `name` when unset. */
+  companyName?: string;
+  /** Branch / location under the company (e.g. Appleton). */
+  locationName?: string;
   contactName?: string;
   contactPhone?: string;
   email?: string;

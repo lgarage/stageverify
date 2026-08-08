@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { DeliveryListRow, Vendor } from "../models";
+import type { DeliveryListRow, Vendor, VendorEmailEvent } from "../models";
 import { listVendorEmailEventsForDelivery } from "../firestoreService";
+import { formatVendorDisplayName } from "../vendorDisplayName";
 import {
   inboundReplyHeaders,
   latestTrustedInboundVendorEmailEvent,
@@ -17,6 +18,21 @@ import { resolveVendorForComms } from "./vendorCommsPrefillHelpers";
 function isValidEmail(value: string): boolean {
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= 254 && trimmed.includes("@");
+}
+
+function formatEventWhen(event: VendorEmailEvent): string {
+  const iso = event.sentAt ?? event.receivedAt ?? event.createdAt;
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 export function VendorCommunicationsModal({
@@ -86,6 +102,9 @@ export function VendorCommunicationsModal({
     references?: string[];
   }>({});
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [historyEvents, setHistoryEvents] = useState<VendorEmailEvent[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const sortedVendors = useMemo(
     () => [...(vendors ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
@@ -250,6 +269,36 @@ export function VendorCommunicationsModal({
     }
   }, [deliveryOrderId, sortedDeliveries, sortedVendors, vendorId, to]);
 
+  useEffect(() => {
+    if (!open || !deliveryOrderId) {
+      setHistoryEvents([]);
+      setHistoryError(null);
+      setHistoryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    void listVendorEmailEventsForDelivery(deliveryOrderId)
+      .then((events) => {
+        if (!cancelled) setHistoryEvents(events);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHistoryEvents([]);
+          setHistoryError("Conversation history could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, deliveryOrderId]);
+
   const parsedCc = useMemo(
     () =>
       parseEmailList(additionalEmails).filter(
@@ -341,335 +390,627 @@ export function VendorCommunicationsModal({
       }}
       onClick={onClose}
     >
+      <style>
+        {`
+          .vendor-comms-workspace {
+            width: min(1100px, 96vw);
+            height: 90vh;
+            max-height: 90vh;
+            overflow: hidden;
+          }
+          .vendor-comms-content {
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
+            gap: 22px;
+            flex: 1;
+            min-height: 0;
+          }
+          .vendor-comms-compose {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+          }
+          .vendor-comms-history {
+            min-width: 0;
+            min-height: 0;
+            overflow-y: auto;
+          }
+          @media (max-width: 900px) {
+            .vendor-comms-workspace {
+              width: min(96vw, 720px);
+              height: 92vh;
+              max-height: 92vh;
+              overflow-y: auto;
+            }
+            .vendor-comms-content {
+              display: block;
+              min-height: auto;
+            }
+            .vendor-comms-compose,
+            .vendor-comms-history {
+              overflow: visible;
+            }
+            .vendor-comms-history {
+              margin-top: 20px;
+              min-height: 260px;
+            }
+          }
+        `}
+      </style>
       <div
         data-testid="vendor-communications-modal-panel"
-        className="admin-card"
+        className="admin-card vendor-comms-workspace"
         style={{
-          width: "100%",
-          maxWidth: 580,
-          maxHeight: "90vh",
-          overflowY: "auto",
           backgroundColor: "var(--admin-surface)",
           borderRadius: "var(--admin-radius-lg)",
-          padding: "24px 28px",
+          padding: "22px 24px 20px",
           boxShadow: "var(--admin-shadow-card)",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2
+        <header
           style={{
-            margin: "0 0 6px",
-            fontSize: 20,
-            fontWeight: 700,
-            color: "var(--admin-text-label)",
-            fontFamily: font,
+            paddingBottom: 16,
+            borderBottom: "1px solid var(--admin-border)",
+            marginBottom: 18,
           }}
         >
-          Vendor Communications
-        </h2>
-        <p
-          data-testid="vendor-comms-helper"
-          style={{
-            margin: "0 0 18px",
-            fontSize: 13,
-            color: "var(--admin-text-secondary)",
-            textAlign: "left",
-          }}
-        >
-          {replyFromInbound
-            ? "Replying to the vendor's latest inbound message. Add Cc addresses below if needed."
-            : "This starts a new tracked vendor email thread. Replies stay in Needs Review until inbound ingest is enabled."}
-        </p>
-
-        <label
-          htmlFor="vendor-comms-vendor"
-          data-testid="vendor-comms-label-vendor"
-          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
-        >
-          Vendor
-        </label>
-        <select
-          className="admin-control"
-          id="vendor-comms-vendor"
-          data-testid="vendor-comms-vendor"
-          value={vendorId}
-          onChange={(e) => setVendorId(e.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 12,
-            padding: "10px 12px",
-            borderRadius: "var(--admin-control-radius)",
-            border: "1px solid var(--admin-border)",
-            fontSize: 14,
-            fontFamily: font,
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        >
-          <option value="">— None —</option>
-          {sortedVendors.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.name}
-              {v.email ? ` (${v.email})` : ""}
-            </option>
-          ))}
-        </select>
-
-        <label
-          htmlFor="vendor-comms-delivery"
-          data-testid="vendor-comms-label-delivery"
-          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
-        >
-          Associated Delivery / Order
-        </label>
-        <select
-          className="admin-control"
-          id="vendor-comms-delivery"
-          data-testid="vendor-comms-delivery"
-          value={deliveryOrderId}
-          onChange={(e) => setDeliveryOrderId(e.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 12,
-            padding: "10px 12px",
-            borderRadius: "var(--admin-control-radius)",
-            border: "1px solid var(--admin-border)",
-            fontSize: 14,
-            fontFamily: font,
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        >
-          <option value="">— None —</option>
-          {sortedDeliveries.map((d) => (
-            <option key={d.deliveryId} value={d.deliveryId}>
-              {d.orderNumber} · {d.jobName} · {d.vendorName}
-            </option>
-          ))}
-        </select>
-
-        <label
-          htmlFor="vendor-comms-to"
-          data-testid="vendor-comms-label-email"
-          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
-        >
-          {replyFromInbound ? "Reply to" : "Email Address"}
-        </label>
-        <input
-          className="admin-control"
-          id="vendor-comms-to"
-          data-testid="vendor-comms-to"
-          type="email"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          placeholder="vendor@example.com"
-          disabled={eventsLoading}
-          style={{
-            width: "100%",
-            marginBottom: 6,
-            padding: "10px 12px",
-            borderRadius: "var(--admin-control-radius)",
-            border: "1px solid var(--admin-border)",
-            fontSize: 14,
-            fontFamily: font,
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        />
-        {replyFromInbound ? (
+          <h2
+            style={{
+              margin: "0 0 5px",
+              fontSize: 22,
+              fontWeight: 750,
+              color: "var(--admin-text-data)",
+              fontFamily: font,
+            }}
+          >
+            Vendor Communications
+          </h2>
           <p
-            data-testid="vendor-comms-reply-to-hint"
+            data-testid="vendor-comms-helper"
             style={{
-              margin: "0 0 12px",
-              fontSize: 11,
-              color: "var(--admin-text-muted)",
-              fontFamily: font,
+              margin: 0,
+              fontSize: 13,
+              color: "var(--admin-text-secondary)",
+              textAlign: "left",
             }}
           >
-            Pre-filled from the vendor's latest inbound email. Edit if needed.
+            {replyFromInbound
+              ? "Replying to the vendor's latest inbound message. Add Cc addresses below if needed."
+              : "This starts a new tracked vendor email thread — with or without a StageVerify job. Replies stay in Needs Review until inbound ingest is enabled."}
           </p>
-        ) : null}
+        </header>
 
-        <label
-          htmlFor="vendor-comms-cc"
-          data-testid="vendor-comms-label-additional"
-          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+        <div
+          data-testid="vendor-comms-workspace"
+          className="vendor-comms-content"
         >
-          Additional email addresses (optional)
-        </label>
-        <input
-          className="admin-control"
-          id="vendor-comms-cc"
-          data-testid="vendor-comms-additional"
-          type="text"
-          value={additionalEmails}
-          onChange={(e) => setAdditionalEmails(e.target.value)}
-          placeholder="sales@vendor.com, branch@vendor.com"
-          style={{
-            width: "100%",
-            marginBottom: 6,
-            padding: "10px 12px",
-            borderRadius: "var(--admin-control-radius)",
-            border: "1px solid var(--admin-border)",
-            fontSize: 14,
-            fontFamily: font,
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        />
-        <p
-          data-testid="vendor-comms-additional-hint"
-          style={{
-            margin: "0 0 12px",
-            fontSize: 11,
-            color: "var(--admin-text-muted)",
-            fontFamily: font,
-          }}
-        >
-          Comma-separated Cc recipients (max 5).
-        </p>
+          <section className="vendor-comms-compose" aria-label="Compose vendor email">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "0 14px",
+              }}
+            >
+              <div>
+                <label
+                  htmlFor="vendor-comms-vendor"
+                  data-testid="vendor-comms-label-vendor"
+                  style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+                >
+                  Vendor
+                </label>
+                <select
+                  className="admin-control"
+                  id="vendor-comms-vendor"
+                  data-testid="vendor-comms-vendor"
+                  value={vendorId}
+                  onChange={(e) => setVendorId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    borderRadius: "var(--admin-control-radius)",
+                    border: "1px solid var(--admin-border)",
+                    fontSize: 14,
+                    fontFamily: font,
+                    ...DRAWER_MODAL_INPUT_STYLE,
+                  }}
+                >
+                  <option value="">— None —</option>
+                  {sortedVendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {formatVendorDisplayName(v)}
+                      {v.email ? ` (${v.email})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="vendor-comms-delivery"
+                  data-testid="vendor-comms-label-delivery"
+                  style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+                >
+                  Related StageVerify Job / Delivery — Optional
+                </label>
+                <select
+                  className="admin-control"
+                  id="vendor-comms-delivery"
+                  data-testid="vendor-comms-delivery"
+                  value={deliveryOrderId}
+                  onChange={(e) => setDeliveryOrderId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    borderRadius: "var(--admin-control-radius)",
+                    border: "1px solid var(--admin-border)",
+                    fontSize: 14,
+                    fontFamily: font,
+                    ...DRAWER_MODAL_INPUT_STYLE,
+                  }}
+                >
+                  <option value="">
+                    No existing StageVerify job — Start new conversation
+                  </option>
+                  {sortedDeliveries.map((d) => (
+                    <option key={d.deliveryId} value={d.deliveryId}>
+                      {d.orderNumber} · {d.jobName} · {d.vendorName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-        {needsSaveCheckbox ? (
-          <label
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              fontSize: 12,
-              color: "var(--admin-text)",
-              marginBottom: 12,
-              fontFamily: font,
-            }}
-          >
+            <label
+              htmlFor="vendor-comms-to"
+              data-testid="vendor-comms-label-email"
+              style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+            >
+              To
+            </label>
             <input
-              type="checkbox"
-              data-testid="vendor-comms-save-email"
-              checked={saveVendorEmail}
-              onChange={(e) => setSaveVendorEmail(e.target.checked)}
-              style={{ marginTop: 2 }}
+              className="admin-control"
+              id="vendor-comms-to"
+              data-testid="vendor-comms-to"
+              type="email"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="vendor@example.com"
+              disabled={eventsLoading}
+              style={{
+                width: "100%",
+                marginBottom: 6,
+                padding: "10px 12px",
+                borderRadius: "var(--admin-control-radius)",
+                border: "1px solid var(--admin-border)",
+                fontSize: 14,
+                fontFamily: font,
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
             />
-            <span>Save this email to vendor record for future use</span>
-          </label>
-        ) : null}
+            {replyFromInbound ? (
+              <p
+                data-testid="vendor-comms-reply-to-hint"
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 11,
+                  color: "var(--admin-text-muted)",
+                  fontFamily: font,
+                }}
+              >
+                Pre-filled from the vendor's latest inbound email. Edit if needed.
+              </p>
+            ) : vendorId && !vendorEmailOnFile ? (
+              <p
+                data-testid="vendor-comms-no-email-hint"
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 11,
+                  color: "var(--admin-warning-text)",
+                  fontFamily: font,
+                }}
+              >
+                No email configured for this vendor location. Enter an address
+                manually, or save it to the vendor record when sending.
+              </p>
+            ) : (
+              <div style={{ height: 12 }} />
+            )}
 
-        <label
-          htmlFor="vendor-comms-subject"
-          data-testid="vendor-comms-label-subject"
-          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
-        >
-          Subject
-        </label>
-        <input
-          className="admin-control"
-          id="vendor-comms-subject"
-          data-testid="vendor-comms-subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 12,
-            padding: "10px 12px",
-            borderRadius: "var(--admin-control-radius)",
-            border: "1px solid var(--admin-border)",
-            fontSize: 14,
-            fontFamily: font,
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        />
+            <label
+              htmlFor="vendor-comms-cc"
+              data-testid="vendor-comms-label-additional"
+              style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+            >
+              CC / Additional recipients
+            </label>
+            <input
+              className="admin-control"
+              id="vendor-comms-cc"
+              data-testid="vendor-comms-additional"
+              type="text"
+              value={additionalEmails}
+              onChange={(e) => setAdditionalEmails(e.target.value)}
+              placeholder="sales@vendor.com, branch@vendor.com"
+              style={{
+                width: "100%",
+                marginBottom: 6,
+                padding: "10px 12px",
+                borderRadius: "var(--admin-control-radius)",
+                border: "1px solid var(--admin-border)",
+                fontSize: 14,
+                fontFamily: font,
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
+            />
+            <p
+              data-testid="vendor-comms-additional-hint"
+              style={{
+                margin: "0 0 12px",
+                fontSize: 11,
+                color: "var(--admin-text-muted)",
+                fontFamily: font,
+              }}
+            >
+              Comma-separated Cc recipients (max 5).
+            </p>
 
-        <label
-          htmlFor="vendor-comms-body"
-          data-testid="vendor-comms-label-message"
-          style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
-        >
-          Message
-        </label>
-        <textarea
-          className="admin-control"
-          id="vendor-comms-body"
-          data-testid="vendor-comms-body"
-          rows={body ? 10 : 4}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Message to vendor"
-          style={{
-            width: "100%",
-            marginBottom: 14,
-            padding: "12px 14px",
-            borderRadius: "var(--admin-control-radius)",
-            border: "1px solid var(--admin-border)",
-            fontSize: 14,
-            lineHeight: 1.5,
-            fontFamily: font,
-            resize: "vertical",
-            ...DRAWER_MODAL_INPUT_STYLE,
-          }}
-        />
+            {needsSaveCheckbox ? (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  fontSize: 12,
+                  color: "var(--admin-text)",
+                  marginBottom: 12,
+                  fontFamily: font,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  data-testid="vendor-comms-save-email"
+                  checked={saveVendorEmail}
+                  onChange={(e) => setSaveVendorEmail(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                <span>Save this email to vendor record for future use</span>
+              </label>
+            ) : null}
 
-        {validationError ? (
-          <p
-            data-testid="vendor-comms-validation-error"
-            style={{ color: "var(--admin-danger-text)", fontSize: 13, margin: "0 0 10px" }}
-          >
-            {validationError}
-          </p>
-        ) : null}
+            <label
+              htmlFor="vendor-comms-subject"
+              data-testid="vendor-comms-label-subject"
+              style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+            >
+              Subject
+            </label>
+            <input
+              className="admin-control"
+              id="vendor-comms-subject"
+              data-testid="vendor-comms-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              style={{
+                width: "100%",
+                marginBottom: 12,
+                padding: "10px 12px",
+                borderRadius: "var(--admin-control-radius)",
+                border: "1px solid var(--admin-border)",
+                fontSize: 14,
+                fontFamily: font,
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
+            />
 
-        {!emailProviderConnected ? (
-          <p
-            data-testid="vendor-comms-provider-disconnected"
-            style={{ color: "var(--admin-warning-text)", fontSize: 13, margin: "0 0 10px" }}
-          >
-            Connect Gmail in Settings to send tracked vendor email.
-          </p>
-        ) : null}
+            <label
+              htmlFor="vendor-comms-body"
+              data-testid="vendor-comms-label-message"
+              style={{ ...DRAWER_MODAL_LABEL_STYLE, fontFamily: font }}
+            >
+              Message
+            </label>
+            <textarea
+              className="admin-control"
+              id="vendor-comms-body"
+              data-testid="vendor-comms-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Message to vendor"
+              style={{
+                width: "100%",
+                flex: "1 1 280px",
+                minHeight: 280,
+                padding: "12px 14px",
+                borderRadius: "var(--admin-control-radius)",
+                border: "1px solid var(--admin-border)",
+                fontSize: 14,
+                lineHeight: 1.55,
+                fontFamily: font,
+                resize: "vertical",
+                ...DRAWER_MODAL_INPUT_STYLE,
+              }}
+            />
+          </section>
 
-        {error ? (
-          <p
-            data-testid="vendor-comms-send-error"
-            style={{ color: "var(--admin-danger-text)", fontSize: 13, margin: "0 0 10px" }}
-          >
-            {error}
-          </p>
-        ) : null}
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button
-            type="button"
-            className="admin-btn"
-            onClick={onClose}
+          <aside
+            data-testid="vendor-comms-history"
+            className="vendor-comms-history"
             style={{
-              padding: "9px 16px",
-              borderRadius: "var(--admin-control-radius)",
               border: "1px solid var(--admin-border)",
-              backgroundColor: "var(--admin-surface)",
-              color: "var(--admin-text)",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: font,
+              borderRadius: "var(--admin-radius-md)",
+              backgroundColor: "var(--admin-surface-2)",
+              padding: 16,
             }}
           >
-            Close
-          </button>
-          <button
-            type="button"
-            className="admin-btn admin-btn-primary"
-            data-testid="vendor-comms-send"
-            disabled={!canSend}
-            onClick={() => void handleSend()}
-            style={{
-              padding: "9px 16px",
-              borderRadius: "var(--admin-control-radius)",
-              border: "none",
-              backgroundColor: canSend ? navy : "var(--admin-border)",
-              color: canSend ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: canSend ? "pointer" : "not-allowed",
-              fontFamily: font,
-              opacity: sending ? 0.7 : 1,
-            }}
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: "0 0 3px",
+                    fontSize: 15,
+                    color: "var(--admin-text-data)",
+                    fontFamily: font,
+                  }}
+                >
+                  Conversation history
+                </h3>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 11,
+                    color: "var(--admin-text-secondary)",
+                    fontFamily: font,
+                  }}
+                >
+                  Read-only email activity for the selected delivery
+                </p>
+              </div>
+              {deliveryOrderId && !historyLoading ? (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--admin-text-muted)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {historyEvents.length} message{historyEvents.length === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </div>
+
+            {!deliveryOrderId ? (
+              <div
+                style={{
+                  padding: "28px 18px",
+                  border: "1px dashed var(--admin-border)",
+                  borderRadius: "var(--admin-control-radius)",
+                  color: "var(--admin-text-secondary)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  textAlign: "center",
+                  fontFamily: font,
+                }}
+              >
+                No existing StageVerify job — start a new conversation. History for
+                delivery-linked threads appears when a job is selected.
+              </div>
+            ) : historyLoading ? (
+              <p style={{ color: "var(--admin-text-secondary)", fontSize: 13 }}>
+                Loading conversation…
+              </p>
+            ) : historyError ? (
+              <p style={{ color: "var(--admin-danger-text)", fontSize: 13 }}>
+                {historyError}
+              </p>
+            ) : historyEvents.length === 0 ? (
+              <div
+                style={{
+                  padding: "28px 18px",
+                  border: "1px dashed var(--admin-border)",
+                  borderRadius: "var(--admin-control-radius)",
+                  color: "var(--admin-text-secondary)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  textAlign: "center",
+                  fontFamily: font,
+                }}
+              >
+                No tracked email yet. Your sent message will start this conversation.
+              </div>
+            ) : (
+              <ol
+                style={{
+                  listStyle: "none",
+                  margin: 0,
+                  padding: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {historyEvents.map((event) => {
+                  const outbound = event.direction === "outbound";
+                  const preview =
+                    event.bodyText?.trim() ||
+                    event.bodyExcerpt?.trim() ||
+                    event.snippet?.trim() ||
+                    "No message preview available.";
+                  return (
+                    <li
+                      key={event.id}
+                      style={{
+                        padding: "12px 13px",
+                        border: "1px solid var(--admin-border)",
+                        borderLeft: `3px solid ${
+                          outbound
+                            ? "var(--admin-accent)"
+                            : "var(--admin-success-text)"
+                        }`,
+                        borderRadius: "var(--admin-control-radius)",
+                        backgroundColor: "var(--admin-surface)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          marginBottom: 6,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: outbound
+                              ? "var(--admin-accent)"
+                              : "var(--admin-success-text)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.035em",
+                          }}
+                        >
+                          {outbound ? "Outbound" : "Inbound"}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "var(--admin-text-muted)",
+                            textAlign: "right",
+                          }}
+                        >
+                          {formatEventWhen(event)}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          marginBottom: 5,
+                          color: "var(--admin-text-data)",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {event.subject || "(No subject)"}
+                      </div>
+                      <p
+                        style={{
+                          margin: 0,
+                          color: "var(--admin-text-secondary)",
+                          fontSize: 12,
+                          lineHeight: 1.5,
+                          whiteSpace: "pre-wrap",
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {preview.length > 280
+                          ? `${preview.slice(0, 279).trim()}…`
+                          : preview}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </aside>
         </div>
+
+        <footer
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            paddingTop: 16,
+            marginTop: 18,
+            borderTop: "1px solid var(--admin-border)",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            {validationError ? (
+              <p
+                data-testid="vendor-comms-validation-error"
+                style={{ color: "var(--admin-danger-text)", fontSize: 13, margin: 0 }}
+              >
+                {validationError}
+              </p>
+            ) : null}
+            {!emailProviderConnected ? (
+              <p
+                data-testid="vendor-comms-provider-disconnected"
+                style={{ color: "var(--admin-warning-text)", fontSize: 13, margin: 0 }}
+              >
+                Connect Gmail in Settings to send tracked vendor email.
+              </p>
+            ) : null}
+            {error ? (
+              <p
+                data-testid="vendor-comms-send-error"
+                style={{ color: "var(--admin-danger-text)", fontSize: 13, margin: 0 }}
+              >
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              className="admin-btn"
+              onClick={onClose}
+              style={{
+                padding: "9px 16px",
+                borderRadius: "var(--admin-control-radius)",
+                border: "1px solid var(--admin-border)",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary"
+              data-testid="vendor-comms-send"
+              disabled={!canSend}
+              onClick={() => void handleSend()}
+              style={{
+                padding: "9px 18px",
+                borderRadius: "var(--admin-control-radius)",
+                border: "none",
+                backgroundColor: canSend ? navy : "var(--admin-border)",
+                color: canSend ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: canSend ? "pointer" : "not-allowed",
+                fontFamily: font,
+                opacity: sending ? 0.7 : 1,
+              }}
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
+        </footer>
       </div>
     </div>
   );

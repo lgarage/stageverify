@@ -112,6 +112,7 @@ import {
   fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
 } from "./invoice/invoiceShellDisplayHelpers";
+import { formatVendorDisplayName } from "./vendorDisplayName";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -497,7 +498,7 @@ export class FirestoreDataService implements DispatcherDataService {
         ),
         orderNumber: delivery.orderNumber,
         fulfillmentDisplayLabel: fulfillmentDisplayLabel(delivery),
-        vendorName: vendor.name,
+        vendorName: formatVendorDisplayName(vendor) || vendor.name,
         deliveryDate: delivery.deliveryDate,
         stagingLocationCode,
         stagingLocationCodes,

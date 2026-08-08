@@ -9,6 +9,7 @@ import {
   mapOccupancyByLocationId,
 } from "./dispatcher/firestoreService";
 import { isStagingLocationOccupiedError } from "./dispatcher/stagingOccupancy";
+import { formatVendorDisplayName } from "./dispatcher/vendorDisplayName";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -250,7 +251,7 @@ export function CreateDeliveryModal({
                 <option value="">Select vendor…</option>
                 {vendors.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.name}
+                    {formatVendorDisplayName(v)}
                   </option>
                 ))}
               </select>

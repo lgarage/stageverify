@@ -518,14 +518,20 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await page.getByRole("heading", { name: "Vendors", exact: true }).waitFor({
     timeout: 15_000,
   });
-  await page.getByRole("button", { name: "Add Vendor" }).waitFor({
+  await page.getByTestId("add-vendor-submit").waitFor({
     timeout: 15_000,
+  });
+  await page.getByTestId("add-vendor-company").waitFor({ timeout: 10_000 });
+  await page.getByTestId("add-vendor-location").waitFor({ timeout: 10_000 });
+  await page.getByRole("columnheader", { name: "Display Name", exact: true }).waitFor({
+    timeout: 10_000,
   });
   await page.getByRole("columnheader", { name: "Email Domain", exact: true }).waitFor({
     timeout: 10_000,
   });
   await page.getByTestId("add-vendor-email-domain").waitFor({ timeout: 10_000 });
-  console.log("PASS: Vendors page includes Email Domain field.");
+  await page.getByTestId("vendors-search").waitFor({ timeout: 10_000 });
+  console.log("PASS: Vendors page includes company/location + Email Domain fields.");
 
   console.log("Sidebar: Dispatcher Dashboard…");
   await nav
@@ -571,8 +577,8 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
 
   const labelChecks = [
     ["vendor-comms-label-vendor", "Vendor"],
-    ["vendor-comms-label-delivery", "Associated Delivery / Order"],
-    ["vendor-comms-label-email", "Email Address"],
+    ["vendor-comms-label-delivery", "Related StageVerify Job / Delivery — Optional"],
+    ["vendor-comms-label-email", "To"],
     ["vendor-comms-label-subject", "Subject"],
     ["vendor-comms-label-message", "Message"],
   ];

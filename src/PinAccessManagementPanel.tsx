@@ -39,6 +39,7 @@ import {
   technicianCanReceiveReleases,
   technicianCanUseDoor,
 } from "./dispatcher/technicianReleaseHelpers";
+import { formatVendorDisplayName } from "./dispatcher/vendorDisplayName";
 import {
   defaultBadgeColorHex,
   resolveTechnicianBadgeStyle,
@@ -493,7 +494,7 @@ export function PinAccessManagementPanel({
       .map((vendor): AccessRow => ({
         type: "vendor",
         id: vendor.id,
-        name: vendor.name,
+        name: formatVendorDisplayName(vendor),
         active: vendor.active !== false,
         accessMethod: "PIN",
         hasPin: true,
@@ -1074,7 +1075,7 @@ export function PinAccessManagementPanel({
               <option value="">Select vendor…</option>
               {vendors.map((vendor) => (
                 <option key={vendor.id} value={vendor.id}>
-                  {vendor.name}
+                  {formatVendorDisplayName(vendor)}
                 </option>
               ))}
             </select>
@@ -1502,7 +1503,7 @@ export function PinAccessManagementPanel({
         style={{ display: "grid", gap: 14 }}
       >
         <h3 style={{ margin: 0, color: "var(--admin-text-data)" }}>
-          {vendor.name}
+          {formatVendorDisplayName(vendor)}
         </h3>
         <label style={{ color: TEXT }}>
           <input
