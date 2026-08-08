@@ -47,6 +47,7 @@
     "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
     "verify:settings-technicians": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians scripts/verify-settings-technicians.mjs",
     "verify:settings-technicians:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians:prod scripts/verify-settings-technicians.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:settings-admin-access": "node scripts/run-verify-with-learning.mjs --script verify:settings-admin-access scripts/verify-settings-admin-access.mjs",
     "verify:settings-office-receivers": "node scripts/run-verify-with-learning.mjs --script verify:settings-office-receivers scripts/verify-settings-office-receivers.mjs",
     "verify:settings-office-receivers:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-office-receivers:prod scripts/verify-settings-office-receivers.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:settings-management-pins": "node scripts/run-verify-with-learning.mjs --script verify:settings-management-pins scripts/verify-settings-management-pins.mjs",
