@@ -15,6 +15,7 @@ import {
 import { writeIgnoreRuleAuditEvent } from "./ignoreRuleAudit";
 import { readAlertEmailFromSecrets } from "./adminConfig";
 import { notifyTrainingLessonPendingAdmin } from "./notifyTrainingLessonPending";
+import { isSystemAutoRejectedImport } from "../creditReturnSkip";
 
 export const CIRCUIT_BREAKER_REOPEN_THRESHOLD = 2;
 
@@ -173,6 +174,9 @@ export async function reopenVendorInvoiceImportCore(
   if (pre.reviewStatus !== "rejected") {
     throw new Error("not_rejected");
   }
+  if (!isSystemAutoRejectedImport(pre)) {
+    throw new Error("manual_reject_not_reopenable");
+  }
   const matchedRuleId = qualifiesForCircuitBreakerReopen(pre)
     ? pre.matchedRuleId!.trim()
     : undefined;
@@ -188,6 +192,9 @@ export async function reopenVendorInvoiceImportCore(
         return;
       }
       throw new Error("not_rejected");
+    }
+    if (!isSystemAutoRejectedImport(fresh)) {
+      throw new Error("manual_reject_not_reopenable");
     }
     tx.update(importRef, {
       reviewStatus: "pending_review",

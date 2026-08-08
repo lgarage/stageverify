@@ -237,12 +237,20 @@ const dbManual = makeMockDb({
     [ruleId]: { status: "active", enabled: true, reopenCount: 0 },
   },
 });
-const manualResult = await reopenVendorInvoiceImportCore(dbManual, {
-  importId: manualId,
-  actorUid: uid,
-});
-assert.equal(manualResult.reopened, true);
-assert.equal(manualResult.reopenCount, undefined);
+let manualBlocked = false;
+try {
+  await reopenVendorInvoiceImportCore(dbManual, {
+    importId: manualId,
+    actorUid: uid,
+  });
+} catch (err) {
+  manualBlocked = err instanceof Error && err.message === "manual_reject_not_reopenable";
+}
+assert.equal(manualBlocked, true);
+assert.equal(
+  dbManual._store.vendorInvoiceImports[manualId].reviewStatus,
+  "rejected",
+);
 assert.equal(dbManual._store[VENDOR_IGNORE_RULES_COLLECTION][ruleId].reopenCount, 0);
 
 const bulkDb = makeMockDb({

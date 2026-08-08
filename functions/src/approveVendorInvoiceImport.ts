@@ -175,6 +175,12 @@ export const approveVendorInvoiceImport = onCall(
             `Import is not rejected; only rejected imports can be reopened.`,
           );
         }
+        if (err instanceof Error && err.message === "manual_reject_not_reopenable") {
+          throw new HttpsError(
+            "failed-precondition",
+            "This import was manually rejected and cannot be reopened. Only system auto-rejected imports (credit/return skip, document-ignore skip) support reopen.",
+          );
+        }
         throw err;
       }
     }

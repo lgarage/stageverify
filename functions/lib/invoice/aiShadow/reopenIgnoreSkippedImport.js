@@ -14,6 +14,7 @@ const vendorIgnoreRules_1 = require("./vendorIgnoreRules");
 const ignoreRuleAudit_1 = require("./ignoreRuleAudit");
 const adminConfig_1 = require("./adminConfig");
 const notifyTrainingLessonPending_1 = require("./notifyTrainingLessonPending");
+const creditReturnSkip_1 = require("../creditReturnSkip");
 exports.CIRCUIT_BREAKER_REOPEN_THRESHOLD = 2;
 /** Max imports processed per bulk reopen (single-field query + in-memory filter). */
 exports.BULK_REOPEN_MAX_PROCESS = 200;
@@ -123,6 +124,9 @@ async function reopenVendorInvoiceImportCore(db, input) {
     if (pre.reviewStatus !== "rejected") {
         throw new Error("not_rejected");
     }
+    if (!(0, creditReturnSkip_1.isSystemAutoRejectedImport)(pre)) {
+        throw new Error("manual_reject_not_reopenable");
+    }
     const matchedRuleId = qualifiesForCircuitBreakerReopen(pre)
         ? pre.matchedRuleId.trim()
         : undefined;
@@ -137,6 +141,9 @@ async function reopenVendorInvoiceImportCore(db, input) {
                 return;
             }
             throw new Error("not_rejected");
+        }
+        if (!(0, creditReturnSkip_1.isSystemAutoRejectedImport)(fresh)) {
+            throw new Error("manual_reject_not_reopenable");
         }
         tx.update(importRef, {
             reviewStatus: "pending_review",

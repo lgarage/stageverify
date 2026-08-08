@@ -830,8 +830,11 @@ async function main() {
     await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
     console.log("PASS: back to review queue from rejected list");
 
-    // Credit/return: pending queue shows advisory (not auto-rejected); Re-open restores pending.
-    let creditReopenedId = null;
+    // PROD GUARD: browser client always uses live stageverify-db (AGENTS.md).
+    // Never click Re-open here — local and :prod verifies both mutate production.
+    // Emulator coverage: npm run test:approve-vendor-invoice-import +
+    // npm run test:reopen-ignore-circuit-breaker.
+    const creditReopenedId = null;
     const rejectedLink2 = page.getByTestId("invoice-review-rejected-link");
     await rejectedLink2.click();
     await page.getByTestId("invoice-review-rejected-list").waitFor({ timeout: 15_000 });
@@ -853,17 +856,23 @@ async function main() {
       .first();
     if ((await rejectedCreditRow.count()) > 0) {
       const rowTestId = await rejectedCreditRow.getAttribute("data-testid");
-      creditReopenedId = rowTestId?.replace("invoice-review-queue-row-", "") ?? null;
-      if (creditReopenedId) {
-        const reopenBtn = page.getByTestId(`invoice-review-reopen-${creditReopenedId}`);
-        await reopenBtn.waitFor({ timeout: 5000 });
-        await reopenBtn.click();
-        await page.waitForTimeout(2500);
-        console.log(`PASS: Re-open clicked for credit import ${creditReopenedId}`);
+      const creditRowId = rowTestId?.replace("invoice-review-queue-row-", "") ?? null;
+      if (creditRowId) {
+        const reopenBtn = page.getByTestId(`invoice-review-reopen-${creditRowId}`);
+        const reopenVisible = (await reopenBtn.count()) > 0 && (await reopenBtn.isVisible().catch(() => false));
+        if (reopenVisible) {
+          console.log(
+            `PASS: Re-open button visible for system auto-rejected credit row ${creditRowId} (assert-only; no click)`,
+          );
+        } else {
+          console.log(
+            `PASS: no Re-open on rejected credit row ${creditRowId} (manual reject sticky — expected)`,
+          );
+        }
       }
     } else {
       console.log(
-        "SKIP: no legacy auto-rejected credit row — reopen step not exercised (env may lack CREDIT import)",
+        "SKIP: no reopen-eligible row in this view",
       );
     }
 

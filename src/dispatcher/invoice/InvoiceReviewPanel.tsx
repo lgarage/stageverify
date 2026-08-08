@@ -28,6 +28,7 @@ import type { VendorInvoiceImportStatus } from "./types";
 import {
   creditReturnAdvisoryLabel,
   creditReturnSkipLabel,
+  isSystemAutoRejectedImport,
 } from "./creditReturnSkip";
 import { ignoreRuleSuppressedAdvisoryLabel } from "./ignoreRuleSuppressed";
 
@@ -888,7 +889,9 @@ export function InvoiceReviewPanel({
                   )}
                 </div>
 
-                {filter === "rejected" && row.reviewStatus === "rejected" && (
+                {filter === "rejected" &&
+                  row.reviewStatus === "rejected" &&
+                  isSystemAutoRejectedImport(row) && (
                   <div
                     style={{
                       display: "flex",
@@ -1077,7 +1080,8 @@ export function InvoiceReviewPanel({
               : undefined
           }
           onReopen={
-            inspectImport.reviewStatus === "rejected"
+            inspectImport.reviewStatus === "rejected" &&
+            isSystemAutoRejectedImport(inspectImport)
               ? () => {
                   void handleReopen(inspectImport);
                 }

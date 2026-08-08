@@ -1167,6 +1167,129 @@ if (!creditDeliverySnap.exists()) {
   fail("credit approve created delivery shell", creditDeliverySnap.id);
 }
 
+console.log("\n=== CF: sticky manual reject — reopen blocked; system skip reopen OK ===\n");
+
+const stickyHeader = {
+  ...header,
+  vendorInvoiceNumber: "STICKY-MANUAL-001",
+};
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-manual-reject-sticky"), {
+    id: "vii-manual-reject-sticky",
+    inboundEmailProcessingId: "inbound-manual-sticky",
+    gmailMessageId: "msg-manual-sticky",
+    importBatchId: "batch-test",
+    pageId: "inv-manual-sticky",
+    pageIndexInBatch: 0,
+    reviewStatus: "rejected",
+    importStatus: "pending",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: stickyHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "skipped",
+    skipReason: "credit_return",
+    rejectedAt: "2026-08-08T12:00:00Z",
+    rejectedBy: dispatcherUid,
+    importDecisionLog: [
+      {
+        action: "reject",
+        at: "2026-08-08T12:00:00Z",
+        by: dispatcherUid,
+        importDecisionMode: "blocked",
+        autoImportEligible: false,
+        autoImportReasons: [],
+        reviewRequiredReasons: ["Credit/return memo — not valid for delivery import"],
+      },
+    ],
+    createdAt: "2026-08-08T11:00:00Z",
+    updatedAt: "2026-08-08T12:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-system-skip-reopen-ok"), {
+    id: "vii-system-skip-reopen-ok",
+    inboundEmailProcessingId: "inbound-system-skip-reopen",
+    gmailMessageId: "msg-system-skip-reopen",
+    importBatchId: "batch-test",
+    pageId: "inv-system-skip-reopen",
+    pageIndexInBatch: 0,
+    reviewStatus: "rejected",
+    importStatus: "pending",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: false,
+    duplicate: false,
+    parsedHeader: { ...header, vendorInvoiceNumber: "SYS-SKIP-REOPEN-001" },
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "skipped",
+    skipReason: "credit_return",
+    rejectedAt: "2026-08-08T12:00:00Z",
+    rejectedBy: "system:credit_return_skip",
+    createdAt: "2026-08-08T11:00:00Z",
+    updatedAt: "2026-08-08T12:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-manual-reject-sticky",
+    action: "reopen",
+  });
+  fail("manual reject reopen should be blocked");
+} catch (err) {
+  const code = String(err?.code ?? "");
+  const message = String(err?.message ?? "");
+  if (
+    code.includes("failed-precondition") &&
+    /manually rejected/i.test(message)
+  ) {
+    pass("manual reject reopen blocked with failed-precondition");
+  } else {
+    fail("expected manual_reject failed-precondition", { code, message });
+  }
+}
+
+const stickyAfter = await getDoc(doc(db, "vendorInvoiceImports", "vii-manual-reject-sticky"));
+const stickyData = stickyAfter.data();
+if (
+  stickyData?.reviewStatus === "rejected" &&
+  stickyData?.rejectedBy === dispatcherUid &&
+  Array.isArray(stickyData?.importDecisionLog) &&
+  stickyData.importDecisionLog.length === 1 &&
+  stickyData.importDecisionLog[0]?.action === "reject"
+) {
+  pass("manual reject doc unchanged after blocked reopen (log preserved)");
+} else {
+  fail("manual reject doc mutated or log rewritten", stickyData);
+}
+
+try {
+  const reopenSys = await approveImport({
+    vendorInvoiceImportId: "vii-system-skip-reopen-ok",
+    action: "reopen",
+  });
+  const reopenStatus = reopenSys?.data?.reviewStatus;
+  if (reopenStatus === "pending_review") {
+    pass("system credit_return_skip reopen still succeeds");
+  } else {
+    fail("system skip reopen did not return pending_review", reopenSys?.data);
+  }
+} catch (err) {
+  fail("system skip reopen should succeed", {
+    code: String(err?.code ?? ""),
+    message: String(err?.message ?? ""),
+  });
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

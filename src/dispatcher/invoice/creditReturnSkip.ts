@@ -62,6 +62,27 @@ export function isSystemIgnoreSkipReason(skipReason?: string): boolean {
   );
 }
 
+/** Keep in sync with functions/src/invoice/creditReturnSkip.ts SYSTEM_AUTO_REJECTED_BY. */
+const SYSTEM_AUTO_REJECTED_BY = [
+  "system:credit_return_skip",
+  "system:document_ignore_skip",
+] as const;
+
+/**
+ * Rejected by ingest/auto-skip — eligible for Re-open.
+ * Manual (dispatcher uid) rejections are sticky and must not offer Re-open.
+ */
+export function isSystemAutoRejectedImport(doc?: {
+  reviewStatus?: string;
+  rejectedBy?: string;
+}): boolean {
+  return (
+    doc?.reviewStatus === "rejected" &&
+    typeof doc.rejectedBy === "string" &&
+    (SYSTEM_AUTO_REJECTED_BY as readonly string[]).includes(doc.rejectedBy)
+  );
+}
+
 /** Pending credit/return imports — prominent advisory (not auto-rejected). */
 export function creditReturnAdvisoryLabel(
   importRow: Pick<
