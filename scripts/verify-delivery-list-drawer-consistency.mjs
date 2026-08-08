@@ -1745,8 +1745,8 @@ async function assertOrd006EmailReviewAction(page, record) {
 
   if (headingNormalized === "all clear") {
     record(
-      "All Clear aligns with Ready for Pickup list label",
-      listStatus === "Ready for Pickup",
+      "All Clear aligns with Staged — Ready for Pickup list label",
+      listStatus === "Staged — Ready for Pickup",
       listStatus,
     );
   } else if (headingNormalized === "waiting on delivery") {
@@ -1768,8 +1768,8 @@ async function assertOrd006EmailReviewAction(page, record) {
     );
   } else {
     record(
-      "What Needs Attention not shown as Ready for Pickup in list",
-      listStatus !== "Ready for Pickup",
+      "What Needs Attention not shown as Staged — Ready for Pickup in list",
+      listStatus !== "Staged — Ready for Pickup",
       listStatus,
     );
     record(
@@ -2236,7 +2236,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   await listSearch.fill("");
   await page.waitForTimeout(800);
 
-  const stagedFilter = page.getByRole("button", { name: "Ready for Pickup", exact: true });
+  const stagedFilter = page.getByRole("button", { name: "Staged — Ready for Pickup", exact: true });
   if (await stagedFilter.isVisible().catch(() => false)) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);
@@ -2248,7 +2248,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     await page.waitForTimeout(900);
   }
 
-  const readyRow = page.locator("table tbody tr", { hasText: "Ready for Pickup" }).first();
+  const readyRow = page.locator("table tbody tr", { hasText: "Staged — Ready for Pickup" }).first();
   if ((await readyRow.count()) > 0) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);
@@ -2258,16 +2258,16 @@ async function assertOrd006EmailReviewAction(page, record) {
       await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
       const readyListStatus = (await readyRow.locator("td").first().innerText()).trim();
       record(
-        "Ready row list status is Ready for Pickup",
-        readyListStatus === "Ready for Pickup",
+        "Ready row list status is Staged — Ready for Pickup",
+        readyListStatus === "Staged — Ready for Pickup",
         readyListStatus,
       );
-      await assertDeliveryFirstDrawerOrder(page, record, "Ready for Pickup");
+      await assertDeliveryFirstDrawerOrder(page, record, "Staged — Ready for Pickup");
     } catch {
-      record("Ready for Pickup row present for order check", false, "drawer did not open");
+      record("Staged — Ready for Pickup row present for order check", false, "drawer did not open");
     }
   } else {
-    record("Ready for Pickup row present for order check", false, "skipped");
+    record("Staged — Ready for Pickup row present for order check", false, "skipped");
   }
 
   if (await stagedFilter.isVisible().catch(() => false)) {

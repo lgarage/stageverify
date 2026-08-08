@@ -500,7 +500,7 @@ assert(
 assert(
   "complete overview filter includes status complete even when label differs",
   rowMatchesOverviewStatusFilter(
-    { status: "complete", statusDisplayLabel: "Ready for Pickup" },
+    { status: "complete", statusDisplayLabel: "Staged — Ready for Pickup" },
     "complete",
   ),
 );

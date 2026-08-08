@@ -2152,7 +2152,7 @@ function DeliveryStatusControls({
               fontFamily: font,
             }}
           >
-            Assign staging spot for Ready for Pickup
+            Assign staging spot for Staged — Ready for Pickup
           </label>
           <select
             id="delivery-status-spot-select"

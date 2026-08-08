@@ -13,7 +13,7 @@ function deliverToSiteLabelFromNotes(orderNotes: readonly string[]): string | un
 export const VENDOR_INVOICE_IMPORT_STATUS_LABEL: Record<VendorInvoiceImportStatus, string> = {
   pending: "Pending Delivery",
   partial: "Partial — order not complete",
-  ready_for_pickup: "Ready for Pickup",
+  ready_for_pickup: "Staged — Ready for Pickup",
   pickup_at_vendor: "Will-Call / Pickup.",
   closed_picked_up: "Closed / Picked Up.",
   issue: "Issue / Action Needed",

@@ -173,7 +173,7 @@ const readyDelivery = {
 };
 const readyDisplay = computeDeliveryDisplayState(readyDelivery, completeItems, []);
 assert(
-  readyDisplay.statusDisplayLabel === "Ready for Pickup",
+  readyDisplay.statusDisplayLabel === "Staged — Ready for Pickup",
   "list label ready when evidence complete despite stale persisted fields",
 );
 assert(readyDisplay.issueSummary === "", "no issue summary when ready");

@@ -142,12 +142,12 @@ const STATUS_CONTROL_CONTRAST = {
       .catch(() => false);
     if (willCallActive && !disabled) {
       console.log(
-        "WARN: Ready for Pickup option not disabled on will-call delivery (fixture may allow).",
+        "WARN: Staged — Ready for Pickup option not disabled on will-call delivery (fixture may allow).",
       );
     } else if (willCallActive) {
-      console.log("PASS: Ready for Pickup grayed/disabled on will-call delivery");
+      console.log("PASS: Staged — Ready for Pickup grayed/disabled on will-call delivery");
     } else {
-      console.log("PASS: Ready for Pickup option present in dropdown");
+      console.log("PASS: Staged — Ready for Pickup option present in dropdown");
     }
   }
 
@@ -305,7 +305,7 @@ const STATUS_CONTROL_CONTRAST = {
       const currentStatusLabel = (
         await page.getByTestId("delivery-status-current-label").innerText()
       ).trim();
-      if (currentStatusLabel.startsWith("Ready for Pickup")) {
+      if (currentStatusLabel.startsWith("Staged — Ready for Pickup")) {
         await statusDropdown.selectOption("picked_up");
         await page.waitForTimeout(300);
         await page

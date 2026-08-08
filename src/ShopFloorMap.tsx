@@ -4146,7 +4146,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           [
             ["green", "Available"],
             ["orange", "Assigned / planned (yellow)"],
-            ["purple", "Ready for pickup"],
+            ["purple", "Staged — Ready for pickup"],
             ["gray", "Shop stock"],
           ] as const
         ).map(([color, label]) => (

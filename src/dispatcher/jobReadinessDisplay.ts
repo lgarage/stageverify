@@ -1,4 +1,10 @@
-import type { DeliveryOrder, Item, Job, MaterialIssue } from "./models";
+import {
+  DELIVERY_STATUS_LABEL,
+  type DeliveryOrder,
+  type Item,
+  type Job,
+  type MaterialIssue,
+} from "./models";
 import {
   countOpenBlockingIssues,
   isReservedDisplayState,
@@ -10,6 +16,8 @@ import type {
   JobReadinessResult,
   POReadinessResult,
 } from "./readiness";
+
+const STAGED_READY_LABEL = DELIVERY_STATUS_LABEL.ready_for_pickup;
 
 /** List + drawer status when shop is waiting for inbound material (0 received). */
 export const AWAITING_DELIVERY_STATUS_LABEL = "Awaiting Delivery";
@@ -56,7 +64,7 @@ export function deliveryReadinessDisplayLabel(
     return "Reserved";
   }
   if (readiness.readyForPickup) {
-    return "Ready for Pickup";
+    return STAGED_READY_LABEL;
   }
   if (delivery.status === "issue") {
     return "Issue / Review Required";
@@ -70,7 +78,7 @@ export function deliveryReadinessDisplayLabel(
 }
 
 export function poReadinessDisplayLabel(readiness: POReadinessResult): string {
-  return readiness.readyForPickup ? "Ready for Pickup" : "Incomplete";
+  return readiness.readyForPickup ? STAGED_READY_LABEL : "Incomplete";
 }
 
 export function jobDispatchDisplayLabel(
@@ -97,7 +105,7 @@ export function jobDispatchDisplayLabel(
   }
 
   if (readiness.allReadyForPickup) {
-    return "Everything Ready for Pickup";
+    return `Everything ${STAGED_READY_LABEL}`;
   }
 
   if (job.pickupScheduledAt) {

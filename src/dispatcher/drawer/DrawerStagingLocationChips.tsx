@@ -110,7 +110,7 @@ export function DrawerStagingLocationChips({
           : "orange";
         const statusTitle =
           color === "purple"
-            ? "Ready for pickup"
+            ? "Staged — Ready for pickup"
             : color === "orange"
               ? "Assigned / planned"
               : color === "gray"

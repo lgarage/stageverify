@@ -141,3 +141,7 @@
 {"date":"2026-08-04","role":"work","verdict":"PASS","taskId":"f6ce3250-dd78-4e5b-84dc-d7d352338db7","model":"claude-fable-5-thinking-high","real":"na","note":"D-59 P7 phase boundary"}
 {"date":"2026-08-04","role":"security","verdict":"PASS","taskId":"bf2570ff-62f6-4f8b-9983-f6a30c5cfe96","model":"claude-4.6-sonnet-high-thinking","real":"na","note":"D-59 P2-P7 pre-firebase-deploy APPROVE"}
 {"date":"2026-08-04","role":"ship","verdict":"PASS","taskId":"7b4c8e1f-dfd9-452f-87b4-fdce800ed4c5","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-59 partial deploy: gh-pages live; Firebase blocked no token"}
+{"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"d89ab4d3-5f8b-4b1d-9fad-75295b077606","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":"P0-ROI recordTechnicianJobOpen branch"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"a51bc69f-910d-4e67-9512-a90a0f6f6533","model":"cursor-grok-4.5-high-fast","real":"na","note":"ui-playwright staged label"}
+{"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"9e3f3642-49f0-429a-aa3b-af3a6f5cc807","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"c736775c-e1dd-4215-8621-810332c02a86","model":"cursor-grok-4.5-high-fast","real":"na","note":"build-checker staged label"}

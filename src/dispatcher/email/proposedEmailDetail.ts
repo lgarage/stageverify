@@ -68,7 +68,7 @@ export function describeCondition1Impact(
   if (wouldAutoApply && reviewStatus === "auto_processed") {
     return {
       affectsCondition1: true,
-      note: `High-confidence vendor order complete on ${target} — Condition 1 only via server auto-apply; does not set Ready for Pickup or physical evidence.`,
+      note: `High-confidence vendor order complete on ${target} — Condition 1 only via server auto-apply; does not set Staged — Ready for Pickup or physical evidence.`,
     };
   }
 

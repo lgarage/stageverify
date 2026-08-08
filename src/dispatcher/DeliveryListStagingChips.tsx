@@ -70,7 +70,7 @@ export function DeliveryListStagingChips({
         const color = listDisplaySpotColor(resolved);
         const statusTitle =
           color === "purple"
-            ? "Ready for pickup"
+            ? "Staged — Ready for pickup"
             : color === "orange"
               ? "Assigned / planned"
               : color === "gray"

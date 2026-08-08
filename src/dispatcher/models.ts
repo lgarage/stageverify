@@ -19,7 +19,7 @@ export type ReadinessStatus =
 export const READINESS_STATUS_LABEL: Record<ReadinessStatus, string> = {
   ordering: "Ordering",
   not_ready: "Not Ready",
-  ready_for_pickup: "Ready For Pickup",
+  ready_for_pickup: "Staged — Ready for Pickup",
   picked_up: "Picked Up",
 };
 
@@ -249,7 +249,7 @@ export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
   shipped: "Shipped",
   arrived: "Received",
   partial: "Partial",
-  ready_for_pickup: "Ready for Pickup",
+  ready_for_pickup: "Staged — Ready for Pickup",
   complete: "Picked Up",
   issue: "Issue",
   picked_up: "Picked Up",

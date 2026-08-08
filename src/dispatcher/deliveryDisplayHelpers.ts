@@ -888,7 +888,7 @@ export function buildDrawerActionBannerContent(
     bannerMode = "all_clear";
     attentionHeadline = deliverToSiteConfirmed
       ? "Delivered to site — vendor order complete, material confirmed on job site."
-      : "Ready for Pickup — vendor order complete, physical complete, no blocking issues.";
+      : "Staged — Ready for Pickup — vendor order complete, physical complete, no blocking issues.";
   } else if (calmWaiting) {
     bannerMode = "calm_waiting";
     attentionHeadline =

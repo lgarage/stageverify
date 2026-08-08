@@ -106,7 +106,7 @@ function listStatusBadge(
 ): (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus] {
   const label = row.statusDisplayLabel;
   if (label === "Picked Up") return STATUS_BADGE.complete;
-  if (label === "Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
+  if (label === "Staged — Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
   if (label === "Partial") return STATUS_BADGE.partial;
   if (label === "Reserved") {
@@ -705,7 +705,7 @@ export function DispatcherDashboardPage() {
                         swatch: "#facc15",
                         label: "Assigned / planned (yellow)",
                       },
-                      { swatch: "#7c3aed", label: "Ready for pickup" },
+                      { swatch: "#7c3aed", label: "Staged — Ready for pickup" },
                       { swatch: "#6b7280", label: "Shop stock" },
                     ] as const
                   ).map(({ swatch, label }) => (
