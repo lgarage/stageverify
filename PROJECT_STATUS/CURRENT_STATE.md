@@ -7,8 +7,9 @@
 ## Snapshot
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
-- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.228. **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** credit-return delivery block (ingest auto-reject + approve/create_shell/relink guard) @ v0.0.217; prior `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
-- Last shipped: **v0.0.228** — dispatcher/admin Light/Dark appearance (`stageverify-theme` localStorage; FOUC bootstrap; floating toggle); vendor/technician mobile themes unchanged; `verify:admin-appearance` PASS. [fast-safe UI]
+- **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.229. **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** credit-return delivery block (ingest auto-reject + approve/create_shell/relink guard) @ v0.0.217; prior `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
+- Last shipped: **v0.0.229** — merge PR #45: Settings **PIN & Access Management** (tech + company-vendor + management roster; job PINs excluded); Light/Dark theme preserved; `verify:settings-technicians` + `verify:settings-management-pins` + `verify:admin-appearance` PASS. [fast-safe UI]
+- Prior: **v0.0.228** — dispatcher/admin Light/Dark appearance (`stageverify-theme` localStorage; FOUC bootstrap; floating toggle); vendor/technician mobile themes unchanged; `verify:admin-appearance` PASS. [fast-safe UI]
 - Prior: **v0.0.227** — merge PR #44: vendor hub Location code header + Invoice # row; `verify:vendor-monday-safe` location/invoice/accordion/CTA asserts PASS. Live Settings still `full_checkin` until ops flips exception_only. [fast-safe UI]
 - Prior: **v0.0.226** — merge PR #43: vendor hub tap-to-expand expected items (read-only accordion); `verify:vendor-monday-safe` accordion asserts PASS. [fast-safe UI]
 - Prior: **v0.0.225** — merge PR #41: Monday-safe vendor hub — no-spot disables Mark Delivered (“Ask dispatch for a staging spot.”), “Report a Problem” wording; `verify:vendor-monday-safe` PASS. [fast-safe UI]
@@ -36,7 +37,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan/ops: set Settings → Exception-only Delivered hub when ready; hard-refresh vendor phone after v0.0.227 to see Location code header + Invoice # row.
+- Dan/ops: set Settings → Exception-only Delivered hub when ready; hard-refresh Settings after v0.0.229 for PIN & Access Management; vendor phone still needs Location/Invoice from v0.0.227+.
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
