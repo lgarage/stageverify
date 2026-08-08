@@ -208,9 +208,9 @@ function statusBadgeStyle(status: LocationStatus): CSSProperties {
   };
   const c = colors[status];
   return {
-    display: "inline-block",
+    display: "inline-flex",
     padding: "2px 8px",
-    borderRadius: 10,
+    borderRadius: "var(--admin-radius-pill)",
     fontSize: 11,
     fontWeight: 700,
     backgroundColor: c.bg,
@@ -222,15 +222,16 @@ function statusBadgeStyle(status: LocationStatus): CSSProperties {
 const cardStyle: CSSProperties = {
   backgroundColor: "var(--admin-surface)",
   border: "1px solid var(--admin-border)",
-  borderRadius: 8,
-  boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
+  borderRadius: "var(--admin-radius-lg)",
+  boxShadow: "var(--admin-shadow-card)",
 };
 
 const inputStyle: CSSProperties = {
   width: "100%",
   padding: "10px 12px",
   border: "1.5px solid var(--admin-border)",
-  borderRadius: 6,
+  minHeight: "var(--admin-control-height)",
+  borderRadius: "var(--admin-control-radius)",
   fontSize: 14,
   color: "var(--admin-text)",
   outline: "none",
@@ -256,9 +257,9 @@ function typeBadgeStyle(type: ZoneType): CSSProperties {
   };
   const c = colors[type];
   return {
-    display: "inline-block",
+    display: "inline-flex",
     padding: "2px 8px",
-    borderRadius: 4,
+    borderRadius: "var(--admin-radius-pill)",
     fontSize: 11,
     fontWeight: 700,
     textTransform: "uppercase",
@@ -1495,7 +1496,7 @@ export function ZoneManagementPage() {
             </div>
           ) : null}
 
-          <div className="shop-floor-map-host" style={{ ...cardStyle, padding: 16 }}>
+          <div className="shop-floor-map-host admin-card" style={{ ...cardStyle, padding: 16 }}>
             <ShopFloorMap
               ref={mapRef}
               occupancyByZoneCode={
@@ -1923,10 +1924,10 @@ export function ZoneManagementPage() {
                           key={zone.id}
                           style={{
                             border: "1px solid var(--admin-border)",
-                            borderRadius: 8,
+                            borderRadius: "var(--admin-radius-md)",
                             padding: 16,
                             backgroundColor: isLocationActive(zone)
-                              ? "#fff"
+                              ? "var(--admin-surface)"
                               : "var(--admin-surface-2)",
                             opacity: isLocationActive(zone) ? 1 : 0.75,
                           }}

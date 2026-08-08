@@ -44,7 +44,8 @@ const inputStyle: CSSProperties = {
   width: "100%",
   padding: "10px 12px",
   border: "1.5px solid var(--admin-border)",
-  borderRadius: 6,
+  minHeight: "var(--admin-control-height)",
+  borderRadius: "var(--admin-control-radius)",
   fontSize: 14,
   color: "var(--admin-text)",
   outline: "none",
@@ -193,15 +194,17 @@ export function CreateDeliveryModal({
       onClick={onClose}
     >
       <div
+        className="admin-card"
         style={{
           width: "100%",
           maxWidth: 620,
           maxHeight: "90vh",
           overflowY: "auto",
           backgroundColor: "var(--admin-surface)",
-          borderRadius: 8,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.22)",
+          borderRadius: "var(--admin-radius-lg)",
+          boxShadow: "var(--admin-shadow-card)",
           border: "1px solid var(--admin-border)",
+          padding: 0,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -331,7 +334,7 @@ export function CreateDeliveryModal({
                     alignItems: "end",
                     padding: 12,
                     backgroundColor: "var(--admin-surface-2)",
-                    borderRadius: 6,
+                    borderRadius: "var(--admin-radius-md)",
                     border: "1px solid var(--admin-border)",
                   }}
                 >
@@ -413,12 +416,13 @@ export function CreateDeliveryModal({
                   </div>
                   <button
                     type="button"
+                    className="admin-btn admin-btn-danger"
                     onClick={() => removeLineItem(index)}
                     disabled={lineItems.length <= 1}
                     style={{
                       padding: "8px 10px",
                       border: "1px solid var(--admin-border)",
-                      borderRadius: 4,
+                      borderRadius: "var(--admin-control-radius)",
                       backgroundColor:
                         lineItems.length <= 1 ? "var(--admin-surface-2)" : "var(--admin-surface)",
                       color: lineItems.length <= 1 ? "var(--admin-text-muted)" : RED,
@@ -436,12 +440,13 @@ export function CreateDeliveryModal({
             </div>
             <button
               type="button"
+              className="admin-btn"
               onClick={addLineItem}
               style={{
                 marginTop: 10,
                 padding: "6px 12px",
                 border: `1.5px solid ${NAVY}`,
-                borderRadius: 4,
+                borderRadius: "var(--admin-control-radius)",
                 backgroundColor: "var(--admin-surface)",
                 color: "var(--admin-accent-soft)",
                 fontWeight: 700,
@@ -494,13 +499,14 @@ export function CreateDeliveryModal({
             </button>
             <button
               type="submit"
+              className="admin-btn admin-btn-primary"
               disabled={!isValid}
               style={{
                 padding: "8px 16px",
                 border: "none",
-                borderRadius: 4,
-                backgroundColor: isValid ? NAVY : "var(--admin-border)",
-                color: "var(--admin-text)",
+                borderRadius: "var(--admin-control-radius)",
+                backgroundColor: isValid ? "var(--admin-accent)" : "var(--admin-border)",
+                color: isValid ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: isValid ? "pointer" : "not-allowed",

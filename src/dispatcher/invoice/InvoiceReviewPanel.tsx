@@ -227,8 +227,9 @@ const ARCHIVE_NAV_BUTTON_STYLE = {
   backgroundColor: NAVY,
   color: "var(--admin-on-navy)",
   border: "none",
-  borderRadius: 4,
-  padding: "8px 16px",
+  minHeight: "var(--admin-control-height)",
+  borderRadius: "var(--admin-control-radius)",
+  padding: "0 16px",
   fontSize: 13,
   fontWeight: 700,
   cursor: "pointer",
@@ -653,11 +654,9 @@ export function InvoiceReviewPanel({
     >
       <div
         data-testid={listTestId(filter)}
+        className="admin-table-wrap"
         style={{
           backgroundColor: "var(--admin-surface)",
-          border: "1px solid var(--admin-border)",
-          borderRadius: 8,
-          overflow: "hidden",
         }}
       >
         <div
@@ -675,12 +674,13 @@ export function InvoiceReviewPanel({
           </span>
           {!isArchiveFilter(filter) && (
             <select
+              className="admin-control"
               value={filter}
               onChange={(e) => setFilter(e.target.value as QueueFilter)}
               style={{
                 fontSize: 12,
                 padding: "4px 8px",
-                borderRadius: 4,
+                borderRadius: "var(--admin-control-radius)",
                 border: "1px solid var(--admin-border)",
               }}
             >
@@ -899,6 +899,7 @@ export function InvoiceReviewPanel({
                   >
                     <button
                       type="button"
+                      className="admin-btn"
                       data-testid={`invoice-review-reopen-${row.id}`}
                       disabled={rowActionLoading}
                       onClick={(e) => {
@@ -909,7 +910,7 @@ export function InvoiceReviewPanel({
                         backgroundColor: "var(--admin-surface)",
                         color: "var(--admin-accent-soft)",
                         border: `1px solid ${NAVY}`,
-                        borderRadius: 4,
+                        borderRadius: "var(--admin-control-radius)",
                         padding: "6px 10px",
                         fontSize: 12,
                         fontWeight: 700,
@@ -941,13 +942,14 @@ export function InvoiceReviewPanel({
         {isArchiveFilter(filter) ? (
           <button
             type="button"
+            className="admin-btn"
             data-testid="invoice-review-back-to-queue"
             onClick={() => setFilter("pending")}
             style={{
               backgroundColor: "var(--admin-surface)",
               color: "var(--admin-accent-soft)",
               border: `1px solid ${NAVY}`,
-              borderRadius: 4,
+              borderRadius: "var(--admin-control-radius)",
               padding: "8px 16px",
               fontSize: 13,
               fontWeight: 700,
@@ -988,7 +990,7 @@ export function InvoiceReviewPanel({
             padding: "10px 12px",
             backgroundColor: "var(--admin-danger-bg)",
             color: "var(--admin-danger-text)",
-            borderRadius: 6,
+            borderRadius: "var(--admin-radius-sm)",
             fontSize: 13,
           }}
         >
@@ -1004,7 +1006,7 @@ export function InvoiceReviewPanel({
             padding: "10px 12px",
             backgroundColor: "var(--admin-success-bg)",
             color: "var(--admin-success-text)",
-            borderRadius: 6,
+            borderRadius: "var(--admin-radius-sm)",
             fontSize: 13,
           }}
         >
@@ -1022,10 +1024,10 @@ export function InvoiceReviewPanel({
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 10000,
-            backgroundColor: "#0a3161",
+            backgroundColor: "var(--admin-navy)",
             color: "var(--admin-on-navy)",
             padding: "12px 18px",
-            borderRadius: 8,
+            borderRadius: "var(--admin-radius-md)",
             fontSize: 14,
             fontWeight: 600,
             boxShadow: "0 8px 24px rgba(0,0,0,0.25)",

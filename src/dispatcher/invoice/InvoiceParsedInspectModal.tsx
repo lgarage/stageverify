@@ -469,6 +469,7 @@ export function InvoiceParsedInspectModal({
     >
       <div
         data-testid="invoice-parsed-inspect-panel"
+        className="admin-card"
         style={{
           width: "100%",
           maxWidth: 960,
@@ -477,8 +478,9 @@ export function InvoiceParsedInspectModal({
           flexDirection: "column",
           overflow: "hidden",
           backgroundColor: "var(--admin-surface)",
-          borderRadius: 12,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+          borderRadius: "var(--admin-radius-lg)",
+          boxShadow: "var(--admin-shadow-card)",
+          padding: 0,
           color: CELL_TEXT,
         }}
         onClick={(e) => e.stopPropagation()}

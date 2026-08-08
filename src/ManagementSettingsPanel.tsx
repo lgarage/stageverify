@@ -82,15 +82,8 @@ export function ManagementSettingsPanel() {
   }
 
   return (
-    <div style={{ padding: 20 }} data-testid="management-settings-panel">
-      <h2
-        style={{
-          fontSize: 16,
-          fontWeight: 700,
-          color: TEXT,
-          margin: "0 0 8px",
-        }}
-      >
+    <div style={{ padding: 24 }} data-testid="management-settings-panel">
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: TEXT, margin: "0 0 8px" }}>
         Catch-all parcel intake (Phase 6)
       </h2>
       <p

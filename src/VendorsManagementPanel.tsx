@@ -36,8 +36,8 @@ function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
 const cardStyle = {
   backgroundColor: "var(--admin-surface)",
   border: "1px solid var(--admin-border)",
-  borderRadius: 8,
-  boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
+  borderRadius: "var(--admin-radius-lg)",
+  boxShadow: "var(--admin-shadow-card)",
 };
 
 export function VendorsManagementPanel({
@@ -157,7 +157,7 @@ export function VendorsManagementPanel({
   return (
     <>
           {/* Vendors section */}
-          <div id="portal-vendors" style={{ ...cardStyle, overflow: "hidden" }}>
+          <div id="portal-vendors" className="admin-table-wrap" style={{ ...cardStyle, overflow: "hidden" }}>
             <div
               style={{
                 padding: "15px 20px",
@@ -181,28 +181,23 @@ export function VendorsManagementPanel({
 
             <div style={{ overflowX: "auto" }}>
               <table
+                className="admin-table"
                 style={{
-                  width: "100%",
                   minWidth: 600,
-                  borderCollapse: "collapse",
                   fontSize: 14,
                   fontFamily: FONT,
                 }}
               >
                 <thead>
-                  <tr
-                    style={{ backgroundColor: NAVY }}
-                    data-testid="vendors-table-header"
-                  >
+                  <tr data-testid="vendors-table-header">
                     {["Name", "Active", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
                           key={i}
                           style={{
-                            padding: "12px",
                             fontWeight: 700,
-                            fontSize: 14,
-                            color: "var(--admin-on-navy)",
+                            fontSize: 12,
+                            color: "var(--admin-text-muted)",
                             textAlign: "left",
                             whiteSpace: "nowrap",
                           }}
@@ -225,7 +220,7 @@ export function VendorsManagementPanel({
                     const inlineInput: CSSProperties = {
                       padding: "4px 8px",
                       border: "1.5px solid var(--admin-border)",
-                      borderRadius: 4,
+                      borderRadius: "var(--admin-control-radius)",
                       fontSize: 13,
                       color: "var(--admin-text)",
                       fontFamily: FONT,
@@ -445,7 +440,7 @@ export function VendorsManagementPanel({
           </div>
 
           {/* Add Vendor form */}
-          <div style={{ ...cardStyle, padding: "20px" }}>
+          <div className="admin-card" style={{ ...cardStyle, padding: "20px" }}>
             <h2
               style={{
                 margin: "0 0 16px",
@@ -731,7 +726,7 @@ export function VendorsManagementPanel({
                 disabled={!name.trim()}
                 style={{
                   padding: "8px 18px",
-                  borderRadius: 4,
+                  borderRadius: "var(--admin-control-radius)",
                   border: "none",
                   backgroundColor: !name.trim() ? "var(--admin-surface-2)" : RED,
                   color: !name.trim() ? "var(--admin-text-muted)" : "var(--admin-on-navy)",

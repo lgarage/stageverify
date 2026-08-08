@@ -343,15 +343,16 @@ export function VendorCommunicationsModal({
     >
       <div
         data-testid="vendor-communications-modal-panel"
+        className="admin-card"
         style={{
           width: "100%",
           maxWidth: 580,
           maxHeight: "90vh",
           overflowY: "auto",
           backgroundColor: "var(--admin-surface)",
-          borderRadius: 12,
+          borderRadius: "var(--admin-radius-lg)",
           padding: "24px 28px",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+          boxShadow: "var(--admin-shadow-card)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -388,6 +389,7 @@ export function VendorCommunicationsModal({
           Vendor
         </label>
         <select
+          className="admin-control"
           id="vendor-comms-vendor"
           data-testid="vendor-comms-vendor"
           value={vendorId}
@@ -396,7 +398,7 @@ export function VendorCommunicationsModal({
             width: "100%",
             marginBottom: 12,
             padding: "10px 12px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
@@ -420,6 +422,7 @@ export function VendorCommunicationsModal({
           Associated Delivery / Order
         </label>
         <select
+          className="admin-control"
           id="vendor-comms-delivery"
           data-testid="vendor-comms-delivery"
           value={deliveryOrderId}
@@ -428,7 +431,7 @@ export function VendorCommunicationsModal({
             width: "100%",
             marginBottom: 12,
             padding: "10px 12px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
@@ -451,6 +454,7 @@ export function VendorCommunicationsModal({
           {replyFromInbound ? "Reply to" : "Email Address"}
         </label>
         <input
+          className="admin-control"
           id="vendor-comms-to"
           data-testid="vendor-comms-to"
           type="email"
@@ -462,7 +466,7 @@ export function VendorCommunicationsModal({
             width: "100%",
             marginBottom: 6,
             padding: "10px 12px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
@@ -491,6 +495,7 @@ export function VendorCommunicationsModal({
           Additional email addresses (optional)
         </label>
         <input
+          className="admin-control"
           id="vendor-comms-cc"
           data-testid="vendor-comms-additional"
           type="text"
@@ -501,7 +506,7 @@ export function VendorCommunicationsModal({
             width: "100%",
             marginBottom: 6,
             padding: "10px 12px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
@@ -551,6 +556,7 @@ export function VendorCommunicationsModal({
           Subject
         </label>
         <input
+          className="admin-control"
           id="vendor-comms-subject"
           data-testid="vendor-comms-subject"
           value={subject}
@@ -559,7 +565,7 @@ export function VendorCommunicationsModal({
             width: "100%",
             marginBottom: 12,
             padding: "10px 12px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
@@ -575,6 +581,7 @@ export function VendorCommunicationsModal({
           Message
         </label>
         <textarea
+          className="admin-control"
           id="vendor-comms-body"
           data-testid="vendor-comms-body"
           rows={body ? 10 : 4}
@@ -585,7 +592,7 @@ export function VendorCommunicationsModal({
             width: "100%",
             marginBottom: 14,
             padding: "12px 14px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             lineHeight: 1.5,
@@ -625,10 +632,11 @@ export function VendorCommunicationsModal({
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
             type="button"
+            className="admin-btn"
             onClick={onClose}
             style={{
               padding: "9px 16px",
-              borderRadius: 6,
+              borderRadius: "var(--admin-control-radius)",
               border: "1px solid var(--admin-border)",
               backgroundColor: "var(--admin-surface)",
               color: "var(--admin-text)",
@@ -642,15 +650,16 @@ export function VendorCommunicationsModal({
           </button>
           <button
             type="button"
+            className="admin-btn admin-btn-primary"
             data-testid="vendor-comms-send"
             disabled={!canSend}
             onClick={() => void handleSend()}
             style={{
               padding: "9px 16px",
-              borderRadius: 6,
+              borderRadius: "var(--admin-control-radius)",
               border: "none",
               backgroundColor: canSend ? navy : "var(--admin-border)",
-              color: canSend ? "var(--admin-text)" : "var(--admin-text-muted)",
+              color: canSend ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
               fontSize: 13,
               fontWeight: 700,
               cursor: canSend ? "pointer" : "not-allowed",

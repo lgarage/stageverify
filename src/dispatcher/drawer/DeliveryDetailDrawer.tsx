@@ -459,13 +459,16 @@ export function DeliveryDetailDrawer({
       onClick={onClose}
     >
       <div
+        className="admin-card"
         style={{
           height: "100%",
           width: "100%",
           maxWidth: 480,
           backgroundColor: "var(--admin-surface)",
-          borderLeft: "1px solid var(--admin-border)",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
+          border: "1px solid var(--admin-border)",
+          borderRadius: "var(--admin-radius-lg) 0 0 var(--admin-radius-lg)",
+          boxShadow: "var(--admin-shadow-card)",
+          padding: 0,
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
@@ -511,11 +514,12 @@ export function DeliveryDetailDrawer({
           </div>
           <button
             type="button"
+            className="admin-btn"
             onClick={onClose}
             style={{
-              padding: "5px 12px",
+              padding: "0 14px",
               border: "1px solid var(--admin-border)",
-              borderRadius: 4,
+              borderRadius: "var(--admin-control-radius)",
               backgroundColor: "var(--admin-surface-2)",
               color: "var(--admin-text)",
               fontWeight: 700,
@@ -529,7 +533,7 @@ export function DeliveryDetailDrawer({
           </button>
         </div>
 
-        <div style={{ padding: "20px", flex: 1 }}>
+        <div style={{ padding: "var(--admin-space-5)", flex: 1 }}>
           <DetailContent
             loading={detailLoading}
             error={detailError}

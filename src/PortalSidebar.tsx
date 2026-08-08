@@ -15,11 +15,11 @@ function navLinkStyle(active: boolean): CSSProperties {
     ? {
         backgroundColor: RED,
         color: "var(--admin-text)",
-        borderRadius: 6,
+        borderRadius: "var(--admin-radius-sm)",
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "18px 20px",
+        padding: "14px 16px",
         fontWeight: 700,
         fontSize: 15,
         textDecoration: "none",
@@ -27,11 +27,11 @@ function navLinkStyle(active: boolean): CSSProperties {
       }
     : {
         color: "rgba(255,255,255,0.60)",
-        borderRadius: 6,
+        borderRadius: "var(--admin-radius-sm)",
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "18px 20px",
+        padding: "14px 16px",
         fontWeight: 700,
         fontSize: 15,
         textDecoration: "none",
@@ -67,7 +67,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
   return (
     <aside className={`${PORTAL_SIDEBAR_CLASS} ${className}`.trim()}>
       <div
-        className="flex flex-col items-center px-6 pt-7 pb-5"
+        className="flex flex-col items-center px-6 pt-7 pb-6"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
       >
         <div
@@ -112,7 +112,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
         </span>
       </div>
 
-      <div className="px-5 pt-5 pb-1">
+      <div className="px-5 pt-6 pb-2">
         <span
           style={{
             color: "rgba(255,255,255,0.35)",

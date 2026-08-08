@@ -799,8 +799,8 @@ export function SettingsPage() {
   const cardStyle = {
     backgroundColor: "var(--admin-surface)",
     border: "1px solid var(--admin-border)",
-    borderRadius: 8,
-    boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
+    borderRadius: "var(--admin-radius-lg)",
+    boxShadow: "var(--admin-shadow-card)",
   };
 
   const startEditSpot = (spot: StagingLocation) => {
@@ -881,7 +881,8 @@ export function SettingsPage() {
     width: "100%",
     padding: "10px 12px",
     border: "1.5px solid var(--admin-border)",
-    borderRadius: 6,
+    minHeight: "var(--admin-control-height)",
+    borderRadius: "var(--admin-control-radius)",
     fontSize: 14,
     color: "var(--admin-text)",
     outline: "none",
@@ -2760,7 +2761,7 @@ export function SettingsPage() {
             </div>
           )}
 
-          <div style={{ ...cardStyle, overflow: "hidden", marginTop: 16 }}>
+          <div className="admin-card" style={{ ...cardStyle, overflow: "hidden", marginTop: 16, padding: 0 }}>
             <ManagementSettingsPanel />
           </div>
 

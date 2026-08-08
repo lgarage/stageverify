@@ -110,15 +110,16 @@ export function ResolveIssueModal({
     >
       <div
         data-testid="resolve-issue-modal-panel"
+        className="admin-card"
         style={{
           width: "100%",
           maxWidth: 580,
           maxHeight: "90vh",
           overflowY: "auto",
           backgroundColor: "var(--admin-surface)",
-          borderRadius: 12,
+          borderRadius: "var(--admin-radius-lg)",
           padding: "24px 28px",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+          boxShadow: "var(--admin-shadow-card)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -146,6 +147,7 @@ export function ResolveIssueModal({
           Resolution type
         </label>
         <select
+          className="admin-control"
           id="resolution-type-select"
           data-testid="resolution-type-select"
           value={resolutionType}
@@ -159,7 +161,7 @@ export function ResolveIssueModal({
             width: "100%",
             marginBottom: 16,
             padding: "10px 12px",
-            borderRadius: 6,
+            borderRadius: "var(--admin-control-radius)",
             border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
@@ -200,6 +202,7 @@ export function ResolveIssueModal({
               dispatch will see on the resolved issue.
             </p>
             <textarea
+              className="admin-control"
               id="resolution-note-input"
               data-testid="resolution-note-input"
               value={resolutionNote}
@@ -210,7 +213,7 @@ export function ResolveIssueModal({
                 width: "100%",
                 marginBottom: 16,
                 padding: "12px 14px",
-                borderRadius: 6,
+                borderRadius: "var(--admin-control-radius)",
                 border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 lineHeight: 1.5,
@@ -225,10 +228,11 @@ export function ResolveIssueModal({
         {showNeedMoreInfo && (
           <section
             data-testid="resolve-need-more-info-section"
+            className="admin-card"
             style={{
               marginBottom: 20,
               padding: "16px 18px",
-              borderRadius: 8,
+              borderRadius: "var(--admin-radius-md)",
               border: "1px solid #e2e8f0",
               backgroundColor: "var(--admin-surface-2)",
             }}
@@ -310,6 +314,7 @@ export function ResolveIssueModal({
               To
             </label>
             <input
+              className="admin-control"
               id="resolve-email-to"
               data-testid="resolve-email-to"
               type="email"
@@ -320,7 +325,7 @@ export function ResolveIssueModal({
                 width: "100%",
                 marginBottom: 12,
                 padding: "10px 12px",
-                borderRadius: 6,
+                borderRadius: "var(--admin-control-radius)",
                 border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 fontFamily: font,
@@ -340,6 +345,7 @@ export function ResolveIssueModal({
               Additional email addresses (optional)
             </label>
             <input
+              className="admin-control"
               id="resolve-email-cc"
               data-testid="resolve-email-cc"
               type="text"
@@ -350,7 +356,7 @@ export function ResolveIssueModal({
                 width: "100%",
                 marginBottom: 6,
                 padding: "10px 12px",
-                borderRadius: 6,
+                borderRadius: "var(--admin-control-radius)",
                 border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 fontFamily: font,
@@ -417,6 +423,7 @@ export function ResolveIssueModal({
               Subject
             </label>
             <input
+              className="admin-control"
               id="resolve-email-subject"
               data-testid="resolve-email-subject"
               value={emailSubject}
@@ -425,7 +432,7 @@ export function ResolveIssueModal({
                 width: "100%",
                 marginBottom: 12,
                 padding: "10px 12px",
-                borderRadius: 6,
+                borderRadius: "var(--admin-control-radius)",
                 border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 fontFamily: font,
@@ -445,6 +452,7 @@ export function ResolveIssueModal({
               Message
             </label>
             <textarea
+              className="admin-control"
               id="resolve-email-message"
               data-testid="resolve-email-message"
               rows={emailBody ? 10 : 4}
@@ -455,7 +463,7 @@ export function ResolveIssueModal({
                 width: "100%",
                 marginBottom: 14,
                 padding: "12px 14px",
-                borderRadius: 6,
+                borderRadius: "var(--admin-control-radius)",
                 border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 lineHeight: 1.5,
@@ -467,6 +475,7 @@ export function ResolveIssueModal({
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <button
                 type="button"
+                className="admin-btn admin-btn-primary"
                 data-testid="resolve-email-vendor"
                 disabled={!canSendEmail}
                 onClick={onEmailVendor}
@@ -480,10 +489,10 @@ export function ResolveIssueModal({
                 style={{
                   alignSelf: "flex-start",
                   padding: "9px 16px",
-                  borderRadius: 6,
+                  borderRadius: "var(--admin-control-radius)",
                   border: "none",
                   backgroundColor: canSendEmail ? navy : "var(--admin-border)",
-                  color: canSendEmail ? "var(--admin-text)" : "var(--admin-text-muted)",
+                  color: canSendEmail ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: canSendEmail ? "pointer" : "not-allowed",
@@ -539,10 +548,11 @@ export function ResolveIssueModal({
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
             type="button"
+            className="admin-btn"
             onClick={onClose}
             style={{
               padding: "9px 16px",
-              borderRadius: 6,
+              borderRadius: "var(--admin-control-radius)",
               border: "1px solid var(--admin-border)",
               backgroundColor: "var(--admin-surface)",
               fontSize: 14,
@@ -555,15 +565,16 @@ export function ResolveIssueModal({
           </button>
           <button
             type="button"
+            className="admin-btn admin-btn-primary"
             data-testid="confirm-resolve-issue"
             disabled={!canSaveResolution}
             onClick={onSubmit}
             style={{
               padding: "9px 16px",
-              borderRadius: 6,
+              borderRadius: "var(--admin-control-radius)",
               border: "none",
               backgroundColor: canSaveResolution ? navy : "var(--admin-border)",
-              color: canSaveResolution ? "var(--admin-text)" : "var(--admin-text-muted)",
+              color: canSaveResolution ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
               fontSize: 14,
               fontWeight: 700,
               cursor: canSaveResolution ? "pointer" : "not-allowed",

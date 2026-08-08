@@ -419,11 +419,8 @@ export function DispatcherDashboardPage() {
 
           {/* ── Search / Filter card ── */}
           <div
+            className="admin-card"
             style={{
-              backgroundColor: "var(--admin-surface)",
-              border: "1px solid var(--admin-border)",
-              borderRadius: 8,
-              boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
               padding: "15px 20px",
             }}
           >
@@ -465,6 +462,7 @@ export function DispatcherDashboardPage() {
                     <path d="M21 21l-4.35-4.35" />
                   </svg>
                   <input
+                    className="admin-control"
                     value={query.search}
                     onChange={(e) =>
                       setQuery((prev) => ({
@@ -478,7 +476,7 @@ export function DispatcherDashboardPage() {
                       width: "100%",
                       padding: "12px 14px 12px 40px",
                       border: "1.5px solid var(--admin-border)",
-                      borderRadius: 6,
+                      borderRadius: "var(--admin-control-radius)",
                       fontSize: 16,
                       color: "var(--admin-text)",
                       outline: "none",
@@ -529,12 +527,13 @@ export function DispatcherDashboardPage() {
                     const chipButton = (
                       <button
                         type="button"
+                        className="admin-chip"
                         onClick={() => toggleStatus(status)}
                         style={{
                           padding: showCompleteBadge
                             ? "4px 22px 4px 10px"
                             : "4px 10px",
-                          borderRadius: 4,
+                          borderRadius: "var(--admin-radius-pill)",
                           fontSize: 12,
                           fontWeight: 700,
                           letterSpacing: "normal",
@@ -610,6 +609,7 @@ export function DispatcherDashboardPage() {
                   })}
                   <button
                     type="button"
+                    className="admin-chip"
                     disabled={!hasActiveFilters}
                     onClick={() =>
                       setQuery((prev) => ({
@@ -622,7 +622,7 @@ export function DispatcherDashboardPage() {
                     style={{
                       marginLeft: 2,
                       padding: "4px 10px",
-                      borderRadius: 4,
+                      borderRadius: "var(--admin-radius-pill)",
                       fontSize: 12,
                       fontWeight: 700,
                       letterSpacing: "normal",
@@ -646,12 +646,8 @@ export function DispatcherDashboardPage() {
           {/* ── Table card ── */}
           <div
             id="portal-deliveries"
+            className="admin-table-wrap"
             style={{
-              backgroundColor: "var(--admin-surface)",
-              border: "1px solid var(--admin-border)",
-              borderRadius: 8,
-              boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
-              overflow: "hidden",
               display: "flex",
               flexDirection: "column",
             }}
@@ -755,26 +751,24 @@ export function DispatcherDashboardPage() {
             {/* Scrollable table */}
             <div style={{ overflowX: "auto" }}>
               <table
+                className="admin-table"
                 style={{
-                  width: "100%",
                   minWidth: 1100,
-                  borderCollapse: "collapse",
                   fontSize: 14,
                   fontFamily: FONT,
                 }}
               >
                 <thead>
-                  <tr style={{ backgroundColor: NAVY }} data-testid="dispatcher-deliveries-table-header">
+                  <tr data-testid="dispatcher-deliveries-table-header">
                     {SORT_COLUMNS.map((col) => {
                       const isSorted = col.key && query.sortBy === col.key;
                       return (
                         <th
                           key={col.label}
                           style={{
-                            padding: "12px",
                             fontWeight: 700,
-                            fontSize: 14,
-                            color: "var(--admin-on-navy)",
+                            fontSize: 12,
+                            color: "var(--admin-text-muted)",
                             textAlign: col.className?.includes("text-right")
                               ? "right"
                               : "left",
@@ -902,12 +896,9 @@ export function DispatcherDashboardPage() {
                           }}
                         >
                           <span
+                            className="admin-chip"
                             style={{
-                              display: "inline-flex",
-                              alignItems: "center",
                               gap: 5,
-                              padding: "3px 8px",
-                              borderRadius: 4,
                               fontSize: 11,
                               fontWeight: 700,
                               letterSpacing: "normal",
@@ -930,13 +921,12 @@ export function DispatcherDashboardPage() {
                           </span>
                           {row.creditReturnLinked ? (
                             <span
+                              className="admin-chip"
                               data-testid={`delivery-list-credit-return-badge-${row.deliveryId}`}
                               title="Credit/return — do not stage or pickup"
                               style={{
                                 display: "inline-flex",
                                 marginTop: 4,
-                                padding: "2px 6px",
-                                borderRadius: 4,
                                 fontSize: 10,
                                 fontWeight: 700,
                                 color: "var(--admin-danger-text)",
@@ -1243,6 +1233,7 @@ export function DispatcherDashboardPage() {
                         >
                           <button
                             data-testid="dispatcher-delivery-view"
+                            className="admin-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               void selectDelivery(row.deliveryId);
@@ -1255,8 +1246,8 @@ export function DispatcherDashboardPage() {
                               border: selected
                                 ? `1.5px solid ${NAVY}`
                                 : "1.5px solid var(--admin-accent-soft)",
-                              borderRadius: 4,
-                              padding: "4px 10px",
+                              borderRadius: "var(--admin-control-radius)",
+                              padding: "0 14px",
                               fontSize: 12,
                               fontWeight: 700,
                               cursor: "pointer",
@@ -1328,6 +1319,7 @@ export function DispatcherDashboardPage() {
                         </p>
                         {hasActiveFilters && (
                           <button
+                            className="admin-btn"
                             onClick={() =>
                               setQuery((prev) => ({
                                 ...prev,
@@ -1339,7 +1331,7 @@ export function DispatcherDashboardPage() {
                             style={{
                               marginTop: 16,
                               padding: "8px 18px",
-                              borderRadius: 4,
+                              borderRadius: "var(--admin-control-radius)",
                               border: `1.5px solid ${NAVY}`,
                               backgroundColor: "var(--admin-surface)",
                               color: "var(--admin-accent-soft)",
@@ -1456,11 +1448,12 @@ function PagBtn({
 }) {
   return (
     <button
+      className="admin-btn"
       onClick={onClick}
       disabled={disabled}
       style={{
         padding: "5px 10px",
-        borderRadius: 4,
+        borderRadius: "var(--admin-control-radius)",
         border: active ? `2px solid ${navy}` : "1px solid var(--admin-border)",
         backgroundColor: active ? navy : "var(--admin-surface)",
         color: active ? "var(--admin-text)" : disabled ? "var(--admin-text-muted)" : "var(--admin-text)",

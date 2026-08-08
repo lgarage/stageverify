@@ -103,7 +103,8 @@ const DRAWER_HIDE_VENDOR_COMMUNICATIONS = true;
 const DRAWER_HIDE_RESOLVED_MATERIAL_ISSUES = true;
 
 const DRAWER_ACTION_BTN_BASE = {
-  borderRadius: 4,
+  minHeight: "var(--admin-control-height)",
+  borderRadius: "var(--admin-control-radius)",
   padding: "8px 10px",
   fontSize: 12,
   fontWeight: 700,
@@ -666,13 +667,9 @@ export function DetailContent({
   const renderDrawerSection = (title: string, content: ReactNode) => (
     <section key={title}>
       <h3
+        className="admin-section-label"
         style={{
           margin: "0 0 10px",
-          fontSize: 11,
-          fontWeight: 700,
-          color: "var(--admin-text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.10em",
           display: "flex",
           alignItems: "center",
           gap: 8,

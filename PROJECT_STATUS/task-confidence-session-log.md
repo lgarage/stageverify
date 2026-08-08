@@ -29,3 +29,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | multi-file-feature (PIN & Access Management Settings) | T1 fast-safe UI | GPT-5.6 Sol High (Dan override) + Grok verify | 98 | 99 | ok (PR only) | Consolidated roster; no CF; no merge/deploy |
 | 2026-08-08 | merge-resolve (PR #45 + main Light/Dark) | T1 | GPT-5.6 Sol High + Grok verify | 98 | 99 | ok (PR only) | Merged origin/main; preserved PIN roster + theme vars |
 | 2026-08-08 | ship-op (merge PR #45 + gh-pages deploy) | T0/T1 fast-safe | Composer/Grok cloud ship | 99 | 99 | ok | PIN & Access Management LIVE; no CF/rules |
+| 2026-08-08 | css-restyle + multi-file-feature (admin UI modernization) | T1 fast-safe | GPT-5.6 Sol Medium (Dan override); Grok verify | 93→97 | 98 | ok | Tokens+utilities in portal-shell; rebase onto PIN Access; ship v0.0.230 |

@@ -52,9 +52,9 @@ export function DispatcherPortalTopBar({
       style={{
         backgroundColor: "var(--admin-surface)",
         borderBottom: "1px solid var(--admin-border)",
-        height: 52,
-        padding: "0 20px",
-        boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+        minHeight: 64,
+        padding: "0 24px",
+        boxShadow: "var(--admin-shadow-card)",
         display: "grid",
         gridTemplateColumns:
           "minmax(120px, 220px) max-content minmax(0, 1fr) max-content",
@@ -106,11 +106,12 @@ export function DispatcherPortalTopBar({
         {showNewDelivery ? (
           <button
             type="button"
+            className="admin-btn"
             onClick={handleNewDelivery}
             data-testid="dispatcher-new-delivery"
             style={{
-              padding: "5px 12px",
-              borderRadius: 4,
+              padding: "0 16px",
+              borderRadius: "var(--admin-control-radius)",
               border: "none",
               backgroundColor: RED,
               color: "#ffffff",
@@ -127,12 +128,13 @@ export function DispatcherPortalTopBar({
         {onRefreshNow ? (
           <button
             type="button"
+            className="admin-btn"
             onClick={() => void onRefreshNow()}
             disabled={refreshBusy || refreshDisabled}
             data-testid="dispatcher-refresh-now"
             style={{
-              padding: "5px 12px",
-              borderRadius: 4,
+              padding: "0 16px",
+              borderRadius: "var(--admin-control-radius)",
               border: `1.5px solid ${NAVY}`,
               backgroundColor: refreshBusy || refreshDisabled ? "var(--admin-surface-2)" : "var(--admin-surface)",
               color: refreshBusy || refreshDisabled ? "var(--admin-text-muted)" : "var(--admin-link)",
@@ -181,11 +183,12 @@ export function DispatcherPortalTopBar({
         ) : null}
         <button
           type="button"
+          className="admin-btn"
           data-testid="dispatcher-sign-out"
           onClick={() => signOutWithConfirm(auth, navigate)}
           style={{
-            padding: "5px 12px",
-            borderRadius: 4,
+            padding: "0 16px",
+            borderRadius: "var(--admin-control-radius)",
             border: `1.5px solid ${NAVY}`,
             backgroundColor: "var(--admin-surface)",
             color: "var(--admin-link)",
@@ -203,7 +206,7 @@ export function DispatcherPortalTopBar({
             width: 30,
             height: 30,
             borderRadius: "50%",
-            backgroundColor: NAVY,
+            backgroundColor: "var(--admin-navy)",
             color: "var(--admin-on-navy)",
             display: "flex",
             alignItems: "center",
