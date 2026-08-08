@@ -189,9 +189,9 @@ export function InvoiceRejectReasonDialog({
             onClick={onConfirm}
             style={{
               backgroundColor: RED,
-              color: "var(--admin-text)",
+              color: "var(--admin-on-navy)",
               border: "none",
-              borderRadius: 6,
+              borderRadius: "var(--admin-control-radius)",
               padding: "8px 14px",
               fontWeight: 700,
               fontSize: 13,
