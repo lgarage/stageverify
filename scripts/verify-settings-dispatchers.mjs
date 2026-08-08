@@ -1,5 +1,5 @@
 /**
- * Playwright: Settings → Dispatcher accounts panel (manager-only, D-60).
+ * Playwright: Settings → unified PIN & Access Management Auth identities.
  *
  * Usage:
  *   npm run dev   (another terminal)
@@ -17,7 +17,7 @@ import {
 } from "./lib/ui-text-contrast-lib.mjs";
 
 const args = process.argv.slice(2);
-const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
+const baseUrlFlag = args.find((arg) => arg.startsWith("--base-url="));
 const baseUrl =
   (baseUrlFlag ? baseUrlFlag.split("=")[1] : null) ??
   process.env.STAGEVERIFY_BASE_URL ??
@@ -39,26 +39,50 @@ if (existsSync(envPath)) {
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
-
 const appBase = resolveAppBase(baseUrl);
 
-const DISPATCHER_USERS_CONTRAST_SPEC = {
-  rootSelector: '[data-testid="dispatcher-users-settings-panel"]',
+const UNIFIED_ACCESS_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="pin-access-management-panel"]',
   elements: [
     {
       name: "section title",
-      selector: '[data-testid="dispatcher-users-settings-panel"] span',
+      selector: '[data-testid="pin-access-heading"]',
       large: true,
     },
     {
-      name: "provision email label",
-      selector: '[data-testid="dispatcher-provision-email"]',
+      name: "helper text",
+      selector: '[data-testid="pin-access-helper"]',
       large: false,
     },
     {
-      name: "create button",
+      name: "provision email",
+      selector: '[data-testid="dispatcher-provision-email"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "provision password",
+      selector: '[data-testid="dispatcher-provision-password"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "save Auth access",
       selector: '[data-testid="dispatcher-provision-submit"]',
-      large: true,
+      large: false,
+      optional: true,
+    },
+    {
+      name: "manager type chip",
+      selector: '[data-testid="pin-access-type-manager"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "dispatcher type chip",
+      selector: '[data-testid="pin-access-type-dispatcher"]',
+      large: false,
+      optional: true,
     },
   ],
 };
@@ -109,50 +133,69 @@ async function ensureAuthenticated(page) {
 
   console.log(`\n=== verify:settings-dispatchers @ ${appBase}/#/settings ===\n`);
 
-  await ensureAuthenticated(page);
+  try {
+    await ensureAuthenticated(page);
 
-  const section = page.getByTestId("dispatcher-users-settings-section");
-  const sectionVisible = await section.isVisible().catch(() => false);
+    const panel = page.getByTestId("pin-access-management-panel");
+    await panel.waitFor({ timeout: 30_000 });
+    await panel.scrollIntoViewIfNeeded();
+    await page.getByTestId("pin-access-roster").waitFor({ timeout: 15_000 });
+    console.log("PASS: unified PIN & Access Management roster visible");
 
-  if (!sectionVisible) {
+    const legacyTitleCount = await page
+      .getByText("Dispatcher accounts", { exact: true })
+      .count();
+    if (legacyTitleCount !== 0) {
+      throw new Error(
+        'Legacy separate "Dispatcher accounts" section is still rendered.',
+      );
+    }
+    console.log('PASS: no separate "Dispatcher accounts" section title');
+
+    await panel.getByTestId("pin-access-add-button").click();
+    const typeSelect = panel.getByTestId("pin-access-new-user-type");
+    await typeSelect.waitFor({ timeout: 10_000 });
+    const authOptions = await typeSelect
+      .locator('option[value="manager"], option[value="dispatcher"]')
+      .count();
+
+    if (authOptions < 2) {
+      await assertReadableTextContrast(page, UNIFIED_ACCESS_CONTRAST_SPEC);
+      console.log(
+        "SKIP: Auth create types are unavailable — test account lacks manager access; PIN roster and D-42 contrast passed.",
+      );
+      return;
+    }
+
+    await typeSelect.selectOption("manager");
+    await panel.getByTestId("pin-access-wizard-next").click();
+    await panel.getByTestId("dispatcher-provision-email").waitFor();
+    await panel.getByTestId("dispatcher-provision-password").waitFor();
+    await panel.getByTestId("dispatcher-provision-submit").waitFor();
     console.log(
-      "SKIP: dispatcher users panel not visible — test account may lack manager role (run ensure-dispatcher-role.mjs --manager).",
+      "PASS: Manager Auth path shows email, optional password, and Save controls",
     );
+
+    for (const type of ["manager", "dispatcher"]) {
+      const rows = panel.locator(`[data-testid^="pin-access-row-${type}-"]`);
+      const chips = panel.getByTestId(`pin-access-type-${type}`);
+      const rowCount = await rows.count();
+      if (rowCount > 0 && (await chips.count()) !== rowCount) {
+        throw new Error(
+          `${type} Auth rows rendered without matching unified type chips.`,
+        );
+      }
+    }
+    console.log("PASS: Auth rows use unified Manager/Dispatcher type chips");
+
+    await assertReadableTextContrast(page, UNIFIED_ACCESS_CONTRAST_SPEC);
+    console.log(
+      `PASS: D-42 contrast — unified access panel (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
+    );
+    console.log("\nverify:settings-dispatchers PASS\n");
+  } finally {
     await browser.close();
-    process.exit(0);
   }
-
-  await section.scrollIntoViewIfNeeded();
-  await page.waitForSelector('[data-testid="dispatcher-users-settings-panel"]', {
-    timeout: 15_000,
-  });
-  console.log("PASS: dispatcher users panel visible for manager");
-
-  await page.getByText("Dispatcher accounts", { exact: true }).waitFor({
-    timeout: 10_000,
-  });
-  console.log("PASS: section title present");
-
-  const form = page.getByTestId("dispatcher-users-provision-form");
-  await form.waitFor({ timeout: 10_000 });
-  await page.getByTestId("dispatcher-provision-email").waitFor();
-  await page.getByTestId("dispatcher-provision-submit").waitFor();
-  console.log("PASS: provision form present");
-
-  const table = page.getByTestId("dispatcher-users-table");
-  if ((await table.count()) > 0) {
-    console.log("PASS: dispatcher accounts table rendered");
-  } else {
-    console.log("PASS: empty table state (no rows yet)");
-  }
-
-  await assertReadableTextContrast(page, DISPATCHER_USERS_CONTRAST_SPEC);
-  console.log(
-    `PASS: D-42 contrast — dispatcher users panel (≥${MIN_TEXT_CONTRAST}:1 / ≥${MIN_LARGE_TEXT_CONTRAST}:1 large)`,
-  );
-
-  await browser.close();
-  console.log("\nverify:settings-dispatchers PASS\n");
 })().catch((err) => {
   console.error("FAIL:", err.message ?? err);
   process.exit(1);

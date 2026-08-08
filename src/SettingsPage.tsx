@@ -56,7 +56,6 @@ import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { PinAccessManagementPanel } from "./PinAccessManagementPanel";
 import { OfficeReceiversSettingsPanel } from "./OfficeReceiversSettingsPanel";
 import { ManagementSettingsPanel } from "./ManagementSettingsPanel";
-import { DispatcherUsersSettingsPanel } from "./DispatcherUsersSettingsPanel";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -2750,18 +2749,11 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <PinAccessManagementPanel />
+          <PinAccessManagementPanel
+            canManageDispatchers={isIgnoreRulesManager}
+          />
 
           <OfficeReceiversSettingsPanel />
-
-          {isIgnoreRulesManager && (
-            <div
-              style={{ ...cardStyle, overflow: "hidden", marginTop: 16 }}
-              data-testid="dispatcher-users-settings-section"
-            >
-              <DispatcherUsersSettingsPanel />
-            </div>
-          )}
 
           <div className="admin-card" style={{ ...cardStyle, overflow: "hidden", marginTop: 16, padding: 0 }}>
             <ManagementSettingsPanel />
