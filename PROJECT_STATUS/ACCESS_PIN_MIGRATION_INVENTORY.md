@@ -1,13 +1,30 @@
 # Access PIN migration inventory (read-only)
 
-**Status:** counts deferred — requires CF `migrateAccessPins` dryRun after deploy.
+**Collected:** 2026-08-08 — Firestore REST via `FIREBASE_TOKEN` (read-only scan).
 
-No Admin SDK production credentials are configured on the cloud agent VM for safe
-read-only scans of `technicians`, `vendors`, or `managementPins`. Do **not** run
-mutating migration against prod until Dan approves deploy.
+**Important:** These counts are **not** from `migrateAccessPins({ dryRun: true })` — that Cloud Function is **undeployed** on prod. This inventory is a REST-side classification snapshot only.
 
-**After CF deploy:** invoke `migrateAccessPins` with `{ dryRun: true, limit: 200 }`
-via manager auth and record `byType` counts here.
+## Counts (2026-08-08)
 
-**Local/emulator fixtures:** none seeded in this PR — tests cover crypto, session
-helpers, and rules blocks only.
+| Category | Count |
+| --- | ---: |
+| Technician plaintext/recoverable | 2 |
+| Technician hash-only | 0 |
+| Vendor plaintext/recoverable | 3 |
+| Vendor hash-only | 0 |
+| Management recoverable (`accessPinSecrets` revealable) | 0 |
+| Management hash-only | 1 (`managementPins` doc with `pinHash`; `accessPinSecrets` empty) |
+| Already migrated (`accessPinSecrets` docs) | 0 |
+| Errors/malformed | 0 |
+
+**Also:** `managementPinSecrets` legacy docs = **1** with `managementPinHash` configured (alongside registry).
+
+## After CF deploy
+
+1. Invoke `migrateAccessPins({ dryRun: true, limit: 200 })` via manager auth.
+2. Confirm CF-side classification **matches** the REST inventory above.
+3. Only after dryRun PASS and Dan approval: `migrateAccessPins({ dryRun: false, … })`.
+
+Do **not** run mutating migration against prod until Dan approves deploy.
+
+**Local/emulator fixtures:** none seeded in this PR — tests cover crypto, session helpers, and rules blocks only.
