@@ -41,3 +41,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | service-logic (single-tech exclusive job assignment — PR #46) | T1 fast-safe | Composer 2.5 Fast | 96→98 | 99 | ok (PR only) | assignJobToTechnicianForTodayExclusive + discover-all unassign; A→B verify PASS; no CF |
 | 2026-08-08 | merge-resolve (PR #46 + main v0.0.231 dark-mode) | T1 | Composer 2.5 Fast | 97 | 99 | ok (PR only) | Merged origin/main; preserved exclusive assign + Settings UI removal + theme |
 | 2026-08-08 | docs-governance / D-63 re-sync after PR #46 land on main | T0 harness | Composer 2.5 Fast | 98 | 99 | ok | Second main merge for PR #48 mergeability; Medium canonical + Task escalate preserved |
+| 2026-08-08 | ship-op (merge PR #46 + gh-pages deploy v0.0.232) | T0/T1 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | Exclusive assign LIVE; prod verifies PASS; no CF/rules |
+| 2026-08-08 | docs-governance / D-63 final sync before merge PR #48 | T0 harness | Composer 2.5 Fast | 99 | 99 | ok | Sync after v0.0.232 ship logs; Medium preferred + Task escalate; merge when CLEAN |

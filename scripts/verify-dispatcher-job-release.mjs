@@ -123,22 +123,34 @@ async function assertTableBadgesForDelivery(page, deliveryId, expectedTechIds) {
   if (!deliveryId) return;
   const cell = page.locator(`[data-testid="released-to-${deliveryId}"]`);
   if ((await cell.count()) === 0) return;
-  const badges = cell.locator('[data-testid^="released-to-badge-"]');
-  const count = await badges.count();
-  if (count !== expectedTechIds.length) {
+
+  const waitMs = 20_000;
+  try {
+    await page.waitForFunction(
+      ({ id, techIds }) => {
+        const cellEl = document.querySelector(
+          `[data-testid="released-to-${id}"]`,
+        );
+        if (!cellEl) return false;
+        const badges = cellEl.querySelectorAll(
+          '[data-testid^="released-to-badge-"]',
+        );
+        if (badges.length !== techIds.length) return false;
+        return techIds.every((techId) =>
+          cellEl.querySelector(
+            `[data-testid="released-to-badge-${id}-${techId}"]`,
+          ),
+        );
+      },
+      { id: deliveryId, techIds: expectedTechIds },
+      { timeout: waitMs },
+    );
+  } catch {
+    const badges = cell.locator('[data-testid^="released-to-badge-"]');
+    const count = await badges.count();
     throw new Error(
-      `Table Released To: expected ${expectedTechIds.length} badge(s), got ${count}`,
+      `Table Released To: expected ${expectedTechIds.length} badge(s) within ${waitMs / 1000}s, got ${count}`,
     );
-  }
-  for (const techId of expectedTechIds) {
-    const badge = page.getByTestId(
-      `released-to-badge-${deliveryId}-${techId}`,
-    );
-    if ((await badge.count()) === 0) {
-      throw new Error(
-        `Table missing badge released-to-badge-${deliveryId}-${techId}`,
-      );
-    }
   }
 }
 
@@ -146,10 +158,29 @@ async function assertNoTableBadgesForDelivery(page, deliveryId) {
   if (!deliveryId) return;
   const cell = page.locator(`[data-testid="released-to-${deliveryId}"]`);
   if ((await cell.count()) === 0) return;
-  const badges = cell.locator('[data-testid^="released-to-badge-"]');
-  const count = await badges.count();
-  if (count !== 0) {
-    throw new Error(`Unassign: expected 0 table badges, got ${count}`);
+
+  const waitMs = 15_000;
+  try {
+    await page.waitForFunction(
+      (id) => {
+        const cellEl = document.querySelector(
+          `[data-testid="released-to-${id}"]`,
+        );
+        if (!cellEl) return true;
+        return (
+          cellEl.querySelectorAll('[data-testid^="released-to-badge-"]')
+            .length === 0
+        );
+      },
+      deliveryId,
+      { timeout: waitMs },
+    );
+  } catch {
+    const badges = cell.locator('[data-testid^="released-to-badge-"]');
+    const count = await badges.count();
+    throw new Error(
+      `Unassign: expected 0 table badges within ${waitMs / 1000}s, got ${count}`,
+    );
   }
 }
 
