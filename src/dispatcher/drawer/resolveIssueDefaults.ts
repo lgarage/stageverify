@@ -102,18 +102,18 @@ export function buildSuggestedResolutionNote(
   return lines.join("\n");
 }
 
-/** Readable text on white inputs inside dispatcher modals. */
+/** Readable text on themed inputs inside dispatcher modals. */
 export const DRAWER_MODAL_INPUT_STYLE = {
-  color: "#111827",
-  backgroundColor: "#fff",
+  color: "var(--admin-text-data)",
+  backgroundColor: "var(--admin-surface)",
 } as const;
 
-/** Field labels on white modal panels — body inherits light text otherwise. */
+/** Field labels on modal panels — body inherits theme text otherwise. */
 export const DRAWER_MODAL_LABEL_STYLE = {
   display: "block",
   fontSize: 12,
   fontWeight: 600,
   marginBottom: 6,
-  color: "#0a3161",
+  color: "var(--admin-text-label)",
   textAlign: "left",
 } as const;

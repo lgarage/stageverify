@@ -121,7 +121,11 @@ export function DrawerActionBanner({
     bannerContent.bannerMode === "attention_required" ||
     (deliverToSitePending && readiness.readyForPickup);
 
-  const borderColor = allClear ? "var(--admin-success-text)" : calmWaiting ? "var(--admin-warning-text)" : "#bf0a30";
+  const borderColor = allClear
+    ? "var(--admin-success-border)"
+    : calmWaiting
+      ? "var(--admin-warning-border)"
+      : "var(--admin-danger-border)";
   const backgroundColor = allClear
     ? "var(--admin-success-bg)"
     : calmWaiting
@@ -130,13 +134,13 @@ export function DrawerActionBanner({
   const headingColor = allClear
     ? "var(--admin-success-text)"
     : calmWaiting
-      ? "#78350f"
+      ? "var(--admin-warning-text)"
       : "var(--admin-danger-text)";
   const summaryColor = allClear
     ? "var(--admin-success-text)"
     : calmWaiting
       ? "var(--admin-warning-text)"
-      : "#7f1d1d";
+      : "var(--admin-danger-text)";
   const bannerHeading = allClear
     ? "All Clear"
     : calmWaiting
@@ -198,8 +202,8 @@ export function DrawerActionBanner({
                 fontSize: 11,
                 fontWeight: 700,
                 color: "var(--admin-danger-text)",
-                backgroundColor: "#fee2e2",
-                border: "1px solid #fca5a5",
+                backgroundColor: "var(--admin-danger-bg)",
+                border: "1px solid var(--admin-danger-border)",
                 borderRadius: 999,
                 padding: "4px 10px",
               }}
@@ -231,7 +235,7 @@ export function DrawerActionBanner({
                 margin: "0 0 10px",
                 paddingLeft: 18,
                 fontSize: 13,
-                color: "#7f1d1d",
+                color: "var(--admin-danger-text)",
               }}
             >
               {bannerContent.whyBullets.map((label) => (
@@ -261,7 +265,7 @@ export function DrawerActionBanner({
                 margin: "0 0 12px",
                 paddingLeft: 18,
                 fontSize: 13,
-                color: "#7f1d1d",
+                color: "var(--admin-danger-text)",
               }}
             >
               {bannerContent.nextStepBullets.map((action) => (
@@ -286,7 +290,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
                   backgroundColor: navy,
-                  color: "var(--admin-text)",
+                  color: "var(--admin-on-navy)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -308,7 +312,7 @@ export function DrawerActionBanner({
                 borderRadius: 6,
                 border: `1.5px solid ${navy}`,
                 backgroundColor: canResolve ? navy : "var(--admin-surface)",
-                color: canResolve ? "var(--admin-text)" : "var(--admin-text-muted)",
+                color: canResolve ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: canResolve ? "pointer" : "not-allowed",
@@ -328,7 +332,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
                   backgroundColor: "var(--admin-surface)",
-                  color: navy,
+                color: "var(--admin-accent-soft)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -348,7 +352,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
                   backgroundColor: "var(--admin-surface)",
-                  color: navy,
+                color: "var(--admin-accent-soft)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -368,7 +372,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
                   backgroundColor: "var(--admin-surface)",
-                  color: navy,
+                color: "var(--admin-accent-soft)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -388,7 +392,7 @@ export function DrawerActionBanner({
             style={{
               margin: "8px 0 0",
               fontSize: 12,
-              color: "var(--admin-text-muted)",
+              color: "var(--admin-danger-text)",
               fontStyle: "italic",
             }}
           >
@@ -402,7 +406,8 @@ export function DrawerActionBanner({
             style={{
               margin: "10px 0 0",
               fontSize: 12,
-              color: "#334155",
+              color: "var(--admin-text-data)",
+              fontWeight: 600,
             }}
           >
             Vendor phone: {vendorPhone}
@@ -442,7 +447,7 @@ export function DrawerActionBanner({
                 margin: "0 0 8px",
                 fontSize: 16,
                 fontWeight: 700,
-                color: navy,
+                color: "var(--admin-accent-soft)",
               }}
             >
               Call Vendor
@@ -463,7 +468,7 @@ export function DrawerActionBanner({
               style={{
                 margin: "0 0 16px",
                 fontSize: 13,
-                color: "#111827",
+                color: "var(--admin-text-data)",
               }}
             >
               <div style={{ marginBottom: 10 }}>
@@ -480,7 +485,7 @@ export function DrawerActionBanner({
                     <a
                       href={telHref}
                       data-testid="call-vendor-phone-link"
-                      style={{ color: navy, fontWeight: 700, textDecoration: "none" }}
+                      style={{ color: "var(--admin-link)", fontWeight: 700, textDecoration: "none" }}
                     >
                       {vendorPhone}
                     </a>
@@ -521,7 +526,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: "none",
                   backgroundColor: navy,
-                  color: "var(--admin-text)",
+                  color: "var(--admin-on-navy)",
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",

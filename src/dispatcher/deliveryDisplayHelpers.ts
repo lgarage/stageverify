@@ -943,11 +943,11 @@ export function buildDrawerActionBannerContent(
 }
 
 export const ITEM_ISSUE_STATUS_COLOR: Record<ItemIssueDisplayStatus, string> = {
-  Backordered: "#f57c00",
-  "Not Delivered": "#c62828",
-  "Partial Delivery": "#d97706",
-  Delivered: "#2e7d32",
-  Resolved: "#2e7d32",
+  Backordered: "var(--admin-warning-text)",
+  "Not Delivered": "var(--admin-danger-text)",
+  "Partial Delivery": "var(--admin-warning-text)",
+  Delivered: "var(--admin-success-text)",
+  Resolved: "var(--admin-success-text)",
 };
 
 export function deriveItemIssueDisplayStatus(

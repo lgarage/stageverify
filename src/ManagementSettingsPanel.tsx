@@ -101,7 +101,7 @@ export function ManagementSettingsPanel() {
 
       {error && (
         <p
-          style={{ fontSize: 13, color: "#bf0a30", marginBottom: 12 }}
+          style={{ fontSize: 13, color: "var(--admin-danger-text)", marginBottom: 12 }}
           role="alert"
         >
           {error}

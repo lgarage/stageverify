@@ -11,8 +11,8 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const HEADER_BTN = {
   backgroundColor: "var(--admin-surface)",
-  color: "var(--admin-accent-soft)",
-  border: "1px solid #cbd5e1",
+  color: "var(--admin-text-label)",
+  border: "1px solid var(--admin-border)",
   borderRadius: 6,
   padding: "8px 14px",
   fontWeight: 700,
@@ -78,10 +78,10 @@ export function InvoiceRejectReasonDialog({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: "0 0 8px", color: "var(--admin-accent-soft)", fontSize: 18 }}>{title}</h3>
+        <h3 style={{ margin: "0 0 8px", color: "var(--admin-text-label)", fontSize: 18 }}>{title}</h3>
         <p
           data-testid="invoice-reject-reason-help"
-          style={{ margin: "0 0 14px", fontSize: 13, color: MUTED, lineHeight: 1.45 }}
+          style={{ margin: "0 0 14px", fontSize: 13, color: "var(--admin-text-secondary)", lineHeight: 1.45 }}
         >
           {helpText}
         </p>
@@ -91,7 +91,7 @@ export function InvoiceRejectReasonDialog({
             display: "block",
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--admin-accent-soft)",
+            color: "var(--admin-text-label)",
             marginBottom: 6,
           }}
         >
@@ -113,7 +113,7 @@ export function InvoiceRejectReasonDialog({
             fontWeight: 500,
             color: CELL_TEXT,
             backgroundColor: "var(--admin-surface)",
-            border: "1px solid #cbd5e1",
+            border: "1px solid var(--admin-border)",
             borderRadius: 8,
             padding: "10px 12px",
             marginBottom: 14,
@@ -133,7 +133,7 @@ export function InvoiceRejectReasonDialog({
             display: "block",
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--admin-accent-soft)",
+            color: "var(--admin-text-label)",
             marginBottom: 6,
           }}
         >
@@ -157,7 +157,7 @@ export function InvoiceRejectReasonDialog({
             lineHeight: 1.45,
             color: CELL_TEXT,
             backgroundColor: "var(--admin-surface)",
-            border: "1px solid #cbd5e1",
+            border: "1px solid var(--admin-border)",
             borderRadius: 8,
             padding: "12px 14px",
             resize: "vertical",

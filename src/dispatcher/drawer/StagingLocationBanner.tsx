@@ -34,7 +34,7 @@ export function StagingLocationBanner({
               fontWeight: 800,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
-              color: "#9a3412",
+              color: "var(--admin-warning-text)",
             }}
           >
             Staging Location Needed
@@ -45,7 +45,7 @@ export function StagingLocationBanner({
               margin: "6px 0 0",
               fontSize: 14,
               fontWeight: 500,
-              color: "#c2410c",
+              color: "var(--admin-warning-text)",
             }}
           >
             Assign a location for receiving and pickup.
@@ -59,9 +59,9 @@ export function StagingLocationBanner({
             flexShrink: 0,
             padding: "7px 12px",
             borderRadius: 6,
-            border: "1.5px solid #ea580c",
+            border: "1.5px solid var(--admin-warning-border)",
             backgroundColor: "var(--admin-surface)",
-            color: "#9a3412",
+            color: "var(--admin-warning-text)",
             fontSize: 12,
             fontWeight: 700,
             cursor: "pointer",

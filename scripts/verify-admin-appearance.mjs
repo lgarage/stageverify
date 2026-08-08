@@ -75,6 +75,14 @@ const DISPATCHER_SURFACE_ELEMENTS = [
     selector: '[data-testid="dispatcher-delivery-view"]',
   },
   {
+    name: "dispatcher Pending filter pill",
+    selector: '[data-testid="deliveries-status-filter-pending"]',
+  },
+  {
+    name: "dispatcher status chip",
+    selector: '[data-testid^="delivery-status-chip-"]',
+  },
+  {
     name: "dispatcher calm issue summary",
     selector: '[data-testid="dispatcher-issue-summary-calm"]',
     optional: true,
@@ -87,6 +95,31 @@ const DISPATCHER_SURFACE_ELEMENTS = [
   {
     name: "rejected invoices archive",
     selector: '[data-testid="invoice-review-rejected-link"]',
+    optional: true,
+  },
+  {
+    name: "invoice value cell",
+    selector: '[data-testid="invoice-review-field-value"]',
+    optional: true,
+  },
+];
+
+const DELIVERY_DRAWER_CONTRAST_ELEMENTS = [
+  {
+    name: "drawer action heading",
+    selector: '[data-testid="drawer-action-banner-heading"]',
+  },
+  {
+    name: "drawer action summary",
+    selector: '[data-testid="drawer-action-banner-summary"]',
+  },
+  {
+    name: "order summary status line",
+    selector: '[data-testid="issue-summary-lines"] li',
+  },
+  {
+    name: "order summary item value",
+    selector: '[data-testid^="issue-summary-row-"] > span:first-child',
     optional: true,
   },
 ];
@@ -234,6 +267,25 @@ async function assertDispatcherRouteSurfaces(page, appBase, modeLabel) {
   await assertAdminSurfaceContrast(page, `${modeLabel} dispatcher`, [
     ...DISPATCHER_SURFACE_ELEMENTS,
   ]);
+
+  await page.getByTestId("dispatcher-delivery-view").first().click();
+  await page.getByTestId("delivery-detail-drawer").waitFor({
+    state: "visible",
+    timeout: 15_000,
+  });
+  await page.getByTestId("drawer-action-banner").waitFor({
+    state: "visible",
+    timeout: 20_000,
+  });
+  await page.getByTestId("issue-summary-panel").waitFor({
+    state: "visible",
+    timeout: 20_000,
+  });
+  await assertAdminSurfaceContrast(
+    page,
+    `${modeLabel} delivery drawer`,
+    DELIVERY_DRAWER_CONTRAST_ELEMENTS,
+  );
 }
 
 async function assertVendorsRouteSurfaces(page, appBase, modeLabel) {

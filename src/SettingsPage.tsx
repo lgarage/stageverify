@@ -1578,7 +1578,7 @@ export function SettingsPage() {
                       style={{
                         margin: "0 0 12px",
                         fontSize: 12,
-                        color: "#4b5563",
+                        color: "var(--admin-text-secondary)",
                         lineHeight: 1.45,
                         fontWeight: 500,
                       }}
@@ -1610,10 +1610,10 @@ export function SettingsPage() {
                         width: "100%",
                         boxSizing: "border-box",
                         padding: "8px 10px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid var(--admin-border)",
                         borderRadius: 6,
                         fontSize: 13,
-                        color: "#111827",
+                        color: "var(--admin-text-data)",
                         backgroundColor: "var(--admin-surface)",
                         marginBottom: 10,
                         fontFamily: FONT,
@@ -1651,10 +1651,10 @@ export function SettingsPage() {
                         width: "100%",
                         boxSizing: "border-box",
                         padding: "8px 10px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid var(--admin-border)",
                         borderRadius: 6,
                         fontSize: 13,
-                        color: "#111827",
+                        color: "var(--admin-text-data)",
                         backgroundColor: "var(--admin-surface)",
                         marginBottom: 10,
                         fontFamily: FONT,
@@ -1755,7 +1755,7 @@ export function SettingsPage() {
                         style={{
                           margin: "0 0 10px",
                           fontSize: 12,
-                          color: "#4b5563",
+                          color: "var(--admin-text-secondary)",
                           lineHeight: 1.45,
                           fontWeight: 500,
                         }}
@@ -1826,10 +1826,10 @@ export function SettingsPage() {
                             flex: "1 1 180px",
                             boxSizing: "border-box",
                             padding: "8px 10px",
-                            border: "1px solid #cbd5e1",
+                            border: "1px solid var(--admin-border)",
                             borderRadius: 6,
                             fontSize: 13,
-                            color: "#111827",
+                            color: "var(--admin-text-data)",
                             backgroundColor: "var(--admin-surface)",
                             fontFamily: FONT,
                           }}
@@ -2019,7 +2019,7 @@ export function SettingsPage() {
                                   style={{
                                     fontSize: 13,
                                     fontWeight: 700,
-                                    color: "#111827",
+                                    color: "var(--admin-text-data)",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 8,
@@ -2147,7 +2147,7 @@ export function SettingsPage() {
                                           border: "1px solid var(--admin-border)",
                                           fontSize: 12,
                                           minWidth: 120,
-                                          color: "#111827",
+                                          color: "var(--admin-text-data)",
                                           backgroundColor: "var(--admin-surface)",
                                           fontFamily: FONT,
                                         }}
@@ -2400,7 +2400,7 @@ export function SettingsPage() {
                         style={{
                           margin: "0 0 10px",
                           fontSize: 12,
-                          color: "#4b5563",
+                          color: "var(--admin-text-secondary)",
                           lineHeight: 1.45,
                           fontWeight: 500,
                         }}
@@ -2630,7 +2630,9 @@ export function SettingsPage() {
                           backgroundColor:
                             connectingGmail || loadingGmailConnection ? "var(--admin-border)" : NAVY,
                           color:
-                            connectingGmail || loadingGmailConnection ? "var(--admin-text-muted)" : "var(--admin-text)",
+                            connectingGmail || loadingGmailConnection
+                              ? "var(--admin-text-muted)"
+                              : "var(--admin-on-navy)",
                           fontWeight: 700,
                           fontSize: 13,
                           cursor:
@@ -3135,9 +3137,9 @@ export function SettingsPage() {
                                   style={{
                                     padding: "3px 10px",
                                     borderRadius: 4,
-                                    border: "1.5px solid #0a3161",
+                                    border: "1.5px solid var(--admin-accent)",
                                     backgroundColor: "var(--admin-surface)",
-                                    color: "#0a3161",
+                                    color: "var(--admin-accent)",
                                     fontSize: 12,
                                     fontWeight: 600,
                                     cursor: "pointer",

@@ -233,7 +233,7 @@ export function ResolveIssueModal({
               marginBottom: 20,
               padding: "16px 18px",
               borderRadius: "var(--admin-radius-md)",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--admin-border)",
               backgroundColor: "var(--admin-surface-2)",
             }}
           >
@@ -253,7 +253,7 @@ export function ResolveIssueModal({
               style={{
                 margin: "0 0 16px",
                 fontSize: 13,
-                color: "#111827",
+                color: "var(--admin-text-data)",
                 fontFamily: font,
               }}
             >

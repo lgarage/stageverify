@@ -138,9 +138,9 @@ const typeLabels: Record<UserType, string> = {
 
 function TypeChip({ type }: { type: UserType }) {
   const colors: Record<UserType, { bg: string; color: string }> = {
-    technician: { bg: "#e0f2fe", color: "#075985" },
-    vendor: { bg: "#fef3c7", color: "#92400e" },
-    management: { bg: "#ede9fe", color: "#5b21b6" },
+    technician: { bg: "var(--admin-info-bg)", color: "var(--admin-info-text)" },
+    vendor: { bg: "var(--admin-warning-bg)", color: "var(--admin-warning-text)" },
+    management: { bg: "var(--admin-surface-2)", color: "var(--admin-text-label)" },
   };
   return (
     <span
@@ -770,7 +770,7 @@ export function PinAccessManagementPanel() {
         style={{ display: "grid", gap: 14 }}
       >
         <div>
-          <h3 style={{ margin: 0, color: "var(--admin-accent-soft)" }}>
+          <h3 style={{ margin: 0, color: "var(--admin-text-data)" }}>
             {technician.name}
           </h3>
           <span
@@ -911,7 +911,7 @@ export function PinAccessManagementPanel() {
       style={{ display: "grid", gap: 14 }}
     >
       <div>
-        <h3 style={{ margin: 0, color: "var(--admin-accent-soft)" }}>
+        <h3 style={{ margin: 0, color: "var(--admin-text-data)" }}>
           {vendor.name}
         </h3>
         <p

@@ -40,20 +40,20 @@ export function InvoiceDeliveryMatchSection({
         borderRadius: 8,
       }}
     >
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-accent-soft)", margin: "0 0 10px" }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 10px" }}>
         Delivery on Approve
       </h3>
       <p
         data-testid="invoice-delivery-will-create"
         style={{
           fontSize: 12,
-          color: "var(--admin-accent-soft)",
+          color: "var(--admin-text-label)",
           margin: "0 0 12px",
           lineHeight: 1.45,
           padding: "8px 10px",
-          backgroundColor: "#eef2ff",
+          backgroundColor: "var(--admin-info-bg)",
           borderRadius: 6,
-          border: "1px solid #c7d2fe",
+          border: "1px solid var(--admin-info-border)",
         }}
       >
         Approve creates a new dashboard delivery{" "}
@@ -76,7 +76,7 @@ export function InvoiceDeliveryMatchSection({
       {matchUnavailable && (
         <p
           data-testid="invoice-review-match-unavailable"
-          style={{ fontSize: 12, color: "#9a3412", margin: "0 0 10px", lineHeight: 1.4 }}
+          style={{ fontSize: 12, color: "var(--admin-warning-text)", margin: "0 0 10px", lineHeight: 1.4 }}
         >
           {matchUnavailable}
         </p>
