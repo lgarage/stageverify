@@ -179,11 +179,11 @@ function assertOfflineStagingActionRules() {
     fulfillmentOnlyDisplay.issueSummary,
   );
   record(
-    "offline — Will-Call staging list N/A (pickup_at_vendor)",
+    "offline — Will-Call staging list uses empty marker (pickup_at_vendor)",
     isWillCallPickupStagingListNa(willCallShell),
   );
   record(
-    "offline — shop delivery staging list not N/A",
+    "offline — shop delivery staging list not marked not-applicable",
     !isWillCallPickupStagingListNa(pendingNoStaging),
   );
 
@@ -603,8 +603,10 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
     const stagingCell = row.locator("td").nth(stagingColumnIndex);
     const stagingNa = stagingCell.locator('[data-testid^="delivery-list-staging-na-"]');
     const hasStagingNa = (await stagingNa.count()) > 0;
-    const notAssigned = stagingCell.getByText("Not Assigned", { exact: true });
-    const stagingUnassigned = (await notAssigned.count()) > 0;
+    const stagingUnassignedMarker = stagingCell.locator(
+      '[data-testid^="delivery-list-staging-unassigned-"]',
+    );
+    const stagingUnassigned = (await stagingUnassignedMarker.count()) > 0;
     const hasOrangeRowClass = await row.evaluate((el) =>
       el.classList.contains("dispatcher-action-required"),
     );
@@ -615,13 +617,13 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
     );
     if (hasStagingNa) {
       record(
-        `${orderNumber} — Will-Call staging Loc. shows N/A`,
-        (await stagingNa.innerText()).trim() === "N/A",
-        "N/A",
+        `${orderNumber} — Will-Call staging Loc. shows quiet empty marker`,
+        (await stagingNa.innerText()).trim() === "—",
+        "—",
       );
       const chips = stagingCell.locator('[data-testid^="delivery-list-staging-chip-"]');
       record(
-        `${orderNumber} — N/A row has no staging chips`,
+        `${orderNumber} — Will-Call empty marker row has no staging chips`,
         (await chips.count()) === 0,
       );
       continue;
@@ -630,9 +632,9 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
       const pill = row.locator(`[data-testid^="staging-assignment-pill-"]`);
       const pillCount = await pill.count();
       record(
-        `${orderNumber} — unassigned staging shows Not Assigned`,
-        true,
-        "Not Assigned",
+        `${orderNumber} — unassigned staging shows quiet empty marker`,
+        (await stagingUnassignedMarker.innerText()).trim() === "—",
+        "—",
       );
       record(
         `${orderNumber} — staging assignment red pill when action required`,
@@ -775,9 +777,12 @@ async function openRowByStagingAssignment(page, wantUnassigned) {
     const row = rows.nth(i);
     const stagingCell = row.locator("td").nth(stagingColumnIndex);
     const isWillCallNa =
-      (await stagingCell.getByText("N/A", { exact: true }).count()) > 0;
+      (await stagingCell.locator('[data-testid^="delivery-list-staging-na-"]').count()) >
+      0;
     const isUnassigned =
-      (await stagingCell.getByText("Not Assigned", { exact: true }).count()) > 0;
+      (await stagingCell
+        .locator('[data-testid^="delivery-list-staging-unassigned-"]')
+        .count()) > 0;
     if (!wantUnassigned && isWillCallNa) continue;
     if (isUnassigned === wantUnassigned) {
       await page.keyboard.press("Escape");
@@ -2381,7 +2386,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     );
     await assertDeliveryBasicsStaging(page, record, unassignedOrder, true);
     // PR #49 / v0.0.233: banner only when shop staging required ∧ no actual/planned
-    // assignment. List "Not Assigned" can still appear when planned spots exist —
+    // assignment. The list empty marker can still appear when planned spots exist —
     // drawer SoT is data-has-assigned-staging on Delivery Basics.
     const stagingBasics = page.getByTestId("delivery-basics-staging-locations");
     const hasAssignedAttr =
@@ -2391,7 +2396,7 @@ async function assertOrd006EmailReviewAction(page, record) {
       record(
         `${unassignedOrder} — planned/assigned staging gates banner off`,
         true,
-        "data-has-assigned-staging=true (list may still show Not Assigned)",
+        "data-has-assigned-staging=true (list may still show the empty marker)",
       );
     }
     await assertStagingLocationBanner(
