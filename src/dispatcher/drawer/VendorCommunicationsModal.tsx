@@ -361,7 +361,7 @@ export function VendorCommunicationsModal({
             margin: "0 0 6px",
             fontSize: 20,
             fontWeight: 700,
-            color: navy,
+            color: "var(--admin-text-label)",
             fontFamily: font,
           }}
         >
@@ -372,7 +372,7 @@ export function VendorCommunicationsModal({
           style={{
             margin: "0 0 18px",
             fontSize: 13,
-            color: "var(--admin-text-muted)",
+            color: "var(--admin-text-secondary)",
             textAlign: "left",
           }}
         >

@@ -46,15 +46,14 @@ import {
 import { InvoiceRejectReasonDialog } from "./InvoiceRejectReasonDialog";
 
 const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const CELL_TEXT = "#111827";
-const MUTED = "#4b5563";
+const CELL_TEXT = "var(--admin-text-data)";
+const MUTED = "var(--admin-text-secondary)";
 
 const HEADER_BTN: CSSProperties = {
   backgroundColor: "var(--admin-surface)",
-  color: "var(--admin-accent-soft)",
-  border: `1px solid ${NAVY}`,
+  color: "var(--admin-text-label)",
+  border: "1px solid var(--admin-border)",
   borderRadius: 6,
   padding: "8px 14px",
   fontWeight: 600,
@@ -509,7 +508,7 @@ export function InvoiceParsedInspectModal({
                   margin: 0,
                   fontSize: 20,
                   fontWeight: 700,
-                  color: "var(--admin-accent-soft)",
+                  color: "var(--admin-text-label)",
                 }}
               >
                 Parsed import data
@@ -565,8 +564,8 @@ export function InvoiceParsedInspectModal({
                 onClick={onReparse}
                 style={{
                   backgroundColor: "var(--admin-surface)",
-                  color: "var(--admin-accent-soft)",
-                  border: `1px solid ${NAVY}`,
+                  color: "var(--admin-text-label)",
+                  border: "1px solid var(--admin-border)",
                   borderRadius: 6,
                   padding: "8px 14px",
                   fontWeight: 600,
@@ -584,7 +583,7 @@ export function InvoiceParsedInspectModal({
               onClick={onClose}
               style={{
                 backgroundColor: "var(--admin-surface)",
-                color: "var(--admin-accent-soft)",
+                color: "var(--admin-text-label)",
                 border: "1px solid var(--admin-border)",
                 borderRadius: 6,
                 padding: "8px 14px",
@@ -603,7 +602,7 @@ export function InvoiceParsedInspectModal({
               style={{
                 margin: "12px 0 0",
                 fontSize: 12,
-                color: "#9a3412",
+                color: "var(--admin-warning-text)",
               }}
             >
               {pdfUnavailableMessage(importRow.id)}
@@ -641,7 +640,7 @@ export function InvoiceParsedInspectModal({
             fontSize: 13,
           }}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-accent-soft)", margin: "0 0 12px" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 12px" }}>
             Review summary
           </h3>
           <div
@@ -673,7 +672,7 @@ export function InvoiceParsedInspectModal({
                       ? "var(--admin-success-text)"
                       : checklist.approvalEligibleLabel === "N/A"
                         ? "var(--admin-text-muted)"
-                        : "#9a3412",
+                        : "var(--admin-warning-text)",
                   fontWeight: 600,
                 }}
               >
@@ -710,7 +709,7 @@ export function InvoiceParsedInspectModal({
                 marginTop: 12,
                 padding: "10px 12px",
                 backgroundColor: "var(--admin-danger-bg)",
-                border: "2px solid #fca5a5",
+                border: "2px solid var(--admin-danger-border)",
                 borderRadius: 8,
                 color: "var(--admin-danger-text)",
                 fontWeight: 700,
@@ -727,9 +726,9 @@ export function InvoiceParsedInspectModal({
                 marginTop: 12,
                 padding: "10px 12px",
                 backgroundColor: "var(--admin-warning-bg)",
-                border: "2px solid #fdba74",
+                border: "2px solid var(--admin-warning-border)",
                 borderRadius: 8,
-                color: "#9a3412",
+                color: "var(--admin-warning-text)",
                 fontWeight: 700,
                 fontSize: 14,
               }}
@@ -744,9 +743,9 @@ export function InvoiceParsedInspectModal({
                 marginTop: 12,
                 padding: "8px 10px",
                 backgroundColor: "var(--admin-info-bg)",
-                border: "1px solid #bfdbfe",
+                border: "1px solid var(--admin-info-border)",
                 borderRadius: 6,
-                color: "var(--admin-accent-soft)",
+                color: "var(--admin-text-label)",
                 fontWeight: 700,
               }}
             >
@@ -781,9 +780,9 @@ export function InvoiceParsedInspectModal({
                 marginTop: 12,
                 padding: "8px 10px",
                 backgroundColor: "var(--admin-warning-bg)",
-                border: "1px solid #fed7aa",
+                border: "1px solid var(--admin-warning-border)",
                 borderRadius: 6,
-                color: "#9a3412",
+                color: "var(--admin-warning-text)",
               }}
             >
               <strong>Block reason:</strong> {checklist.blockReason}
@@ -796,9 +795,9 @@ export function InvoiceParsedInspectModal({
                 marginTop: 12,
                 padding: "8px 10px",
                 backgroundColor: "var(--admin-warning-bg)",
-                border: "1px solid #fed7aa",
+                border: "1px solid var(--admin-warning-border)",
                 borderRadius: 6,
-                color: "#9a3412",
+                color: "var(--admin-warning-text)",
                 fontWeight: 600,
               }}
             >
@@ -822,9 +821,9 @@ export function InvoiceParsedInspectModal({
                 backgroundColor: reparseMessage.startsWith("Refreshed")
                   ? "var(--admin-success-bg)"
                   : "var(--admin-warning-bg)",
-                border: `1px solid ${reparseMessage.startsWith("Refreshed") ? "#bbf7d0" : "#fed7aa"}`,
+                border: `1px solid ${reparseMessage.startsWith("Refreshed") ? "var(--admin-success-border)" : "var(--admin-warning-border)"}`,
                 borderRadius: 6,
-                color: reparseMessage.startsWith("Refreshed") ? "var(--admin-success-text)" : "#9a3412",
+                color: reparseMessage.startsWith("Refreshed") ? "var(--admin-success-text)" : "var(--admin-warning-text)",
                 fontSize: 12,
               }}
             >
@@ -836,7 +835,7 @@ export function InvoiceParsedInspectModal({
           ) : null}
         </div>
 
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-accent-soft)", margin: "0 0 10px" }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 10px" }}>
           Parsed header
         </h3>
         {headerRows.length === 0 ? (
@@ -857,7 +856,10 @@ export function InvoiceParsedInspectModal({
             {headerRows.map((row) => (
               <div key={row.key}>
                 <div style={{ color: MUTED, fontWeight: 600 }}>{row.label}</div>
-                <div style={{ color: "var(--admin-accent-soft)", fontWeight: row.key === "customerPoOrReference" ? 600 : 500 }}>
+                <div
+                  data-testid="invoice-parsed-header-value"
+                  style={{ color: "var(--admin-text-data)", fontWeight: row.key === "customerPoOrReference" ? 600 : 500 }}
+                >
                   {row.value}
                 </div>
               </div>
@@ -867,12 +869,12 @@ export function InvoiceParsedInspectModal({
 
         {parseWarnings.length > 0 && (
           <>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-accent-soft)", margin: "0 0 10px" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 10px" }}>
               Parse warnings
             </h3>
             <ul
               data-testid="invoice-parsed-inspect-warnings"
-              style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 13, color: "#9a3412" }}
+              style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 13, color: "var(--admin-warning-text)" }}
             >
               {parseWarnings.map((warning) => (
                 <li key={warning}>{warning}</li>
@@ -883,7 +885,7 @@ export function InvoiceParsedInspectModal({
 
         {orderNotes.length > 0 && (
           <>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-accent-soft)", margin: "0 0 10px" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 10px" }}>
               Order notes
             </h3>
             <ul
@@ -899,7 +901,7 @@ export function InvoiceParsedInspectModal({
           </>
         )}
 
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-accent-soft)", margin: "0 0 10px" }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 10px" }}>
           Parsed lines ({parsedLines.length})
         </h3>
         <div
@@ -908,17 +910,17 @@ export function InvoiceParsedInspectModal({
         >
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ backgroundColor: "#f1f5f9", textAlign: "left" }}>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>LN</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)", minWidth: 88 }}>Product</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)", minWidth: 100 }}>Mfg / model</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)", minWidth: 220 }}>Description</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>Ord</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>Ship</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>B/O</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>UOM</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>Extension</th>
-                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-accent-soft)" }}>Type</th>
+              <tr style={{ backgroundColor: "var(--admin-surface-2)", textAlign: "left" }}>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>LN</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)", minWidth: 88 }}>Product</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)", minWidth: 100 }}>Mfg / model</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)", minWidth: 220 }}>Description</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>Ord</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>Ship</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>B/O</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>UOM</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>Extension</th>
+                <th style={{ ...TABLE_CELL, fontWeight: 700, color: "var(--admin-table-header-text)" }}>Type</th>
               </tr>
             </thead>
             <tbody>
@@ -966,7 +968,7 @@ export function InvoiceParsedInspectModal({
               cursor: "pointer",
               fontSize: 13,
               fontWeight: 700,
-              color: RED,
+              color: "var(--admin-danger-text)",
               marginBottom: 10,
             }}
           >
@@ -1020,8 +1022,8 @@ export function InvoiceParsedInspectModal({
                 data-testid="invoice-parsed-inspect-training-panel"
                 style={{
                   padding: "14px 16px",
-                  backgroundColor: "#f0f5fa",
-                  border: "1px solid #d0dbe8",
+                  backgroundColor: "var(--admin-surface-2)",
+                  border: "1px solid var(--admin-border)",
                   borderRadius: 8,
                 }}
               >
@@ -1040,7 +1042,7 @@ export function InvoiceParsedInspectModal({
                       margin: 0,
                       fontSize: 14,
                       fontWeight: 700,
-                      color: "var(--admin-accent-soft)",
+                      color: "var(--admin-text-data)",
                       fontFamily: FONT,
                     }}
                   >
@@ -1062,7 +1064,7 @@ export function InvoiceParsedInspectModal({
                     margin: "0 0 10px",
                     fontSize: 12,
                     lineHeight: 1.45,
-                    color: "#4b5563",
+                    color: "var(--admin-text-secondary)",
                     fontWeight: 500,
                     fontFamily: FONT,
                   }}
@@ -1079,11 +1081,11 @@ export function InvoiceParsedInspectModal({
                       margin: "0 0 10px",
                       padding: "10px 12px",
                       backgroundColor: "var(--admin-surface)",
-                      border: "1px solid #93c5fd",
+                      border: "1px solid var(--admin-info-border)",
                       borderRadius: 8,
                       fontSize: 13,
                       lineHeight: 1.45,
-                      color: "var(--admin-accent-soft)",
+                      color: "var(--admin-text-label)",
                       fontWeight: 600,
                       fontFamily: FONT,
                     }}
@@ -1111,7 +1113,7 @@ export function InvoiceParsedInspectModal({
                     lineHeight: 1.45,
                     color: CELL_TEXT,
                     backgroundColor: "var(--admin-surface)",
-                    border: "1px solid #cbd5e1",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 8,
                     padding: "12px 14px",
                     resize: "vertical",
@@ -1121,12 +1123,12 @@ export function InvoiceParsedInspectModal({
                     boxShadow: "inset 0 1px 2px rgba(15, 23, 42, 0.04)",
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = NAVY;
+                    e.currentTarget.style.borderColor = "var(--admin-accent)";
                     e.currentTarget.style.boxShadow =
                       "0 0 0 3px rgba(10, 49, 97, 0.12)";
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "#cbd5e1";
+                    e.currentTarget.style.borderColor = "var(--admin-border)";
                     e.currentTarget.style.boxShadow =
                       "inset 0 1px 2px rgba(15, 23, 42, 0.04)";
                   }}
@@ -1154,8 +1156,8 @@ export function InvoiceParsedInspectModal({
                   onClick={() => void handleTeachSend()}
                   style={{
                     backgroundColor: "var(--admin-surface)",
-                    color: "var(--admin-accent-soft)",
-                    border: `1px solid ${NAVY}`,
+                    color: "var(--admin-text-label)",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 6,
                     padding: "10px 18px",
                     fontSize: 13,
@@ -1190,8 +1192,8 @@ export function InvoiceParsedInspectModal({
                   onClick={openRejectDialog}
                   style={{
                     backgroundColor: "var(--admin-surface)",
-                    color: RED,
-                    border: `1px solid ${RED}`,
+                    color: "var(--admin-danger-text)",
+                    border: "1px solid var(--admin-danger-border)",
                     borderRadius: 6,
                     padding: "10px 18px",
                     fontSize: 13,
@@ -1212,8 +1214,8 @@ export function InvoiceParsedInspectModal({
                   onClick={onReopen}
                   style={{
                     backgroundColor: "var(--admin-surface)",
-                    color: "var(--admin-accent-soft)",
-                    border: `1px solid ${NAVY}`,
+                    color: "var(--admin-text-label)",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 6,
                     padding: "10px 18px",
                     fontSize: 13,
@@ -1322,7 +1324,7 @@ export function InvoiceParsedInspectModal({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 8px", color: "var(--admin-accent-soft)", fontSize: 18 }}>
+            <h3 style={{ margin: "0 0 8px", color: "var(--admin-text-label)", fontSize: 18 }}>
               {lessonPreview.safe
                 ? "Confirm training lesson"
                 : "Note cannot be saved"}
@@ -1464,7 +1466,7 @@ export function InvoiceParsedInspectModal({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 8px", color: "var(--admin-accent-soft)", fontSize: 18 }}>
+            <h3 style={{ margin: "0 0 8px", color: "var(--admin-text-label)", fontSize: 18 }}>
               Admin password
             </h3>
             <p style={{ margin: "0 0 14px", fontSize: 13, color: MUTED }}>
@@ -1485,7 +1487,7 @@ export function InvoiceParsedInspectModal({
                 width: "100%",
                 boxSizing: "border-box",
                 padding: "10px 12px",
-                border: "1px solid #cbd5e1",
+                border: "1px solid var(--admin-border)",
                 borderRadius: 6,
                 fontSize: 14,
                 color: CELL_TEXT,
@@ -1496,7 +1498,7 @@ export function InvoiceParsedInspectModal({
             {adminPasswordError && (
               <p
                 data-testid="invoice-training-admin-password-error"
-                style={{ margin: "0 0 10px", fontSize: 13, color: RED }}
+                style={{ margin: "0 0 10px", fontSize: 13, color: "var(--admin-danger-text)" }}
               >
                 {adminPasswordError}
               </p>
@@ -1578,7 +1580,7 @@ export function InvoiceParsedInspectModal({
                 gap: 12,
               }}
             >
-              <h3 style={{ margin: 0, color: "var(--admin-accent-soft)", fontSize: 18 }}>
+              <h3 style={{ margin: 0, color: "var(--admin-text-label)", fontSize: 18 }}>
                 Training playbook — {mdEditor.vendorKey}.md
               </h3>
               <button
@@ -1606,14 +1608,14 @@ export function InvoiceParsedInspectModal({
                 lineHeight: 1.45,
                 color: CELL_TEXT,
                 backgroundColor: "var(--admin-surface)",
-                border: "1px solid #cbd5e1",
+                border: "1px solid var(--admin-border)",
                 borderRadius: 8,
                 padding: 12,
                 resize: "vertical",
               }}
             />
             {adminPasswordError && (
-              <p style={{ margin: 0, fontSize: 13, color: RED }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--admin-danger-text)" }}>
                 {adminPasswordError}
               </p>
             )}

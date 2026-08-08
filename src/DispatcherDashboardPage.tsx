@@ -528,6 +528,7 @@ export function DispatcherDashboardPage() {
                       <button
                         type="button"
                         className="admin-chip"
+                        data-testid={`deliveries-status-filter-${status}`}
                         onClick={() => toggleStatus(status)}
                         style={{
                           padding: showCompleteBadge
@@ -540,7 +541,7 @@ export function DispatcherDashboardPage() {
                           boxSizing: "border-box",
                           border: `2px solid ${active ? b.border : "var(--admin-border)"}`,
                           backgroundColor: active ? b.bg : "var(--admin-surface-2)",
-                          color: active ? b.text : "var(--admin-text-muted)",
+                          color: active ? b.text : "var(--admin-text-label)",
                           cursor: "pointer",
                           transition:
                             "background-color 0.12s, color 0.12s, border-color 0.12s",
@@ -714,7 +715,7 @@ export function DispatcherDashboardPage() {
                         alignItems: "center",
                         gap: 5,
                         fontSize: 11,
-                        color: "#4b5563",
+                        color: "var(--admin-text-label)",
                         fontWeight: 600,
                       }}
                     >
@@ -768,7 +769,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             fontWeight: 700,
                             fontSize: 12,
-                            color: "var(--admin-text-muted)",
+                            color: "var(--admin-table-header-text)",
                             textAlign: col.className?.includes("text-right")
                               ? "right"
                               : "left",
@@ -824,9 +825,9 @@ export function DispatcherDashboardPage() {
                     const b = listStatusBadge(row);
                     const defaultRowBg = idx % 2 === 0 ? "var(--admin-row-even)" : "var(--admin-row-odd)";
                     const rowBg = selected ? "var(--admin-row-selected)" : defaultRowBg;
-                    const cellMuted = "var(--admin-text-muted)";
-                    const cellStrong = "var(--admin-text)";
-                    const cellBody = "var(--admin-text)";
+                    const cellMuted = "var(--admin-text-data)";
+                    const cellStrong = "var(--admin-text-data)";
+                    const cellBody = "var(--admin-text-data)";
                     const calmIssueSummary =
                       row.issueSummary === "Pickup Scheduled" ||
                       row.issueSummary === "Will-Call Pickup" ||
@@ -897,6 +898,7 @@ export function DispatcherDashboardPage() {
                         >
                           <span
                             className="admin-chip"
+                            data-testid={`delivery-status-chip-${row.deliveryId}`}
                             style={{
                               gap: 5,
                               fontSize: 11,
@@ -1037,12 +1039,12 @@ export function DispatcherDashboardPage() {
                                   padding: "2px 6px",
                                   borderRadius: 4,
                                   backgroundColor: "var(--admin-warning-bg)",
-                                  color: "#9a3412",
+                                  color: "var(--admin-warning-text)",
                                   fontSize: 10,
                                   fontWeight: 800,
                                   letterSpacing: "0.04em",
                                   textTransform: "uppercase",
-                                  border: "1px solid #fdba74",
+                                  border: "1px solid var(--admin-warning-border)",
                                 }}
                               >
                                 {STAGING_PLAN_MISMATCH_LABEL}
@@ -1080,8 +1082,9 @@ export function DispatcherDashboardPage() {
                                     : 0,
                                 padding: "2px 8px",
                                 borderRadius: 999,
-                                backgroundColor: "var(--admin-danger-text)",
-                                color: "var(--admin-text)",
+                                backgroundColor: "var(--admin-danger-bg)",
+                                color: "var(--admin-danger-text)",
+                                border: "1px solid var(--admin-danger-border)",
                                 fontSize: 11,
                                 fontWeight: 700,
                               }}

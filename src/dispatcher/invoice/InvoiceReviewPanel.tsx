@@ -80,14 +80,14 @@ function StatusChip({
               ? "var(--admin-warning-bg)"
               : isDeliverToSite
                 ? "var(--admin-success-bg)"
-                : "#e8f0fe",
+                : "var(--admin-info-bg)",
           color: isIssue
-            ? "#9a3412"
+            ? "var(--admin-warning-text)"
             : isWillCall
               ? "var(--admin-warning-text)"
               : isDeliverToSite
                 ? "var(--admin-success-text)"
-                : NAVY,
+                : "var(--admin-info-text)",
           fontWeight: 700,
           fontSize: 11,
           padding: "3px 8px",
@@ -107,7 +107,7 @@ function StatusChip({
                 : "var(--admin-danger-bg)",
           color:
             reviewStatus === "pending_review"
-              ? "#9a3412"
+              ? "var(--admin-warning-text)"
               : reviewStatus === "approved"
                 ? "var(--admin-success-text)"
                 : "var(--admin-danger-text)",
@@ -158,13 +158,13 @@ function StatusChip({
           data-testid="invoice-review-ignore-suppressed-chip"
           style={{
             backgroundColor: "var(--admin-warning-bg)",
-            color: "#9a3412",
+            color: "var(--admin-warning-text)",
             fontWeight: 700,
             fontSize: 11,
             padding: "3px 8px",
             borderRadius: 999,
             whiteSpace: "nowrap",
-            border: "1px solid #fed7aa",
+            border: "1px solid var(--admin-warning-border)",
           }}
         >
           {ignoreSuppressedLabel}
@@ -263,8 +263,9 @@ function FieldCell({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <div
+        data-testid="invoice-review-field-value"
         style={{
-          color: "var(--admin-accent-soft)",
+          color: "var(--admin-text-data)",
           fontSize: 12,
           fontWeight: value === "—" ? 400 : 500,
           overflow: "hidden",
@@ -669,7 +670,7 @@ export function InvoiceReviewPanel({
             gap: 8,
           }}
         >
-          <span style={{ fontWeight: 700, color: "var(--admin-accent-soft)", fontSize: 14 }}>
+          <span style={{ fontWeight: 700, color: "var(--admin-text-label)", fontSize: 14 }}>
             {listHeading(filter)}
           </span>
           {!isArchiveFilter(filter) && (
@@ -766,7 +767,7 @@ export function InvoiceReviewPanel({
                     <div
                       style={{
                         fontWeight: 700,
-                        color: "var(--admin-accent-soft)",
+                        color: "var(--admin-text-label)",
                         fontSize: 14,
                         marginBottom: 6,
                       }}
@@ -870,7 +871,7 @@ export function InvoiceReviewPanel({
                       style={{
                         marginTop: 10,
                         fontSize: 12,
-                        color: "#9a3412",
+                        color: "var(--admin-warning-text)",
                         lineHeight: 1.4,
                       }}
                     >
@@ -908,8 +909,8 @@ export function InvoiceReviewPanel({
                       }}
                       style={{
                         backgroundColor: "var(--admin-surface)",
-                        color: "var(--admin-accent-soft)",
-                        border: `1px solid ${NAVY}`,
+                        color: "var(--admin-text-label)",
+                        border: "1px solid var(--admin-border)",
                         borderRadius: "var(--admin-control-radius)",
                         padding: "6px 10px",
                         fontSize: 12,
@@ -947,8 +948,8 @@ export function InvoiceReviewPanel({
             onClick={() => setFilter("pending")}
             style={{
               backgroundColor: "var(--admin-surface)",
-              color: "var(--admin-accent-soft)",
-              border: `1px solid ${NAVY}`,
+              color: "var(--admin-text-label)",
+              border: "1px solid var(--admin-border)",
               borderRadius: "var(--admin-control-radius)",
               padding: "8px 16px",
               fontSize: 13,

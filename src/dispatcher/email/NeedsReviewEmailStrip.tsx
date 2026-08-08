@@ -403,7 +403,7 @@ function NeedsReviewEmailCard({
         border: "1px solid var(--admin-border)",
         borderRadius: 6,
         padding: "12px",
-        backgroundColor: isCalmMatch ? "var(--admin-surface-2)" : "#fffef8",
+        backgroundColor: isCalmMatch ? "var(--admin-surface-2)" : "var(--admin-warning-bg)",
       }}
     >
       <div
@@ -412,10 +412,10 @@ function NeedsReviewEmailCard({
           marginBottom: 10,
           padding: "10px 12px",
           backgroundColor: "var(--admin-surface)",
-          border: "1px solid #e8ecf0",
+          border: "1px solid var(--admin-border)",
           borderRadius: 4,
           fontSize: 12,
-          color: "#334155",
+          color: "var(--admin-text-data)",
         }}
       >
         <div style={{ marginBottom: 4 }}>
@@ -435,7 +435,7 @@ function NeedsReviewEmailCard({
           style={{
             margin: 0,
             fontSize: 13,
-            color: "#1e293b",
+            color: "var(--admin-text-data)",
             lineHeight: 1.45,
             fontStyle: preview.replyPreview ? "normal" : "italic",
           }}
@@ -450,7 +450,7 @@ function NeedsReviewEmailCard({
           margin: "0 0 4px",
           fontSize: 13,
           fontWeight: 700,
-          color: isCalmMatch ? NAVY : "var(--admin-warning-text)",
+          color: isCalmMatch ? "var(--admin-text-data)" : "var(--admin-warning-text)",
         }}
       >
         {headlines.primary}
@@ -535,7 +535,7 @@ function NeedsReviewEmailCard({
             backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
-            color: "#334155",
+            color: "var(--admin-text-data)",
           }}
         >
           <div style={{ marginBottom: 4 }}>

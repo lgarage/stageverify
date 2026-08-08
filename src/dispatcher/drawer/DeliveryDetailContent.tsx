@@ -514,7 +514,8 @@ export function DetailContent({
     return (
       <div
         style={{
-          backgroundColor: "#fee2e2",
+          backgroundColor: "var(--admin-danger-bg)",
+          border: "1px solid var(--admin-danger-border)",
           borderRadius: 6,
           padding: "15px",
           color: "var(--admin-danger-text)",
@@ -787,14 +788,14 @@ export function DetailContent({
                 >
                   <span
                     style={{
-                      color: "var(--admin-text-muted)",
+                      color: "var(--admin-text-label)",
                       fontWeight: 600,
                       flexShrink: 0,
                     }}
                   >
                     {label}
                   </span>
-                  <span style={{ color: "var(--admin-text)", textAlign: "right" }}>{value}</span>
+                  <span style={{ color: "var(--admin-text-data)", textAlign: "right" }}>{value}</span>
                 </div>
               ))}
               <DeliveryStatusControls
@@ -833,7 +834,7 @@ export function DetailContent({
                 <span
                   data-testid="delivery-basics-staging-locations-heading"
                   style={{
-                    color: "var(--admin-text-muted)",
+                    color: "var(--admin-text-label)",
                     fontWeight: 700,
                     fontSize: 12,
                     letterSpacing: "0.04em",
@@ -1144,7 +1145,7 @@ export function DetailContent({
                       {issue.blocking ? "Blocking" : "Info"}
                     </span>
                   </div>
-                  <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 12, color: "var(--admin-text-data)" }}>
                     {issue.description?.trim() || "No description"}
                   </p>
                   <p style={{ margin: 0, fontSize: 11, color: "var(--admin-text-muted)" }}>
@@ -1248,7 +1249,7 @@ export function DetailContent({
                           style={{
                             margin: "0 0 6px",
                             fontSize: 12,
-                            color: "#555",
+                            color: "var(--admin-text-data)",
                             fontFamily: font,
                             lineHeight: 1.45,
                           }}
@@ -1361,7 +1362,6 @@ export function DetailContent({
           renderDrawerSection(
             "Vendor Communications",
             <VendorCommunicationsPanel
-              navy={navy}
               font={font}
               emailProviderConnected={emailProviderConnected}
               deliveryOrderId={details.delivery.id}
@@ -1409,7 +1409,7 @@ export function DetailContent({
                       {latest.technicianName} ·{" "}
                       {new Date(latest.pickedUpAt).toLocaleString()}
                     </p>
-                    <p style={{ margin: 0, fontSize: 12, color: "#555" }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--admin-text-secondary)" }}>
                       Qty remaining estimate: {remainingQty}
                     </p>
                   </>
@@ -1990,7 +1990,7 @@ function DeliveryStatusControls({
       >
         <span
           style={{
-            color: "var(--admin-text-muted)",
+            color: "var(--admin-text-label)",
             fontWeight: 700,
             fontSize: 12,
             letterSpacing: "0.04em",
@@ -2004,7 +2004,7 @@ function DeliveryStatusControls({
           style={{
             margin: 0,
             fontSize: 13,
-            color: "var(--admin-text)",
+            color: "var(--admin-text-data)",
             fontWeight: 600,
           }}
         >
@@ -2091,7 +2091,7 @@ function DeliveryStatusControls({
       >
         <span
           style={{
-            color: "var(--admin-text-muted)",
+            color: "var(--admin-text-label)",
             fontWeight: 700,
             fontSize: 12,
             letterSpacing: "0.04em",
@@ -2464,14 +2464,14 @@ function StatusActionPanel({
                 margin: "0 0 6px",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "var(--admin-text-muted)",
+                color: "var(--admin-text-label)",
                 textTransform: "uppercase",
                 letterSpacing: "0.10em",
               }}
             >
               Combination Staging Group
             </p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--admin-text)" }}>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--admin-text-data)" }}>
               {details.delivery.combinationStagingGroupId ?? "—"}
             </p>
             {(details.delivery.combinationMemberLocationIds?.length ?? 0) > 0 && (
@@ -2676,7 +2676,7 @@ function StatusActionPanel({
               boxSizing: "border-box",
               minHeight: 60,
               padding: "8px 12px",
-              border: "1.5px solid #fca5a5",
+              border: "1.5px solid var(--admin-danger-border)",
               borderRadius: 6,
               fontSize: 14,
               fontFamily: font,
@@ -2922,7 +2922,8 @@ function StatusActionPanel({
         <div
           style={{
             marginTop: 12,
-            backgroundColor: "#fee2e2",
+            backgroundColor: "var(--admin-danger-bg)",
+            border: "1px solid var(--admin-danger-border)",
             borderRadius: 6,
             padding: "10px 15px",
             color: "var(--admin-danger-text)",

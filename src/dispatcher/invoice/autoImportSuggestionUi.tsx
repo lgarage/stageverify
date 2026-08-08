@@ -4,8 +4,6 @@ import {
   type ImportDecisionMode,
 } from "./computeAutoImportEligibility";
 
-const NAVY = "#0a3161";
-
 const MODE_STYLES: Record<
   ImportDecisionMode,
   { bg: string; color: string; label: string }
@@ -17,7 +15,7 @@ const MODE_STYLES: Record<
   },
   review_required: {
     bg: "var(--admin-warning-bg)",
-    color: "#9a3412",
+    color: "var(--admin-warning-text)",
     label: "Review required",
   },
   blocked: {
@@ -123,12 +121,12 @@ export function AutoImportSuggestionPanel({
         marginTop: 12,
         padding: 12,
         borderRadius: 6,
-        border: `1px solid ${eligibility.importDecisionMode === "suggested_import" ? "#bbf7d0" : "#fed7aa"}`,
+        border: `1px solid ${eligibility.importDecisionMode === "suggested_import" ? "var(--admin-success-border)" : "var(--admin-warning-border)"}`,
         backgroundColor:
           eligibility.importDecisionMode === "suggested_import" ? "var(--admin-success-bg)" : "var(--admin-warning-bg)",
       }}
     >
-      <div style={{ fontWeight: 700, color: NAVY, fontSize: 13, marginBottom: 6 }}>
+      <div style={{ fontWeight: 700, color: "var(--admin-text-label)", fontSize: 13, marginBottom: 6 }}>
         {eligibility.suggestedAction}
       </div>
       {reasons.length > 0 && (

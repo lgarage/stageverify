@@ -204,7 +204,7 @@ function statusBadgeStyle(status: LocationStatus): CSSProperties {
     Planned: { bg: "var(--admin-surface-2)", text: "var(--admin-text-muted)" },
     Installed: { bg: "var(--admin-info-bg)", text: "var(--admin-info-text)" },
     Tagged: { bg: "var(--admin-warning-bg)", text: "var(--admin-warning-text)" },
-    Active: { bg: "#e8f4ea", text: "var(--admin-success-text)" },
+    Active: { bg: "var(--admin-success-bg)", text: "var(--admin-success-text)" },
   };
   const c = colors[status];
   return {
@@ -250,10 +250,10 @@ const labelStyle: CSSProperties = {
 
 function typeBadgeStyle(type: ZoneType): CSSProperties {
   const colors: Record<ZoneType, { bg: string; text: string }> = {
-    ground: { bg: "#e8f4ea", text: "var(--admin-success-text)" },
+    ground: { bg: "var(--admin-success-bg)", text: "var(--admin-success-text)" },
     shelf: { bg: "var(--admin-info-bg)", text: "var(--admin-info-text)" },
     bin: { bg: "var(--admin-warning-bg)", text: "var(--admin-warning-text)" },
-    other: { bg: "var(--admin-surface-2)", text: "#4b5563" },
+    other: { bg: "var(--admin-surface-2)", text: "var(--admin-text-label)" },
   };
   const c = colors[type];
   return {
@@ -1398,7 +1398,7 @@ export function ZoneManagementPage() {
                       margin: 0,
                       fontSize: 16,
                       fontWeight: 700,
-                      color: "#9a3412",
+                      color: "var(--admin-warning-text)",
                       fontFamily: FONT,
                     }}
                   >
@@ -1417,7 +1417,7 @@ export function ZoneManagementPage() {
                       margin: 0,
                       fontSize: 15,
                       fontWeight: 700,
-                      color: "#9a3412",
+                      color: "var(--admin-warning-text)",
                       fontFamily: FONT,
                     }}
                   >
@@ -1462,7 +1462,7 @@ export function ZoneManagementPage() {
                         borderRadius: 6,
                         border: "1.5px solid #ea580c",
                         backgroundColor: "var(--admin-surface)",
-                        color: "#9a3412",
+                        color: "var(--admin-warning-text)",
                         fontWeight: 700,
                         fontSize: 14,
                         cursor: assignSaving ? "not-allowed" : "pointer",
@@ -2094,7 +2094,7 @@ export function ZoneManagementPage() {
                               marginTop: 12,
                               padding: "10px 12px",
                               borderRadius: 6,
-                              backgroundColor: occupancy ? "#e8f4ea" : "var(--admin-surface-2)",
+                              backgroundColor: occupancy ? "var(--admin-success-bg)" : "var(--admin-surface-2)",
                               border: `1px solid ${occupancy ? "var(--admin-success-border)" : "var(--admin-border)"}`,
                             }}
                           >
@@ -2113,7 +2113,7 @@ export function ZoneManagementPage() {
                               style={{
                                 fontSize: 13,
                                 fontWeight: 600,
-                                color: "#111827",
+                                color: "var(--admin-text-data)",
                                 marginTop: 4,
                               }}
                             >
@@ -2136,7 +2136,7 @@ export function ZoneManagementPage() {
                                 style={{
                                   fontSize: 10,
                                   fontWeight: 700,
-                                  color: "#c2410c",
+                                  color: "var(--admin-warning-text)",
                                   textTransform: "uppercase",
                                   letterSpacing: "0.05em",
                                 }}
@@ -2146,7 +2146,7 @@ export function ZoneManagementPage() {
                               <div
                                 style={{
                                   fontSize: 12,
-                                  color: "#9a3412",
+                                  color: "var(--admin-warning-text)",
                                   marginTop: 4,
                                   lineHeight: 1.4,
                                 }}
