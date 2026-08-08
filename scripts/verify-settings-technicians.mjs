@@ -100,9 +100,24 @@ async function ensureAuthenticated(page) {
       .locator('[data-testid^="technician-perm-door-"]')
       .first()
       .waitFor({ timeout: 10_000 });
-    await page.getByTestId("technician-release-select").waitFor({
-      timeout: 10_000,
-    });
+    const releaseSelect = page.getByTestId("technician-release-select");
+    const releaseJobList = page.getByTestId("technician-release-job-list");
+    const releaseSave = page.getByTestId("technician-release-save");
+    if ((await releaseSelect.count()) > 0) {
+      throw new Error(
+        "Settings release UI must be removed — technician-release-select still present.",
+      );
+    }
+    if ((await releaseJobList.count()) > 0) {
+      throw new Error(
+        "Settings release UI must be removed — technician-release-job-list still present.",
+      );
+    }
+    if ((await releaseSave.count()) > 0) {
+      throw new Error(
+        "Settings release UI must be removed — technician-release-save still present.",
+      );
+    }
   }
   await page.waitForTimeout(500);
 

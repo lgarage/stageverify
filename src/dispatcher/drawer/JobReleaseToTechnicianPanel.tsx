@@ -130,7 +130,7 @@ export function JobReleaseToTechnicianPanel({
           setEditMode(false);
           setSelectedTechId("");
           setMessage(
-            tech ? `Still released to ${tech.name} for today.` : null,
+            tech ? `Still assigned to ${tech.name} for today.` : null,
           );
           return;
         }
@@ -148,8 +148,8 @@ export function JobReleaseToTechnicianPanel({
         await releaseJobToTechnicianForToday(selectedTechId, jobId);
         setMessage(
           tech
-            ? `Released to ${tech.name} for today.`
-            : "Job released for today.",
+            ? `Assigned to ${tech.name} for today.`
+            : "Job assigned for today.",
         );
       }
       setEditMode(false);
@@ -157,7 +157,7 @@ export function JobReleaseToTechnicianPanel({
       await reloadReleasedEntries();
       await onReleased?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Release failed.");
+      setError(err instanceof Error ? err.message : "Assign failed.");
     } finally {
       setReleasing(false);
     }
@@ -228,10 +228,10 @@ export function JobReleaseToTechnicianPanel({
               fontWeight: 800,
               letterSpacing: "0.03em",
               textTransform: "uppercase",
-              color: "var(--admin-text)",
+              color: "var(--admin-on-navy)",
             }}
           >
-            Release to technician
+            ASSIGNED TECHNICIAN
           </span>
           <span
             style={{
@@ -290,7 +290,7 @@ export function JobReleaseToTechnicianPanel({
                 borderRadius: 6,
                 border: "1px solid rgba(255,255,255,0.55)",
                 backgroundColor: "rgba(255,255,255,0.14)",
-                color: "var(--admin-text)",
+                color: "var(--admin-on-navy)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -356,7 +356,9 @@ export function JobReleaseToTechnicianPanel({
                 ...actionBase,
                 border: `2px solid ${NAVY}`,
                 backgroundColor: releaseDisabled ? "var(--admin-border)" : NAVY,
-                color: releaseDisabled ? "var(--admin-text-muted)" : "var(--admin-text)",
+                color: releaseDisabled
+                  ? "var(--admin-text-muted)"
+                  : "var(--admin-on-navy)",
                 cursor: releaseDisabled ? "not-allowed" : "pointer",
                 boxShadow: releaseDisabled
                   ? "none"
@@ -368,8 +370,8 @@ export function JobReleaseToTechnicianPanel({
               {releasing
                 ? "Saving…"
                 : isAssigned && editMode
-                  ? "Release"
-                  : "Release to technician"}
+                  ? "Assign"
+                  : "Assign Technician"}
             </button>
             {isAssigned && editMode ? (
               <>

@@ -150,7 +150,7 @@ async function assertAssignedView(page) {
   };
 
   if (alreadyAssigned) {
-    console.log("PASS: Job already released — assigned view (badge + Edit)");
+    console.log("PASS: Job already assigned — assigned view (badge + Edit)");
     const assignedBar = page.getByTestId("job-release-assigned-bar");
     await assignedBar.waitFor({ state: "visible", timeout: 10_000 });
     const barBg = await assignedBar.evaluate(
@@ -161,7 +161,7 @@ async function assertAssignedView(page) {
         `Assigned release bar must use navy fill — got ${barBg}`,
       );
     }
-    console.log("PASS: Assigned release bar navy styling");
+    console.log("PASS: Assigned panel bar navy styling");
     await assertAssignedView(page);
     await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
     console.log(
@@ -192,7 +192,7 @@ async function assertAssignedView(page) {
       const msg = (await errorBanner.innerText()).trim();
       throw new Error(`Release failed in UI: ${msg}`);
     }
-    console.log("PASS: Release to technician callable succeeded");
+    console.log("PASS: Assign technician callable succeeded");
     await assertAssignedView(page);
     console.log("PASS: Post-release assigned view hides picker");
   }
@@ -227,7 +227,7 @@ async function assertAssignedView(page) {
   await page.getByTestId("job-release-submit").click();
   await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
   await assertAssignedView(page);
-  console.log("PASS: Re-release after unassign for table badge test");
+  console.log("PASS: Re-assign after unassign for table badge test");
 
   await page.waitForFunction(
     () =>

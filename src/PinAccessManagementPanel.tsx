@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import type {
-  Job,
   ManagementPinPermissions,
   ManagementPinPublic,
   Technician,
@@ -9,8 +8,6 @@ import type {
 } from "./dispatcher/models";
 import {
   createTechnician,
-  getTechnicianDayReleaseForDate,
-  listJobs,
   listTechnicians,
   listVendors,
   updateTechnician,
@@ -19,13 +16,11 @@ import {
 import {
   deactivateManagementPinClient,
   listManagementPinsClient,
-  releaseJobsToTechnicianClient,
   upsertManagementPinClient,
 } from "./phase2CallableClients";
 import {
   technicianCanReceiveReleases,
   technicianCanUseDoor,
-  todayReleaseDateUtc,
 } from "./dispatcher/technicianReleaseHelpers";
 import {
   defaultBadgeColorHex,
@@ -168,17 +163,12 @@ export function PinAccessManagementPanel() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [managementPins, setManagementPins] = useState<ManagementPinPublic[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SelectedAccess | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState("");
-
-  const [releaseTechnicianId, setReleaseTechnicianId] = useState("");
-  const [releaseJobIds, setReleaseJobIds] = useState<Set<string>>(new Set());
-  const [releaseMessage, setReleaseMessage] = useState<string | null>(null);
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -201,25 +191,18 @@ export function PinAccessManagementPanel() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [techRows, vendorRows, jobRows, managementResult] =
-        await Promise.all([
-          listTechnicians(),
-          listVendors(),
-          listJobs(),
-          listManagementPinsClient().catch(() => ({
-            pins: [] as ManagementPinPublic[],
-          })),
-        ]);
+      const [techRows, vendorRows, managementResult] = await Promise.all([
+        listTechnicians(),
+        listVendors(),
+        listManagementPinsClient().catch(() => ({
+          pins: [] as ManagementPinPublic[],
+        })),
+      ]);
       setTechnicians(
         [...techRows].sort((a, b) => a.name.localeCompare(b.name)),
       );
       setVendors(
         [...vendorRows].sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setJobs(
-        [...jobRows].sort((a, b) =>
-          (a.jobName ?? a.id).localeCompare(b.jobName ?? b.id),
-        ),
       );
       setManagementPins(
         [...managementResult.pins].sort((a, b) =>
@@ -238,24 +221,6 @@ export function PinAccessManagementPanel() {
   useEffect(() => {
     void Promise.resolve().then(reload);
   }, [reload]);
-
-  useEffect(() => {
-    if (!releaseTechnicianId) return;
-    let mounted = true;
-    void getTechnicianDayReleaseForDate(
-      releaseTechnicianId,
-      todayReleaseDateUtc(),
-    )
-      .then((release) => {
-        if (mounted) setReleaseJobIds(new Set(release?.jobIds ?? []));
-      })
-      .catch(() => {
-        if (mounted) setReleaseJobIds(new Set());
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [releaseTechnicianId]);
 
   const rows: AccessRow[] = [
     ...technicians.map((technician): AccessRow => ({
@@ -301,7 +266,6 @@ export function PinAccessManagementPanel() {
     setPinDraft("");
     setError(null);
     setMessage(null);
-    if (row.type === "technician") setReleaseTechnicianId(row.id);
   };
 
   const runMutation = async (
@@ -481,43 +445,6 @@ export function PinAccessManagementPanel() {
           patch.permissions ?? normalizeManagementPermissions(pin.permissions),
       });
     });
-  };
-
-  const toggleReleaseJob = (jobId: string) => {
-    setReleaseJobIds((current) => {
-      const next = new Set(current);
-      if (next.has(jobId)) next.delete(jobId);
-      else next.add(jobId);
-      return next;
-    });
-  };
-
-  const saveReleaseJobs = async () => {
-    if (!releaseTechnicianId) {
-      setReleaseMessage("Select a technician.");
-      return;
-    }
-    setBusyId("__release__");
-    setReleaseMessage(null);
-    try {
-      const result = await releaseJobsToTechnicianClient({
-        technicianId: releaseTechnicianId,
-        jobIds: [...releaseJobIds],
-        releaseDate: todayReleaseDateUtc(),
-        replace: true,
-      });
-      setReleaseMessage(
-        result.jobIds.length === 0
-          ? `Cleared today's release list (${result.releaseDate}).`
-          : `Set ${result.jobIds.length} job(s) for today (${result.releaseDate}).`,
-      );
-    } catch (err) {
-      setReleaseMessage(
-        err instanceof Error ? err.message : "Release failed.",
-      );
-    } finally {
-      setBusyId(null);
-    }
   };
 
   const resetWizard = () => {
@@ -974,80 +901,6 @@ export function PinAccessManagementPanel() {
             Receive releases disabled — hidden from release lists.
           </p>
         )}
-
-        <div
-          style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 14 }}
-        >
-          <h3
-            style={{
-              fontSize: 15,
-              color: "var(--admin-accent-soft)",
-              margin: "0 0 6px",
-            }}
-          >
-            Release jobs for today
-          </h3>
-          <p style={{ fontSize: 12, color: MUTED, margin: "0 0 10px" }}>
-            Checked jobs are released for the selected technician today.
-          </p>
-          <select
-            data-testid="technician-release-select"
-            value={releaseTechnicianId}
-            onChange={(event) => setReleaseTechnicianId(event.target.value)}
-            style={{ ...inputStyle, width: "100%", maxWidth: 360 }}
-          >
-            <option value="">Select technician…</option>
-            {technicians.filter(technicianCanReceiveReleases).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          <div
-            data-testid="technician-release-job-list"
-            style={{
-              maxHeight: 180,
-              overflowY: "auto",
-              border: "1px solid var(--admin-border)",
-              borderRadius: 6,
-              padding: 8,
-              margin: "10px 0",
-            }}
-          >
-            {jobs.map((job) => (
-              <label
-                key={job.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  color: TEXT,
-                  fontSize: 13,
-                  padding: "4px 0",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={releaseJobIds.has(job.id)}
-                  onChange={() => toggleReleaseJob(job.id)}
-                />
-                {job.jobName ?? job.id}
-              </label>
-            ))}
-          </div>
-          <button
-            data-testid="technician-release-save"
-            type="button"
-            disabled={busyId === "__release__"}
-            onClick={() => void saveReleaseJobs()}
-            style={primaryButtonStyle}
-          >
-            {busyId === "__release__" ? "Saving…" : "Save today's release list"}
-          </button>
-          {releaseMessage && (
-            <p style={{ color: TEXT, fontSize: 13 }}>{releaseMessage}</p>
-          )}
-        </div>
       </div>
     );
   };
