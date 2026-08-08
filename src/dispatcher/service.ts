@@ -93,6 +93,7 @@ export interface DispatcherDataService {
   ): Promise<DeliveryDetails | null>;
   recordPickupEvent(
     deliveryId: string,
+    jobId: string,
     technicianName: string,
     itemsPickedSummary: string,
     notes?: string,

@@ -694,6 +694,177 @@ try {
 
   pass("unrelated delivery records preserved during targeted tests");
 
+  console.log("\n=== Technician session pickup authority ===\n");
+
+  const TECH_SESSION_TOKEN = "b".repeat(64);
+  const TECH_ID = "tech-auth-1";
+
+  async function seedTechnicianSession(db, {
+    token = TECH_SESSION_TOKEN,
+    technicianId = TECH_ID,
+    expiresAt = new Date(Date.now() + 3_600_000).toISOString(),
+    jobIds = ["job-tech-1"],
+  } = {}) {
+    const now = new Date().toISOString();
+    const releaseDate = now.slice(0, 10);
+    await setDoc(doc(db, "technicians", technicianId), {
+      id: technicianId,
+      name: "Session Tech",
+      pinCode: "9999",
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await setDoc(doc(db, "technicianSessions", token), {
+      id: token,
+      technicianId,
+      technicianName: "Session Tech",
+      expiresAt,
+      createdAt: now,
+      scannedStagingLocationCode: "G1",
+    });
+    await setDoc(doc(db, "technicianDayReleases", `${technicianId}_${releaseDate}`), {
+      technicianId,
+      releaseDate,
+      jobIds,
+      updatedAt: now,
+    });
+  }
+
+  await seed(async (db) => {
+    await seedReadyDelivery(db, {
+      id: "del-tech-session",
+      jobId: "job-tech-1",
+      poId: "po-tech-1",
+      locations: ["loc-tech-a"],
+    });
+    await seedTechnicianSession(db, { jobIds: ["job-tech-1"] });
+  });
+
+  const techOk = await recordPickup({
+    deliveryOrderId: "del-tech-session",
+    jobId: "job-tech-1",
+    technicianName: "Client Spoof Name",
+    itemsPickedSummary: "2 items",
+    clientOperationId: `op-tech-ok-${crypto.randomUUID()}`,
+    stagingLocationIds: ["loc-tech-a"],
+    technicianSessionToken: TECH_SESSION_TOKEN,
+  });
+  if (techOk.data.deliveryStatus === "picked_up") {
+    pass("valid technician session + released job → picked_up");
+  } else {
+    fail(
+      "valid technician session pickup",
+      new Error(JSON.stringify(techOk.data)),
+    );
+  }
+
+  await seed(async (db) => {
+    await seedReadyDelivery(db, {
+      id: "del-tech-unreleased",
+      jobId: "job-tech-unreleased",
+      poId: "po-tech-u",
+      locations: ["loc-tech-u"],
+    });
+    await seedTechnicianSession(db, {
+      token: "c".repeat(64),
+      jobIds: ["job-other-only"],
+    });
+  });
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-tech-unreleased",
+      jobId: "job-tech-unreleased",
+      technicianName: "Session Tech",
+      itemsPickedSummary: "2 items",
+      clientOperationId: `op-tech-unrel-${crypto.randomUUID()}`,
+      stagingLocationIds: ["loc-tech-u"],
+      technicianSessionToken: "c".repeat(64),
+    });
+    fail("unreleased job should be denied for technician session");
+  } catch {
+    pass("unreleased job denied for technician session");
+  }
+
+  await seed(async (db) => {
+    await seedReadyDelivery(db, {
+      id: "del-tech-expired",
+      jobId: "job-tech-expired",
+      poId: "po-tech-e",
+      locations: ["loc-tech-e"],
+    });
+    await seedTechnicianSession(db, {
+      token: "d".repeat(64),
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      jobIds: ["job-tech-expired"],
+    });
+  });
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-tech-expired",
+      jobId: "job-tech-expired",
+      technicianName: "Session Tech",
+      itemsPickedSummary: "2 items",
+      clientOperationId: `op-tech-exp-${crypto.randomUUID()}`,
+      stagingLocationIds: ["loc-tech-e"],
+      technicianSessionToken: "d".repeat(64),
+    });
+    fail("expired technician session should be denied");
+  } catch {
+    pass("expired technician session denied");
+  }
+
+  await seed(async (db) => {
+    await seedReadyDelivery(db, {
+      id: "del-tech-invalid",
+      jobId: "job-tech-invalid",
+      poId: "po-tech-i",
+      locations: ["loc-tech-i"],
+    });
+  });
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-tech-invalid",
+      jobId: "job-tech-invalid",
+      technicianName: "Session Tech",
+      itemsPickedSummary: "2 items",
+      clientOperationId: `op-tech-inv-${crypto.randomUUID()}`,
+      stagingLocationIds: ["loc-tech-i"],
+      technicianSessionToken: "e".repeat(64),
+    });
+    fail("invalid technician session should be denied");
+  } catch {
+    pass("invalid technician session denied");
+  }
+
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-tech-invalid",
+      jobId: "job-tech-invalid",
+      technicianName: "Session Tech",
+      itemsPickedSummary: "2 items",
+      clientOperationId: `op-tech-none-${crypto.randomUUID()}`,
+      stagingLocationIds: ["loc-tech-i"],
+    });
+    fail("missing token/session should be denied when unauthenticated");
+  } catch {
+    pass("missing token/session denied when unauthenticated");
+  }
+
+  // Unauthenticated client must not gain general deliveries read access.
+  {
+    const unauth = testEnv.unauthenticatedContext();
+    const unauthDb = unauth.firestore();
+    try {
+      const { getDoc } = await import("firebase/firestore");
+      await getDoc(doc(unauthDb, "deliveries", "del-tech-session"));
+      fail("unauthenticated getDoc(deliveries) should be denied by rules");
+    } catch {
+      pass("unauthenticated getDoc(deliveries) denied by rules");
+    }
+    await unauth.cleanup();
+  }
+
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);
   if (failed > 0) process.exit(1);
 } catch (err) {

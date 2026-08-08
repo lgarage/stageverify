@@ -152,8 +152,15 @@ export function DeliveryDetailDrawer({
         operationId = newPickupClientOperationId();
         pickupOperationIds.current.set(deliveryId, operationId);
       }
+      const jobId = selectedDetails?.delivery.jobId?.trim();
+      if (!jobId) {
+        throw new Error(
+          "This delivery is not linked to a job — cannot record pickup.",
+        );
+      }
       await firestoreDataService.recordPickupEvent(
         deliveryId,
+        jobId,
         technicianName,
         itemsSummary,
         undefined,

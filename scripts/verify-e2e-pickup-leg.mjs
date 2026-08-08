@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
-import { ensureAuthenticated, loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+import { loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -125,6 +125,16 @@ async function completePickupChecklist(page) {
     console.log("PASS: shop stock staged for delivery card");
   }
 
+  const confirms = page.getByTestId("pickup-location-confirm");
+  const confirmCount = await confirms.count();
+  for (let i = 0; i < confirmCount; i++) {
+    const row = confirms.nth(i);
+    if ((await row.getAttribute("data-confirmed")) !== "true") {
+      await row.click();
+      await page.waitForTimeout(100);
+    }
+  }
+
   await waitForDoneEnabled(page);
   await page.getByRole("button", { name: /Complete Pickup/ }).click();
 
@@ -164,13 +174,9 @@ const page = await browser.newPage({
   viewport: { width: 390, height: 844 },
 });
 
-console.log(
-  "Auth for pickup completion: live rules require auth for delivery getDoc inside recordPickupEvent…",
-);
-await ensureAuthenticated(page, appBase);
-
+// Unauthenticated browser — real token-door path (no dispatcher Firebase Auth).
 const url = `${appBase}/#/pickup?t=${pickupToken}&delivery=${deliveryId}`;
-console.log(`Opening ${url}`);
+console.log(`Opening unauthenticated token door: ${url}`);
 await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 await page.waitForSelector('[data-testid="pickup-at-primary"]', { timeout: 30_000 });
 

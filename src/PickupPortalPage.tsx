@@ -894,8 +894,15 @@ function JobPickupScreen({
           delivery,
           confirmedStagingLocationIds,
         );
+        const jobId = delivery.delivery.jobId?.trim();
+        if (!jobId) {
+          throw new Error(
+            "This delivery is not linked to a job — cannot record pickup.",
+          );
+        }
         await firestoreDataService.recordPickupEvent(
           deliveryId,
+          jobId,
           technicianDisplayName,
           `${delivery.items.length} item${delivery.items.length === 1 ? "" : "s"}`,
           notes || undefined,
@@ -1055,8 +1062,15 @@ function JobPickupScreen({
           d,
           confirmedStagingLocationIds,
         );
+        const jobId = d.delivery.jobId?.trim();
+        if (!jobId) {
+          throw new Error(
+            "This delivery is not linked to a job — cannot record pickup.",
+          );
+        }
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
+          jobId,
           technicianDisplayName,
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
@@ -1127,8 +1141,15 @@ function JobPickupScreen({
           d,
           confirmedStagingLocationIds,
         );
+        const jobId = d.delivery.jobId?.trim();
+        if (!jobId) {
+          throw new Error(
+            "This delivery is not linked to a job — cannot record pickup.",
+          );
+        }
         await firestoreDataService.recordPickupEvent(
           d.delivery.id,
+          jobId,
           technicianDisplayName,
           `${d.items.length} item${d.items.length === 1 ? "" : "s"}`,
           notes || undefined,
