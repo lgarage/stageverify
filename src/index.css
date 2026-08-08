@@ -57,6 +57,9 @@ body {
   --admin-navy: #0a3161;
   --admin-bg: #f6f8fa;
   --admin-bg-deep: #ffffff;
+  --admin-section-bg: #ffffff;
+  --admin-section-border: #afb8c1;
+  --admin-shadow-section: 0 1px 2px rgba(27,31,36,0.04), 0 6px 14px rgba(27,31,36,0.05);
   --admin-surface: #ffffff;
   --admin-surface-2: #f3f4f6;
   --admin-surface-hover: #eaeef2;
@@ -118,6 +121,9 @@ html[data-sv-admin-theme="dark"] .portal-shell,
 .portal-shell[data-admin-appearance="dark"] {
   --admin-bg: #0d1117;
   --admin-bg-deep: #0a0b0d;
+  --admin-section-bg: #151c26;
+  --admin-section-border: #4a5563;
+  --admin-shadow-section: 0 1px 0 rgba(255,255,255,0.04), 0 8px 20px rgba(0,0,0,0.28);
   --admin-surface: #161b22;
   --admin-surface-2: #21262d;
   --admin-surface-hover: #282e36;
@@ -201,6 +207,21 @@ html[data-sv-admin-theme="dark"] .portal-shell,
   border-radius: var(--admin-radius-lg);
   padding: var(--admin-space-4);
   box-shadow: var(--admin-shadow-card);
+}
+
+.portal-shell .admin-section {
+  background: var(--admin-section-bg);
+  border: 1px solid var(--admin-section-border);
+  border-radius: var(--admin-radius-lg);
+  padding: var(--admin-space-4);
+  box-shadow: var(--admin-shadow-section);
+}
+
+/* Outer section owns chrome; nested cards/tables are the next surface rung. */
+.portal-shell .admin-section .admin-card,
+.portal-shell .admin-section .admin-table-wrap {
+  border: none;
+  box-shadow: none;
 }
 
 .portal-shell .admin-control {
