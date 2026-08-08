@@ -129,19 +129,32 @@ const SORT_COLUMNS: Array<{
   label: string;
   key?: DeliverySortField;
   className?: string;
+  minWidth?: number;
 }> = [
-  { label: "Status", key: "status" },
-  { label: "Job #", key: "jobNumber" },
-  { label: "Job Name", key: "jobName" },
-  { label: "PO #", key: "poNumber" },
-  { label: "Order #", key: "orderNumber" },
-  { label: "Vendor", key: "vendorName" },
-  { label: "Delivery Date", key: "deliveryDate" },
-  { label: "Staging Loc.", key: "stagingLocationCode" },
-  { label: "Items Recv.", key: "itemsReceivedLabel" },
-  { label: "Issue Summary", key: "issueSummary" },
-  { label: "Released To" },
-  { label: "Action", className: "text-right" },
+  { label: "Status", key: "status", minWidth: 150 },
+  {
+    label: "Fulfillment",
+    key: "fulfillmentDisplayLabel",
+    minWidth: 190,
+  },
+  { label: "Vendor", key: "vendorName", minWidth: 150 },
+  { label: "Job Name", key: "jobName", minWidth: 180 },
+  { label: "Invoice #", key: "vendorInvoiceNumber", minWidth: 120 },
+  { label: "PO #", key: "poNumber", minWidth: 110 },
+  {
+    label: "Staging Location",
+    key: "stagingLocationCode",
+    minWidth: 150,
+  },
+  { label: "Items", key: "itemsReceivedLabel", minWidth: 70 },
+  {
+    label: "Delivery / Pickup Date",
+    key: "deliveryDate",
+    minWidth: 150,
+  },
+  { label: "Issue", key: "issueSummary", minWidth: 220 },
+  { label: "Assigned Technician", minWidth: 180 },
+  { label: "Action", className: "text-right", minWidth: 80 },
 ];
 
 type ListQueryState = {
@@ -471,7 +484,7 @@ export function DispatcherDashboardPage() {
                         search: e.target.value,
                       }))
                     }
-                    placeholder="Job #, name, PO, order, vendor, staging location…"
+                    placeholder="Job #, name, PO, invoice, order, vendor, staging location…"
                     style={{
                       width: "100%",
                       padding: "12px 14px 12px 40px",
@@ -754,7 +767,7 @@ export function DispatcherDashboardPage() {
               <table
                 className="admin-table"
                 style={{
-                  minWidth: 1100,
+                  minWidth: 1750,
                   fontSize: 14,
                   fontFamily: FONT,
                 }}
@@ -776,6 +789,7 @@ export function DispatcherDashboardPage() {
                             whiteSpace: "nowrap",
                             letterSpacing: "normal",
                             userSelect: "none",
+                            minWidth: col.minWidth,
                           }}
                         >
                           {col.key ? (
@@ -828,22 +842,15 @@ export function DispatcherDashboardPage() {
                     const cellMuted = "var(--admin-text-data)";
                     const cellStrong = "var(--admin-text-data)";
                     const cellBody = "var(--admin-text-data)";
-                    const calmIssueSummary =
-                      row.issueSummary === "Pickup Scheduled" ||
-                      row.issueSummary === "Will-Call Pickup" ||
-                      row.issueSummary.startsWith("Delivered to ");
-                    const issueSummaryColor = calmIssueSummary
-                      ? "var(--admin-info-text)"
-                      : row.issueSummary.startsWith("Confirm delivery") ||
-                          row.issueSummary === "Confirm site delivery"
-                        ? "var(--admin-danger-text)"
-                        : row.issueSummary
-                          ? "var(--admin-danger-text)"
-                          : "var(--admin-text-muted)";
+                    const issueSummaryColor = row.issueSummary
+                      ? "var(--admin-danger-text)"
+                      : "var(--admin-text-muted)";
                     const cellBorder = "1px solid var(--admin-border)";
                     return (
                       <tr
                         key={row.deliveryId}
+                        data-testid={`dispatcher-delivery-row-${row.deliveryId}`}
+                        data-order-number={row.orderNumber}
                         tabIndex={0}
                         role="button"
                         onClick={() => void selectDelivery(row.deliveryId)}
@@ -945,13 +952,22 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
-                            fontFamily: "monospace",
-                            color: cellMuted,
                             fontWeight: 600,
-                            fontSize: 13,
+                            color: cellBody,
+                            minWidth: 190,
                           }}
                         >
-                          {row.jobNumber}
+                          {row.fulfillmentDisplayLabel}
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 12px",
+                            borderBottom: cellBorder,
+                            color: cellBody,
+                            minWidth: 150,
+                          }}
+                        >
+                          {row.vendorName}
                         </td>
                         <td
                           style={{
@@ -959,6 +975,7 @@ export function DispatcherDashboardPage() {
                             borderBottom: cellBorder,
                             fontWeight: 600,
                             color: cellStrong,
+                            minWidth: 180,
                           }}
                         >
                           {row.jobName}
@@ -972,7 +989,7 @@ export function DispatcherDashboardPage() {
                             fontSize: 13,
                           }}
                         >
-                          {row.poNumber ?? "—"}
+                          {row.vendorInvoiceNumber ?? "—"}
                         </td>
                         <td
                           style={{
@@ -983,26 +1000,7 @@ export function DispatcherDashboardPage() {
                             fontSize: 13,
                           }}
                         >
-                          {row.orderNumber}
-                        </td>
-                        <td
-                          style={{
-                            padding: "14px 12px",
-                            borderBottom: cellBorder,
-                            color: cellBody,
-                          }}
-                        >
-                          {row.vendorName}
-                        </td>
-                        <td
-                          style={{
-                            padding: "14px 12px",
-                            borderBottom: cellBorder,
-                            color: cellBody,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {row.deliveryDate}
+                          {row.poNumber ?? "—"}
                         </td>
                         <td
                           style={{
@@ -1067,6 +1065,16 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
+                            color: cellBody,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {row.deliveryDate}
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 12px",
+                            borderBottom: cellBorder,
                             color: issueSummaryColor,
                             maxWidth: 200,
                           }}
@@ -1092,7 +1100,7 @@ export function DispatcherDashboardPage() {
                               {DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY}
                             </span>
                           )}
-                          {row.openIssueCount > 0 && !calmIssueSummary && (
+                          {row.openIssueCount > 0 && (
                             <span
                               data-testid={`open-issue-badge-${row.deliveryId}`}
                               style={{
@@ -1111,22 +1119,15 @@ export function DispatcherDashboardPage() {
                           )}
                           {row.issueSummary ? (
                             <span
-                              data-testid={
-                                calmIssueSummary
-                                  ? "dispatcher-issue-summary-calm"
-                                  : undefined
-                              }
                               style={{
                                 display: "flex",
                                 alignItems: "flex-start",
                                 gap: 5,
                               }}
                             >
-                              {!calmIssueSummary ? (
-                                <span style={{ flexShrink: 0, marginTop: 1 }}>
-                                  ⚠
-                                </span>
-                              ) : null}
+                              <span style={{ flexShrink: 0, marginTop: 1 }}>
+                                ⚠
+                              </span>
                               {row.issueSummary}
                             </span>
                           ) : row.openIssueCount > 0 || row.missingStagingAssignment ? null : (
@@ -1289,7 +1290,7 @@ export function DispatcherDashboardPage() {
                   {!listLoading && !listError && paged.items.length === 0 && (
                     <tr>
                       <td
-                        colSpan={11}
+                        colSpan={12}
                         style={{ padding: "60px 24px", textAlign: "center" }}
                       >
                         <div

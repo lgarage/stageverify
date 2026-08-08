@@ -59,6 +59,7 @@ import {
   isWillCallPickupStagingListNa,
 } from "../deliveryDisplayHelpers";
 import {
+  fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
   skipsShopStaging,
 } from "../invoice/invoiceShellDisplayHelpers";
@@ -565,12 +566,14 @@ export function DetailContent({
       DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status,
     jobNumber: job.jobNumber,
     jobName: job.jobName,
+    vendorInvoiceNumber: delivery.vendorInvoiceNumber?.trim() || undefined,
     poNumber:
       resolveDeliveryPoNumber(
         delivery.customerPoOrReference,
         details.purchaseOrder?.poNumber,
       ) ?? undefined,
     orderNumber: delivery.orderNumber,
+    fulfillmentDisplayLabel: fulfillmentDisplayLabel(delivery),
     vendorName: details.vendor.name,
     deliveryDate: delivery.deliveryDate ?? "",
     stagingLocationCode: details.stagingLocation?.code,

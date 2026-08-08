@@ -180,11 +180,6 @@ export function openBlockingMaterialIssues(
   );
 }
 
-export interface DeliveryDisplayOptions {
-  /** List Issue Summary shows Pickup Scheduled when delivery is ready for pickup. */
-  jobPickupScheduled?: boolean;
-}
-
 /** List Issue Summary when staging zone is required but unassigned. */
 export const DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY =
   "Staging spot needs to be assigned";
@@ -229,7 +224,7 @@ export function computeDeliveryDisplayState(
   delivery: DeliveryOrder,
   items: Item[],
   materialIssues?: MaterialIssue[],
-  options?: ReadinessComputeOptions & DeliveryDisplayOptions,
+  options?: ReadinessComputeOptions,
 ): DeliveryDisplayState {
   const openBlockingIssueCount = countOpenBlockingIssues(
     delivery,
@@ -256,7 +251,6 @@ export function computeDeliveryDisplayState(
     items,
     materialIssues,
     readiness,
-    options,
   );
   const openIssueCount =
     materialIssues !== undefined
@@ -312,7 +306,6 @@ function buildComputedIssueSummary(
   items: Item[],
   materialIssues: MaterialIssue[] | undefined,
   readiness: DeliveryReadinessResult,
-  displayOptions?: DeliveryDisplayOptions,
 ): string {
   const deliverToSiteSummary = buildDeliverToSiteIssueSummary(delivery);
   if (deliverToSiteSummary) {
@@ -326,17 +319,7 @@ function buildComputedIssueSummary(
     return "";
   }
 
-  if (
-    delivery.invoiceImportStatus === "pickup_at_vendor" ||
-    delivery.invoiceFulfillmentMethod === "will_call_pickup"
-  ) {
-    return "Will-Call Pickup";
-  }
-
   if (readiness.readyForPickup) {
-    if (displayOptions?.jobPickupScheduled) {
-      return "Pickup Scheduled";
-    }
     return "";
   }
 
@@ -364,9 +347,6 @@ function buildComputedIssueSummary(
   }
   if (reasons.includes("unresolved_damage")) {
     return "Unresolved damage";
-  }
-  if (reasons.includes("vendor_order_incomplete")) {
-    return "Vendor order incomplete";
   }
   if (reasons.includes("physical_dropoff_incomplete")) {
     const missingQty = items.reduce((sum, item) => sum + item.qtyMissing, 0);

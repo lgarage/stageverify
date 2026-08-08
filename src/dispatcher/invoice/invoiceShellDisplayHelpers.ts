@@ -127,6 +127,18 @@ export function isWillCallPickupStagingListNa(
   );
 }
 
+/** Deliveries table fulfillment label — wording is intentionally distinct from import status copy. */
+export function fulfillmentDisplayLabel(
+  delivery: Pick<
+    InvoiceShellStagingFields,
+    "invoiceImportStatus" | "invoiceFulfillmentMethod"
+  >,
+): "Vendor Drop-Off" | "Will-Call / Pickup @ Vendor" {
+  return isWillCallPickupStagingListNa(delivery)
+    ? "Will-Call / Pickup @ Vendor"
+    : "Vendor Drop-Off";
+}
+
 /**
  * SSOT: deliveries that skip shop physical receipt + staging readiness gates.
  * Verified invoice shells OR explicit will-call / pickup-at-vendor fulfillment.
