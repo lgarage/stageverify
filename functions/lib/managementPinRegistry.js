@@ -11,13 +11,12 @@ exports.resolveManagementPinMatch = resolveManagementPinMatch;
 exports.upsertManagementPinDoc = upsertManagementPinDoc;
 exports.deactivateManagementPinDoc = deactivateManagementPinDoc;
 exports.pinHasCapability = pinHasCapability;
-const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
-const pinHashing_1 = require("./pinHashing");
+const adminAccessSession_1 = require("./adminAccessSession");
+const accessPinSecretWrite_1 = require("./accessPinSecretWrite");
 const pinMatching_1 = require("./pinMatching");
-function getDb() {
-    return admin.firestore();
-}
+const accessPinLookup_1 = require("./accessPinLookup");
+const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
 /** Stable id used by setManagementPin back-compat wrapper + legacy migration. */
 exports.DEFAULT_MANAGEMENT_PIN_ID = "default";
 function normalizeManagementPinPermissions(permissions) {
@@ -62,14 +61,14 @@ function docFromSnap(id, data) {
     };
 }
 async function loadLegacyPinHash() {
-    const secretSnap = await getDb()
+    const secretSnap = await (0, accessPinSecretsShared_1.getDb)()
         .collection("managementPinSecrets")
         .doc("config")
         .get();
     const secretHash = secretSnap.data()?.managementPinHash?.trim();
     if (secretHash)
         return secretHash;
-    const settingsSnap = await getDb()
+    const settingsSnap = await (0, accessPinSecretsShared_1.getDb)()
         .collection("appSettings")
         .doc("config")
         .get();
@@ -77,7 +76,7 @@ async function loadLegacyPinHash() {
 }
 /** All registry docs (active + inactive) — never mutates. */
 async function listAllManagementPinDocs() {
-    const snap = await getDb().collection("managementPins").get();
+    const snap = await (0, accessPinSecretsShared_1.getDb)().collection("managementPins").get();
     return snap.docs.map((d) => docFromSnap(d.id, d.data()));
 }
 /** Active registry docs only — never mutates. */
@@ -86,7 +85,7 @@ async function listActiveManagementPinDocs() {
 }
 /** Once any registry doc exists, legacy singleton dual-read is off (D-49 security). */
 async function managementPinRegistryHasDocs() {
-    const snap = await getDb().collection("managementPins").limit(1).get();
+    const snap = await (0, accessPinSecretsShared_1.getDb)().collection("managementPins").limit(1).get();
     return !snap.empty;
 }
 /**
@@ -120,7 +119,7 @@ async function listManagementPinsForSettings() {
     ];
 }
 async function loadManagementPinById(pinId) {
-    const snap = await getDb().collection("managementPins").doc(pinId).get();
+    const snap = await (0, accessPinSecretsShared_1.getDb)().collection("managementPins").doc(pinId).get();
     if (snap.exists) {
         return docFromSnap(snap.id, snap.data() ?? {});
     }
@@ -150,6 +149,9 @@ async function loadManagementPinById(pinId) {
  * Legacy dual-read only when managementPins collection is empty.
  */
 async function resolveManagementPinMatch(pin) {
+    const fromSecrets = await (0, accessPinLookup_1.findManagementPinByAccessPinSecrets)(pin);
+    if (fromSecrets)
+        return fromSecrets;
     const all = await listAllManagementPinDocs();
     if (all.length > 0) {
         for (const candidate of all) {
@@ -202,7 +204,7 @@ async function upsertManagementPinDoc(input) {
     const now = new Date().toISOString();
     const requestedId = input.id ? asPinId(input.id) : null;
     const pinId = requestedId ?? `mpin-${Date.now().toString(36)}`;
-    const ref = getDb().collection("managementPins").doc(pinId);
+    const ref = (0, accessPinSecretsShared_1.getDb)().collection("managementPins").doc(pinId);
     const existingSnap = await ref.get();
     const existing = existingSnap.exists
         ? docFromSnap(pinId, existingSnap.data() ?? {})
@@ -211,31 +213,107 @@ async function upsertManagementPinDoc(input) {
     if (input.pin !== undefined && !pin) {
         throw new https_1.HttpsError("invalid-argument", "A 4-digit PIN is required.");
     }
-    if (!existing && !pin) {
-        throw new https_1.HttpsError("invalid-argument", "A 4-digit PIN is required for a new management PIN.");
-    }
-    if (pin) {
-        await assertUniqueActivePin(pin, pinId);
-    }
     const label = asLabel(input.label) ??
         existing?.label ??
         (pinId === exports.DEFAULT_MANAGEMENT_PIN_ID ? "Management PIN" : "Office PIN");
     const active = typeof input.active === "boolean" ? input.active : (existing?.active ?? true);
     const permissions = normalizeManagementPinPermissions(input.permissions ?? existing?.permissions);
-    const pinHash = pin ? (0, pinHashing_1.hashPinForStorage)(pin) : existing.pinHash;
-    if (!pinHash.includes(":")) {
+    if (!existing && !pin) {
+        await ref.set({
+            id: pinId,
+            label,
+            active,
+            permissions,
+            pinConfigured: false,
+            createdAt: now,
+            updatedAt: now,
+        }, { merge: true });
+        return { id: pinId };
+    }
+    if (pin) {
+        await assertUniqueActivePin(pin, pinId);
+        const db = (0, accessPinSecretsShared_1.getDb)();
+        const refs = (0, accessPinSecretWrite_1.prepareAccessPinSecretWrite)("management", pinId, pin);
+        await db.runTransaction(async (tx) => {
+            const [existingSecretSnap, uniquenessSnap, entitySnap] = await Promise.all([
+                tx.get(refs.secretRef),
+                tx.get(refs.uniquenessRef),
+                tx.get(refs.entityRef),
+            ]);
+            await (0, accessPinSecretWrite_1.applyAccessPinSecretWriteInTransaction)(tx, db, {
+                targetType: "management",
+                targetId: pinId,
+                pin,
+                now,
+                refs,
+                existingSecretSnap,
+                uniquenessSnap,
+                entitySnap,
+                managementEntityFields: {
+                    label,
+                    active,
+                    permissions,
+                    createdAt: existing?.createdAt ?? now,
+                },
+            });
+            tx.set(db.collection("appSettings").doc("config"), {
+                managementPinConfigured: true,
+                updatedAt: now,
+            }, { merge: true });
+            if (input.sessionConsumption && input.actorUid) {
+                const sessionRef = db
+                    .collection(accessPinSecretsShared_1.ADMIN_ACCESS_SESSIONS_COLLECTION)
+                    .doc(input.sessionConsumption.sessionId);
+                const sessionSnap = await tx.get(sessionRef);
+                if (!sessionSnap.exists) {
+                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+                }
+                const session = sessionSnap.data();
+                if (session.secretHash !==
+                    (0, adminAccessSession_1.hashAdminAccessSessionRaw)(input.sessionConsumption.raw)) {
+                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+                }
+                if (session.revoked || session.consumedAt) {
+                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+                }
+                if (Date.parse(session.expiresAt) <= Date.now()) {
+                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+                }
+                if (session.managerUid !== input.actorUid) {
+                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+                }
+                if (session.targetType !== "management" ||
+                    session.targetId !== pinId) {
+                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+                }
+                tx.set(sessionRef, { consumedAt: now }, { merge: true });
+            }
+        });
+        return { id: pinId };
+    }
+    const pinHash = existing.pinHash;
+    const secretSnap = await (0, accessPinSecretsShared_1.getDb)()
+        .collection("accessPinSecrets")
+        .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)("management", pinId))
+        .get();
+    const usesSecrets = secretSnap.exists ||
+        (existingSnap.data()?.pinConfigured === true && !pinHash.includes(":"));
+    if (!usesSecrets && !pinHash.includes(":")) {
         throw new https_1.HttpsError("failed-precondition", "PIN hash missing.");
     }
-    await ref.set({
+    const patch = {
         id: pinId,
         label,
-        pinHash,
         active,
         permissions,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
-    }, { merge: true });
-    await getDb()
+    };
+    if (!usesSecrets) {
+        patch.pinHash = pinHash;
+    }
+    await ref.set(patch, { merge: true });
+    await (0, accessPinSecretsShared_1.getDb)()
         .collection("appSettings")
         .doc("config")
         .set({
@@ -249,7 +327,7 @@ async function deactivateManagementPinDoc(pinIdRaw) {
     if (!pinId) {
         throw new https_1.HttpsError("invalid-argument", "Invalid PIN id.");
     }
-    const ref = getDb().collection("managementPins").doc(pinId);
+    const ref = (0, accessPinSecretsShared_1.getDb)().collection("managementPins").doc(pinId);
     const snap = await ref.get();
     if (!snap.exists) {
         throw new https_1.HttpsError("not-found", "Management PIN not found.");

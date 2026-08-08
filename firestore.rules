@@ -84,8 +84,39 @@ service cloud.firestore {
 
     match /vendors/{vendorId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && !('pinCode' in request.resource.data)
+        && !('pinHash' in request.resource.data)
+        && !('pinEncrypted' in request.resource.data)
+        && !('pinConfigured' in request.resource.data);
+      allow update: if isAuthenticated()
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['pinCode', 'pinHash', 'pinEncrypted', 'pinConfigured']);
       allow delete: if false;
+    }
+
+    match /accessPinSecrets/{id} {
+      allow read, write: if false;
+    }
+
+    match /accessPinUniqueness/{id} {
+      allow read, write: if false;
+    }
+
+    match /pinAccessAudit/{id} {
+      allow read, write: if false;
+    }
+
+    match /accessPinRevealAttempts/{id} {
+      allow read, write: if false;
+    }
+
+    match /accessPinSetAttempts/{id} {
+      allow read, write: if false;
+    }
+
+    match /adminAccessSessions/{id} {
+      allow read, write: if false;
     }
 
     match /vendorPinAttempts/{deliveryId} {
@@ -124,7 +155,14 @@ service cloud.firestore {
 
     match /technicians/{technicianId} {
       allow read: if isDispatcher();
-      allow create, update: if isDispatcher();
+      allow create: if isDispatcher()
+        && !('pinCode' in request.resource.data)
+        && !('pinHash' in request.resource.data)
+        && !('pinEncrypted' in request.resource.data)
+        && !('pinConfigured' in request.resource.data);
+      allow update: if isDispatcher()
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['pinCode', 'pinHash', 'pinEncrypted', 'pinConfigured']);
       allow delete: if false;
     }
 

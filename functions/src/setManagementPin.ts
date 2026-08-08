@@ -1,12 +1,13 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
 import { asFourDigitPin } from "./pinMatching";
-import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import {
   DEFAULT_MANAGEMENT_PIN_ID,
   upsertManagementPinDoc,
 } from "./managementPinRegistry";
+import { authorizeManagementPinWrite } from "./managementPinWriteAuth";
 
 function getDb() {
   return admin.firestore();
@@ -14,6 +15,7 @@ function getDb() {
 
 interface SetManagementPinRequest {
   pin?: string;
+  sessionToken?: string;
 }
 
 /**
@@ -21,13 +23,23 @@ interface SetManagementPinRequest {
  * New Settings UI should prefer upsertManagementPin for multi-PIN + matrix.
  */
 export const setManagementPin = onCall(
-  { region: "us-central1" },
+  {
+    region: "us-central1",
+    secrets: [accessPinEncryptionKey],
+  },
   async (request) => {
-    await requireDispatcherAuth(request);
-    const pin = asFourDigitPin((request.data as SetManagementPinRequest)?.pin);
+    const data = (request.data ?? {}) as SetManagementPinRequest;
+    const pin = asFourDigitPin(data.pin);
     if (!pin) {
       throw new HttpsError("invalid-argument", "A 4-digit PIN is required.");
     }
+
+    const auth = await authorizeManagementPinWrite(request, {
+      pin,
+      id: DEFAULT_MANAGEMENT_PIN_ID,
+      fixedTargetId: DEFAULT_MANAGEMENT_PIN_ID,
+      sessionToken: data.sessionToken,
+    });
 
     await upsertManagementPinDoc({
       id: DEFAULT_MANAGEMENT_PIN_ID,
@@ -40,6 +52,8 @@ export const setManagementPin = onCall(
         viewWaitingParts: true,
         markOrFlagParcel: true,
       },
+      sessionConsumption: auth.sessionConsumption,
+      actorUid: auth.actorUid,
     });
 
     const now = new Date().toISOString();

@@ -1,6 +1,8 @@
 import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
+import { findTechnicianByAccessPinSecrets } from "./accessPinLookup";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 
 function getDb() {
@@ -109,6 +111,9 @@ async function getTechnicianSessionMinutes(): Promise<number> {
 async function findTechnicianByPin(
   pin: string,
 ): Promise<{ id: string; data: TechnicianDoc } | null> {
+  const fromSecrets = await findTechnicianByAccessPinSecrets(pin);
+  if (fromSecrets) return fromSecrets;
+
   const db = getDb();
   const pinCodeSnap = await db
     .collection("technicians")
@@ -152,6 +157,7 @@ async function resolveStagingLocation(
 export const verifyTechnicianPin = onCall(
   {
     region: "us-central1",
+    secrets: [accessPinEncryptionKey],
     cors: [
       "http://localhost:5173",
       "http://127.0.0.1:5173",

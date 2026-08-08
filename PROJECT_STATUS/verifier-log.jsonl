@@ -162,3 +162,9 @@
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-d650975c","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR #50 v0.0.235 LIVE fix-closure"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-f6e3cddc-0f26-5a95-903a-949c8817c188","model":"cursor-grok-4.5-high-fast","real":"na","note":"gmail auto-archive D-64"}
 {"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"bc-dcd8eb26-f6dc-57df-ba8d-4527ae891732","model":"claude-sonnet-5-thinking-high","real":"na","note":"gmail auto-archive D-64"}
+{"date":"2026-08-08","role":"security","verdict":"MEDIUM","taskId":"113b7c18-81c4-55c6-bea2-407163090938","model":"claude-sonnet-5-thinking-high","real":"yes","note":"D-38; mitigations on branch; residual env-key hygiene"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-03e2d36b-1b57-5706-a23a-2bfad290c0ee","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR#56 evidence commit gate-check PASS"}
+{"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"ad4213d2-37ce-5e3c-a9f9-f4c502c02e29","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR#56 row-scoped Admin Access D-38 FINAL PASS tip 7c2e122e"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-row-scoped-evidence","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR#56 docs+inventory+D-38 FINAL evidence; no deploy"}
+{"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"ad4213d2-37ce-5e3c-a9f9-f4c502c02e29","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR56 post-sync D-38 PASS"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-9b5b0109-233b-5f10-a96c-7faed5658f4a","model":"cursor-grok-4.5-high-fast","real":"yes","note":"fix-closure: evidence stamped d68048e5"}

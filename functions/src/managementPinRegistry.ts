@@ -1,11 +1,20 @@
-import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
-import { hashPinForStorage } from "./pinHashing";
+import {
+  hashAdminAccessSessionRaw,
+  type AdminAccessSessionDoc,
+} from "./adminAccessSession";
+import {
+  applyAccessPinSecretWriteInTransaction,
+  prepareAccessPinSecretWrite,
+} from "./accessPinSecretWrite";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
-
-function getDb() {
-  return admin.firestore();
-}
+import { findManagementPinByAccessPinSecrets } from "./accessPinLookup";
+import {
+  ADMIN_ACCESS_SESSIONS_COLLECTION,
+  getDb,
+  accessPinSecretDocId,
+} from "./accessPinSecretsShared";
+import type { ManagementPinSessionConsumption } from "./managementPinWriteAuth";
 
 /** Stable id used by setManagementPin back-compat wrapper + legacy migration. */
 export const DEFAULT_MANAGEMENT_PIN_ID = "default";
@@ -208,6 +217,9 @@ export async function loadManagementPinById(
 export async function resolveManagementPinMatch(
   pin: string,
 ): Promise<ManagementPinDoc | null> {
+  const fromSecrets = await findManagementPinByAccessPinSecrets(pin);
+  if (fromSecrets) return fromSecrets;
+
   const all = await listAllManagementPinDocs();
   if (all.length > 0) {
     for (const candidate of all) {
@@ -279,6 +291,8 @@ export interface UpsertManagementPinInput {
   pin?: string;
   active?: boolean;
   permissions?: ManagementPinPermissions;
+  sessionConsumption?: ManagementPinSessionConsumption | null;
+  actorUid?: string;
 }
 
 export async function upsertManagementPinDoc(
@@ -298,17 +312,6 @@ export async function upsertManagementPinDoc(
     throw new HttpsError("invalid-argument", "A 4-digit PIN is required.");
   }
 
-  if (!existing && !pin) {
-    throw new HttpsError(
-      "invalid-argument",
-      "A 4-digit PIN is required for a new management PIN.",
-    );
-  }
-
-  if (pin) {
-    await assertUniqueActivePin(pin, pinId);
-  }
-
   const label =
     asLabel(input.label) ??
     existing?.label ??
@@ -321,23 +324,142 @@ export async function upsertManagementPinDoc(
     input.permissions ?? existing?.permissions,
   );
 
-  const pinHash = pin ? hashPinForStorage(pin) : existing!.pinHash;
-  if (!pinHash.includes(":")) {
+  if (!existing && !pin) {
+    await ref.set(
+      {
+        id: pinId,
+        label,
+        active,
+        permissions,
+        pinConfigured: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    return { id: pinId };
+  }
+
+  if (pin) {
+    await assertUniqueActivePin(pin, pinId);
+
+    const db = getDb();
+    const refs = prepareAccessPinSecretWrite("management", pinId, pin);
+    await db.runTransaction(async (tx) => {
+      const [existingSecretSnap, uniquenessSnap, entitySnap] =
+        await Promise.all([
+          tx.get(refs.secretRef),
+          tx.get(refs.uniquenessRef),
+          tx.get(refs.entityRef),
+        ]);
+
+      await applyAccessPinSecretWriteInTransaction(tx, db, {
+        targetType: "management",
+        targetId: pinId,
+        pin,
+        now,
+        refs,
+        existingSecretSnap,
+        uniquenessSnap,
+        entitySnap,
+        managementEntityFields: {
+          label,
+          active,
+          permissions,
+          createdAt: existing?.createdAt ?? now,
+        },
+      });
+
+      tx.set(
+        db.collection("appSettings").doc("config"),
+        {
+          managementPinConfigured: true,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+
+      if (input.sessionConsumption && input.actorUid) {
+        const sessionRef = db
+          .collection(ADMIN_ACCESS_SESSIONS_COLLECTION)
+          .doc(input.sessionConsumption.sessionId);
+        const sessionSnap = await tx.get(sessionRef);
+        if (!sessionSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        const session = sessionSnap.data() as AdminAccessSessionDoc;
+        if (
+          session.secretHash !==
+          hashAdminAccessSessionRaw(input.sessionConsumption.raw)
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        if (session.revoked || session.consumedAt) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        if (Date.parse(session.expiresAt) <= Date.now()) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        if (session.managerUid !== input.actorUid) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        if (
+          session.targetType !== "management" ||
+          session.targetId !== pinId
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        tx.set(sessionRef, { consumedAt: now }, { merge: true });
+      }
+    });
+
+    return { id: pinId };
+  }
+
+  const pinHash = existing!.pinHash;
+  const secretSnap = await getDb()
+    .collection("accessPinSecrets")
+    .doc(accessPinSecretDocId("management", pinId))
+    .get();
+  const usesSecrets =
+    secretSnap.exists ||
+    (existingSnap.data()?.pinConfigured === true && !pinHash.includes(":"));
+
+  if (!usesSecrets && !pinHash.includes(":")) {
     throw new HttpsError("failed-precondition", "PIN hash missing.");
   }
 
-  await ref.set(
-    {
-      id: pinId,
-      label,
-      pinHash,
-      active,
-      permissions,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    },
-    { merge: true },
-  );
+  const patch: Record<string, unknown> = {
+    id: pinId,
+    label,
+    active,
+    permissions,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  if (!usesSecrets) {
+    patch.pinHash = pinHash;
+  }
+
+  await ref.set(patch, { merge: true });
 
   await getDb()
     .collection("appSettings")

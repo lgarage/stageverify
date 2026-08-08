@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type {
+  AccessPinTargetType,
   DispatcherAccountSummary,
   ManagementPinPermissions,
   ManagementPinPublic,
@@ -20,6 +28,10 @@ import {
   listDispatchersClient,
   listManagementPinsClient,
   provisionDispatcherClient,
+  revealAccessPinClient,
+  revokeAdminAccessSessionClient,
+  setAccessPinClient,
+  startAdminAccessSessionClient,
   upsertManagementPinClient,
 } from "./phase2CallableClients";
 import {
@@ -122,6 +134,44 @@ function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
   return copy;
 }
 
+function withoutPlaintextTechnicianPin(technician: Technician): Technician {
+  const copy = { ...technician };
+  delete copy.pinCode;
+  return copy;
+}
+
+function entityHasConfiguredPin(entity: Technician | Vendor): boolean {
+  return Boolean(
+    entity.pinCode ||
+      entity.pinHash ||
+      (entity as (Technician | Vendor) & { pinConfigured?: boolean })
+        .pinConfigured,
+  );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRevealUnavailableError(error: unknown): boolean {
+  const message = errorMessage(error).toLowerCase();
+  return (
+    message.includes("cannot be revealed") ||
+    message.includes("not revealable") ||
+    message.includes("not configured")
+  );
+}
+
+function isSessionValidityError(error: unknown): boolean {
+  const message = errorMessage(error).toLowerCase();
+  return (
+    message.includes("session") &&
+    (message.includes("invalid") ||
+      message.includes("expired") ||
+      message.includes("required"))
+  );
+}
+
 type UserType =
   | "manager"
   | "dispatcher"
@@ -136,6 +186,35 @@ type SelectedAccess =
   | { type: "technician"; id: string }
   | { type: "vendor"; id: string }
   | { type: "management"; id: string };
+
+type PinEditorDraft =
+  | {
+      type: "technician";
+      permissions: TechnicianPermissions;
+      badgeColor: string;
+      active: boolean;
+    }
+  | {
+      type: "vendor";
+      companyWideSessionEnabled: boolean;
+      active: boolean;
+    }
+  | {
+      type: "management";
+      label: string;
+      permissions: Required<ManagementPinPermissions>;
+      active: boolean;
+    };
+
+type AdminAccessElevation = {
+  token: string;
+  targetType: AccessPinTargetType;
+  targetId: string;
+  expiresAt: string;
+  revealedPin?: string;
+  revealUnavailable?: boolean;
+  pinHidden?: boolean;
+};
 
 type AccessRow =
   | {
@@ -211,6 +290,46 @@ export function PinAccessManagementPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [lastTempPassword, setLastTempPassword] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState("");
+  const [editorDraft, setEditorDraft] = useState<PinEditorDraft | null>(null);
+  const [adminAccess, setAdminAccess] =
+    useState<AdminAccessElevation | null>(null);
+  const adminAccessRef = useRef<AdminAccessElevation | null>(null);
+  const adminAccessRequestRef = useRef(0);
+  const revealHideTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
+  const [adminAccessBusy, setAdminAccessBusy] = useState(false);
+
+  const clearRevealHideTimer = useCallback(() => {
+    if (revealHideTimerRef.current !== null) {
+      window.clearTimeout(revealHideTimerRef.current);
+      revealHideTimerRef.current = null;
+    }
+  }, []);
+
+  const hideRevealedPin = useCallback(() => {
+    const current = adminAccessRef.current;
+    if (!current) return;
+    const hiddenElevation: AdminAccessElevation = {
+      token: current.token,
+      targetType: current.targetType,
+      targetId: current.targetId,
+      expiresAt: current.expiresAt,
+      pinHidden: true,
+    };
+    adminAccessRef.current = hiddenElevation;
+    setAdminAccess(hiddenElevation);
+  }, []);
+
+  const scheduleRevealHide = useCallback(
+    (revealedForMs: number) => {
+      clearRevealHideTimer();
+      revealHideTimerRef.current = window.setTimeout(() => {
+        revealHideTimerRef.current = null;
+        hideRevealedPin();
+      }, revealedForMs);
+    },
+    [clearRevealHideTimer, hideRevealedPin],
+  );
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -231,6 +350,64 @@ export function PinAccessManagementPanel({
   const [wizardManagementPermissions, setWizardManagementPermissions] = useState(
     defaultManagementPermissions,
   );
+
+  const clearAdminAccess = useCallback(() => {
+    clearRevealHideTimer();
+    adminAccessRef.current = null;
+    setAdminAccess(null);
+  }, [clearRevealHideTimer]);
+
+  const revokeCurrentAdminAccess = useCallback(async () => {
+    const current = adminAccessRef.current;
+    clearAdminAccess();
+    if (!current) return;
+    try {
+      await revokeAdminAccessSessionClient({
+        sessionToken: current.token,
+        targetType: current.targetType,
+        targetId: current.targetId,
+      });
+    } catch {
+      // Revocation is best-effort on client exit paths; server TTL remains authoritative.
+    }
+  }, [clearAdminAccess]);
+
+  useEffect(() => {
+    adminAccessRef.current = adminAccess;
+  }, [adminAccess]);
+
+  useEffect(() => {
+    if (!adminAccess) return;
+    const expiresInMs = Math.max(
+      0,
+      new Date(adminAccess.expiresAt).getTime() - Date.now(),
+    );
+    const timeout = window.setTimeout(() => {
+      void revokeCurrentAdminAccess();
+    }, expiresInMs);
+    return () => window.clearTimeout(timeout);
+  }, [adminAccess, revokeCurrentAdminAccess]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      adminAccessRequestRef.current += 1;
+      if (revealHideTimerRef.current !== null) {
+        window.clearTimeout(revealHideTimerRef.current);
+        revealHideTimerRef.current = null;
+      }
+      const current = adminAccessRef.current;
+      adminAccessRef.current = null;
+      if (current) {
+        void revokeAdminAccessSessionClient({
+          sessionToken: current.token,
+          targetType: current.targetType,
+          targetId: current.targetId,
+        }).catch(() => undefined);
+      }
+    };
+  }, []);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -308,10 +485,10 @@ export function PinAccessManagementPanel({
       name: technician.name,
       active: technician.active !== false,
       accessMethod: "PIN",
-      hasPin: Boolean(technician.pinCode || technician.pinHash),
+      hasPin: entityHasConfiguredPin(technician),
     })),
     ...vendors
-      .filter((vendor) => Boolean(vendor.pinCode || vendor.pinHash))
+      .filter(entityHasConfiguredPin)
       .map((vendor): AccessRow => ({
         type: "vendor",
         id: vendor.id,
@@ -347,11 +524,59 @@ export function PinAccessManagementPanel({
       ? managementPins.find((row) => row.id === selected.id)
       : undefined;
 
-  const selectAccess = (row: AccessRow) => {
+  const selectAccess = async (row: AccessRow) => {
+    adminAccessRequestRef.current += 1;
+    setAdminAccessBusy(false);
+    await revokeCurrentAdminAccess();
     setSelected({ type: row.type, id: row.id });
     setPinDraft("");
     setError(null);
     setMessage(null);
+    if (row.type === "technician") {
+      const technician = technicians.find((item) => item.id === row.id);
+      setEditorDraft(
+        technician
+          ? {
+              type: "technician",
+              permissions: normalizeTechnicianPermissions(
+                technician.permissions,
+              ),
+              badgeColor:
+                technician.badgeColor &&
+                SWATCH_OPTIONS.includes(technician.badgeColor)
+                  ? technician.badgeColor
+                  : defaultBadgeColorHex(technician.id),
+              active: technician.active !== false,
+            }
+          : null,
+      );
+    } else if (row.type === "vendor") {
+      const vendor = vendors.find((item) => item.id === row.id);
+      setEditorDraft(
+        vendor
+          ? {
+              type: "vendor",
+              companyWideSessionEnabled:
+                vendor.companyWideSessionEnabled === true,
+              active: vendor.active !== false,
+            }
+          : null,
+      );
+    } else if (row.type === "management") {
+      const pin = managementPins.find((item) => item.id === row.id);
+      setEditorDraft(
+        pin
+          ? {
+              type: "management",
+              label: pin.label,
+              permissions: normalizeManagementPermissions(pin.permissions),
+              active: pin.active,
+            }
+          : null,
+      );
+    } else {
+      setEditorDraft(null);
+    }
   };
 
   const runMutation = async (
@@ -425,123 +650,197 @@ export function PinAccessManagementPanel({
     });
   };
 
-  const saveTechnicianPin = async (technician: Technician) => {
-    if (!/^\d{4}$/.test(pinDraft)) {
-      setError("PIN must be exactly 4 digits.");
-      return;
-    }
-    await runMutation(
-      technician.id,
-      async () => {
-        await updateTechnician({
-          ...technician,
-          pinCode: pinDraft,
-          updatedAt: new Date().toISOString(),
+  const startAdminAccess = async (
+    targetType: AccessPinTargetType,
+    targetId: string,
+  ) => {
+    const requestId = adminAccessRequestRef.current + 1;
+    adminAccessRequestRef.current = requestId;
+    setAdminAccessBusy(true);
+    setError(null);
+    try {
+      await revokeCurrentAdminAccess();
+      const session = await startAdminAccessSessionClient({
+        targetType,
+        targetId,
+      });
+      if (
+        !mountedRef.current ||
+        adminAccessRequestRef.current !== requestId
+      ) {
+        await revokeAdminAccessSessionClient({
+          sessionToken: session.sessionToken,
+          targetType,
+          targetId,
+        }).catch(() => undefined);
+        return;
+      }
+      const elevation: AdminAccessElevation = {
+        token: session.sessionToken,
+        targetType,
+        targetId,
+        expiresAt: session.expiresAt,
+      };
+      adminAccessRef.current = elevation;
+      setAdminAccess(elevation);
+      try {
+        const reveal = await revealAccessPinClient({
+          targetType,
+          targetId,
+          sessionToken: session.sessionToken,
         });
-        setPinDraft("");
-      },
-      `PIN updated for ${technician.name}.`,
-    );
+        if (
+          !mountedRef.current ||
+          adminAccessRequestRef.current !== requestId
+        ) {
+          await revokeAdminAccessSessionClient({
+            sessionToken: session.sessionToken,
+            targetType,
+            targetId,
+          }).catch(() => undefined);
+          return;
+        }
+        const revealedElevation = {
+          ...elevation,
+          revealedPin: reveal.pin,
+          pinHidden: false,
+        };
+        adminAccessRef.current = revealedElevation;
+        setAdminAccess(revealedElevation);
+        scheduleRevealHide(reveal.revealedForMs ?? 25000);
+      } catch (err) {
+        if (
+          !mountedRef.current ||
+          adminAccessRequestRef.current !== requestId
+        ) {
+          await revokeAdminAccessSessionClient({
+            sessionToken: session.sessionToken,
+            targetType,
+            targetId,
+          }).catch(() => undefined);
+          return;
+        }
+        if (isRevealUnavailableError(err)) {
+          const unavailableElevation = {
+            ...elevation,
+            revealUnavailable: true,
+          };
+          adminAccessRef.current = unavailableElevation;
+          setAdminAccess(unavailableElevation);
+        } else {
+          await revokeCurrentAdminAccess();
+          throw err;
+        }
+      }
+    } catch (err) {
+      if (
+        mountedRef.current &&
+        adminAccessRequestRef.current === requestId
+      ) {
+        setError(
+          err instanceof Error ? err.message : "Could not start Admin Access.",
+        );
+      }
+    } finally {
+      if (
+        mountedRef.current &&
+        adminAccessRequestRef.current === requestId
+      ) {
+        setAdminAccessBusy(false);
+      }
+    }
   };
 
-  const saveVendorPin = async (vendor: Vendor) => {
-    if (!/^\d{4}$/.test(pinDraft)) {
+  const cancelEditor = async () => {
+    adminAccessRequestRef.current += 1;
+    setAdminAccessBusy(false);
+    await revokeCurrentAdminAccess();
+    setPinDraft("");
+    setEditorDraft(null);
+    setSelected(null);
+    setError(null);
+  };
+
+  const savePinEditor = async (
+    row: Extract<AccessRow, { type: PinUserType }>,
+  ) => {
+    if (adminAccessBusy) return;
+    if (!editorDraft || editorDraft.type !== row.type) return;
+    if (pinDraft && !/^\d{4}$/.test(pinDraft)) {
       setError("PIN must be exactly 4 digits.");
       return;
     }
-    await runMutation(
-      vendor.id,
-      async () => {
+    const matchingElevation =
+      adminAccess?.targetType === row.type &&
+      adminAccess.targetId === row.id &&
+      new Date(adminAccess.expiresAt).getTime() > Date.now()
+        ? adminAccess
+        : null;
+    if (pinDraft && row.hasPin && !matchingElevation) {
+      setError("Admin Access is required to change this PIN.");
+      return;
+    }
+
+    setBusyId(row.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const now = new Date().toISOString();
+      if (row.type === "technician" && editorDraft.type === "technician") {
+        const technician = technicians.find((item) => item.id === row.id);
+        if (!technician) throw new Error("Technician not found.");
+        await updateTechnician({
+          ...withoutPlaintextTechnicianPin(technician),
+          active: editorDraft.active,
+          permissions: editorDraft.permissions,
+          badgeColor: editorDraft.badgeColor,
+          updatedAt: now,
+        });
+      } else if (row.type === "vendor" && editorDraft.type === "vendor") {
+        const vendor = vendors.find((item) => item.id === row.id);
+        if (!vendor) throw new Error("Vendor not found.");
         await updateVendor({
           ...withoutPlaintextVendorPin(vendor),
-          pinCode: pinDraft,
-          updatedAt: new Date().toISOString(),
+          active: editorDraft.active,
+          companyWideSessionEnabled:
+            editorDraft.companyWideSessionEnabled,
+          updatedAt: now,
         });
-        setPinDraft("");
-      },
-      `PIN updated for ${vendor.name}.`,
-    );
-  };
-
-  const saveManagementPin = async (pin: ManagementPinPublic) => {
-    if (!/^\d{4}$/.test(pinDraft)) {
-      setError("PIN must be exactly 4 digits.");
-      return;
-    }
-    await runMutation(
-      pin.id,
-      async () => {
+      } else if (
+        row.type === "management" &&
+        editorDraft.type === "management"
+      ) {
         await upsertManagementPinClient({
-          id: pin.id,
-          label: pin.label,
-          pin: pinDraft,
-          active: pin.active,
-          permissions: normalizeManagementPermissions(pin.permissions),
+          id: row.id,
+          label: editorDraft.label.trim(),
+          active: editorDraft.active,
+          permissions: editorDraft.permissions,
         });
-        setPinDraft("");
-      },
-      `PIN updated for ${pin.label}.`,
-    );
-  };
+      }
 
-  const updateTechnicianPermissions = async (
-    technician: Technician,
-    patch: Partial<TechnicianPermissions>,
-  ) => {
-    await runMutation(technician.id, async () => {
-      await updateTechnician({
-        ...technician,
-        permissions: {
-          ...normalizeTechnicianPermissions(technician.permissions),
-          ...patch,
-        },
-        updatedAt: new Date().toISOString(),
-      });
-    });
-  };
+      if (pinDraft) {
+        await setAccessPinClient({
+          targetType: row.type,
+          targetId: row.id,
+          pin: pinDraft,
+          sessionToken: row.hasPin ? matchingElevation?.token : undefined,
+        });
+      }
 
-  const saveTechnicianBadgeColor = async (
-    technician: Technician,
-    badgeColor: string,
-  ) => {
-    await runMutation(technician.id, async () => {
-      await updateTechnician({
-        ...technician,
-        badgeColor,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-  };
-
-  const updateVendorOptions = async (
-    vendor: Vendor,
-    patch: Pick<Vendor, "active" | "companyWideSessionEnabled">,
-  ) => {
-    await runMutation(vendor.id, async () => {
-      await updateVendor({
-        ...withoutPlaintextVendorPin(vendor),
-        ...patch,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-  };
-
-  const updateManagementPin = async (
-    pin: ManagementPinPublic,
-    patch: {
-      label?: string;
-      permissions?: ManagementPinPermissions;
-    },
-  ) => {
-    await runMutation(pin.id, async () => {
-      await upsertManagementPinClient({
-        id: pin.id,
-        label: patch.label ?? pin.label,
-        active: pin.active,
-        permissions:
-          patch.permissions ?? normalizeManagementPermissions(pin.permissions),
-      });
-    });
+      setMessage("Changes saved");
+      await revokeCurrentAdminAccess();
+      setPinDraft("");
+      setEditorDraft(null);
+      setSelected(null);
+      await reload();
+    } catch (err) {
+      if (isSessionValidityError(err)) {
+        clearAdminAccess();
+      }
+      setError(err instanceof Error ? err.message : "Could not save changes.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const resetWizard = () => {
@@ -612,29 +911,41 @@ export function PinAccessManagementPanel({
         await createTechnician({
           id,
           name: wizardName.trim(),
-          pinCode: wizardPin,
           active: true,
           permissions: wizardTechPermissions,
           badgeColor: wizardBadgeColor || defaultBadgeColorHex(id),
           createdAt: now,
           updatedAt: now,
         });
+        await setAccessPinClient({
+          targetType: "technician",
+          targetId: id,
+          pin: wizardPin,
+        });
       } else if (wizardType === "vendor") {
         const vendor = vendors.find((item) => item.id === wizardVendorId);
         if (!vendor) throw new Error("Select a vendor.");
         await updateVendor({
           ...withoutPlaintextVendorPin(vendor),
-          pinCode: wizardPin,
           active: wizardVendorActive,
           companyWideSessionEnabled: wizardVendorCompanyWide,
           updatedAt: new Date().toISOString(),
         });
-      } else {
-        await upsertManagementPinClient({
-          label: wizardName.trim(),
+        await setAccessPinClient({
+          targetType: "vendor",
+          targetId: vendor.id,
           pin: wizardPin,
+        });
+      } else {
+        const created = await upsertManagementPinClient({
+          label: wizardName.trim(),
           active: true,
           permissions: wizardManagementPermissions,
+        });
+        await setAccessPinClient({
+          targetType: "management",
+          targetId: created.id,
+          pin: wizardPin,
         });
       }
       setMessage(`${typeLabels[wizardType]} access added.`);
@@ -995,12 +1306,13 @@ export function PinAccessManagementPanel({
   };
 
   const renderTechnicianDetail = (technician: Technician) => {
-    const permissions = normalizeTechnicianPermissions(technician.permissions);
-    const badgeStyle = resolveTechnicianBadgeStyle(technician);
-    const currentBadge =
-      technician.badgeColor && SWATCH_OPTIONS.includes(technician.badgeColor)
-        ? technician.badgeColor
-        : defaultBadgeColorHex(technician.id);
+    if (editorDraft?.type !== "technician") return null;
+    const permissions = editorDraft.permissions;
+    const badgeStyle = resolveTechnicianBadgeStyle({
+      ...technician,
+      badgeColor: editorDraft.badgeColor,
+    });
+    const currentBadge = editorDraft.badgeColor;
     return (
       <div
         data-testid={`technician-row-${technician.id}`}
@@ -1033,11 +1345,19 @@ export function PinAccessManagementPanel({
               data-testid={`technician-perm-door-${technician.id}`}
               type="checkbox"
               checked={permissions.doorScan !== false}
-              disabled={technician.active === false || busyId === technician.id}
+              disabled={!editorDraft.active || busyId === technician.id}
               onChange={(event) =>
-                void updateTechnicianPermissions(technician, {
-                  doorScan: event.target.checked,
-                })
+                setEditorDraft((current) =>
+                  current?.type === "technician"
+                    ? {
+                        ...current,
+                        permissions: {
+                          ...current.permissions,
+                          doorScan: event.target.checked,
+                        },
+                      }
+                    : current,
+                )
               }
             />{" "}
             Door scan
@@ -1047,11 +1367,19 @@ export function PinAccessManagementPanel({
               data-testid={`technician-perm-release-${technician.id}`}
               type="checkbox"
               checked={permissions.receiveReleases !== false}
-              disabled={technician.active === false || busyId === technician.id}
+              disabled={!editorDraft.active || busyId === technician.id}
               onChange={(event) =>
-                void updateTechnicianPermissions(technician, {
-                  receiveReleases: event.target.checked,
-                })
+                setEditorDraft((current) =>
+                  current?.type === "technician"
+                    ? {
+                        ...current,
+                        permissions: {
+                          ...current.permissions,
+                          receiveReleases: event.target.checked,
+                        },
+                      }
+                    : current,
+                )
               }
             />{" "}
             Receive releases
@@ -1068,9 +1396,13 @@ export function PinAccessManagementPanel({
               data-testid={`technician-badge-swatch-${technician.id}-${swatch.bg.replace("#", "")}`}
               type="button"
               aria-label={`Badge color ${swatch.bg}`}
-              disabled={technician.active === false || busyId === technician.id}
+              disabled={!editorDraft.active || busyId === technician.id}
               onClick={() =>
-                void saveTechnicianBadgeColor(technician, swatch.bg)
+                setEditorDraft((current) =>
+                  current?.type === "technician"
+                    ? { ...current, badgeColor: swatch.bg }
+                    : current,
+                )
               }
               style={{
                 width: 22,
@@ -1086,55 +1418,36 @@ export function PinAccessManagementPanel({
             />
           ))}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <label style={{ color: TEXT }}>
           <input
-            data-testid={`technician-pin-input-${technician.id}`}
-            aria-label={`Change PIN for ${technician.name}`}
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            autoComplete="new-password"
-            placeholder="New 4-digit PIN"
-            value={pinDraft}
-            onChange={(event) =>
-              setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 4))
-            }
-            style={{ ...inputStyle, width: 160 }}
-          />
-          <button
-            data-testid={`technician-pin-save-${technician.id}`}
-            type="button"
-            disabled={busyId === technician.id || !/^\d{4}$/.test(pinDraft)}
-            onClick={() => void saveTechnicianPin(technician)}
-            style={primaryButtonStyle}
-          >
-            Change PIN
-          </button>
-          <button
             data-testid={`technician-active-toggle-${technician.id}`}
-            type="button"
+            type="checkbox"
+            checked={editorDraft.active}
             disabled={busyId === technician.id}
-            onClick={() =>
-              void toggleActive({
-                type: "technician",
-                id: technician.id,
-                name: technician.name,
-                active: technician.active !== false,
-                accessMethod: "PIN",
-                hasPin: Boolean(technician.pinCode || technician.pinHash),
-              })
+            onChange={(event) =>
+              setEditorDraft((current) =>
+                current?.type === "technician"
+                  ? { ...current, active: event.target.checked }
+                  : current,
+              )
             }
-            style={secondaryButtonStyle}
-          >
-            {technician.active === false ? "Reactivate" : "Deactivate"}
-          </button>
-        </div>
-        {!technicianCanUseDoor(technician) && (
+          />{" "}
+          Active
+        </label>
+        {!technicianCanUseDoor({
+          ...technician,
+          permissions,
+          active: editorDraft.active,
+        }) && (
           <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>
             Door scan disabled — PIN will not unlock the tech door.
           </p>
         )}
-        {!technicianCanReceiveReleases(technician) && (
+        {!technicianCanReceiveReleases({
+          ...technician,
+          permissions,
+          active: editorDraft.active,
+        }) && (
           <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>
             Receive releases disabled — hidden from release lists.
           </p>
@@ -1143,83 +1456,58 @@ export function PinAccessManagementPanel({
     );
   };
 
-  const renderVendorDetail = (vendor: Vendor) => (
-    <div
-      data-testid={`vendor-access-detail-${vendor.id}`}
-      style={{ display: "grid", gap: 14 }}
-    >
-      <div>
+  const renderVendorDetail = (vendor: Vendor) => {
+    if (editorDraft?.type !== "vendor") return null;
+    return (
+      <div
+        data-testid={`vendor-access-detail-${vendor.id}`}
+        style={{ display: "grid", gap: 14 }}
+      >
         <h3 style={{ margin: 0, color: "var(--admin-text-data)" }}>
           {vendor.name}
         </h3>
-        <p
-          data-testid={`vendor-access-pin-state-${vendor.id}`}
-          style={{ margin: "5px 0 0", color: MUTED, fontSize: 12 }}
-        >
-          {vendor.pinCode || vendor.pinHash ? "PIN configured" : "No PIN configured"}
-        </p>
+        <label style={{ color: TEXT }}>
+          <input
+            data-testid={`vendor-access-company-wide-${vendor.id}`}
+            type="checkbox"
+            checked={editorDraft.companyWideSessionEnabled}
+            disabled={busyId === vendor.id}
+            onChange={(event) =>
+              setEditorDraft((current) =>
+                current?.type === "vendor"
+                  ? {
+                      ...current,
+                      companyWideSessionEnabled: event.target.checked,
+                    }
+                  : current,
+              )
+            }
+          />{" "}
+          Multi-site run (company PIN)
+        </label>
+        <label style={{ color: TEXT }}>
+          <input
+            data-testid={`vendor-access-active-${vendor.id}`}
+            type="checkbox"
+            checked={editorDraft.active}
+            disabled={busyId === vendor.id}
+            onChange={(event) =>
+              setEditorDraft((current) =>
+                current?.type === "vendor"
+                  ? { ...current, active: event.target.checked }
+                  : current,
+              )
+            }
+          />{" "}
+          Active
+        </label>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input
-          data-testid={`vendor-access-pin-input-${vendor.id}`}
-          aria-label={`Change PIN for ${vendor.name}`}
-          type="password"
-          inputMode="numeric"
-          maxLength={4}
-          autoComplete="new-password"
-          placeholder="New 4-digit PIN"
-          value={pinDraft}
-          onChange={(event) =>
-            setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 4))
-          }
-          style={{ ...inputStyle, width: 160 }}
-        />
-        <button
-          data-testid={`vendor-access-pin-save-${vendor.id}`}
-          type="button"
-          disabled={busyId === vendor.id || !/^\d{4}$/.test(pinDraft)}
-          onClick={() => void saveVendorPin(vendor)}
-          style={primaryButtonStyle}
-        >
-          Change PIN
-        </button>
-      </div>
-      <label style={{ color: TEXT }}>
-        <input
-          data-testid={`vendor-access-company-wide-${vendor.id}`}
-          type="checkbox"
-          checked={vendor.companyWideSessionEnabled === true}
-          disabled={busyId === vendor.id}
-          onChange={(event) =>
-            void updateVendorOptions(vendor, {
-              active: vendor.active !== false,
-              companyWideSessionEnabled: event.target.checked,
-            })
-          }
-        />{" "}
-        Multi-site run (company PIN)
-      </label>
-      <label style={{ color: TEXT }}>
-        <input
-          data-testid={`vendor-access-active-${vendor.id}`}
-          type="checkbox"
-          checked={vendor.active !== false}
-          disabled={busyId === vendor.id}
-          onChange={(event) =>
-            void updateVendorOptions(vendor, {
-              active: event.target.checked,
-              companyWideSessionEnabled:
-                vendor.companyWideSessionEnabled === true,
-            })
-          }
-        />{" "}
-        Active
-      </label>
-    </div>
-  );
+    );
+  };
 
   const renderManagementDetail = (pin: ManagementPinPublic) => {
-    const permissions = normalizeManagementPermissions(pin.permissions);
+    if (editorDraft?.type !== "management") return null;
+    const permissions = editorDraft.permissions;
     return (
       <div
         data-testid={`mgmt-pin-row-${pin.id}`}
@@ -1230,66 +1518,36 @@ export function PinAccessManagementPanel({
           <input
             data-testid={`mgmt-pin-label-${pin.id}`}
             type="text"
-            defaultValue={pin.label}
+            value={editorDraft.label}
             disabled={busyId === pin.id}
-            onBlur={(event) => {
-              const label = event.target.value.trim();
-              if (label && label !== pin.label) {
-                void updateManagementPin(pin, { label });
-              }
-            }}
+            onChange={(event) =>
+              setEditorDraft((current) =>
+                current?.type === "management"
+                  ? { ...current, label: event.target.value }
+                  : current,
+              )
+            }
             style={inputStyle}
           />
         </label>
-        <p style={{ margin: 0, color: MUTED, fontSize: 12 }}>
-          {pin.hasPin ? "PIN configured" : "No PIN configured"} ·{" "}
-          {pin.active ? "Active" : "Inactive"}
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            data-testid={`mgmt-pin-input-${pin.id}`}
-            aria-label={`Change PIN for ${pin.label}`}
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            autoComplete="new-password"
-            placeholder="New 4-digit PIN"
-            value={pinDraft}
-            onChange={(event) =>
-              setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 4))
-            }
-            style={{ ...inputStyle, width: 160 }}
-          />
-          <button
-            data-testid={`mgmt-pin-save-${pin.id}`}
-            type="button"
-            disabled={busyId === pin.id || !/^\d{4}$/.test(pinDraft)}
-            onClick={() => void saveManagementPin(pin)}
-            style={primaryButtonStyle}
-          >
-            Change PIN
-          </button>
-          {!pin.virtual && (
-            <button
-              data-testid={`mgmt-pin-deactivate-${pin.id}`}
-              type="button"
+        {!pin.virtual && (
+          <label style={{ color: TEXT }}>
+            <input
+              data-testid={`mgmt-pin-active-${pin.id}`}
+              type="checkbox"
+              checked={editorDraft.active}
               disabled={busyId === pin.id}
-              onClick={() =>
-                void toggleActive({
-                  type: "management",
-                  id: pin.id,
-                  name: pin.label,
-                  active: pin.active,
-                  accessMethod: "PIN",
-                  hasPin: pin.hasPin,
-                })
+              onChange={(event) =>
+                setEditorDraft((current) =>
+                  current?.type === "management"
+                    ? { ...current, active: event.target.checked }
+                    : current,
+                )
               }
-              style={secondaryButtonStyle}
-            >
-              {pin.active ? "Deactivate" : "Reactivate"}
-            </button>
-          )}
-        </div>
+            />{" "}
+            Active
+          </label>
+        )}
         <div style={{ display: "grid", gap: 8 }}>
           {CAP_LABELS.map(({ key, label }) => (
             <label key={key} style={{ color: TEXT }}>
@@ -1297,14 +1555,19 @@ export function PinAccessManagementPanel({
                 data-testid={`mgmt-pin-cap-${pin.id}-${key}`}
                 type="checkbox"
                 checked={permissions[key]}
-                disabled={busyId === pin.id || !pin.active}
+                disabled={busyId === pin.id || !editorDraft.active}
                 onChange={(event) =>
-                  void updateManagementPin(pin, {
-                    permissions: {
-                      ...permissions,
-                      [key]: event.target.checked,
-                    },
-                  })
+                  setEditorDraft((current) =>
+                    current?.type === "management"
+                      ? {
+                          ...current,
+                          permissions: {
+                            ...current.permissions,
+                            [key]: event.target.checked,
+                          },
+                        }
+                      : current,
+                  )
                 }
               />{" "}
               {label}
@@ -1313,6 +1576,204 @@ export function PinAccessManagementPanel({
         </div>
       </div>
     );
+  };
+
+  const renderPinEditor = (
+    row: Extract<AccessRow, { type: PinUserType }>,
+  ) => {
+    const elevation =
+      adminAccess?.targetType === row.type && adminAccess.targetId === row.id
+        ? adminAccess
+        : null;
+    const renderNewPinInput = () => (
+      <label
+        style={{
+          display: "grid",
+          gap: 6,
+          maxWidth: 260,
+          color: TEXT,
+          fontWeight: 600,
+        }}
+      >
+        New PIN
+        <input
+          data-testid="pin-access-new-pin-input"
+          aria-label={`New PIN for ${row.name}`}
+          type="password"
+          inputMode="numeric"
+          maxLength={4}
+          autoComplete="new-password"
+          placeholder="Optional 4-digit PIN"
+          value={pinDraft}
+          onChange={(event) =>
+            setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 4))
+          }
+          style={{ ...inputStyle, width: 180 }}
+        />
+      </label>
+    );
+
+    return (
+      <div style={{ display: "grid", gap: 18 }}>
+        <div
+          data-testid="pin-access-admin-shell"
+          style={{
+            display: "grid",
+            gap: 10,
+            padding: 14,
+            border: "1px solid var(--admin-border)",
+            borderRadius: 8,
+            backgroundColor: "var(--admin-surface)",
+          }}
+        >
+          {elevation ? (
+            <>
+              <div style={{ display: "grid", gap: 4 }}>
+                <span style={{ color: MUTED, fontSize: 12, fontWeight: 700 }}>
+                  Current PIN
+                </span>
+                <strong
+                  data-testid="pin-access-current-pin"
+                  style={{
+                    color: "var(--admin-text-data)",
+                    fontSize: 15,
+                    letterSpacing: elevation.revealedPin ? "0.12em" : 0,
+                  }}
+                >
+                  {elevation.revealedPin ??
+                    (elevation.revealUnavailable
+                      ? "Not revealable — set a new PIN"
+                      : elevation.pinHidden
+                        ? "••••"
+                        : "Checking current PIN…")}
+                </strong>
+              </div>
+              {renderNewPinInput()}
+              <span
+                data-testid="pin-access-admin-active"
+                style={{
+                  color: "var(--admin-success-text)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                Admin Access Active
+              </span>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "grid", gap: 4 }}>
+                <span style={{ color: MUTED, fontSize: 12, fontWeight: 700 }}>
+                  PIN
+                </span>
+                <strong
+                  data-testid="pin-access-masked-pin"
+                  style={{
+                    color: "var(--admin-text-data)",
+                    fontSize: 18,
+                    letterSpacing: row.hasPin ? "0.18em" : 0,
+                  }}
+                >
+                  {row.hasPin ? "••••" : "Not configured"}
+                </strong>
+              </div>
+              <div>
+                <button
+                  data-testid="pin-access-admin-button"
+                  type="button"
+                  disabled={adminAccessBusy || busyId === row.id}
+                  onClick={() => void startAdminAccess(row.type, row.id)}
+                  style={{
+                    ...secondaryButtonStyle,
+                    minHeight: 36,
+                    color: "var(--admin-accent-soft)",
+                    opacity:
+                      adminAccessBusy || busyId === row.id ? 0.55 : 1,
+                  }}
+                >
+                  {adminAccessBusy ? "Starting…" : "Admin Access"}
+                </button>
+              </div>
+              {!row.hasPin && renderNewPinInput()}
+            </>
+          )}
+        </div>
+
+        {row.type === "technician" &&
+          selectedTechnician &&
+          renderTechnicianDetail(selectedTechnician)}
+        {row.type === "vendor" &&
+          selectedVendor &&
+          renderVendorDetail(selectedVendor)}
+        {row.type === "management" &&
+          selectedManagementPin &&
+          renderManagementDetail(selectedManagementPin)}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            paddingTop: 4,
+          }}
+        >
+          <button
+            data-testid="pin-access-cancel"
+            type="button"
+            disabled={busyId === row.id}
+            onClick={() => void cancelEditor()}
+            style={secondaryButtonStyle}
+          >
+            Cancel
+          </button>
+          <button
+            data-testid="pin-access-save"
+            type="button"
+            disabled={
+              adminAccessBusy ||
+              busyId === row.id ||
+              Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
+            }
+            onClick={() => void savePinEditor(row)}
+            style={{
+              ...primaryButtonStyle,
+              minHeight: 36,
+              opacity:
+                adminAccessBusy ||
+                busyId === row.id ||
+                Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
+                  ? 0.55
+                  : 1,
+            }}
+          >
+            {busyId === row.id ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderExpandedDetail = (row: AccessRow) => {
+    if (row.accessMethod === "Email / Firebase Auth") {
+      if (!selectedDispatcher) return null;
+      return (
+        <div style={{ display: "grid", gap: 16 }}>
+          {renderAuthDetail(selectedDispatcher)}
+          <div>
+            <button
+              data-testid="pin-access-cancel"
+              type="button"
+              onClick={() => void cancelEditor()}
+              style={secondaryButtonStyle}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return renderPinEditor(row);
   };
 
   return (
@@ -1479,18 +1940,21 @@ export function PinAccessManagementPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, index) => (
-                      <tr
-                        key={`${row.type}-${row.id}`}
-                        data-testid={`pin-access-row-${row.type}-${row.id}`}
-                        style={{
-                          backgroundColor:
-                            index % 2 === 0
-                              ? "var(--admin-row-even)"
-                              : "var(--admin-row-odd)",
-                          opacity: row.active ? 1 : 0.72,
-                        }}
-                      >
+                    {rows.map((row, index) => {
+                      const expanded =
+                        selected?.type === row.type && selected.id === row.id;
+                      return (
+                        <Fragment key={`${row.type}-${row.id}`}>
+                          <tr
+                            data-testid={`pin-access-row-${row.type}-${row.id}`}
+                            style={{
+                              backgroundColor:
+                                index % 2 === 0
+                                  ? "var(--admin-row-even)"
+                                  : "var(--admin-row-odd)",
+                              opacity: row.active ? 1 : 0.72,
+                            }}
+                          >
                         <td
                           style={{
                             padding: 12,
@@ -1539,7 +2003,7 @@ export function PinAccessManagementPanel({
                           <button
                             data-testid={`pin-access-edit-${row.type}-${row.id}`}
                             type="button"
-                            onClick={() => selectAccess(row)}
+                            onClick={() => void selectAccess(row)}
                             style={{ ...secondaryButtonStyle, marginRight: 8 }}
                           >
                             Edit
@@ -1572,9 +2036,42 @@ export function PinAccessManagementPanel({
                               {row.active ? "Deactivate" : "Reactivate"}
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr
+                              data-testid={`pin-access-expanded-${row.type}-${row.id}`}
+                              style={{
+                                backgroundColor: "var(--admin-surface-2)",
+                              }}
+                            >
+                              <td
+                                colSpan={5}
+                                style={{
+                                  padding: 16,
+                                  borderBottom:
+                                    "1px solid var(--admin-border-strong)",
+                                }}
+                              >
+                                <div
+                                  data-testid="pin-access-detail"
+                                  style={{
+                                    padding: 16,
+                                    border:
+                                      "1px solid var(--admin-border)",
+                                    borderRadius: 8,
+                                    backgroundColor:
+                                      "var(--admin-surface-2)",
+                                  }}
+                                >
+                                  {renderExpandedDetail(row)}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1590,24 +2087,6 @@ export function PinAccessManagementPanel({
           )}
         </div>
 
-        {selected && (
-          <div
-            data-testid="pin-access-detail"
-            style={{
-              margin: "0 20px 20px",
-              padding: 16,
-              border: "1px solid var(--admin-border)",
-              borderRadius: 8,
-              backgroundColor: "var(--admin-surface-2)",
-            }}
-          >
-            {selectedDispatcher && renderAuthDetail(selectedDispatcher)}
-            {selectedTechnician && renderTechnicianDetail(selectedTechnician)}
-            {selectedVendor && renderVendorDetail(selectedVendor)}
-            {selectedManagementPin &&
-              renderManagementDetail(selectedManagementPin)}
-          </div>
-        )}
       </div>
     </section>
   );
