@@ -30,10 +30,7 @@ import {
   normalizeManagementPinPermissions,
   type ManagementPinPermissions,
 } from "./managementPinRegistry";
-import {
-  hasManagerRole,
-  requireDispatcherAuth,
-} from "./inboundEmail/dispatcherAuth";
+import { requireManagerAuth } from "./inboundEmail/dispatcherAuth";
 import { asFourDigitPin } from "./pinMatching";
 import { hashPinForStorage } from "./pinHashing";
 
@@ -101,15 +98,6 @@ async function checkSetRateLimit(attemptKey: string): Promise<void> {
   });
 }
 
-async function requireManagerForInitialAssign(uid: string): Promise<void> {
-  if (!(await hasManagerRole(uid))) {
-    throw new HttpsError(
-      "permission-denied",
-      "Manager role required for this action.",
-    );
-  }
-}
-
 function managementEntityPatch(now: string): Record<string, unknown> {
   return {
     pinHash: FieldValue.delete(),
@@ -134,7 +122,7 @@ export const setAccessPin = onCall(
     secrets: [accessPinEncryptionKey],
   },
   async (request) => {
-    const uid = await requireDispatcherAuth(request);
+    const uid = await requireManagerAuth(request);
     const data = (request.data ?? {}) as SetAccessPinRequest;
     const targetType = parseAccessPinTargetType(data.targetType);
     const targetId =
@@ -171,8 +159,6 @@ export const setAccessPin = onCall(
           "Admin access session invalid or expired.",
         );
       }
-    } else {
-      await requireManagerForInitialAssign(uid);
     }
 
     const db = getDb();
