@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "decision": "D-63",
+  "updated": "2026-08-08",
+  "canonicalMediumSlug": "gpt-5.6-sol-medium",
+  "canonicalMediumDisplay": "GPT-5.6 Sol Medium",
+  "canonicalMediumEvidence": [
+    "Cloud Agents UI offers labeled option GPT-5.6 Sol Medium (Dan 2026-08-08)",
+    "Cursor staff forum: usage/billing records Task subagent traffic as gpt-5.6-sol-medium (2026-07)",
+    "External live Cursor model catalogs map GPT-5.6 Sol → gpt-5.6-sol-medium"
+  ],
+  "preferredPrimary": "gpt-5.6-sol-medium",
+  "preferredPrimaryDisplay": "GPT-5.6 Sol Medium",
+  "taskSubagentAllowlistAcceptsMedium": false,
+  "taskSubagentProbe": {
+    "slug": "gpt-5.6-sol-medium",
+    "date": "2026-08-08",
+    "result": "Invalid model selection — slug not in Task subagent allowlist",
+    "acceptedSolTaskSlugsProbed": ["gpt-5.6-sol-high", "gpt-5.6-sol-high-fast"],
+    "acceptedSolTaskSlugsListed": ["gpt-5.6-sol-high", "gpt-5.6-sol-high-fast", "gpt-5.6-sol-xhigh", "gpt-5.6-sol-xhigh-fast"]
+  },
+  "primary": "gpt-5.6-sol-medium",
+  "primaryDisplay": "GPT-5.6 Sol Medium",
+  "automatedTaskPrimary": "gpt-5.6-sol-high",
+  "automatedTaskPrimaryDisplay": "GPT-5.6 Sol High",
+  "primaryNote": "Preferred UI primary is Sol Medium (canonical slug gpt-5.6-sol-medium). Cloud UI can select it as parent. Task({model}) subagent allowlist currently rejects Medium — automated Task dispatch escalates to gpt-5.6-sol-high with fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected). When Cloud/parent session is already Sol Medium, implement UI inline as Medium.",
+  "verifier": "cursor-grok-4.5-high-fast",
+  "verifierDisplay": "Cursor Grok 4.5 High Fast",
+  "fallbacks": ["gpt-5.6-sol-high", "gpt-5.6-sol-high-fast", "gpt-5.6-sol-xhigh", "gpt-5.6-sol-xhigh-fast"],
+  "uiArchetypes": ["ui-component", "css-restyle"],
+  "uiTaskClass": ["ui-component", "css-restyle", "theme dark/light", "responsive UI", "accessibility/readability", "visual hierarchy/spacing/typography/color", "presentation-only visible src/ UI"],
+  "nonUiRemainsComposer": ["docs-update", "scout/inventory", "type-refactor", "service-logic", "non-UI multi-file-feature", "backend-write-critical"],
+  "sonnetGatesUnchanged": ["D-38", "D-60"],
+  "evidenceLines": ["ui-implementer:", "ui-readability:", "ui-playwright-verifier:"],
+  "allSolRejected": "STOP — report NOT RUN; no silent Composer UI implement"
+}

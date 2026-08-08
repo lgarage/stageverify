@@ -47,6 +47,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-08-05: Dan-directed reopen (owner authority): after agent actions Dan often could not tell if work was finished or whether he needed to do anything — wanted mandatory DONE + short what-I-did + Your action footer (D-61).
 - 2026-08-05: Dan-directed reopen (owner authority): after D-50 Grok implement still failing on same scope, wanted bounded post-D-50 retry (max 2 Agree→Grok rounds) before STOP/escalate — not unbounded Composer or Grok spin (D-62).
 - 2026-08-08: Dan-directed reopen (owner authority) + prior availability pain (2026-07-18): D-38/D-60 Sonnet-required gates blocked on unavailable Sonnet 4.6 Task slugs — promote active allowlist to Sonnet 5 (`claude-sonnet-5-thinking-high`); calibration + `ALLOWED_GATE_MODELS` same commit; Composer/Sol/Grok builder routing unchanged.
+- 2026-08-08: Dan-directed reopen (owner authority): UI/UX default **Sol** primary + readability DoD — Sol Medium preferred (`gpt-5.6-sol-medium` canonical); Task subagent allowlist rejects Medium → automated Task dispatch escalates to High; Grok verifier + SSOT `ui-model-routing.json` v2 (D-63); non-UI Composer unchanged; Sonnet gates unchanged.
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
