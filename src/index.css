@@ -5,7 +5,7 @@
   --color-bg-secondary: #1e293b;
   --color-bg-card: #1e293b;
   --color-bg-surface: #334155;
-  --color-accent: #3b82f6; /* Softer blue */
+  --color-accent: #3689c6;
   --color-accent-green: #10b981;
   --color-accent-amber: #f59e0b;
   --color-accent-orange: #f97316;
@@ -54,7 +54,7 @@ body {
  * layout survives stylesheet cache misses or Tailwind load failures.
  */
 .portal-shell {
-  --admin-navy: #0a3161;
+  --admin-navy: #204368;
   --admin-bg: #f6f8fa;
   --admin-bg-deep: #ffffff;
   --admin-section-bg: #ffffff;
@@ -72,7 +72,7 @@ body {
   --admin-text-muted: #57606a;
   --admin-text-disabled: #8c959f;
   --admin-table-header-text: #57606a;
-  --admin-accent: #0969da;
+  --admin-accent: #3689c6;
   --admin-accent-soft: #0969da;
   --admin-link: #0969da;
   --admin-on-navy: #ffffff;
@@ -136,7 +136,7 @@ html[data-sv-admin-theme="dark"] .portal-shell,
   --admin-text-muted: #9aa4b0;
   --admin-text-disabled: #7d8590;
   --admin-table-header-text: #e6edf3;
-  --admin-accent: #3b82f6;
+  --admin-accent: #558cb4;
   --admin-accent-soft: #93c5fd;
   --admin-link: #67e8f9;
   --admin-on-navy: #ffffff;
