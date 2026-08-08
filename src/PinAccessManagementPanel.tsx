@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import type {
+  DispatcherAccountSummary,
   ManagementPinPermissions,
   ManagementPinPublic,
   Technician,
@@ -15,7 +16,10 @@ import {
 } from "./dispatcher/firestoreService";
 import {
   deactivateManagementPinClient,
+  deactivateDispatcherClient,
+  listDispatchersClient,
   listManagementPinsClient,
+  provisionDispatcherClient,
   upsertManagementPinClient,
 } from "./phase2CallableClients";
 import {
@@ -118,19 +122,41 @@ function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
   return copy;
 }
 
-type UserType = "technician" | "vendor" | "management";
+type UserType =
+  | "manager"
+  | "dispatcher"
+  | "technician"
+  | "vendor"
+  | "management";
+type AuthUserType = Extract<UserType, "manager" | "dispatcher">;
+type PinUserType = Exclude<UserType, AuthUserType>;
 
 type SelectedAccess =
+  | { type: AuthUserType; id: string }
   | { type: "technician"; id: string }
   | { type: "vendor"; id: string }
   | { type: "management"; id: string };
 
 type AccessRow =
-  | { type: "technician"; id: string; name: string; active: boolean; hasPin: boolean }
-  | { type: "vendor"; id: string; name: string; active: boolean; hasPin: true }
-  | { type: "management"; id: string; name: string; active: boolean; hasPin: boolean };
+  | {
+      type: AuthUserType;
+      id: string;
+      name: string;
+      active: boolean;
+      accessMethod: "Email / Firebase Auth";
+    }
+  | {
+      type: PinUserType;
+      id: string;
+      name: string;
+      active: boolean;
+      accessMethod: "PIN";
+      hasPin: boolean;
+    };
 
 const typeLabels: Record<UserType, string> = {
+  manager: "Manager",
+  dispatcher: "Dispatcher",
   technician: "Technician",
   vendor: "Vendor",
   management: "Management",
@@ -138,6 +164,14 @@ const typeLabels: Record<UserType, string> = {
 
 function TypeChip({ type }: { type: UserType }) {
   const colors: Record<UserType, { bg: string; color: string }> = {
+    manager: {
+      bg: "var(--admin-success-bg)",
+      color: "var(--admin-success-text)",
+    },
+    dispatcher: {
+      bg: "var(--admin-info-bg)",
+      color: "var(--admin-info-text)",
+    },
     technician: { bg: "var(--admin-info-bg)", color: "var(--admin-info-text)" },
     vendor: { bg: "var(--admin-warning-bg)", color: "var(--admin-warning-text)" },
     management: { bg: "var(--admin-surface-2)", color: "var(--admin-text-label)" },
@@ -159,15 +193,23 @@ function TypeChip({ type }: { type: UserType }) {
   );
 }
 
-export function PinAccessManagementPanel() {
+export function PinAccessManagementPanel({
+  canManageDispatchers,
+}: {
+  canManageDispatchers: boolean;
+}) {
+  const [dispatchers, setDispatchers] = useState<DispatcherAccountSummary[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [managementPins, setManagementPins] = useState<ManagementPinPublic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
   const [selected, setSelected] = useState<SelectedAccess | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authLoadError, setAuthLoadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [lastTempPassword, setLastTempPassword] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState("");
 
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -176,6 +218,8 @@ export function PinAccessManagementPanel() {
   const [wizardName, setWizardName] = useState("");
   const [wizardVendorId, setWizardVendorId] = useState("");
   const [wizardPin, setWizardPin] = useState("");
+  const [wizardEmail, setWizardEmail] = useState("");
+  const [wizardTemporaryPassword, setWizardTemporaryPassword] = useState("");
   const [wizardTechPermissions, setWizardTechPermissions] = useState(
     defaultTechnicianPermissions,
   );
@@ -190,6 +234,7 @@ export function PinAccessManagementPanel() {
 
   const reload = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [techRows, vendorRows, managementResult] = await Promise.all([
         listTechnicians(),
@@ -216,18 +261,53 @@ export function PinAccessManagementPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+
+    if (!canManageDispatchers) {
+      setDispatchers([]);
+      setAuthLoadError(null);
+      setAuthLoading(false);
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthLoadError(null);
+    try {
+      const result = await listDispatchersClient();
+      setDispatchers(
+        [...result.dispatchers].sort((a, b) =>
+          (a.email ?? a.uid).localeCompare(b.email ?? b.uid),
+        ),
+      );
+    } catch (err) {
+      setDispatchers([]);
+      setAuthLoadError(
+        err instanceof Error
+          ? err.message
+          : "Could not load Firebase Auth identities.",
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [canManageDispatchers]);
 
   useEffect(() => {
     void Promise.resolve().then(reload);
   }, [reload]);
 
   const rows: AccessRow[] = [
+    ...dispatchers.map((dispatcher): AccessRow => ({
+      type: dispatcher.manager ? "manager" : "dispatcher",
+      id: dispatcher.uid,
+      name: dispatcher.email ?? dispatcher.uid,
+      active: dispatcher.active,
+      accessMethod: "Email / Firebase Auth",
+    })),
     ...technicians.map((technician): AccessRow => ({
       type: "technician",
       id: technician.id,
       name: technician.name,
       active: technician.active !== false,
+      accessMethod: "PIN",
       hasPin: Boolean(technician.pinCode || technician.pinHash),
     })),
     ...vendors
@@ -237,6 +317,7 @@ export function PinAccessManagementPanel() {
         id: vendor.id,
         name: vendor.name,
         active: vendor.active !== false,
+        accessMethod: "PIN",
         hasPin: true,
       })),
     ...managementPins.map((pin): AccessRow => ({
@@ -244,10 +325,15 @@ export function PinAccessManagementPanel() {
       id: pin.id,
       name: pin.label,
       active: pin.active,
+      accessMethod: "PIN",
       hasPin: pin.hasPin,
     })),
   ].sort((a, b) => a.name.localeCompare(b.name));
 
+  const selectedDispatcher =
+    selected?.type === "manager" || selected?.type === "dispatcher"
+      ? dispatchers.find((row) => row.uid === selected.id)
+      : undefined;
   const selectedTechnician =
     selected?.type === "technician"
       ? technicians.find((row) => row.id === selected.id)
@@ -288,6 +374,17 @@ export function PinAccessManagementPanel() {
   };
 
   const toggleActive = async (row: AccessRow) => {
+    if (row.type === "manager" || row.type === "dispatcher") {
+      if (!row.active) return;
+      await runMutation(
+        row.id,
+        async () => {
+          await deactivateDispatcherClient({ uid: row.id });
+        },
+        `${typeLabels[row.type]} account deactivated.`,
+      );
+      return;
+    }
     if (row.type === "technician") {
       const technician = technicians.find((item) => item.id === row.id);
       if (!technician) return;
@@ -454,6 +551,8 @@ export function PinAccessManagementPanel() {
     setWizardName("");
     setWizardVendorId("");
     setWizardPin("");
+    setWizardEmail("");
+    setWizardTemporaryPassword("");
     setWizardTechPermissions(defaultTechnicianPermissions());
     setWizardBadgeColor(TECHNICIAN_BADGE_PALETTE[0]?.bg ?? "#e0f2fe");
     setWizardVendorCompanyWide(false);
@@ -461,10 +560,42 @@ export function PinAccessManagementPanel() {
     setWizardManagementPermissions(defaultManagementPermissions());
   };
 
+  const wizardIsAuthType =
+    wizardType === "manager" || wizardType === "dispatcher";
   const wizardNameIsValid =
     wizardType === "vendor"
       ? Boolean(wizardVendorId)
       : Boolean(wizardName.trim());
+
+  const saveAuthWizard = async () => {
+    if (!wizardIsAuthType || !wizardEmail.trim()) {
+      setError("Email is required.");
+      return;
+    }
+    setBusyId("__wizard__");
+    setError(null);
+    setMessage(null);
+    setLastTempPassword(null);
+    try {
+      const result = await provisionDispatcherClient({
+        email: wizardEmail.trim(),
+        temporaryPassword: wizardTemporaryPassword.trim() || undefined,
+        manager: wizardType === "manager",
+      });
+      setMessage(
+        `${typeLabels[wizardType]} account created for ${result.email}. Share the temporary password securely.`,
+      );
+      setLastTempPassword(result.temporaryPassword);
+      resetWizard();
+      await reload();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not create Firebase Auth access.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const saveWizard = async () => {
     if (!wizardNameIsValid || !/^\d{4}$/.test(wizardPin)) {
@@ -537,7 +668,9 @@ export function PinAccessManagementPanel() {
         }}
       >
         <strong style={{ color: "var(--admin-accent-soft)", fontSize: 15 }}>
-          Add Access · Step {wizardStep} of 4
+          {wizardIsAuthType && wizardStep === 2
+            ? `Add ${typeLabels[wizardType]} Access`
+            : `Add Access · Step ${wizardStep} of 4`}
         </strong>
         <button type="button" onClick={resetWizard} style={secondaryButtonStyle}>
           Cancel
@@ -553,14 +686,53 @@ export function PinAccessManagementPanel() {
             onChange={(event) => setWizardType(event.target.value as UserType)}
             style={inputStyle}
           >
+            {canManageDispatchers && (
+              <>
+                <option value="dispatcher">Dispatcher</option>
+                <option value="manager">Manager</option>
+              </>
+            )}
             <option value="technician">Technician</option>
             <option value="vendor">Vendor</option>
-            <option value="management">Management</option>
+            <option value="management">Management PIN</option>
           </select>
         </label>
       )}
 
+      {wizardStep === 2 && wizardIsAuthType && (
+        <div
+          data-testid="dispatcher-users-provision-form"
+          style={{ display: "grid", gap: 12, maxWidth: 520 }}
+        >
+          <label style={{ display: "grid", gap: 6, color: TEXT }}>
+            Email
+            <input
+              data-testid="dispatcher-provision-email"
+              type="email"
+              value={wizardEmail}
+              onChange={(event) => setWizardEmail(event.target.value)}
+              style={inputStyle}
+              placeholder="dispatcher@example.com"
+            />
+          </label>
+          <label style={{ display: "grid", gap: 6, color: TEXT }}>
+            Temporary password (optional)
+            <input
+              data-testid="dispatcher-provision-password"
+              type="text"
+              value={wizardTemporaryPassword}
+              onChange={(event) =>
+                setWizardTemporaryPassword(event.target.value)
+              }
+              style={inputStyle}
+              placeholder="Auto-generated if blank"
+            />
+          </label>
+        </div>
+      )}
+
       {wizardStep === 2 &&
+        !wizardIsAuthType &&
         (wizardType === "vendor" ? (
           <label style={{ display: "grid", gap: 6, maxWidth: 420, color: TEXT }}>
             Vendor
@@ -718,19 +890,33 @@ export function PinAccessManagementPanel() {
             Back
           </button>
         )}
-        {wizardStep < 4 ? (
+        {wizardIsAuthType && wizardStep === 2 ? (
+          <button
+            data-testid="dispatcher-provision-submit"
+            type="button"
+            disabled={busyId === "__wizard__" || !wizardEmail.trim()}
+            onClick={() => void saveAuthWizard()}
+            style={{
+              ...primaryButtonStyle,
+              opacity:
+                busyId === "__wizard__" || !wizardEmail.trim() ? 0.55 : 1,
+            }}
+          >
+            {busyId === "__wizard__" ? "Creating…" : "Save Access"}
+          </button>
+        ) : wizardStep < 4 ? (
           <button
             data-testid="pin-access-wizard-next"
             type="button"
             disabled={
-              (wizardStep === 2 && !wizardNameIsValid) ||
+              (wizardStep === 2 && !wizardIsAuthType && !wizardNameIsValid) ||
               (wizardStep === 3 && !/^\d{4}$/.test(wizardPin))
             }
             onClick={() => setWizardStep((step) => step + 1)}
             style={{
               ...primaryButtonStyle,
               opacity:
-                (wizardStep === 2 && !wizardNameIsValid) ||
+                (wizardStep === 2 && !wizardIsAuthType && !wizardNameIsValid) ||
                 (wizardStep === 3 && !/^\d{4}$/.test(wizardPin))
                   ? 0.55
                   : 1,
@@ -756,6 +942,57 @@ export function PinAccessManagementPanel() {
       </div>
     </div>
   );
+
+  const renderAuthDetail = (account: DispatcherAccountSummary) => {
+    const type: AuthUserType = account.manager ? "manager" : "dispatcher";
+    return (
+      <div
+        data-testid={`pin-access-auth-detail-${account.uid}`}
+        style={{ display: "grid", gap: 14 }}
+      >
+        <label style={{ display: "grid", gap: 6, maxWidth: 520, color: TEXT }}>
+          Email
+          <input
+            type="email"
+            readOnly
+            value={account.email ?? account.uid}
+            style={{ ...inputStyle, color: "var(--admin-text-data)" }}
+          />
+        </label>
+        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <p style={{ margin: 0, color: TEXT }}>
+            <span style={{ color: MUTED }}>Role:</span>{" "}
+            <strong>{typeLabels[type]}</strong>
+          </p>
+          <p style={{ margin: 0, color: TEXT }}>
+            <span style={{ color: MUTED }}>Status:</span>{" "}
+            <strong>{account.active ? "Active" : "Inactive"}</strong>
+          </p>
+        </div>
+        {account.active && (
+          <div>
+            <button
+              data-testid={`dispatcher-deactivate-${account.uid}`}
+              type="button"
+              disabled={busyId === account.uid}
+              onClick={() =>
+                void toggleActive({
+                  type,
+                  id: account.uid,
+                  name: account.email ?? account.uid,
+                  active: account.active,
+                  accessMethod: "Email / Firebase Auth",
+                })
+              }
+              style={secondaryButtonStyle}
+            >
+              {busyId === account.uid ? "Deactivating…" : "Deactivate"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderTechnicianDetail = (technician: Technician) => {
     const permissions = normalizeTechnicianPermissions(technician.permissions);
@@ -883,6 +1120,7 @@ export function PinAccessManagementPanel() {
                 id: technician.id,
                 name: technician.name,
                 active: technician.active !== false,
+                accessMethod: "PIN",
                 hasPin: Boolean(technician.pinCode || technician.pinHash),
               })
             }
@@ -1042,6 +1280,7 @@ export function PinAccessManagementPanel() {
                   id: pin.id,
                   name: pin.label,
                   active: pin.active,
+                  accessMethod: "PIN",
                   hasPin: pin.hasPin,
                 })
               }
@@ -1117,13 +1356,15 @@ export function PinAccessManagementPanel() {
               data-testid="pin-access-helper"
               style={{ margin: "5px 0 0", color: MUTED, fontSize: 12 }}
             >
-              Manage technician, company vendor, and management PIN access in one place.
+              Manage access for managers, dispatchers, technicians, vendors, and
+              management PINs in one place.
             </p>
           </div>
           <button
             data-testid="pin-access-add-button"
             type="button"
             onClick={() => {
+              setLastTempPassword(null);
               setWizardOpen(true);
               setWizardStep(1);
             }}
@@ -1145,6 +1386,19 @@ export function PinAccessManagementPanel() {
             {error}
           </p>
         )}
+        {authLoadError && (
+          <p
+            data-testid="pin-access-auth-error"
+            style={{
+              margin: "14px 20px 0",
+              color: "var(--admin-warning-text)",
+              fontSize: 13,
+            }}
+          >
+            Firebase Auth identities could not be loaded. PIN access remains
+            available. {authLoadError}
+          </p>
+        )}
         {message && (
           <p
             role="status"
@@ -1157,6 +1411,22 @@ export function PinAccessManagementPanel() {
             {message}
           </p>
         )}
+        {lastTempPassword && (
+          <p
+            data-testid="dispatcher-users-temp-password"
+            style={{
+              margin: "14px 20px 0",
+              padding: "10px 12px",
+              borderRadius: 6,
+              backgroundColor: "var(--admin-surface-2)",
+              color: "var(--admin-text-data)",
+              fontSize: 13,
+              fontFamily: "monospace",
+            }}
+          >
+            Temporary password: {lastTempPassword}
+          </p>
+        )}
 
         {wizardOpen && renderWizard()}
 
@@ -1166,6 +1436,14 @@ export function PinAccessManagementPanel() {
           ) : (
             <>
               <div style={{ overflowX: "auto" }}>
+                {authLoading && (
+                  <p
+                    data-testid="pin-access-auth-loading"
+                    style={{ color: MUTED, fontSize: 13, margin: "0 0 10px" }}
+                  >
+                    Loading Firebase Auth identities…
+                  </p>
+                )}
                 <table
                   data-testid="pin-access-roster"
                   style={{
@@ -1178,8 +1456,13 @@ export function PinAccessManagementPanel() {
                 >
                   <thead>
                     <tr style={{ backgroundColor: NAVY }}>
-                      {["User Name", "User Type", "PIN", "Status", "Actions"].map(
-                        (heading) => (
+                      {[
+                        "User Name / Email",
+                        "User Type",
+                        "Access Method",
+                        "Status",
+                        "Actions",
+                      ].map((heading) => (
                           <th
                             key={heading}
                             style={{
@@ -1192,8 +1475,7 @@ export function PinAccessManagementPanel() {
                           >
                             {heading}
                           </th>
-                        ),
-                      )}
+                        ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -1227,13 +1509,17 @@ export function PinAccessManagementPanel() {
                           <TypeChip type={row.type} />
                         </td>
                         <td
-                          data-testid={`pin-access-pin-state-${row.type}-${row.id}`}
+                          data-testid={
+                            row.accessMethod === "PIN"
+                              ? `pin-access-pin-state-${row.type}-${row.id}`
+                              : `pin-access-auth-method-${row.id}`
+                          }
                           style={{
                             padding: 12,
                             borderBottom: "1px solid var(--admin-border)",
                           }}
                         >
-                          {row.hasPin ? "••••" : "Not configured"}
+                          {row.accessMethod}
                         </td>
                         <td
                           style={{
@@ -1258,7 +1544,24 @@ export function PinAccessManagementPanel() {
                           >
                             Edit
                           </button>
-                          {!(row.type === "management" && managementPins.find((pin) => pin.id === row.id)?.virtual) && (
+                          {(row.type === "manager" ||
+                            row.type === "dispatcher") ? (
+                            row.active && (
+                              <button
+                                data-testid={`pin-access-active-${row.type}-${row.id}`}
+                                type="button"
+                                disabled={busyId === row.id}
+                                onClick={() => void toggleActive(row)}
+                                style={secondaryButtonStyle}
+                              >
+                                Deactivate
+                              </button>
+                            )
+                          ) : !(
+                              row.type === "management" &&
+                              managementPins.find((pin) => pin.id === row.id)
+                                ?.virtual
+                            ) && (
                             <button
                               data-testid={`pin-access-active-${row.type}-${row.id}`}
                               type="button"
@@ -1280,7 +1583,7 @@ export function PinAccessManagementPanel() {
                   data-testid="pin-access-empty"
                   style={{ color: MUTED, fontSize: 13, margin: "14px 0 0" }}
                 >
-                  No PIN access entries yet.
+                  No access identities yet.
                 </p>
               )}
             </>
@@ -1298,6 +1601,7 @@ export function PinAccessManagementPanel() {
               backgroundColor: "var(--admin-surface-2)",
             }}
           >
+            {selectedDispatcher && renderAuthDetail(selectedDispatcher)}
             {selectedTechnician && renderTechnicianDetail(selectedTechnician)}
             {selectedVendor && renderVendorDetail(selectedVendor)}
             {selectedManagementPin &&

@@ -25,7 +25,10 @@ import {
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
 import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
-import { isInvoiceShellNoShopStaging } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
+import {
+  fulfillmentDisplayLabel,
+  isInvoiceShellNoShopStaging,
+} from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
 
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
@@ -156,8 +159,8 @@ function assertOfflineStagingActionRules() {
     [],
   );
   record(
-    "offline — Will-Call pickup_at_vendor Issue Summary",
-    willCallDisplay.issueSummary === "Will-Call Pickup",
+    "offline — Will-Call pickup_at_vendor has no non-exception Issue text",
+    willCallDisplay.issueSummary === "",
     willCallDisplay.issueSummary,
   );
   const willCallFulfillmentOnly = {
@@ -171,8 +174,8 @@ function assertOfflineStagingActionRules() {
     [],
   );
   record(
-    "offline — Will-Call will_call_pickup Issue Summary",
-    fulfillmentOnlyDisplay.issueSummary === "Will-Call Pickup",
+    "offline — Will-Call will_call_pickup has no non-exception Issue text",
+    fulfillmentOnlyDisplay.issueSummary === "",
     fulfillmentOnlyDisplay.issueSummary,
   );
   record(
@@ -195,12 +198,21 @@ function assertOfflineStagingActionRules() {
     zeroReceivedItems,
   );
   record(
-    "offline — fulfillment-only will_call_pickup status label",
+    "offline — fulfillment-only will_call_pickup status is workflow-derived",
     deliveryReadinessDisplayLabel(
       fulfillmentOnlyWillCall,
       fulfillmentReadiness,
       zeroReceivedItems,
-    ) === "Will-Call / Pickup",
+    ) === "Awaiting Delivery",
+  );
+  record(
+    "offline — exact will-call fulfillment table label",
+    fulfillmentDisplayLabel(fulfillmentOnlyWillCall) ===
+      "Will-Call / Pickup @ Vendor",
+  );
+  record(
+    "offline — exact vendor drop-off fulfillment table label",
+    fulfillmentDisplayLabel(pendingNoStaging) === "Vendor Drop-Off",
   );
 
   const willCallBoItems = [
@@ -332,19 +344,25 @@ async function assertOrderSummaryWillCallUi(page, record) {
   const count = await rows.count();
   let willCallOrderNumber = null;
   let willCallListStatus = null;
+  const statusIndex = await deliveryColumnIndex(page, "Status");
+  const fulfillmentIndex = await deliveryColumnIndex(page, "Fulfillment");
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const statusText = (await row.locator("td").first().innerText()).trim();
-    if (statusText === "Will-Call / Pickup") {
-      willCallListStatus = statusText;
-      willCallOrderNumber = (await row.locator("td").nth(4).innerText()).trim();
+    const fulfillmentText = (
+      await row.locator("td").nth(fulfillmentIndex).innerText()
+    ).trim();
+    if (fulfillmentText === "Will-Call / Pickup @ Vendor") {
+      willCallListStatus = (
+        await row.locator("td").nth(statusIndex).innerText()
+      ).trim();
+      willCallOrderNumber = await row.getAttribute("data-order-number");
       break;
     }
   }
 
   if (!willCallOrderNumber) {
     record(
-      "Will-Call / Pickup list row for drawer label check",
+      "Will-Call fulfillment list row for drawer label check",
       true,
       "skipped — no will-call row in live table (offline label asserts cover)",
     );
@@ -522,20 +540,67 @@ async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned
   }
 }
 
-/** Staging Loc. column index in deliveries table (0-based). */
-const STAGING_COLUMN_INDEX = 7;
-/** Issue Summary column index in deliveries table (0-based). */
-const ISSUE_SUMMARY_COLUMN_INDEX = 9;
-/** Status column index in deliveries table (0-based). */
-const STATUS_COLUMN_INDEX = 0;
+const EXPECTED_DELIVERY_HEADERS = [
+  "Status",
+  "Fulfillment",
+  "Vendor",
+  "Job Name",
+  "Invoice #",
+  "PO #",
+  "Staging Location",
+  "Items",
+  "Delivery / Pickup Date",
+  "Issue",
+  "Assigned Technician",
+  "Action",
+];
+
+function normalizeDeliveryHeader(text) {
+  return text.replace(/[▲▼↕]/g, "").replace(/\s+/g, " ").trim();
+}
+
+async function deliveryHeaders(page) {
+  const header = page.getByTestId("dispatcher-deliveries-table-header");
+  const texts = await header.locator("th").evaluateAll((cells) =>
+    cells.map((cell) => cell.textContent ?? ""),
+  );
+  return texts.map(normalizeDeliveryHeader);
+}
+
+async function deliveryColumnIndex(page, label) {
+  const headers = await deliveryHeaders(page);
+  const index = headers.indexOf(label);
+  if (index < 0) {
+    throw new Error(`Delivery column "${label}" missing: ${headers.join(" | ")}`);
+  }
+  return index;
+}
+
+async function assertDeliveryHeaderOrder(page, record) {
+  const headers = await deliveryHeaders(page);
+  record(
+    "Deliveries table header order is locked",
+    headers.length === EXPECTED_DELIVERY_HEADERS.length &&
+      headers.every((header, index) => header === EXPECTED_DELIVERY_HEADERS[index]),
+    headers.join(" | "),
+  );
+}
+
+function deliveryRowByOrder(page, orderNumber) {
+  return page.locator(
+    `table tbody tr[data-order-number="${orderNumber}"]`,
+  ).first();
+}
 
 async function assertStagingActionRowsMatchStagingColumn(page, record) {
+  const stagingColumnIndex = await deliveryColumnIndex(page, "Staging Location");
   const rows = page.locator("table tbody tr");
   const count = await rows.count();
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
-    const stagingCell = row.locator("td").nth(STAGING_COLUMN_INDEX);
+    const orderNumber =
+      (await row.getAttribute("data-order-number")) ?? `row-${i + 1}`;
+    const stagingCell = row.locator("td").nth(stagingColumnIndex);
     const stagingNa = stagingCell.locator('[data-testid^="delivery-list-staging-na-"]');
     const hasStagingNa = (await stagingNa.count()) > 0;
     const notAssigned = stagingCell.getByText("Not Assigned", { exact: true });
@@ -703,11 +768,12 @@ async function assertDispatcherStagingActionRows(page, record) {
 }
 
 async function openRowByStagingAssignment(page, wantUnassigned) {
+  const stagingColumnIndex = await deliveryColumnIndex(page, "Staging Location");
   const rows = page.locator("table tbody tr");
   const count = await rows.count();
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const stagingCell = row.locator("td").nth(STAGING_COLUMN_INDEX);
+    const stagingCell = row.locator("td").nth(stagingColumnIndex);
     const isWillCallNa =
       (await stagingCell.getByText("N/A", { exact: true }).count()) > 0;
     const isUnassigned =
@@ -719,7 +785,7 @@ async function openRowByStagingAssignment(page, wantUnassigned) {
       await row.click({ force: true });
       await page.waitForTimeout(1200);
       await page.getByTestId("issue-summary-panel").waitFor({ timeout: 15_000 });
-      const orderNumber = (await row.locator("td").nth(4).innerText()).trim();
+      const orderNumber = await row.getAttribute("data-order-number");
       return orderNumber;
     }
   }
@@ -974,9 +1040,7 @@ async function reopenOrd005DrawerAfterPrep(page, drawerProbeOrder) {
   await search.fill("");
   await search.fill(drawerProbeOrder);
   await page.waitForTimeout(1500);
-  const targetRow = page
-    .locator("table tbody tr", { hasText: drawerProbeOrder })
-    .first();
+  const targetRow = deliveryRowByOrder(page, drawerProbeOrder);
   const viewBtn = targetRow.locator("button").filter({ hasText: /^View$/ });
   if (await viewBtn.isVisible().catch(() => false)) {
     await viewBtn.click({ force: true });
@@ -1157,7 +1221,9 @@ async function assertSeparatePickupPills(page, record, label) {
     );
     record(
       `${label} — active link pill uses green styling`,
-      /rgb\(232,\s*245,\s*233\)|#e8f5e9/i.test(activeBg),
+      /rgb\((232,\s*245,\s*233|218,\s*251,\s*225)\)|#e8f5e9/i.test(
+        activeBg,
+      ),
       activeBg,
     );
   } else if (activeCount > 0) {
@@ -1172,7 +1238,9 @@ async function assertSeparatePickupPills(page, record, label) {
     );
     record(
       `${label} — active link pill uses green styling`,
-      /rgb\(232,\s*245,\s*233\)|#e8f5e9/i.test(activeBg),
+      /rgb\((232,\s*245,\s*233|218,\s*251,\s*225)\)|#e8f5e9/i.test(
+        activeBg,
+      ),
       activeBg,
     );
   } else {
@@ -1337,7 +1405,7 @@ async function openOrderDrawer(page, orderNumber) {
   await page.waitForTimeout(400);
 
   const tryOpenVisibleRow = async () => {
-    const row = page.locator("table tbody tr", { hasText: orderNumber }).first();
+    const row = deliveryRowByOrder(page, orderNumber);
     if ((await row.count()) === 0) return false;
     await row.click({ force: true });
     await page.waitForTimeout(1200);
@@ -1553,6 +1621,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   const rows = page.locator("table tbody tr");
   const rowCount = await rows.count();
   record("Deliveries table has rows", rowCount > 0, `${rowCount} rows`);
+  await assertDeliveryHeaderOrder(page, record);
 
   await assertDispatcherStagingActionRows(page, record);
 
@@ -1573,9 +1642,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   await search.fill(drawerProbeOrder);
   await page.waitForTimeout(1500);
 
-  const targetRow = page
-    .locator("table tbody tr", { hasText: drawerProbeOrder })
-    .first();
+  const targetRow = deliveryRowByOrder(page, drawerProbeOrder);
   if ((await targetRow.count()) === 0) {
     if (isProdBaseDrawer) {
       const fallbackRow = page.locator("table tbody tr").first();
@@ -1608,9 +1675,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     await page.getByTestId("drawer-action-banner").waitFor({ timeout: 20_000 });
     await resolveBlockingIssuesForVerifyPrep(page, record);
     await reopenOrd005DrawerAfterPrep(page, drawerProbeOrder);
-    ord005Row = page
-      .locator("table tbody tr", { hasText: drawerProbeOrder })
-      .first();
+    ord005Row = deliveryRowByOrder(page, drawerProbeOrder);
     drawerAlreadyOpen = true;
   }
 
@@ -1651,7 +1716,16 @@ async function assertOrd006EmailReviewAction(page, record) {
   const drawerStagingUnassigned =
     (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0;
   await assertDeliveryBasicsStaging(page, record, "Drawer", drawerStagingUnassigned);
-  await assertStagingLocationBanner(page, record, "Drawer", drawerStagingUnassigned);
+  const drawerHasAssignedStaging =
+    (await page
+      .getByTestId("delivery-basics-staging-locations")
+      .getAttribute("data-has-assigned-staging")) === "true";
+  await assertStagingLocationBanner(
+    page,
+    record,
+    "Drawer",
+    !drawerHasAssignedStaging,
+  );
   await assertStagingLocationCard(
     page,
     record,
@@ -1691,8 +1765,9 @@ async function assertOrd006EmailReviewAction(page, record) {
   }
 
   if (itemsReceivedLine) {
+    const itemsColumnIndex = await deliveryColumnIndex(page, "Items");
     const listItemsRecv = (
-      await ord005Row.locator("td").nth(8).innerText()
+      await ord005Row.locator("td").nth(itemsColumnIndex).innerText()
     ).trim();
     const drawerMatch = itemsReceivedLine.match(/^(\d+) of (\d+) Items Received$/);
     if (drawerMatch && /^\d+\/\d+$/.test(listItemsRecv)) {
@@ -2064,7 +2139,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   await search.fill("");
   await page.waitForTimeout(800);
 
-  const ord002Row = page.locator("table tbody tr", { hasText: "ORD-002" });
+  const ord002Row = deliveryRowByOrder(page, "ORD-002");
   if ((await ord002Row.count()) > 0) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);
@@ -2176,9 +2251,19 @@ async function assertOrd006EmailReviewAction(page, record) {
   await page.waitForTimeout(1500);
 
   for (const order of ["ORD-002", "ORD-004"]) {
-    const partialRow = page.locator("table tbody tr", { hasText: order });
+    const partialRow = deliveryRowByOrder(page, order);
     if ((await partialRow.count()) === 0) {
-      record(`${order} row present for section-order check`, false);
+      const opened = await openOrderDrawer(page, order);
+      record(
+        `${order} row present for section-order check`,
+        opened,
+        opened
+          ? "skipped — complete/hidden on default board; drawer opened by deep link"
+          : "row absent and drawer did not open",
+      );
+      if (opened) {
+        await assertDeliveryFirstDrawerOrder(page, record, order);
+      }
       continue;
     }
     await page.keyboard.press("Escape");
@@ -2215,13 +2300,17 @@ async function assertOrd006EmailReviewAction(page, record) {
         order,
         ord002StagingUnassigned,
       );
+      const ord002HasAssignedStaging =
+        (await page
+          .getByTestId("delivery-basics-staging-locations")
+          .getAttribute("data-has-assigned-staging")) === "true";
       await assertStagingLocationBanner(
         page,
         record,
         order,
-        ord002StagingUnassigned,
+        !ord002HasAssignedStaging,
       );
-      const reopenRow = page.locator("table tbody tr", { hasText: order }).first();
+      const reopenRow = deliveryRowByOrder(page, order);
       if ((await reopenRow.count()) > 0) {
         await reopenRow.click({ force: true });
         await page.waitForTimeout(1200);
@@ -2291,15 +2380,46 @@ async function assertOrd006EmailReviewAction(page, record) {
       unassignedOrder,
     );
     await assertDeliveryBasicsStaging(page, record, unassignedOrder, true);
-    await assertStagingLocationBanner(page, record, unassignedOrder, true);
-    const reopenUnassigned = page.locator("table tbody tr", {
-      hasText: unassignedOrder,
-    }).first();
-    if ((await reopenUnassigned.count()) > 0) {
-      await reopenUnassigned.click({ force: true });
-      await page.waitForTimeout(1200);
-      await assertDeliveryDrawerOpen(page);
+    // PR #49 / v0.0.233: banner only when shop staging required ∧ no actual/planned
+    // assignment. List "Not Assigned" can still appear when planned spots exist —
+    // drawer SoT is data-has-assigned-staging on Delivery Basics.
+    const stagingBasics = page.getByTestId("delivery-basics-staging-locations");
+    const hasAssignedAttr =
+      (await stagingBasics.getAttribute("data-has-assigned-staging")) === "true";
+    const expectBanner = !hasAssignedAttr;
+    if (hasAssignedAttr) {
+      record(
+        `${unassignedOrder} — planned/assigned staging gates banner off`,
+        true,
+        "data-has-assigned-staging=true (list may still show Not Assigned)",
+      );
     }
+    await assertStagingLocationBanner(
+      page,
+      record,
+      unassignedOrder,
+      expectBanner,
+    );
+    // openRowByStagingAssignment already opened the drawer. Re-click only if it
+    // closed (e.g. Assign Location navigation). A second row click can toggle it shut.
+    const drawerStillOpen =
+      (await page.getByTestId("issue-summary-panel").count()) > 0 ||
+      (await page.getByTestId("delivery-basics-staging-locations").count()) > 0;
+    if (!drawerStillOpen) {
+      const reopenUnassigned = deliveryRowByOrder(page, unassignedOrder);
+      if ((await reopenUnassigned.count()) > 0) {
+        const viewBtn = reopenUnassigned
+          .locator("button")
+          .filter({ hasText: /^View$/ });
+        if ((await viewBtn.count()) > 0) {
+          await viewBtn.click({ force: true });
+        } else {
+          await reopenUnassigned.click({ force: true });
+        }
+        await page.waitForTimeout(1200);
+      }
+    }
+    await assertDeliveryDrawerOpen(page);
     await assertStagingLocationCard(page, record, unassignedOrder, false);
   } else {
     record(
@@ -2310,7 +2430,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   }
 
   let assignedOrder = null;
-  const ord005BannerRow = page.locator("table tbody tr", { hasText: "ORD-005" });
+  const ord005BannerRow = deliveryRowByOrder(page, "ORD-005");
   if ((await ord005BannerRow.count()) > 0) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);

@@ -5,6 +5,7 @@
 import {
   buildDeliverToSiteIssueSummary,
   extractDeliverToSiteLabel,
+  fulfillmentDisplayLabel,
   isDeliverToSiteConfirmed,
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
@@ -101,9 +102,15 @@ const willCallItems = [
   },
 ];
 assert(
-  "will-call shell shows Will-Call Pickup in issue summary column",
+  "will-call shell has empty Issue column when no exception",
   computeDeliveryDisplayState(willCallShellDelivery, willCallItems, [])
-    .issueSummary === "Will-Call Pickup",
+    .issueSummary === "",
+);
+
+assert(
+  "will-call fulfillment uses exact table label",
+  fulfillmentDisplayLabel(willCallShellDelivery) ===
+    "Will-Call / Pickup @ Vendor",
 );
 
 assert(
@@ -116,12 +123,12 @@ const willCallReadiness = computeDeliveryReadiness(
   willCallItems,
 );
 assert(
-  "will-call shell with status complete shows Will-Call / Pickup label (not Complete)",
+  "will-call shell status remains workflow-derived (not fulfillment text)",
   deliveryReadinessDisplayLabel(
     willCallShellDelivery,
     willCallReadiness,
     willCallItems,
-  ) === "Will-Call / Pickup",
+  ) === "Picked Up",
 );
 
 assert(
@@ -142,12 +149,18 @@ const willCallFulfillmentReadiness = computeDeliveryReadiness(
   willCallItems,
 );
 assert(
-  "fulfillment-only will_call_pickup status label is Will-Call / Pickup",
+  "fulfillment-only will_call_pickup status remains workflow-derived",
   deliveryReadinessDisplayLabel(
     willCallFulfillmentOnlyDelivery,
     willCallFulfillmentReadiness,
     willCallItems,
-  ) === "Will-Call / Pickup",
+  ) === "Awaiting Delivery",
+);
+
+assert(
+  "shop fulfillment uses exact table label",
+  fulfillmentDisplayLabel({ invoiceFulfillmentMethod: "delivery" }) ===
+    "Vendor Drop-Off",
 );
 
 const willCallMixedItems = [
@@ -433,12 +446,12 @@ const deliverToSiteConfirmedDelivery = {
 };
 
 assert(
-  "deliver-to-site confirmed display label is Complete",
+  "deliver-to-site confirmed display label follows complete workflow",
   deliveryReadinessDisplayLabel(
     deliverToSiteConfirmedDelivery,
     deliverToSiteReadiness,
     deliverToSiteItems,
-  ) === "Complete",
+  ) === "Picked Up",
 );
 
 assert(
@@ -455,7 +468,7 @@ assert(
   "issue summary panel shows 43 of 43 when site delivery confirmed",
   confirmedPanel.itemsReceivedCount === 43 &&
     confirmedPanel.itemsTotalCount === 43 &&
-    confirmedPanel.deliveryStatusLabel === "Complete",
+    confirmedPanel.deliveryStatusLabel === "Picked Up",
 );
 assert(
   "issue summary panel hides not-delivered rows when site delivery confirmed",
@@ -470,7 +483,7 @@ const confirmedDisplay = computeDeliveryDisplayState(
   { jobPickupScheduled: true },
 );
 assert(
-  "issue summary column empty when site delivery confirmed (status column shows Complete)",
+  "issue summary column empty when site delivery confirmed (status column shows Picked Up)",
   confirmedDisplay.issueSummary === "",
 );
 assert(

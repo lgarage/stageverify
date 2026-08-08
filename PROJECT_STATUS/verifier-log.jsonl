@@ -158,3 +158,5 @@
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-f4a446c6","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR #49 v0.0.233 drawer fulfillment/staging LIVE"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"324c0da3-b6fb-437c-a478-025d96cfe17f","model":"cursor-grok-4.5-high-fast","real":"na","note":"section-sep v0.0.234 gh-pages"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"9d6f71dd-7503-449f-9777-feb6b755da9e","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-verified missing:ui-readability after Sol DoD 684921be"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-23bb4db8","model":"cursor-grok-4.5-high-fast","real":"na","note":"unified PIN access PR #50 deploy held"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-d650975c","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR #50 v0.0.235 LIVE fix-closure"}
