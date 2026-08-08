@@ -167,6 +167,11 @@ export async function revokeAdminAccessSessionByToken(
 /** Mark session consumed after successful elevated PIN write. */
 export async function consumeAdminAccessSessionByToken(
   sessionToken: string,
+  expected: {
+    managerUid: string;
+    targetType: AccessPinTargetType;
+    targetId: string;
+  },
 ): Promise<void> {
   const parsed = parseAdminAccessSessionToken(sessionToken);
   if (!parsed) {
@@ -192,6 +197,15 @@ export async function consumeAdminAccessSessionByToken(
     }
     if (Date.parse(session.expiresAt) <= Date.now()) {
       throw new HttpsError("failed-precondition", "Admin access session expired.");
+    }
+    if (session.managerUid !== expected.managerUid) {
+      throw new HttpsError("permission-denied", "Invalid admin access session.");
+    }
+    if (
+      session.targetType !== expected.targetType ||
+      session.targetId !== expected.targetId
+    ) {
+      throw new HttpsError("permission-denied", "Invalid admin access session.");
     }
     tx.set(ref, { consumedAt }, { merge: true });
   });

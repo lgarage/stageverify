@@ -78,6 +78,7 @@ exports.setAccessPin = (0, https_1.onCall)({
     const attemptKey = `set:${targetType}:${uid}`;
     await checkSetRateLimit(attemptKey);
     const hasExisting = await (0, accessPinTargetHelpers_1.targetHasExistingAccessPin)(targetType, targetId);
+    let validatedSessionToken = null;
     if (hasExisting) {
         if (!sessionToken) {
             throw new https_1.HttpsError("permission-denied", "Admin access session required to change an existing PIN.");
@@ -91,7 +92,9 @@ exports.setAccessPin = (0, https_1.onCall)({
         if (!sessionCheck.ok) {
             throw new https_1.HttpsError("permission-denied", "Admin access session invalid or expired.");
         }
+        validatedSessionToken = sessionToken;
     }
+    // Initial assign: ignore optional sessionToken — do not validate or consume.
     const db = (0, accessPinSecretsShared_1.getDb)();
     const entityRef = (0, accessPinTargetHelpers_1.entityRefForTarget)(targetType, targetId);
     const secretRef = db
@@ -183,8 +186,12 @@ exports.setAccessPin = (0, https_1.onCall)({
             createdAt: now,
         });
     });
-    if (sessionToken) {
-        await (0, adminAccessSession_1.consumeAdminAccessSessionByToken)(sessionToken);
+    if (validatedSessionToken) {
+        await (0, adminAccessSession_1.consumeAdminAccessSessionByToken)(validatedSessionToken, {
+            managerUid: uid,
+            targetType,
+            targetId,
+        });
     }
     return { success: true, targetType, targetId, pinConfigured: true };
 });

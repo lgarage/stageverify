@@ -108,7 +108,11 @@ try {
     targetType: "technician",
     targetId: "tech-2",
   });
-  await consumeAdminAccessSessionByToken(created2.sessionToken);
+  await consumeAdminAccessSessionByToken(created2.sessionToken, {
+    managerUid: "mgr-1",
+    targetType: "technician",
+    targetId: "tech-2",
+  });
   const afterConsume = await validateAdminAccessSession({
     sessionToken: created2.sessionToken,
     managerUid: "mgr-1",
@@ -118,6 +122,24 @@ try {
   assert.equal(afterConsume.ok, false);
   assert.equal(afterConsume.reason, "consumed");
   pass("consume marks session used");
+
+  const created3 = await createAdminAccessSession({
+    managerUid: "mgr-1",
+    targetType: "technician",
+    targetId: "tech-3",
+  });
+  let consumeRejected = false;
+  try {
+    await consumeAdminAccessSessionByToken(created3.sessionToken, {
+      managerUid: "mgr-1",
+      targetType: "vendor",
+      targetId: "tech-3",
+    });
+  } catch {
+    consumeRejected = true;
+  }
+  assert.equal(consumeRejected, true);
+  pass("consume rejects target binding mismatch");
 
   const db = getFirestore();
   const sessionId = created2.sessionToken.split(".")[0];
