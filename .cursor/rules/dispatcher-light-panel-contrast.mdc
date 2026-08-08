@@ -22,14 +22,14 @@ UI-class work (`PROJECT_STATUS/ui-model-routing.json`) requires **Sol** (`gpt-5.
 
 ### 2. Button and nav contrast audit
 
-Audit every button, nav item, tab, and CTA touched or adjacent to the change:
+Audit every interactive control touched or adjacent to the change — including **primary buttons**, **danger buttons**, **orange buttons**, **blue/navy buttons**, **selected sidebar items**, **active navigation**, **chips that act as controls**, **modal buttons**, **drawer buttons**, **filters**, plus tabs and other CTAs:
 
-- No dark text on saturated/red/navy backgrounds without verified contrast.
-- States: normal, hover, selected/active, focus, disabled — each readable and distinguishable.
+- **Do not use black/dark text on strong/saturated backgrounds** (red, navy, orange fills) when white or near-white is more readable — verify contrast, not habit.
+- **States:** normal, hover, selected, active, focus, disabled — each readable and distinguishable.
 
 ### 3. Status chips readable at a glance
 
-Examples to verify when present: Ready / Partial / Pending / Picked Up / Shipped / Blocked / Rejected / credit-return / will-call / open-issue chips — label + background must be obvious without squinting; never white-on-white or navy-on-navy.
+Examples to verify when present: **Pending Delivery**, **Pending review**, **Blocked**, **Credit/return**, **Will-Call / Pickup**, **Staged — Ready for Pickup**, **Issue**, **Picked Up**, **Backordered**, **Approved**, **Rejected**, plus **Ready**, **Partial**, and **Shipped** when shown — label + background must be obvious without squinting; never white-on-white or navy-on-navy.
 
 ### 4. Light + dark both visually verified
 
