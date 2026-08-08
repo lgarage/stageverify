@@ -309,7 +309,7 @@ Merges `minew-nda-compliance.mdc` (91) + `vendor-phone-qr.mdc` (20).
 
 ## 3.5 Trim `security-review-gate.mdc` 73 → ~45
 
-- [ ] Keep: model lock (`claude-4.6-sonnet-medium-thinking` only), the verbatim Task invocation
+- [ ] Keep: model lock (`claude-sonnet-5-thinking-high` / D-38 `ALLOWED_GATE_MODELS`), the verbatim Task invocation
   block, valid-completion evidence requirements, hard stops, RC-1 UI-label caveat, RC-3 caveat.
 - [ ] Adopt the stricter evidence standard from LIBRARIAN_LESSONS (rotated rule from old #28):
   UUID + model line + `actual model invocation evidence: yes/no/unknown` — UUID alone ≠ verified.

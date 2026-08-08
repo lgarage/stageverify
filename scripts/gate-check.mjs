@@ -36,10 +36,9 @@ import { fileURLToPath } from "node:url";
 export const SECURITY_GATE_ID_RE =
   /security-gate-id:\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-/** Preference order (D-38 amend 2026-08-01): medium first — high often fails Task start. */
+/** Preference order (D-38 amend 2026-08-08): Sonnet 5 primary — Sonnet 4.6 retired from active gates. */
 export const ALLOWED_GATE_MODELS = [
-  "claude-4.6-sonnet-medium-thinking",
-  "claude-4.6-sonnet-high-thinking",
+  "claude-sonnet-5-thinking-high",
 ];
 
 /** @deprecated Use ALLOWED_GATE_MODELS — kept for tests referencing primary slug */

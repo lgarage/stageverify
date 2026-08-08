@@ -16,7 +16,7 @@ alwaysApply: true
 | Orchestrator | <ORCHESTRATOR_MODEL> (parent session) | Yes — **only** after synthesis, as single executor |
 | Scout | `explore` or cheap `generalPurpose` Task subagent | **No** — `readonly: true` for explore; scouts return summaries only |
 | Security scanner | `explore` / `gemini-3-flash` | No — risk list only |
-| Security verifier | Sonnet 4.6 Task subagent | No — verdict only; never commits |
+| Security verifier | Sonnet 5 Task subagent | No — verdict only; never commits |
 | Executor | Orchestrator inline **or** one Task subagent | Yes — **one at a time**, scoped files only |
 | Shell worker | `shell` subagent | git/build/deploy only — never feature code |
 

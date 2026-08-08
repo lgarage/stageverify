@@ -183,7 +183,7 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 **2-fail + 3-fail stuck (D-50, D-55):** see `model-gates.mdc` § 2-fail + § 3-fail. **1st fail** → Composer retry. **2nd consecutive fail** on same scope → stall-advisor if same fingerprint, else Sonnet diagnose-only — **2nd fail always counts**. **3rd try (D-55):** after two consecutive fails (any type — build, Playwright, implement+verify, Ship Verifier), **automatic D-50 Agree → Grok implement** — **no** ordinary Composer-only 3rd retry or 3rd Ship Verifier close without D-50. **Dan repair intent:** Repair Verifier per § Repair loop (`repair-verifier:` + `fix-verified:`) — repair fix cycles count toward consecutive fails on scope when repair intent applies. QR/scan: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
 
-### Escalate to Sonnet 4.6 via Task subagent when:
+### Escalate to Sonnet 5 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
 - **Third try after two consecutive fails on the same task scope (D-55)** — **D-50** automatic stuck-task Agree + Grok implement (`model-gates.mdc` § 3-fail); any fail type; Composer resumes after that ship closes.
 - **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail (same fingerprint → Grok stall-advisor first)
@@ -191,7 +191,7 @@ Before adding a new React component or page, read 1–2 similar existing files f
 - You are genuinely unsure whether a change has security or data integrity implications
 
 ### Escalation triggers — Opus 4.6 (locked fallback only)
-Invoke Opus 4.6 via Task subagent ONLY if Sonnet 4.6's security gate review returns a HIGH risk finding that Composer cannot resolve. Do not dispatch Opus for the implementation of T3 work — Composer handles that inline during the trial.
+Invoke Opus 4.6 via Task subagent ONLY if Sonnet 5's security gate review returns a HIGH risk finding that Composer cannot resolve. Do not dispatch Opus for the implementation of T3 work — Composer handles that inline during the trial.
 
 ## Session Defaults (user-confirmed preferences)
 
@@ -279,7 +279,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Skip the build gate — a broken build is worse than no change.
 ❌ Declare a UI/UX fix "done" without D-51 before/after compare **and** passing Playwright on the affected route (plus Grok UI Playwright PASS when D-45 applies).
 ❌ Use `any` in TypeScript — always resolve types correctly.
-❌ Escalate to Sonnet 4.6 for routine T0/T1/T2 edits — you handle those inline.
+❌ Escalate to Sonnet 5 for routine T0/T1/T2 edits — you handle those inline.
 ❌ Self-report "Sonnet PASS" or claim security gate PASS without **`security-gate-id`** from the Task return.
 ❌ Ship CF/auth/rules when completion report lacks valid **`security-gate-id`** (verdict = NOT RUN) — UI label "Security Review — Composer 2.5 Fast" alone is **not** a block.
 ❌ Launch duplicate security-review Tasks in one turn or omit the D-38 allowlist slug per `security-review-gate.mdc`.

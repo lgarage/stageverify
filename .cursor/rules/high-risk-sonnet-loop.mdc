@@ -27,7 +27,7 @@ Phase 3 judges **packet compliance + acceptance scripts** — not a second D-38 
 
 After Dan approval, **before any product/code edit** in scope:
 
-1. Dispatch Sonnet 4.6 Task (`generalPurpose`, D-38 allowlist slug per `security-review-gate.mdc` — first accepted slug only).
+1. Dispatch Sonnet 5 Task (`generalPurpose`, D-38 allowlist slug per `security-review-gate.mdc` — first accepted slug only).
 2. Sonnet drafts an **instruction packet** for Composer: files, constraints, security invariants from packet (not a gate verdict), acceptance = named `verify:*` / `test:*` scripts (+ Playwright routes if UI).
 3. Composer ↔ Sonnet peer deliberate (D-30) until **Agree** on packet. Max 3 cycles; unresolved → present both positions to Dan.
 
@@ -63,7 +63,7 @@ After Composer implements + `npm run build` clean:
 
 - **NEVER** commit/push high-risk without Phase 1 **Agree** + Phase 3 **PASS** + D-38 gate when triggered.
 - **NEVER** substitute Composer/Grok/Opus for Sonnet **instruct or verify** on high-risk (D-50 Grok **implement** carve-out unchanged).
-- **NEVER** weaken D-38 allowlist or use Sonnet 5 without D-38 promote ritual.
+- **NEVER** weaken D-38 allowlist or substitute Composer/Grok/Sol/Opus for Sonnet instruct/verify.
 - Mechanical CI/hooks (`gate-check`, pre-push) enforce D-38 evidence today; D-60 evidence is **report-line mandatory** until scripts updated.
 
 ## Relation

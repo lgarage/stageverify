@@ -10,7 +10,7 @@ import path from 'node:path';
  */
 export function substitutePlaceholders(content, ctx) {
   const orchestratorModel =
-    ctx.profile === 'composer-default' ? 'Composer 2.5 Fast' : 'Sonnet 4.6';
+    ctx.profile === 'composer-default' ? 'Composer 2.5 Fast' : 'Sonnet 5';
   const defaultWorkerModel = orchestratorModel;
   const devPort = ctx.bindings?.devPort ?? 5173;
   const devPortRange = `${devPort}-${devPort + 3}`;

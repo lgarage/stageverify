@@ -371,7 +371,7 @@ cursor-agent-brain/                       # Global learning + tier table (Layer 
 
 | Profile | Orchestrator | Gate | Use case |
 |---------|-------------|------|----------|
-| `sonnet-default` | Sonnet 4.6 | Wait for proceed | Default for new projects |
+| `sonnet-default` | Sonnet 5 | Wait for proceed | Default for new projects |
 | `composer-default` | Composer 2.5 Fast | Announce-and-go | Billing-optimized (StageVerify) |
 
 StageVerify keeps `composer-default` — no behavior change in Phase 2.

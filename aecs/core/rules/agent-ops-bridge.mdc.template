@@ -12,7 +12,7 @@ Follow it every session unless this file explicitly overrides.
 <!-- Values: "sonnet-default" | "composer-default" -->
 
 <ORCHESTRATOR_MODEL> is the **orchestrator and default worker** for this repo.
-Sonnet 4.6 is rare escalation only (security verifier, 2nd failed fix, confStart < 70).
+Sonnet 5 is rare escalation only (security verifier, 2nd failed fix, confStart < 70).
 Opus 4.6 is locked fallback only if Sonnet's security gate finds HIGH risk the orchestrator cannot resolve.
 
 ## Session start (read order — STOP after this)

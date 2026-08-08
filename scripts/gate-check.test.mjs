@@ -94,16 +94,25 @@ describe("SECURITY_GATE_ID_RE", () => {
 });
 
 describe("hasAllowedGateModel", () => {
-  it("accepts high-thinking slug", () => {
-    assert.equal(hasAllowedGateModel("model: claude-4.6-sonnet-high-thinking"), true);
+  it("accepts Sonnet 5 thinking-high slug", () => {
+    assert.equal(hasAllowedGateModel("model: claude-sonnet-5-thinking-high"), true);
   });
 
-  it("accepts medium-thinking slug", () => {
-    assert.equal(hasAllowedGateModel("model: claude-4.6-sonnet-medium-thinking"), true);
+  it("rejects retired Sonnet 4.6 medium-thinking slug", () => {
+    assert.equal(hasAllowedGateModel("model: claude-4.6-sonnet-medium-thinking"), false);
+  });
+
+  it("rejects retired Sonnet 4.6 high-thinking slug", () => {
+    assert.equal(hasAllowedGateModel("model: claude-4.6-sonnet-high-thinking"), false);
   });
 
   it("rejects non-allowlist slug", () => {
     assert.equal(hasAllowedGateModel("model: claude-fable-5-thinking-high"), false);
+  });
+
+  it("rejects Composer / Grok substitutes", () => {
+    assert.equal(hasAllowedGateModel("model: composer-2.5-fast"), false);
+    assert.equal(hasAllowedGateModel("model: cursor-grok-4.5-high-fast"), false);
   });
 });
 
@@ -142,15 +151,9 @@ describe("packageJsonHighRisk", () => {
 describe("checkEvidence", () => {
   const gateId = "security-gate-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890";
 
-  const validBodyMedium = [gateId, REQUIRED_MODEL_LINE, "actual model invocation evidence: yes"].join(
+  const validBodySonnet5 = [gateId, REQUIRED_MODEL_LINE, "actual model invocation evidence: yes"].join(
     "\n",
   );
-
-  const validBodyHigh = [
-    gateId,
-    `model: ${ALLOWED_GATE_MODELS[0]}`,
-    "actual model invocation evidence: yes",
-  ].join("\n");
 
   it("passes when no high-risk changes", () => {
     const result = checkEvidence("", false);
@@ -172,20 +175,32 @@ describe("checkEvidence", () => {
     assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
   });
 
-  it("passes when medium-thinking model line present", () => {
-    const result = checkEvidence(validBodyMedium, true);
+  it("passes when Sonnet 5 model line present", () => {
+    const result = checkEvidence(validBodySonnet5, true);
     assert.equal(result.pass, true);
     assert.deepEqual(result.missing, []);
   });
 
-  it("passes when high-thinking model line present", () => {
-    const result = checkEvidence(validBodyHigh, true);
+  it("passes when allowlist[0] model line present", () => {
+    const body = [
+      gateId,
+      `model: ${ALLOWED_GATE_MODELS[0]}`,
+      "actual model invocation evidence: yes",
+    ].join("\n");
+    const result = checkEvidence(body, true);
     assert.equal(result.pass, true);
     assert.deepEqual(result.missing, []);
   });
 
   it("fails when non-allowlist model line present", () => {
     const body = [gateId, "model: claude-fable-5-thinking-high"].join("\n");
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
+  });
+
+  it("fails when retired Sonnet 4.6 model line present", () => {
+    const body = [gateId, "model: claude-4.6-sonnet-medium-thinking"].join("\n");
     const result = checkEvidence(body, true);
     assert.equal(result.pass, false);
     assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));

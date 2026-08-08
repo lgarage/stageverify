@@ -16,7 +16,7 @@ Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **de
 | Coordinator | Composer 2.5 (parent session) | Yes — synthesizes scouts; merges domains; **one ship loop** |
 | Scout | `explore` or cheap `generalPurpose` Task subagent | **No** — `readonly: true` for explore; scouts return summaries only |
 | Security scanner | `explore` / `gemini-3-flash` | No — risk list only |
-| Security verifier | Sonnet 4.6 Task subagent | No — verdict only; never commits |
+| Security verifier | Sonnet 5 Task subagent | No — verdict only; never commits |
 | Planning verifier | Grok 4.5 Fast Task subagent | No — verdict only; never commits |
 | Domain executor | Composer inline **or** up to 4 Task subagents | Yes — **non-overlapping paths only**; one ownership domain each |
 | Shell worker | `shell` subagent | git/build/deploy only — never feature code |
@@ -197,7 +197,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 - `backend-write-critical` **implementation**
 - **Grok (or any non-Composer parent) implementing product code** via inline edits or `resume: "self"` — dispatch `composer-2.5-fast` instead (D-43 / D-37) **except** D-50 stuck-task scope after **stuck-task Agree** (`model-gates.mdc` § 3-fail)
 
-## Sonnet 4.6 — rare escalation only
+## Sonnet 5 — rare escalation only
 
 Use Sonnet Task subagent **only** when:
 - `backend-write-critical` security **verifier** (step 2) before push

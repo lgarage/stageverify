@@ -4,11 +4,11 @@
     "haltOnFailure": true,
     "escalateWhen": [
       "verifyBeforeNext fails twice on same item after one Composer fix",
-      "item touches functions/src/, firestore.rules, or delivery CF logic — Sonnet 4.6 security-review Task before push",
+      "item touches functions/src/, firestore.rules, or delivery CF logic — Sonnet 5 security-review Task before push",
       "T2+ auth/Firestore writes or idempotency changes",
       "scope blocked without listed schema/rules change — mark blocked, do not widen"
     ],
-    "escalationModel": "claude-4.6-sonnet-medium-thinking",
+    "escalationModel": "claude-sonnet-5-thinking-high",
     "sequence": [],
     "commandInterface": {
       "paused": false,

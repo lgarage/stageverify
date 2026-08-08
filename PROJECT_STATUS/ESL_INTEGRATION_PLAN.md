@@ -129,7 +129,7 @@ Files to create/modify:
 Acceptance: /zones page lists zones, create/edit/deactivate works, QR preview shows correct URL, Print All opens printable view, build clean.
 
 ### Step 2 � Cloud Function: Zone ESL Push (NEEDS MinewTag API creds)
-Archetype: backend-write-critical | Model: Composer 2.5 (trial, currently 3/5 clean passes) | Grader: Sonnet 4.6
+Archetype: backend-write-critical | Model: Composer 2.5 (trial, currently 3/5 clean passes) | Grader: Sonnet 5 (D-38)
 
 What to build:
 - `functions/src/index.ts` � add onDocumentWritten trigger on deliveries
@@ -140,7 +140,7 @@ What to build:
 Blocker: MinewTag cloud login + API docs needed first.
 
 ### Step 3 � Entryway Board Push (NEEDS MinewTag API creds)
-Archetype: backend-write-critical | Model: Composer 2.5 (trial) | Grader: Sonnet 4.6
+Archetype: backend-write-critical | Model: Composer 2.5 (trial) | Grader: Sonnet 5 (D-38)
 
 What to build:
 - Extend the Cloud Function from Step 2

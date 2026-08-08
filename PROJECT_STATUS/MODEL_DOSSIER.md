@@ -17,7 +17,7 @@
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
-| `billing` | model / tier pick | Composer 2.5 default; Sonnet 4.6 for gate/review only |
+| `billing` | model / tier pick | Composer 2.5 default; Sonnet 5 for gate/review only (D-38) |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
@@ -42,7 +42,7 @@
 
 ## § billing
 - Composer 2.5 = orchestrator + default worker (included quota).
-- Sonnet 4.6 = security gate + authority review only (on-demand cost).
+- Sonnet 5 (`claude-sonnet-5-thinking-high`) = security gate + authority review only (on-demand cost).
 - **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules.
 
 ## § backend-critical
@@ -147,7 +147,7 @@ Purpose: skeptical outside-party review before major architecture, harness, or w
 
 - Model: `cursor-grok-4.5-high-fast` via generalPurpose Task, `readonly: true`, never edits code
 - Triggers + exclusions (SSOT): `.cursor/rules/model-gates.mdc` § Critical Reviewer auto-invoke
-- Never overrides Fable (architecture), Sonnet 4.6 (security verdict), or Composer (build/ship)
+- Never overrides Fable (architecture), Sonnet 5 (security verdict), or Composer (build/ship)
 - Required output, exactly five sections: strongest concern · simplification opportunities · hidden risks · alternative approach · final recommendation with confidence
 - Evidence: Task id + model line in the report, else NOT RUN (same standard as security gate)
 - Budget: one run per decision; rerun only if the plan materially changes after review

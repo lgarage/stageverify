@@ -1092,7 +1092,7 @@
         "New subagent Couldn't start",
         "ship verifier model",
         "Task model slug",
-        "claude-4.6-sonnet-high-thinking"
+        "claude-sonnet-5-thinking-high"
       ],
       "orchestratorSteps": [],
       "dossierTags": [],
@@ -1112,7 +1112,7 @@
         "security-review Task",
         "Couldn't start subagent"
       ],
-      "warning": "Task `model` must be on the current Cursor Task allowlist. Dead/rejected slugs cause UI \"New subagent → Couldn't start\" / Invalid model selection. Grok lanes: always `cursor-grok-4.5-high-fast` — never `grok-4.5-fast-xhigh`. Security gate (D-38 amend 2026-08-01): try `claude-4.6-sonnet-medium-thinking` first, then `claude-4.6-sonnet-high-thinking`. Treat Couldn't start as rejection → retry next allowlisted slug with fallback-from:. Diff field for security-review must be exactly `uncommitted changes` or `branch changes`."
+      "warning": "Task `model` must be on the current Cursor Task allowlist. Dead/rejected slugs cause UI \"New subagent → Couldn't start\" / Invalid model selection. Grok lanes: always `cursor-grok-4.5-high-fast` — never `grok-4.5-fast-xhigh`. Security gate (D-38 amend 2026-08-08): primary `claude-sonnet-5-thinking-high` (Sonnet 5). Treat Couldn't start as rejection → retry next allowlisted slug with fallback-from:. Diff field for security-review must be exactly `uncommitted changes` or `branch changes`. Retired Sonnet 4.6 slugs are NOT valid."
     },
     {
       "id": "subagent-transcript-stuck",
@@ -1160,7 +1160,7 @@
         "reporting security gate PASS",
         "ship verifier evidence"
       ],
-      "warning": "When BOTH D-38 Sonnet 4.6 allowlist slugs are platform-rejected, STOP — gate NOT RUN; do not push CF/auth/rules; do NOT substitute claude-sonnet-5-thinking-high (or Opus/Composer). Sonnet 5 only after Dan one-shot + verifier-log calibration + ALLOWED_GATE_MODELS update same commit. Pre-push gate-check already rejects non-allowlist model lines — install hooks via npm prepare / node scripts/install-git-hooks.mjs (pain: v0.0.59–61 Sonnet 5 theater 2026-07-18)."
+      "warning": "D-38 primary is Sonnet 5 (`claude-sonnet-5-thinking-high`). When every allowlist slug is platform-rejected, STOP — gate NOT RUN; do not push CF/auth/rules; do NOT substitute Composer/Grok/Sol/Opus or retired Sonnet 4.6 slugs. New Sonnet 5 variants only after Dan one-shot + verifier-log calibration + ALLOWED_GATE_MODELS same commit. Pre-push gate-check rejects non-allowlist model lines — install hooks via npm prepare / node scripts/install-git-hooks.mjs (historical pain: v0.0.59–61 non-allowlist theater 2026-07-18)."
     },
     {
       "id": "functions-lib-stale-build-dirty",

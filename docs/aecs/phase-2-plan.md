@@ -459,7 +459,7 @@ No other lines in `agent-ops.mdc` change in Phase 2.
 
 ## Sonnet structural + security review
 
-> **Reviewer:** Sonnet 4.6 (`claude-4.6-sonnet-medium-thinking`) via Task subagent  
+> **Reviewer:** Sonnet 5 (`claude-sonnet-5-thinking-high`) via Task subagent  
 > **Scope:** This document only  
 > **Date:** 2026-06-05
 

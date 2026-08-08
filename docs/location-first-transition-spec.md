@@ -5,7 +5,7 @@
 | **Title** | StageVerify transition: delivery-tag-first → permanent-location-QR-first workflow |
 | **Date approved** | 2026-07-07 |
 | **Status** | Approved — **Phase 1 complete** (2026-07-08) · **Vendor PIN scope REVISED to job-scoped** (Dan 2026-07-08 — see § Job-scoped vendor PIN) |
-| **Authors** | War-game/spec: Fable 5 (planner) · Implementation: Composer 2.5 (one phase at a time) · Security review: Sonnet 4.6 (`claude-4.6-sonnet-medium-thinking`) for Phases 2, 5, 6 |
+| **Authors** | War-game/spec: Fable 5 (planner) · Implementation: Composer 2.5 (one phase at a time) · Security review: Sonnet 5 (`claude-sonnet-5-thinking-high`) for Phases 2, 5, 6 |
 
 > **How to use this file (agents):** Read `CURRENT_STATE.md` first. **`npm run away:validate` auto-syncs** CURRENT_STATE gate closure (from Verify PASS lines) plus Phase Tracker + roadmap — no hand-edits on phase close.
 
@@ -254,7 +254,7 @@ Open pickup checklist:
 
 **Rollback:** Rules and CF versions revertible **independently**; keep the previous rules file in history; **test the rollback before deploy**.
 
-**Security review requirement:** Sonnet 4.6 gate **mandatory before push**; HIGH blocks. **Deploy of `firestore:rules` + `functions` ONLY with explicit Dan approval** — this spec does not grant it.
+**Security review requirement:** Sonnet 5 (D-38) gate **mandatory before push**; HIGH blocks. **Deploy of `firestore:rules` + `functions` ONLY with explicit Dan approval** — this spec does not grant it.
 
 **Drift review requirement:** Confirm no feature scope leaked into this deliberately feature-free phase.
 
@@ -509,7 +509,7 @@ Fable 5 reviews each phase's diff summary against this spec **before the next ph
 
 ## § Security review requirements
 
-- **Sonnet 4.6 gate** (`claude-4.6-sonnet-medium-thinking` via `security-review` Task per `.cursor/rules/security-review-gate.mdc`) is **mandatory before push** for **Phases 2, 5, and 6** (and any other phase where CF/rules deltas emerge).
+- **Sonnet 5 gate** (`claude-sonnet-5-thinking-high` via `security-review` Task per `.cursor/rules/security-review-gate.mdc`) is **mandatory before push** for **Phases 2, 5, and 6** (and any other phase where CF/rules deltas emerge).
 - A valid **`security-gate-id`** (UUID from the Task return) + model line + verdict is required in the completion report — missing id = **NOT RUN** = do not push.
 - **HIGH** findings block push until fixed.
 - **Explicit Dan approval is required before ANY `firestore:rules` or Cloud Functions deploy in this transition — this spec does not grant that approval.** Passing the Sonnet gate is necessary but not sufficient.

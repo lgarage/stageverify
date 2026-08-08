@@ -149,7 +149,7 @@ Cursor system prompt
 
 | Profile | Orchestrator | Gate style | Default for |
 |---------|-------------|------------|-------------|
-| `sonnet-default` | Sonnet 4.6 | Wait for proceed | New ACES targets (manifest default) |
+| `sonnet-default` | Sonnet 5 | Wait for proceed | New ACES targets (manifest default) |
 | `composer-default` | Composer 2.5 Fast | Announce-and-go (Dan-nonblocking — never Grok-skip) | **StageVerify** (trust-first; quota as constraint per D-34) |
 
 StageVerify intentionally overrides the global `agent-ops` SKILL §10 Sonnet-default via `agent-ops.mdc` — documented as an orchestration profile, not an accident.
@@ -161,11 +161,11 @@ StageVerify intentionally overrides the global `agent-ops` SKILL §10 Sonnet-def
 | **Coordinator / orchestrator** | Composer 2.5 (parent session) | Yes | Yes — owns full ship loop |
 | **Scout** | `explore` or readonly Task subagent | No | No |
 | **Domain executor** | Composer inline or Task (disjoint paths only) | Yes (scoped paths) | No — coordinator merges and ships |
-| **Security verifier** | Sonnet 4.6 Task (`security-review`) | No | No — verdict only |
+| **Security verifier** | Sonnet 5 Task (`security-review`, D-38) | No | No — verdict only |
 | **Ship / Repair / Planning / Q&A / Solution verifier** | Grok 4.5 Fast Task (readonly) | No | No |
 | **Stall advisor** | Grok 4.5 Fast (readonly) | No | No |
 | **Work verifier** | Fable 5 Task (readonly) | No | No |
-| **Diagnose-only escalation** | Sonnet 4.6 after 2-fail rule | No | No — Composer implements after |
+| **Diagnose-only escalation** | Sonnet 5 after 2-fail rule | No | No — Composer implements after |
 
 **Hard rule:** Subagents do not commit, push, deploy, or mark away items done. Fable and Sonnet on diagnosis/verify paths never implement. **Dispatcher verifies (D-37):** when a non-Composer orchestrator (Fable, Sonnet, etc.) dispatches Composer to implement, that dispatching agent never edits files itself — it MUST verify the returned diff (scope read, build / `away:validate` / `verify:*`, normal verifier lanes) before ship or present.
 
@@ -234,7 +234,7 @@ The verification ladder assigns each check to the cheapest capable actor. **D-02
 | **1d** | Grok — **Planning Verifier** (D-21) | Planning/roadmap/queue accuracy | "what's next", away planning, ranked options |
 | **1e** | Grok — **Q&A Verifier** (D-22) | Non-trivial Q&A accuracy | how/why/where/explain/recommend |
 | **1f** | Grok — **Solution Verifier** (D-36) | Pre-implementation solution/approach agreement on Dan work directives | Substantive work directive with real solution choice |
-| **2** | Sonnet 4.6 | Security gate | CF/auth/rules/T3; also if Ship Verifier flags missing gate |
+| **2** | Sonnet 5 | Security gate | CF/auth/rules/T3; also if Ship Verifier flags missing gate |
 | **3** | Fable 5 — **Work Verifier** | Spec phase boundaries, architecture ambiguity | Fable-spec phases, "fable verify", Ship Verifier escalation |
 
 ### Deliberation philosophy (D-30/D-33/D-34/D-36/D-37)

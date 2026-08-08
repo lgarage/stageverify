@@ -17,7 +17,7 @@ Separate the portable AI operating system (`cursor-agent-brain`) from StageVerif
 |---|-------------|-----------|
 | 1 | Reconcile global Sonnet-orchestrator policy with StageVerify Composer policy | #1 portability blocker |
 | 2 | Composer 2.5 default orchestrator/worker for stageverify environment | Billing + Auto+Composer quota |
-| 3 | Sonnet 4.6 rare escalation only (security verifier, 2nd failed fix) | Cost control |
+| 3 | Sonnet 5 rare escalation only (security verifier, 2nd failed fix) | Cost control |
 | 4 | Move `trials.json` into StageVerify repo | Trial data is 100% stageverify |
 | 5 | Remove StageVerify-specific examples from `cursor-agent-brain/SKILL.md` | Decontamination |
 | 6 | Add generic placeholders/templates where project examples exist | Bootstrap new projects |
@@ -225,14 +225,14 @@ After Phase 1, these work for any new repo without stageverify knowledge:
 **Replace:**
 
 ```markdown
-The orchestrator runs on **Sonnet 4.6**;
+The orchestrator runs on **Sonnet 5** (sonnet-default profile);
 Opus is an escalation ceiling only (hard decomposition / critical grading).
 ```
 
 **With:**
 
 ```markdown
-The **default orchestrator** runs on **Sonnet 4.6** (see § Orchestration Profiles).
+The **default orchestrator** (sonnet-default profile) runs on **Sonnet 5** (see § Orchestration Profiles).
 Repos may opt into a **Composer profile** via `.cursor/rules/agent-ops-bridge.mdc`.
 Opus is an escalation ceiling only (hard decomposition / critical grading).
 ```
@@ -246,7 +246,7 @@ Two supported profiles. Each repo declares its active profile in
 `.cursor/rules/agent-ops-bridge.mdc` (or equivalent).
 
 ### Profile A — Sonnet-default (global default)
-- **Orchestrator:** Sonnet 4.6 — plans, delegates, monitors; does not edit source directly.
+- **Orchestrator:** Sonnet 5 — plans, delegates, monitors; does not edit source directly.
 - **Workers:** Tier-table models via Task subagent.
 - **Gate:** Interactive 4-line classification block; wait for proceed (§3).
 - **Best for:** Repos without a project-specific override; complex multi-file features.
@@ -255,7 +255,7 @@ Two supported profiles. Each repo declares its active profile in
 - **Orchestrator + worker:** Composer 2.5 Fast — implements T0–T2 inline.
 - **Scouts:** Parallel read-only subagents per `parallel-agent-strategy.mdc`.
 - **Gate:** Announce-and-go (archetype + tier stated, then edit immediately).
-- **Sonnet 4.6:** Rare escalation only — security verifier, 2nd failed fix, confStart < 70.
+- **Sonnet 5:** Rare escalation only — security verifier, 2nd failed fix, confStart < 70.
 - **Best for:** Repos with Auto+Composer quota; rapid iteration on UI and service logic.
 
 **Conflict resolution:** Project `.cursor/rules/` override wins over this SKILL default.
@@ -389,7 +389,7 @@ Follow it every session unless this file explicitly overrides.
 <!-- Values: "sonnet-default" | "composer-default" -->
 
 <ORCHESTRATOR_MODEL> is the **orchestrator and default worker** for this repo.
-Sonnet 4.6 is rare escalation only (security verifier, 2nd failed fix, confStart < 70).
+Sonnet 5 is rare escalation only (security verifier, 2nd failed fix, confStart < 70).
 Opus 4.6 is locked fallback only if Sonnet's security gate finds HIGH risk the orchestrator cannot resolve.
 
 ## Session start (read order — STOP after this)
@@ -413,7 +413,7 @@ Project commits stay in this repo. Keep the two pushes separate.
 
 ```markdown
 > **Billing priority (<REPO>):** <ORCHESTRATOR_MODEL> is the orchestrator and default worker.
-> Sonnet 4.6 is expensive (API on-demand). Only escalate when triggers in
+> Sonnet 5 is expensive (API on-demand). Only escalate when triggers in
 > `parallel-agent-strategy.mdc` apply.
 
 ## Tier defaults (<REPO>)

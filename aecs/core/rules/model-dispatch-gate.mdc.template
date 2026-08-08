@@ -13,7 +13,7 @@ alwaysApply: true
 4. **Parallel plan** — per `parallel-agent-strategy.mdc`: scouts (0–4), executor model, hard-stop check. Scouts may run before gate; gate mandatory before first executor edit.
 
 > **Billing priority (<REPO>):** <ORCHESTRATOR_MODEL> is the orchestrator and default worker.
-> Sonnet 4.6 is expensive (API on-demand). Only escalate when triggers in
+> Sonnet 5 is expensive (API on-demand). Only escalate when triggers in
 > `parallel-agent-strategy.mdc` apply.
 
 ## Tier defaults (<REPO>)

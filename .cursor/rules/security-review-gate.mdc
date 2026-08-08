@@ -1,5 +1,5 @@
 ---
-description: Security reviews MUST use Sonnet 4.6 allowlist only — never Composer, never silent Sonnet 5.
+description: Security reviews MUST use Sonnet 5 D-38 allowlist only — never Composer, never silent non-allowlist substitutes.
 alwaysApply: true
 ---
 
@@ -7,16 +7,15 @@ alwaysApply: true
 
 > **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = **`security-gate-id`** + **`model:`** line + verdict + invocation evidence.
 
-**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38, amended 2026-08-01):**
+**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38, amended 2026-08-08):**
 
-1. `claude-4.6-sonnet-medium-thinking` (platform-accepted primary)
-2. `claude-4.6-sonnet-high-thinking` (still allowlisted for evidence / fallback if platform accepts)
+1. `claude-sonnet-5-thinking-high` (platform-accepted primary — Sonnet 5)
 
 Dispatch the FIRST slug in preference order that the platform accepts. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>` in the evidence block. Inventing slugs or substituting any non-allowlist model = gate NOT RUN.
 
 **Task start failures count as rejection:** UI **"Couldn't start"** / Task **"Invalid model selection"** / **"Model could not be resolved"** → immediately retry the next allowlist slug (`fallback-from:`). Do not stop the gate loop on the first failed start.
 
-**Hard STOP (Dan 2026-07-18):** If the platform rejects **both** allowlist slugs, **STOP** — report gate **NOT RUN** to Dan; do **not** push CF / auth / rules. Do **not** substitute `claude-sonnet-5-thinking-high`, Opus, Composer, `generalPurpose`, or any other slug. **Sonnet 5** may become the gate model **only** after Dan one-shot approval **and** one calibration run in `PROJECT_STATUS/verifier-log.jsonl` **and** `scripts/gate-check.mjs` `ALLOWED_GATE_MODELS` updated in the same commit (D-38) — new-model-release alone never reopens this list (D-16).
+**Hard STOP (Dan 2026-08-08):** If the platform rejects **every** allowlist slug, **STOP** — report gate **NOT RUN** to Dan; do **not** push CF / auth / rules. Do **not** substitute Composer, Grok, Sol, Opus, or any non-allowlist slug (including retired Sonnet 4.6 slugs). New Sonnet 5 variants may join the allowlist **only** after Dan one-shot approval **and** one calibration run in `PROJECT_STATUS/verifier-log.jsonl` **and** `scripts/gate-check.mjs` `ALLOWED_GATE_MODELS` updated in the same commit (D-38) — new-model-release alone never reopens this list (D-16).
 
 **Prompt hygiene:** `Diff:` must be exactly `uncommitted changes` or `branch changes` — no prose after that line in the Diff field (extra text → subagent won't start).
 
@@ -49,8 +48,8 @@ Missing **`security-gate-id`** → **NOT RUN**, not PASS. Report block must incl
 ## Forbidden (never counts as security gate)
 
 - Composer 2.5 inline PASS/MEDIUM/HIGH (self-review bypass)
-- `security-review` Task with a model outside the D-38 allowlist (includes **Sonnet 5** until D-38 promote ritual)
-- Silent fallback to Sonnet 5 / Opus / Composer after both allowlist slugs reject
+- `security-review` Task with a model outside the D-38 allowlist (includes retired Sonnet 4.6 slugs and any non-listed Sonnet variant)
+- Silent fallback to Composer / Grok / Sol / Opus after allowlist rejection
 - `generalPurpose` / `explore` / any other subagent for the gate
 - Invented or non-UUID **`security-gate-id`**
 - Treating UI label alone as NOT RUN or wrong model
@@ -58,13 +57,13 @@ Missing **`security-gate-id`** → **NOT RUN**, not PASS. Report block must incl
 ## Hard stops
 
 - **NEVER** push CF / auth / Firestore-rules without a **D-38 allowlist** subagent verdict.
-- **NEVER** treat Sonnet 5 as a valid security gate unless Dan completed the D-38 promote ritual (one-shot + calibration + `ALLOWED_GATE_MODELS`).
+- **NEVER** treat a non-allowlist model as a valid security gate.
 - **NEVER** launch duplicate security Tasks in one turn. A platform **rejection** of a higher allowlist slug followed by retry with the next slug is ONE gate cycle (record `fallback-from:`), not a forbidden duplicate — only parallel or repeated *accepted* dispatches are.
 - Workers/multitask/away-batch: paste Task block verbatim; await gate; include id + model + evidence + verdict in ship report.
 
 ### RC-3 model param caveat (unverified)
 
-If `security-review` ignores `model` param, note **`model execution: unverified`**. RC-3 does **not** authorize non-allowlist slugs or Sonnet 5. Missing **`security-gate-id`** or non-allowlist model still blocks ship.
+If `security-review` ignores `model` param, note **`model execution: unverified`**. RC-3 does **not** authorize non-allowlist slugs. Missing **`security-gate-id`** or non-allowlist model still blocks ship.
 
 ## Relation
 
