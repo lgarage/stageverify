@@ -5,10 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/stageverify/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>stageverify</title>
-    <script type="module" crossorigin src="/stageverify/assets/index-BGPRrjoS.js"></script>
-    <link rel="stylesheet" crossorigin href="/stageverify/assets/index-DKTKnFgG.css">
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("stageverify-theme");
+          document.documentElement.setAttribute(
+            "data-sv-admin-theme",
+            t === "dark" || t === "light" ? t : "light",
+          );
+        } catch (e) {
+          document.documentElement.setAttribute("data-sv-admin-theme", "light");
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/stageverify/assets/index-CzErepTp.js"></script>
+    <link rel="stylesheet" crossorigin href="/stageverify/assets/index-C3hd44eA.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>
