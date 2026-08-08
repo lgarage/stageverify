@@ -15,6 +15,7 @@ const root = process.cwd();
 const require = createRequire(import.meta.url);
 
 // Fixed 32-byte test key (base64) — not a production secret.
+process.env.ACCESS_PIN_ALLOW_ENV_KEY = "1";
 process.env.ACCESS_PIN_ENCRYPTION_KEY = Buffer.alloc(32, 0x42).toString(
   "base64",
 );

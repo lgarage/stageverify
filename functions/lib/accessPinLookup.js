@@ -11,6 +11,7 @@ async function findByAccessPinSecrets(targetType, pin, entityGuard, collection) 
         .where("targetType", "==", targetType)
         .limit(300)
         .get();
+    const matches = [];
     for (const secretDoc of snap.docs) {
         const secret = secretDoc.data();
         if (!secret.targetId || !secret.pinHash)
@@ -23,8 +24,10 @@ async function findByAccessPinSecrets(targetType, pin, entityGuard, collection) 
         const entity = entitySnap.data();
         if (!entityGuard(entity))
             continue;
-        return { id: secret.targetId, data: entity };
+        matches.push({ id: secret.targetId, data: entity });
     }
+    if (matches.length === 1)
+        return matches[0];
     return null;
 }
 async function findTechnicianByAccessPinSecrets(pin) {

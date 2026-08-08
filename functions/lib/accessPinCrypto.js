@@ -29,7 +29,7 @@ function decodeKeyMaterial(raw) {
     }
     return key;
 }
-/** Resolve 32-byte key from bound secret or test env fallback. */
+/** Resolve 32-byte key from bound secret or emulator/test env fallback. */
 function resolveAccessPinEncryptionKey() {
     let raw;
     try {
@@ -38,7 +38,9 @@ function resolveAccessPinEncryptionKey() {
     catch {
         raw = undefined;
     }
-    if (!raw?.trim()) {
+    const allowEnvKey = process.env.FUNCTIONS_EMULATOR === "true" ||
+        process.env.ACCESS_PIN_ALLOW_ENV_KEY === "1";
+    if (!raw?.trim() && allowEnvKey) {
         raw = process.env.ACCESS_PIN_ENCRYPTION_KEY;
     }
     if (!raw?.trim()) {

@@ -34,6 +34,21 @@ exports.setAccessPin = (0, https_1.onCall)({
     const now = new Date().toISOString();
     const pinHash = (0, pinHashing_1.hashPinForStorage)(pin);
     const pinEncrypted = (0, accessPinCrypto_1.encryptPinForStorage)(pin);
+    const secretsSnap = await db
+        .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
+        .where("targetType", "==", targetType)
+        .limit(300)
+        .get();
+    for (const secretDoc of secretsSnap.docs) {
+        const secret = secretDoc.data();
+        if (!secret.targetId || secret.targetId === targetId)
+            continue;
+        if (!secret.pinHash)
+            continue;
+        if ((0, pinMatching_1.pinMatches)({ pinHash: secret.pinHash }, pin)) {
+            throw new https_1.HttpsError("already-exists", "Another target already uses this PIN.");
+        }
+    }
     const secretRef = db
         .collection("accessPinSecrets")
         .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)(targetType, targetId));

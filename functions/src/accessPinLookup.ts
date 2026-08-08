@@ -35,6 +35,8 @@ async function findByAccessPinSecrets<T extends { active?: boolean }>(
     .limit(300)
     .get();
 
+  const matches: { id: string; data: T }[] = [];
+
   for (const secretDoc of snap.docs) {
     const secret = secretDoc.data() as { pinHash?: string; targetId?: string };
     if (!secret.targetId || !secret.pinHash) continue;
@@ -44,8 +46,10 @@ async function findByAccessPinSecrets<T extends { active?: boolean }>(
     if (!entitySnap.exists) continue;
     const entity = entitySnap.data() as T;
     if (!entityGuard(entity)) continue;
-    return { id: secret.targetId, data: entity };
+    matches.push({ id: secret.targetId, data: entity });
   }
+
+  if (matches.length === 1) return matches[0];
   return null;
 }
 

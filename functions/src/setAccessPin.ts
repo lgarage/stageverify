@@ -5,6 +5,7 @@ import {
   encryptPinForStorage,
 } from "./accessPinCrypto";
 import {
+  ACCESS_PIN_SECRETS_COLLECTION,
   accessPinSecretDocId,
   parseAccessPinTargetType,
   writePinAccessAudit,
@@ -12,7 +13,7 @@ import {
   type AccessPinTargetType,
 } from "./accessPinSecretsShared";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
-import { asFourDigitPin } from "./pinMatching";
+import { asFourDigitPin, pinMatches } from "./pinMatching";
 import { hashPinForStorage } from "./pinHashing";
 
 interface SetAccessPinRequest {
@@ -54,6 +55,25 @@ export const setAccessPin = onCall(
     const now = new Date().toISOString();
     const pinHash = hashPinForStorage(pin);
     const pinEncrypted = encryptPinForStorage(pin);
+
+    const secretsSnap = await db
+      .collection(ACCESS_PIN_SECRETS_COLLECTION)
+      .where("targetType", "==", targetType)
+      .limit(300)
+      .get();
+
+    for (const secretDoc of secretsSnap.docs) {
+      const secret = secretDoc.data() as { pinHash?: string; targetId?: string };
+      if (!secret.targetId || secret.targetId === targetId) continue;
+      if (!secret.pinHash) continue;
+      if (pinMatches({ pinHash: secret.pinHash }, pin)) {
+        throw new HttpsError(
+          "already-exists",
+          "Another target already uses this PIN.",
+        );
+      }
+    }
+
     const secretRef = db
       .collection("accessPinSecrets")
       .doc(accessPinSecretDocId(targetType, targetId));
