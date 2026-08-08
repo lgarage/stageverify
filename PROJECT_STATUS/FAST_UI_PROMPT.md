@@ -1,6 +1,6 @@
 # Fast UI pass — copy-paste prompt
 
-Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Paste into **Agent mode** (not Multitask). One agent, narrow scope. Backend deploy policy (Firestore rules, Cloud Functions, Gmail) — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy without Dan approval.
+Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Paste into **Agent mode** (not Multitask). **Sol primary** (`gpt-5.6-sol-high` per D-63; `fallback-from: gpt-5.6-sol-medium (unavailable)`); **Grok verifies** (D-45). Backend deploy policy (Firestore rules, Cloud Functions, Gmail) — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy without Dan approval.
 
 ---
 
@@ -14,6 +14,8 @@ Frontend/UI only.
 
 Use:
 - Agent mode
+- **Sol** implementer (`gpt-5.6-sol-high`)
+- Grok UI verifier
 - One agent only
 - No scouts unless blocked
 
@@ -32,7 +34,13 @@ Instructions:
 - Do not do a broad repo audit.
 - Keep the change narrow.
 - Preserve existing behavior.
-- Use visual judgment: balanced, readable, usable.
+- Complete **readability DoD (D-63)** before Grok handoff:
+  - Operational hierarchy (dark: values white/near-white; labels gray; dim=disabled only)
+  - Button/nav contrast all states; no dark text on saturated backgrounds
+  - Status chips obvious at a glance
+  - **Light + Dark** both verified when theme/shared tokens touched
+  - WCAG AA floor + reject barely-pass uncomfortable pairs
+  - Evidence: `ui-readability: PASS` then `ui-playwright-verifier: PASS`
 - Use focused Playwright script when it covers the route (see composer-orchestrator: script may replace screenshots).
 - Update PROJECT_STATUS/CURRENT_STATE.md with one brief line if user-visible layout shipped.
 
@@ -48,7 +56,7 @@ Validation:
 - npm run away:validate
 
 Ship:
-- commit, push origin/main, deploy gh-pages (frontend-only default per ship-loop.mdc)
+- Orchestrator commit, push origin/main, deploy gh-pages (frontend-only default per ship-loop.mdc)
 - Do NOT deploy Firestore rules, CF, backend without Dan approval (high-risk tier — ship-loop.mdc § Two-tier ship model)
 
 Production verification (same route area as local):
