@@ -77,6 +77,15 @@ async function findHashOnlySecretsByPagination<T extends { active?: boolean }>(
   collection: string,
 ): Promise<{ id: string; data: T } | null> {
   const db = getDb();
+
+  const probe = await db
+    .collection(ACCESS_PIN_SECRETS_COLLECTION)
+    .where("targetType", "==", targetType)
+    .where("revealable", "==", false)
+    .limit(1)
+    .get();
+  if (probe.empty) return null;
+
   const matches: { id: string; data: T }[] = [];
   let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
@@ -84,6 +93,7 @@ async function findHashOnlySecretsByPagination<T extends { active?: boolean }>(
     let query = db
       .collection(ACCESS_PIN_SECRETS_COLLECTION)
       .where("targetType", "==", targetType)
+      .where("revealable", "==", false)
       .orderBy(admin.firestore.FieldPath.documentId())
       .limit(SECONDARY_PAGE_SIZE);
 

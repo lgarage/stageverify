@@ -37,6 +37,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "targetType", "order": "ASCENDING" },
+        { "fieldPath": "revealable", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accessPinSecrets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetType", "order": "ASCENDING" },
+        { "fieldPath": "revealable", "order": "ASCENDING" },
         { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     }
