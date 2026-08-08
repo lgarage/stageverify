@@ -24,10 +24,27 @@ export function collectDeliveryStagingCodes(
       ...(delivery.plannedStagingLocationIds ?? []),
     ]),
   ];
+  /** Reverse index — some legacy rows stored a spot code instead of Firestore doc id. */
+  const locByCodeKey = new Map<string, StagingLocation>();
+  for (const loc of locById.values()) {
+    const key = formatStagingCodeCanonical(loc.code);
+    if (key) locByCodeKey.set(key, loc);
+  }
   const codes = ids
-    .map((id) => locById.get(id)?.code)
-    .filter((code): code is string => Boolean(code?.trim()))
-    .map((code) => formatStagingCodeCanonical(code));
+    .map((rawId) => {
+      const id = typeof rawId === "string" ? rawId.trim() : "";
+      if (!id) return undefined;
+      const byId = locById.get(id);
+      if (byId?.code?.trim()) {
+        return formatStagingCodeCanonical(byId.code);
+      }
+      const byCode = locByCodeKey.get(formatStagingCodeCanonical(id));
+      if (byCode?.code?.trim()) {
+        return formatStagingCodeCanonical(byCode.code);
+      }
+      return undefined;
+    })
+    .filter((code): code is string => Boolean(code?.trim()));
   return [...new Set(codes)].sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
   );

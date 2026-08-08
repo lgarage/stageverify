@@ -196,6 +196,8 @@ export function isDispatcherTableStagingActionRequired(
   delivery: Pick<
     DeliveryOrder,
     | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
     | "status"
     | "invoiceImportStatus"
     | "invoiceFulfillmentMethod"
@@ -205,7 +207,15 @@ export function isDispatcherTableStagingActionRequired(
 ): boolean {
   if (delivery.status === "installed") return false;
   if (skipsShopStaging(delivery)) return false;
-  return !delivery.stagingLocationId?.trim();
+  const hasActual =
+    Boolean(delivery.stagingLocationId?.trim()) ||
+    (delivery.additionalStagingLocationIds ?? []).some(
+      (id) => typeof id === "string" && id.trim().length > 0,
+    );
+  const hasPlanned = (delivery.plannedStagingLocationIds ?? []).some(
+    (id) => typeof id === "string" && id.trim().length > 0,
+  );
+  return !hasActual && !hasPlanned;
 }
 
 export interface DeliveryDisplayState {

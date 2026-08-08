@@ -555,17 +555,17 @@ export function DetailContent({
     0,
   );
   const drawerStagingLocById = new Map(
-    details.stagingLocation
-      ? [[details.stagingLocation.id, details.stagingLocation]]
-      : [],
+    stagingLocations.map((loc) => [loc.id, loc]),
   );
   const shopStagingRequired = !skipsShopStaging(delivery);
+  const willCallNoShopStaging = isWillCallPickupStagingListNa(delivery);
   const hasAssignedStaging =
     getAllStagingLocationIds(delivery).some((id) => !!id?.trim()) ||
     (delivery.plannedStagingLocationIds ?? []).some(
       (id) => typeof id === "string" && id.trim().length > 0,
     );
   const showStagingLocationBanner = shopStagingRequired && !hasAssignedStaging;
+  const staleWillCallStaging = willCallNoShopStaging && hasAssignedStaging;
   const drawerDeliveryRow: DeliveryListRow = {
     deliveryId: delivery.id,
     jobId: delivery.jobId,
@@ -594,7 +594,8 @@ export function DetailContent({
     openIssueCount: details.materialIssues.filter(
       (issue) => issue.status === "open" || issue.status === "assigned",
     ).length,
-    missingStagingAssignment: !hasAssignedStaging,
+    missingStagingAssignment: showStagingLocationBanner,
+    stagingLocationListNotApplicable: willCallNoShopStaging,
   };
 
   const showCreditReturnBanner =
@@ -866,15 +867,46 @@ export function DetailContent({
                 >
                   Staging Locations
                 </span>
-                <DrawerStagingLocationChips
-                  delivery={delivery}
-                  stagingLocations={stagingLocations}
-                  occupancyByZoneCode={liveOccupancy.occupancyByZoneCode}
-                  shopStockByCode={liveOccupancy.shopStockByCode}
-                  occupancyReady={liveOccupancy.ready}
-                  font={font}
-                  onNavigateToStagingMap={onNavigateToStagingMap}
-                />
+                {willCallNoShopStaging ? (
+                  <div data-testid="delivery-basics-staging-will-call-na">
+                    <span
+                      data-testid="delivery-basics-staging-unassigned"
+                      style={{
+                        color: "var(--admin-text-muted)",
+                        fontStyle: "italic",
+                        fontFamily: font,
+                      }}
+                    >
+                      —
+                    </span>
+                    <p
+                      data-testid="delivery-basics-staging-will-call-note"
+                      style={{
+                        margin: "6px 0 0",
+                        fontSize: 12,
+                        color: "var(--admin-text-secondary)",
+                        fontFamily: font,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      Will-Call / Pickup from Vendor — material stays at the
+                      vendor; no StageVerify shop staging location.
+                      {staleWillCallStaging
+                        ? " A prior shop spot may still be stored; it is not an active staging assignment."
+                        : ""}
+                    </p>
+                  </div>
+                ) : (
+                  <DrawerStagingLocationChips
+                    delivery={delivery}
+                    stagingLocations={stagingLocations}
+                    occupancyByZoneCode={liveOccupancy.occupancyByZoneCode}
+                    shopStockByCode={liveOccupancy.shopStockByCode}
+                    occupancyReady={liveOccupancy.ready}
+                    font={font}
+                    onNavigateToStagingMap={onNavigateToStagingMap}
+                  />
+                )}
               </div>
               <JobReleaseToTechnicianPanel
                 jobId={job.id}
@@ -908,7 +940,7 @@ export function DetailContent({
               >
                 Email Vendor
               </button>
-              {onNavigateToAssignLocation ? (
+              {shopStagingRequired && onNavigateToAssignLocation ? (
                 <button
                   type="button"
                   data-testid="delivery-basics-assign-location"
@@ -2130,20 +2162,34 @@ function DeliveryStatusControls({
                 key={method}
                 type="button"
                 data-testid={`delivery-fulfillment-${method}`}
-                disabled={loading || active}
-                onClick={() => void onUpdateFulfillmentMethod(method)}
+                data-selected={active ? "true" : "false"}
+                aria-pressed={active}
+                disabled={loading}
+                onClick={() => {
+                  if (active || loading) return;
+                  void onUpdateFulfillmentMethod(method);
+                }}
                 style={{
                   flex: 1,
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  border: `1.5px solid ${active ? navy : "var(--admin-border)"}`,
-                  backgroundColor: active ? navy : "var(--admin-surface)",
-                  color: active ? "#ffffff" : "var(--admin-text)",
+                  padding: "9px 12px",
+                  borderRadius: 8,
+                  /* Selected: StageVerify blue ≥4.5:1 with white (avoid muted dark accent). */
+                  border: active
+                    ? "2px solid #60a5fa"
+                    : "1.5px solid var(--admin-border-strong)",
+                  backgroundColor: active ? "#2563eb" : "var(--admin-surface-2)",
+                  color: active
+                    ? "var(--admin-on-navy)"
+                    : "var(--admin-text-data)",
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   cursor: loading || active ? "default" : "pointer",
                   fontFamily: font,
                   opacity: loading ? 0.7 : 1,
+                  boxShadow: active
+                    ? "0 0 0 1px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(37, 99, 235, 0.4)"
+                    : "inset 0 0 0 1px rgba(255,255,255,0.06)",
+                  letterSpacing: "0.01em",
                 }}
               >
                 {label}

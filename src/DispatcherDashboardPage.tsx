@@ -1030,6 +1030,9 @@ export function DispatcherDashboardPage() {
                               stagingNotApplicable={
                                 row.stagingLocationListNotApplicable === true
                               }
+                              needsStagingAssignment={
+                                row.missingStagingAssignment === true
+                              }
                             />
                             {row.plannedActualDivergence ? (
                               <span
