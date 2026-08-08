@@ -89,6 +89,7 @@ import {
 } from "./dispatcherUserAdmin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
+import { recordTechnicianJobOpen } from "./recordTechnicianJobOpen";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -244,6 +245,7 @@ export {
   provisionDispatcher,
   deactivateDispatcher,
   getTechnicianReleasedJobs,
+  recordTechnicianJobOpen,
   releaseJobsToTechnician,
   processInboundVendorEmail,
   initiateGmailOAuth,

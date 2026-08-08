@@ -103,6 +103,20 @@ export async function getTechnicianReleasedJobsClient(input: {
   return callCallable("getTechnicianReleasedJobs", input);
 }
 
+export async function recordTechnicianJobOpenClient(
+  sessionToken: string,
+  jobId: string,
+  clientOpenId: string,
+  source?: "location_scan" | "pickup_deep_link",
+): Promise<{ duplicate: boolean }> {
+  return callCallable<{ duplicate: boolean }>("recordTechnicianJobOpen", {
+    sessionToken,
+    jobId,
+    clientOpenId,
+    ...(source ? { source } : {}),
+  });
+}
+
 export async function releaseJobsToTechnicianClient(input: {
   technicianId: string;
   jobIds: string[];
