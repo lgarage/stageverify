@@ -1,27 +1,81 @@
 ---
-description: End every action turn with DONE + short what-I-did + whether Dan must act.
+description: End every action turn with exactly one terminal status block (DONE/BLOCKED/FAILED/PARTIAL).
 alwaysApply: true
 ---
 
-# Done signal (Dan standing preference — D-61)
+# Terminal status block (D-61 / D-66)
 
-**Authority:** Dan 2026-08-05. Platform parity (D-32).
+**Authority:** Dan 2026-08-05 (D-61); amended Dan 2026-08-08 (D-66). Platform parity (D-32).
+**SSOT:** this file only. Other rules point here — do not restate the four-status schema elsewhere.
 
 ## Trigger (mandatory)
 
-Any turn with agent action — especially **code/config/product edits or ships** (`src/`, `functions/`, `public/`, behavior-bearing `scripts/*.mjs`, `package.json`, Firebase config) — plus deploy, verify, or investigate that changes repo or runtime state.
-
-## One plain-language block (not buried)
-
-Dan must see **what changed** and **whether he must act** in visible prose — not only inside timing, verifier, model-audit, or commit tables.
-
-- **Substantive code/config ships:** **open** the reply with **What we did** (1–3 plain-language sentences) per `composer-orchestrator.mdc` § Completion report.
-- **Every action turn:** **close** with this footer — always **last** (after audit tables, verifier lines, Remaining time options, gotchas/decisions):
-
-**DONE** — finished | blocked
-**What I did:** ≤2 short sentences, plain language. On substantive ships, **reuse the same prose** as the opening **What we did** (one summary — do not write a second conflicting account).
-**Your action:** concrete next step for Dan, or `Nothing needed from you.` If status is **blocked**, **Your action** MUST be a concrete Dan step (approve / secret / decide / wait) — never `Nothing needed from you.`
+Any turn with agent action — code/config/product edits or ships, deploy, verify, investigate, harness/rules work, or any tool use that changes repo/runtime state.
 
 Skip only for pure one-line Q&A with no tool actions and no state change.
 
-Complements `composer-orchestrator.mdc` completion report; does not replace verifier evidence lines. **Not a second Done footer** — opening What we did + closing footer share one summary.
+## Exactly one terminal block — always last
+
+The reply must end with **exactly one** of the four blocks below. **Nothing may appear after it** (no gotchas, no verifier lines, no shell notes, no postscripts).
+
+Do **not** emit multiple DONE/BLOCKED/FAILED/PARTIAL summaries. Do **not** treat stray shell/job completion notifications as the authoritative task status.
+
+Final status must reflect the **actual task outcome**. A mid-turn shell failure does **not** mean **FAILED** if the task later completed successfully by another route.
+
+### DONE — finished
+
+```text
+DONE — finished
+What I did: <1–2 sentence summary>
+Your action: <exact next action, or "Nothing needed">
+```
+
+Use when the requested/approved scope for this turn is complete. On substantive ships, **What I did** reuses the opening **What we did** (one shared summary).
+
+If production verification was part of the requested task and is still outstanding → do **not** use DONE.
+
+Phased work: if the **approved phase** is fully complete and the agent intentionally stops before the next phase → DONE is OK; put the next approval ask in **Your action** (not a second status block).
+
+### BLOCKED — needs input
+
+```text
+BLOCKED — needs input
+What I did: <completed work summary>
+Blocked by: <specific blocker>
+Your action: <exact required input>
+```
+
+Use when continuing requires Dan (approve / secret / decide / wait). **Your action** must be a concrete Dan step — never `Nothing needed`.
+
+Stopping for approval/input → **BLOCKED**, not DONE with a soft ask.
+
+### FAILED — stopped
+
+```text
+FAILED — stopped
+What I did: <completed work summary>
+Failure: <specific failure>
+Your action: <recommended next step>
+```
+
+Use when the task stopped unsuccessfully and is not merely waiting on Dan input (that is BLOCKED).
+
+### PARTIAL — some work completed
+
+```text
+PARTIAL — some work completed
+What I did: <completed portion>
+Remaining: <unfinished portion>
+Your action: <next step>
+```
+
+Use when agent-owned scope remains unfinished and work could continue without waiting on Dan. **Not** for deferred unrelated work. Waiting on Dan → **BLOCKED**, not PARTIAL.
+
+## Idle string
+
+Canonical: **`Nothing needed`** (on DONE when Dan has no next step). Do not use `Nothing needed from you.`
+
+## Relation
+
+- Complements `composer-orchestrator.mdc` § Completion report (opening **What we did** on ships) — does **not** replace verifier evidence lines, which appear **before** this block.
+- Supersedes the old D-61 form `DONE — finished | blocked` (status as a DONE suffix). Statuses are mutually exclusive first lines only.
