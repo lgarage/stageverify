@@ -228,12 +228,11 @@ export function NeedsReviewEmailStrip() {
     <section
       ref={stripRef}
       data-testid="needs-review-email-strip"
+      className="admin-card"
       style={{
-        border: "1px solid var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "var(--admin-surface)",
-        boxShadow: "rgba(0,0,0,0.08) 0px 2px 8px 0px",
         overflow: "hidden",
+        padding: 0,
       }}
     >
       {needsReview.length > 0 ? (

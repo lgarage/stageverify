@@ -396,7 +396,7 @@ export function DispatcherDashboardPage() {
             padding: "30px",
             display: "flex",
             flexDirection: "column",
-            gap: 16,
+            gap: 24,
             width: "100%",
             maxWidth: 1440,
             margin: "0 auto",
@@ -431,13 +431,14 @@ export function DispatcherDashboardPage() {
           />
 
           {/* ── Search / Filter card ── */}
-          <div
-            className="admin-card"
-            style={{
-              padding: "15px 20px",
-            }}
-          >
-            <div className="flex flex-col md:flex-row gap-5 items-start">
+          <div className="admin-section">
+            <div
+              className="admin-card"
+              style={{
+                padding: "15px 20px",
+              }}
+            >
+              <div className="flex flex-col md:flex-row gap-5 items-start">
               {/* Search */}
               <div style={{ flex: 1 }}>
                 <label
@@ -654,18 +655,20 @@ export function DispatcherDashboardPage() {
                   </button>
                 </div>
               </div>
+              </div>
             </div>
           </div>
 
           {/* ── Table card ── */}
-          <div
-            id="portal-deliveries"
-            className="admin-table-wrap"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
+          <div className="admin-section">
+            <div
+              id="portal-deliveries"
+              className="admin-table-wrap"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
             {/* Table card header */}
             <div
               style={{
@@ -1411,6 +1414,7 @@ export function DispatcherDashboardPage() {
                   font={FONT}
                 />
               </div>
+            </div>
             </div>
           </div>
         </div>

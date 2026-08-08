@@ -36,9 +36,14 @@ export function NeedsReviewSection({
       data-testid="needs-review-section"
       style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <NeedsReviewEmailStrip />
+      <div className="admin-section">
+        <NeedsReviewEmailStrip />
+      </div>
 
-      <div data-testid="needs-review-invoice-block">
+      <div
+        className="admin-section"
+        data-testid="needs-review-invoice-block"
+      >
         <div style={{ marginBottom: 12 }}>
           <h2
             data-testid="needs-review-invoice-heading"
