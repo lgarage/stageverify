@@ -1569,8 +1569,10 @@ export interface DeliveryListRow {
   statusDisplayLabel: string;
   jobNumber: string;
   jobName: string;
+  vendorInvoiceNumber?: string;
   poNumber?: string;
   orderNumber: string;
+  fulfillmentDisplayLabel: string;
   vendorName: string;
   deliveryDate: string;
   stagingLocationCode?: string;

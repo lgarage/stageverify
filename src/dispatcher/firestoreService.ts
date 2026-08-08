@@ -108,7 +108,10 @@ import {
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
 import { collectDeliveryStagingCodes } from "./drawer/DrawerStagingLocationChips";
-import { resolveDeliveryPoNumber } from "./invoice/invoiceShellDisplayHelpers";
+import {
+  fulfillmentDisplayLabel,
+  resolveDeliveryPoNumber,
+} from "./invoice/invoiceShellDisplayHelpers";
 import type {
   DeliveryQuery,
   DeliverySortField,
@@ -283,10 +286,22 @@ const sortRows = (
         return compareText(a.jobNumber, b.jobNumber, sortDirection);
       case "jobName":
         return compareText(a.jobName, b.jobName, sortDirection);
+      case "vendorInvoiceNumber":
+        return compareText(
+          safe(a.vendorInvoiceNumber),
+          safe(b.vendorInvoiceNumber),
+          sortDirection,
+        );
       case "poNumber":
         return compareText(safe(a.poNumber), safe(b.poNumber), sortDirection);
       case "orderNumber":
         return compareText(a.orderNumber, b.orderNumber, sortDirection);
+      case "fulfillmentDisplayLabel":
+        return compareText(
+          a.fulfillmentDisplayLabel,
+          b.fulfillmentDisplayLabel,
+          sortDirection,
+        );
       case "vendorName":
         return compareText(a.vendorName, b.vendorName, sortDirection);
       case "stagingLocationCode":
@@ -338,6 +353,7 @@ const includesSearch = (row: DeliveryListRow, search: string): boolean => {
   return [
     row.jobNumber,
     row.jobName,
+    row.vendorInvoiceNumber,
     row.poNumber,
     row.orderNumber,
     row.vendorName,
@@ -455,7 +471,6 @@ export class FirestoreDataService implements DispatcherDataService {
         delivery,
         lineItems,
         materialIssues,
-        { jobPickupScheduled: Boolean(job.pickupScheduledAt) },
       );
       const linkedImportId = delivery.vendorInvoiceImportId?.trim();
       const linkedImport = linkedImportId
@@ -473,11 +488,13 @@ export class FirestoreDataService implements DispatcherDataService {
         statusDisplayLabel: display.statusDisplayLabel,
         jobNumber: job.jobNumber,
         jobName: job.jobName,
+        vendorInvoiceNumber: delivery.vendorInvoiceNumber?.trim() || undefined,
         poNumber: resolveDeliveryPoNumber(
           delivery.customerPoOrReference,
           po?.poNumber,
         ),
         orderNumber: delivery.orderNumber,
+        fulfillmentDisplayLabel: fulfillmentDisplayLabel(delivery),
         vendorName: vendor.name,
         deliveryDate: delivery.deliveryDate,
         stagingLocationCode,

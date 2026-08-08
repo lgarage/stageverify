@@ -8,9 +8,7 @@ import {
 import {
   countOpenBlockingIssues,
   isReservedDisplayState,
-  isWillCallPickupStagingListNa,
 } from "./deliveryDisplayHelpers";
-import { vendorInvoiceImportDisplayLabel } from "./invoice/invoiceDisplayHelpers";
 import type {
   DeliveryReadinessResult,
   JobReadinessResult,
@@ -36,9 +34,6 @@ export function deliveryReadinessDisplayLabel(
       delivery.invoiceDeliverToSiteConfirmed === true)
   ) {
     return "Picked Up";
-  }
-  if (isWillCallPickupStagingListNa(delivery)) {
-    return vendorInvoiceImportDisplayLabel("pickup_at_vendor").replace(/\.$/, "");
   }
   if (delivery.status === "complete") {
     return "Picked Up";

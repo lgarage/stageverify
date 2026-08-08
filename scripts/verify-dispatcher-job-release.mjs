@@ -201,9 +201,11 @@ async function assertNoTableBadgesForDelivery(page, deliveryId) {
   });
   await page.waitForTimeout(1500);
 
-  const releasedHeader = page.getByRole("columnheader", { name: "Released To" });
-  await releasedHeader.waitFor({ timeout: 20_000 });
-  console.log("PASS: Deliveries table has Released To column");
+  const assignedTechnicianHeader = page.getByRole("columnheader", {
+    name: "Assigned Technician",
+  });
+  await assignedTechnicianHeader.waitFor({ timeout: 20_000 });
+  console.log("PASS: Deliveries table has Assigned Technician column");
 
   const drawerOpen = await openDrawerForJobReleaseVerify(page);
   console.log(`PASS: Opened drawer (${drawerOpen.method})`);
