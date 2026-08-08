@@ -517,7 +517,7 @@ export const VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC = {
   containerSelector: ".vendor-hub-header",
   elementSelectors: [
     { name: "need more space", selector: "button:first-of-type" },
-    { name: "issue", selector: "button:last-of-type" },
+    { name: "report a problem", selector: "button:last-of-type" },
   ],
 };
 

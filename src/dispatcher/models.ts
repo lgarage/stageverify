@@ -1527,6 +1527,33 @@ export const getAllStagingLocationIds = (delivery: DeliveryOrder): string[] => {
   return ids;
 };
 
+/**
+ * CF-parity assignable-spot check for vendor Mark Delivered UI.
+ * Matches `functions/src/vendorDeliverySpotUtils.ts` hasAssignableSpot —
+ * stagingLocationId OR any non-empty plannedStagingLocationIds entry.
+ * Does NOT treat additionalStagingLocationIds alone as assignable.
+ */
+export function deliveryHasAssignableSpot(
+  delivery: Pick<
+    DeliveryOrder,
+    "stagingLocationId" | "plannedStagingLocationIds"
+  >,
+): boolean {
+  if (
+    typeof delivery.stagingLocationId === "string" &&
+    delivery.stagingLocationId.trim()
+  ) {
+    return true;
+  }
+  const planned = delivery.plannedStagingLocationIds;
+  if (Array.isArray(planned)) {
+    return planned.some(
+      (id) => typeof id === "string" && id.trim().length > 0,
+    );
+  }
+  return false;
+}
+
 export interface DeliveryListRow {
   deliveryId: string;
   jobId: string;

@@ -261,14 +261,29 @@ async function runDeliveredFlow(page) {
   await spaceSheet().getByRole("button", { name: "← Back" }).click();
   await page.getByRole("button", { name: "Cancel" }).click();
 
-  // --- Issue workflow ---
-  await page.getByRole("button", { name: "⚠️ Issue" }).click();
+  // --- Report a Problem workflow ---
+  await page.getByRole("button", { name: "Report a Problem" }).click();
   await page.waitForSelector("text=What's the issue?", { timeout: 10_000 });
+  for (const reason of [
+    "Wrong Location",
+    "Damaged Items",
+    "Missing Items",
+    "Other",
+  ]) {
+    record(
+      `Problem reason visible: ${reason}`,
+      await page.getByRole("button", { name: reason }).isVisible(),
+    );
+  }
+  record(
+    "No staging space not under Report a Problem",
+    !(await page.getByText(/No staging space/i).isVisible().catch(() => false)),
+  );
   await page.getByRole("button", { name: "Missing Items" }).click();
   await page.locator("textarea").fill("Obvious short shipment");
   await page.getByRole("button", { name: "Submit" }).click();
   await page.waitForSelector("text=dispatcher notified", { timeout: 15_000 });
-  record("Issue submit succeeds", true);
+  record("Report a Problem submit succeeds", true);
   await shot(page, "07-issue-submitted");
 
   // --- Mark Delivered ---

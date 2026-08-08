@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { type DeliveryDetails, type DeliveryOrder } from "./dispatcher/models";
+import {
+  deliveryHasAssignableSpot,
+  type DeliveryDetails,
+  type DeliveryOrder,
+} from "./dispatcher/models";
 import { VendorNeedMoreSpaceFlow } from "./VendorNeedMoreSpaceFlow";
 import { VendorIssueModal } from "./VendorIssueModal";
 
@@ -64,9 +68,10 @@ export function VendorDeliveredHub({
 
   const { delivery, vendor, job, purchaseOrder, stagingLocation, items } =
     deliveryDetails;
+  const hasAssignableSpot = deliveryHasAssignableSpot(delivery);
   const locationCode = stagingLocation?.code ?? "—";
   const locationLabel =
-    stagingLocation?.label ?? "Not assigned — dispatcher will stage";
+    stagingLocation?.label ?? "Not assigned — ask dispatch for a staging spot";
 
   useEffect(() => {
     setCtaPhase((prev) => {
@@ -86,6 +91,7 @@ export function VendorDeliveredHub({
     isDelivered ||
     loading ||
     confirming ||
+    !hasAssignableSpot ||
     (geofenceEnforce && geofenceOutside);
 
   const showIssueSubmitted = () => {
@@ -114,7 +120,9 @@ export function VendorDeliveredHub({
       ? "Delivered"
       : ctaPhase === "checkmark"
         ? "Confirming delivery"
-        : "Mark Delivered";
+        : !hasAssignableSpot
+          ? "Ask dispatch for a staging spot."
+          : "Mark Delivered";
 
   return (
     <div className="vendor-hub-layout h-full min-h-0">
@@ -135,9 +143,10 @@ export function VendorDeliveredHub({
         <button
           type="button"
           onClick={() => setShowIssueModal(true)}
+          data-testid="vendor-report-problem"
           className="rounded-xl bg-accent-amber py-3 text-sm font-semibold text-bg-primary hover:opacity-90 transition-opacity active:scale-[0.98]"
         >
-          ⚠️ Issue
+          Report a Problem
         </button>
       </header>
 
@@ -198,6 +207,16 @@ export function VendorDeliveredHub({
         className="vendor-hub-footer px-4 pt-2 border-t border-border bg-bg-primary space-y-2"
         data-testid="vendor-hub-footer"
       >
+        {!hasAssignableSpot && !isDelivered && (
+          <p
+            className="text-xs text-accent-amber text-center rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2"
+            role="status"
+            data-testid="vendor-no-spot-warn"
+          >
+            No staging spot assigned yet. Ask dispatch for a staging spot before
+            confirming delivery.
+          </p>
+        )}
         {geofenceOutside && !isDelivered && (
           <p
             className="text-xs text-accent-amber text-center rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2"
@@ -235,7 +254,10 @@ export function VendorDeliveredHub({
               Delivered
             </span>
           )}
-          {ctaPhase === "idle" && "Mark Delivered"}
+          {ctaPhase === "idle" &&
+            (hasAssignableSpot
+              ? "Mark Delivered"
+              : "Ask dispatch for a staging spot.")}
         </button>
         {isDelivered && onUndoDelivered && (
           <button
