@@ -37,7 +37,7 @@ export function DeliveryListStagingChips({
         data-testid={`delivery-list-staging-na-${deliveryId}`}
         style={{ color: "var(--admin-text-muted)", fontFamily: FONT }}
       >
-        N/A
+        —
       </span>
     );
   }
@@ -46,9 +46,9 @@ export function DeliveryListStagingChips({
     return (
       <span
         data-testid={`delivery-list-staging-unassigned-${deliveryId}`}
-        style={{ color: "var(--admin-text-muted)", fontStyle: "italic", fontFamily: FONT }}
+        style={{ color: "var(--admin-text-muted)", fontFamily: FONT }}
       >
-        Not Assigned
+        —
       </span>
     );
   }

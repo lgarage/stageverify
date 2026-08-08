@@ -1899,7 +1899,7 @@ function DeliveryStatusControls({
       : "delivery";
   const fulfillmentContextLabel =
     fulfillmentMethod === "will_call_pickup"
-      ? "Will-Call / Pickup"
+      ? "Will-Call / Pickup from Vendor"
       : "Vendor Drop-Off";
 
   const selectValue = DRAWER_STATUS_DROPDOWN_OPTIONS.includes(currentStatus)
@@ -2121,7 +2121,7 @@ function DeliveryStatusControls({
           {(
             [
               ["delivery", "Vendor Drop-Off"],
-              ["will_call_pickup", "Will-Call / Pickup"],
+              ["will_call_pickup", "Will-Call / Pickup from Vendor"],
             ] as const
           ).map(([method, label]) => {
             const active = fulfillmentMethod === method;

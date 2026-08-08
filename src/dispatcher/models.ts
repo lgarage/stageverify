@@ -894,7 +894,7 @@ export function parseStagingLocation(
         ? "Active"
         : "Planned";
   return {
-    id: typeof data.id === "string" ? data.id : docId,
+    id: docId,
     code: String(data.code),
     label: String(data.label),
     type: data.type as StagingLocation["type"],

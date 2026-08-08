@@ -180,16 +180,18 @@ async function fetchAllStagingLocations(): Promise<StagingLocation[]> {
   const snap = await getDocs(
     query(collection(db, "stagingLocations"), limit(COLLECTION_SAFETY_LIMIT)),
   );
-  return snap.docs.map((d) =>
-    parseStagingLocation(d.id, d.data() as Record<string, unknown>),
-  );
+  return snap.docs.map((d) => {
+    const loc = parseStagingLocation(d.id, d.data() as Record<string, unknown>);
+    return { ...loc, id: d.id };
+  });
 }
 
 function stagingLocationFromSnap(
   snap: Awaited<ReturnType<typeof getDoc>>,
 ): StagingLocation | undefined {
   if (!snap.exists()) return undefined;
-  return parseStagingLocation(snap.id, snap.data() as Record<string, unknown>);
+  const loc = parseStagingLocation(snap.id, snap.data() as Record<string, unknown>);
+  return { ...loc, id: snap.id };
 }
 
 async function fetchAll<T>(colName: string): Promise<T[]> {

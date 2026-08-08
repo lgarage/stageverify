@@ -109,9 +109,9 @@ const STATUS_CONTROL_CONTRAST = {
       `FAIL: Delivery fulfillment button should say "Vendor Drop-Off" — got "${vendorDropOffText}".`,
     );
   }
-  if (willCallPickupText !== "Will-Call / Pickup") {
+  if (willCallPickupText !== "Will-Call / Pickup from Vendor") {
     throw new Error(
-      `FAIL: Will-call fulfillment button should say "Will-Call / Pickup" — got "${willCallPickupText}".`,
+      `FAIL: Will-call fulfillment button should say "Will-Call / Pickup from Vendor" — got "${willCallPickupText}".`,
     );
   }
   console.log("PASS: Fulfillment buttons use dispatcher-facing wording");
@@ -131,7 +131,7 @@ const STATUS_CONTROL_CONTRAST = {
   });
   const willCallActive = await willCallPickupButton.isDisabled();
   const expectedFulfillmentContext = willCallActive
-    ? "Will-Call / Pickup"
+    ? "Will-Call / Pickup from Vendor"
     : "Vendor Drop-Off";
   const statusContextText = (
     await page.getByTestId("delivery-status-current-label").innerText()
@@ -186,13 +186,13 @@ const STATUS_CONTROL_CONTRAST = {
     if (stagingBannerCount > 0) {
       throw new Error(
         `FAIL: Staging banner should be absent for ${
-          willCallActive ? "Will-Call / Pickup" : "assigned staging IDs"
+          willCallActive ? "Will-Call / Pickup from Vendor" : "assigned staging IDs"
         }.`,
       );
     }
     console.log(
       `PASS: Staging banner absent for ${
-        willCallActive ? "Will-Call / Pickup" : "assigned staging IDs"
+        willCallActive ? "Will-Call / Pickup from Vendor" : "assigned staging IDs"
       } fixture`,
     );
   } else {
@@ -501,7 +501,7 @@ const STATUS_CONTROL_CONTRAST = {
     "PASS CASE A: Vendor Drop-Off + no location — banner below fulfillment",
   );
 
-  // ── CASE D — switch Vendor Drop-Off ↔ Will-Call / Pickup updates warning ──
+  // ── CASE D — switch Vendor Drop-Off ↔ Will-Call / Pickup from Vendor updates warning ──
   const caseAWillCall = page.getByTestId(
     "delivery-fulfillment-will_call_pickup",
   );
@@ -514,14 +514,14 @@ const STATUS_CONTROL_CONTRAST = {
       const el = document.querySelector(
         '[data-testid="delivery-status-current-label"]',
       );
-      return el?.textContent?.includes("Will-Call / Pickup") ?? false;
+      return el?.textContent?.includes("Will-Call / Pickup from Vendor") ?? false;
     }, null, { timeout: 10_000 });
     const willCallCtx = (
       await page.getByTestId("delivery-status-current-label").innerText()
     ).trim();
-    if (!willCallCtx.includes("Will-Call / Pickup")) {
+    if (!willCallCtx.includes("Will-Call / Pickup from Vendor")) {
       throw new Error(
-        `FAIL CASE D: status context should show Will-Call / Pickup — got "${willCallCtx}".`,
+        `FAIL CASE D: status context should show Will-Call / Pickup from Vendor — got "${willCallCtx}".`,
       );
     }
     // Restore Vendor Drop-Off so seed fixture stays drop-off for other verifies
@@ -565,13 +565,13 @@ const STATUS_CONTROL_CONTRAST = {
   const caseCWillCallLabel = (
     await page.getByTestId("delivery-fulfillment-will_call_pickup").innerText()
   ).trim();
-  if (caseCWillCallLabel !== "Will-Call / Pickup") {
+  if (caseCWillCallLabel !== "Will-Call / Pickup from Vendor") {
     throw new Error(
-      `FAIL CASE C: Will-Call button should say "Will-Call / Pickup" — got "${caseCWillCallLabel}".`,
+      `FAIL CASE C: Will-Call button should say "Will-Call / Pickup from Vendor" — got "${caseCWillCallLabel}".`,
     );
   }
   console.log(
-    "PASS CASE C: Will-Call / Pickup wording present; staging not required by skipsShopStaging",
+    "PASS CASE C: Will-Call / Pickup from Vendor wording present; staging not required by skipsShopStaging",
   );
 
   await page.screenshot({
