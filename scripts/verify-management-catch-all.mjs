@@ -3,6 +3,8 @@
  * Any location QR → Office PIN → Catch-all check-in → match slip → spot guidance → mark arrived;
  * unidentifiable → flagged shell (not in waiting list).
  *
+ * Uses isolated job-verify-catchall (never mutates job-1). Cleans up fixtures in finally.
+ *
  * Usage:
  *   npm run dev
  *   node scripts/verify-management-catch-all.mjs
@@ -17,6 +19,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   getFirestore,
@@ -55,15 +58,22 @@ const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 const appBase = resolveAppBase(baseUrl);
 const locCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G1";
 const mgmtPin = "9012";
-const fixtureJobId = process.env.STAGEVERIFY_PICKUP_JOB ?? "job-1";
+/** Stable reusable verify job — never job-1. */
+const fixtureJobId = "job-verify-catchall";
 const fixtureJobNumber = "VERIFY-CA-99";
 const fixturePo = "PO-VERIFY-CA";
 const fixtureInvoice = "INV-VERIFY-CA";
+const runStartedAt = new Date().toISOString();
 const fixtureDeliveryId = `delivery-mgmt-catchall-${Date.now().toString(36)}`;
+const fixtureItemId = `${fixtureDeliveryId}-item`;
 const outDir = resolve(process.cwd(), "screenshots", "management-catch-all");
 mkdirSync(outDir, { recursive: true });
 
 const results = [];
+/** Track all docs created this run for teardown. */
+const createdDeliveryIds = [fixtureDeliveryId];
+const createdItemIds = [fixtureItemId];
+let createdUnidOrderNumber = null;
 
 function record(name, pass, detail = "") {
   results.push({ name, pass, detail });
@@ -96,16 +106,7 @@ async function resolvePlacementSpot(db, excludeLocationId) {
   throw new Error("No staging location found for placement spot fixture");
 }
 
-async function setupFixture() {
-  if (!email || !password) {
-    throw new Error("STAGEVERIFY_TEST_EMAIL/PASSWORD required for fixture");
-  }
-  const app = initializeApp(firebaseConfig, "verify-mgmt-catchall-fixture");
-  const auth = getAuth(app);
-  await signInWithEmailAndPassword(auth, email, password);
-  const db = getFirestore(app);
-  const functions = getFunctions(app);
-
+async function setupFixture(db, functions) {
   const locationId = await resolveStagingLocationId(db, locCode);
   const placementSpot = await resolvePlacementSpot(db, locationId);
   const now = new Date().toISOString();
@@ -128,7 +129,7 @@ async function setupFixture() {
     doc(db, "jobs", fixtureJobId),
     {
       id: fixtureJobId,
-      jobName: "Verify Catch-all Job",
+      jobName: "[VERIFY] Catch-all test job",
       jobNumber: fixtureJobNumber,
       status: "active",
       updatedAt: now,
@@ -152,8 +153,8 @@ async function setupFixture() {
     updatedAt: now,
   });
 
-  await setDoc(doc(db, "items", `${fixtureDeliveryId}-item`), {
-    id: `${fixtureDeliveryId}-item`,
+  await setDoc(doc(db, "items", fixtureItemId), {
+    id: fixtureItemId,
     deliveryOrderId: fixtureDeliveryId,
     description: "Verify catch-all line",
     qtyOrdered: 1,
@@ -164,14 +165,98 @@ async function setupFixture() {
     status: "pending",
   });
 
-  return { app, locationId, fixtureDeliveryId, placementSpotCode: placementSpot.code, scanCode: placementSpot.code };
+  return { locationId, placementSpotCode: placementSpot.code, scanCode: placementSpot.code };
+}
+
+async function findUnidDeliveriesCreatedThisRun(db) {
+  const ids = [];
+  const snap = await getDocs(collection(db, "deliveries"));
+  for (const docSnap of snap.docs) {
+    if (!docSnap.id.startsWith("delivery-unid-")) continue;
+    const data = docSnap.data();
+    const vendorName = typeof data.vendorName === "string" ? data.vendorName : "";
+    const notes = typeof data.notes === "string" ? data.notes : "";
+    const createdAt = typeof data.createdAt === "string" ? data.createdAt : "";
+    if (
+      vendorName === "Speedy Freight" &&
+      notes === "Unknown PO on slip" &&
+      createdAt >= runStartedAt
+    ) {
+      ids.push(docSnap.id);
+    }
+    if (createdUnidOrderNumber && data.orderNumber === createdUnidOrderNumber) {
+      if (!ids.includes(docSnap.id)) ids.push(docSnap.id);
+    }
+  }
+  return ids;
+}
+
+async function cleanupFixtures(db) {
+  const unidIds = await findUnidDeliveriesCreatedThisRun(db);
+  for (const id of unidIds) {
+    if (!createdDeliveryIds.includes(id)) createdDeliveryIds.push(id);
+  }
+
+  for (const itemId of [...createdItemIds]) {
+    try {
+      await deleteDoc(doc(db, "items", itemId));
+      console.log(`cleanup: deleted items/${itemId}`);
+    } catch (err) {
+      console.warn(`cleanup: skip items/${itemId}:`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  for (const deliveryId of [...createdDeliveryIds]) {
+    const linkedItems = await getDocs(
+      query(collection(db, "items"), where("deliveryOrderId", "==", deliveryId)),
+    );
+    for (const itemDoc of linkedItems.docs) {
+      try {
+        await deleteDoc(doc(db, "items", itemDoc.id));
+        console.log(`cleanup: deleted items/${itemDoc.id}`);
+      } catch (err) {
+        console.warn(`cleanup: skip items/${itemDoc.id}:`, err instanceof Error ? err.message : err);
+      }
+    }
+    try {
+      await deleteDoc(doc(db, "deliveries", deliveryId));
+      console.log(`cleanup: deleted deliveries/${deliveryId}`);
+    } catch (err) {
+      console.warn(
+        `cleanup: skip deliveries/${deliveryId}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  const now = new Date().toISOString();
+  await setDoc(
+    doc(db, "jobs", fixtureJobId),
+    {
+      id: fixtureJobId,
+      jobName: "[VERIFY] Catch-all test job (idle)",
+      jobNumber: fixtureJobNumber,
+      status: "cancelled",
+      updatedAt: now,
+    },
+    { merge: true },
+  );
+  console.log(`cleanup: job ${fixtureJobId} marked cancelled (jobs not deletable)`);
 }
 
 async function main() {
   console.log(`Management catch-all verify — ${appBase}`);
 
-  const { fixtureDeliveryId: seededDeliveryId, placementSpotCode, scanCode } =
-    await setupFixture();
+  if (!email || !password) {
+    throw new Error("STAGEVERIFY_TEST_EMAIL/PASSWORD required for fixture");
+  }
+  const app = initializeApp(firebaseConfig, "verify-mgmt-catchall-fixture");
+  const auth = getAuth(app);
+  await signInWithEmailAndPassword(auth, email, password);
+  const db = getFirestore(app);
+  const functions = getFunctions(app);
+
+  const { placementSpotCode, scanCode } = await setupFixture(db, functions);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -212,7 +297,7 @@ async function main() {
       record("job row shows destination spot", true, placementSpotCode);
     }
 
-    const deliverySpots = page.getByTestId(`mgmt-delivery-spots-${seededDeliveryId}`);
+    const deliverySpots = page.getByTestId(`mgmt-delivery-spots-${fixtureDeliveryId}`);
     await deliverySpots.waitFor({ timeout: 10_000 });
     const deliverySpotText = (await deliverySpots.textContent()) ?? "";
     if (!deliverySpotText.includes(placementSpotCode)) {
@@ -237,9 +322,9 @@ async function main() {
 
     await page.getByTestId("mgmt-waiting-search").fill("");
 
-    const deliveryRow = page.getByTestId(`mgmt-waiting-delivery-${seededDeliveryId}`);
+    const deliveryRow = page.getByTestId(`mgmt-waiting-delivery-${fixtureDeliveryId}`);
     await deliveryRow.waitFor({ timeout: 30_000 });
-    record("fixture delivery in waiting list", true, seededDeliveryId);
+    record("fixture delivery in waiting list", true, fixtureDeliveryId);
 
     await assertReadableTextContrast(page, {
       rootSelector: '[data-testid="management-catch-all-hub"]',
@@ -250,7 +335,7 @@ async function main() {
     });
     record("D-42 readable text contrast", true);
 
-    await page.getByTestId(`mgmt-mark-received-${seededDeliveryId}`).click();
+    await page.getByTestId(`mgmt-mark-received-${fixtureDeliveryId}`).click();
     await deliveryRow.waitFor({ state: "hidden", timeout: 20_000 });
     record("part arrived removes delivery row", true);
 
@@ -259,8 +344,12 @@ async function main() {
     await page.getByTestId("mgmt-unident-form").locator("input").fill("Speedy Freight");
     await page.getByTestId("mgmt-unident-form").locator("textarea").fill("Unknown PO on slip");
     await page.getByTestId("mgmt-unident-submit").click();
-    await page.getByText(/Flagged shell created/i).waitFor({ timeout: 20_000 });
-    record("unidentifiable → flagged shell", true);
+    const successEl = page.getByText(/Flagged shell created/i);
+    await successEl.waitFor({ timeout: 20_000 });
+    const successText = (await successEl.textContent()) ?? "";
+    const orderMatch = successText.match(/\((UNID-[^)]+)\)/);
+    if (orderMatch) createdUnidOrderNumber = orderMatch[1];
+    record("unidentifiable → flagged shell", true, createdUnidOrderNumber ?? successText);
 
     const unidRows = page.locator('[data-testid^="mgmt-waiting-delivery-delivery-unid-"]');
     if ((await unidRows.count()) > 0) {
@@ -278,6 +367,11 @@ async function main() {
     await page.screenshot({ path: resolve(outDir, "failure.png"), fullPage: true }).catch(() => {});
   } finally {
     await browser.close();
+    try {
+      await cleanupFixtures(db);
+    } catch (cleanupErr) {
+      console.error("fixture cleanup failed:", cleanupErr);
+    }
   }
 
   const failed = results.filter((r) => !r.pass);
