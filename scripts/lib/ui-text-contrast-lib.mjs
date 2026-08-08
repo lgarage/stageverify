@@ -165,12 +165,6 @@ export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
       large: false,
       optional: true,
     },
-    {
-      name: "release technician select",
-      selector: '[data-testid="technician-release-select"]',
-      large: false,
-      optional: true,
-    },
   ],
 };
 

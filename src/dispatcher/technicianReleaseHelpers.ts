@@ -95,6 +95,34 @@ export async function releaseJobToTechnicianForToday(
   return result;
 }
 
+/** Technician ids whose day-release list includes jobId (from a releases snapshot). */
+export function technicianIdsHoldingJob(
+  releases: TechnicianDayRelease[],
+  jobId: string,
+): string[] {
+  const ids: string[] = [];
+  for (const release of releases) {
+    if ((release.jobIds ?? []).includes(jobId)) {
+      ids.push(release.technicianId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Assign or reassign job to exactly one technician for today.
+ * Strips stale multi-holder auth before releasing to the target.
+ */
+export async function assignJobToTechnicianForTodayExclusive(
+  technicianId: string,
+  jobId: string,
+): Promise<{ releaseDate: string; jobIds: string[] }> {
+  const releaseDate = todayReleaseDateUtc();
+  const releases = await listTechnicianDayReleasesForDate(releaseDate);
+  const previousIds = technicianIdsHoldingJob(releases, jobId);
+  return reassignJobToTechnicianForToday(jobId, technicianId, previousIds);
+}
+
 /** Move today's release from previous tech(s) to a new technician. */
 export async function reassignJobToTechnicianForToday(
   jobId: string,
@@ -119,15 +147,19 @@ export async function reassignJobToTechnicianForToday(
   return releaseJobToTechnicianForToday(newTechnicianId, jobId);
 }
 
-/** Remove job from today's release list for given technician(s) — no re-release. */
+/** Remove job from today's release list for all holders — no re-release. */
 export async function unassignJobFromTechniciansForToday(
   jobId: string,
-  previousTechnicianIds: string[],
+  previousTechnicianIds?: string[],
 ): Promise<void> {
   const releaseDate = todayReleaseDateUtc();
   const releases = await listTechnicianDayReleasesForDate(releaseDate);
+  const holderIds = technicianIdsHoldingJob(releases, jobId);
+  const techIdsToStrip = [
+    ...new Set([...(previousTechnicianIds ?? []), ...holderIds]),
+  ];
 
-  for (const techId of previousTechnicianIds) {
+  for (const techId of techIdsToStrip) {
     const release = releases.find((r) => r.technicianId === techId);
     const currentJobIds = release?.jobIds ?? [];
     const nextJobIds = currentJobIds.filter((id) => id !== jobId);

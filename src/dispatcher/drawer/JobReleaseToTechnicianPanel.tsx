@@ -6,10 +6,9 @@ import {
 } from "../firestoreService";
 import { resolveTechnicianBadgeStyle } from "../technicianBadgeColors";
 import {
+  assignJobToTechnicianForTodayExclusive,
   buildJobReleasedToEntries,
   type ReleasedToEntry,
-  reassignJobToTechnicianForToday,
-  releaseJobToTechnicianForToday,
   technicianCanReceiveReleases,
   todayReleaseDateUtc,
   unassignJobFromTechniciansForToday,
@@ -124,40 +123,33 @@ export function JobReleaseToTechnicianPanel({
     setMessage(null);
     try {
       const tech = technicians.find((t) => t.id === selectedTechId);
-      if (isAssigned && editMode) {
-        const previousIds = releasedEntries.map((e) => e.technicianId);
-        if (previousIds.includes(selectedTechId)) {
-          setEditMode(false);
-          setSelectedTechId("");
-          setMessage(
-            tech ? `Still released to ${tech.name} for today.` : null,
-          );
-          return;
-        }
-        await reassignJobToTechnicianForToday(
-          jobId,
-          selectedTechId,
-          previousIds,
-        );
+      const alreadyExclusive =
+        releasedEntries.length === 1 &&
+        releasedEntries[0]?.technicianId === selectedTechId;
+      if (alreadyExclusive) {
+        setEditMode(false);
+        setSelectedTechId("");
         setMessage(
-          tech
-            ? `Reassigned to ${tech.name} for today.`
-            : "Job reassigned for today.",
+          tech ? `Still assigned to ${tech.name} for today.` : null,
         );
-      } else {
-        await releaseJobToTechnicianForToday(selectedTechId, jobId);
-        setMessage(
-          tech
-            ? `Released to ${tech.name} for today.`
-            : "Job released for today.",
-        );
+        return;
       }
+      await assignJobToTechnicianForTodayExclusive(selectedTechId, jobId);
+      setMessage(
+        tech
+          ? isAssigned && editMode
+            ? `Reassigned to ${tech.name} for today.`
+            : `Assigned to ${tech.name} for today.`
+          : isAssigned && editMode
+            ? "Job reassigned for today."
+            : "Job assigned for today.",
+      );
       setEditMode(false);
       setSelectedTechId("");
       await reloadReleasedEntries();
       await onReleased?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Release failed.");
+      setError(err instanceof Error ? err.message : "Assign failed.");
     } finally {
       setReleasing(false);
     }
@@ -171,13 +163,12 @@ export function JobReleaseToTechnicianPanel({
   };
 
   const handleUnassign = async () => {
-    const previousIds = releasedEntries.map((e) => e.technicianId);
-    if (previousIds.length === 0) return;
+    if (releasedEntries.length === 0) return;
     setReleasing(true);
     setError(null);
     setMessage(null);
     try {
-      await unassignJobFromTechniciansForToday(jobId, previousIds);
+      await unassignJobFromTechniciansForToday(jobId);
       setEditMode(false);
       setSelectedTechId("");
       setMessage("Unassigned from technician for today.");
@@ -231,7 +222,7 @@ export function JobReleaseToTechnicianPanel({
               color: "var(--admin-on-navy)",
             }}
           >
-            Release to technician
+            ASSIGNED TECHNICIAN
           </span>
           <span
             style={{
@@ -370,8 +361,8 @@ export function JobReleaseToTechnicianPanel({
               {releasing
                 ? "Saving…"
                 : isAssigned && editMode
-                  ? "Release"
-                  : "Release to technician"}
+                  ? "Assign"
+                  : "Assign Technician"}
             </button>
             {isAssigned && editMode ? (
               <>

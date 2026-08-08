@@ -83,6 +83,76 @@ async function assertAssignedView(page) {
   }
 }
 
+async function loadEligibleTechOptions(techSelect) {
+  const options = techSelect.locator("option:not([value=''])");
+  const optionCount = await options.count();
+  const result = [];
+  for (let i = 0; i < optionCount; i++) {
+    const opt = options.nth(i);
+    result.push({
+      value: (await opt.getAttribute("value")) ?? "",
+      label: (await opt.innerText()).trim(),
+    });
+  }
+  return result;
+}
+
+async function assignTechInDrawer(page, techId) {
+  await page.getByTestId("job-release-technician-select").selectOption(techId);
+  await page.getByTestId("job-release-submit").click();
+  await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
+  const err = page.getByTestId("job-release-error");
+  if ((await err.count()) > 0 && (await err.isVisible())) {
+    throw new Error(`Assign failed: ${(await err.innerText()).trim()}`);
+  }
+}
+
+async function assertExclusiveDrawerBadge(page, techId) {
+  const badges = page.locator('[data-testid^="job-release-current-badge-"]');
+  const count = await badges.count();
+  if (count !== 1) {
+    throw new Error(`Exclusive assign: expected 1 drawer badge, got ${count}`);
+  }
+  const badge = page.getByTestId(`job-release-current-badge-${techId}`);
+  if ((await badge.count()) === 0) {
+    throw new Error(`Exclusive assign: drawer badge missing for tech ${techId}`);
+  }
+}
+
+async function assertTableBadgesForDelivery(page, deliveryId, expectedTechIds) {
+  if (!deliveryId) return;
+  const cell = page.locator(`[data-testid="released-to-${deliveryId}"]`);
+  if ((await cell.count()) === 0) return;
+  const badges = cell.locator('[data-testid^="released-to-badge-"]');
+  const count = await badges.count();
+  if (count !== expectedTechIds.length) {
+    throw new Error(
+      `Table Released To: expected ${expectedTechIds.length} badge(s), got ${count}`,
+    );
+  }
+  for (const techId of expectedTechIds) {
+    const badge = page.getByTestId(
+      `released-to-badge-${deliveryId}-${techId}`,
+    );
+    if ((await badge.count()) === 0) {
+      throw new Error(
+        `Table missing badge released-to-badge-${deliveryId}-${techId}`,
+      );
+    }
+  }
+}
+
+async function assertNoTableBadgesForDelivery(page, deliveryId) {
+  if (!deliveryId) return;
+  const cell = page.locator(`[data-testid="released-to-${deliveryId}"]`);
+  if ((await cell.count()) === 0) return;
+  const badges = cell.locator('[data-testid^="released-to-badge-"]');
+  const count = await badges.count();
+  if (count !== 0) {
+    throw new Error(`Unassign: expected 0 table badges, got ${count}`);
+  }
+}
+
 (async () => {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
@@ -138,19 +208,18 @@ async function assertAssignedView(page) {
 
   let firstTechValue = "";
   const loadFirstTechValue = async () => {
-    const options = techSelect.locator("option:not([value=''])");
-    const optionCount = await options.count();
-    if (optionCount === 0) {
+    const options = await loadEligibleTechOptions(techSelect);
+    if (options.length === 0) {
       throw new Error(
         "No eligible technicians — add an active technician in Settings first.",
       );
     }
-    firstTechValue = (await options.first().getAttribute("value")) ?? "";
+    firstTechValue = options[0].value;
     return firstTechValue;
   };
 
   if (alreadyAssigned) {
-    console.log("PASS: Job already released — assigned view (badge + Edit)");
+    console.log("PASS: Job already assigned — assigned view (badge + Edit)");
     const assignedBar = page.getByTestId("job-release-assigned-bar");
     await assignedBar.waitFor({ state: "visible", timeout: 10_000 });
     const barBg = await assignedBar.evaluate(
@@ -161,7 +230,7 @@ async function assertAssignedView(page) {
         `Assigned release bar must use navy fill — got ${barBg}`,
       );
     }
-    console.log("PASS: Assigned release bar navy styling");
+    console.log("PASS: Assigned panel bar navy styling");
     await assertAssignedView(page);
     await assertReadableTextContrast(page, JOB_RELEASE_PANEL_CONTRAST_SPEC);
     console.log(
@@ -192,7 +261,7 @@ async function assertAssignedView(page) {
       const msg = (await errorBanner.innerText()).trim();
       throw new Error(`Release failed in UI: ${msg}`);
     }
-    console.log("PASS: Release to technician callable succeeded");
+    console.log("PASS: Assign technician callable succeeded");
     await assertAssignedView(page);
     console.log("PASS: Post-release assigned view hides picker");
   }
@@ -220,6 +289,80 @@ async function assertAssignedView(page) {
   await techSelect.waitFor({ state: "visible", timeout: 10_000 });
   console.log("PASS: Edit → Unassign clears assignment and shows picker");
 
+  const tableDeliveryIdEarly = drawerOpen.deliveryId ?? "";
+  const eligibleTechs = await loadEligibleTechOptions(techSelect);
+  if (eligibleTechs.length < 2) {
+    console.log(
+      `SKIP: A→B exclusive reassign — only ${eligibleTechs.length} eligible technician(s); assign/unassign/single-badge still covered`,
+    );
+  } else {
+    const techA = eligibleTechs[0];
+    const techB = eligibleTechs[1];
+    console.log(
+      `Testing exclusive assign ${techA.label} → ${techB.label}`,
+    );
+
+    await assignTechInDrawer(page, techA.value);
+    await assertAssignedView(page);
+    await assertExclusiveDrawerBadge(page, techA.value);
+    await assertTableBadgesForDelivery(page, tableDeliveryIdEarly, [
+      techA.value,
+    ]);
+    console.log(`PASS: Assign ${techA.label} — single drawer + table badge`);
+
+    await page.getByTestId("job-release-edit-btn").click();
+    await techSelect.waitFor({ state: "visible", timeout: 10_000 });
+    await assignTechInDrawer(page, techB.value);
+    await assertAssignedView(page);
+    await assertExclusiveDrawerBadge(page, techB.value);
+    const staleDrawerA = page.getByTestId(
+      `job-release-current-badge-${techA.value}`,
+    );
+    if ((await staleDrawerA.count()) > 0) {
+      throw new Error(
+        `Reassign: stale drawer badge for ${techA.label} still visible`,
+      );
+    }
+    await assertTableBadgesForDelivery(page, tableDeliveryIdEarly, [
+      techB.value,
+    ]);
+    const staleTableA = page.getByTestId(
+      `released-to-badge-${tableDeliveryIdEarly}-${techA.value}`,
+    );
+    if ((await staleTableA.count()) > 0) {
+      throw new Error(
+        `Reassign: stale table badge for ${techA.label}`,
+      );
+    }
+    console.log(
+      `PASS: Reassign to ${techB.label} — only B visible; A removed`,
+    );
+
+    await page.getByTestId("job-release-edit-btn").click();
+    await page.getByTestId("job-release-unassign").click();
+    await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
+    const exclusiveUnassignErr = page.getByTestId("job-release-error");
+    if (
+      (await exclusiveUnassignErr.count()) > 0 &&
+      (await exclusiveUnassignErr.isVisible())
+    ) {
+      throw new Error(
+        `Exclusive unassign failed: ${(await exclusiveUnassignErr.innerText()).trim()}`,
+      );
+    }
+    await techSelect.waitFor({ state: "visible", timeout: 10_000 });
+    const drawerBadgesAfter = await page
+      .locator('[data-testid^="job-release-current-badge-"]')
+      .count();
+    if (drawerBadgesAfter !== 0) {
+      throw new Error(
+        `Exclusive unassign: expected 0 drawer badges, got ${drawerBadgesAfter}`,
+      );
+    }
+    await assertNoTableBadgesForDelivery(page, tableDeliveryIdEarly);
+    console.log("PASS: Exclusive unassign — no drawer or table badges");
+  }
+
   if (!firstTechValue) {
     await loadFirstTechValue();
   }
@@ -227,7 +370,7 @@ async function assertAssignedView(page) {
   await page.getByTestId("job-release-submit").click();
   await page.getByTestId("job-release-success").waitFor({ timeout: 20_000 });
   await assertAssignedView(page);
-  console.log("PASS: Re-release after unassign for table badge test");
+  console.log("PASS: Re-assign after unassign for table badge test");
 
   await page.waitForFunction(
     () =>
