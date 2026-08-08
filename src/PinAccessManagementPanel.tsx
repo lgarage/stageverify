@@ -766,8 +766,8 @@ export function PinAccessManagementPanel({
   ) => {
     if (adminAccessBusy) return;
     if (!editorDraft || editorDraft.type !== row.type) return;
-    if (pinDraft && !/^\d{4}$/.test(pinDraft)) {
-      setError("PIN must be exactly 4 digits.");
+    if (pinDraft && !/^\d{4,6}$/.test(pinDraft)) {
+      setError("PIN must be 4–6 digits.");
       return;
     }
     const matchingElevation =
@@ -897,8 +897,8 @@ export function PinAccessManagementPanel({
   };
 
   const saveWizard = async () => {
-    if (!wizardNameIsValid || !/^\d{4}$/.test(wizardPin)) {
-      setError("Name and a 4-digit PIN are required.");
+    if (!wizardNameIsValid || !/^\d{4,6}$/.test(wizardPin)) {
+      setError("Name and a 4–6 digit PIN are required.");
       return;
     }
     setBusyId("__wizard__");
@@ -1080,7 +1080,7 @@ export function PinAccessManagementPanel({
 
       {wizardStep === 3 && (
         <label style={{ display: "grid", gap: 6, maxWidth: 260, color: TEXT }}>
-          4-digit PIN
+          4–6 digit PIN
           <input
             data-testid={
               wizardType === "management"
@@ -1089,11 +1089,11 @@ export function PinAccessManagementPanel({
             }
             type="password"
             inputMode="numeric"
-            maxLength={4}
+            maxLength={6}
             autoComplete="new-password"
             value={wizardPin}
             onChange={(event) =>
-              setWizardPin(event.target.value.replace(/\D/g, "").slice(0, 4))
+              setWizardPin(event.target.value.replace(/\D/g, "").slice(0, 6))
             }
             style={inputStyle}
           />
@@ -1221,14 +1221,14 @@ export function PinAccessManagementPanel({
             type="button"
             disabled={
               (wizardStep === 2 && !wizardIsAuthType && !wizardNameIsValid) ||
-              (wizardStep === 3 && !/^\d{4}$/.test(wizardPin))
+              (wizardStep === 3 && !/^\d{4,6}$/.test(wizardPin))
             }
             onClick={() => setWizardStep((step) => step + 1)}
             style={{
               ...primaryButtonStyle,
               opacity:
                 (wizardStep === 2 && !wizardIsAuthType && !wizardNameIsValid) ||
-                (wizardStep === 3 && !/^\d{4}$/.test(wizardPin))
+                (wizardStep === 3 && !/^\d{4,6}$/.test(wizardPin))
                   ? 0.55
                   : 1,
             }}
@@ -1601,12 +1601,12 @@ export function PinAccessManagementPanel({
           aria-label={`New PIN for ${row.name}`}
           type="password"
           inputMode="numeric"
-          maxLength={4}
+          maxLength={6}
           autoComplete="new-password"
-          placeholder="Optional 4-digit PIN"
+          placeholder="Optional 4–6 digit PIN"
           value={pinDraft}
           onChange={(event) =>
-            setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 4))
+            setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 6))
           }
           style={{ ...inputStyle, width: 180 }}
         />
@@ -1733,7 +1733,7 @@ export function PinAccessManagementPanel({
             disabled={
               adminAccessBusy ||
               busyId === row.id ||
-              Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
+              Boolean(pinDraft && !/^\d{4,6}$/.test(pinDraft))
             }
             onClick={() => void savePinEditor(row)}
             style={{
@@ -1742,7 +1742,7 @@ export function PinAccessManagementPanel({
               opacity:
                 adminAccessBusy ||
                 busyId === row.id ||
-                Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
+                Boolean(pinDraft && !/^\d{4,6}$/.test(pinDraft))
                   ? 0.55
                   : 1,
             }}

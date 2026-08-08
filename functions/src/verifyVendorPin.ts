@@ -6,7 +6,7 @@ import {
   findVendorByAccessPinSecrets,
   vendorAccessPinSecretMatches,
 } from "./accessPinLookup";
-import { asFourDigitPin, pinMatches } from "./pinMatching";
+import { asAccessPin, pinMatches } from "./pinMatching";
 import type { VendorSessionScope } from "./vendorSessionValidation";
 
 function getDb() {
@@ -436,7 +436,7 @@ export const verifyVendorPin = onCall(
   },
   async (request) => {
     const data = (request.data ?? {}) as VerifyVendorPinRequest;
-    const pin = asFourDigitPin(data.pin);
+    const pin = asAccessPin(data.pin);
     const stagingLocationCode = asStagingLocationCode(data.stagingLocationCode);
     const explicitJobId = asJobId(data.jobId);
     const deliveryId = await resolveDeliveryId(

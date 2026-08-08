@@ -91,7 +91,7 @@ exports.verifyManagementPin = (0, https_1.onCall)({
     ],
 }, async (request) => {
     const data = (request.data ?? {});
-    const pin = (0, pinMatching_1.asFourDigitPin)(data.pin);
+    const pin = (0, pinMatching_1.asAccessPin)(data.pin);
     const stagingLocationCode = asStagingLocationCode(data.stagingLocationCode);
     if (!pin || !stagingLocationCode) {
         throw new https_1.HttpsError("invalid-argument", "Invalid code.");

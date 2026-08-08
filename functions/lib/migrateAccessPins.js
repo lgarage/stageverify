@@ -48,7 +48,7 @@ async function migrateEntityCollection(targetType, collectionName, dryRun, remai
             skippedAlreadyMigrated += 1;
             continue;
         }
-        const hasPlaintext = typeof data.pinCode === "string" && /^\d{4}$/.test(data.pinCode);
+        const hasPlaintext = typeof data.pinCode === "string" && /^\d{4,6}$/.test(data.pinCode);
         if (hasPlaintext) {
             plaintext += 1;
         }
@@ -73,7 +73,7 @@ async function migrateEntityCollection(targetType, collectionName, dryRun, remai
             const secretSnap = await tx.get(secretRef);
             if (secretSnap.exists)
                 return;
-            const plainPin = typeof fresh.pinCode === "string" && /^\d{4}$/.test(fresh.pinCode)
+            const plainPin = typeof fresh.pinCode === "string" && /^\d{4,6}$/.test(fresh.pinCode)
                 ? fresh.pinCode
                 : null;
             const legacyHash = typeof fresh.pinHash === "string" && fresh.pinHash.includes(":")

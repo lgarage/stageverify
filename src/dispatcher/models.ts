@@ -300,7 +300,7 @@ export interface Job {
   pickupScheduledAt?: string;
   /** Dispatcher email or name who marked Pickup Scheduled. */
   pickupScheduledBy?: string;
-  /** Job-scoped vendor PIN (D14) — 4-digit; verified server-side only. */
+  /** Job-scoped vendor PIN (D14) — 4–6 digit; verified server-side only. */
   pinCode?: string;
   /** scrypt hash `salt:hex` — preferred over pinCode when set. */
   pinHash?: string;
@@ -319,7 +319,7 @@ export interface Vendor {
   address?: string;
   supplies?: string;
   notes?: string;
-  /** 4-digit PIN (MVP); readable only by authenticated dispatchers. Verified server-side. */
+  /** 4–6 digit PIN (MVP); readable only by authenticated dispatchers. Verified server-side. */
   pinCode?: string;
   /** scrypt hash `salt:hex` — preferred over pinCode when set. */
   pinHash?: string;

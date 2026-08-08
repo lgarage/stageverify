@@ -5,10 +5,10 @@ export interface PinCarrier {
   pinHash?: string;
 }
 
-export function asFourDigitPin(value: unknown): string | null {
+export function asAccessPin(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^\d{4}$/.test(trimmed)) return null;
+  if (!/^\d{4,6}$/.test(trimmed)) return null;
   return trimmed;
 }
 

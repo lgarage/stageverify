@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.asFourDigitPin = asFourDigitPin;
+exports.asAccessPin = asAccessPin;
 exports.pinMatches = pinMatches;
 const crypto_1 = require("crypto");
-function asFourDigitPin(value) {
+function asAccessPin(value) {
     if (typeof value !== "string")
         return null;
     const trimmed = value.trim();
-    if (!/^\d{4}$/.test(trimmed))
+    if (!/^\d{4,6}$/.test(trimmed))
         return null;
     return trimmed;
 }

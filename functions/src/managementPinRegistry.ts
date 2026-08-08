@@ -7,7 +7,7 @@ import {
   applyAccessPinSecretWriteInTransaction,
   prepareAccessPinSecretWrite,
 } from "./accessPinSecretWrite";
-import { asFourDigitPin, pinMatches } from "./pinMatching";
+import { asAccessPin, pinMatches } from "./pinMatching";
 import {
   ACCESS_PIN_SECRETS_COLLECTION,
   ADMIN_ACCESS_SESSIONS_COLLECTION,
@@ -325,9 +325,9 @@ export async function upsertManagementPinDoc(
     ? docFromSnap(pinId, existingSnap.data() ?? {})
     : null;
 
-  const pin = input.pin !== undefined ? asFourDigitPin(input.pin) : null;
+  const pin = input.pin !== undefined ? asAccessPin(input.pin) : null;
   if (input.pin !== undefined && !pin) {
-    throw new HttpsError("invalid-argument", "A 4-digit PIN is required.");
+    throw new HttpsError("invalid-argument", "A 4–6 digit PIN is required.");
   }
 
   const label =

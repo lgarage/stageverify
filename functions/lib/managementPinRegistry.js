@@ -222,9 +222,9 @@ async function upsertManagementPinDoc(input) {
     const existing = existingSnap.exists
         ? docFromSnap(pinId, existingSnap.data() ?? {})
         : null;
-    const pin = input.pin !== undefined ? (0, pinMatching_1.asFourDigitPin)(input.pin) : null;
+    const pin = input.pin !== undefined ? (0, pinMatching_1.asAccessPin)(input.pin) : null;
     if (input.pin !== undefined && !pin) {
-        throw new https_1.HttpsError("invalid-argument", "A 4-digit PIN is required.");
+        throw new https_1.HttpsError("invalid-argument", "A 4–6 digit PIN is required.");
     }
     const label = asLabel(input.label) ??
         existing?.label ??

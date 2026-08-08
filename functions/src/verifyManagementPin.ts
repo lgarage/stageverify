@@ -2,7 +2,7 @@ import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { accessPinEncryptionKey } from "./accessPinCrypto";
-import { asFourDigitPin } from "./pinMatching";
+import { asAccessPin } from "./pinMatching";
 import { loadCatchAllConfig } from "./managementSessionValidation";
 import {
   pinHasCapability,
@@ -126,7 +126,7 @@ export const verifyManagementPin = onCall(
   },
   async (request) => {
     const data = (request.data ?? {}) as VerifyManagementPinRequest;
-    const pin = asFourDigitPin(data.pin);
+    const pin = asAccessPin(data.pin);
     const stagingLocationCode = asStagingLocationCode(data.stagingLocationCode);
 
     if (!pin || !stagingLocationCode) {

@@ -10,6 +10,9 @@ const KEYPAD = [
   ["", "0", "back"],
 ] as const;
 
+const MAX_PIN_LENGTH = 6;
+const MIN_PIN_LENGTH = 4;
+
 interface ManagementPinGateProps {
   stagingLocationCode: string;
   onVerified: (payload: { scannedStagingLocationCode?: string }) => void;
@@ -39,6 +42,7 @@ export function ManagementPinGate({
 
   const submitPin = useCallback(
     async (pin: string) => {
+      if (pin.length < MIN_PIN_LENGTH || pin.length > MAX_PIN_LENGTH) return;
       setSubmitting(true);
       setError(null);
       try {
@@ -78,14 +82,30 @@ export function ManagementPinGate({
   );
 
   useEffect(() => {
-    if (digits.length !== 4 || submitting || verified) return;
+    if (digits.length !== MAX_PIN_LENGTH || submitting || verified) return;
     void submitPin(digits.join(""));
   }, [digits, submitting, verified, submitPin]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || submitting || verified) return;
+      const pin = digits.join("");
+      if (pin.length >= MIN_PIN_LENGTH && pin.length <= MAX_PIN_LENGTH) {
+        event.preventDefault();
+        void submitPin(pin);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [digits, submitting, verified, submitPin]);
+
   const locked = submitting || verified;
+  const pinLength = digits.length;
+  const canVerify =
+    pinLength >= MIN_PIN_LENGTH && pinLength <= MAX_PIN_LENGTH && !locked;
 
   const pushDigit = (digit: string) => {
-    if (locked || digits.length >= 4) return;
+    if (locked || digits.length >= MAX_PIN_LENGTH) return;
     setError(null);
     setDigits((prev) => [...prev, digit]);
   };
@@ -116,14 +136,14 @@ export function ManagementPinGate({
         </p>
 
         <div
-          className="flex items-center justify-center gap-4 mb-6"
-          aria-label={`PIN entry: ${digits.length} of 4 digits`}
+          className="flex items-center justify-center gap-3 mb-6"
+          aria-label={`PIN entry: ${pinLength} of 6 digits`}
         >
-          {Array.from({ length: 4 }).map((_, index) => (
+          {Array.from({ length: MAX_PIN_LENGTH }).map((_, index) => (
             <span
               key={index}
               className={`size-4 rounded-full border-2 transition-colors ${
-                index < digits.length
+                index < pinLength
                   ? "border-accent-green bg-accent-green"
                   : "border-border bg-transparent"
               }`}
@@ -179,7 +199,7 @@ export function ManagementPinGate({
                 key={key}
                 type="button"
                 onClick={() => pushDigit(key)}
-                disabled={locked || digits.length >= 4}
+                disabled={locked || digits.length >= MAX_PIN_LENGTH}
                 className="tap-target size-16 mx-auto rounded-full border border-border bg-bg-card text-2xl font-medium text-text-primary active:scale-95 disabled:opacity-40"
               >
                 {key}
@@ -188,7 +208,7 @@ export function ManagementPinGate({
           })}
         </div>
 
-        <div className="flex items-center justify-center text-sm mb-6">
+        <div className="flex items-center justify-center text-sm mb-4">
           <button
             type="button"
             onClick={clearAll}
@@ -198,6 +218,15 @@ export function ManagementPinGate({
             Clear
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => void submitPin(digits.join(""))}
+          disabled={!canVerify}
+          className="tap-target w-full rounded-xl bg-accent-green py-3 text-base font-bold text-white mb-6 disabled:opacity-40"
+        >
+          Verify
+        </button>
 
         <p className="text-xs text-center text-text-secondary">
           Match packing slips to expected deliveries, or flag unidentifiable parcels.
