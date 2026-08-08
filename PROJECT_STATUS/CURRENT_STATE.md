@@ -42,6 +42,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **In flight (cloud PR #50):** unify Settings PIN & Access Management (Manager/Dispatcher Auth + PIN roster); synced with main v0.0.234 section-sep; branch tip bumping to v0.0.235; UI-only; no deploy until report-back.
 - Dan/ops: set Settings → Exception-only Delivered hub when ready; hard-refresh Settings after v0.0.229 for PIN & Access Management; vendor phone still needs Location/Invoice from v0.0.227+.
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
