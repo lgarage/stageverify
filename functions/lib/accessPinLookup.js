@@ -2,38 +2,20 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.findTechnicianByAccessPinSecrets = findTechnicianByAccessPinSecrets;
 exports.findVendorByAccessPinSecrets = findVendorByAccessPinSecrets;
-const firestore_1 = require("firebase-admin/firestore");
+const accessPinCrypto_1 = require("./accessPinCrypto");
 const pinMatching_1 = require("./pinMatching");
 const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
-const SECRETS_PAGE_SIZE = 300;
-async function getAllSecretsForTargetType(targetType) {
-    const db = (0, accessPinSecretsShared_1.getDb)();
-    const allDocs = [];
-    let lastDoc;
-    while (true) {
-        let query = db
-            .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
-            .where("targetType", "==", targetType)
-            .orderBy(firestore_1.FieldPath.documentId())
-            .limit(SECRETS_PAGE_SIZE);
-        if (lastDoc) {
-            query = query.startAfter(lastDoc);
-        }
-        const snap = await query.get();
-        if (snap.empty)
-            break;
-        allDocs.push(...snap.docs);
-        if (snap.docs.length < SECRETS_PAGE_SIZE)
-            break;
-        lastDoc = snap.docs[snap.docs.length - 1];
-    }
-    return allDocs;
-}
 async function findByAccessPinSecrets(targetType, pin, entityGuard, collection) {
     const db = (0, accessPinSecretsShared_1.getDb)();
-    const secretDocs = await getAllSecretsForTargetType(targetType);
+    const key = (0, accessPinCrypto_1.pinLookupKeyForPin)(pin);
+    const snap = await db
+        .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
+        .where("targetType", "==", targetType)
+        .where("pinLookupKey", "==", key)
+        .limit(2)
+        .get();
     const matches = [];
-    for (const secretDoc of secretDocs) {
+    for (const secretDoc of snap.docs) {
         const secret = secretDoc.data();
         if (!secret.targetId || !secret.pinHash)
             continue;

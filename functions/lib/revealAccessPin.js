@@ -77,7 +77,6 @@ exports.revealAccessPin = (0, https_1.onCall)({
     }
     const attemptKey = `reveal:${targetType}:${targetId}:${uid}`;
     await checkRevealRateLimit(attemptKey);
-    await checkRevealRateLimit("pin:reveal:global");
     const db = (0, accessPinSecretsShared_1.getDb)();
     const entityRef = db.collection(ENTITY_COLLECTION[targetType]).doc(targetId);
     const entitySnap = await entityRef.get();

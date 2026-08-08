@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.accessPinEncryptionKey = void 0;
 exports.resolveAccessPinEncryptionKey = resolveAccessPinEncryptionKey;
 exports.encryptPinForStorage = encryptPinForStorage;
+exports.pinLookupKeyForPin = pinLookupKeyForPin;
 exports.decryptPinFromStorage = decryptPinFromStorage;
 /**
  * AES-GCM encryption for revealable access PINs (CF-only).
@@ -64,6 +65,11 @@ function encryptPinForStorage(pin) {
         tag: tag.toString("hex"),
         keyVersion: KEY_VERSION,
     };
+}
+/** HMAC-SHA256 hex digest for O(1) Firestore lookup (key = encryption key, message = PIN utf8). */
+function pinLookupKeyForPin(pin) {
+    const key = resolveAccessPinEncryptionKey();
+    return (0, crypto_1.createHmac)("sha256", key).update(pin, "utf8").digest("hex");
 }
 function decryptPinFromStorage(encrypted) {
     if (encrypted.alg !== "AES-GCM") {
