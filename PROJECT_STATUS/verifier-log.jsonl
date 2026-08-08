@@ -148,3 +148,6 @@
 {"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"ec44fe97-a53b-47d9-aab8-cd2bd5f09dd6","model":"claude-4.6-sonnet-medium-thinking","real":"na","note":""}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"0ebacb83-21e0-487c-b698-fe2657b4d6cd","model":"cursor-grok-4.5-high-fast","real":"na","note":"ship-verifier v0.0.228 appearance"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"30bbf891-74b6-4fc1-9df7-979c2913d26d","model":"cursor-grok-4.5-high-fast","real":"na","note":"build-checker PASS pre-commit admin UI modernize"}
+{"date":"2026-08-08","role":"ship","verdict":"FAIL","taskId":"071c30b2-b5f0-4a12-97f9-cceda6f0ac97","model":"cursor-grok-4.5-high-fast","real":"yes","note":"missing ui-playwright evidence"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"846e84ed-7a4d-4453-a531-a24f2adb672e","model":"cursor-grok-4.5-high-fast","real":"na","note":"ui-playwright-verifier PASS"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"071c30b2-b5f0-4a12-97f9-cceda6f0ac97","model":"cursor-grok-4.5-high-fast","real":"na","note":"ship-verifier fix-closure PASS v0.0.230"}
