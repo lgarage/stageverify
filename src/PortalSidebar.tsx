@@ -8,14 +8,13 @@ import {
   isPortalNavItemActive,
 } from "./dispatcherPortalNav";
 
-const NAVY = "#0a3161";
 const RED = "#bf0a30";
 
 function navLinkStyle(active: boolean): CSSProperties {
   return active
     ? {
         backgroundColor: RED,
-        color: "#fff",
+        color: "var(--admin-text)",
         borderRadius: 6,
         display: "flex",
         alignItems: "center",
@@ -76,14 +75,14 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
           style={{
             width: 60,
             height: 60,
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             border: `3px solid ${RED}`,
             boxShadow: "0 2px 12px rgba(0,0,0,0.20)",
           }}
         >
           <span
             style={{
-              color: NAVY,
+              color: "var(--admin-accent-soft)",
               fontWeight: 900,
               fontSize: 20,
               letterSpacing: "-0.04em",
@@ -94,7 +93,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
         </div>
         <span
           style={{
-            color: "#fff",
+            color: "var(--admin-text)",
             fontWeight: 700,
             fontSize: 14,
             letterSpacing: "0.08em",
@@ -143,7 +142,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
                 if (!active) {
                   (e.currentTarget as HTMLElement).style.backgroundColor =
                     "rgba(255,255,255,0.08)";
-                  (e.currentTarget as HTMLElement).style.color = "#fff";
+                  (e.currentTarget as HTMLElement).style.color = "var(--admin-text)";
                 }
               }}
               onMouseLeave={(e) => {
@@ -188,7 +187,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
             if (!isSettings) {
               (e.currentTarget as HTMLElement).style.backgroundColor =
                 "rgba(255,255,255,0.08)";
-              (e.currentTarget as HTMLElement).style.color = "#fff";
+              (e.currentTarget as HTMLElement).style.color = "var(--admin-text)";
             }
           }}
           onMouseLeave={(e) => {

@@ -11,18 +11,18 @@ const MODE_STYLES: Record<
   { bg: string; color: string; label: string }
 > = {
   suggested_import: {
-    bg: "#ecfdf5",
-    color: "#166534",
+    bg: "var(--admin-success-bg)",
+    color: "var(--admin-success-text)",
     label: "Suggested import",
   },
   review_required: {
-    bg: "#fff7ed",
+    bg: "var(--admin-warning-bg)",
     color: "#9a3412",
     label: "Review required",
   },
   blocked: {
-    bg: "#fef2f2",
-    color: "#991b1b",
+    bg: "var(--admin-danger-bg)",
+    color: "var(--admin-danger-text)",
     label: "Blocked",
   },
 };
@@ -125,7 +125,7 @@ export function AutoImportSuggestionPanel({
         borderRadius: 6,
         border: `1px solid ${eligibility.importDecisionMode === "suggested_import" ? "#bbf7d0" : "#fed7aa"}`,
         backgroundColor:
-          eligibility.importDecisionMode === "suggested_import" ? "#f0fdf4" : "#fffbeb",
+          eligibility.importDecisionMode === "suggested_import" ? "var(--admin-success-bg)" : "var(--admin-warning-bg)",
       }}
     >
       <div style={{ fontWeight: 700, color: NAVY, fontSize: 13, marginBottom: 6 }}>
@@ -137,7 +137,7 @@ export function AutoImportSuggestionPanel({
             margin: 0,
             paddingLeft: 18,
             fontSize: 12,
-            color: "#374151",
+            color: "var(--admin-text)",
             lineHeight: 1.45,
           }}
         >
@@ -149,7 +149,7 @@ export function AutoImportSuggestionPanel({
       {importRow.importDecisionLog && importRow.importDecisionLog.length > 0 && (
         <div
           data-testid="invoice-decision-log"
-          style={{ marginTop: 10, fontSize: 11, color: "#6b7280" }}
+          style={{ marginTop: 10, fontSize: 11, color: "var(--admin-text-muted)" }}
         >
           Last decision:{" "}
           {importRow.importDecisionLog[importRow.importDecisionLog.length - 1]?.action} at{" "}

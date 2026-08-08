@@ -9,9 +9,9 @@ import { isVerifySeedOfficeReceiver } from "./lib/isVerifySeedOfficeReceiver";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const TEXT = "#333";
-const MUTED = "#6b7280";
-const ACTIVE_GREEN = "#2e7d32";
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
+const ACTIVE_GREEN = "var(--admin-success-text)";
 const ACTIVATE_YELLOW = "#ffc107";
 const RECEIVER_FORM_TITLE = "Catch-All Receiver";
 
@@ -30,10 +30,10 @@ const activateButtonStyle: CSSProperties = {
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
 };
 
@@ -285,9 +285,9 @@ export function OfficeReceiversSettingsPanel() {
     <div
       data-testid="office-receivers-settings-panel"
       style={{
-        border: "1.5px solid #ccd0d7",
+        border: "1.5px solid var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "#fff",
+        backgroundColor: "var(--admin-surface)",
         marginBottom: 24,
         color: TEXT,
       }}
@@ -295,10 +295,10 @@ export function OfficeReceiversSettingsPanel() {
       <div
         style={{
           padding: "16px 20px",
-          borderBottom: "1px solid #e5e7eb",
+          borderBottom: "1px solid var(--admin-border)",
           fontWeight: 700,
           fontSize: 16,
-          color: NAVY,
+          color: "var(--admin-accent-soft)",
           fontFamily: FONT,
         }}
       >
@@ -334,7 +334,7 @@ export function OfficeReceiversSettingsPanel() {
                         style={{
                           fontSize: 14,
                           fontWeight: 700,
-                          color: NAVY,
+                          color: "var(--admin-accent-soft)",
                           marginBottom: 10,
                         }}
                         data-testid={`office-receiver-row-title-${receiver.id}`}
@@ -424,7 +424,7 @@ export function OfficeReceiversSettingsPanel() {
                               borderRadius: 6,
                               border: "none",
                               backgroundColor: ACTIVE_GREEN,
-                              color: "#fff",
+                              color: "var(--admin-text)",
                               fontWeight: 700,
                               fontSize: 13,
                               cursor: "default",
@@ -482,7 +482,7 @@ export function OfficeReceiversSettingsPanel() {
                     style={{
                       fontSize: 14,
                       fontWeight: 700,
-                      color: NAVY,
+                      color: "var(--admin-accent-soft)",
                       marginBottom: 12,
                     }}
                     data-testid={
@@ -619,8 +619,8 @@ export function OfficeReceiversSettingsPanel() {
                     padding: "8px 14px",
                     borderRadius: 6,
                     border: `1px solid ${NAVY}`,
-                    backgroundColor: "#fff",
-                    color: NAVY,
+                    backgroundColor: "var(--admin-surface)",
+                    color: "var(--admin-accent-soft)",
                     fontWeight: 600,
                     fontSize: 13,
                     cursor: "pointer",
@@ -637,8 +637,8 @@ export function OfficeReceiversSettingsPanel() {
                     style={{
                       padding: "8px 14px",
                       borderRadius: 6,
-                      border: "1px solid #ccd0d7",
-                      backgroundColor: "#fff",
+                      border: "1px solid var(--admin-border)",
+                      backgroundColor: "var(--admin-surface)",
                       color: MUTED,
                       fontWeight: 600,
                       fontSize: 13,

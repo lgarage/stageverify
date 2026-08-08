@@ -118,8 +118,8 @@ function drawerActionBtnRevoke(font: string, disabled: boolean) {
   return {
     ...DRAWER_ACTION_BTN_BASE,
     fontFamily: font,
-    backgroundColor: "#fff",
-    color: "#b91c1c",
+    backgroundColor: "var(--admin-surface)",
+    color: "var(--admin-danger-text)",
     border: "1.5px solid #b91c1c",
     cursor: disabled ? "wait" : "pointer",
     opacity: disabled ? 0.7 : 1,
@@ -502,7 +502,7 @@ export function DetailContent({
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: "48px 0" }}>
-        <div style={{ color: "#9ca3af", fontSize: 14 }}>
+        <div style={{ color: "var(--admin-text-muted)", fontSize: 14 }}>
           Loading detail panel…
         </div>
       </div>
@@ -516,7 +516,7 @@ export function DetailContent({
           backgroundColor: "#fee2e2",
           borderRadius: 6,
           padding: "15px",
-          color: "#b91c1c",
+          color: "var(--admin-danger-text)",
           fontSize: 14,
         }}
       >
@@ -529,10 +529,10 @@ export function DetailContent({
     return (
       <div style={{ textAlign: "center", padding: "64px 0" }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-        <p style={{ fontWeight: 700, fontSize: 16, color: "#333", margin: 0 }}>
+        <p style={{ fontWeight: 700, fontSize: 16, color: "var(--admin-text)", margin: 0 }}>
           No delivery selected
         </p>
-        <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>
+        <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 6 }}>
           Click a row in the table to view details.
         </p>
       </div>
@@ -670,7 +670,7 @@ export function DetailContent({
           margin: "0 0 10px",
           fontSize: 11,
           fontWeight: 700,
-          color: "#9ca3af",
+          color: "var(--admin-text-muted)",
           textTransform: "uppercase",
           letterSpacing: "0.10em",
           display: "flex",
@@ -719,11 +719,11 @@ export function DetailContent({
             style={{
               margin: 0,
               fontSize: 12,
-              color: importRejectToast.includes("Failed") ? "#b91c1c" : "#166534",
+              color: importRejectToast.includes("Failed") ? "var(--admin-danger-text)" : "var(--admin-success-text)",
               backgroundColor: importRejectToast.includes("Failed")
-                ? "#fef2f2"
-                : "#ecfdf5",
-              border: `1px solid ${importRejectToast.includes("Failed") ? "#fecaca" : "#bbf7d0"}`,
+                ? "var(--admin-danger-bg)"
+                : "var(--admin-success-bg)",
+              border: `1px solid ${importRejectToast.includes("Failed") ? "var(--admin-danger-border)" : "#bbf7d0"}`,
               borderRadius: 6,
               padding: "8px 12px",
             }}
@@ -737,11 +737,11 @@ export function DetailContent({
             <div
               data-testid="delivery-basics-card"
               style={{
-                backgroundColor: "#f8fafc",
-                border: "1px solid #e0e3e8",
+                backgroundColor: "var(--admin-surface-2)",
+                border: "1px solid var(--admin-border)",
                 borderRadius: 8,
                 padding: "15px",
-                color: "#333",
+                color: "var(--admin-text)",
                 display: "flex",
                 flexDirection: "column" as const,
                 gap: 10,
@@ -790,14 +790,14 @@ export function DetailContent({
                 >
                   <span
                     style={{
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       fontWeight: 600,
                       flexShrink: 0,
                     }}
                   >
                     {label}
                   </span>
-                  <span style={{ color: "#333", textAlign: "right" }}>{value}</span>
+                  <span style={{ color: "var(--admin-text)", textAlign: "right" }}>{value}</span>
                 </div>
               ))}
               <DeliveryStatusControls
@@ -830,13 +830,13 @@ export function DetailContent({
                   flexDirection: "column",
                   gap: 8,
                   paddingTop: 4,
-                  borderTop: "1px solid #e5e7eb",
+                  borderTop: "1px solid var(--admin-border)",
                 }}
               >
                 <span
                   data-testid="delivery-basics-staging-locations-heading"
                   style={{
-                    color: "#6b7280",
+                    color: "var(--admin-text-muted)",
                     fontWeight: 700,
                     fontSize: 12,
                     letterSpacing: "0.04em",
@@ -871,8 +871,8 @@ export function DetailContent({
                   padding: "12px 16px",
                   borderRadius: 8,
                   border: `2px solid ${navy}`,
-                  backgroundColor: emailProviderConnected ? navy : "#e5e7eb",
-                  color: emailProviderConnected ? "#fff" : "#9ca3af",
+                  backgroundColor: emailProviderConnected ? navy : "var(--admin-border)",
+                  color: emailProviderConnected ? "var(--admin-text)" : "var(--admin-text-muted)",
                   fontSize: 15,
                   fontWeight: 800,
                   letterSpacing: "0.03em",
@@ -896,7 +896,7 @@ export function DetailContent({
                     borderRadius: 8,
                     border: "2px solid #ea580c",
                     backgroundColor: "#ea580c",
-                    color: "#fff",
+                    color: "var(--admin-text)",
                     fontSize: 15,
                     fontWeight: 800,
                     letterSpacing: "0.03em",
@@ -914,7 +914,7 @@ export function DetailContent({
                   style={{
                     margin: 0,
                     fontSize: 11,
-                    color: "#6b7280",
+                    color: "var(--admin-text-muted)",
                     textAlign: "center",
                   }}
                 >
@@ -970,7 +970,7 @@ export function DetailContent({
                 >
                   {statusLoading ? (
                     <span
-                      style={{ fontSize: 11, color: "#6b7280", fontFamily: font }}
+                      style={{ fontSize: 11, color: "var(--admin-text-muted)", fontFamily: font }}
                     >
                       Checking pickup link…
                     </span>
@@ -991,9 +991,9 @@ export function DetailContent({
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                backgroundColor: "#e3f2fd",
-                                color: "#1565c0",
-                                border: "1px solid #90caf9",
+                                backgroundColor: "var(--admin-info-bg)",
+                                color: "var(--admin-info-text)",
+                                border: "1px solid var(--admin-info-border)",
                                 borderRadius: 999,
                                 padding: "4px 10px",
                                 fontSize: 11,
@@ -1010,9 +1010,9 @@ export function DetailContent({
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                backgroundColor: "#e8f5e9",
-                                color: "#2e7d32",
-                                border: "1px solid #a5d6a7",
+                                backgroundColor: "var(--admin-success-bg)",
+                                color: "var(--admin-success-text)",
+                                border: "1px solid var(--admin-success-border)",
                                 borderRadius: 999,
                                 padding: "4px 10px",
                                 fontSize: 11,
@@ -1032,7 +1032,7 @@ export function DetailContent({
                   )}
                   {tokenError ? (
                     <span
-                      style={{ fontSize: 11, color: "#b91c1c", fontFamily: font }}
+                      style={{ fontSize: 11, color: "var(--admin-danger-text)", fontFamily: font }}
                     >
                       {tokenError}
                     </span>
@@ -1119,10 +1119,10 @@ export function DetailContent({
                 <div
                   key={issue.id}
                   style={{
-                    border: "1px solid #e0e3e8",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 8,
                     padding: "12px",
-                    backgroundColor: issue.blocking ? "#fff8f8" : "#fff",
+                    backgroundColor: issue.blocking ? "var(--admin-danger-bg)" : "var(--admin-surface)",
                   }}
                 >
                   <div
@@ -1133,7 +1133,7 @@ export function DetailContent({
                       marginBottom: 6,
                     }}
                   >
-                    <span style={{ fontWeight: 700, color: "#333" }}>
+                    <span style={{ fontWeight: 700, color: "var(--admin-text)" }}>
                       {MATERIAL_ISSUE_TYPE_LABEL[issue.type]}
                     </span>
                     <span
@@ -1141,7 +1141,7 @@ export function DetailContent({
                         fontSize: 11,
                         fontWeight: 700,
                         textTransform: "uppercase",
-                        color: issue.blocking ? "#c62828" : "#6b7280",
+                        color: issue.blocking ? "var(--admin-danger-text)" : "var(--admin-text-muted)",
                       }}
                     >
                       {issue.blocking ? "Blocking" : "Info"}
@@ -1150,7 +1150,7 @@ export function DetailContent({
                   <p style={{ margin: "0 0 6px", fontSize: 12, color: "#555" }}>
                     {issue.description?.trim() || "No description"}
                   </p>
-                  <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--admin-text-muted)" }}>
                     Reported by {issue.reportedBy} · Owner{" "}
                     {issue.assignedOwnerName ?? "Unassigned"} ·{" "}
                     {new Date(issue.createdAt).toLocaleString()}
@@ -1165,7 +1165,7 @@ export function DetailContent({
                       padding: "6px 10px",
                       borderRadius: 6,
                       border: `1px solid ${navy}`,
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       color: navy,
                       fontSize: 12,
                       fontWeight: 700,
@@ -1188,7 +1188,7 @@ export function DetailContent({
                       margin: "0 0 8px",
                       fontSize: 11,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       textTransform: "uppercase",
                       letterSpacing: "0.04em",
                     }}
@@ -1203,10 +1203,10 @@ export function DetailContent({
                         key={issue.id}
                         data-testid={`resolved-issue-compact-${issue.id}`}
                         style={{
-                          border: "1px solid #e5e7eb",
+                          border: "1px solid var(--admin-border)",
                           borderRadius: 8,
                           padding: "10px 12px",
-                          backgroundColor: "#fff",
+                          backgroundColor: "var(--admin-surface)",
                           marginBottom: 6,
                         }}
                       >
@@ -1224,7 +1224,7 @@ export function DetailContent({
                               margin: 0,
                               fontSize: 13,
                               fontWeight: 700,
-                              color: "#333",
+                              color: "var(--admin-text)",
                               fontFamily: font,
                             }}
                           >
@@ -1236,9 +1236,9 @@ export function DetailContent({
                               fontWeight: 700,
                               textTransform: "uppercase",
                               letterSpacing: "0.04em",
-                              color: "#2e7d32",
-                              backgroundColor: "#e8f5e9",
-                              border: "1px solid #a5d6a7",
+                              color: "var(--admin-success-text)",
+                              backgroundColor: "var(--admin-success-bg)",
+                              border: "1px solid var(--admin-success-border)",
                               borderRadius: 4,
                               padding: "2px 6px",
                               whiteSpace: "nowrap",
@@ -1294,7 +1294,7 @@ export function DetailContent({
                                 style={{
                                   margin: "0 0 6px",
                                   fontSize: 12,
-                                  color: "#374151",
+                                  color: "var(--admin-text)",
                                   fontFamily: font,
                                   lineHeight: 1.45,
                                 }}
@@ -1307,7 +1307,7 @@ export function DetailContent({
                                 style={{
                                   margin: "0 0 6px",
                                   fontSize: 12,
-                                  color: "#6b7280",
+                                  color: "var(--admin-text-muted)",
                                   fontFamily: font,
                                   lineHeight: 1.45,
                                 }}
@@ -1319,7 +1319,7 @@ export function DetailContent({
                               style={{
                                 margin: 0,
                                 fontSize: 11,
-                                color: "#9ca3af",
+                                color: "var(--admin-text-muted)",
                                 fontFamily: font,
                               }}
                             >
@@ -1342,7 +1342,7 @@ export function DetailContent({
                                 background: "none",
                                 border: "none",
                                 padding: 0,
-                                color: "#64748b",
+                                color: "var(--admin-text-muted)",
                                 fontSize: 11,
                                 fontWeight: 600,
                                 cursor: "pointer",
@@ -1393,22 +1393,22 @@ export function DetailContent({
               <div
                 data-testid="pickup-summary-panel"
                 style={{
-                  border: "1px solid #e0e3e8",
+                  border: "1px solid var(--admin-border)",
                   borderRadius: 8,
                   padding: "12px",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                 }}
               >
                 {!latest ? (
-                  <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                  <p style={{ margin: 0, color: "var(--admin-text-muted)", fontSize: 13 }}>
                     No pickup recorded yet.
                   </p>
                 ) : (
                   <>
-                    <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#333" }}>
+                    <p style={{ margin: "0 0 6px", fontWeight: 700, color: "var(--admin-text)" }}>
                       {latest.itemsPickedSummary}
                     </p>
-                    <p style={{ margin: "0 0 6px", fontSize: 12, color: "#6b7280" }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 12, color: "var(--admin-text-muted)" }}>
                       {latest.technicianName} ·{" "}
                       {new Date(latest.pickedUpAt).toLocaleString()}
                     </p>
@@ -1441,13 +1441,13 @@ export function DetailContent({
               fontFamily: font,
               fontSize: 11,
               fontWeight: 700,
-              color: "#9ca3af",
+              color: "var(--admin-text-muted)",
               letterSpacing: "0.10em",
               textTransform: "uppercase",
               textAlign: "left",
             }}
           >
-            <span style={{ fontSize: 10, color: "#64748b" }}>
+            <span style={{ fontSize: 10, color: "var(--admin-text-muted)" }}>
               {activityHistoryExpanded ? "▼" : "▶"}
             </span>
             <span
@@ -1467,7 +1467,7 @@ export function DetailContent({
                   fontWeight: 400,
                   textTransform: "none",
                   letterSpacing: 0,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   fontSize: 12,
                 }}
               >
@@ -1483,8 +1483,8 @@ export function DetailContent({
                   style={{
                     marginBottom: 12,
                     padding: "8px 10px",
-                    backgroundColor: "#f8fafc",
-                    border: "1px solid #e0e3e8",
+                    backgroundColor: "var(--admin-surface-2)",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 6,
                   }}
                 >
@@ -1493,14 +1493,14 @@ export function DetailContent({
                       margin: "0 0 4px",
                       fontSize: 11,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       textTransform: "uppercase",
                       letterSpacing: "0.04em",
                     }}
                   >
                     Delivery Notes
                   </p>
-                  <p style={{ margin: 0, fontSize: 12, color: "#333", lineHeight: 1.45 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--admin-text)", lineHeight: 1.45 }}>
                     {details.delivery.notes}
                   </p>
                 </div>
@@ -1524,15 +1524,15 @@ export function DetailContent({
                           key={event.id}
                           data-testid={`activity-history-audit-${event.id}`}
                           style={{
-                            border: "1px solid #e0e3e8",
+                            border: "1px solid var(--admin-border)",
                             borderRadius: 6,
                             padding: "10px 12px",
-                            backgroundColor: "#fff",
+                            backgroundColor: "var(--admin-surface)",
                           }}
                         >
-                          <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                          <p style={{ margin: 0, fontWeight: 700, color: "var(--admin-text)" }}>
                             {event.entityType}{" "}
-                            <span style={{ color: "#9ca3af", fontWeight: 400, fontSize: 12 }}>
+                            <span style={{ color: "var(--admin-text-muted)", fontWeight: 400, fontSize: 12 }}>
                               →
                             </span>{" "}
                             <span
@@ -1547,7 +1547,7 @@ export function DetailContent({
                               {event.toStatus}
                             </span>
                           </p>
-                          <p style={{ margin: "3px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                          <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--admin-text-muted)" }}>
                             {formatActivityHistoryMeta(event)}
                           </p>
                           {event.reason ? (
@@ -1555,11 +1555,11 @@ export function DetailContent({
                               style={{
                                 margin: "6px 0 0",
                                 fontSize: 12,
-                                color: "#333",
-                                backgroundColor: "#f8fafc",
+                                color: "var(--admin-text)",
+                                backgroundColor: "var(--admin-surface-2)",
                                 padding: "6px 8px",
                                 borderRadius: 4,
-                                border: "1px solid #e0e3e8",
+                                border: "1px solid var(--admin-border)",
                               }}
                             >
                               {event.reason}
@@ -1575,10 +1575,10 @@ export function DetailContent({
                             paddingLeft: 10,
                           }}
                         >
-                          <p style={{ margin: 0, fontWeight: 600, color: "#111", fontSize: 13 }}>
+                          <p style={{ margin: 0, fontWeight: 600, color: "var(--admin-text)", fontSize: 13 }}>
                             {formatActivityHistoryHeadline(event)}
                           </p>
-                          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
+                          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--admin-text-muted)" }}>
                             {formatActivityHistoryMeta(event)}
                           </p>
                         </div>
@@ -1595,9 +1595,9 @@ export function DetailContent({
                       style={{
                         marginTop: 10,
                         padding: "6px 10px",
-                        border: "1px solid #e0e3e8",
+                        border: "1px solid var(--admin-border)",
                         borderRadius: 4,
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--admin-surface)",
                         color: navy,
                         fontSize: 12,
                         fontWeight: 600,
@@ -1610,7 +1610,7 @@ export function DetailContent({
                   ) : null}
                 </>
               ) : (
-                <p style={{ color: "#9ca3af", fontSize: 13, margin: 0 }}>
+                <p style={{ color: "var(--admin-text-muted)", fontSize: 13, margin: 0 }}>
                   No activity recorded yet.
                 </p>
               )}
@@ -1631,21 +1631,21 @@ export function DetailContent({
                 <div
                   key={pickup.id}
                   style={{
-                    border: "1px solid #e0e3e8",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 8,
                     padding: "12px",
-                    backgroundColor: "#fff",
+                    backgroundColor: "var(--admin-surface)",
                     boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
                   }}
                 >
-                  <p style={{ margin: 0, fontWeight: 700, color: "#111" }}>
+                  <p style={{ margin: 0, fontWeight: 700, color: "var(--admin-text)" }}>
                     {pickup.technicianName}
                   </p>
                   <p
                     style={{
                       margin: "3px 0 8px",
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--admin-text-muted)",
                     }}
                   >
                     {new Date(pickup.pickedUpAt).toLocaleString()}
@@ -1653,11 +1653,11 @@ export function DetailContent({
                   <p
                     style={{
                       margin: 0,
-                      backgroundColor: "#f8fafc",
+                      backgroundColor: "var(--admin-surface-2)",
                       padding: "8px 12px",
                       borderRadius: 4,
-                      border: "1px solid #e0e3e8",
-                      color: "#333",
+                      border: "1px solid var(--admin-border)",
+                      color: "var(--admin-text)",
                     }}
                   >
                     {pickup.itemsPickedSummary}
@@ -1667,7 +1667,7 @@ export function DetailContent({
                       style={{
                         margin: "8px 0 0",
                         fontSize: 12,
-                        color: "#6b7280",
+                        color: "var(--admin-text-muted)",
                         fontStyle: "italic",
                       }}
                     >
@@ -1677,7 +1677,7 @@ export function DetailContent({
                 </div>
               ))
             ) : (
-              <p style={{ color: "#9ca3af", fontSize: 13 }}>
+              <p style={{ color: "var(--admin-text-muted)", fontSize: 13 }}>
                 No pickup events recorded yet.
               </p>
             )}
@@ -1981,7 +1981,7 @@ function DeliveryStatusControls({
         flexDirection: "column",
         gap: 10,
         paddingTop: 4,
-        borderTop: "1px solid #e5e7eb",
+        borderTop: "1px solid var(--admin-border)",
       }}
     >
       <div
@@ -1993,7 +1993,7 @@ function DeliveryStatusControls({
       >
         <span
           style={{
-            color: "#6b7280",
+            color: "var(--admin-text-muted)",
             fontWeight: 700,
             fontSize: 12,
             letterSpacing: "0.04em",
@@ -2007,12 +2007,12 @@ function DeliveryStatusControls({
           style={{
             margin: 0,
             fontSize: 13,
-            color: "#333",
+            color: "var(--admin-text)",
             fontWeight: 600,
           }}
         >
           {statusLabelText}
-          <span style={{ color: "#6b7280", fontWeight: 500 }}>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 500 }}>
             {" "}
             · {fulfillmentContextLabel}
           </span>
@@ -2026,12 +2026,12 @@ function DeliveryStatusControls({
             width: "100%",
             boxSizing: "border-box",
             padding: "8px 10px",
-            border: "1.5px solid #ccd0d7",
+            border: "1.5px solid var(--admin-border)",
             borderRadius: 6,
             fontSize: 14,
             fontFamily: font,
-            color: "#111",
-            backgroundColor: "#fff",
+            color: "var(--admin-text)",
+            backgroundColor: "var(--admin-surface)",
           }}
         >
           {!effectiveSelectValue ? (
@@ -2052,7 +2052,7 @@ function DeliveryStatusControls({
                 key={option}
                 value={option}
                 disabled={!enabled}
-                style={{ color: enabled ? "#111" : "#9ca3af" }}
+                style={{ color: enabled ? "var(--admin-text)" : "var(--admin-text-muted)" }}
               >
                 {DELIVERY_STATUS_LABEL[option]}
               </option>
@@ -2064,7 +2064,7 @@ function DeliveryStatusControls({
           <option
             value={DRAWER_STATUS_REJECT_ACTION}
             data-testid="delivery-status-reject-option"
-            style={{ color: "#b91c1c", fontWeight: 700 }}
+            style={{ color: "var(--admin-danger-text)", fontWeight: 700 }}
           >
             Reject…
           </option>
@@ -2075,7 +2075,7 @@ function DeliveryStatusControls({
             style={{
               margin: "6px 0 0",
               fontSize: 12,
-              color: "#b91c1c",
+              color: "var(--admin-danger-text)",
               lineHeight: 1.4,
             }}
           >
@@ -2094,7 +2094,7 @@ function DeliveryStatusControls({
       >
         <span
           style={{
-            color: "#6b7280",
+            color: "var(--admin-text-muted)",
             fontWeight: 700,
             fontSize: 12,
             letterSpacing: "0.04em",
@@ -2122,9 +2122,9 @@ function DeliveryStatusControls({
                   flex: 1,
                   padding: "8px 10px",
                   borderRadius: 6,
-                  border: `1.5px solid ${active ? navy : "#ccd0d7"}`,
-                  backgroundColor: active ? navy : "#fff",
-                  color: active ? "#fff" : "#374151",
+                  border: `1.5px solid ${active ? navy : "var(--admin-border)"}`,
+                  backgroundColor: active ? navy : "var(--admin-surface)",
+                  color: active ? "#ffffff" : "var(--admin-text)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: loading || active ? "default" : "pointer",
@@ -2148,7 +2148,7 @@ function DeliveryStatusControls({
               marginBottom: 6,
               fontSize: 12,
               fontWeight: 600,
-              color: "#374151",
+              color: "var(--admin-text)",
               fontFamily: font,
             }}
           >
@@ -2164,12 +2164,12 @@ function DeliveryStatusControls({
               width: "100%",
               boxSizing: "border-box",
               padding: "8px 10px",
-              border: "1.5px solid #ccd0d7",
+              border: "1.5px solid var(--admin-border)",
               borderRadius: 6,
               fontSize: 14,
               fontFamily: font,
-              color: "#111",
-              backgroundColor: "#fff",
+              color: "var(--admin-text)",
+              backgroundColor: "var(--admin-surface)",
               marginBottom: 8,
             }}
           >
@@ -2188,11 +2188,11 @@ function DeliveryStatusControls({
               disabled={loading || !selectedSpotId.trim()}
               style={{
                 backgroundColor:
-                  loading || !selectedSpotId.trim() ? "#f3f4f6" : navy,
+                  loading || !selectedSpotId.trim() ? "var(--admin-surface-2)" : navy,
                 color:
-                  loading || !selectedSpotId.trim() ? "#9ca3af" : "#fff",
+                  loading || !selectedSpotId.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
                 border: `1.5px solid ${
-                  loading || !selectedSpotId.trim() ? "#d1d5db" : navy
+                  loading || !selectedSpotId.trim() ? "var(--admin-border)" : navy
                 }`,
                 borderRadius: 4,
                 padding: "6px 12px",
@@ -2212,9 +2212,9 @@ function DeliveryStatusControls({
               onClick={() => setShowSpotPicker(false)}
               disabled={loading}
               style={{
-                backgroundColor: "#fff",
-                color: "#374151",
-                border: "1.5px solid #d1d5db",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
+                border: "1.5px solid var(--admin-border)",
                 borderRadius: 4,
                 padding: "6px 12px",
                 fontSize: 12,
@@ -2238,7 +2238,7 @@ function DeliveryStatusControls({
               marginBottom: 6,
               fontSize: 12,
               fontWeight: 600,
-              color: "#374151",
+              color: "var(--admin-text)",
               fontFamily: font,
             }}
           >
@@ -2256,12 +2256,12 @@ function DeliveryStatusControls({
               width: "100%",
               boxSizing: "border-box",
               padding: "8px 12px",
-              border: "1.5px solid #ccd0d7",
+              border: "1.5px solid var(--admin-border)",
               borderRadius: 6,
               fontSize: 14,
               fontFamily: font,
-              color: "#111",
-              backgroundColor: "#fff",
+              color: "var(--admin-text)",
+              backgroundColor: "var(--admin-surface)",
               marginBottom: 8,
             }}
           />
@@ -2272,7 +2272,7 @@ function DeliveryStatusControls({
               style={{
                 margin: "0 0 8px",
                 fontSize: 12,
-                color: "#b91c1c",
+                color: "var(--admin-danger-text)",
                 fontWeight: 600,
               }}
             >
@@ -2286,11 +2286,11 @@ function DeliveryStatusControls({
               disabled={loading || !pickupTechnicianName.trim()}
               style={{
                 backgroundColor:
-                  loading || !pickupTechnicianName.trim() ? "#f3f4f6" : navy,
+                  loading || !pickupTechnicianName.trim() ? "var(--admin-surface-2)" : navy,
                 color:
-                  loading || !pickupTechnicianName.trim() ? "#9ca3af" : "#fff",
+                  loading || !pickupTechnicianName.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
                 border: `1.5px solid ${
-                  loading || !pickupTechnicianName.trim() ? "#d1d5db" : navy
+                  loading || !pickupTechnicianName.trim() ? "var(--admin-border)" : navy
                 }`,
                 borderRadius: 4,
                 padding: "6px 12px",
@@ -2314,9 +2314,9 @@ function DeliveryStatusControls({
               }}
               disabled={loading}
               style={{
-                backgroundColor: "#fff",
-                color: "#374151",
-                border: "1.5px solid #d1d5db",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
+                border: "1.5px solid var(--admin-border)",
                 borderRadius: 4,
                 padding: "6px 12px",
                 fontSize: 12,
@@ -2434,9 +2434,9 @@ function StatusActionPanel({
   return (
     <section
       style={{
-        border: "1px solid #dde1e7",
+        border: "1px solid var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "#f8fafc",
+        backgroundColor: "var(--admin-surface-2)",
         padding: "15px",
         marginBottom: 20,
       }}
@@ -2448,8 +2448,8 @@ function StatusActionPanel({
           style={{
             padding: "14px 16px",
             borderRadius: 8,
-            border: "1px solid #e0e3e8",
-            backgroundColor: "#f9fafb",
+            border: "1px solid var(--admin-border)",
+            backgroundColor: "var(--admin-surface-2)",
             marginBottom: 16,
           }}
         >
@@ -2458,8 +2458,8 @@ function StatusActionPanel({
             style={{
               padding: "10px 12px",
               borderRadius: 8,
-              border: "1px solid #e0e3e8",
-              backgroundColor: "#fff",
+              border: "1px solid var(--admin-border)",
+              backgroundColor: "var(--admin-surface)",
             }}
           >
             <p
@@ -2467,18 +2467,18 @@ function StatusActionPanel({
                 margin: "0 0 6px",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#9ca3af",
+                color: "var(--admin-text-muted)",
                 textTransform: "uppercase",
                 letterSpacing: "0.10em",
               }}
             >
               Combination Staging Group
             </p>
-            <p style={{ margin: 0, fontSize: 13, color: "#333" }}>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--admin-text)" }}>
               {details.delivery.combinationStagingGroupId ?? "—"}
             </p>
             {(details.delivery.combinationMemberLocationIds?.length ?? 0) > 0 && (
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#6b7280" }}>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--admin-text-muted)" }}>
                 Members:{" "}
                 {details.delivery.combinationMemberLocationIds
                   ?.map(
@@ -2501,9 +2501,9 @@ function StatusActionPanel({
             onClick={() => setShowReasonInput(true)}
             disabled={loading}
             style={{
-              backgroundColor: loading ? "#f3f4f6" : "#fff",
-              color: loading ? "#9ca3af" : "#c62828",
-              border: `1.5px solid ${loading ? "#d1d5db" : "#c62828"}`,
+              backgroundColor: loading ? "var(--admin-surface-2)" : "var(--admin-surface)",
+              color: loading ? "var(--admin-text-muted)" : "var(--admin-danger-text)",
+              border: `1.5px solid ${loading ? "var(--admin-border)" : "var(--admin-danger-text)"}`,
               borderRadius: 4,
               padding: "8px 14px",
               fontSize: 12,
@@ -2524,7 +2524,7 @@ function StatusActionPanel({
               margin: "0 0 8px",
               fontSize: 11,
               fontWeight: 700,
-              color: "#c62828",
+              color: "var(--admin-danger-text)",
               textTransform: "uppercase",
               letterSpacing: "0.10em",
             }}
@@ -2543,12 +2543,12 @@ function StatusActionPanel({
               boxSizing: "border-box",
               minHeight: 60,
               padding: "8px 12px",
-              border: "1.5px solid #ccd0d7",
+              border: "1.5px solid var(--admin-border)",
               borderRadius: 6,
               fontSize: 14,
               fontFamily: font,
-              color: "#111",
-              backgroundColor: "#fff",
+              color: "var(--admin-text)",
+              backgroundColor: "var(--admin-surface)",
               outline: "none",
               marginBottom: 8,
             }}
@@ -2560,10 +2560,10 @@ function StatusActionPanel({
               disabled={loading || !reason.trim()}
               style={{
                 backgroundColor:
-                  loading || !reason.trim() ? "#f3f4f6" : "#c62828",
-                color: loading || !reason.trim() ? "#9ca3af" : "#fff",
+                  loading || !reason.trim() ? "var(--admin-surface-2)" : "var(--admin-danger-text)",
+                color: loading || !reason.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
                 border: `1.5px solid ${
-                  loading || !reason.trim() ? "#d1d5db" : "#c62828"
+                  loading || !reason.trim() ? "var(--admin-border)" : "var(--admin-danger-text)"
                 }`,
                 borderRadius: 4,
                 padding: "6px 12px",
@@ -2583,9 +2583,9 @@ function StatusActionPanel({
               }}
               disabled={loading}
               style={{
-                backgroundColor: "#fff",
-                color: "#374151",
-                border: "1.5px solid #d1d5db",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
+                border: "1.5px solid var(--admin-border)",
                 borderRadius: 4,
                 padding: "6px 12px",
                 fontSize: 12,
@@ -2608,7 +2608,7 @@ function StatusActionPanel({
                 margin: 0,
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#c62828",
+                color: "var(--admin-danger-text)",
                 textTransform: "uppercase",
                 letterSpacing: "0.10em",
               }}
@@ -2640,16 +2640,16 @@ function StatusActionPanel({
             style={{
               margin: 0,
               fontSize: 13,
-              color: "#374151",
-              backgroundColor: "#fff1f2",
-              border: "1px solid #fecaca",
+              color: "var(--admin-text)",
+              backgroundColor: "var(--admin-danger-bg)",
+              border: "1px solid var(--admin-danger-border)",
               borderRadius: 6,
               padding: "8px 12px",
               fontFamily: font,
               lineHeight: 1.5,
             }}
           >
-            {details.delivery.issueSummary || <em style={{ color: "#9ca3af" }}>No summary recorded.</em>}
+            {details.delivery.issueSummary || <em style={{ color: "var(--admin-text-muted)" }}>No summary recorded.</em>}
           </p>
         </div>
       )}
@@ -2661,7 +2661,7 @@ function StatusActionPanel({
               margin: "0 0 8px",
               fontSize: 11,
               fontWeight: 700,
-              color: "#c62828",
+              color: "var(--admin-danger-text)",
               textTransform: "uppercase",
               letterSpacing: "0.10em",
             }}
@@ -2683,8 +2683,8 @@ function StatusActionPanel({
               borderRadius: 6,
               fontSize: 14,
               fontFamily: font,
-              color: "#111",
-              backgroundColor: "#fff",
+              color: "var(--admin-text)",
+              backgroundColor: "var(--admin-surface)",
               outline: "none",
               marginBottom: 8,
             }}
@@ -2694,9 +2694,9 @@ function StatusActionPanel({
               onClick={handleSaveEdit}
               disabled={loading || !editReason.trim()}
               style={{
-                backgroundColor: loading || !editReason.trim() ? "#f3f4f6" : "#c62828",
-                color: loading || !editReason.trim() ? "#9ca3af" : "#fff",
-                border: `1.5px solid ${loading || !editReason.trim() ? "#d1d5db" : "#c62828"}`,
+                backgroundColor: loading || !editReason.trim() ? "var(--admin-surface-2)" : "var(--admin-danger-text)",
+                color: loading || !editReason.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
+                border: `1.5px solid ${loading || !editReason.trim() ? "var(--admin-border)" : "var(--admin-danger-text)"}`,
                 borderRadius: 4,
                 padding: "6px 12px",
                 fontSize: 12,
@@ -2711,9 +2711,9 @@ function StatusActionPanel({
               onClick={() => { setEditingIssue(false); setEditReason(""); }}
               disabled={loading}
               style={{
-                backgroundColor: "#fff",
-                color: "#374151",
-                border: "1.5px solid #d1d5db",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
+                border: "1.5px solid var(--admin-border)",
                 borderRadius: 4,
                 padding: "6px 12px",
                 fontSize: 12,
@@ -2747,12 +2747,12 @@ function StatusActionPanel({
             fontFamily: font,
             fontSize: 11,
             fontWeight: 700,
-            color: "#9ca3af",
+            color: "var(--admin-text-muted)",
             letterSpacing: "0.04em",
             textAlign: "left",
           }}
         >
-          <span style={{ fontSize: 10, color: "#64748b" }}>
+          <span style={{ fontSize: 10, color: "var(--admin-text-muted)" }}>
             {stockToolsExpanded ? "▼" : "▶"}
           </span>
           Experimental Stock Tools
@@ -2761,7 +2761,7 @@ function StatusActionPanel({
           style={{
             margin: "0 0 8px",
             fontSize: 12,
-            color: "#6b7280",
+            color: "var(--admin-text-muted)",
             lineHeight: 1.45,
             fontFamily: font,
           }}
@@ -2780,7 +2780,7 @@ function StatusActionPanel({
                 marginBottom: 6,
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#374151",
+                color: "var(--admin-text)",
                 fontFamily: font,
               }}
             >
@@ -2802,12 +2802,12 @@ function StatusActionPanel({
                 width: "100%",
                 boxSizing: "border-box",
                 padding: "7px 10px",
-                border: "1.5px solid #ccd0d7",
+                border: "1.5px solid var(--admin-border)",
                 borderRadius: 6,
                 fontSize: 13,
                 fontFamily: font,
-                color: "#333",
-                backgroundColor: loading ? "#f9fafb" : "#fff",
+                color: "var(--admin-text)",
+                backgroundColor: loading ? "var(--admin-surface-2)" : "var(--admin-surface)",
               }}
             >
               <option value="">— Manual location note —</option>
@@ -2828,7 +2828,7 @@ function StatusActionPanel({
             marginBottom: 6,
             fontSize: 12,
             fontWeight: 600,
-            color: "#374151",
+            color: "var(--admin-text)",
             fontFamily: font,
           }}
         >
@@ -2845,12 +2845,12 @@ function StatusActionPanel({
             width: "100%",
             boxSizing: "border-box",
             padding: "8px 12px",
-            border: isPickListDirty ? `1.5px solid ${navy}` : "1.5px solid #ccd0d7",
+            border: isPickListDirty ? `1.5px solid ${navy}` : "1.5px solid var(--admin-border)",
             borderRadius: 6,
             fontSize: 13,
             fontFamily: font,
-            color: "#111",
-            backgroundColor: loading ? "#f9fafb" : "#fff",
+            color: "var(--admin-text)",
+            backgroundColor: loading ? "var(--admin-surface-2)" : "var(--admin-surface)",
             outline: "none",
             marginBottom: 10,
             lineHeight: 1.45,
@@ -2863,7 +2863,7 @@ function StatusActionPanel({
             marginBottom: 6,
             fontSize: 12,
             fontWeight: 600,
-            color: "#374151",
+            color: "var(--admin-text)",
             fontFamily: font,
           }}
         >
@@ -2882,12 +2882,12 @@ function StatusActionPanel({
             padding: "7px 10px",
             border: isPickListDirty
               ? `1.5px solid ${navy}`
-              : "1.5px solid #ccd0d7",
+              : "1.5px solid var(--admin-border)",
             borderRadius: 6,
             fontSize: 13,
             fontFamily: font,
-            color: "#333",
-            backgroundColor: loading ? "#f9fafb" : "#fff",
+            color: "var(--admin-text)",
+            backgroundColor: loading ? "var(--admin-surface-2)" : "var(--admin-surface)",
             outline: "none",
             marginBottom: 8,
           }}
@@ -2909,9 +2909,9 @@ function StatusActionPanel({
             fontWeight: 700,
             fontFamily: font,
             cursor: loading || !isPickListDirty ? "not-allowed" : "pointer",
-            backgroundColor: loading || !isPickListDirty ? "#f3f4f6" : navy,
-            color: loading || !isPickListDirty ? "#9ca3af" : "#fff",
-            border: `1.5px solid ${loading || !isPickListDirty ? "#d1d5db" : navy}`,
+            backgroundColor: loading || !isPickListDirty ? "var(--admin-surface-2)" : navy,
+            color: loading || !isPickListDirty ? "var(--admin-text-muted)" : "var(--admin-text)",
+            border: `1.5px solid ${loading || !isPickListDirty ? "var(--admin-border)" : navy}`,
             transition: "all 0.13s",
           }}
         >
@@ -2928,7 +2928,7 @@ function StatusActionPanel({
             backgroundColor: "#fee2e2",
             borderRadius: 6,
             padding: "10px 15px",
-            color: "#b91c1c",
+            color: "var(--admin-danger-text)",
             fontSize: 13,
             fontWeight: 600,
           }}

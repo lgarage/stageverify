@@ -121,21 +121,21 @@ export function DrawerActionBanner({
     bannerContent.bannerMode === "attention_required" ||
     (deliverToSitePending && readiness.readyForPickup);
 
-  const borderColor = allClear ? "#2e7d32" : calmWaiting ? "#b45309" : "#bf0a30";
+  const borderColor = allClear ? "var(--admin-success-text)" : calmWaiting ? "var(--admin-warning-text)" : "#bf0a30";
   const backgroundColor = allClear
-    ? "#ecfdf5"
+    ? "var(--admin-success-bg)"
     : calmWaiting
-      ? "#fffbeb"
-      : "#fff5f5";
+      ? "var(--admin-warning-bg)"
+      : "var(--admin-danger-bg)";
   const headingColor = allClear
-    ? "#166534"
+    ? "var(--admin-success-text)"
     : calmWaiting
       ? "#78350f"
-      : "#991b1b";
+      : "var(--admin-danger-text)";
   const summaryColor = allClear
-    ? "#166534"
+    ? "var(--admin-success-text)"
     : calmWaiting
-      ? "#92400e"
+      ? "var(--admin-warning-text)"
       : "#7f1d1d";
   const bannerHeading = allClear
     ? "All Clear"
@@ -197,7 +197,7 @@ export function DrawerActionBanner({
                 flexShrink: 0,
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#991b1b",
+                color: "var(--admin-danger-text)",
                 backgroundColor: "#fee2e2",
                 border: "1px solid #fca5a5",
                 borderRadius: 999,
@@ -218,7 +218,7 @@ export function DrawerActionBanner({
                 margin: "0 0 6px",
                 fontSize: 12,
                 fontWeight: 700,
-                color: "#991b1b",
+                color: "var(--admin-danger-text)",
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
               }}
@@ -248,7 +248,7 @@ export function DrawerActionBanner({
                 margin: "0 0 6px",
                 fontSize: 12,
                 fontWeight: 700,
-                color: "#991b1b",
+                color: "var(--admin-danger-text)",
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
               }}
@@ -286,7 +286,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
                   backgroundColor: navy,
-                  color: "#fff",
+                  color: "var(--admin-text)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -307,8 +307,8 @@ export function DrawerActionBanner({
                 padding: "7px 12px",
                 borderRadius: 6,
                 border: `1.5px solid ${navy}`,
-                backgroundColor: canResolve ? navy : "#fff",
-                color: canResolve ? "#fff" : "#9ca3af",
+                backgroundColor: canResolve ? navy : "var(--admin-surface)",
+                color: canResolve ? "var(--admin-text)" : "var(--admin-text-muted)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: canResolve ? "pointer" : "not-allowed",
@@ -327,7 +327,7 @@ export function DrawerActionBanner({
                   padding: "7px 12px",
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   color: navy,
                   fontSize: 12,
                   fontWeight: 700,
@@ -347,7 +347,7 @@ export function DrawerActionBanner({
                   padding: "7px 12px",
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   color: navy,
                   fontSize: 12,
                   fontWeight: 700,
@@ -367,7 +367,7 @@ export function DrawerActionBanner({
                   padding: "7px 12px",
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   color: navy,
                   fontSize: 12,
                   fontWeight: 700,
@@ -388,7 +388,7 @@ export function DrawerActionBanner({
             style={{
               margin: "8px 0 0",
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--admin-text-muted)",
               fontStyle: "italic",
             }}
           >
@@ -429,7 +429,7 @@ export function DrawerActionBanner({
             style={{
               width: "100%",
               maxWidth: 420,
-              backgroundColor: "#fff",
+              backgroundColor: "var(--admin-surface)",
               borderRadius: 10,
               padding: 20,
               boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
@@ -451,7 +451,7 @@ export function DrawerActionBanner({
               style={{
                 margin: "0 0 14px",
                 fontSize: 12,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
               }}
             >
               {delivery.orderNumber
@@ -487,7 +487,7 @@ export function DrawerActionBanner({
                   ) : (
                     <span
                       data-testid="call-vendor-phone-missing"
-                      style={{ color: "#64748b" }}
+                      style={{ color: "var(--admin-text-muted)" }}
                     >
                       No phone number saved for this vendor
                     </span>
@@ -498,7 +498,7 @@ export function DrawerActionBanner({
                 <dt style={{ fontWeight: 700, marginBottom: 2 }}>Address</dt>
                 <dd style={{ margin: 0 }} data-testid="call-vendor-address">
                   {vendorAddress || (
-                    <span style={{ color: "#64748b" }}>No address on file</span>
+                    <span style={{ color: "var(--admin-text-muted)" }}>No address on file</span>
                   )}
                 </dd>
               </div>
@@ -506,7 +506,7 @@ export function DrawerActionBanner({
                 <dt style={{ fontWeight: 700, marginBottom: 2 }}>Email</dt>
                 <dd style={{ margin: 0 }} data-testid="call-vendor-email">
                   {vendorEmail || (
-                    <span style={{ color: "#64748b" }}>No email on file</span>
+                    <span style={{ color: "var(--admin-text-muted)" }}>No email on file</span>
                   )}
                 </dd>
               </div>
@@ -521,7 +521,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: "none",
                   backgroundColor: navy,
-                  color: "#fff",
+                  color: "var(--admin-text)",
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",

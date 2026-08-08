@@ -35,18 +35,17 @@ import {
 } from "./dispatcher/technicianBadgeColors";
 
 const NAVY = "#0a3161";
-const TEXT = "#333";
-const MUTED = "#6b7280";
-const RED = "#bf0a30";
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
   boxSizing: "border-box",
 };
@@ -56,7 +55,7 @@ const primaryButtonStyle: CSSProperties = {
   borderRadius: 6,
   border: "none",
   backgroundColor: NAVY,
-  color: "#fff",
+  color: "var(--admin-on-navy)",
   fontSize: 13,
   fontWeight: 700,
   cursor: "pointer",
@@ -66,9 +65,9 @@ const primaryButtonStyle: CSSProperties = {
 const secondaryButtonStyle: CSSProperties = {
   padding: "7px 12px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
-  backgroundColor: "#fff",
-  color: NAVY,
+  border: "1px solid var(--admin-border)",
+  backgroundColor: "var(--admin-surface)",
+  color: "var(--admin-accent-soft)",
   fontSize: 12,
   fontWeight: 700,
   cursor: "pointer",
@@ -596,9 +595,9 @@ export function PinAccessManagementPanel() {
       style={{
         margin: "0 20px 20px",
         padding: 16,
-        border: "1px dashed #9ca3af",
+        border: "1px dashed var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "#fafbfc",
+        backgroundColor: "var(--admin-surface-2)",
       }}
     >
       <div
@@ -610,7 +609,7 @@ export function PinAccessManagementPanel() {
           marginBottom: 14,
         }}
       >
-        <strong style={{ color: NAVY, fontSize: 15 }}>
+        <strong style={{ color: "var(--admin-accent-soft)", fontSize: 15 }}>
           Add Access · Step {wizardStep} of 4
         </strong>
         <button type="button" onClick={resetWizard} style={secondaryButtonStyle}>
@@ -844,7 +843,9 @@ export function PinAccessManagementPanel() {
         style={{ display: "grid", gap: 14 }}
       >
         <div>
-          <h3 style={{ margin: 0, color: NAVY }}>{technician.name}</h3>
+          <h3 style={{ margin: 0, color: "var(--admin-accent-soft)" }}>
+            {technician.name}
+          </h3>
           <span
             data-testid={`technician-badge-preview-${technician.id}`}
             style={{
@@ -974,8 +975,16 @@ export function PinAccessManagementPanel() {
           </p>
         )}
 
-        <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 14 }}>
-          <h3 style={{ fontSize: 15, color: NAVY, margin: "0 0 6px" }}>
+        <div
+          style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 14 }}
+        >
+          <h3
+            style={{
+              fontSize: 15,
+              color: "var(--admin-accent-soft)",
+              margin: "0 0 6px",
+            }}
+          >
             Release jobs for today
           </h3>
           <p style={{ fontSize: 12, color: MUTED, margin: "0 0 10px" }}>
@@ -999,7 +1008,7 @@ export function PinAccessManagementPanel() {
             style={{
               maxHeight: 180,
               overflowY: "auto",
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--admin-border)",
               borderRadius: 6,
               padding: 8,
               margin: "10px 0",
@@ -1049,7 +1058,9 @@ export function PinAccessManagementPanel() {
       style={{ display: "grid", gap: 14 }}
     >
       <div>
-        <h3 style={{ margin: 0, color: NAVY }}>{vendor.name}</h3>
+        <h3 style={{ margin: 0, color: "var(--admin-accent-soft)" }}>
+          {vendor.name}
+        </h3>
         <p
           data-testid={`vendor-access-pin-state-${vendor.id}`}
           style={{ margin: "5px 0 0", color: MUTED, fontSize: 12 }}
@@ -1216,9 +1227,9 @@ export function PinAccessManagementPanel() {
     <section
       data-testid="pin-access-management-panel"
       style={{
-        border: "1px solid #dde1e7",
+        border: "1px solid var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "#fff",
+        backgroundColor: "var(--admin-surface)",
         boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
         color: TEXT,
         fontFamily: FONT,
@@ -1230,7 +1241,7 @@ export function PinAccessManagementPanel() {
         <div
           style={{
             padding: "16px 20px",
-            borderBottom: "1px solid #e5e7eb",
+            borderBottom: "1px solid var(--admin-border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1241,7 +1252,11 @@ export function PinAccessManagementPanel() {
           <div>
             <h2
               data-testid="pin-access-heading"
-              style={{ margin: 0, color: NAVY, fontSize: 17 }}
+              style={{
+                margin: 0,
+                color: "var(--admin-accent-soft)",
+                fontSize: 17,
+              }}
             >
               PIN &amp; Access Management
             </h2>
@@ -1266,12 +1281,26 @@ export function PinAccessManagementPanel() {
         </div>
 
         {error && (
-          <p role="alert" style={{ margin: "14px 20px 0", color: RED, fontSize: 13 }}>
+          <p
+            role="alert"
+            style={{
+              margin: "14px 20px 0",
+              color: "var(--admin-danger-text)",
+              fontSize: 13,
+            }}
+          >
             {error}
           </p>
         )}
         {message && (
-          <p role="status" style={{ margin: "14px 20px 0", color: "#166534", fontSize: 13 }}>
+          <p
+            role="status"
+            style={{
+              margin: "14px 20px 0",
+              color: "var(--admin-success-text)",
+              fontSize: 13,
+            }}
+          >
             {message}
           </p>
         )}
@@ -1302,7 +1331,7 @@ export function PinAccessManagementPanel() {
                             key={heading}
                             style={{
                               padding: "11px 12px",
-                              color: "#fff",
+                              color: "var(--admin-on-navy)",
                               textAlign: "left",
                               fontWeight: 700,
                               whiteSpace: "nowrap",
@@ -1320,26 +1349,54 @@ export function PinAccessManagementPanel() {
                         key={`${row.type}-${row.id}`}
                         data-testid={`pin-access-row-${row.type}-${row.id}`}
                         style={{
-                          backgroundColor: index % 2 === 0 ? "#fff" : "#fafbfc",
+                          backgroundColor:
+                            index % 2 === 0
+                              ? "var(--admin-row-even)"
+                              : "var(--admin-row-odd)",
                           opacity: row.active ? 1 : 0.72,
                         }}
                       >
-                        <td style={{ padding: 12, borderBottom: "1px solid #e5e7eb", fontWeight: 700 }}>
+                        <td
+                          style={{
+                            padding: 12,
+                            borderBottom: "1px solid var(--admin-border)",
+                            fontWeight: 700,
+                          }}
+                        >
                           {row.name}
                         </td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #e5e7eb" }}>
+                        <td
+                          style={{
+                            padding: 12,
+                            borderBottom: "1px solid var(--admin-border)",
+                          }}
+                        >
                           <TypeChip type={row.type} />
                         </td>
                         <td
                           data-testid={`pin-access-pin-state-${row.type}-${row.id}`}
-                          style={{ padding: 12, borderBottom: "1px solid #e5e7eb" }}
+                          style={{
+                            padding: 12,
+                            borderBottom: "1px solid var(--admin-border)",
+                          }}
                         >
                           {row.hasPin ? "••••" : "Not configured"}
                         </td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #e5e7eb" }}>
+                        <td
+                          style={{
+                            padding: 12,
+                            borderBottom: "1px solid var(--admin-border)",
+                          }}
+                        >
                           {row.active ? "Active" : "Inactive"}
                         </td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #e5e7eb", whiteSpace: "nowrap" }}>
+                        <td
+                          style={{
+                            padding: 12,
+                            borderBottom: "1px solid var(--admin-border)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
                           <button
                             data-testid={`pin-access-edit-${row.type}-${row.id}`}
                             type="button"
@@ -1383,9 +1440,9 @@ export function PinAccessManagementPanel() {
             style={{
               margin: "0 20px 20px",
               padding: 16,
-              border: "1px solid #dbe3ed",
+              border: "1px solid var(--admin-border)",
               borderRadius: 8,
-              backgroundColor: "#fff",
+              backgroundColor: "var(--admin-surface-2)",
             }}
           >
             {selectedTechnician && renderTechnicianDetail(selectedTechnician)}

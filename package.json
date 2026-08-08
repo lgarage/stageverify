@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.227",
+  "version": "0.0.228",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -70,6 +70,7 @@
     "verify:invoice-separate-rows:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-separate-rows:prod scripts/verify-invoice-separate-rows.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:delivery-consistency": "npx tsx scripts/verify-delivery-list-drawer-consistency.mjs",
     "verify:delivery-consistency:prod": "STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npx tsx scripts/verify-delivery-list-drawer-consistency.mjs",
+    "verify:admin-appearance": "node scripts/run-verify-with-learning.mjs --script verify:admin-appearance scripts/verify-admin-appearance.mjs",
     "verify:delivery-drawer-status": "node scripts/run-verify-with-learning.mjs --script verify:delivery-drawer-status scripts/verify-delivery-drawer-status.mjs",
     "verify:delivery-drawer-status:prod": "node scripts/run-verify-with-learning.mjs --script verify:delivery-drawer-status:prod scripts/verify-delivery-drawer-status.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:e2e-smoke": "node scripts/verify-e2e-smoke.mjs",
@@ -226,8 +227,8 @@
   },
   "_vendorVerifyScriptsDoc": {
     "see": "scripts/VERIFY_PROD_ENV.md",
-    "verify:vendor-delivered:prod": "CANONICAL prod \u2014 receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
-    "verify:vendor-demo": "DEPRECATED \u2014 no demo defaults; use verify:vendor-delivered with real ingest env",
-    "verify:vendor-demo:prod": "DEPRECATED \u2014 use verify:vendor-delivered:prod"
+    "verify:vendor-delivered:prod": "CANONICAL prod — receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
+    "verify:vendor-demo": "DEPRECATED — no demo defaults; use verify:vendor-delivered with real ingest env",
+    "verify:vendor-demo:prod": "DEPRECATED — use verify:vendor-delivered:prod"
   }
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAppSettings, listAllZones } from "./dispatcher/firestoreService";
 import type { StagingLocation } from "./dispatcher/models";
-import { PORTAL_SHELL_CLASS } from "./dispatcherPortalLayout";
+import { PortalShell } from "./PortalShell";
 import { PortalSidebar } from "./PortalSidebar";
 import {
   buildLabelPrintCandidates,
@@ -179,7 +179,7 @@ export function LocationSignBatchPrintPage() {
   const hasSelection = selectedIds.size > 0;
 
   return (
-    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
+    <PortalShell style={{ fontFamily: FONT }} forceLight>
       <PortalSidebar className="print:hidden" />
 
       <div
@@ -492,6 +492,6 @@ export function LocationSignBatchPrintPage() {
 
       <style>{LOCATION_SIGN_PRINT_STYLES}</style>
       <style>{LOCATION_SIGN_2X4_PRINT_STYLES}</style>
-    </div>
+    </PortalShell>
   );
 }

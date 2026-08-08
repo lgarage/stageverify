@@ -463,8 +463,8 @@ export function DeliveryDetailDrawer({
           height: "100%",
           width: "100%",
           maxWidth: 480,
-          backgroundColor: "#fff",
-          borderLeft: "1px solid #e0e3e8",
+          backgroundColor: "var(--admin-surface)",
+          borderLeft: "1px solid var(--admin-border)",
           boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
           overflowY: "auto",
           display: "flex",
@@ -479,10 +479,10 @@ export function DeliveryDetailDrawer({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "15px 20px",
-            borderBottom: "1px solid #e0e3e8",
+            borderBottom: "1px solid var(--admin-border)",
             position: "sticky",
             top: 0,
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             zIndex: 10,
             boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
           }}
@@ -493,7 +493,7 @@ export function DeliveryDetailDrawer({
                 margin: 0,
                 fontSize: 16,
                 fontWeight: 700,
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
               }}
             >
               Delivery Details
@@ -502,7 +502,7 @@ export function DeliveryDetailDrawer({
               style={{
                 margin: 0,
                 fontSize: 12,
-                color: "#9ca3af",
+                color: "var(--admin-text-muted)",
                 marginTop: 2,
               }}
             >
@@ -514,10 +514,10 @@ export function DeliveryDetailDrawer({
             onClick={onClose}
             style={{
               padding: "5px 12px",
-              border: "1px solid #ccd0d7",
+              border: "1px solid var(--admin-border)",
               borderRadius: 4,
-              backgroundColor: "#f9fafb",
-              color: "#333",
+              backgroundColor: "var(--admin-surface-2)",
+              color: "var(--admin-text)",
               fontWeight: 700,
               fontSize: 12,
               cursor: "pointer",

@@ -7,18 +7,18 @@ import {
 } from "./dispatcher/firestoreService";
 import { sortStagingLocationsForList } from "./dispatcher/stagingMapSync";
 
-const TEXT = "#333";
-const MUTED = "#6b7280";
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
+const NAVY = "#0a3161";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
 };
 
@@ -116,7 +116,11 @@ export function ManagementSettingsPanel() {
       )}
       {message && (
         <p
-          style={{ fontSize: 13, color: "#166534", marginBottom: 12 }}
+          style={{
+            fontSize: 13,
+            color: "var(--admin-success-text)",
+            marginBottom: 12,
+          }}
           role="status"
         >
           {message}
@@ -191,7 +195,7 @@ export function ManagementSettingsPanel() {
             borderRadius: 6,
             border: "none",
             backgroundColor: NAVY,
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             fontSize: 13,
             fontWeight: 600,
             cursor: saving ? "wait" : "pointer",

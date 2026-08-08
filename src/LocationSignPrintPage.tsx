@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { PORTAL_SHELL_CLASS } from "./dispatcherPortalLayout";
+import { PortalShell } from "./PortalShell";
 import { PortalSidebar } from "./PortalSidebar";
 import {
   LocationSignPrintSheet,
@@ -38,7 +38,7 @@ export function LocationSignPrintPage() {
   };
 
   return (
-    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
+    <PortalShell style={{ fontFamily: FONT }} forceLight>
       <PortalSidebar className="print:hidden" />
 
       <div className={LOCATION_SIGN_PRINT_PAGE_CLASS} style={{ backgroundColor: "#e5e7eb" }}>
@@ -182,6 +182,6 @@ export function LocationSignPrintPage() {
       </div>
 
       <style>{LOCATION_SIGN_PRINT_STYLES}</style>
-    </div>
+    </PortalShell>
   );
 }

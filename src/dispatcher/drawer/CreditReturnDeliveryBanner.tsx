@@ -4,8 +4,8 @@ import {
 } from "../invoice/deliveryCreditReturn";
 
 const RED = "#bf0a30";
-const RED_BG = "#fef2f2";
-const RED_BORDER = "#fecaca";
+const RED_BG = "var(--admin-danger-bg)";
+const RED_BORDER = "var(--admin-danger-border)";
 
 export function CreditReturnDeliveryBanner({
   importRow,
@@ -76,7 +76,7 @@ export function CreditReturnDeliveryBanner({
             Reject to move the linked import to Rejected Invoices and teach the parser.
           </p>
           {importLoading ? (
-            <p style={{ margin: "8px 0 0", fontSize: 11, color: "#9ca3af" }}>
+            <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--admin-text-muted)" }}>
               Loading linked import…
             </p>
           ) : null}
@@ -91,7 +91,7 @@ export function CreditReturnDeliveryBanner({
           {rejectBlocked && importRow ? (
             <p
               data-testid="delivery-credit-return-reject-blocked"
-              style={{ margin: "8px 0 0", fontSize: 11, color: "#6b7280" }}
+              style={{ margin: "8px 0 0", fontSize: 11, color: "var(--admin-text-muted)" }}
             >
               {rejectBlocked}
             </p>

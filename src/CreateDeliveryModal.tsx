@@ -36,19 +36,19 @@ const labelStyle: CSSProperties = {
   display: "block",
   fontSize: 13,
   fontWeight: 700,
-  color: "#6b7280",
+  color: "var(--admin-text-muted)",
   marginBottom: 6,
 };
 
 const inputStyle: CSSProperties = {
   width: "100%",
   padding: "10px 12px",
-  border: "1.5px solid #ccd0d7",
+  border: "1.5px solid var(--admin-border)",
   borderRadius: 6,
   fontSize: 14,
-  color: "#333",
+  color: "var(--admin-text)",
   outline: "none",
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
   boxSizing: "border-box",
 };
@@ -198,17 +198,17 @@ export function CreateDeliveryModal({
           maxWidth: 620,
           maxHeight: "90vh",
           overflowY: "auto",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           borderRadius: 8,
           boxShadow: "0 12px 40px rgba(0,0,0,0.22)",
-          border: "1px solid #e0e3e8",
+          border: "1px solid var(--admin-border)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           style={{
             padding: "16px 20px",
-            borderBottom: "1px solid #e0e3e8",
+            borderBottom: "1px solid var(--admin-border)",
             boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
           }}
         >
@@ -217,12 +217,12 @@ export function CreateDeliveryModal({
               margin: 0,
               fontSize: 18,
               fontWeight: 700,
-              color: NAVY,
+              color: "var(--admin-accent-soft)",
             }}
           >
             New Delivery
           </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--admin-text-muted)" }}>
             Create a delivery order with line items
           </p>
         </div>
@@ -330,9 +330,9 @@ export function CreateDeliveryModal({
                     gap: 8,
                     alignItems: "end",
                     padding: 12,
-                    backgroundColor: "#f9fafb",
+                    backgroundColor: "var(--admin-surface-2)",
                     borderRadius: 6,
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--admin-border)",
                   }}
                 >
                   <div>
@@ -341,7 +341,7 @@ export function CreateDeliveryModal({
                         style={{
                           fontSize: 11,
                           fontWeight: 600,
-                          color: "#9ca3af",
+                          color: "var(--admin-text-muted)",
                           display: "block",
                           marginBottom: 4,
                         }}
@@ -365,7 +365,7 @@ export function CreateDeliveryModal({
                         style={{
                           fontSize: 11,
                           fontWeight: 600,
-                          color: "#9ca3af",
+                          color: "var(--admin-text-muted)",
                           display: "block",
                           marginBottom: 4,
                         }}
@@ -389,7 +389,7 @@ export function CreateDeliveryModal({
                         style={{
                           fontSize: 11,
                           fontWeight: 600,
-                          color: "#9ca3af",
+                          color: "var(--admin-text-muted)",
                           display: "block",
                           marginBottom: 4,
                         }}
@@ -417,11 +417,11 @@ export function CreateDeliveryModal({
                     disabled={lineItems.length <= 1}
                     style={{
                       padding: "8px 10px",
-                      border: "1px solid #ccd0d7",
+                      border: "1px solid var(--admin-border)",
                       borderRadius: 4,
                       backgroundColor:
-                        lineItems.length <= 1 ? "#f3f4f6" : "#fff",
-                      color: lineItems.length <= 1 ? "#9ca3af" : RED,
+                        lineItems.length <= 1 ? "var(--admin-surface-2)" : "var(--admin-surface)",
+                      color: lineItems.length <= 1 ? "var(--admin-text-muted)" : RED,
                       fontWeight: 700,
                       fontSize: 12,
                       cursor: lineItems.length <= 1 ? "not-allowed" : "pointer",
@@ -442,8 +442,8 @@ export function CreateDeliveryModal({
                 padding: "6px 12px",
                 border: `1.5px solid ${NAVY}`,
                 borderRadius: 4,
-                backgroundColor: "#fff",
-                color: NAVY,
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-accent-soft)",
                 fontWeight: 700,
                 fontSize: 12,
                 cursor: "pointer",
@@ -460,7 +460,7 @@ export function CreateDeliveryModal({
               justifyContent: "flex-end",
               gap: 10,
               paddingTop: 8,
-              borderTop: "1px solid #e0e3e8",
+              borderTop: "1px solid var(--admin-border)",
             }}
           >
             {submitError && (
@@ -480,10 +480,10 @@ export function CreateDeliveryModal({
               onClick={onClose}
               style={{
                 padding: "8px 16px",
-                border: "1px solid #ccd0d7",
+                border: "1px solid var(--admin-border)",
                 borderRadius: 4,
-                backgroundColor: "#fff",
-                color: "#333",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: "pointer",
@@ -499,8 +499,8 @@ export function CreateDeliveryModal({
                 padding: "8px 16px",
                 border: "none",
                 borderRadius: 4,
-                backgroundColor: isValid ? NAVY : "#d1d5db",
-                color: "#fff",
+                backgroundColor: isValid ? NAVY : "var(--admin-border)",
+                color: "var(--admin-text)",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: isValid ? "pointer" : "not-allowed",

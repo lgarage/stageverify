@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export const CATCH_ALL_STATUS_NOTE =
@@ -46,8 +45,8 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
           height: "100%",
           width: "100%",
           maxWidth: 480,
-          backgroundColor: "#fff",
-          borderLeft: "1px solid #e0e3e8",
+          backgroundColor: "var(--admin-surface)",
+          borderLeft: "1px solid var(--admin-border)",
           boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
           overflowY: "auto",
           display: "flex",
@@ -62,10 +61,10 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "15px 20px",
-            borderBottom: "1px solid #e0e3e8",
+            borderBottom: "1px solid var(--admin-border)",
             position: "sticky",
             top: 0,
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             zIndex: 10,
             boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
           }}
@@ -77,7 +76,7 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
                 margin: 0,
                 fontSize: 16,
                 fontWeight: 700,
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
               }}
             >
               Catch All Deliveries status
@@ -86,7 +85,7 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
               style={{
                 margin: 0,
                 fontSize: 12,
-                color: "#6b7280",
+                color: "var(--admin-text-muted)",
                 marginTop: 2,
               }}
             >
@@ -99,10 +98,10 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
             aria-label="Close catch-all status"
             style={{
               padding: "5px 12px",
-              border: "1px solid #ccd0d7",
+              border: "1px solid var(--admin-border)",
               borderRadius: 4,
-              backgroundColor: "#f9fafb",
-              color: "#333",
+              backgroundColor: "var(--admin-surface-2)",
+              color: "var(--admin-text)",
               fontWeight: 700,
               fontSize: 12,
               cursor: "pointer",
@@ -120,7 +119,7 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
               margin: "0 0 8px",
               fontSize: 13,
               fontWeight: 600,
-              color: "#333",
+              color: "var(--admin-text)",
             }}
           >
             Pending catch-all check-ins
@@ -131,7 +130,7 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
               margin: "0 0 20px",
               fontSize: 28,
               fontWeight: 800,
-              color: NAVY,
+              color: "var(--admin-accent-soft)",
               lineHeight: 1.1,
             }}
           >
@@ -143,7 +142,7 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
               margin: 0,
               fontSize: 14,
               lineHeight: 1.5,
-              color: "#333",
+              color: "var(--admin-text)",
             }}
           >
             {CATCH_ALL_STATUS_NOTE}

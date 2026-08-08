@@ -35,8 +35,8 @@ import {
   formatZoneEslStatusLine,
 } from "./receiveQrUrls";
 import { EslQrCode } from "./EslQrCode";
+import { PortalShell } from "./PortalShell";
 import {
-  PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
@@ -201,10 +201,10 @@ const LOCATION_STATUS_LABEL: Record<LocationStatus, string> = {
 
 function statusBadgeStyle(status: LocationStatus): CSSProperties {
   const colors: Record<LocationStatus, { bg: string; text: string }> = {
-    Planned: { bg: "#f3f4f6", text: "#6b7280" },
-    Installed: { bg: "#e3f2fd", text: "#1565c0" },
-    Tagged: { bg: "#fef3c7", text: "#b45309" },
-    Active: { bg: "#e8f4ea", text: "#2e7d32" },
+    Planned: { bg: "var(--admin-surface-2)", text: "var(--admin-text-muted)" },
+    Installed: { bg: "var(--admin-info-bg)", text: "var(--admin-info-text)" },
+    Tagged: { bg: "var(--admin-warning-bg)", text: "var(--admin-warning-text)" },
+    Active: { bg: "#e8f4ea", text: "var(--admin-success-text)" },
   };
   const c = colors[status];
   return {
@@ -220,8 +220,8 @@ function statusBadgeStyle(status: LocationStatus): CSSProperties {
 }
 
 const cardStyle: CSSProperties = {
-  backgroundColor: "#fff",
-  border: "1px solid #dde1e7",
+  backgroundColor: "var(--admin-surface)",
+  border: "1px solid var(--admin-border)",
   borderRadius: 8,
   boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
 };
@@ -229,12 +229,12 @@ const cardStyle: CSSProperties = {
 const inputStyle: CSSProperties = {
   width: "100%",
   padding: "10px 12px",
-  border: "1.5px solid #ccd0d7",
+  border: "1.5px solid var(--admin-border)",
   borderRadius: 6,
   fontSize: 14,
-  color: "#333",
+  color: "var(--admin-text)",
   outline: "none",
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
   boxSizing: "border-box",
 };
@@ -243,16 +243,16 @@ const labelStyle: CSSProperties = {
   display: "block",
   fontSize: 13,
   fontWeight: 700,
-  color: "#6b7280",
+  color: "var(--admin-text-muted)",
   marginBottom: 6,
 };
 
 function typeBadgeStyle(type: ZoneType): CSSProperties {
   const colors: Record<ZoneType, { bg: string; text: string }> = {
-    ground: { bg: "#e8f4ea", text: "#2e7d32" },
-    shelf: { bg: "#e3f2fd", text: "#1565c0" },
-    bin: { bg: "#fff3e0", text: "#e65100" },
-    other: { bg: "#f3f4f6", text: "#4b5563" },
+    ground: { bg: "#e8f4ea", text: "var(--admin-success-text)" },
+    shelf: { bg: "var(--admin-info-bg)", text: "var(--admin-info-text)" },
+    bin: { bg: "var(--admin-warning-bg)", text: "var(--admin-warning-text)" },
+    other: { bg: "var(--admin-surface-2)", text: "#4b5563" },
   };
   const c = colors[type];
   return {
@@ -1161,14 +1161,14 @@ export function ZoneManagementPage() {
   const activeCount = zones.filter(isLocationActive).length;
 
   return (
-    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
+    <PortalShell style={{ fontFamily: FONT }}>
 
       <PortalSidebar className="print:hidden" />
 
       {/* Main content — do NOT print:hidden the shell; that blanks Print map */}
       <div
         className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#f0f2f5" }}
+        style={{ backgroundColor: "var(--admin-bg)" }}
       >
         <div className="print:hidden">
           <DispatcherPortalTopBar
@@ -1183,7 +1183,7 @@ export function ZoneManagementPage() {
 
         <div
           className={PORTAL_SCROLL_CLASS}
-          style={{ backgroundColor: "#f0f2f5" }}
+          style={{ backgroundColor: "var(--admin-bg)" }}
         >
         <div
           style={{
@@ -1202,14 +1202,14 @@ export function ZoneManagementPage() {
                 style={{
                   fontSize: 24,
                   fontWeight: 700,
-                  color: NAVY,
+                  color: "var(--admin-accent-soft)",
                   margin: 0,
                   lineHeight: "1.2",
                 }}
               >
                 Staging Map
               </h1>
-              <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+              <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 4 }}>
                 Live floor map — green available, yellow assigned/planned, purple ready
                 for pickup, gray shop stock. Click a spot to open the delivery
                 drawer.
@@ -1224,8 +1224,8 @@ export function ZoneManagementPage() {
                   padding: "8px 18px",
                   borderRadius: 4,
                   border: `1px solid ${NAVY}`,
-                  backgroundColor: "#fff",
-                  color: NAVY,
+                  backgroundColor: "var(--admin-surface)",
+                  color: "var(--admin-accent-soft)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: "pointer",
@@ -1241,8 +1241,8 @@ export function ZoneManagementPage() {
                   padding: "8px 18px",
                   borderRadius: 4,
                   border: `1px solid ${NAVY}`,
-                  backgroundColor: "#fff",
-                  color: NAVY,
+                  backgroundColor: "var(--admin-surface)",
+                  color: "var(--admin-accent-soft)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: "pointer",
@@ -1264,9 +1264,9 @@ export function ZoneManagementPage() {
                 style={{
                   padding: "8px 18px",
                   borderRadius: 4,
-                  border: vendorView ? "2px solid #ca8a04" : "1px solid #ccd0d7",
-                  backgroundColor: vendorView ? "#fef9c3" : "#fff",
-                  color: vendorView ? "#854d0e" : "#333",
+                  border: vendorView ? "2px solid #ca8a04" : "1px solid var(--admin-border)",
+                  backgroundColor: vendorView ? "var(--admin-warning-bg)" : "var(--admin-surface)",
+                  color: vendorView ? "var(--admin-warning-text)" : "var(--admin-text)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: "pointer",
@@ -1306,9 +1306,9 @@ export function ZoneManagementPage() {
                 style={{
                   padding: "8px 18px",
                   borderRadius: 4,
-                  border: mapEditMode ? "2px solid #2563eb" : "1px solid #ccd0d7",
-                  backgroundColor: mapEditMode ? "#dbeafe" : "#fff",
-                  color: mapEditMode ? "#1d4ed8" : "#333",
+                  border: mapEditMode ? "2px solid #2563eb" : "1px solid var(--admin-border)",
+                  backgroundColor: mapEditMode ? "var(--admin-info-bg)" : "var(--admin-surface)",
+                  color: mapEditMode ? "var(--admin-info-text)" : "var(--admin-text)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: "pointer",
@@ -1325,9 +1325,9 @@ export function ZoneManagementPage() {
                 style={{
                   padding: "8px 18px",
                   borderRadius: 4,
-                  border: showZoneTools ? "2px solid #64748b" : "1px solid #ccd0d7",
-                  backgroundColor: showZoneTools ? "#e8eef5" : "#fff",
-                  color: "#333",
+                  border: showZoneTools ? "2px solid #64748b" : "1px solid var(--admin-border)",
+                  backgroundColor: showZoneTools ? "#e8eef5" : "var(--admin-surface)",
+                  color: "var(--admin-text)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: "pointer",
@@ -1344,8 +1344,8 @@ export function ZoneManagementPage() {
             <div
               style={{
                 ...cardStyle,
-                backgroundColor: "#fef2f2",
-                color: "#991b1b",
+                backgroundColor: "var(--admin-danger-bg)",
+                color: "var(--admin-danger-text)",
                 fontSize: 13,
               }}
             >
@@ -1360,9 +1360,9 @@ export function ZoneManagementPage() {
               style={{
                 ...cardStyle,
                 padding: "12px 16px",
-                backgroundColor: "#ecfdf5",
+                backgroundColor: "var(--admin-success-bg)",
                 borderColor: "#86efac",
-                color: "#166534",
+                color: "var(--admin-success-text)",
                 fontSize: 14,
                 fontWeight: 600,
               }}
@@ -1382,7 +1382,7 @@ export function ZoneManagementPage() {
                 zIndex: 20,
                 padding: "14px 18px",
                 border: "2px solid #ea580c",
-                backgroundColor: "#fff7ed",
+                backgroundColor: "var(--admin-warning-bg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1442,7 +1442,7 @@ export function ZoneManagementPage() {
                         borderRadius: 6,
                         border: "none",
                         backgroundColor: assignSaving ? "#fdba74" : "#ea580c",
-                        color: "#fff",
+                        color: "var(--admin-text)",
                         fontWeight: 800,
                         fontSize: 14,
                         cursor: assignSaving ? "not-allowed" : "pointer",
@@ -1460,7 +1460,7 @@ export function ZoneManagementPage() {
                         padding: "10px 18px",
                         borderRadius: 6,
                         border: "1.5px solid #ea580c",
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--admin-surface)",
                         color: "#9a3412",
                         fontWeight: 700,
                         fontSize: 14,
@@ -1480,9 +1480,9 @@ export function ZoneManagementPage() {
                   style={{
                     padding: "10px 14px",
                     borderRadius: 6,
-                    border: "1.5px solid #ccd0d7",
-                    backgroundColor: "#fff",
-                    color: "#6b7280",
+                    border: "1.5px solid var(--admin-border)",
+                    backgroundColor: "var(--admin-surface)",
+                    color: "var(--admin-text-muted)",
                     fontWeight: 700,
                     fontSize: 14,
                     cursor: "pointer",
@@ -1533,7 +1533,7 @@ export function ZoneManagementPage() {
               onCatchAllClick={handleCatchAllClick}
             />
             {!liveOccupancy.ready && (
-              <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
+              <p style={{ fontSize: 12, color: "var(--admin-text-muted)", marginTop: 8 }}>
                 Connecting live occupancy…
               </p>
             )}
@@ -1551,7 +1551,7 @@ export function ZoneManagementPage() {
                 alignItems: "center",
                 gap: 8,
                 fontSize: 13,
-                color: "#374151",
+                color: "var(--admin-text)",
                 cursor: "pointer",
                 fontWeight: 600,
               }}
@@ -1563,7 +1563,7 @@ export function ZoneManagementPage() {
               />
               Show inactive zones
             </label>
-            <span style={{ fontSize: 12, color: "#9ca3af" }}>
+            <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
               {activeCount} active · {zones.length} total
             </span>
           </div>
@@ -1574,8 +1574,8 @@ export function ZoneManagementPage() {
                 ...cardStyle,
                 padding: "16px 20px",
                 borderColor: "#fca5a5",
-                backgroundColor: "#fef2f2",
-                color: "#b91c1c",
+                backgroundColor: "var(--admin-danger-bg)",
+                color: "var(--admin-danger-text)",
                 fontSize: 14,
               }}
             >
@@ -1588,8 +1588,8 @@ export function ZoneManagementPage() {
                   padding: "4px 10px",
                   borderRadius: 4,
                   border: "1px solid #b91c1c",
-                  backgroundColor: "#fff",
-                  color: "#b91c1c",
+                  backgroundColor: "var(--admin-surface)",
+                  color: "var(--admin-danger-text)",
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -1608,7 +1608,7 @@ export function ZoneManagementPage() {
                   margin: "0 0 16px",
                   fontSize: 15,
                   fontWeight: 700,
-                  color: NAVY,
+                  color: "var(--admin-accent-soft)",
                 }}
               >
                 Edit Zone
@@ -1714,7 +1714,7 @@ export function ZoneManagementPage() {
                       }
                       placeholder="E0000001BC48"
                     />
-                    <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
+                    <p style={{ fontSize: 11, color: "var(--admin-text-muted)", marginTop: 4 }}>
                       {ESL_TAG_HINT[form.type]}
                     </p>
                   </div>
@@ -1745,7 +1745,7 @@ export function ZoneManagementPage() {
                       }
                       placeholder="3"
                     />
-                    <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
+                    <p style={{ fontSize: 11, color: "var(--admin-text-muted)", marginTop: 4 }}>
                       Used to suggest spot sizes during check-in
                     </p>
                   </div>
@@ -1800,11 +1800,11 @@ export function ZoneManagementPage() {
                       border: "none",
                       backgroundColor:
                         saving || !form.code.trim() || !form.label.trim()
-                          ? "#f3f4f6"
+                          ? "var(--admin-surface-2)"
                           : NAVY,
                       color:
                         saving || !form.code.trim() || !form.label.trim()
-                          ? "#9ca3af"
+                          ? "var(--admin-text-muted)"
                           : "#fff",
                       fontWeight: 700,
                       fontSize: 13,
@@ -1823,9 +1823,9 @@ export function ZoneManagementPage() {
                     style={{
                       padding: "8px 18px",
                       borderRadius: 4,
-                      border: "1.5px solid #ccd0d7",
-                      backgroundColor: "#fff",
-                      color: "#6b7280",
+                      border: "1.5px solid var(--admin-border)",
+                      backgroundColor: "var(--admin-surface)",
+                      color: "var(--admin-text-muted)",
                       fontWeight: 700,
                       fontSize: 13,
                       cursor: "pointer",
@@ -1845,7 +1845,7 @@ export function ZoneManagementPage() {
                 ...cardStyle,
                 padding: "40px 20px",
                 textAlign: "center",
-                color: "#6b7280",
+                color: "var(--admin-text-muted)",
                 fontSize: 14,
               }}
             >
@@ -1857,7 +1857,7 @@ export function ZoneManagementPage() {
                 ...cardStyle,
                 padding: "40px 20px",
                 textAlign: "center",
-                color: "#6b7280",
+                color: "var(--admin-text-muted)",
                 fontSize: 14,
               }}
             >
@@ -1872,20 +1872,20 @@ export function ZoneManagementPage() {
                   <div
                     style={{
                       padding: "15px 20px",
-                      borderBottom: "1px solid #eaecf0",
+                      borderBottom: "1px solid var(--admin-border)",
                       display: "flex",
                       alignItems: "center",
                       gap: 10,
                     }}
                   >
-                    <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
                       {TYPE_LABELS[type]}
                     </span>
                     <span style={typeBadgeStyle(type)}>{type}</span>
                     <span
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--admin-text-muted)",
                         fontWeight: 500,
                       }}
                     >
@@ -1922,12 +1922,12 @@ export function ZoneManagementPage() {
                         <div
                           key={zone.id}
                           style={{
-                            border: "1px solid #eaecf0",
+                            border: "1px solid var(--admin-border)",
                             borderRadius: 8,
                             padding: 16,
                             backgroundColor: isLocationActive(zone)
                               ? "#fff"
-                              : "#fafafa",
+                              : "var(--admin-surface-2)",
                             opacity: isLocationActive(zone) ? 1 : 0.75,
                           }}
                         >
@@ -1937,7 +1937,7 @@ export function ZoneManagementPage() {
                                 style={{
                                   fontSize: 28,
                                   fontWeight: 900,
-                                  color: NAVY,
+                                  color: "var(--admin-accent-soft)",
                                   lineHeight: 1,
                                   letterSpacing: "-0.02em",
                                 }}
@@ -1948,7 +1948,7 @@ export function ZoneManagementPage() {
                                 style={{
                                   fontSize: 14,
                                   fontWeight: 600,
-                                  color: "#374151",
+                                  color: "var(--admin-text)",
                                   marginTop: 4,
                                   display: "flex",
                                   alignItems: "center",
@@ -1972,7 +1972,7 @@ export function ZoneManagementPage() {
                                 style={{
                                   fontSize: 9,
                                   fontWeight: 700,
-                                  color: "#6b7280",
+                                  color: "var(--admin-text-muted)",
                                   margin: "0 0 4px",
                                   textTransform: "uppercase",
                                   letterSpacing: "0.06em",
@@ -1991,14 +1991,14 @@ export function ZoneManagementPage() {
                               padding: "12px 14px",
                               borderRadius: 8,
                               border: `1.5px solid ${NAVY}`,
-                              backgroundColor: "#f8fafc",
+                              backgroundColor: "var(--admin-surface-2)",
                             }}
                           >
                             <p
                               style={{
                                 fontSize: 9,
                                 fontWeight: 700,
-                                color: NAVY,
+                                color: "var(--admin-accent-soft)",
                                 margin: "0 0 8px",
                                 textTransform: "uppercase",
                                 letterSpacing: "0.06em",
@@ -2030,7 +2030,7 @@ export function ZoneManagementPage() {
                                 style={{
                                   padding: 8,
                                   border: "2px solid #000",
-                                  backgroundColor: "#fff",
+                                  backgroundColor: "var(--admin-surface)",
                                   lineHeight: 0,
                                 }}
                               >
@@ -2064,8 +2064,8 @@ export function ZoneManagementPage() {
                                   padding: "6px 12px",
                                   borderRadius: 4,
                                   border: `1px solid ${NAVY}`,
-                                  backgroundColor: "#fff",
-                                  color: NAVY,
+                                  backgroundColor: "var(--admin-surface)",
+                                  color: "var(--admin-accent-soft)",
                                   fontWeight: 700,
                                   fontSize: 12,
                                   cursor: "pointer",
@@ -2078,7 +2078,7 @@ export function ZoneManagementPage() {
                             <p
                               style={{
                                 fontSize: 10,
-                                color: "#6b7280",
+                                color: "var(--admin-text-muted)",
                                 marginTop: 8,
                                 marginBottom: 0,
                                 wordBreak: "break-all",
@@ -2093,15 +2093,15 @@ export function ZoneManagementPage() {
                               marginTop: 12,
                               padding: "10px 12px",
                               borderRadius: 6,
-                              backgroundColor: occupancy ? "#e8f4ea" : "#f3f4f6",
-                              border: `1px solid ${occupancy ? "#a5d6a7" : "#e5e7eb"}`,
+                              backgroundColor: occupancy ? "#e8f4ea" : "var(--admin-surface-2)",
+                              border: `1px solid ${occupancy ? "var(--admin-success-border)" : "var(--admin-border)"}`,
                             }}
                           >
                             <div
                               style={{
                                 fontSize: 10,
                                 fontWeight: 700,
-                                color: occupancy ? "#2e7d32" : "#6b7280",
+                                color: occupancy ? "var(--admin-success-text)" : "var(--admin-text-muted)",
                                 textTransform: "uppercase",
                                 letterSpacing: "0.05em",
                               }}
@@ -2127,7 +2127,7 @@ export function ZoneManagementPage() {
                                 marginTop: 10,
                                 padding: "10px 12px",
                                 borderRadius: 6,
-                                backgroundColor: "#fff7ed",
+                                backgroundColor: "var(--admin-warning-bg)",
                                 border: "1px solid #fdba74",
                               }}
                             >
@@ -2159,7 +2159,7 @@ export function ZoneManagementPage() {
                             <p
                               style={{
                                 fontSize: 12,
-                                color: "#6b7280",
+                                color: "var(--admin-text-muted)",
                                 marginTop: 10,
                                 marginBottom: 0,
                               }}
@@ -2188,7 +2188,7 @@ export function ZoneManagementPage() {
                               onBlur={() => void saveEslTagId(zone)}
                               placeholder="E0000001BC48"
                             />
-                            <p style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+                            <p style={{ fontSize: 10, color: "var(--admin-text-muted)", marginTop: 4 }}>
                               {ESL_TAG_HINT[zone.type]}
                               {!tagLinked && " · Required to push to Minew"}
                             </p>
@@ -2197,7 +2197,7 @@ export function ZoneManagementPage() {
                           <p
                             style={{
                               fontSize: 10,
-                              color: "#9ca3af",
+                              color: "var(--admin-text-muted)",
                               marginTop: 8,
                               wordBreak: "break-all",
                             }}
@@ -2219,8 +2219,8 @@ export function ZoneManagementPage() {
                                 padding: "4px 12px",
                                 borderRadius: 4,
                                 border: `1.5px solid ${NAVY}`,
-                                backgroundColor: "#fff",
-                                color: NAVY,
+                                backgroundColor: "var(--admin-surface)",
+                                color: "var(--admin-accent-soft)",
                                 fontSize: 12,
                                 fontWeight: 600,
                                 cursor: "pointer",
@@ -2238,8 +2238,8 @@ export function ZoneManagementPage() {
                                 border: isLocationActive(zone)
                                   ? "1.5px solid #fca5a5"
                                   : `1.5px solid ${NAVY}`,
-                                backgroundColor: "#fff",
-                                color: isLocationActive(zone) ? "#b91c1c" : NAVY,
+                                backgroundColor: "var(--admin-surface)",
+                                color: isLocationActive(zone) ? "var(--admin-danger-text)" : NAVY,
                                 fontSize: 12,
                                 fontWeight: 600,
                                 cursor: "pointer",
@@ -2417,6 +2417,6 @@ export function ZoneManagementPage() {
           }
         }
       `}</style>
-    </div>
+    </PortalShell>
   );
 }

@@ -348,7 +348,7 @@ export function VendorCommunicationsModal({
           maxWidth: 580,
           maxHeight: "90vh",
           overflowY: "auto",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           borderRadius: 12,
           padding: "24px 28px",
           boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
@@ -371,7 +371,7 @@ export function VendorCommunicationsModal({
           style={{
             margin: "0 0 18px",
             fontSize: 13,
-            color: "#6b7280",
+            color: "var(--admin-text-muted)",
             textAlign: "left",
           }}
         >
@@ -397,7 +397,7 @@ export function VendorCommunicationsModal({
             marginBottom: 12,
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
             ...DRAWER_MODAL_INPUT_STYLE,
@@ -429,7 +429,7 @@ export function VendorCommunicationsModal({
             marginBottom: 12,
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
             ...DRAWER_MODAL_INPUT_STYLE,
@@ -463,7 +463,7 @@ export function VendorCommunicationsModal({
             marginBottom: 6,
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
             ...DRAWER_MODAL_INPUT_STYLE,
@@ -475,7 +475,7 @@ export function VendorCommunicationsModal({
             style={{
               margin: "0 0 12px",
               fontSize: 11,
-              color: "#64748b",
+              color: "var(--admin-text-muted)",
               fontFamily: font,
             }}
           >
@@ -502,7 +502,7 @@ export function VendorCommunicationsModal({
             marginBottom: 6,
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
             ...DRAWER_MODAL_INPUT_STYLE,
@@ -513,7 +513,7 @@ export function VendorCommunicationsModal({
           style={{
             margin: "0 0 12px",
             fontSize: 11,
-            color: "#64748b",
+            color: "var(--admin-text-muted)",
             fontFamily: font,
           }}
         >
@@ -527,7 +527,7 @@ export function VendorCommunicationsModal({
               alignItems: "flex-start",
               gap: 8,
               fontSize: 12,
-              color: "#374151",
+              color: "var(--admin-text)",
               marginBottom: 12,
               fontFamily: font,
             }}
@@ -560,7 +560,7 @@ export function VendorCommunicationsModal({
             marginBottom: 12,
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
             ...DRAWER_MODAL_INPUT_STYLE,
@@ -586,7 +586,7 @@ export function VendorCommunicationsModal({
             marginBottom: 14,
             padding: "12px 14px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             lineHeight: 1.5,
             fontFamily: font,
@@ -598,7 +598,7 @@ export function VendorCommunicationsModal({
         {validationError ? (
           <p
             data-testid="vendor-comms-validation-error"
-            style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 10px" }}
+            style={{ color: "var(--admin-danger-text)", fontSize: 13, margin: "0 0 10px" }}
           >
             {validationError}
           </p>
@@ -607,7 +607,7 @@ export function VendorCommunicationsModal({
         {!emailProviderConnected ? (
           <p
             data-testid="vendor-comms-provider-disconnected"
-            style={{ color: "#92400e", fontSize: 13, margin: "0 0 10px" }}
+            style={{ color: "var(--admin-warning-text)", fontSize: 13, margin: "0 0 10px" }}
           >
             Connect Gmail in Settings to send tracked vendor email.
           </p>
@@ -616,7 +616,7 @@ export function VendorCommunicationsModal({
         {error ? (
           <p
             data-testid="vendor-comms-send-error"
-            style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 10px" }}
+            style={{ color: "var(--admin-danger-text)", fontSize: 13, margin: "0 0 10px" }}
           >
             {error}
           </p>
@@ -629,9 +629,9 @@ export function VendorCommunicationsModal({
             style={{
               padding: "9px 16px",
               borderRadius: 6,
-              border: "1px solid #d1d5db",
-              backgroundColor: "#fff",
-              color: "#374151",
+              border: "1px solid var(--admin-border)",
+              backgroundColor: "var(--admin-surface)",
+              color: "var(--admin-text)",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
@@ -649,8 +649,8 @@ export function VendorCommunicationsModal({
               padding: "9px 16px",
               borderRadius: 6,
               border: "none",
-              backgroundColor: canSend ? navy : "#e5e7eb",
-              color: canSend ? "#fff" : "#9ca3af",
+              backgroundColor: canSend ? navy : "var(--admin-border)",
+              color: canSend ? "var(--admin-text)" : "var(--admin-text-muted)",
               fontSize: 13,
               fontWeight: 700,
               cursor: canSend ? "pointer" : "not-allowed",
