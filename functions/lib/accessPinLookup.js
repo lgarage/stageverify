@@ -45,9 +45,12 @@ async function collectManagementSecretMatches(db, secrets, pin, matches) {
         if (!(0, pinMatching_1.pinMatches)({ pinHash: secret.pinHash }, pin))
             continue;
         const pinDoc = await (0, managementPinRegistry_1.loadManagementPinById)(secret.targetId);
-        if (!pinDoc || !pinDoc.active || !pinDoc.pinHash.includes(":"))
+        if (!pinDoc || !pinDoc.active || pinDoc.virtual)
             continue;
-        matches.push({ id: secret.targetId, data: pinDoc });
+        matches.push({
+            id: secret.targetId,
+            data: { ...pinDoc, pinHash: secret.pinHash },
+        });
     }
 }
 async function findHashOnlySecretsByPagination(targetType, pin, entityGuard, collection) {

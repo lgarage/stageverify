@@ -78,7 +78,8 @@ exports.setAccessPin = (0, https_1.onCall)({
     const attemptKey = `set:${targetType}:${uid}`;
     await checkSetRateLimit(attemptKey);
     const hasExisting = await (0, accessPinTargetHelpers_1.targetHasExistingAccessPin)(targetType, targetId);
-    let validatedSessionToken = null;
+    let validatedSessionId = null;
+    let validatedSessionRaw = null;
     if (hasExisting) {
         if (!sessionToken) {
             throw new https_1.HttpsError("permission-denied", "Admin access session required to change an existing PIN.");
@@ -92,7 +93,12 @@ exports.setAccessPin = (0, https_1.onCall)({
         if (!sessionCheck.ok) {
             throw new https_1.HttpsError("permission-denied", "Admin access session invalid or expired.");
         }
-        validatedSessionToken = sessionToken;
+        const parsedSession = (0, adminAccessSession_1.parseAdminAccessSessionToken)(sessionToken);
+        if (!parsedSession) {
+            throw new https_1.HttpsError("permission-denied", "Admin access session invalid or expired.");
+        }
+        validatedSessionId = parsedSession.sessionId;
+        validatedSessionRaw = parsedSession.raw;
     }
     // Initial assign: ignore optional sessionToken — do not validate or consume.
     const db = (0, accessPinSecretsShared_1.getDb)();
@@ -185,14 +191,34 @@ exports.setAccessPin = (0, https_1.onCall)({
             actorUid: uid,
             createdAt: now,
         });
+        if (validatedSessionId && validatedSessionRaw) {
+            const sessionRef = db
+                .collection(accessPinSecretsShared_1.ADMIN_ACCESS_SESSIONS_COLLECTION)
+                .doc(validatedSessionId);
+            const sessionSnap = await tx.get(sessionRef);
+            if (!sessionSnap.exists) {
+                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+            }
+            const session = sessionSnap.data();
+            if (session.secretHash !== (0, adminAccessSession_1.hashAdminAccessSessionRaw)(validatedSessionRaw)) {
+                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+            }
+            if (session.revoked || session.consumedAt) {
+                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+            }
+            if (Date.parse(session.expiresAt) <= Date.now()) {
+                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+            }
+            if (session.managerUid !== uid) {
+                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+            }
+            if (session.targetType !== targetType ||
+                session.targetId !== targetId) {
+                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+            }
+            tx.set(sessionRef, { consumedAt: now }, { merge: true });
+        }
     });
-    if (validatedSessionToken) {
-        await (0, adminAccessSession_1.consumeAdminAccessSessionByToken)(validatedSessionToken, {
-            managerUid: uid,
-            targetType,
-            targetId,
-        });
-    }
     return { success: true, targetType, targetId, pinConfigured: true };
 });
 //# sourceMappingURL=setAccessPin.js.map
