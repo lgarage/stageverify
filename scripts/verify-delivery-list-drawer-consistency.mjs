@@ -1716,7 +1716,16 @@ async function assertOrd006EmailReviewAction(page, record) {
   const drawerStagingUnassigned =
     (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0;
   await assertDeliveryBasicsStaging(page, record, "Drawer", drawerStagingUnassigned);
-  await assertStagingLocationBanner(page, record, "Drawer", drawerStagingUnassigned);
+  const drawerHasAssignedStaging =
+    (await page
+      .getByTestId("delivery-basics-staging-locations")
+      .getAttribute("data-has-assigned-staging")) === "true";
+  await assertStagingLocationBanner(
+    page,
+    record,
+    "Drawer",
+    !drawerHasAssignedStaging,
+  );
   await assertStagingLocationCard(
     page,
     record,
@@ -2291,11 +2300,15 @@ async function assertOrd006EmailReviewAction(page, record) {
         order,
         ord002StagingUnassigned,
       );
+      const ord002HasAssignedStaging =
+        (await page
+          .getByTestId("delivery-basics-staging-locations")
+          .getAttribute("data-has-assigned-staging")) === "true";
       await assertStagingLocationBanner(
         page,
         record,
         order,
-        ord002StagingUnassigned,
+        !ord002HasAssignedStaging,
       );
       const reopenRow = deliveryRowByOrder(page, order);
       if ((await reopenRow.count()) > 0) {
@@ -2367,13 +2380,46 @@ async function assertOrd006EmailReviewAction(page, record) {
       unassignedOrder,
     );
     await assertDeliveryBasicsStaging(page, record, unassignedOrder, true);
-    await assertStagingLocationBanner(page, record, unassignedOrder, true);
-    const reopenUnassigned = deliveryRowByOrder(page, unassignedOrder);
-    if ((await reopenUnassigned.count()) > 0) {
-      await reopenUnassigned.click({ force: true });
-      await page.waitForTimeout(1200);
-      await assertDeliveryDrawerOpen(page);
+    // PR #49 / v0.0.233: banner only when shop staging required ∧ no actual/planned
+    // assignment. List "Not Assigned" can still appear when planned spots exist —
+    // drawer SoT is data-has-assigned-staging on Delivery Basics.
+    const stagingBasics = page.getByTestId("delivery-basics-staging-locations");
+    const hasAssignedAttr =
+      (await stagingBasics.getAttribute("data-has-assigned-staging")) === "true";
+    const expectBanner = !hasAssignedAttr;
+    if (hasAssignedAttr) {
+      record(
+        `${unassignedOrder} — planned/assigned staging gates banner off`,
+        true,
+        "data-has-assigned-staging=true (list may still show Not Assigned)",
+      );
     }
+    await assertStagingLocationBanner(
+      page,
+      record,
+      unassignedOrder,
+      expectBanner,
+    );
+    // openRowByStagingAssignment already opened the drawer. Re-click only if it
+    // closed (e.g. Assign Location navigation). A second row click can toggle it shut.
+    const drawerStillOpen =
+      (await page.getByTestId("issue-summary-panel").count()) > 0 ||
+      (await page.getByTestId("delivery-basics-staging-locations").count()) > 0;
+    if (!drawerStillOpen) {
+      const reopenUnassigned = deliveryRowByOrder(page, unassignedOrder);
+      if ((await reopenUnassigned.count()) > 0) {
+        const viewBtn = reopenUnassigned
+          .locator("button")
+          .filter({ hasText: /^View$/ });
+        if ((await viewBtn.count()) > 0) {
+          await viewBtn.click({ force: true });
+        } else {
+          await reopenUnassigned.click({ force: true });
+        }
+        await page.waitForTimeout(1200);
+      }
+    }
+    await assertDeliveryDrawerOpen(page);
     await assertStagingLocationCard(page, record, unassignedOrder, false);
   } else {
     record(
