@@ -139,6 +139,7 @@ export const setAccessPin = onCall(
     await checkSetRateLimit(attemptKey);
 
     const hasExisting = await targetHasExistingAccessPin(targetType, targetId);
+    let validatedSessionToken: string | null = null;
 
     if (hasExisting) {
       if (!sessionToken) {
@@ -159,7 +160,9 @@ export const setAccessPin = onCall(
           "Admin access session invalid or expired.",
         );
       }
+      validatedSessionToken = sessionToken;
     }
+    // Initial assign: ignore optional sessionToken — do not validate or consume.
 
     const db = getDb();
     const entityRef = entityRefForTarget(targetType, targetId);
@@ -276,8 +279,12 @@ export const setAccessPin = onCall(
       });
     });
 
-    if (sessionToken) {
-      await consumeAdminAccessSessionByToken(sessionToken);
+    if (validatedSessionToken) {
+      await consumeAdminAccessSessionByToken(validatedSessionToken, {
+        managerUid: uid,
+        targetType,
+        targetId,
+      });
     }
 
     return { success: true, targetType, targetId, pinConfigured: true };
