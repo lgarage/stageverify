@@ -164,7 +164,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 | ---- | ------ |
 | Canonical route | ✅ `ReceivingPage` at `/#/receive` only |
 | Legacy redirects | ✅ `/#/`, `/#/checkin/:id`, `#/r?` → receive |
-| Exception-only hub | ✅ `appSettings.vendorDeliveryMode`; Delivered / Need More Space / Issue |
+| Exception-only hub | ✅ `appSettings.vendorDeliveryMode`; Delivered / Need More Space / Report a Problem |
 | Legacy full check-in | ✅ Same page when `vendorDeliveryMode = full_checkin` |
 | Verify | ✅ `verify:vendor-delivered` + `verify:vendor-e2e` |
 
