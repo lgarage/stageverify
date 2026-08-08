@@ -8,8 +8,8 @@ import {
   prepareAccessPinSecretWrite,
 } from "./accessPinSecretWrite";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
-import { findManagementPinByAccessPinSecrets } from "./accessPinLookup";
 import {
+  ACCESS_PIN_SECRETS_COLLECTION,
   ADMIN_ACCESS_SESSIONS_COLLECTION,
   getDb,
   accessPinSecretDocId,
@@ -155,11 +155,24 @@ export async function listManagementPinsForSettings(): Promise<
   const docs = await listAllManagementPinDocs();
 
   if (docs.length > 0) {
-    return docs.map(({ pinHash: _h, virtual: _v, ...rest }) => ({
-      ...rest,
-      hasPin: Boolean(_h?.includes(":")),
-      virtual: false,
-    }));
+    const withSecretFlags = await Promise.all(
+      docs.map(async ({ pinHash: _h, virtual: _v, ...rest }) => {
+        let hasSecret = false;
+        if (!_h?.includes(":")) {
+          const secretSnap = await getDb()
+            .collection(ACCESS_PIN_SECRETS_COLLECTION)
+            .doc(accessPinSecretDocId("management", rest.id))
+            .get();
+          hasSecret = secretSnap.exists;
+        }
+        return {
+          ...rest,
+          hasPin: Boolean(_h?.includes(":")) || hasSecret,
+          virtual: false as const,
+        };
+      }),
+    );
+    return withSecretFlags;
   }
 
   const legacyHash = await loadLegacyPinHash();
@@ -217,6 +230,11 @@ export async function loadManagementPinById(
 export async function resolveManagementPinMatch(
   pin: string,
 ): Promise<ManagementPinDoc | null> {
+  // Dynamic import avoids a circular init cycle with accessPinLookup
+  // (lookup → loadManagementPinById → registry → findManagement…).
+  const { findManagementPinByAccessPinSecrets } = await import(
+    "./accessPinLookup"
+  );
   const fromSecrets = await findManagementPinByAccessPinSecrets(pin);
   if (fromSecrets) return fromSecrets;
 

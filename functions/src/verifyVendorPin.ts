@@ -2,7 +2,10 @@ import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { accessPinEncryptionKey } from "./accessPinCrypto";
-import { findVendorByAccessPinSecrets } from "./accessPinLookup";
+import {
+  findVendorByAccessPinSecrets,
+  vendorAccessPinSecretMatches,
+} from "./accessPinLookup";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 import type { VendorSessionScope } from "./vendorSessionValidation";
 
@@ -404,7 +407,11 @@ async function verifyLegacyDeliveryPin(
     throw new HttpsError("not-found", "Invalid code.");
   }
 
-  if (!pinMatches(vendor, pin)) {
+  const legacyVendorMatch = pinMatches(vendor, pin);
+  const secretVendorMatch = legacyVendorMatch
+    ? false
+    : await vendorAccessPinSecretMatches(delivery.vendorId, pin);
+  if (!legacyVendorMatch && !secretVendorMatch) {
     throw new HttpsError("not-found", "Invalid code.");
   }
 

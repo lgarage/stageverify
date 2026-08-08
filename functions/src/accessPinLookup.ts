@@ -3,6 +3,7 @@ import { pinLookupKeyForPin } from "./accessPinCrypto";
 import { pinMatches } from "./pinMatching";
 import {
   ACCESS_PIN_SECRETS_COLLECTION,
+  accessPinSecretDocId,
   getDb,
   type AccessPinTargetType,
 } from "./accessPinSecretsShared";
@@ -289,6 +290,26 @@ export async function findVendorByAccessPinSecrets(
       vendor.active !== false && vendor.companyWideSessionEnabled === true,
     "vendors",
   );
+}
+
+/**
+ * Delivery-scoped vendor PIN match against accessPinSecrets for one vendor.
+ * Does not require companyWideSessionEnabled (that gate is location-first only).
+ */
+export async function vendorAccessPinSecretMatches(
+  vendorId: string,
+  pin: string,
+): Promise<boolean> {
+  const snap = await getDb()
+    .collection(ACCESS_PIN_SECRETS_COLLECTION)
+    .doc(accessPinSecretDocId("vendor", vendorId))
+    .get();
+  if (!snap.exists) return false;
+  const secret = snap.data() as SecretFields;
+  if (typeof secret.pinHash !== "string" || !secret.pinHash.includes(":")) {
+    return false;
+  }
+  return pinMatches({ pinHash: secret.pinHash }, pin);
 }
 
 export async function findManagementPinByAccessPinSecrets(

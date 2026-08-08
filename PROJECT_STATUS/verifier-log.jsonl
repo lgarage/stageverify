@@ -168,3 +168,4 @@
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-row-scoped-evidence","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR#56 docs+inventory+D-38 FINAL evidence; no deploy"}
 {"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"ad4213d2-37ce-5e3c-a9f9-f4c502c02e29","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR56 post-sync D-38 PASS"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-9b5b0109-233b-5f10-a96c-7faed5658f4a","model":"cursor-grok-4.5-high-fast","real":"yes","note":"fix-closure: evidence stamped d68048e5"}
+{"date":"2026-08-08","role":"security","verdict":"PASS","taskId":"dd1e4902-5efa-5675-a2a2-105e237e578a","model":"claude-sonnet-5-thinking-high","real":"na","note":"normalized UUID (stripped bc- prefix for D-38 gate-check)"}

@@ -4,6 +4,7 @@ exports.verifyManagementPin = void 0;
 const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
+const accessPinCrypto_1 = require("./accessPinCrypto");
 const pinMatching_1 = require("./pinMatching");
 const managementSessionValidation_1 = require("./managementSessionValidation");
 const managementPinRegistry_1 = require("./managementPinRegistry");
@@ -82,6 +83,7 @@ async function resolveStagingLocation(code) {
 }
 exports.verifyManagementPin = (0, https_1.onCall)({
     region: "us-central1",
+    secrets: [accessPinCrypto_1.accessPinEncryptionKey],
     cors: [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

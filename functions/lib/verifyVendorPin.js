@@ -294,7 +294,11 @@ async function verifyLegacyDeliveryPin(deliveryId, pin) {
     if (vendor.active === false) {
         throw new https_1.HttpsError("not-found", "Invalid code.");
     }
-    if (!(0, pinMatching_1.pinMatches)(vendor, pin)) {
+    const legacyVendorMatch = (0, pinMatching_1.pinMatches)(vendor, pin);
+    const secretVendorMatch = legacyVendorMatch
+        ? false
+        : await (0, accessPinLookup_1.vendorAccessPinSecretMatches)(delivery.vendorId, pin);
+    if (!legacyVendorMatch && !secretVendorMatch) {
         throw new https_1.HttpsError("not-found", "Invalid code.");
     }
     return {
