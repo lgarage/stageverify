@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { findVendorByAccessPinSecrets } from "./accessPinLookup";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 import type { VendorSessionScope } from "./vendorSessionValidation";
 
@@ -201,6 +202,9 @@ async function findVendorByCompanyPin(pin: string): Promise<{
   id: string;
   data: VendorDoc;
 } | null> {
+  const fromSecrets = await findVendorByAccessPinSecrets(pin);
+  if (fromSecrets) return fromSecrets;
+
   const db = getDb();
   const pinCodeSnap = await db
     .collection("vendors")

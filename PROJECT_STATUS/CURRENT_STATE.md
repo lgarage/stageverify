@@ -5,6 +5,7 @@
 > **Product authority (on demand):** `PROJECT_STATUS/svscope_simple.md` — scope wins on conflict; load only for scope disputes.
 
 ## Snapshot
+- **PIN Reveal (high-risk WIP):** branch `cursor/pin-reveal-access-secrets-900e` — CF `setAccessPin`/`revealAccessPin`/`migrateAccessPins`/`listPinAccessAudit`; `accessPinSecrets` + rules deny client pin fields; Settings PIN panel uses CF clients + manager Reveal (25s). **Not deployed** — prod secret `ACCESS_PIN_ENCRYPTION_KEY` (base64, 32 bytes) required before CF deploy.
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`); **D-38** security gate = Sonnet 5 (`claude-sonnet-5-thinking-high`) — Sonnet 4.6 retired from active allowlist (2026-08-08).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
 - **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.230. **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** credit-return delivery block (ingest auto-reject + approve/create_shell/relink guard) @ v0.0.217; prior `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).

@@ -331,3 +331,66 @@ export async function markVendorDeliveriesBulkClient(input: {
 }> {
   return callCallable("markVendorDeliveriesBulk", input);
 }
+
+export async function setAccessPinClient(input: {
+  targetType: "technician" | "vendor";
+  targetId: string;
+  pin: string;
+}): Promise<{
+  success: boolean;
+  targetType: string;
+  targetId: string;
+  pinConfigured: boolean;
+}> {
+  return callCallable("setAccessPin", input);
+}
+
+export async function revealAccessPinClient(input: {
+  targetType: "technician" | "vendor";
+  targetId: string;
+}): Promise<{ pin: string; revealedForMs: number }> {
+  return callCallable("revealAccessPin", input);
+}
+
+export async function migrateAccessPinsClient(input: {
+  dryRun?: boolean;
+  limit?: number;
+}): Promise<{
+  dryRun: boolean;
+  limit: number;
+  scanned: number;
+  migrated: number;
+  skippedAlreadyMigrated: number;
+  hashOnly: number;
+  plaintext: number;
+  byType: Record<
+    "technician" | "vendor",
+    {
+      scanned: number;
+      migrated: number;
+      skippedAlreadyMigrated: number;
+      hashOnly: number;
+      plaintext: number;
+    }
+  >;
+}> {
+  return callCallable("migrateAccessPins", input);
+}
+
+export async function listPinAccessAuditClient(input?: {
+  limit?: number;
+  startAfterCreatedAt?: string;
+}): Promise<{
+  entries: Array<{
+    id: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    actorUid: string;
+    createdAt: string;
+  }>;
+  nextStartAfterCreatedAt: string | null;
+  hasMore: boolean;
+}> {
+  return callCallable("listPinAccessAudit", input ?? {});
+}

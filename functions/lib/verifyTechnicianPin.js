@@ -4,6 +4,7 @@ exports.verifyTechnicianPin = void 0;
 const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
+const accessPinLookup_1 = require("./accessPinLookup");
 const pinMatching_1 = require("./pinMatching");
 function getDb() {
     return admin.firestore();
@@ -68,6 +69,9 @@ async function getTechnicianSessionMinutes() {
     return DEFAULT_TECHNICIAN_SESSION_MINUTES;
 }
 async function findTechnicianByPin(pin) {
+    const fromSecrets = await (0, accessPinLookup_1.findTechnicianByAccessPinSecrets)(pin);
+    if (fromSecrets)
+        return fromSecrets;
     const db = getDb();
     const pinCodeSnap = await db
         .collection("technicians")
