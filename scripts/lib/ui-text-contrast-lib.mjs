@@ -111,28 +111,45 @@ export async function assertReadableTextContrast(page, spec) {
   }
 }
 
-/** Technicians Settings panel — first concrete route check (D-42). */
+/** Consolidated PIN & Access Management Settings panel (D-42). */
 export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
   rootSelector: '[data-testid="technician-settings-panel"]',
   elements: [
-    { name: "section title", selector: "div > div:first-child", large: true },
-    { name: "helper paragraph", selector: "p", large: false },
-    { name: "release heading", selector: "h3", large: true },
-    { name: "technician select", selector: "select", large: false },
     {
-      name: "name input",
-      selector: 'input[placeholder="Technician name"]',
+      name: "section title",
+      selector: '[data-testid="pin-access-heading"]',
+      large: true,
+    },
+    {
+      name: "helper paragraph",
+      selector: '[data-testid="pin-access-helper"]',
       large: false,
     },
     {
-      name: "pin input",
-      selector: 'input[placeholder="4-digit PIN"]',
+      name: "add access button",
+      selector: '[data-testid="pin-access-add-button"]',
       large: false,
     },
-    { name: "job checkbox row", selector: "label", large: false, optional: true },
     {
-      name: "technician list row",
-      selector: "li span",
+      name: "roster heading",
+      selector: '[data-testid="pin-access-roster"] th:first-child',
+      large: false,
+    },
+    {
+      name: "roster user",
+      selector: '[data-testid="pin-access-roster"] tbody td:first-child',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "PIN configured state",
+      selector: '[data-testid^="pin-access-pin-state-"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "detail heading",
+      selector: '[data-testid="pin-access-detail"] h3',
       large: false,
       optional: true,
     },
@@ -145,6 +162,12 @@ export const TECHNICIAN_PANEL_CONTRAST_SPEC = {
     {
       name: "permission checkbox label",
       selector: 'label:has(input[data-testid^="technician-perm-"])',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "release technician select",
+      selector: '[data-testid="technician-release-select"]',
       large: false,
       optional: true,
     },

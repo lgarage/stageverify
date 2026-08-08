@@ -1,5 +1,5 @@
 /**
- * Playwright: Settings → Technicians & day release — mechanical contrast check.
+ * Playwright: Settings → PIN & Access Management technician roster/detail.
  *
  * Usage:
  *   npm run dev   (another terminal)
@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
+  assertNoElementOverlap,
   assertReadableTextContrast,
   MIN_LARGE_TEXT_CONTRAST,
   MIN_TEXT_CONTRAST,
@@ -83,20 +84,49 @@ async function ensureAuthenticated(page) {
   await ensureAuthenticated(page);
 
   await page
-    .getByText("Technicians & day release", { exact: true })
+    .getByRole("heading", { name: "PIN & Access Management", exact: true })
     .waitFor({ timeout: 30_000 });
   await page.getByTestId("technician-settings-panel").waitFor({ timeout: 15_000 });
   await page.getByTestId("technician-settings-panel").scrollIntoViewIfNeeded();
+  await page.getByTestId("pin-access-roster").waitFor({ timeout: 15_000 });
+
+  const technicianEdit = page.locator(
+    '[data-testid^="pin-access-edit-technician-"]',
+  ).first();
+  if (await technicianEdit.count()) {
+    await technicianEdit.click();
+    await page.getByTestId("pin-access-detail").waitFor({ timeout: 10_000 });
+    await page
+      .locator('[data-testid^="technician-perm-door-"]')
+      .first()
+      .waitFor({ timeout: 10_000 });
+    await page.getByTestId("technician-release-select").waitFor({
+      timeout: 10_000,
+    });
+  }
   await page.waitForTimeout(500);
 
   await assertReadableTextContrast(page, TECHNICIAN_PANEL_CONTRAST_SPEC);
+  await assertNoElementOverlap(page, {
+    containerSelector: '[data-testid="technician-settings-panel"]',
+    elementSelectors: [
+      {
+        name: "PIN access heading",
+        selector: '[data-testid="pin-access-heading"]',
+      },
+      {
+        name: "Add Access button",
+        selector: '[data-testid="pin-access-add-button"]',
+      },
+    ],
+  });
 
   await page.screenshot({
     path: resolve(outDir, "settings-technicians-panel.png"),
   });
 
   console.log(
-    `PASS: Technicians & day release text contrast verified (≥${MIN_TEXT_CONTRAST}:1 normal, ≥${MIN_LARGE_TEXT_CONTRAST}:1 large).`,
+    `PASS: PIN & Access Management technician roster/detail verified with text contrast (≥${MIN_TEXT_CONTRAST}:1 normal, ≥${MIN_LARGE_TEXT_CONTRAST}:1 large) and no header overlap.`,
   );
   await browser.close();
 })().catch(async (err) => {

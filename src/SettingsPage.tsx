@@ -53,7 +53,7 @@ import { portalNavFocus } from "./dispatcherPortalNav";
 import { PortalSidebar } from "./PortalSidebar";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
-import { TechnicianSettingsPanel } from "./TechnicianSettingsPanel";
+import { PinAccessManagementPanel } from "./PinAccessManagementPanel";
 import { OfficeReceiversSettingsPanel } from "./OfficeReceiversSettingsPanel";
 import { ManagementSettingsPanel } from "./ManagementSettingsPanel";
 import { DispatcherUsersSettingsPanel } from "./DispatcherUsersSettingsPanel";
@@ -2747,7 +2747,7 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <TechnicianSettingsPanel />
+          <PinAccessManagementPanel />
 
           <OfficeReceiversSettingsPanel />
 
