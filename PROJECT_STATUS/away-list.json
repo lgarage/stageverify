@@ -41,6 +41,21 @@
         "npm run build",
         "npm run test:firestore-rules"
       ]
+    },
+    {
+      "id": "away-138",
+      "title": "Durable StageVerify PDF storage for inbound invoices (D-64 TARGET)",
+      "status": "blocked",
+      "blockedReason": "Deferred past Monday MVP — Gmail auto-archive (D-64 CURRENT) ships first without durable PDF. Unblock when Dan queues after inbox auto-archive is live.",
+      "scope": "High-risk CF + storage: NEW IMPORTS — Gmail attachment → persist original PDF to StageVerify-controlled durable storage → store storage reference on import/inbound record → parse → archive Gmail (INBOX remove only, existing). VIEW ORIGINAL PDF — (1) use stored StageVerify PDF when available; (2) fall back to Gmail for legacy records without a stored PDF. Do not change archive=trash. Migration must keep legacy imports viewable via Gmail fallback. STOP before implement — Dan approval + D-60 Sonnet instruct + Sonnet security gate before push/deploy.",
+      "acceptance": "New imports have durable PDF bytes/ref independent of Gmail; View Original PDF prefers storage then Gmail fallback; archived+deleted Gmail still opens stored PDFs for new imports; legacy imports without storage ref still open via Gmail when message exists; tests cover storage path + fallback; Sonnet gate PASS + Dan deploy approval.",
+      "tier": "T3",
+      "riskTier": "high-risk",
+      "danApproved": false,
+      "verifyBeforeNext": [
+        "npm run build",
+        "npm run test:gmail-auto-archive"
+      ]
     }
   ]
 }

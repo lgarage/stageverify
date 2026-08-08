@@ -439,6 +439,191 @@ async function testMessageGoneDocNotRetried() {
   else fail("status remains message_gone", { status: result.skippedProcessingStatus });
 }
 
+function installModifyFetchStub(options = {}) {
+  const originalFetch = globalThis.fetch;
+  const modifyCalls = [];
+  globalThis.fetch = async (input, init = {}) => {
+    const url = typeof input === "string" ? input : String(input?.url ?? input);
+    if (url.includes("/modify")) {
+      modifyCalls.push({ url, body: String(init.body ?? "") });
+      if (options.failModify) {
+        return new Response("nope", { status: 403 });
+      }
+      return new Response(JSON.stringify({ id: "ok", labelIds: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (typeof originalFetch === "function") {
+      return originalFetch(input, init);
+    }
+    return new Response("unexpected fetch", { status: 500 });
+  };
+  return {
+    modifyCalls,
+    restore() {
+      globalThis.fetch = originalFetch;
+    },
+  };
+}
+
+async function testArchiveBacklogOnParsedSkip() {
+  console.log("\n8. Archive backlog: skip of parsed without gmailInboxArchivedAt");
+  const gmailMessageId = "msg-archive-backlog-parsed";
+  const docId = `inbound-${gmailMessageId}`;
+  const ts = new Date().toISOString();
+  const stub = installModifyFetchStub();
+
+  try {
+    await db.collection(COLLECTION).doc(docId).set({
+      id: docId,
+      gmailMessageId,
+      senderEmail: "billing@vendor.com",
+      subject: "Already parsed",
+      receivedAt: ts,
+      attachmentFilenames: ["inv.pdf"],
+      pdfAttachments: [],
+      processingStatus: "parsed",
+      reviewStatus: "pending_review",
+      parseResult: {
+        importBatchId: "batch-x",
+        processed: 0,
+        needsReview: 1,
+        failed: 0,
+        total: 1,
+        reviewRecordIds: ["vii-x"],
+      },
+      createdAt: ts,
+      updatedAt: ts,
+    });
+
+    const result = await processInboundGmailMessage("fake-token", gmailMessageId);
+    if (result.skipped === true) pass("parsed skip still skipped");
+    else fail("parsed skip still skipped", result);
+
+    if (stub.modifyCalls.length === 1) pass("archive modify called once on backlog skip");
+    else fail("archive modify called once on backlog skip", stub.modifyCalls);
+
+    const body = JSON.parse(stub.modifyCalls[0]?.body || "{}");
+    if (
+      Array.isArray(body.removeLabelIds) &&
+      body.removeLabelIds[0] === "INBOX" &&
+      !("addLabelIds" in body)
+    ) {
+      pass("backlog archive body is INBOX-only remove");
+    } else {
+      fail("backlog archive body is INBOX-only remove", body);
+    }
+
+    const doc = await readDoc(docId);
+    if (typeof doc?.gmailInboxArchivedAt === "string" && doc.gmailInboxArchivedAt.length > 0) {
+      pass("gmailInboxArchivedAt written");
+    } else {
+      fail("gmailInboxArchivedAt written", doc?.gmailInboxArchivedAt);
+    }
+
+    stub.modifyCalls.length = 0;
+    await processInboundGmailMessage("fake-token", gmailMessageId);
+    if (stub.modifyCalls.length === 0) pass("idempotent — no second archive");
+    else fail("idempotent — no second archive", stub.modifyCalls);
+  } finally {
+    stub.restore();
+  }
+}
+
+async function testArchiveNotOnErrorOrNoPdfOrMessageGone() {
+  console.log("\n9. Archive not attempted for error / no_pdf / message_gone");
+  const stub = installModifyFetchStub();
+  try {
+    for (const [gmailMessageId, status] of [
+      ["msg-no-archive-error", "error"],
+      ["msg-no-archive-gone", "message_gone"],
+    ]) {
+      const docId = `inbound-${gmailMessageId}`;
+      const ts = new Date().toISOString();
+      await db.collection(COLLECTION).doc(docId).set({
+        id: docId,
+        gmailMessageId,
+        senderEmail: "billing@vendor.com",
+        subject: status,
+        receivedAt: ts,
+        attachmentFilenames: [],
+        pdfAttachments: [],
+        processingStatus: status,
+        reviewStatus: "pending_review",
+        createdAt: ts,
+        updatedAt: ts,
+      });
+      stub.modifyCalls.length = 0;
+      await processInboundGmailMessage("fake-token", gmailMessageId);
+      if (stub.modifyCalls.length === 0) pass(`no archive on skip status=${status}`);
+      else fail(`no archive on skip status=${status}`, stub.modifyCalls);
+    }
+
+    stub.modifyCalls.length = 0;
+    const gmailMessageId = "msg-fresh-no-pdf";
+    const result = await processInboundGmailMessage("fake-token", gmailMessageId, {
+      prefetchedMessage: {
+        ...NO_PDF_MESSAGE,
+        id: gmailMessageId,
+      },
+    });
+    if (result.processingStatus === "no_pdf") pass("fresh no_pdf status");
+    else fail("fresh no_pdf status", result);
+    if (stub.modifyCalls.length === 0) pass("no archive on plain no_pdf");
+    else fail("no archive on plain no_pdf", stub.modifyCalls);
+  } finally {
+    stub.restore();
+  }
+}
+
+async function testArchiveSoftFailKeepsParsed() {
+  console.log("\n10. Archive soft-fail keeps parsed status");
+  const gmailMessageId = "msg-archive-soft-fail";
+  const docId = `inbound-${gmailMessageId}`;
+  const ts = new Date().toISOString();
+  const stub = installModifyFetchStub({ failModify: true });
+
+  try {
+    await db.collection(COLLECTION).doc(docId).set({
+      id: docId,
+      gmailMessageId,
+      senderEmail: "billing@vendor.com",
+      subject: "Soft fail archive",
+      receivedAt: ts,
+      attachmentFilenames: ["inv.pdf"],
+      pdfAttachments: [],
+      processingStatus: "parsed",
+      reviewStatus: "pending_review",
+      parseResult: {
+        importBatchId: "batch-soft",
+        processed: 0,
+        needsReview: 1,
+        failed: 0,
+        total: 1,
+        reviewRecordIds: ["vii-soft"],
+      },
+      createdAt: ts,
+      updatedAt: ts,
+    });
+
+    const result = await processInboundGmailMessage("fake-token", gmailMessageId);
+    if (result.skipped === true && result.processingStatus === "parsed") {
+      pass("skip result remains parsed on archive failure");
+    } else {
+      fail("skip result remains parsed on archive failure", result);
+    }
+
+    const doc = await readDoc(docId);
+    if (doc?.processingStatus === "parsed") pass("doc status stays parsed");
+    else fail("doc status stays parsed", doc?.processingStatus);
+    if (!doc?.gmailInboxArchivedAt) pass("no gmailInboxArchivedAt after soft-fail");
+    else fail("no gmailInboxArchivedAt after soft-fail", doc.gmailInboxArchivedAt);
+  } finally {
+    stub.restore();
+  }
+}
+
 async function main() {
   console.log("test-retry-on-error-inbound (Firestore emulator)\n");
 
@@ -449,6 +634,9 @@ async function main() {
   await testStaleIssueImportReparseWithInvoiceNumber();
   testGmailApiNotFoundHelper();
   await testMessageGoneDocNotRetried();
+  await testArchiveBacklogOnParsedSkip();
+  await testArchiveNotOnErrorOrNoPdfOrMessageGone();
+  await testArchiveSoftFailKeepsParsed();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

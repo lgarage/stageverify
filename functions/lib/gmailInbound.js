@@ -8,6 +8,7 @@ exports.extractGmailBodyText = extractGmailBodyText;
 exports.findPdfAttachments = findPdfAttachments;
 exports.fetchGmailMessage = fetchGmailMessage;
 exports.downloadGmailAttachment = downloadGmailAttachment;
+exports.archiveGmailMessageRemoveInbox = archiveGmailMessageRemoveInbox;
 exports.listRecentInboxMessageIds = listRecentInboxMessageIds;
 exports.listGmailHistory = listGmailHistory;
 exports.getGmailProfile = getGmailProfile;
@@ -16,8 +17,8 @@ exports.registerGmailWatch = registerGmailWatch;
 exports.gmailOAuthSecretsConfigured = gmailOAuthSecretsConfigured;
 exports.decodeGmailBodyData = decodeGmailBodyData;
 /**
- * Gmail inbound fetch helpers — read-only sync for invoice PDF ingestion.
- * Server-side only; never log tokens or attachment bytes.
+ * Gmail inbound helpers — fetch attachments + archive (remove INBOX) after persist.
+ * Server-side only; never log tokens or attachment bytes. Never trash/delete messages.
  */
 const gmailApi_1 = require("./gmailApi");
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -185,6 +186,24 @@ async function downloadGmailAttachment(accessToken, messageId, attachmentId) {
     }
     const normalized = data.data.replace(/-/g, "+").replace(/_/g, "/");
     return Buffer.from(normalized, "base64");
+}
+/**
+ * Archive = remove INBOX label only. Never trash/delete.
+ * Soft-fail policy belongs at the call site (ingest must not roll back).
+ */
+async function archiveGmailMessageRemoveInbox(accessToken, messageId) {
+    const res = await fetch(`${GMAIL_BASE}/messages/${encodeURIComponent(messageId)}/modify`, {
+        method: "POST",
+        headers: {
+            ...gmailHeadersInit(accessToken),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ removeLabelIds: ["INBOX"] }),
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`gmail archive (remove INBOX) failed: ${res.status} ${text.slice(0, 200)}`);
+    }
 }
 async function listRecentInboxMessageIds(accessToken, options) {
     const maxResults = options?.maxResults ?? 25;
