@@ -6,7 +6,10 @@ import {
   markDeliveryInstalled,
   reportMaterialIssue,
 } from "./dispatcher/firestoreService";
-import { getPickupPortalDataClient } from "./phase2CallableClients";
+import {
+  getPickupPortalDataClient,
+  recordTechnicianJobOpenClient,
+} from "./phase2CallableClients";
 import {
   getTechnicianSessionForJob,
 } from "./technicianPinSession";
@@ -2224,6 +2227,22 @@ export default function PickupPortalPage() {
     techDoor && activeJobId
       ? getTechnicianSessionForJob(activeJobId)
       : techSessionForJob;
+
+  useEffect(() => {
+    if (!techDoor || !jobIdFromUrl) return;
+    const session = getTechnicianSessionForJob(jobIdFromUrl);
+    if (!session?.sessionToken) return;
+    const stashKey = `stageverify_tech_job_opened_${jobIdFromUrl}`;
+    if (sessionStorage.getItem(stashKey)) return;
+    const clientOpenId = crypto.randomUUID();
+    sessionStorage.setItem(stashKey, clientOpenId);
+    void recordTechnicianJobOpenClient(
+      session.sessionToken,
+      jobIdFromUrl,
+      clientOpenId,
+      "pickup_deep_link",
+    ).catch(() => {});
+  }, [techDoor, jobIdFromUrl]);
 
   useEffect(() => {
     normalizePickupHash();

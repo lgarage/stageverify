@@ -19,6 +19,7 @@ import {
   getLocationPublicBrandingClient,
   getVendorRunDeliveriesClient,
   markVendorDeliveriesBulkClient,
+  recordTechnicianJobOpenClient,
   recordVendorLocationScanClient,
 } from "./phase2CallableClients";
 import type {
@@ -393,6 +394,20 @@ export function LocationScanPage() {
 
   const openTechnicianJobPickup = useCallback((jobId: string) => {
     if (!technicianId) return;
+    const clientOpenId = crypto.randomUUID();
+    sessionStorage.setItem(
+      `stageverify_tech_job_opened_${jobId}`,
+      clientOpenId,
+    );
+    const sessionToken = getTechnicianSessionToken(technicianId);
+    if (sessionToken) {
+      void recordTechnicianJobOpenClient(
+        sessionToken,
+        jobId,
+        clientOpenId,
+        "location_scan",
+      ).catch(() => {});
+    }
     bindTechnicianSessionToJob(jobId);
     window.location.hash = `#/pickup?job=${encodeURIComponent(jobId)}&door=tech`;
   }, [technicianId]);
