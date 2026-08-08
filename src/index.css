@@ -36,9 +36,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a[role="button"],
+[draggable="true"],
+.tap-target,
+nav {
   user-select: none;
   -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
@@ -281,6 +290,8 @@ html[data-sv-admin-theme="dark"] .portal-shell,
   padding: 12px 16px;
   border-bottom: 1px solid var(--admin-border);
   color: var(--admin-text);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .portal-shell .admin-table tbody tr:hover {
