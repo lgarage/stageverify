@@ -42,6 +42,7 @@
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
+- **Post-MVP — Geofence + PIN upgrade:** Settings-configurable location-before-PIN + ~60‑min grace; **not MVP**. Prefs + open Q1–Q10 in `docs/roadmap.md` § Geofence + PIN upgrade (extends shipped `away-024`; leave-shop `away-028` separate).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)

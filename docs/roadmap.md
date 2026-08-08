@@ -192,7 +192,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 | Deliverable | Detail (`svscope` §3) | Status |
 | ----------- | ---------------------- | ------ |
 | Temporary delivery-specific vendor session | Server-validated; configurable expiration | ✅ Shipped (`away-021`…`023`) |
-| Shop geofence | Additional control near shop; warn-only default | 🔵 Shipped (`away-024`) |
+| Shop geofence | Additional control near shop; warn-only default | 🔵 Shipped (`away-024`) — **upgrade track below (post-MVP)** |
 | App Check evaluation | Optional hardening for public write surfaces — deferred until explicit approval | ⬜ Deferred |
 
 ### Phase 3 Slice 5 — Pickup link security (shipped; reminder deferred)
@@ -201,7 +201,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 | ----------- | --------------------------- | ------ |
 | Opaque pickup token | Unguessable, revocable, server-validated; replaces predictable job-only links | ✅ Shipped (`away-025`…`027`) |
 | Token scope | Job pickup page only — no Firestore or dispatcher access | ✅ Shipped |
-| Leave-shop reminder (optional) | Best-effort geofence prompt if technician leaves radius without completing; never auto-mark unchecked lines | ⬜ Deferred (`away-028` per Dan) |
+| Leave-shop reminder (optional) | Best-effort geofence prompt if technician leaves radius without completing; never auto-mark unchecked lines (`svscope` §12) | ⬜ Deferred (`away-028` per Dan) — keep **separate** from PIN+geofence upgrade until Dan decides (open Q6) |
 
 ### Phase 3 Slice 6 — Staging release & location lifecycle (partial)
 
@@ -315,6 +315,36 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Distinct from Phase 3:** Phase 3 displays already-known received-but-unstaged material in the pickup detail view; this LATER item adds a dedicated office workflow
 - Office staff search by PO → record current location → item appears in technician pickup (no full check-in workflow required) — for ad-hoc shipments (Amazon, UPS, FedEx) not captured through normal vendor check-in
 
+### Geofence + PIN upgrade (post-MVP — Dan prefs 2026-08-06)
+
+> **Base already shipped** (`away-024`): Settings `shopLatitude` / `shopLongitude` / `shopGeofenceRadiusMeters` / `vendorGeofenceEnforce`; background geolocation on vendor receive / location-scan; warn banner; optional client-only block on **DELIVERED** (not PIN). **Not** an ESL-style “never built” exclusion — only **further** work is deferred until MVP is operationally nailed down.
+>
+> **Leave-shop reminder** (`away-028` / §12) stays a separate deferred item until Dan answers whether to fold it in.
+
+**Dan preferences (recorded — do not build toward MVP):**
+
+| Pref | Value |
+| ---- | ----- |
+| MVP | **Not necessary for MVP** — remember for post-MVP upgrade only |
+| Settings | All geofence/PIN-coupling knobs **configurable in Settings** (extend existing shop geofence panel; do not hard-code) |
+| Intended UX | After QR scan: ask for **precise location** first → then PIN screen; after successful PIN, **skip** the geofence location screen for **~60 minutes** |
+| Product goal | Couple PIN + geofence so public vendor/tech access can scale **without Google authentication** (still with QR + session + rate limits) |
+
+**Current caveats (as of record date):** enforce is **client-only** (no CF geofence check); geolocation error/deny → treat as unknown → DELIVERED not blocked; no pre-PIN location screen today; `enableHighAccuracy` is currently `false`.
+
+**Open questions (unanswered — do not invent defaults):**
+
+1. Outside fence **before PIN**: hard stop vs warn-and-still-allow PIN?
+2. **60 min** = geofence UI grace only, or also bump PIN session TTL?
+3. Roles: vendor only first, or vendor + technician (+ management)?
+4. Location permission **denied / timeout**: block, warn, or allow? (today deny ≈ allow)
+5. Which **new Settings knobs** beyond lat/lng/radius/enforce: require-location-before-PIN, grace minutes, high-accuracy, apply-to-roles, server-enforce?
+6. Fold **leave-shop reminder** (`away-028`) into this upgrade or keep separate?
+7. Same upgrade: move enforce to **Cloud Functions**, or client-only first?
+8. Grace scope: per browser/device, per PIN session token, or per vendor/tech identity?
+9. During grace: skip only the location **screen**, or also skip GPS re-check on DELIVERED/pickup writes?
+10. Default for shops when upgrade ships: geofence **off** until configured, or on with warn?
+
 ### Cross-cutting (LATER)
 
 | Item                            | Notes                                                     |
@@ -324,6 +354,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 | Shared types in Cloud Functions | Refactor CF `DeliveryStatus` duplicate                    |
 | Shop map / location IDs         | Blocked on Jake Korb shelving decision                    |
 | Firebase App Check (public routes) | `svscope` deferred; evaluate in Phase 3 Slice 4 or later |
+| Geofence + PIN upgrade          | Post-MVP — see § above; Settings-configurable; open Q1–Q10 |
 
 ---
 
