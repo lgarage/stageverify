@@ -26,8 +26,8 @@ export function AdminAppearanceToggle() {
         fontWeight: 600,
         padding: "8px 16px",
         borderRadius: 9999,
-        border: isDark ? "1px solid #46566a" : "1px solid #d0d7de",
-        backgroundColor: isDark ? "#21262d" : "#ffffff",
+        border: isDark ? "1px solid #557590" : "1px solid #d0d7de",
+        backgroundColor: isDark ? "#20384f" : "#ffffff",
         color: isDark ? "#f0f6fc" : "#24292f",
         boxShadow: isDark
           ? "0 2px 10px rgba(1, 4, 9, 0.45)"

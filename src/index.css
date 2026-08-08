@@ -128,16 +128,16 @@ nav {
 
 html[data-sv-admin-theme="dark"] .portal-shell,
 .portal-shell[data-admin-appearance="dark"] {
-  --admin-bg: #0d1117;
-  --admin-bg-deep: #0a0b0d;
-  --admin-section-bg: #151c26;
-  --admin-section-border: #4a5563;
+  --admin-bg: #0b1622;
+  --admin-bg-deep: #0b1622;
+  --admin-section-bg: #122235;
+  --admin-section-border: #36536d;
   --admin-shadow-section: 0 1px 0 rgba(255,255,255,0.04), 0 8px 20px rgba(0,0,0,0.28);
-  --admin-surface: #161b22;
-  --admin-surface-2: #21262d;
-  --admin-surface-hover: #282e36;
-  --admin-border: #30363d;
-  --admin-border-strong: #46566a;
+  --admin-surface: #182b40;
+  --admin-surface-2: #20384f;
+  --admin-surface-hover: #294760;
+  --admin-border: #3e5d78;
+  --admin-border-strong: #557590;
   --admin-text: #f0f6fc;
   --admin-text-data: var(--admin-text);
   --admin-text-label: #c9d1d9;
