@@ -14,7 +14,17 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  setDoc,
+  where,
+} from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   assertNoElementOverlap,
@@ -42,10 +52,14 @@ const deliveryId =
   process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
 const vendorPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
 const jobPin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
+const runSuffix = Date.now().toString(36);
+const ephemeralNoSpotDeliveryId = `delivery-monday-verify-nospot-${runSuffix}`;
+const ephemeralWithSpotDeliveryId = `delivery-monday-verify-wspot-${runSuffix}`;
 const noSpotOrder =
-  process.env.STAGEVERIFY_NO_SPOT_ORDER ?? "MGMT-VERIFY-wwide8";
+  process.env.STAGEVERIFY_NO_SPOT_ORDER ?? `MON-VERIFY-NOSPOT-${runSuffix.slice(-6)}`;
 const withSpotOrder =
-  process.env.STAGEVERIFY_WITH_SPOT_ORDER ?? "MGMT-VERIFY-wxt7vv";
+  process.env.STAGEVERIFY_WITH_SPOT_ORDER ?? `MON-VERIFY-WSPOT-${runSuffix.slice(-6)}`;
+const fixtureJobId = "job-1";
 
 const outDir = resolve(process.cwd(), "screenshots", "vendor-monday-safe");
 mkdirSync(outDir, { recursive: true });
@@ -85,6 +99,78 @@ async function writeMode(mode) {
     { vendorDeliveryMode: mode },
     { merge: true },
   );
+}
+
+async function ensureAuthDb() {
+  const auth = getAuth(firebaseApp);
+  if (!auth.currentUser) {
+    await signInWithEmailAndPassword(auth, email, password);
+  }
+  return getFirestore(firebaseApp);
+}
+
+async function seedEphemeralDeliveries() {
+  const db = await ensureAuthDb();
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
+
+  await setDoc(doc(db, "deliveries", ephemeralNoSpotDeliveryId), {
+    id: ephemeralNoSpotDeliveryId,
+    orderNumber: noSpotOrder,
+    jobId: fixtureJobId,
+    vendorId: "vendor-1",
+    vendorName: "Johnstone Supply",
+    deliveryDate: today,
+    status: "pending",
+    availabilityStatus: "expected",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await setDoc(doc(db, "deliveries", ephemeralWithSpotDeliveryId), {
+    id: ephemeralWithSpotDeliveryId,
+    orderNumber: withSpotOrder,
+    jobId: fixtureJobId,
+    vendorId: "vendor-1",
+    vendorName: "Johnstone Supply",
+    stagingLocationId: "staging-2",
+    deliveryDate: today,
+    status: "pending",
+    availabilityStatus: "expected",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  console.log(
+    `seeded ephemeral deliveries: ${noSpotOrder} (no spot), ${withSpotOrder} (with spot)`,
+  );
+}
+
+async function deleteEphemeralDeliveries() {
+  const db = await ensureAuthDb();
+  const ids = [ephemeralNoSpotDeliveryId, ephemeralWithSpotDeliveryId];
+  for (const deliveryId of ids) {
+    const linkedItems = await getDocs(
+      query(collection(db, "items"), where("deliveryOrderId", "==", deliveryId)),
+    );
+    for (const itemDoc of linkedItems.docs) {
+      try {
+        await deleteDoc(doc(db, "items", itemDoc.id));
+        console.log(`cleanup: deleted items/${itemDoc.id}`);
+      } catch (err) {
+        console.warn(`cleanup: skip items/${itemDoc.id}:`, err instanceof Error ? err.message : err);
+      }
+    }
+    try {
+      await deleteDoc(doc(db, "deliveries", deliveryId));
+      console.log(`cleanup: deleted deliveries/${deliveryId}`);
+    } catch (err) {
+      console.warn(
+        `cleanup: skip deliveries/${deliveryId}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
 }
 
 async function enterPin(page, pin) {
@@ -148,6 +234,7 @@ let modeRestored = false;
 try {
   priorMode = await readMode();
   console.log(`prior vendorDeliveryMode=${priorMode}`);
+  await seedEphemeralDeliveries();
   if (priorMode !== "exception_only") {
     await writeMode("exception_only");
     console.log("temp set vendorDeliveryMode=exception_only for receive proof");
@@ -356,6 +443,11 @@ try {
   record("verify script error", false, err instanceof Error ? err.message : String(err));
   console.error(err);
 } finally {
+  try {
+    await deleteEphemeralDeliveries();
+  } catch (cleanupErr) {
+    console.error("FAILED to delete ephemeral deliveries", cleanupErr);
+  }
   try {
     const current = await readMode();
     if (current !== priorMode) {
