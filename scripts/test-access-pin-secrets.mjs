@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const require = createRequire(import.meta.url);
 
-process.env.ACCESS_PIN_ALLOW_ENV_KEY = "1";
+process.env.FUNCTIONS_EMULATOR = "true";
 process.env.ACCESS_PIN_ENCRYPTION_KEY = Buffer.alloc(32, 0x42).toString(
   "base64",
 );

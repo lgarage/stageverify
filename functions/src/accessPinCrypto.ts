@@ -4,8 +4,9 @@
  * Production secret (Firebase Functions — never commit):
  *   ACCESS_PIN_ENCRYPTION_KEY — base64 encoding of exactly 32 raw bytes.
  *
- * Local/emulator tests may set process.env.ACCESS_PIN_ENCRYPTION_KEY when the
- * Functions secret is unavailable (test helper only).
+ * Emulator/unit tests only: set FUNCTIONS_EMULATOR=true and
+ * ACCESS_PIN_ENCRYPTION_KEY in process.env when the bound secret is unavailable.
+ * Never set ACCESS_PIN_ALLOW_ENV_KEY in production (removed; ignored if present).
  */
 import {
   createCipheriv,
@@ -51,9 +52,7 @@ export function resolveAccessPinEncryptionKey(): Buffer {
   } catch {
     raw = undefined;
   }
-  const allowEnvKey =
-    process.env.FUNCTIONS_EMULATOR === "true" ||
-    process.env.ACCESS_PIN_ALLOW_ENV_KEY === "1";
+  const allowEnvKey = process.env.FUNCTIONS_EMULATOR === "true";
   if (!raw?.trim() && allowEnvKey) {
     raw = process.env.ACCESS_PIN_ENCRYPTION_KEY;
   }
