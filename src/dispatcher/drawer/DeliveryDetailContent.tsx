@@ -37,6 +37,7 @@ import {
   ISSUE_RESOLUTION_TYPE_LABEL,
   MATERIAL_ISSUE_TYPE_LABEL,
   DELIVERY_STATUS_LABEL,
+  getAllStagingLocationIds,
   type IssueResolutionType,
   type MaterialIssue,
   type ShopStockLocationMapping,
@@ -557,6 +558,13 @@ export function DetailContent({
       ? [[details.stagingLocation.id, details.stagingLocation]]
       : [],
   );
+  const shopStagingRequired = !skipsShopStaging(delivery);
+  const hasAssignedStaging =
+    getAllStagingLocationIds(delivery).some((id) => !!id?.trim()) ||
+    (delivery.plannedStagingLocationIds ?? []).some(
+      (id) => typeof id === "string" && id.trim().length > 0,
+    );
+  const showStagingLocationBanner = shopStagingRequired && !hasAssignedStaging;
   const drawerDeliveryRow: DeliveryListRow = {
     deliveryId: delivery.id,
     jobId: delivery.jobId,
@@ -583,9 +591,8 @@ export function DetailContent({
     openIssueCount: details.materialIssues.filter(
       (issue) => issue.status === "open" || issue.status === "assigned",
     ).length,
-    missingStagingAssignment: !details.stagingLocation,
+    missingStagingAssignment: !hasAssignedStaging,
   };
-  const shopStagingRequired = !skipsShopStaging(delivery);
 
   const showCreditReturnBanner =
     linkedImport != null && isCreditReturnLinkedImport(linkedImport);
@@ -821,8 +828,21 @@ export function DetailContent({
                       )
                 }
               />
+              {showStagingLocationBanner ? (
+                <StagingLocationBanner
+                  font={font}
+                  onAssignLocation={
+                    onNavigateToAssignLocation
+                      ? handleAssignLocationNavigate
+                      : () => {}
+                  }
+                />
+              ) : null}
               <div
                 data-testid="delivery-basics-staging-locations"
+                data-has-assigned-staging={
+                  hasAssignedStaging ? "true" : "false"
+                }
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -1058,16 +1078,6 @@ export function DetailContent({
             );
           }}
         </PickupTokenControls>
-        {!details.stagingLocation && shopStagingRequired ? (
-          <StagingLocationBanner
-            font={font}
-            onAssignLocation={
-              onNavigateToAssignLocation
-                ? handleAssignLocationNavigate
-                : () => {}
-            }
-          />
-        ) : null}
         <DrawerActionBanner
           details={details}
           navy={navy}
@@ -1885,7 +1895,9 @@ function DeliveryStatusControls({
       ? "will_call_pickup"
       : "delivery";
   const fulfillmentContextLabel =
-    fulfillmentMethod === "will_call_pickup" ? "Will-call" : "Drop-off";
+    fulfillmentMethod === "will_call_pickup"
+      ? "Will-Call / Pickup"
+      : "Vendor Drop-Off";
 
   const selectValue = DRAWER_STATUS_DROPDOWN_OPTIONS.includes(currentStatus)
     ? currentStatus
@@ -2105,8 +2117,8 @@ function DeliveryStatusControls({
         <div style={{ display: "flex", gap: 8 }}>
           {(
             [
-              ["delivery", "Drop-off"],
-              ["will_call_pickup", "Will-call"],
+              ["delivery", "Vendor Drop-Off"],
+              ["will_call_pickup", "Will-Call / Pickup"],
             ] as const
           ).map(([method, label]) => {
             const active = fulfillmentMethod === method;
