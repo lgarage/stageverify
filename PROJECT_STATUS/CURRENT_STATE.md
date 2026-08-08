@@ -33,6 +33,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **In-flight:** PR branch `cursor/vendor-hub-item-expand-0fe2` — vendor hub tap-to-expand expected items (read-only accordion); not merged/deployed.
 - Dan/ops: merge PR #42 (MGMT-VERIFY cleanup scripts) so future prod verifies use teardown; Monday vendor list cleaned (MGMT-VERIFY gone; job-1 restored to Riverside / JOB-2026-0421). Then set Settings → Exception-only Delivered hub when ready; hard-refresh vendor phone after v0.0.225.
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).

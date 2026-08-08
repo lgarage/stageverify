@@ -513,6 +513,33 @@ export const VENDOR_DELIVERED_HUB_CONTRAST_SPEC = {
   ],
 };
 
+export const VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC = {
+  rootSelector: ".vendor-hub-layout",
+  elements: [
+    {
+      name: "item row description",
+      selector: '[data-testid="vendor-hub-item-row"] p.text-text-primary',
+      large: false,
+    },
+    {
+      name: "item row meta",
+      selector: '[data-testid="vendor-hub-item-row"] p.text-text-secondary',
+      large: false,
+    },
+  ],
+};
+
+export const VENDOR_DELIVERED_HUB_ITEMS_EMPTY_CONTRAST_SPEC = {
+  rootSelector: ".vendor-hub-layout",
+  elements: [
+    {
+      name: "empty items copy",
+      selector: '[data-testid="vendor-hub-items-list"] p.text-text-secondary',
+      large: false,
+    },
+  ],
+};
+
 export const VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC = {
   containerSelector: ".vendor-hub-header",
   elementSelectors: [

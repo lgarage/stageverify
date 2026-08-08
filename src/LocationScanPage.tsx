@@ -912,7 +912,7 @@ export function LocationScanPage() {
                         {item.description} × {item.qtyOrdered}
                       </li>
                     ))}
-                    {row.items.length === 0 && <li>No line items</li>}
+                    {row.items.length === 0 && <li>No item details available.</li>}
                   </ul>
                 )}
               </div>
