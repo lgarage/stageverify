@@ -23,3 +23,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | backend-write-critical (merge PR #42) | T3 | Composer 2.5 Fast (gh merge only) | 99 | 99 | ok | Squash-merged #42 @ 31ed7242; no deploy |
 | 2026-08-08 | ui-component (vendor hub item expand accordion) | T0/T1 fast-safe | Composer 2.5 Fast | 98 | 99 | ok | VendorDeliveredHub read-only items expand; no CF; PR only |
 | 2026-08-08 | ship-op (merge PR #43 + gh-pages deploy) | T0 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | Squash-merge #43; v0.0.226; vendor hub accordion LIVE |
+| 2026-08-08 | ui-component (vendor hub location/invoice display) | T0 fast-safe | Composer 2.5 Fast | 98 | 99 | ok | Location: code + Invoice #; PR only |

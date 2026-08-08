@@ -71,8 +71,7 @@ export function VendorDeliveredHub({
     deliveryDetails;
   const hasAssignableSpot = deliveryHasAssignableSpot(delivery);
   const locationCode = stagingLocation?.code ?? "—";
-  const locationLabel =
-    stagingLocation?.label ?? "Not assigned — ask dispatch for a staging spot";
+  const invoiceNumber = delivery.vendorInvoiceNumber?.trim() || "—";
 
   useEffect(() => {
     setCtaPhase((prev) => {
@@ -174,11 +173,11 @@ export function VendorDeliveredHub({
                 {locationCode}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] uppercase tracking-widest text-text-secondary">
-                  Assigned location
-                </p>
-                <p className="text-base font-medium text-text-primary truncate">
-                  {locationLabel}
+                <p
+                  className="text-base font-medium text-text-primary truncate"
+                  data-testid="vendor-hub-location-label"
+                >
+                  Location: {locationCode}
                 </p>
               </div>
               <span
@@ -194,20 +193,35 @@ export function VendorDeliveredHub({
 
             <div className="p-3 space-y-1.5">
               {[
-                ["Job / Site", job?.jobName ?? "—"],
-                ["Vendor", vendor.name],
-                ["Order #", delivery.orderNumber],
-                ["PO #", purchaseOrder?.poNumber ?? "—"],
-                ["Expected items", String(items.length)],
-              ].map(([label, value]) => (
+                { label: "Job / Site", value: job?.jobName ?? "—", mono: false },
+                { label: "Vendor", value: vendor.name, mono: false },
+                { label: "Order #", value: delivery.orderNumber, mono: true },
+                {
+                  label: "Invoice #",
+                  value: invoiceNumber,
+                  mono: true,
+                  testId: "vendor-hub-invoice",
+                },
+                {
+                  label: "PO #",
+                  value: purchaseOrder?.poNumber ?? "—",
+                  mono: true,
+                },
+                { label: "Expected items", value: String(items.length), mono: false },
+              ].map(({ label, value, mono, testId }) => (
                 <div
                   key={label}
-                  className="flex items-center justify-between gap-3 text-sm"
+                  className="flex items-center justify-between gap-3 text-sm min-w-0"
                 >
                   <span className="text-text-secondary shrink-0">{label}</span>
-                  <span className="text-text-primary font-medium text-right">
-                    {label === "Order #" ? (
-                      <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded">
+                  <span
+                    className={`text-text-primary font-medium text-right min-w-0 ${
+                      mono ? "truncate max-w-[55%]" : ""
+                    }`}
+                    {...(testId ? { "data-testid": testId } : {})}
+                  >
+                    {mono ? (
+                      <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded inline-block max-w-full truncate">
                         {value}
                       </span>
                     ) : (
