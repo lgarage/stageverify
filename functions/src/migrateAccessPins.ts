@@ -42,6 +42,7 @@ async function migrateCollection(
   scanned: number;
   migrated: number;
   skippedAlreadyMigrated: number;
+  skippedCollision: number;
   hashOnly: number;
   plaintext: number;
 }> {
@@ -49,6 +50,7 @@ async function migrateCollection(
   let scanned = 0;
   let migrated = 0;
   let skippedAlreadyMigrated = 0;
+  let skippedCollision = 0;
   let hashOnly = 0;
   let plaintext = 0;
 
@@ -57,6 +59,7 @@ async function migrateCollection(
       scanned,
       migrated,
       skippedAlreadyMigrated,
+      skippedCollision,
       hashOnly,
       plaintext,
     };
@@ -99,6 +102,9 @@ async function migrateCollection(
       continue;
     }
 
+    let didMigrate = false;
+    let collisionSkipped = false;
+
     await db.runTransaction(async (tx) => {
       const entitySnap = await tx.get(doc.ref);
       if (!entitySnap.exists) return;
@@ -129,6 +135,14 @@ async function migrateCollection(
               pinLookupKeyForPin(plainPin),
             ),
           );
+        const uniquenessSnap = await tx.get(uniquenessRef);
+        if (uniquenessSnap.exists) {
+          const existing = uniquenessSnap.data() as { targetId?: string };
+          if (existing.targetId && existing.targetId !== doc.id) {
+            collisionSkipped = true;
+            return;
+          }
+        }
         tx.set(secretRef, {
           targetType,
           targetId: doc.id,
@@ -172,12 +186,26 @@ async function migrateCollection(
         },
         { merge: true },
       );
+      didMigrate = true;
     });
 
-    migrated += 1;
+    if (collisionSkipped) {
+      skippedCollision += 1;
+      continue;
+    }
+    if (didMigrate) {
+      migrated += 1;
+    }
   }
 
-  return { scanned, migrated, skippedAlreadyMigrated, hashOnly, plaintext };
+  return {
+    scanned,
+    migrated,
+    skippedAlreadyMigrated,
+    skippedCollision,
+    hashOnly,
+    plaintext,
+  };
 }
 
 /** Manager migrates legacy entity pinCode/pinHash into accessPinSecrets. */
@@ -196,6 +224,7 @@ export const migrateAccessPins = onCall(
     let totalScanned = 0;
     let totalMigrated = 0;
     let totalSkipped = 0;
+    let totalSkippedCollision = 0;
     let totalHashOnly = 0;
     let totalPlaintext = 0;
 
@@ -205,6 +234,7 @@ export const migrateAccessPins = onCall(
         scanned: number;
         migrated: number;
         skippedAlreadyMigrated: number;
+        skippedCollision: number;
         hashOnly: number;
         plaintext: number;
       }
@@ -213,6 +243,7 @@ export const migrateAccessPins = onCall(
         scanned: 0,
         migrated: 0,
         skippedAlreadyMigrated: 0,
+        skippedCollision: 0,
         hashOnly: 0,
         plaintext: 0,
       },
@@ -220,6 +251,7 @@ export const migrateAccessPins = onCall(
         scanned: 0,
         migrated: 0,
         skippedAlreadyMigrated: 0,
+        skippedCollision: 0,
         hashOnly: 0,
         plaintext: 0,
       },
@@ -236,12 +268,14 @@ export const migrateAccessPins = onCall(
         scanned: result.scanned,
         migrated: result.migrated,
         skippedAlreadyMigrated: result.skippedAlreadyMigrated,
+        skippedCollision: result.skippedCollision,
         hashOnly: result.hashOnly,
         plaintext: result.plaintext,
       };
       totalScanned += result.scanned;
       totalMigrated += result.migrated;
       totalSkipped += result.skippedAlreadyMigrated;
+      totalSkippedCollision += result.skippedCollision;
       totalHashOnly += result.hashOnly;
       totalPlaintext += result.plaintext;
       remaining -= result.migrated;
@@ -253,6 +287,7 @@ export const migrateAccessPins = onCall(
       scanned: totalScanned,
       migrated: totalMigrated,
       skippedAlreadyMigrated: totalSkipped,
+      skippedCollision: totalSkippedCollision,
       hashOnly: totalHashOnly,
       plaintext: totalPlaintext,
       byType,

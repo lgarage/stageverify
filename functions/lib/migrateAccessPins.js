@@ -16,6 +16,7 @@ async function migrateCollection(targetType, collectionName, dryRun, remainingLi
     let scanned = 0;
     let migrated = 0;
     let skippedAlreadyMigrated = 0;
+    let skippedCollision = 0;
     let hashOnly = 0;
     let plaintext = 0;
     if (remainingLimit <= 0) {
@@ -23,6 +24,7 @@ async function migrateCollection(targetType, collectionName, dryRun, remainingLi
             scanned,
             migrated,
             skippedAlreadyMigrated,
+            skippedCollision,
             hashOnly,
             plaintext,
         };
@@ -57,6 +59,8 @@ async function migrateCollection(targetType, collectionName, dryRun, remainingLi
             migrated += 1;
             continue;
         }
+        let didMigrate = false;
+        let collisionSkipped = false;
         await db.runTransaction(async (tx) => {
             const entitySnap = await tx.get(doc.ref);
             if (!entitySnap.exists)
@@ -79,6 +83,14 @@ async function migrateCollection(targetType, collectionName, dryRun, remainingLi
                 const uniquenessRef = db
                     .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
                     .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, (0, accessPinCrypto_1.pinLookupKeyForPin)(plainPin)));
+                const uniquenessSnap = await tx.get(uniquenessRef);
+                if (uniquenessSnap.exists) {
+                    const existing = uniquenessSnap.data();
+                    if (existing.targetId && existing.targetId !== doc.id) {
+                        collisionSkipped = true;
+                        return;
+                    }
+                }
                 tx.set(secretRef, {
                     targetType,
                     targetId: doc.id,
@@ -119,10 +131,24 @@ async function migrateCollection(targetType, collectionName, dryRun, remainingLi
                 pinHash: firestore_1.FieldValue.delete(),
                 updatedAt: now,
             }, { merge: true });
+            didMigrate = true;
         });
-        migrated += 1;
+        if (collisionSkipped) {
+            skippedCollision += 1;
+            continue;
+        }
+        if (didMigrate) {
+            migrated += 1;
+        }
     }
-    return { scanned, migrated, skippedAlreadyMigrated, hashOnly, plaintext };
+    return {
+        scanned,
+        migrated,
+        skippedAlreadyMigrated,
+        skippedCollision,
+        hashOnly,
+        plaintext,
+    };
 }
 /** Manager migrates legacy entity pinCode/pinHash into accessPinSecrets. */
 exports.migrateAccessPins = (0, https_1.onCall)({
@@ -137,6 +163,7 @@ exports.migrateAccessPins = (0, https_1.onCall)({
     let totalScanned = 0;
     let totalMigrated = 0;
     let totalSkipped = 0;
+    let totalSkippedCollision = 0;
     let totalHashOnly = 0;
     let totalPlaintext = 0;
     const byType = {
@@ -144,6 +171,7 @@ exports.migrateAccessPins = (0, https_1.onCall)({
             scanned: 0,
             migrated: 0,
             skippedAlreadyMigrated: 0,
+            skippedCollision: 0,
             hashOnly: 0,
             plaintext: 0,
         },
@@ -151,6 +179,7 @@ exports.migrateAccessPins = (0, https_1.onCall)({
             scanned: 0,
             migrated: 0,
             skippedAlreadyMigrated: 0,
+            skippedCollision: 0,
             hashOnly: 0,
             plaintext: 0,
         },
@@ -161,12 +190,14 @@ exports.migrateAccessPins = (0, https_1.onCall)({
             scanned: result.scanned,
             migrated: result.migrated,
             skippedAlreadyMigrated: result.skippedAlreadyMigrated,
+            skippedCollision: result.skippedCollision,
             hashOnly: result.hashOnly,
             plaintext: result.plaintext,
         };
         totalScanned += result.scanned;
         totalMigrated += result.migrated;
         totalSkipped += result.skippedAlreadyMigrated;
+        totalSkippedCollision += result.skippedCollision;
         totalHashOnly += result.hashOnly;
         totalPlaintext += result.plaintext;
         remaining -= result.migrated;
@@ -177,6 +208,7 @@ exports.migrateAccessPins = (0, https_1.onCall)({
         scanned: totalScanned,
         migrated: totalMigrated,
         skippedAlreadyMigrated: totalSkipped,
+        skippedCollision: totalSkippedCollision,
         hashOnly: totalHashOnly,
         plaintext: totalPlaintext,
         byType,

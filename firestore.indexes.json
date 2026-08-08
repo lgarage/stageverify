@@ -31,6 +31,14 @@
         { "fieldPath": "targetType", "order": "ASCENDING" },
         { "fieldPath": "pinLookupKey", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "accessPinSecrets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetType", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

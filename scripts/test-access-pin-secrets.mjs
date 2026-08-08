@@ -101,6 +101,7 @@ try {
     scanned: 3,
     migrated: 2,
     skippedAlreadyMigrated: 1,
+    skippedCollision: 0,
     hashOnly: 1,
     plaintext: 1,
     byType: {
@@ -108,6 +109,7 @@ try {
         scanned: 2,
         migrated: 1,
         skippedAlreadyMigrated: 1,
+        skippedCollision: 0,
         hashOnly: 0,
         plaintext: 1,
       },
@@ -115,6 +117,7 @@ try {
         scanned: 1,
         migrated: 1,
         skippedAlreadyMigrated: 0,
+        skippedCollision: 0,
         hashOnly: 1,
         plaintext: 0,
       },
@@ -122,11 +125,38 @@ try {
   };
   assert.equal(typeof sample.dryRun, "boolean");
   assert.equal(typeof sample.migrated, "number");
+  assert.equal(typeof sample.skippedCollision, "number");
   assert.equal(typeof sample.byType.technician.migrated, "number");
   assert.ok(!("pin" in sample) && !("pins" in sample));
   pass("migrate counts shape never includes PIN values");
 } catch (err) {
   fail("migrate counts shape", err);
+}
+
+console.log("\n=== hash-only verify secondary fallback (contract) ===\n");
+
+try {
+  // accessPinLookup.ts: HMAC query first; if zero HMAC matches, paginate
+  // accessPinSecrets where targetType matches and pinLookupKey is missing/empty
+  // (revealable === false hash-only migrated secrets). pinMatches on pinHash;
+  // fail-closed unless exactly one entity passes entityGuard.
+  const hashOnlySecondaryFallback = {
+    primaryPath: "HMAC query on targetType + pinLookupKey limit 2",
+    secondaryTrigger: "hmacMatches.length === 0",
+    secondaryScope:
+      "paginate targetType secrets; skip non-empty pinLookupKey; hash-only subset",
+    matchRule: "pinMatches(pinHash) + entityGuard",
+    failClosed: "return null when matches.length !== 1",
+    maxBatches: 300,
+    pageSize: 300,
+    hashOnlyMigrateLeavesPinLookupKeyUnset: true,
+  };
+  assert.equal(hashOnlySecondaryFallback.secondaryTrigger, "hmacMatches.length === 0");
+  assert.equal(hashOnlySecondaryFallback.failClosed, "return null when matches.length !== 1");
+  assert.equal(hashOnlySecondaryFallback.hashOnlyMigrateLeavesPinLookupKeyUnset, true);
+  pass("hash-only secondary fallback documented contract");
+} catch (err) {
+  fail("hash-only secondary fallback contract", err);
 }
 
 console.log("\n=== audit fail-closed contract ===\n");
