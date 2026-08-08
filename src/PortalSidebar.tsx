@@ -7,6 +7,7 @@ import {
   PORTAL_SETTINGS_ITEM,
   isPortalNavItemActive,
 } from "./dispatcherPortalNav";
+import { StageVerifyBrandMark } from "./StageVerifyBrandMark";
 
 const RED = "#bf0a30";
 
@@ -68,29 +69,15 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
     <aside className={`${PORTAL_SIDEBAR_CLASS} ${className}`.trim()}>
       <div
         className="flex flex-col items-center px-6 pt-7 pb-6"
+        data-testid="portal-sidebar-brand"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
       >
-        <div
-          className="flex items-center justify-center rounded-full mb-3"
-          style={{
-            width: 60,
-            height: 60,
-            backgroundColor: "var(--admin-surface)",
-            border: `3px solid ${RED}`,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.20)",
-          }}
-        >
-          <span
-            style={{
-              color: "var(--admin-accent-soft)",
-              fontWeight: 900,
-              fontSize: 20,
-              letterSpacing: "-0.04em",
-            }}
-          >
-            SV
-          </span>
-        </div>
+        <StageVerifyBrandMark
+          height={60}
+          className="mb-3"
+          data-testid="portal-sidebar-brand-mark"
+          style={{ filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.20))" }}
+        />
         <span
           style={{
             color: "var(--admin-on-navy)",
