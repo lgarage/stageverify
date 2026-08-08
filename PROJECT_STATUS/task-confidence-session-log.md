@@ -38,3 +38,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | multi-file-feature (technician assignment UX — Settings release UI out, drawer Assign) | T1 fast-safe | Composer 2.5 Fast (cheapest) | 94→98 | 99 | ok (PR only) | Removed Settings day-release UI; drawer ASSIGNED TECHNICIAN; multi-tech SoT preserved; no merge/deploy |
 | 2026-08-08 | service-logic (single-tech exclusive job assignment — PR #46) | T1 fast-safe | Composer 2.5 Fast | 96→98 | 99 | ok (PR only) | assignJobToTechnicianForTodayExclusive + discover-all unassign; A→B verify PASS; no CF |
 | 2026-08-08 | merge-resolve (PR #46 + main v0.0.231 dark-mode) | T1 | Composer 2.5 Fast | 97 | 99 | ok (PR only) | Merged origin/main; preserved exclusive assign + Settings UI removal + theme |
+| 2026-08-08 | ship-op (merge PR #46 + gh-pages deploy v0.0.232) | T0/T1 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | Exclusive assign LIVE; prod verifies PASS; no CF/rules |
