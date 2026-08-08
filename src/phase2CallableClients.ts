@@ -331,3 +331,49 @@ export async function markVendorDeliveriesBulkClient(input: {
 }> {
   return callCallable("markVendorDeliveriesBulk", input);
 }
+
+export async function startAdminAccessSessionClient(input: {
+  targetType: import("./dispatcher/models").AccessPinTargetType;
+  targetId: string;
+}): Promise<import("./dispatcher/models").StartAdminAccessSessionResult> {
+  return callCallable("startAdminAccessSession", input);
+}
+
+export async function revokeAdminAccessSessionClient(input: {
+  sessionToken: string;
+  targetType?: import("./dispatcher/models").AccessPinTargetType;
+  targetId?: string;
+}): Promise<import("./dispatcher/models").RevokeAdminAccessSessionResult> {
+  return callCallable("revokeAdminAccessSession", input);
+}
+
+export async function revealAccessPinClient(input: {
+  targetType: import("./dispatcher/models").AccessPinTargetType;
+  targetId: string;
+  sessionToken: string;
+}): Promise<import("./dispatcher/models").RevealAccessPinResult> {
+  return callCallable("revealAccessPin", input);
+}
+
+export async function setAccessPinClient(input: {
+  targetType: import("./dispatcher/models").AccessPinTargetType;
+  targetId: string;
+  pin: string;
+  sessionToken?: string;
+}): Promise<import("./dispatcher/models").SetAccessPinResult> {
+  return callCallable("setAccessPin", input);
+}
+
+export async function migrateAccessPinsClient(input?: {
+  dryRun?: boolean;
+  limit?: number;
+}): Promise<import("./dispatcher/models").MigrateAccessPinsResult> {
+  return callCallable("migrateAccessPins", input ?? {});
+}
+
+export async function listPinAccessAuditClient(input?: {
+  limit?: number;
+  startAfterCreatedAt?: string;
+}): Promise<import("./dispatcher/models").ListPinAccessAuditResult> {
+  return callCallable("listPinAccessAudit", input ?? {});
+}

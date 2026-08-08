@@ -4,6 +4,8 @@ exports.verifyTechnicianPin = void 0;
 const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
+const accessPinCrypto_1 = require("./accessPinCrypto");
+const accessPinLookup_1 = require("./accessPinLookup");
 const pinMatching_1 = require("./pinMatching");
 function getDb() {
     return admin.firestore();
@@ -68,6 +70,9 @@ async function getTechnicianSessionMinutes() {
     return DEFAULT_TECHNICIAN_SESSION_MINUTES;
 }
 async function findTechnicianByPin(pin) {
+    const fromSecrets = await (0, accessPinLookup_1.findTechnicianByAccessPinSecrets)(pin);
+    if (fromSecrets)
+        return fromSecrets;
     const db = getDb();
     const pinCodeSnap = await db
         .collection("technicians")
@@ -111,6 +116,7 @@ async function resolveStagingLocation(code) {
 }
 exports.verifyTechnicianPin = (0, https_1.onCall)({
     region: "us-central1",
+    secrets: [accessPinCrypto_1.accessPinEncryptionKey],
     cors: [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
