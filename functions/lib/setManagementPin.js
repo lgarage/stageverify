@@ -20,9 +20,9 @@ exports.setManagementPin = (0, https_1.onCall)({
     secrets: [accessPinCrypto_1.accessPinEncryptionKey],
 }, async (request) => {
     const data = (request.data ?? {});
-    const pin = (0, pinMatching_1.asFourDigitPin)(data.pin);
+    const pin = (0, pinMatching_1.asAccessPin)(data.pin);
     if (!pin) {
-        throw new https_1.HttpsError("invalid-argument", "A 4-digit PIN is required.");
+        throw new https_1.HttpsError("invalid-argument", "A 4–6 digit PIN is required.");
     }
     const auth = await (0, managementPinWriteAuth_1.authorizeManagementPinWrite)(request, {
         pin,

@@ -53,7 +53,7 @@ exports.setAccessPin = (0, https_1.onCall)({
     const data = (request.data ?? {});
     const targetType = (0, accessPinSecretsShared_1.parseAccessPinTargetType)(data.targetType);
     const targetId = typeof data.targetId === "string" ? data.targetId.trim() : "";
-    const pin = (0, pinMatching_1.asFourDigitPin)(data.pin);
+    const pin = (0, pinMatching_1.asAccessPin)(data.pin);
     const sessionToken = typeof data.sessionToken === "string" ? data.sessionToken.trim() : "";
     if (!targetType || !targetId || !pin) {
         throw new https_1.HttpsError("invalid-argument", "Invalid PIN access target.");

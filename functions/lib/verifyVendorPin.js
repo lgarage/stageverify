@@ -319,7 +319,7 @@ exports.verifyVendorPin = (0, https_1.onCall)({
     ],
 }, async (request) => {
     const data = (request.data ?? {});
-    const pin = (0, pinMatching_1.asFourDigitPin)(data.pin);
+    const pin = (0, pinMatching_1.asAccessPin)(data.pin);
     const stagingLocationCode = asStagingLocationCode(data.stagingLocationCode);
     const explicitJobId = asJobId(data.jobId);
     const deliveryId = await resolveDeliveryId(asDeliveryId(data.deliveryId), asDeliveryId(data.orderId));

@@ -21,7 +21,7 @@ import {
   targetHasExistingAccessPin,
 } from "./accessPinTargetHelpers";
 import { requireManagerAuth } from "./inboundEmail/dispatcherAuth";
-import { asFourDigitPin } from "./pinMatching";
+import { asAccessPin } from "./pinMatching";
 
 interface SetAccessPinRequest {
   targetType?: string;
@@ -99,7 +99,7 @@ export const setAccessPin = onCall(
     const targetType = parseAccessPinTargetType(data.targetType);
     const targetId =
       typeof data.targetId === "string" ? data.targetId.trim() : "";
-    const pin = asFourDigitPin(data.pin);
+    const pin = asAccessPin(data.pin);
     const sessionToken =
       typeof data.sessionToken === "string" ? data.sessionToken.trim() : "";
 

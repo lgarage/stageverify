@@ -96,7 +96,7 @@ async function migrateEntityCollection(
     }
 
     const hasPlaintext =
-      typeof data.pinCode === "string" && /^\d{4}$/.test(data.pinCode);
+      typeof data.pinCode === "string" && /^\d{4,6}$/.test(data.pinCode);
 
     if (hasPlaintext) {
       plaintext += 1;
@@ -125,7 +125,7 @@ async function migrateEntityCollection(
       if (secretSnap.exists) return;
 
       const plainPin =
-        typeof fresh.pinCode === "string" && /^\d{4}$/.test(fresh.pinCode)
+        typeof fresh.pinCode === "string" && /^\d{4,6}$/.test(fresh.pinCode)
           ? fresh.pinCode
           : null;
       const legacyHash =

@@ -4,7 +4,7 @@
  * Covers expand-below-row, single editor, Admin Access on tech/vendor/management,
  * Auth exclusion, reveal / hash-only copy, save toast + revoke + collapse,
  * cancel revoke, row-switch revoke, reveal auto-hide, Light/Dark contrast,
- * and PIN input length (numeric, max 4 — rejects >6 by construction).
+ * and PIN input length (numeric, max 6).
  */
 import { chromium } from "playwright";
 import { existsSync, mkdirSync, readFileSync } from "fs";
@@ -136,22 +136,22 @@ async function assertPinLengthContract(detail) {
   const input = detail.getByTestId("pin-access-new-pin-input");
   await input.waitFor({ timeout: 5_000 });
   const maxLength = await input.getAttribute("maxLength");
-  if (maxLength !== "4") {
-    throw new Error(`PIN input maxLength expected 4, got ${maxLength}`);
+  if (maxLength !== "6") {
+    throw new Error(`PIN input maxLength expected 6, got ${maxLength}`);
   }
   await input.fill("");
   await input.pressSequentially("12ab34567", { delay: 20 });
   const value = await input.inputValue();
-  if (value !== "1234") {
+  if (value !== "123456") {
     throw new Error(
-      `PIN input must keep numeric-only max 4 digits; got "${value}"`,
+      `PIN input must keep numeric-only max 6 digits; got "${value}"`,
     );
   }
   if (value.length > 6) {
     throw new Error("PIN input allowed more than 6 digits — STOP.");
   }
   await input.fill("");
-  console.log("PASS: PIN input numeric-only, maxLength 4 (≤6)");
+  console.log("PASS: PIN input numeric-only, maxLength 6");
 }
 
 async function main() {
@@ -197,14 +197,14 @@ async function main() {
       () => {
         const el = document.querySelector('[data-testid="pin-access-current-pin"]');
         const t = el?.textContent?.trim() || "";
-        return /^\d{4}$/.test(t);
+        return /^\d{4,6}$/.test(t);
       },
       null,
       { timeout: 20_000 },
     );
     const revealed = (await techPin.innerText()).trim();
-    if (!/^\d{4}$/.test(revealed)) {
-      throw new Error("Technician reveal did not show a 4-digit PIN.");
+    if (!/^\d{4,6}$/.test(revealed)) {
+      throw new Error("Technician reveal did not show a 4–6 digit PIN.");
     }
     console.log("PASS: Technician current PIN reveal works");
 
@@ -213,7 +213,7 @@ async function main() {
       () => {
         const el = document.querySelector('[data-testid="pin-access-current-pin"]');
         const t = el?.textContent?.trim() || "";
-        return t.includes("•") || t === "••••" || !/^\d{4}$/.test(t);
+        return t.includes("•") || t === "••••" || !/^\d{4,6}$/.test(t);
       },
       null,
       { timeout: 35_000 },
@@ -249,7 +249,7 @@ async function main() {
       () => {
         const el = document.querySelector('[data-testid="pin-access-current-pin"]');
         const t = el?.textContent?.trim() || "";
-        return /^\d{4}$/.test(t);
+        return /^\d{4,6}$/.test(t);
       },
       null,
       { timeout: 20_000 },
