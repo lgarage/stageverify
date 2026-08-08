@@ -15,6 +15,7 @@ const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const pinHashing_1 = require("./pinHashing");
 const pinMatching_1 = require("./pinMatching");
+const accessPinLookup_1 = require("./accessPinLookup");
 function getDb() {
     return admin.firestore();
 }
@@ -150,6 +151,9 @@ async function loadManagementPinById(pinId) {
  * Legacy dual-read only when managementPins collection is empty.
  */
 async function resolveManagementPinMatch(pin) {
+    const fromSecrets = await (0, accessPinLookup_1.findManagementPinByAccessPinSecrets)(pin);
+    if (fromSecrets)
+        return fromSecrets;
     const all = await listAllManagementPinDocs();
     if (all.length > 0) {
         for (const candidate of all) {
