@@ -291,6 +291,44 @@ try {
   await assertNoElementOverlap(page, VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC);
   record("receive hub contrast/overlap", true);
 
+  const locationLabel = page.getByTestId("vendor-hub-location-label");
+  record(
+    "receive location label shows Location: code",
+    (await locationLabel.textContent())?.match(/Location:\s*\S+/) !== null,
+    (await locationLabel.textContent())?.trim() ?? "",
+  );
+  record(
+    "receive no Assigned location eyebrow",
+    !(await page.getByText("Assigned location").isVisible().catch(() => false)),
+  );
+  record(
+    "receive no Ground Spot label",
+    !(await page.getByText(/Ground Spot/i).isVisible().catch(() => false)),
+  );
+  record(
+    "receive Invoice # row visible",
+    await page.getByText("Invoice #", { exact: true }).isVisible(),
+  );
+  const invoiceRow = page.getByTestId("vendor-hub-invoice");
+  record(
+    "receive Invoice # testid present",
+    await invoiceRow.isVisible(),
+    (await invoiceRow.textContent())?.trim() ?? "",
+  );
+  const metaOrder = await page.evaluate(() => {
+    const labels = Array.from(document.querySelectorAll("span.text-text-secondary.shrink-0"))
+      .map((el) => el.textContent?.trim() ?? "")
+      .filter((t) => ["Order #", "Invoice #", "PO #"].includes(t));
+    return labels;
+  });
+  record(
+    "receive Invoice # above PO # in DOM",
+    metaOrder.indexOf("Invoice #") >= 0 &&
+      metaOrder.indexOf("PO #") >= 0 &&
+      metaOrder.indexOf("Invoice #") < metaOrder.indexOf("PO #"),
+    metaOrder.join(" → "),
+  );
+
   // Items accordion — collapsed by default
   const itemsToggle = page.getByTestId("vendor-hub-items-toggle");
   const itemsList = page.getByTestId("vendor-hub-items-list");
