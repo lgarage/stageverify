@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
 import { findVendorByAccessPinSecrets } from "./accessPinLookup";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 import type { VendorSessionScope } from "./vendorSessionValidation";
@@ -419,6 +420,7 @@ async function verifyLegacyDeliveryPin(
 export const verifyVendorPin = onCall(
   {
     region: "us-central1",
+    secrets: [accessPinEncryptionKey],
     cors: [
       "http://localhost:5173",
       "http://127.0.0.1:5173",

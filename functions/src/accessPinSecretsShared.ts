@@ -14,6 +14,8 @@ export type AccessPinSecretDoc = {
   targetId: string;
   pinHash: string;
   pinEncrypted: PinEncrypted;
+  /** HMAC-SHA256 hex for indexed lookup; unset on hash-only migrated secrets. */
+  pinLookupKey?: string;
   revealable: boolean;
   updatedAt: string;
 };

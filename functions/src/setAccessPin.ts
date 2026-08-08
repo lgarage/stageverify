@@ -4,6 +4,7 @@ import {
   accessPinEncryptionKey,
   decryptPinFromStorage,
   encryptPinForStorage,
+  pinLookupKeyForPin,
 } from "./accessPinCrypto";
 import {
   ACCESS_PIN_SECRETS_COLLECTION,
@@ -61,6 +62,7 @@ export const setAccessPin = onCall(
     const now = new Date().toISOString();
     const pinHash = hashPinForStorage(pin);
     const pinEncrypted = encryptPinForStorage(pin);
+    const pinLookupKey = pinLookupKeyForPin(pin);
 
     await db.runTransaction(async (tx) => {
       const entitySnap = await tx.get(entityRef);
@@ -107,6 +109,7 @@ export const setAccessPin = onCall(
         targetId,
         pinHash,
         pinEncrypted,
+        pinLookupKey,
         revealable: true,
         updatedAt: now,
       });

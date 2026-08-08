@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { createHash, randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
 import { findTechnicianByAccessPinSecrets } from "./accessPinLookup";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 
@@ -156,6 +157,7 @@ async function resolveStagingLocation(
 export const verifyTechnicianPin = onCall(
   {
     region: "us-central1",
+    secrets: [accessPinEncryptionKey],
     cors: [
       "http://localhost:5173",
       "http://127.0.0.1:5173",

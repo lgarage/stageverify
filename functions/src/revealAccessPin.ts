@@ -128,7 +128,6 @@ export const revealAccessPin = onCall(
 
     const attemptKey = `reveal:${targetType}:${targetId}:${uid}`;
     await checkRevealRateLimit(attemptKey);
-    await checkRevealRateLimit("pin:reveal:global");
 
     const db = getDb();
     const entityRef = db.collection(ENTITY_COLLECTION[targetType]).doc(targetId);

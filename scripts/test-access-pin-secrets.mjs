@@ -23,6 +23,7 @@ process.env.ACCESS_PIN_ENCRYPTION_KEY = Buffer.alloc(32, 0x42).toString(
 const {
   encryptPinForStorage,
   decryptPinFromStorage,
+  pinLookupKeyForPin,
 } = require(resolve(root, "functions/lib/accessPinCrypto.js"));
 const { hashPinForStorage } = require(resolve(root, "functions/lib/pinHashing.js"));
 const { pinMatches } = require(resolve(root, "functions/lib/pinMatching.js"));
@@ -64,6 +65,20 @@ try {
   pass("fresh IV per encrypt");
 } catch (err) {
   fail("fresh IV per encrypt", err);
+}
+
+console.log("\n=== pinLookupKeyForPin (indexed verify path) ===\n");
+
+try {
+  const a = pinLookupKeyForPin("1234");
+  const b = pinLookupKeyForPin("1234");
+  const c = pinLookupKeyForPin("5678");
+  assert.equal(a, b, "same PIN must yield same lookup key");
+  assert.notEqual(a, c, "different PINs must yield different lookup keys");
+  assert.match(a, /^[0-9a-f]{64}$/, "lookup key must be hex SHA-256 length");
+  pass("pinLookupKeyForPin deterministic and distinct");
+} catch (err) {
+  fail("pinLookupKeyForPin deterministic and distinct", err);
 }
 
 console.log("\n=== pinHash + pinMatches (verify path) ===\n");

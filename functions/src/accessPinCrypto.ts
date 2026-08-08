@@ -7,7 +7,12 @@
  * Local/emulator tests may set process.env.ACCESS_PIN_ENCRYPTION_KEY when the
  * Functions secret is unavailable (test helper only).
  */
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+} from "crypto";
 import { defineSecret } from "firebase-functions/params";
 
 export const accessPinEncryptionKey = defineSecret("ACCESS_PIN_ENCRYPTION_KEY");
@@ -74,6 +79,12 @@ export function encryptPinForStorage(pin: string): PinEncrypted {
     tag: tag.toString("hex"),
     keyVersion: KEY_VERSION,
   };
+}
+
+/** HMAC-SHA256 hex digest for O(1) Firestore lookup (key = encryption key, message = PIN utf8). */
+export function pinLookupKeyForPin(pin: string): string {
+  const key = resolveAccessPinEncryptionKey();
+  return createHmac("sha256", key).update(pin, "utf8").digest("hex");
 }
 
 export function decryptPinFromStorage(encrypted: PinEncrypted): string {

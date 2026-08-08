@@ -23,6 +23,14 @@
         { "fieldPath": "reviewStatus", "order": "ASCENDING" },
         { "fieldPath": "importStatus", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "accessPinSecrets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetType", "order": "ASCENDING" },
+        { "fieldPath": "pinLookupKey", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

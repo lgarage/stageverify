@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   accessPinEncryptionKey,
   encryptPinForStorage,
+  pinLookupKeyForPin,
 } from "./accessPinCrypto";
 import {
   accessPinSecretDocId,
@@ -128,6 +129,7 @@ async function migrateCollection(
           targetId: doc.id,
           pinHash: hashPinForStorage(plainPin),
           pinEncrypted: encryptPinForStorage(plainPin),
+          pinLookupKey: pinLookupKeyForPin(plainPin),
           revealable: true,
           updatedAt: now,
         });
