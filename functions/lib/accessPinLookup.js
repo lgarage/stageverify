@@ -10,8 +10,14 @@ const pinMatching_1 = require("./pinMatching");
 const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
 const managementPinRegistry_1 = require("./managementPinRegistry");
 Object.defineProperty(exports, "DEFAULT_MANAGEMENT_PIN_ID", { enumerable: true, get: function () { return managementPinRegistry_1.DEFAULT_MANAGEMENT_PIN_ID; } });
-const SECONDARY_PAGE_SIZE = 300;
-const SECONDARY_MAX_BATCHES = 300;
+/**
+ * Public verify paths (verifyTechnicianPin / verifyVendorPin) must not paginate
+ * large hash-only accessPinSecrets populations. Cap secondary scan hard; fail
+ * closed (null) when no unique match within the bound. Large hash-only fleets
+ * require migrate/backfill pinLookupKey (or managers set new PINs with key).
+ */
+const SECONDARY_PAGE_SIZE = 50;
+const SECONDARY_MAX_BATCHES = 2;
 function hasUsablePinLookupKey(secret) {
     return (typeof secret.pinLookupKey === "string" && secret.pinLookupKey.length > 0);
 }

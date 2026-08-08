@@ -12,8 +12,14 @@ import {
   type ManagementPinDoc,
 } from "./managementPinRegistry";
 
-const SECONDARY_PAGE_SIZE = 300;
-const SECONDARY_MAX_BATCHES = 300;
+/**
+ * Public verify paths (verifyTechnicianPin / verifyVendorPin) must not paginate
+ * large hash-only accessPinSecrets populations. Cap secondary scan hard; fail
+ * closed (null) when no unique match within the bound. Large hash-only fleets
+ * require migrate/backfill pinLookupKey (or managers set new PINs with key).
+ */
+const SECONDARY_PAGE_SIZE = 50;
+const SECONDARY_MAX_BATCHES = 2;
 
 function hasUsablePinLookupKey(secret: { pinLookupKey?: string }): boolean {
   return (
