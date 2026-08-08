@@ -160,3 +160,5 @@
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"9d6f71dd-7503-449f-9777-feb6b755da9e","model":"cursor-grok-4.5-high-fast","real":"na","note":"fix-verified missing:ui-readability after Sol DoD 684921be"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-23bb4db8","model":"cursor-grok-4.5-high-fast","real":"na","note":"unified PIN access PR #50 deploy held"}
 {"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-d650975c","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR #50 v0.0.235 LIVE fix-closure"}
+{"date":"2026-08-08","role":"security","verdict":"MEDIUM","taskId":"113b7c18-81c4-55c6-bea2-407163090938","model":"claude-sonnet-5-thinking-high","real":"yes","note":"D-38; mitigations on branch; residual env-key hygiene"}
+{"date":"2026-08-08","role":"ship","verdict":"PASS","taskId":"bc-03e2d36b-1b57-5706-a23a-2bfad290c0ee","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR#56 evidence commit gate-check PASS"}
