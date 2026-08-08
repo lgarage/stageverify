@@ -1,0 +1,1 @@
+import{Li as e}from"./index-Lhu4N8y4.js";function t(t,n){window.confirm(`Are you sure you want to sign out?`)&&e(t).then(()=>{n(`/login`,{replace:!0})})}export{t};
