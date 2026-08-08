@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
 import { hashPinForStorage } from "./pinHashing";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
+import { findManagementPinByAccessPinSecrets } from "./accessPinLookup";
 
 function getDb() {
   return admin.firestore();
@@ -208,6 +209,9 @@ export async function loadManagementPinById(
 export async function resolveManagementPinMatch(
   pin: string,
 ): Promise<ManagementPinDoc | null> {
+  const fromSecrets = await findManagementPinByAccessPinSecrets(pin);
+  if (fromSecrets) return fromSecrets;
+
   const all = await listAllManagementPinDocs();
   if (all.length > 0) {
     for (const candidate of all) {

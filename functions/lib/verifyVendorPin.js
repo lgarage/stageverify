@@ -4,6 +4,8 @@ exports.verifyVendorPin = void 0;
 const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
+const accessPinCrypto_1 = require("./accessPinCrypto");
+const accessPinLookup_1 = require("./accessPinLookup");
 const pinMatching_1 = require("./pinMatching");
 function getDb() {
     return admin.firestore();
@@ -133,6 +135,9 @@ async function findJobByPin(pin) {
     return null;
 }
 async function findVendorByCompanyPin(pin) {
+    const fromSecrets = await (0, accessPinLookup_1.findVendorByAccessPinSecrets)(pin);
+    if (fromSecrets)
+        return fromSecrets;
     const db = getDb();
     const pinCodeSnap = await db
         .collection("vendors")
@@ -302,6 +307,7 @@ async function verifyLegacyDeliveryPin(deliveryId, pin) {
 }
 exports.verifyVendorPin = (0, https_1.onCall)({
     region: "us-central1",
+    secrets: [accessPinCrypto_1.accessPinEncryptionKey],
     cors: [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

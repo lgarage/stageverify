@@ -473,6 +473,105 @@ export interface VerifyManagementPinResult {
   permissions?: Required<ManagementPinPermissions>;
 }
 
+/** Row-scoped admin access — technician, vendor, or management PIN target. */
+export type AccessPinTargetType = "technician" | "vendor" | "management";
+
+export interface StartAdminAccessSessionInput {
+  targetType: AccessPinTargetType;
+  targetId: string;
+}
+
+export interface StartAdminAccessSessionResult {
+  sessionToken: string;
+  expiresAt: string;
+}
+
+export interface RevokeAdminAccessSessionInput {
+  sessionToken: string;
+  targetType?: AccessPinTargetType;
+  targetId?: string;
+}
+
+export interface RevokeAdminAccessSessionResult {
+  success: boolean;
+  revoked: boolean;
+}
+
+export interface RevealAccessPinInput {
+  targetType: AccessPinTargetType;
+  targetId: string;
+  sessionToken: string;
+}
+
+export interface RevealAccessPinResult {
+  pin: string;
+  revealedForMs: number;
+}
+
+export interface SetAccessPinInput {
+  targetType: AccessPinTargetType;
+  targetId: string;
+  pin: string;
+  sessionToken?: string;
+}
+
+export interface SetAccessPinResult {
+  success: boolean;
+  targetType: AccessPinTargetType;
+  targetId: string;
+  pinConfigured: boolean;
+}
+
+export type PinAccessAuditAction =
+  | "admin_access_granted"
+  | "admin_access_revoked"
+  | "admin_access_denied"
+  | "pin_revealed"
+  | "pin_reveal_denied"
+  | "pin_changed"
+  | "pin_change_denied";
+
+export interface PinAccessAuditEntry {
+  id: string;
+  action: PinAccessAuditAction;
+  targetType: AccessPinTargetType;
+  targetId: string;
+  actorUid: string;
+  createdAt: string;
+}
+
+export interface ListPinAccessAuditResult {
+  entries: PinAccessAuditEntry[];
+  nextStartAfterCreatedAt: string | null;
+  hasMore: boolean;
+}
+
+export interface MigrateAccessPinsInput {
+  dryRun?: boolean;
+  limit?: number;
+}
+
+export interface MigrateAccessPinsByTypeStats {
+  scanned: number;
+  migrated: number;
+  skippedAlreadyMigrated: number;
+  skippedCollision: number;
+  hashOnly: number;
+  plaintext: number;
+}
+
+export interface MigrateAccessPinsResult {
+  dryRun: boolean;
+  limit: number;
+  scanned: number;
+  migrated: number;
+  skippedAlreadyMigrated: number;
+  skippedCollision: number;
+  hashOnly: number;
+  plaintext: number;
+  byType: Record<AccessPinTargetType, MigrateAccessPinsByTypeStats>;
+}
+
 export interface ManagementWaitingDeliverySummary {
   deliveryId: string;
   orderNumber: string;

@@ -82,6 +82,12 @@ import { setManagementPin } from "./setManagementPin";
 import { listManagementPins } from "./listManagementPins";
 import { upsertManagementPin } from "./upsertManagementPin";
 import { deactivateManagementPin } from "./deactivateManagementPin";
+import { startAdminAccessSession } from "./startAdminAccessSession";
+import { revokeAdminAccessSession } from "./revokeAdminAccessSession";
+import { revealAccessPin } from "./revealAccessPin";
+import { setAccessPin } from "./setAccessPin";
+import { migrateAccessPins } from "./migrateAccessPins";
+import { listPinAccessAudit } from "./listPinAccessAudit";
 import {
   listDispatchers,
   provisionDispatcher,
@@ -241,6 +247,12 @@ export {
   listManagementPins,
   upsertManagementPin,
   deactivateManagementPin,
+  startAdminAccessSession,
+  revokeAdminAccessSession,
+  revealAccessPin,
+  setAccessPin,
+  migrateAccessPins,
+  listPinAccessAudit,
   listDispatchers,
   provisionDispatcher,
   deactivateDispatcher,
