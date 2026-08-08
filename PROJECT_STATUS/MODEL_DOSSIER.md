@@ -17,7 +17,7 @@
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
 | `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
-| `billing` | model / tier pick | Composer 2.5 default; Sonnet 5 for gate/review only (D-38) |
+| `billing` | model / tier pick | UI-class → Sol Medium preferred (D-63); non-UI Composer; Sonnet 5 gate/review only (D-38) |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
@@ -27,7 +27,8 @@
 | `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
 | `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
 | `build-checker` | pre-commit check that Composer’s uncommitted diff matches agreed solution | **§ Build Checker — Grok 4.5 Fast** (tier 1g) — SSOT in `model-gates.mdc` § Solution deliberation Phase 3 / D-43; PASS before `git commit` |
-| `ui-playwright-verifier` | visible UI edit in `src/` — Playwright route verify + D-42 judgment before commit | **§ UI Playwright Verifier — Grok 4.5 Fast** (tier 1h) — SSOT in `model-gates.mdc` § UI Playwright Verifier / D-45; PASS before `git commit` on UI ships |
+| `ui-playwright-verifier` | visible UI edit in `src/` — Playwright route verify + D-42 judgment before commit | **§ UI Playwright Verifier — Grok 4.5 Fast** (tier 1h) — SSOT in `model-gates.mdc` § UI Playwright Verifier / D-45; D-63 readability + Grok independent pass; PASS before `git commit` on UI ships |
+| `ui-ux-routing` | UI-class implementer pick, Sol fallbacks, readability evidence | **D-63** — Sol Medium preferred (`gpt-5.6-sol-medium`); Task escalate High; Grok verifier; SSOT `PROJECT_STATUS/ui-model-routing.json` |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -41,8 +42,9 @@
 - Occupancy map: `mapActiveZoneOccupancyByCode`.
 
 ## § billing
-- Composer 2.5 = orchestrator + default worker (included quota).
-- Sonnet 5 (`claude-sonnet-5-thinking-high`) = security gate + authority review only (on-demand cost).
+- **UI-class** (`ui-component`, `css-restyle`, presentation-only visible UI): **Sol Medium** preferred `gpt-5.6-sol-medium` (D-63; Task escalate `gpt-5.6-sol-high`; `ui-model-routing.json`); Grok verifies (D-45 + readability).
+- **Non-UI:** Composer 2.5 = orchestrator + default worker (included quota).
+- Sonnet 5 (`claude-sonnet-5-thinking-high`) = security gate + authority review only (on-demand cost; D-38/D-60 unchanged).
 - **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules.
 
 ## § backend-critical

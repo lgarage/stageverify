@@ -13,10 +13,25 @@ alwaysApply: true
 
 | Tier | Archetypes | Model |
 |------|-----------|-------|
-| T0 | `ui-component`, `css-restyle`, `docs-update`, scout/inventory | **Composer 2.5 Fast** (inline) |
-| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) |
+| T0 UI | `ui-component`, `css-restyle` | **GPT-5.6 Sol Medium** preferred (`gpt-5.6-sol-medium`; Task escalate `gpt-5.6-sol-high` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)` — see § UI/UX model routing D-63) |
+| T0 non-UI | `docs-update`, scout/inventory | **Composer 2.5 Fast** (inline) |
+| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) — **presentation-only UI slices** of multi-file UI work → Sol per D-63 |
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — Sonnet security gate before push |
+
+## UI/UX model routing (D-63)
+
+**SSOT:** `PROJECT_STATUS/ui-model-routing.json` — primary, verifier, fallbacks, uiArchetypes, evidence lines.
+
+- **UI-class implementer:** **Sol Medium** preferred `gpt-5.6-sol-medium` (canonical Cloud slug; exists). **Task({model}) subagent allowlist currently rejects Medium** — automated Task dispatch escalates to `gpt-5.6-sol-high` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`. **Parent session already Sol Medium → implement UI inline as Medium.**
+- **Approved Sol fallbacks (order):** `gpt-5.6-sol-high` (Task escalate) → `gpt-5.6-sol-high-fast` → `gpt-5.6-sol-xhigh` → `gpt-5.6-sol-xhigh-fast`.
+- **All Sol slugs platform-rejected → STOP** — report NOT RUN; never silent Composer UI implement without `fallback-from:` or Dan override.
+- **UI verifier:** Grok `cursor-grok-4.5-high-fast` (D-45 + D-63 readability challenges) — unchanged readonly role.
+- **Ship lock:** Sol implements UI; **Composer/orchestrator** still commits/pushes/deploys; Grok never ships.
+- **After D-50 stuck ship on UI class:** resume **Sol** (UI-class default), not blanket Composer — D-50 Grok stuck carve-out unchanged for that stuck scope only.
+- **Non-UI** (`docs-update`, scout, service-logic, backend-write-critical, non-UI multi-file): **Composer 2.5 Fast** unchanged.
+- **Sonnet gates unchanged:** D-38 security gate + D-60 high-risk instruct/verify — no Sol substitution.
+- **Evidence (UI ships):** `ui-implementer:` + `ui-readability: PASS` (Sol) + `ui-playwright-verifier: PASS` (Grok) — see `dispatcher-light-panel-contrast.mdc` § Readability DoD.
 
 ## Trust over cost (D-34 — Dan 2026-07-12, authoritative purpose statement)
 
@@ -42,7 +57,7 @@ Mechanical evidence gate identical across clients — CI gate-check on PRs; loca
 
 ## 2-fail + 3-fail stuck ladder (Dan 2026-07-03; D-19 stall; D-50 third-fail Agree + Grok implement; **D-55** third try = D-50)
 
-**Default implementer:** **Composer** updates code, runs verify, and completes the ship loop (D-43). **Exception:** after **D-50 stuck-task Agree** on the **3rd try** on the same task scope (see **D-55**), **Grok implements** that stuck scope only until that ship closes — then **Composer resumes** as default implementer.
+**Default implementer:** **Composer** for non-UI work; **Sol Medium** preferred (`gpt-5.6-sol-medium`; Task escalate High per above) for UI-class per D-63 — runs verify where applicable; **Composer/orchestrator** completes the ship loop (D-43). **Exception:** after **D-50 stuck-task Agree** on the **3rd try** on the same task scope (see **D-55**), **Grok implements** that stuck scope only until that ship closes — then **Sol resumes** for UI-class; **Composer** for non-UI.
 
 **D-55 (hard rule — Dan 2026-07-25):** After **2 consecutive fails** on the **same task/ship scope** (session or continued thread), the **next attempt (3rd try) is automatic D-50** — **not** another Composer-only implement+verify retry, **not** a 3rd Ship Verifier retrospective close, **not** another build/Playwright/verify-fix loop without **D-50 Phase A Agree** first. **Fail type and fingerprint do not exempt the 3rd try** from D-50 (fingerprint still governs **2nd-fail** handling only — stall-advisor vs Sonnet diagnose — below).
 
@@ -65,7 +80,7 @@ Two consecutive fails on the same task scope share a fingerprint when the **norm
 | `verify:*` / `scripts/verify-*.mjs` | script name (or npm script) + first failed assertion or error message (whitespace-normalized; strip timestamps/paths that drift per run) |
 | `npm run build` / `tsc` | error code + file + line (e.g. `TS2322:src/foo.ts:42`) |
 | Playwright / runtime | test or step name + error class + stable message substring (first 120 chars, normalized) |
-| Ship Verifier (Grok post-push) | `ship-verifier` + finding class — for mandatory **evidence gaps** use `ship-verifier + missing:<token>` where `<token>` is one of `ui-playwright`, `build-checker`, `ui-before-after`, `security-gate`, `solution-verifier` (include all missing tokens, **sorted**); optional suffix `+commits:<short-range>` when the same ship scope spans multiple pushes in one conversation; whitespace-normalized; strip drifting paths/timestamps/task-ids from the key |
+| Ship Verifier (Grok post-push) | `ship-verifier` + finding class — for mandatory **evidence gaps** use `ship-verifier + missing:<token>` where `<token>` is one of `ui-readability`, `ui-playwright`, `build-checker`, `ui-before-after`, `security-gate`, `solution-verifier` (include all missing tokens, **sorted**); optional suffix `+commits:<short-range>` when the same ship scope spans multiple pushes in one conversation; whitespace-normalized; strip drifting paths/timestamps/task-ids from the key |
 
 **Different fingerprint** on 2nd fail → skip Grok stall-advisor; **Sonnet diagnose-only** on 2nd fail (implement+verify path) — **2nd fail always counts** toward D-55. Ship Verifier: **2nd same fingerprint** → mandatory stall-advisor (**D-54**); **2nd different fingerprint** still counts as the 2nd consecutive fail; **3rd try** on scope = **D-50** regardless of fingerprint (**D-55**).
 
@@ -73,7 +88,7 @@ Two consecutive fails on the same task scope share a fingerprint when the **norm
 
 1. **1st fail** → Composer retry (+ optional self-trace per `MODEL_DOSSIER.md` tag `composer-trace`) — this is **attempt 2**.
 2. **2nd consecutive fail** on same scope → **2nd-fail lane only** (counts toward D-55): **same fingerprint** → **Grok stall-advisor** (mandatory); **different fingerprint** → **Sonnet 5** diagnose-only. **Do not** start another ordinary Composer implement+verify / Ship Verifier close / verify-fix as the “3rd try.”
-3. **3rd try (automatic D-55 + D-50)** → **D-50 stuck-task escalation** (§ below) — **mandatory** after two consecutive fails: **Grok ↔ Sonnet 5** peer deliberation until **Agree** on root cause + exact fix plan (Solution-style Agree + D-30/D-33; incorporate stall-advisor / Sonnet diagnose output); if scope touches CF/rules/auth, Sonnet uses **diagnose/Agree** role (security gate slug per `security-review-gate.mdc` when high-risk — separate mandatory gate before push unchanged) → **Grok implements** agreed fix for that scope only → normal D-43 verify ladder (UI Playwright / Build Checker when triggered; **Composer only** commit + push + deploy; Ship Verifier; Sonnet security gate before push if high-risk) → **Composer resumes** default implementer for the next task.
+3. **3rd try (automatic D-55 + D-50)** → **D-50 stuck-task escalation** (§ below) — **mandatory** after two consecutive fails: **Grok ↔ Sonnet 5** peer deliberation until **Agree** on root cause + exact fix plan (Solution-style Agree + D-30/D-33; incorporate stall-advisor / Sonnet diagnose output); if scope touches CF/rules/auth, Sonnet uses **diagnose/Agree** role (security gate slug per `security-review-gate.mdc` when high-risk — separate mandatory gate before push unchanged) → **Grok implements** agreed fix for that scope only → normal D-43 verify ladder (UI Playwright / Build Checker when triggered; **Composer/orchestrator only** commit + push + deploy; Ship Verifier; Sonnet security gate before push if high-risk) → **Sol (UI-class) / Composer (non-UI) resumes** default implementer for the next task.
 4. **Sonnet diagnose-only without two prior consecutive fails** — when **only one** fail so far and ANY of: `confStart < 70`; Dan says "still broken" without new hypothesis (after 1st-fail self-trace); architecture unclear after one Composer pass. Composer implements after Sonnet returns — **not** a substitute for step 3 when two consecutive fails already occurred (**D-55** blocks ordinary attempt 3).
 
 Other Sonnet triggers: security verifier before push; architecture unclear after synthesis. **Not** for scouts or routine T0/T1/T2 before 1st fail + retry. Opus 4.6 = locked fallback only if Sonnet security gate returns HIGH Composer cannot resolve.
@@ -86,7 +101,7 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 **Phase B — Implement (Grok carve-out):** **Grok** (Task `generalPurpose`, `cursor-grok-4.5-high-fast` or orchestrating Grok parent **only for this stuck scope**) writes product code per agreed plan — **overrides D-43/D-37 Composer-only implementer lock for this stuck task only**. Grok **still never** commits, pushes, or deploys (ship lock unchanged). **Evidence:** `stuck-implementer: grok (<task-id or inline session>)`.
 
-**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff: UI Playwright Verifier when visible UI; Build Checker before commit; **Composer** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Composer** is default implementer again for all new work (D-43 lock restored).
+**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff: UI Playwright Verifier when visible UI; Build Checker before commit; **Composer/orchestrator** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Sol (UI-class) / Composer (non-UI)** is default implementer again for new work (D-43 lock restored).
 
 **D-62 — Post-D-50 retry rounds (Dan 2026-08-05):** If after a completed **D-50 Phase A Agree → Phase B Grok implement** the **same task/ship scope** still fails under the same counted-fail classes as D-50 (implement+verify / build / Playwright / Ship Verifier — security-gate runs excluded), do **not** resume Composer-only implement+verify and do **not** open unbounded retries. Allow at most **2 additional retry rounds**, each = full **Phase A** (Grok↔Sonnet peer Agree on revised root cause + exact fix plan; Max 3 Agree peer iterations per round unchanged) → **Phase B** (Grok implements; still never commits/pushes/deploys) → Phase C ladder. **Grok remains stuck-scope implementer** across D-50 + D-62 rounds until ship closes or Dan escalate. Evidence each round: `stuck-task-agree: … (d62-round N/2)` + `stuck-implementer: grok …`. After **2** D-62 rounds still failing → **STOP** — escalate to Dan with clarifying questions (what's still broken, acceptance, scope); no 3rd D-62 round, no Composer spin. Amends D-50/D-55. Platform parity D-32.
 
@@ -273,9 +288,9 @@ Task({
 
 ### Solution deliberation (D-36 — Dan 2026-07-13; standing default D-43)
 
-**Standing default (D-43, amended 2026-07-23):** For substantive work / real feature code: Composer proposes → Grok Solution Verifier agrees → **Composer only** implements → Grok **UI Playwright Verifier** PASS (visible UI only, D-45) → Grok **Build Checker** PASSes on the **uncommitted** diff **before commit** → **Composer only** commit + push + deploy → Grok Ship Verifier post-push. Grok **never** commits, pushes, or deploys. See `.cursor/rules/composer-grok-collab.mdc`.
+**Standing default (D-43, amended 2026-07-23; D-63 Sol UI):** For substantive work / real feature code: Composer proposes → Grok Solution Verifier agrees → **UI-class → Sol Medium preferred** (`gpt-5.6-sol-medium`; Task escalate High when dispatching Task; D-63) **implements** · **non-UI → Composer** implements → Grok **UI Playwright Verifier** PASS (visible UI only, D-45) → Grok **Build Checker** PASSes on the **uncommitted** diff **before commit** → **Composer/orchestrator only** commit + push + deploy → Grok Ship Verifier post-push. Grok **never** commits, pushes, or deploys. See `.cursor/rules/composer-grok-collab.mdc`.
 
-**Implementer lock:** Non-Composer parents MUST `Task` Composer (`model: "composer-2.5-fast"`) for product/code implementation — never inline edits and never `resume: "self"` for a build (D-37 / D-43). Composer parents may implement inline after Agree. **D-50 carve-out:** after **two consecutive fails** on the same task scope, **3rd try = D-55 → D-50 Agree**, then **Grok implements** that scope only until that ship closes — then Composer (or Task Composer) resumes (see § 3-fail stuck-task escalation).
+**Implementer lock:** Non-Composer/non-Sol parents MUST dispatch **Sol** (`model: "gpt-5.6-sol-high"` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`) for **UI-class** product implementation or **Composer** (`model: "composer-2.5-fast"`) for **non-UI** — never inline edits and never `resume: "self"` for a build (D-37 / D-43 / D-63). Composer or **Sol Medium parent** may implement **UI-class inline as Medium** after Agree; **non-UI** inline after Agree when parent is Composer. **UI-class Task dispatch** uses High slug with fallback-from when parent is not already Sol Medium. **D-50 carve-out:** after **two consecutive fails** on the same task scope, **3rd try = D-55 → D-50 Agree**, then **Grok implements** that scope only until that ship closes — then **Sol** (UI-class) or **Composer** (non-UI) resumes (see § 3-fail stuck-task escalation).
 
 **Pre-edit ordering (D-48):** When this section's Solution Verifier runs (not N/A), **PASS** must precede the **first repo write** in scope (any path — product, docs, rules, PROJECT_STATUS; no docs-first Agree dodge) — same moment as conf ≥ 97% (D-47). Evidence `solution-verifier: <task-id>` (or valid N/A) in-session **before** edits; implement-first then Agree = **NOT RUN**; do not ship as done. Subagents either Agree before editing or return to the parent **without product/code edits**.
 
@@ -284,10 +299,10 @@ Task({
 **Flow (one ladder — phases 1–4 plus 2b for UI):**
 
 1. **Agree (pre-edit):** Composer drafts a brief **solution proposal** (approach, files to touch, risks, alternative considered) → dispatches one read-only Grok **Solution Verifier** → peer deliberation per § Peer deliberation (D-30) / § Question deliberation (D-33) mechanics (adopt/rebut/explicit accept-reject) → **implement only the AGREED solution**. **Max 2 cycles**; still unresolved → **stop and present BOTH positions to Dan** (per § Peer deliberation — never implement through unresolved disagreement); architectural disagreement → escalate per the ladder (Sonnet/Fable).
-2. **Implement:** **Composer only** ( **Grok only** after D-50 stuck-task Agree — same scope until ship closes ) — code, build. Composer may run `verify:*` locally to iterate; **Composer never self-closes UI Playwright findings** (D-45); during D-50 stuck ship Grok owns implement + UI Playwright fix cycles per agreed plan.
-2b. **UI Playwright check (UI Playwright Verifier — D-45):** When diff includes visible UI in `src/`, dispatch one Grok Task that **runs or re-runs** the affected route `verify:*` (Playwright + D-42 `assertReadableTextContrast` / layout overlap asserts). **PASS required before commit.** FAIL → Grok returns **file:line fix list** (exact change, why) → Composer fixes only → **same Grok** re-verifies (max 3 cycles) per § Fix-closure. Orthogonal to Build Checker (Playwright judgment vs diff-vs-scope). Skip when no visible UI → `ui-playwright-verifier: N/A (no visible UI)`.
+2. **Implement:** **UI-class → Sol Medium preferred** (`gpt-5.6-sol-medium`; inline when parent is Medium; Task escalate High; D-63) · **non-UI → Composer** ( **Grok only** after D-50 stuck-task Agree — same scope until ship closes ) — code, build. Orchestrator may run `verify:*` locally to iterate; **Sol/Composer never self-closes UI Playwright findings** (D-45); during D-50 stuck ship Grok owns implement + UI Playwright fix cycles per agreed plan.
+2b. **UI Playwright check (UI Playwright Verifier — D-45):** When diff includes visible UI in `src/`, dispatch one Grok Task that **runs or re-runs** the affected route `verify:*` (Playwright + D-42 `assertReadableTextContrast` / layout overlap asserts). **PASS required before commit.** FAIL → Grok returns **file:line fix list** (exact change, why) → **Sol fixes** (UI-class) · **Composer fixes** (non-UI) → **same Grok** re-verifies (max 3 cycles) per § Fix-closure. Orthogonal to Build Checker (Playwright judgment vs diff-vs-scope). Skip when no visible UI → `ui-playwright-verifier: N/A (no visible UI)`.
 3. **Pre-commit check (Build Checker):** Before `git commit`, Composer dispatches one read-only Grok Task on the **uncommitted** diff vs agreed solution + scope. **PASS required to commit.** FAIL → Composer fixes → same Grok re-checks (max 2 cycles) per § Fix-closure; still FAIL → Dan. Missing `build-checker:` when triggered = **NOT RUN** — do not commit.
-4. **Ship + verify:** After Build Checker PASS, **Composer only** runs commit + push + deploy per `ship-loop.mdc` (Grok never ships); then Grok **Ship Verifier** post-push (prompt includes agreed-solution summary; verifies execution matched agreement); Repair Verifier on Dan repair intent. Ship Verifier must flag any `solution-verifier: N/A (T0 single-file unambiguous)` claim whose final diff is multi-file or clearly branching (post-hoc falsifiable skip — a dodge is a FAIL finding).
+4. **Ship + verify:** After Build Checker PASS, **Composer/orchestrator only** runs commit + push + deploy per `ship-loop.mdc` (Grok never ships); then Grok **Ship Verifier** post-push (prompt includes agreed-solution summary; verifies execution matched agreement); Repair Verifier on Dan repair intent. Ship Verifier must flag any `solution-verifier: N/A (T0 single-file unambiguous)` claim whose final diff is multi-file or clearly branching (post-hoc falsifiable skip — a dodge is a FAIL finding).
 
 **Skips** (`solution-verifier: N/A (<reason>)` — trust judgments, no double-dispatch):
 
@@ -330,7 +345,18 @@ Task({
 
 **Trigger:** any ship-cycle diff with **visible UI** edits in `src/` (layout, copy, colors, components users see) — same surface class as D-42. **Prerequisite:** D-51 before/after compare PASS (or N/A). Extends D-42: mechanical Playwright is necessary but **not sufficient**; Grok owns PASS/FAIL judgment and fix instructions.
 
-**Flow:** Composer implements + build → Grok **UI Playwright Verifier** runs (or re-runs) the affected route `verify:*` script(s) including D-42 contrast and layout overlap asserts where applicable → PASS → proceed to Build Checker → commit. FAIL → Grok returns **specific fix list** (`file:line`, exact change, why) → **Composer only** fixes → **same Grok** re-runs verify until PASS (max 3 cycles) per § Fix-closure. Composer never self-closes UI Playwright findings.
+**Flow:** Sol (or Composer on non-UI) implements + build → Sol completes D-63 readability DoD (`ui-readability: PASS`) → Grok **UI Playwright Verifier** runs (or re-runs) the affected route `verify:*` script(s) including D-42 contrast and layout overlap asserts where applicable → PASS → proceed to Build Checker → commit. FAIL → Grok returns **specific fix list** (`file:line`, exact change, why) → **Sol** (UI-class) or **Composer** (non-UI) fixes → **same Grok** re-runs verify until PASS (max 3 cycles) per § Fix-closure. Sol/Composer never self-closes UI Playwright findings.
+
+**Grok independent readability challenges (D-63 — mandatory on UI ships):**
+
+- Hierarchy: operational values vs labels vs secondary vs disabled — any real data mistaken for disabled?
+- Buttons/nav/tabs/CTAs: contrast on normal/hover/selected/active/focus/disabled; no dark text on saturated backgrounds?
+- Status chips: Ready/Partial/Pending/Picked Up/Shipped/Blocked/Rejected/credit-return/will-call/open-issue — obvious at a glance?
+- Theme parity: both Light and Dark verified when theme/shared tokens touched?
+- Mechanical D-42 asserts ran; overlap asserts where header/toolbar collisions plausible?
+- Rubber-stamp without running verify scripts = FAIL.
+
+**Fix-closure target:** UI-class fixes go to **Sol** (not Composer-only) unless Dan override or non-UI scope; high-risk D-60 Sonnet verify owns Playwright there.
 
 **Distinct from Build Checker (1g):** UI Playwright = **did Playwright prove the UI is correct?** Build Checker = **does uncommitted diff match agreed solution + scope?** Distinct from Ship Verifier (post-push scope). Distinct from Repair Verifier unless Dan repair intent on UI.
 
@@ -361,7 +387,7 @@ Task({
 **Loop bounds (D-54 + D-55 — consecutive FAILs on same task/ship scope):**
 
 1. **1st FAIL** → exact fix list → Composer completes missing D-43/D-51 lanes and/or scope fixes → same Grok **Ship Verifier** re-verify per § Fix-closure (include `fix-verified:` when findings closed) — counts as **attempt 2** toward implement+verify if product/verify work was required.
-2. **2nd consecutive FAIL** on scope → **2nd-fail lane:** **same normalized fingerprint** (especially repeated `missing:ui-playwright|build-checker|ui-before-after|…`) → **mandatory Grok stall-advisor** (§ Grok stall-advisor) — evidence `stall-advisor:`; **different fingerprint** still **counts** as the 2nd fail (**D-55**). **Do not** treat a 3rd retrospective Ship Verifier close or Composer-only evidence fix as the “3rd try” without D-50.
+2. **2nd consecutive FAIL** on scope → **2nd-fail lane:** **same normalized fingerprint** (especially repeated `missing:ui-readability|ui-playwright|build-checker|ui-before-after|…`) → **mandatory Grok stall-advisor** (§ Grok stall-advisor) — evidence `stall-advisor:`; **different fingerprint** still **counts** as the 2nd fail (**D-55**). **Do not** treat a 3rd retrospective Ship Verifier close or Composer-only evidence fix as the “3rd try” without D-50.
 3. **3rd try (automatic D-55 + D-50)** → after **two consecutive FAILs** on scope, **mandatory D-50 stuck-task Agree** (§ 3-fail) — **fingerprint match not required**; **do not** start a 4th close loop without Agree + agreed plan (acceptance includes valid mandatory evidence lines on the next ship).
 4. After D-50 Phase C, Ship Verifier must PASS before scope is done.
 
@@ -389,4 +415,4 @@ Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security revie
 
 Dispatch exactly ONE read-only Task (`model: "claude-fable-5-thinking-high"`) ONLY when: (1) a phase of a Fable-authored product/architecture spec with semantic drift tripwires completes — before phase N+1 (spec's own gate note, e.g. `docs/location-first-transition-spec.md`, is authoritative); (2) the Ship Verifier escalates ambiguity/architecture concerns; (3) Dan says "fable verify" / "fable check". NOT per-ship (Ship Verifier owns that), NOT for mechanical checklist phases, away batches, routine T2+, or red-gate diagnosis (Sonnet 2-fail owns that). Fix loop: § Fix-closure rule (1 cycle, then Dan). Spec-phase completion reports MUST include a `work-verifier:` line — Task id, or `NOT RUN — phase N+1 blocked until it runs`. Full spec: `MODEL_DOSSIER.md` tag `work-verifier`.
 
-**Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. **Composer 2.5** is default implementer (**D-50:** Grok implements stuck scope after Agree); Fable verifies Composer's work (and stuck-ship outcomes). When Fable finds issues: Composer fixes, Fable re-verifies per § Fix-closure; affected work ships only after Fable confirms correct.
+**Verify-only (Dan 2026-07-09):** Fable never edits files, commits, or runs the ship loop — same standing as Sonnet diagnose-only. **Sol (UI-class) / Composer 2.5 (non-UI)** is default implementer (**D-50:** Grok implements stuck scope after Agree); Fable verifies implementer work (and stuck-ship outcomes). When Fable finds issues: Sol (UI-class) or Composer (non-UI) fixes, Fable re-verifies per § Fix-closure; affected work ships only after Fable confirms correct.

@@ -1,5 +1,5 @@
 ---
-description: Readable text on visible UI — Playwright contrast required (D-42)
+description: Readable text on visible UI — Playwright contrast + D-63 readability DoD (D-42)
 alwaysApply: true
 ---
 
@@ -10,3 +10,64 @@ Global `body` uses light text (`#f8fafc`) for dark mobile surfaces. **Any visibl
 **Light dispatcher panels** (`SettingsPage`, portal main, white cards): set explicit dark text (`#333`, `#6b7280` muted, `NAVY` headings); inputs need `color` + `backgroundColor: "#fff"`. **Why white-on-white repeats:** new panels copy sidebar/NAVY constants without per-element colors on light canvases.
 
 **Concrete check:** Settings Technicians → `npm run verify:settings-technicians` (+ `:prod` after deploy). Other UI ships: extend/create `scripts/verify-*.mjs` calling the same helper on affected selectors. See `composer-orchestrator.mdc` § UI Verification Protocol.
+
+## Readability definition-of-done (D-63)
+
+UI-class work (`PROJECT_STATUS/ui-model-routing.json`) requires **Sol Medium preferred** (`gpt-5.6-sol-medium`; inline when parent is Medium; Task escalate `gpt-5.6-sol-high` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`) to complete this DoD before Grok handoff; **Grok** independently challenges on D-45. Missing either evidence line = **NOT RUN** — not SAFE TO MERGE/SHIP.
+
+### 1. Operational information hierarchy
+
+- **Dark theme:** operational values white or near-white; labels light gray; secondary text muted but still readable; dim styling **only** for disabled controls — never make real data look disabled.
+- **Light theme:** explicit dark text on light canvases (`#333`, `#6b7280` muted, `NAVY` headings); inputs need `color` + `backgroundColor: "#fff"`.
+
+### 2. Button and nav contrast audit
+
+Audit every interactive control touched or adjacent to the change — including **primary buttons**, **danger buttons**, **orange buttons**, **blue/navy buttons**, **selected sidebar items**, **active navigation**, **chips that act as controls**, **modal buttons**, **drawer buttons**, **filters**, plus tabs and other CTAs:
+
+- **Do not use black/dark text on strong/saturated backgrounds** (red, navy, orange fills) when white or near-white is more readable — verify contrast, not habit.
+- **States:** normal, hover, selected, active, focus, disabled — each readable and distinguishable.
+
+### 3. Status chips readable at a glance
+
+Examples to verify when present: **Pending Delivery**, **Pending review**, **Blocked**, **Credit/return**, **Will-Call / Pickup**, **Staged — Ready for Pickup**, **Issue**, **Picked Up**, **Backordered**, **Approved**, **Rejected**, plus **Ready**, **Partial**, and **Shipped** when shown — label + background must be obvious without squinting; never white-on-white or navy-on-navy.
+
+### 4. Light + dark both visually verified
+
+When theme tokens, appearance, or shared shell CSS change: verify **both** Light and Dark (or document N/A if change is theme-agnostic single-surface with no shared token impact).
+
+### 5. WCAG AA floor + comfort reject
+
+- Normal text ≥ **4.5:1**; large text/UI components ≥ **3:1** (mechanical asserts via `ui-text-contrast-lib.mjs`).
+- Reject **barely-pass uncomfortable** pairs even when math passes — if Dan would squint, fix it.
+
+### 6. Sol visual sweep questions (before Grok)
+
+Sol must answer **no** to all before handoff:
+
+- Is anything hard to read at normal viewing distance?
+- Is important operational text too dim or low-contrast?
+- Is dark text sitting on a strong/saturated background?
+- Does active/selected UI look disabled?
+- Are statuses obvious at a glance?
+- Are hover/selected/focus states readable?
+
+### 7. Grok independent pass challenges (D-45)
+
+Grok **UI Playwright Verifier** must independently challenge (not rubber-stamp Sol):
+
+- Hierarchy: values vs labels vs secondary vs disabled — any real data mistaken for disabled?
+- Buttons/nav/tabs: contrast on all states including hover/selected on navy/red fills?
+- Status chips: list affected chips — readable without context?
+- Theme parity: if dark changed, was light checked (and vice versa)?
+- Mechanical D-42 asserts ran on affected selectors; layout overlap where header/toolbar collisions are plausible.
+- Any "fixed" claim without both themes when theme work = FAIL.
+
+### 8. Evidence before SAFE TO MERGE/SHIP
+
+| Line | Owner | When |
+|------|-------|------|
+| `ui-implementer:` | Sol (or orchestrator dispatch) | UI implement phase — slug `gpt-5.6-sol-medium` (inline) or `gpt-5.6-sol-high` + `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)` when Task dispatch |
+| `ui-readability:` | Sol | **PASS** after §1–6 sweep — before Grok D-45 |
+| `ui-playwright-verifier:` | Grok | **PASS** after independent §7 — before commit |
+
+Missing any required line when trigger fired = **NOT RUN**. Ship lock unchanged: **Composer/orchestrator** commits/pushes/deploys; Sol returns diff when dispatched via Task.
