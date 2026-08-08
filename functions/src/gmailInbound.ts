@@ -1,6 +1,6 @@
 /**
- * Gmail inbound fetch helpers — read-only sync for invoice PDF ingestion.
- * Server-side only; never log tokens or attachment bytes.
+ * Gmail inbound helpers — fetch attachments + archive (remove INBOX) after persist.
+ * Server-side only; never log tokens or attachment bytes. Never trash/delete messages.
  */
 import {
   gmailClientId,
@@ -219,6 +219,33 @@ export async function downloadGmailAttachment(
   }
   const normalized = data.data.replace(/-/g, "+").replace(/_/g, "/");
   return Buffer.from(normalized, "base64");
+}
+
+/**
+ * Archive = remove INBOX label only. Never trash/delete.
+ * Soft-fail policy belongs at the call site (ingest must not roll back).
+ */
+export async function archiveGmailMessageRemoveInbox(
+  accessToken: string,
+  messageId: string,
+): Promise<void> {
+  const res = await fetch(
+    `${GMAIL_BASE}/messages/${encodeURIComponent(messageId)}/modify`,
+    {
+      method: "POST",
+      headers: {
+        ...gmailHeadersInit(accessToken),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ removeLabelIds: ["INBOX"] }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `gmail archive (remove INBOX) failed: ${res.status} ${text.slice(0, 200)}`,
+    );
+  }
 }
 
 export interface ListedGmailMessage {

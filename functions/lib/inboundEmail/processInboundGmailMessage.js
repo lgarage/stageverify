@@ -32,6 +32,26 @@ const MAX_EXTRACTED_TEXT_STORE = 120_000;
 const MAX_SUBJECT_LEN = 4096;
 const MAX_SENDER_LEN = 320;
 const MAX_PDF_ATTACHMENTS_PER_MESSAGE = 5;
+/** Archive Gmail only after durable import/review persistence (never plain no_pdf/error). */
+const GMAIL_ARCHIVE_ELIGIBLE_STATUSES = new Set(["parsed", "reply_processed"]);
+/**
+ * Soft-fail INBOX remove after durable StageVerify persist.
+ * Never throws — archive failure must not flip a successful ingest to error.
+ */
+async function archiveInboxMessageSoftFail(ref, accessToken, gmailMessageId, processingStatus, alreadyArchivedAt) {
+    if (alreadyArchivedAt)
+        return;
+    if (!GMAIL_ARCHIVE_ELIGIBLE_STATUSES.has(processingStatus))
+        return;
+    try {
+        await (0, gmailInbound_1.archiveGmailMessageRemoveInbox)(accessToken, gmailMessageId);
+        await ref.set({ gmailInboxArchivedAt: new Date().toISOString() }, { merge: true });
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`processInboundGmailMessage: archive failed for ${gmailMessageId} — ${message.slice(0, 200)}`);
+    }
+}
 function getDb() {
     return admin.firestore();
 }
@@ -424,6 +444,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
     if (existing.exists) {
         const data = existing.data();
         if (!shouldReprocessExistingDoc(data, options)) {
+            await archiveInboxMessageSoftFail(ref, accessToken, gmailMessageId, data.processingStatus, data.gmailInboxArchivedAt);
             return {
                 docId,
                 gmailMessageId,
@@ -441,7 +462,9 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
                 updatedAt: now,
             }, { merge: true });
             try {
-                return await finalizeParsedInboundDoc(ref, data, trimStoredText(cachedText), gmailMessageId);
+                const result = await finalizeParsedInboundDoc(ref, data, trimStoredText(cachedText), gmailMessageId);
+                await archiveInboxMessageSoftFail(ref, accessToken, gmailMessageId, result.processingStatus, data.gmailInboxArchivedAt);
+                return result;
             }
             catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
@@ -516,6 +539,7 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
                 ...(headers.references?.length ? { references: headers.references } : {}),
             };
             await ref.set(noPdfDoc);
+            await archiveInboxMessageSoftFail(ref, accessToken, gmailMessageId, processingStatus, undefined);
             return {
                 docId,
                 gmailMessageId,
@@ -593,7 +617,9 @@ async function processInboundGmailMessage(accessToken, gmailMessageId, options) 
             createdAt: now,
             updatedAt: new Date().toISOString(),
         };
-        return finalizeParsedInboundDoc(ref, partialDoc, combinedExtractedText, gmailMessageId);
+        const result = await finalizeParsedInboundDoc(ref, partialDoc, combinedExtractedText, gmailMessageId);
+        await archiveInboxMessageSoftFail(ref, accessToken, gmailMessageId, result.processingStatus, undefined);
+        return result;
     }
     catch (err) {
         if ((0, gmailInbound_1.isGmailApiNotFoundError)(err)) {

@@ -158,6 +158,7 @@
     "test:invoice-shell-display": "npx tsx scripts/test-invoice-shell-display.mjs",
     "test:parsed-inspect-site-confirmed": "npx tsx scripts/test-parsed-inspect-site-confirmed.mjs",
     "test:gmail-api": "npx tsx scripts/test-gmail-api.mjs",
+    "test:gmail-auto-archive": "npx tsx scripts/test-gmail-auto-archive.mjs",
     "test:send-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-send-vendor-email.mjs\"",
     "test:process-inbound-vendor-email": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-process-inbound-vendor-email.mjs\"",
     "test:match-invoice-records": "cd functions && npm run build && cd .. && node scripts/test-match-invoice-records.mjs",

@@ -56,6 +56,8 @@ export interface InboundEmailProcessingDoc {
   references?: string[];
   createdAt: string;
   updatedAt: string;
+  /** ISO time when INBOX label was removed after durable import/review persist. */
+  gmailInboxArchivedAt?: string;
 }
 
 export type VendorInvoiceImportReviewStatus =

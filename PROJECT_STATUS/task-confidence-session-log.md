@@ -52,3 +52,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | merge-resolve (PR #51 + main tip PR #50 branding/PIN) | T1 | Composer/Grok cloud sync | 98 | 99 | ok (PR only, hold merge) | Re-synced after main moved; PROJECT_STATUS only conflict; preserved columns + brand/PIN |
 | 2026-08-08 | merge-resolve (PR #51 + main v0.0.235 ship stamp) | T1 | Composer/Grok cloud sync | 99 | 99 | ok (PR only, hold merge) | Docs-only conflict on CURRENT_STATE; product auto-clean; columns preserved |
 | 2026-08-08 | ship-op (merge PR #51 + gh-pages deploy v0.0.236) | T0/T1 fast-safe | Composer/Grok cloud ship | 99 | 99 | ok | Column-order LIVE; merge b183b4e6; no CF/rules |
+
+| 2026-08-08 | backend-write-critical (Gmail auto-archive after durable ingest D-64) | T3 high-risk | Composer 2.5 Fast (+ D-60/D-38 Sonnet) | 94→98 | 99 | ok (PR only) | INBOX remove only; View PDF Gmail fetch; away-138 durable PDF deferred |
