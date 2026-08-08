@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Confidence gate (D-46/D-47 — pre-edit)
 
-**Dan standing preference (D-47):** **"I want the 97% rule to be followed with every edit."** Before **every file edit** (product code, verify scripts, rules, docs, PROJECT_STATUS — any repo write), reach **conf ≥ 97%** first: classify → raise conf (scouts/reads/focused Dan question) → then edit. Solution Verifier PASS/N/A per D-36/D-43 applies on its own triggers **in addition**; 97% does not replace Solution Verifier when D-36 requires it. Platform parity automatic (D-32).
+**Dan standing preference (D-47):** **"I want the 97% rule to be followed with every edit."** Before **every file edit**, reach **conf ≥ 97%** first: classify → raise conf via **code inspection, deterministic tests, known architecture, repo state**, targeted reads, or one focused Dan question — then edit. **D-65:** do **not** dispatch another premium model solely to raise a confidence number. Escalate with scouts/Solution Verifier only when **uncertainty is real** and those lanes' own triggers fire. Solution Verifier PASS/N/A per D-36/D-65 applies on its own triggers **in addition**; 97% does not replace Solution Verifier when D-36 requires it. Platform parity automatic (D-32).
 
 ## When it applies
 
@@ -14,9 +14,9 @@ alwaysApply: true
 ## Sequence
 
 1. **Classify** — `PROJECT_STATUS/MODEL_DOSSIER.md` + agent-ops skill → archetype, tier, cheapest model, **confStart** (state in reply). **Classify alone may yield ≥97%** for unambiguous T0 edits, typos, or docs-only clarifications with an explicit fix list — no scout fan-out required when classification already locks files, acceptance, and approach.
-2. **If conf < 97%** — **no edits** (any path): parallel scouts / targeted reads; lock root cause, files, acceptance; one focused Dan question when UX/scope is ambiguous; for substantive product work also **Grok Solution Verifier** until agreed (D-36/D-43 Phase 1).
-3. **Edit only when** conf ≥ 97%. When D-36 requires Solution Verifier, **also** require `solution-verifier:` PASS or N/A (skip reasons unchanged) **before the first repo write in scope** (D-48 — any path including docs/rules/PROJECT_STATUS; no docs-first Agree dodge; not after implement, not deferred to parent). **`solution-verifier: N/A` and away items with approved approach-level specs do not skip the conf bar** — they skip Phase 1 Solution Verifier only; conf ≥ 97% still required before the first edit.
-4. **Session log** — record archetype, model, conf as it rises (completion report or brain `outcomes/*.jsonl` per `agent-ops.mdc`).
+2. **If conf < 97%** — **no edits**: targeted reads / mechanical checks / one focused Dan question; parallel scouts only when independent read-only work is needed to resolve **real** uncertainty. Do **not** spawn Grok/Sol/Sonnet just to increment confStart→confAfter. Solution Verifier only if D-36/D-65 triggers.
+3. **Edit only when** conf ≥ 97%. When D-36 requires Solution Verifier, **also** require `solution-verifier:` PASS or N/A **before the first repo write** (D-48). **`solution-verifier: N/A` does not skip the conf bar.**
+4. **Session log** — brief archetype/tier/conf when useful; avoid repetitive confidence tables that add no new information (D-65).
 
 ## Scope persistence
 

@@ -1,6 +1,12 @@
 # Fast UI pass — copy-paste prompt
 
-Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Paste into **Agent mode** (not Multitask). **Sol Medium preferred** (`gpt-5.6-sol-medium` per D-63; parent session already Medium → inline; Task dispatch escalates to `gpt-5.6-sol-high` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`); **Grok verifies** (D-45). Backend deploy policy (Firestore rules, Cloud Functions, Gmail) — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy without Dan approval.
+Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Paste into **Agent mode** (not Multitask).
+
+**D-65 routing:**
+- **Simple UI** (wording, labels, column swaps, obvious CSS, straightforward visibility) → **Composer 2.5 Fast** + mechanical `verify:*` / D-42 / D-51. No Sol. No multi-Grok stack.
+- **Visual-judgment UI** (theme, contrast, dark/light, a11y, complex layout, redesign) → **Sol** via Task `gpt-5.6-sol-high` **directly** (do not attempt Medium as Task) + readability DoD; ≤1 Grok UI judgment lane if warranted.
+
+Backend deploy policy — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy Firebase without Dan approval.
 
 ---
 
@@ -14,8 +20,8 @@ Frontend/UI only.
 
 Use:
 - Agent mode
-- **Sol Medium** implementer (`gpt-5.6-sol-medium`; Task escalate High when dispatching Task)
-- Grok UI verifier
+- **Composer** for simple UI · **Sol High Task** only for visual-judgment UI
+- Mechanical verify (D-42/D-51) — Grok only if D-65 lane table warrants
 - One agent only
 - No scouts unless blocked
 
@@ -34,44 +40,13 @@ Instructions:
 - Do not do a broad repo audit.
 - Keep the change narrow.
 - Preserve existing behavior.
-- Complete **readability DoD (D-63)** before Grok handoff:
-  - Operational hierarchy (dark: values white/near-white; labels gray; dim=disabled only)
-  - Button/nav contrast all states; no dark text on saturated backgrounds
-  - Status chips obvious at a glance
-  - **Light + Dark** both verified when theme/shared tokens touched
-  - WCAG AA floor + reject barely-pass uncomfortable pairs
-  - Evidence: `ui-readability: PASS` then `ui-playwright-verifier: PASS`
-- Use focused Playwright script when it covers the route (see composer-orchestrator: script may replace screenshots).
-- Update PROJECT_STATUS/CURRENT_STATE.md with one brief line if user-visible layout shipped.
+- Capture D-51 before/after for visible UI.
+- Run the affected route `verify:*` with contrast asserts.
+- Do **not** stack Solution + Build Checker + UI Playwright + Ship unless risk justifies (D-65).
+- Tiny-fast-safe → `ship-verifier: N/A (tiny-fast-safe — D-65)` after mechanical deploy checks.
 
-Validation:
-- git status
-- npm run build
-- Route verify (pick closest; **confirm script names in `package.json` if unsure**):
-  - Dispatcher drawer → `npm run verify:delivery-consistency`
-  - Pickup portal → `npm run verify:pickup`
-  - Receive/vendor → `npm run verify:vendor-delivered` (or closest receive script)
-  - Settings/staging → `npm run verify:settings-staging`
-  - Dispatcher nav/sidebar only → `npm run verify:dispatcher-nav`
-- npm run away:validate
-
-Ship:
-- Orchestrator commit, push origin/main, deploy gh-pages (frontend-only default per ship-loop.mdc)
-- Do NOT deploy Firestore rules, CF, backend without Dan approval (high-risk tier — ship-loop.mdc § Two-tier ship model)
-
-Production verification (same route area as local):
-- **Dispatcher drawer (any drawer ship):**  
-  `STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:delivery-consistency`  
-  **and** `STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify npm run verify:phase5-email`
-- **Other routes:** matching `:prod` script if in `package.json`, else `STAGEVERIFY_BASE_URL=https://lgarage.github.io/stageverify` + route script
-- `verify:dispatcher-nav` on prod only if nav/sidebar/settings routing changed
-- If prod verify fails once right after deploy, wait ~15s and retry once
-
-Final report (max ~8 lines):
-1. Verdict
-2. Files changed
-3. What changed
-4. Validation
-5. Deploy/prod verify
-6. Commit
-7. Notes/blockers
+Done when:
+- Change matches the request
+- Build clean
+- Route verify PASS
+- Evidence lines match lanes that actually fired

@@ -20,7 +20,7 @@ Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel*
 - **Full ACES librarian:** deferred — see `docs/aecs/librarian-plan.md`
 
 ## Session Start — MANDATORY, no exceptions
-0. **Load `time-awareness.mdc` — time constraints bind every reply** (alwaysApply; budget filter, no out-of-budget CTAs, remaining-time options). **D-47 every-edit conf:** no file edit until conf ≥ 97% per `confidence-gate.mdc`. **D-43 build lock (every conv):** Composer proposes → Grok agrees → **UI-class: Sol Medium implements** (inline when parent is Medium; Task escalate High) · **non-UI: Composer implements** → Grok Build Checker PASS **before commit** → Ship Verifier after push; non-Composer/non-Sol parents must `Task` **Sol** (`gpt-5.6-sol-high` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`) for UI-class or **Composer** (`composer-2.5-fast`) for non-UI product builds — never Grok `resume: "self"` implement (`.cursor/rules/composer-grok-collab.mdc`). **Session mode fork:** unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice (e.g. "away-style planning") → skip re-ask. Away planning = Plan → Approve → Queue only until **"go build it"**; not overnight-specific.
+0. **Load `time-awareness.mdc` — time constraints bind every reply** (alwaysApply; budget filter, no out-of-budget CTAs, remaining-time options). **D-47 every-edit conf:** no file edit until conf ≥ 97% per `confidence-gate.mdc` (D-65: no premium call solely to raise conf). **D-43/D-65 build lock:** risk-based lanes in `model-gates.mdc` — **simple UI + non-UI → Composer**; **visual-judgment UI → Sol** (Task → `gpt-5.6-sol-high` directly); ≤1 Grok verifier lane on routine T1; Ship Verifier not for tiny-fast-safe FE; high-risk keeps D-60 + D-38 + Ship (**PROTECTED**). Never Grok `resume: "self"` implement except D-50. **Session mode fork:** unless Dan already stated mode, ask **A) Active now** vs **B) Away planning** early in substantive sessions. Explicit choice → skip re-ask. Away planning = Plan → Approve → Queue until **"go build it"**.
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` before responding to any coding request.
 2. Read `PROJECT_STATUS/MEMORY.md` — especially **“What’s next to build?”** (narrow answer rules).
 **Prepare for new conv (handoff):** When Dan says "context is full", "prepare for a new conv", "handoff", or similar — (a) record any unrecorded decisions in `PROJECT_STATUS/DECISIONS.md`, (b) update `CURRENT_STATE.md` with in-flight task, exact status, immediate next step (must point at `DECISIONS.md`), and per completed-this-session item: **verdict + commit hash** (e.g. "verified PASS at `b81d292`") — not just what was done; named work items must carry their ship-loop tier (`[high-risk: why]` / `[fast-safe]`) and owner — record every classification a new conversation would otherwise re-derive, (c) commit + push, (d) reply one line confirming the new conv needs no pasted context. Flush exists so the next conversation can **TRUST it** — record outcomes, not just activity. (e) Bootstrap in the new conv: trust recorded classifications (D-13 — never re-derive them); any work item lacking a recorded tier is presented as high-risk until path-classified per ship-loop — never asserted fast-safe in planning output.
@@ -64,7 +64,7 @@ Fix all TypeScript errors before declaring the task done. Never report success w
 
 ## UI Verification Protocol (visible UI changes) — MANDATORY
 
-**Never tell Dan a UI/UX fix is done until Sol completes D-63 readability DoD (`ui-readability: PASS`), Playwright verification passes, AND Grok UI Playwright Verifier returns PASS (D-45).** `npm run build` alone is not enough. **UI-class:** **Sol Medium preferred** (`gpt-5.6-sol-medium`; inline when parent is Medium; Task escalate High per `PROJECT_STATUS/ui-model-routing.json`); orchestrator runs verify to iterate; Grok owns Playwright judgment + file:line fix instructions on FAIL; same Grok re-verifies until PASS (fix-closure). **Non-UI:** Composer implements unchanged.
+**Never tell Dan a UI/UX fix is done until D-51 (when visible UI) + mechanical route `verify:*` (D-42) PASS, and any Grok UI lane that fired returns PASS.** `npm run build` alone is not enough. **Simple UI (D-65):** Composer + mechanical verify; Grok UI Playwright usually N/A after worker verify PASS. **Visual-judgment UI:** Sol (Task→high) + `ui-readability: PASS` + Grok judgment when warranted. **Non-UI:** Composer.
 
 For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affects what the user sees in the browser, run Playwright verification **in addition to** the build gate.
 
@@ -74,9 +74,9 @@ For any T0 `ui-component` / `css-restyle` or T1 multi-file UI change that affect
 0b. **Readability DoD (D-63)** — Sol completes `dispatcher-light-panel-contrast.mdc` § Readability DoD; evidence `ui-readability: PASS` before Grok D-45. Both Light + Dark when theme work.
 1. **Build** — `npm run build` clean.
 2. **Playwright** — Sol/orchestrator runs the affected route `verify:*` (see below). Must pass locally; run `:prod` after `npm run deploy` when the fix is user-facing on gh-pages.
-3. **Grok UI Playwright Verifier (D-45)** — Grok runs/re-runs the same verify script(s), confirms D-42 contrast/overlap asserts + D-63 independent challenges, returns PASS or file:line fix list. **Sol** fixes on FAIL (UI-class); same Grok re-verifies (max 3 cycles). **PASS required before commit.**
-4. **Readable text / contrast (D-42)** — every visible UI edit must include a mechanical assert that affected text is readable (WCAG contrast + fail on white-on-white) and layout overlap asserts where header/toolbar collisions are plausible. Reuse `scripts/lib/ui-text-contrast-lib.mjs` (`assertReadableTextContrast`, `assertNoElementOverlap`) in route verifies; Settings Technicians: `npm run verify:settings-technicians`; dispatcher top bar: `verify:dispatcher-nav`.
-5. **Only then** — Grok Build Checker PASS → commit, push, deploy, and report success.
+3. **Grok UI judgment (D-45/D-65)** — do **not** auto re-run worker-green `verify:*`. Prefer N/A or judgment-from-log; live re-run only when subtle/incomplete/high regression. When the lane fires, PASS required before commit (fix-closure).
+4. **Readable text / contrast (D-42) — PROTECTED** — mechanical asserts on affected selectors. Reuse `scripts/lib/ui-text-contrast-lib.mjs`.
+5. **Then** — mechanical build green; Grok Build Checker only if judgment needed (D-65) → commit, push, deploy; Ship Verifier per D-65 (not tiny-fast-safe); run `ship:evidence-preflight` before Ship Task.
 
 If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify first.
 
@@ -84,7 +84,7 @@ If Playwright fails, debug and repeat. Do not blame cache or ask Dan to verify f
 
 | Change type | Playwright requirement |
 |-------------|------------------------|
-| Layout, colors, copy, visibility | Route verify with `assertReadableTextContrast` + `assertNoElementOverlap` (D-42/D-45) on changed selectors; Grok UI Playwright Verifier PASS before commit |
+| Layout, colors, copy, visibility | Route verify with D-42 asserts; Grok UI lane only when D-45/D-65 criteria warrant (not auto stack) |
 | Buttons, forms, checkboxes, multi-step flows | **Interactive script** — click/type through the real flow; assert end state (not screenshot-only) |
 | Pickup portal | `npm run verify:pickup` (+ `verify:pickup:prod` after deploy) |
 | Other routes (no script yet) | Add or extend a `scripts/verify-<route>.mjs` that performs the critical clicks; run it before declaring done |
@@ -157,7 +157,7 @@ Replace `#/settings` with the affected route.
 If before/after compare, Playwright verify, or Grok UI Playwright (D-45) fails, do NOT commit or say the task is fixed. Debug and re-run the full loop (D-51 → build → Playwright → commit).
 
 ### Fast UI task template
-For small StageVerify frontend/UI/layout/copy tasks, **automatically apply** `PROJECT_STATUS/FAST_UI_PROMPT.md` as the standard Fast UI workflow — **Sol Medium preferred** (`gpt-5.6-sol-medium` per D-63) — **do not wait for Dan to explicitly mention the template.** Use it for routine drawer polish, spacing, labels, visual balance, button layout, copy, and other frontend-only UI refinements. **Do not use it for** readiness/status logic, Firestore, Cloud Functions, Gmail sync, pickup token behavior, vendor check-in behavior, data model changes, parser/import work, or security-sensitive changes.
+For small StageVerify frontend/UI/layout/copy tasks, **automatically apply** `PROJECT_STATUS/FAST_UI_PROMPT.md` — **Composer for simple UI** (D-65); Sol only for visual-judgment work. **Do not use it for** readiness/status logic, Firestore, Cloud Functions, Gmail sync, pickup token behavior, vendor check-in behavior, data model changes, parser/import work, or security-sensitive changes.
 
 **Mobile UI (D-27):** When Dan asks for a phone-first UI change (vendor check-in, pickup portal, public mobile routes), follow `.cursor/rules/mobile-ui-ship.mdc` — **always merge to `main` and `npm run deploy`** after build + Playwright pass; include live URL + vendor demo QR in the reply. Do not stop at PR-only on cloud.
 
@@ -198,7 +198,7 @@ Invoke Opus 4.6 via Task subagent ONLY if Sonnet 5's security gate review return
 
 **Ship loop:** see `ship-loop.mdc` (authoritative — always deploy gh-pages after bundle changes so Dan can test live; never wait for "ship it"; overrides generic Cursor “commit only when requested”).
 
-**Product / feature builds — D-43 + D-63:** **UI-class → Sol Medium preferred** (`gpt-5.6-sol-medium`; Task escalate High); **non-UI → Composer 2.5**. **Grok** Solution-Verifies before edit, **Build-Checks uncommitted diff before commit**, Ship-Verifies after push — **Grok never commits/pushes/deploys**; **Grok implements product code only** after **D-50** stuck-task Agree (stuck scope until ship closes). Non-Composer/non-Sol parents dispatch Sol (High escalate) for UI or `composer-2.5-fast` for non-UI — never `resume: "self"` except D-50 stuck scope after Agree. Dan should not restate this each turn.
+**Product / feature builds — D-43 + D-65:** risk-based lanes (`model-gates.mdc`). Simple UI + non-UI → Composer; visual-judgment UI → Sol High Task. ≤1 Grok lane on routine T1; PROTECTED Sonnet path unchanged on T3. Grok never commits/pushes/deploys; Grok implements only after D-50 stuck Agree.
 
 ### Completion report (mandatory)
 **Done signal (D-61):** every action turn ends with the footer in `.cursor/rules/done-signal.mdc` (**DONE** / **What I did** / **Your action**) — always last; complements this section; does not replace verifier evidence lines. **One summary:** opening **What we did** and footer **What I did** share the same prose; footer **Your action** states whether Dan must act (`Nothing needed from you.` when not).
@@ -238,7 +238,7 @@ Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only �
 Skip **What we did** for trivial Q&A, typos, or read-only answers where no work was performed.
 
 ### Post-change model audit (mandatory)
-After every substantive **code or config** change, run the **model audit** protocol in `.cursor/rules/model-gates.mdc`; include the full audit table unless the low-risk exemption in that file applies.
+After substantive **code or config** change, include a brief model line (archetype/tier/worker). Full model-audit table only when useful — skip repetitive tables on tiny-fast-safe ships (D-65).
 
 ### Session cleanup (mandatory)
 **Always clean up your messes.** After every substantive task, run cleanup per `ship-loop.mdc` § Done gate (stop dev servers, kill background shells, delete ephemeral Playwright PNGs, fix dirty git status, confirm ports clear).
@@ -247,7 +247,7 @@ After every substantive **code or config** change, run the **model audit** proto
 When Dan stated a time window, append **Remaining time options** after cleanup/model audit in successful ship replies — see `time-awareness.mdc` § **Time-bound suggestions** + **Remaining time options**. Filter before present: only in-budget items under **Fits now** / **To continue**; out-of-budget → **Save for later** with no CTA. Queue via `away:next` / `away-list.json`; verify per `answer-quality.mdc` (time-bound filter step).
 
 ### Pre-edit gate
-**Announce-and-go (Dan-nonblocking).** State archetype + tier + model per `model-gates.mdc`, then run `npm run context:lessons -- --type <type>/<subtype>` when Type/Subtype are known (slice only — not full `LIBRARIAN_LESSONS.md`). Never wait for a "go ahead" reply from Dan — but for **substantive work directives** (Ship Verifier path class), follow D-43: Composer proposes → Grok Solution Verifier agreement **before any implement edit** (D-48) → **UI-class: Sol implements** · **non-UI: Composer implements** → Grok Build Checker PASS on uncommitted diff **before commit** → push → Ship Verifier (`model-gates.mdc` § Solution deliberation + `.cursor/rules/composer-grok-collab.mdc`). Skips for Solution Verifier (T0 single-file unambiguous, repair/planning/Q&A-owned, approved away specs, Critical-subsumed) unchanged; Build Checker still required when the final diff falsifies a T0 skip. Subagents and domain-executor prompts: in-session `solution-verifier:` PASS or documented N/A **before any repo write** when D-36 applies — Agree before edit or stop without edits; never implement-first (including docs-first) and defer Agree to parent (D-48).
+**Announce-and-go (Dan-nonblocking).** State archetype + tier + model per `model-gates.mdc`, then `npm run context:lessons` when Type/Subtype known. Follow D-65 lane table — Solution/Build/UI-PW/Ship only when triggered. When Solution Verifier triggers, Agree before first write (D-48). Subagents must not defer required Agree to parent.
 
 ### Git commits + push (mandatory — user standing preference)
 **Always commit and push** after any code or project-status changes in this repo. Do not wait to be asked. This overrides generic "commit only when requested" guidance for stageverify.

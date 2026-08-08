@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Unit tests for PROJECT_STATUS/ui-model-routing.json (D-63 SSOT)
+ * Unit tests for PROJECT_STATUS/ui-model-routing.json (D-63 SSOT, amended D-65)
  * Run: npm run gate:check:test
  */
 import assert from "node:assert/strict";
@@ -13,11 +13,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const routingPath = join(__dirname, "..", "PROJECT_STATUS", "ui-model-routing.json");
 const routing = JSON.parse(readFileSync(routingPath, "utf8"));
 
-describe("ui-model-routing.json (D-63)", () => {
+describe("ui-model-routing.json (D-63 / D-65)", () => {
   it("records canonical Sol Medium slug gpt-5.6-sol-medium", () => {
     assert.equal(routing.canonicalMediumSlug, "gpt-5.6-sol-medium");
     assert.equal(routing.preferredPrimary, "gpt-5.6-sol-medium");
     assert.equal(routing.primary, "gpt-5.6-sol-medium");
+  });
+
+  it("D-65: Composer is simple-UI implementer", () => {
+    assert.equal(routing.simpleUiImplementer, "composer-2.5-fast");
+    assert.ok(Array.isArray(routing.simpleUiClass));
+    assert.ok(routing.simpleUiClass.includes("wording-only"));
+    assert.ok(Array.isArray(routing.visualJudgmentUiClass));
+    assert.ok(routing.visualJudgmentUiClass.includes("theme"));
   });
 
   it("locks verifier to cursor-grok-4.5-high-fast", () => {
@@ -49,5 +57,9 @@ describe("ui-model-routing.json (D-63)", () => {
   it("keeps Sonnet gates listed as unchanged", () => {
     assert.ok(routing.sonnetGatesUnchanged.includes("D-38"));
     assert.ok(routing.sonnetGatesUnchanged.includes("D-60"));
+  });
+
+  it("marks silent Composer on visual-judgment as NOT RUN", () => {
+    assert.match(String(routing.silentComposerOnVisualJudgment), /NOT RUN/);
   });
 });

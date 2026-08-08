@@ -1,6 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "decision": "D-63",
+  "amendedBy": "D-65",
   "updated": "2026-08-08",
   "canonicalMediumSlug": "gpt-5.6-sol-medium",
   "canonicalMediumDisplay": "GPT-5.6 Sol Medium",
@@ -8,6 +9,24 @@
     "Cloud Agents UI offers labeled option GPT-5.6 Sol Medium (Dan 2026-08-08)",
     "Cursor staff forum: usage/billing records Task subagent traffic as gpt-5.6-sol-medium (2026-07)",
     "External live Cursor model catalogs map GPT-5.6 Sol → gpt-5.6-sol-medium"
+  ],
+  "simpleUiImplementer": "composer-2.5-fast",
+  "simpleUiClass": [
+    "wording-only",
+    "tiny labels",
+    "simple table column swaps",
+    "straightforward visibility fixes",
+    "obvious CSS property corrections",
+    "non-visual application bugs with incidental UI copy"
+  ],
+  "visualJudgmentUiClass": [
+    "theme",
+    "contrast",
+    "dark/light mode",
+    "accessibility/readability",
+    "complex layout",
+    "major UX redesign",
+    "visual consistency / design-system tokens"
   ],
   "preferredPrimary": "gpt-5.6-sol-medium",
   "preferredPrimaryDisplay": "GPT-5.6 Sol Medium",
@@ -23,7 +42,7 @@
   "primaryDisplay": "GPT-5.6 Sol Medium",
   "automatedTaskPrimary": "gpt-5.6-sol-high",
   "automatedTaskPrimaryDisplay": "GPT-5.6 Sol High",
-  "primaryNote": "Preferred UI primary is Sol Medium (canonical slug gpt-5.6-sol-medium). Cloud UI can select it as parent. Task({model}) subagent allowlist currently rejects Medium — automated Task dispatch escalates to gpt-5.6-sol-high with fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected). When Cloud/parent session is already Sol Medium, implement UI inline as Medium.",
+  "primaryNote": "D-65: Sol only for visual-judgment UI (theme/contrast/a11y/complex layout/redesign). Simple UI → Composer. When Sol Task dispatch is required, use gpt-5.6-sol-high directly (Task rejects Medium — do not frame as a Medium attempt). Parent already Sol Medium may implement visual-judgment UI inline as Medium.",
   "verifier": "cursor-grok-4.5-high-fast",
   "verifierDisplay": "Cursor Grok 4.5 High Fast",
   "fallbacks": ["gpt-5.6-sol-high", "gpt-5.6-sol-high-fast", "gpt-5.6-sol-xhigh", "gpt-5.6-sol-xhigh-fast"],
@@ -32,5 +51,11 @@
   "nonUiRemainsComposer": ["docs-update", "scout/inventory", "type-refactor", "service-logic", "non-UI multi-file-feature", "backend-write-critical"],
   "sonnetGatesUnchanged": ["D-38", "D-60"],
   "evidenceLines": ["ui-implementer:", "ui-readability:", "ui-playwright-verifier:"],
-  "allSolRejected": "STOP — report NOT RUN; no silent Composer UI implement"
+  "simpleUiEvidence": {
+    "ui-implementer": "composer-2.5-fast (simple-ui — D-65)",
+    "ui-readability": "N/A (simple-ui — mechanical D-42)",
+    "ui-playwright-verifier": "N/A when worker verify:* PASS + sufficient evidence (judgment-from-log optional)"
+  },
+  "silentComposerOnVisualJudgment": "NOT RUN — visual-judgment UI must use Sol",
+  "allSolRejected": "STOP — report NOT RUN for visual-judgment UI; simple UI may still use Composer"
 }

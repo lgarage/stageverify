@@ -1,66 +1,40 @@
 ---
-description: Dan standing default — Composer proposes, Grok agrees, Composer codes, Grok pre-commit checks, Grok ship-verifies.
+description: Dan standing default — risk-based Composer/Sol implement + conditional Grok lanes (D-43/D-65).
 alwaysApply: true
 ---
 
-# Composer ↔ Grok collaboration (D-43)
+# Composer ↔ Grok collaboration (D-43 / D-65)
 
-**Dan standing preference (every session / new conv — alwaysApply):** For substantive feature builds, Composer and Grok **deliberate before any implementation**, Grok **agrees** the solution, **Composer alone** writes the code (**D-50:** Grok writes code only after 3rd-fail stuck-task Agree until that ship closes), Grok **checks the uncommitted diff before commit**, then Grok **Ship-Verifies** after push. Not optional for real feature work. Platform parity (D-20/D-32).
+**Dan standing preference (every session):** Risk-based build lock per `model-gates.mdc` § Risk-based routing (D-65). Do **not** auto-stack Solution + UI Playwright + Build Checker + Ship on routine T1. When a Grok lane **does** fire, peer-agree + fix-closure still apply (D-34 — trigger trim ≠ skip agreement). Platform parity (D-20/D-32).
 
-## Four-phase loop (one ladder — no duplicate gates)
+## Phases (only those the D-65 lane table requires)
 
-| Phase | Who | What |
+| Phase | Who | When |
 |-------|-----|------|
-| **1 — Agree** | Composer proposes → Grok **Solution Verifier** | **Every edit:** conf **≥ 97%** per `confidence-gate.mdc` (D-47) before any file write; substantive builds also peer-deliberate until agreement per `model-gates.mdc` § Solution deliberation (D-36) + § Peer deliberation (D-30). **Before the first edit.** |
-| **2 — Implement** | **UI-class → Sol Medium preferred** (`gpt-5.6-sol-medium`; inline when parent is Medium; Task escalate `gpt-5.6-sol-high`; D-63) · **non-UI → Composer** ( **Grok only** after D-50 stuck-task Agree on 3rd fail — same scope until ship closes ) | Code, local build. **D-51:** before first UI edit capture `before-*.png`; after build capture `after-*.png` + compare (see `ui-before-after.mdc`). Grok never implements except D-50 carve-out. Sol dispatched via Task returns diff — orchestrator owns ship. |
-| **2b — UI verify** | Grok **UI Playwright Verifier** | On visible UI edits (`src/`): after Sol `ui-readability: PASS` + D-51 compare passes, Grok runs (or re-runs) the affected route `verify:*` + D-42 contrast/overlap asserts + D-63 independent challenges; **PASS required before commit**. FAIL → Grok returns **file:line fix list** → **Sol** fixes (UI-class) → **same Grok** re-verifies (fix-closure, max 3 cycles). Distinct from Build Checker (diff-vs-scope). |
-| **3 — Pre-commit check** | Grok **Build Checker** | Read-only review of **uncommitted** diff vs agreed solution + scope. **PASS required before `git commit`.** |
-| **4 — Ship + verify** | **Composer only** → Grok | After Build Checker PASS: **Composer** runs commit + push + deploy (`ship-loop.mdc`); then Grok **Ship Verifier** post-push (+ **Repair Verifier** on repair intent). Sonnet security gate unchanged for high-risk paths. |
+| **1 — Agree** | Grok **Solution Verifier** | Only if multiple paths / unclear SoT / ambiguous data model / multi-file diverge risk. Else `solution-verifier: N/A (…)`. **conf ≥ 97%** always (D-47). |
+| **2 — Implement** | **Simple UI / non-UI → Composer**; **visual-judgment UI → Sol** (Task → `gpt-5.6-sol-high` **directly**; parent Medium → inline). Grok only after D-50 stuck Agree. | Always for product builds. **D-51** before first visible UI edit. |
+| **2b — UI judgment** | Grok **UI Playwright** (optional) | Prefer judgment-from-log after worker `verify:*` PASS; live re-run only per D-45/D-65 criteria. Simple UI usually N/A. |
+| **3 — Pre-commit** | Mechanical build/verify; Grok **Build Checker** only when judgment needed | Not to re-run green `npm run build`. |
+| **4 — Ship** | Composer commit/push/deploy; Grok **Ship Verifier** when required | Tiny-fast-safe FE → Ship N/A; run `ship:evidence-preflight` before any Ship Task. High-risk keeps D-38 + Ship. |
 
-Plain language: **deliberate → Grok agrees → Sol builds UI (Composer non-UI; Grok after D-50 stuck Agree) → Sol readability PASS → Grok UI Playwright PASS (UI only) → Grok Build Checker PASS → Composer commit/push/deploy → Grok Ship Verifier.**
+**Ship lock (hard STOP):** Grok **never** commits, pushes, or deploys — except D-50 Phase B product edits after stuck-task Agree (still no ship lock transfer).
 
-**Ship lock (hard STOP):** Grok **never** commits, pushes, deploys, or runs the ship loop — verify lanes stay read-only **except** D-50 Phase B product edits after stuck-task Agree.
+## Implementer lock (hard STOP)
 
-## Implementer lock (hard STOP — Dan 2026-07-23)
+- **Simple UI** (wording, labels, column swaps, obvious CSS, straightforward visibility): **Composer**.
+- **Visual-judgment UI** (theme, contrast, dark/light, a11y, complex layout, major redesign, visual consistency): **Sol** — Task uses `gpt-5.6-sol-high` directly (do not attempt Medium as Task). Silent Composer on visual-judgment = **NOT RUN**.
+- **Non-UI:** Composer.
+- **D-50 stuck carve-out:** Grok implements stuck scope after Agree until ship closes.
+- Non-Composer/non-Sol parents MUST Task Composer or Sol High — never `resume: "self"` except D-50.
 
-Pain: a Grok parent forked itself (`resume: "self"`) and started implementing product code.
+## Pre-edit gate ordering (D-48)
 
-- **UI-class product implementation** (`src/` visible UI per `ui-model-routing.json`): **Sol Medium** preferred `gpt-5.6-sol-medium` (D-63; Task escalate High when dispatching Task); **non-UI** product/code (`functions/src/`, behavior-bearing `scripts/*.mjs`, service logic): **Composer**.
-- **D-50 stuck carve-out (3rd consecutive implement+verify fail, same task scope):** after Grok ↔ Sonnet **stuck-task Agree**, **Grok** may implement the agreed fix for **that scope only** until that ship closes; then **Sol** (UI-class) or **Composer** (non-UI) is default again. Full ladder: `model-gates.mdc` § 3-fail stuck-task escalation.
-- When the **session parent is not Composer or Sol** (e.g. Grok orchestrator), it **MUST** dispatch UI via `Task({ model: "gpt-5.6-sol-high", … })` (with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`) or non-UI via `Task({ model: "composer-2.5-fast", … })` — **never** implement inline and **never** `resume: "self"` for a product build **except** the D-50 stuck scope after Agree.
-- When the parent **is Sol Medium**, implement **UI-class inline as Medium** after Phase 1 agreement. When the parent **is Composer 2.5**, it may implement **non-UI** inline after Phase 1 agreement; **UI-class** from Composer parent dispatches Sol via Task (High escalate) or implements governance-only paths. Sol worker returns diff for orchestrator ship when parent is not Sol.
-- Cross-link: strengthens **D-37** (dispatcher never edits when Composer is available).
+When Solution Verifier is required, PASS/N/A **before first repo write**. Workers must not defer Agree to parent.
 
-## Pre-edit gate ordering (D-48 — hard STOP)
+## Evidence
 
-Phase **1 — Agree** completes **before Phase 2 — Implement** whenever Phase 1 is required. **conf ≥ 97%** (D-47) and **Solution Verifier PASS** (D-36, when not N/A) must both be satisfied **before the first repo write** in scope (any path — no docs/rules-first dodge) — with in-session evidence (`solution-verifier: <task-id>` + model, or documented N/A), not only in the completion report.
-
-- **Subagents/workers:** if Agree is required, **STOP** — dispatch Solution Verifier (readonly Task) and reach PASS/N/A **before any repo write**, or return to the parent for Agree **without product/code edits**. Never write (including docs/PROJECT_STATUS) and leave Agree to the parent.
-- **Parents:** worker diffs produced without prior Agree when Agree was required are **not done** — satisfy Phase 1 or revert; do not commit through a deferred Solution Verifier.
-
-Phases 2b–4 unchanged; they still run after implement when triggered.
-
-## When this applies
-
-- **Default:** Dan work directives / planned code changes that are substantive (T1+ feature work, multi-file, branching approach) — see D-36 trigger in `model-gates.mdc`.
-- **Skips for Phase 1 Solution Verifier** (unchanged — do not erase): T0 single-file unambiguous; excluded ship paths; repair/planning/Q&A-owned loops; away items with approach-level approved specs; Critical-Reviewer-subsumed; **high-risk → `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)`** per `high-risk-sonnet-loop.mdc`. Label with `solution-verifier: N/A (<reason>)`.
-- **Phase 3 Pre-commit check** still runs on substantive ships even when Phase 1 was skipped for T0 **if** the final uncommitted diff is multi-file or clearly branching (same post-hoc falsifiability as Ship Verifier). Pure T0 single-file unambiguous → `build-checker: N/A (T0 single-file unambiguous)`.
-- **Phase 2b UI Playwright Verifier** runs on any visible UI edit in `src/` (same trigger as D-42/D-45) — even when Solution Verifier was skipped for T0. **High-risk ships:** `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)`. Other non-UI → `ui-playwright-verifier: N/A (no visible UI)`.
-
-## Evidence (mandatory)
-
-| Phase | Report line |
-|-------|-------------|
-| 1 | `solution-verifier: <task-id>` or `solution-verifier: N/A (<reason>)` — **before first edit in scope** (D-48); post-implement line = NOT RUN |
-| 2 (UI implement) | `ui-implementer: <task-id>` + model `gpt-5.6-sol-medium` (inline) or `gpt-5.6-sol-high` (+ `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)` when Task dispatch) — or `ui-implementer: N/A (non-UI)` |
-| 2 (UI readability) | `ui-readability: PASS` (Sol, after D-63 DoD) — before Grok D-45; or N/A (non-UI) |
-| 2 (UI) | `ui-before-after: <routes>` or `ui-before-after: N/A (no visible UI)` — before/after compare (D-51) before Playwright commit ladder |
-| 2b | `ui-playwright-verifier: <task-id>` + verdict **PASS** before commit — or `ui-playwright-verifier: N/A (<skip reason>)` |
-| 3 | `build-checker: <task-id>` + verdict **PASS** before commit — or `build-checker: N/A (<skip reason>)` |
-| 4 | `ship-verifier: <task-id>` or `ship-verifier: N/A (paths excluded)` |
-
-Missing a required line when its trigger fired = **NOT RUN** — do not ship or declare done. Do **not** commit while Phase 1 was required but ran only after edits, while **D-51** before/after was skipped on visible UI, or while Phase 2b or Phase 3 is NOT RUN or FAIL.
+Include evidence lines **only for lanes that fired** (or valid N/A). Do not invent Solution/Build/UI-PW/Ship Task ids for skipped lanes. **D-51** still required for visible UI. High-risk: `sonnet-instruct:` + `sonnet-verify:` + `security-gate-id` **PROTECTED**.
 
 ## Authority
 
-Full mechanics: `model-gates.mdc` § Solution deliberation (D-36), § **3-fail stuck-task escalation (D-50)**, § UI Playwright Verifier (D-45), § Build Checker (pre-commit), § Peer deliberation (D-30), § Ship Verifier, § Repair loop. This rule states Dan's plain-language mandate; it does **not** add a second verification ladder beyond the phases above.
+SSOT mechanics: `model-gates.mdc` (D-65 lane table, D-36/D-45/Ship, D-50). This file is the plain-language collab lock — it must not reintroduce a mandatory four-Grok stack.

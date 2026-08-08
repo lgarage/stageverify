@@ -13,9 +13,9 @@ Plans, handoffs, recommendations, architecture, away prompts, "what's next", "wh
 
 **Planning questions:** Grok Planning Verifier per `model-gates.mdc` § Planning verify loop is mandatory before present — Composer self-challenge alone does not satisfy this gate.
 
-**Q&A questions (Dan standing preference — all clients, desktop PC + cloud):** Before presenting any non-trivial Q&A answer (how/why/where/explain/recommend/clarify), draft privately then dispatch one read-only **Q&A Verifier** (Grok) per `model-gates.mdc` § Q&A verify loop. Deliberate as peers per `model-gates.mdc` § Question deliberation (D-33) — findings are proposals, adopt or rebut with reasoning; the orchestrating agent (currently Composer 2.5) authors the final note, never raw verifier output. End reply with `qa-verifier: <task-id>` + `model: cursor-grok-4.5-high-fast`, or `qa-verifier: N/A (trivial)` / `qa-verifier: N/A (planning-verifier)` when skipped.
+**Q&A (D-65 — consequential only):** Dispatch Grok **Q&A Verifier** only for security-sensitive advice, architecture decisions, ambiguous repo state, destructive actions, or consequential deployment guidance — per `model-gates.mdc` § Q&A verify loop. Peer deliberate (D-33); orchestrator authors the final note. Evidence: `qa-verifier: <task-id>` + model, or `qa-verifier: N/A (routine-factual — D-65)` / `N/A (trivial)` / `N/A (planning-verifier)`.
 
-**Skip Q&A Verifier:** trivial typos; single-fact read-only lookups with one authoritative source; pure code execution with no recommendation; planning questions already covered by § Planning verify loop (do not double-dispatch).
+**Skip Q&A Verifier (default):** routine factual how/why/status/git/terminology answerable from repo inspection; typos; single-fact lookups; pure code execution; planning already covered by Planning Verifier.
 
 ## Mandatory loop
 
