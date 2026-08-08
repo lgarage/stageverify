@@ -257,6 +257,12 @@ export async function deactivateDispatcherClient(input: {
   return callCallable("deactivateDispatcher", input);
 }
 
+export async function removeDispatcherClient(input: {
+  uid: string;
+}): Promise<{ success: boolean; uid: string }> {
+  return callCallable("removeDispatcher", input);
+}
+
 export async function getManagementWaitingPartsClient(input: {
   sessionToken: string;
 }): Promise<{

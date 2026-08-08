@@ -522,6 +522,8 @@ export interface SetAccessPinResult {
   pinConfigured: boolean;
 }
 
+export type PinAccessAuditTargetType = AccessPinTargetType | "dispatcher";
+
 export type PinAccessAuditAction =
   | "admin_access_granted"
   | "admin_access_revoked"
@@ -529,12 +531,13 @@ export type PinAccessAuditAction =
   | "pin_revealed"
   | "pin_reveal_denied"
   | "pin_changed"
-  | "pin_change_denied";
+  | "pin_change_denied"
+  | "dispatcher_removed";
 
 export interface PinAccessAuditEntry {
   id: string;
   action: PinAccessAuditAction;
-  targetType: AccessPinTargetType;
+  targetType: PinAccessAuditTargetType;
   targetId: string;
   actorUid: string;
   createdAt: string;

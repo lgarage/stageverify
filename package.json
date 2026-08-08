@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.243",
+  "version": "0.0.244",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -206,7 +206,8 @@
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "prepare": "node scripts/install-git-hooks.mjs",
     "verifier:log": "node scripts/verifier-log.mjs",
-    "verifier:stats": "node scripts/verifier-log.mjs --stats"
+    "verifier:stats": "node scripts/verifier-log.mjs --stats",
+    "test:remove-dispatcher": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-remove-dispatcher.mjs\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
