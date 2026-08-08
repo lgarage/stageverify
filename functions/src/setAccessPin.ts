@@ -1,4 +1,3 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   hashAdminAccessSessionRaw,
@@ -6,36 +5,23 @@ import {
   validateAdminAccessSession,
   type AdminAccessSessionDoc,
 } from "./adminAccessSession";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
 import {
-  accessPinEncryptionKey,
-  decryptPinFromStorage,
-  encryptPinForStorage,
-  pinLookupKeyForPin,
-} from "./accessPinCrypto";
+  applyAccessPinSecretWriteInTransaction,
+  prepareAccessPinSecretWrite,
+} from "./accessPinSecretWrite";
 import {
-  ACCESS_PIN_SECRETS_COLLECTION,
   ACCESS_PIN_SET_ATTEMPTS_COLLECTION,
-  ACCESS_PIN_UNIQUENESS_COLLECTION,
   ADMIN_ACCESS_SESSIONS_COLLECTION,
   PIN_ACCESS_AUDIT_COLLECTION,
-  accessPinSecretDocId,
-  accessPinUniquenessDocId,
   parseAccessPinTargetType,
   getDb,
-  type AccessPinSecretDoc,
-  type AccessPinTargetType,
 } from "./accessPinSecretsShared";
 import {
-  entityRefForTarget,
   targetHasExistingAccessPin,
 } from "./accessPinTargetHelpers";
-import {
-  normalizeManagementPinPermissions,
-  type ManagementPinPermissions,
-} from "./managementPinRegistry";
 import { requireManagerAuth } from "./inboundEmail/dispatcherAuth";
 import { asFourDigitPin } from "./pinMatching";
-import { hashPinForStorage } from "./pinHashing";
 
 interface SetAccessPinRequest {
   targetType?: string;
@@ -101,23 +87,6 @@ async function checkSetRateLimit(attemptKey: string): Promise<void> {
   });
 }
 
-function managementEntityPatch(now: string): Record<string, unknown> {
-  return {
-    pinHash: FieldValue.delete(),
-    pinConfigured: true,
-    updatedAt: now,
-  };
-}
-
-function technicianVendorEntityPatch(now: string): Record<string, unknown> {
-  return {
-    pinConfigured: true,
-    pinCode: FieldValue.delete(),
-    pinHash: FieldValue.delete(),
-    updatedAt: now,
-  };
-}
-
 /** Dispatcher sets access PIN — hash + encrypt in CF-only secrets doc. */
 export const setAccessPin = onCall(
   {
@@ -177,101 +146,31 @@ export const setAccessPin = onCall(
     // Initial assign: ignore optional sessionToken — do not validate or consume.
 
     const db = getDb();
-    const entityRef = entityRefForTarget(targetType, targetId);
-    const secretRef = db
-      .collection(ACCESS_PIN_SECRETS_COLLECTION)
-      .doc(accessPinSecretDocId(targetType, targetId));
-    const pinLookupKey = pinLookupKeyForPin(pin);
-    const uniquenessRef = db
-      .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-      .doc(accessPinUniquenessDocId(targetType, pinLookupKey));
+    const refs = prepareAccessPinSecretWrite(targetType, targetId, pin);
     const auditRef = db.collection(PIN_ACCESS_AUDIT_COLLECTION).doc();
 
     const now = new Date().toISOString();
-    const pinHash = hashPinForStorage(pin);
-    const pinEncrypted = encryptPinForStorage(pin);
 
     await db.runTransaction(async (tx) => {
-      const entitySnap = await tx.get(entityRef);
+      const entitySnap = await tx.get(refs.entityRef);
       if (!entitySnap.exists && targetType !== "management") {
         throw new HttpsError("not-found", "Target not found.");
       }
 
-      const existingSecretSnap = await tx.get(secretRef);
-      const uniquenessSnap = await tx.get(uniquenessRef);
+      const existingSecretSnap = await tx.get(refs.secretRef);
+      const uniquenessSnap = await tx.get(refs.uniquenessRef);
 
-      if (uniquenessSnap.exists) {
-        const existing = uniquenessSnap.data() as { targetId?: string };
-        if (existing.targetId && existing.targetId !== targetId) {
-          throw new HttpsError("already-exists", "Could not set PIN.");
-        }
-      }
-
-      if (existingSecretSnap.exists) {
-        const oldSecret = existingSecretSnap.data() as AccessPinSecretDoc;
-        if (
-          oldSecret.revealable &&
-          oldSecret.pinEncrypted?.ciphertext &&
-          oldSecret.pinEncrypted.ciphertext.length > 0
-        ) {
-          try {
-            const oldPin = decryptPinFromStorage(oldSecret.pinEncrypted);
-            if (oldPin !== pin) {
-              const oldUniquenessRef = db
-                .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-                .doc(
-                  accessPinUniquenessDocId(
-                    targetType,
-                    pinLookupKeyForPin(oldPin),
-                  ),
-                );
-              tx.delete(oldUniquenessRef);
-            }
-          } catch {
-            // Hash-only or corrupt prior secret — skip old uniqueness cleanup.
-          }
-        }
-      }
-
-      tx.set(secretRef, {
+      await applyAccessPinSecretWriteInTransaction(tx, db, {
         targetType,
         targetId,
-        pinHash,
-        pinEncrypted,
-        pinLookupKey,
-        revealable: true,
-        updatedAt: now,
+        pin,
+        now,
+        refs,
+        existingSecretSnap,
+        uniquenessSnap,
+        entitySnap,
       });
-      tx.set(uniquenessRef, {
-        targetType,
-        targetId,
-        updatedAt: now,
-      });
-      if (targetType === "management") {
-        const mgmtBase = entitySnap.exists
-          ? (entitySnap.data() as {
-              label?: string;
-              active?: boolean;
-              permissions?: ManagementPinPermissions;
-            })
-          : {};
-        tx.set(
-          entityRef,
-          {
-            id: targetId,
-            label: mgmtBase.label ?? "Management PIN",
-            active: mgmtBase.active ?? true,
-            permissions: entitySnap.exists
-              ? normalizeManagementPinPermissions(mgmtBase.permissions)
-              : normalizeManagementPinPermissions(null),
-            createdAt: entitySnap.exists ? undefined : now,
-            ...managementEntityPatch(now),
-          },
-          { merge: true },
-        );
-      } else {
-        tx.set(entityRef, technicianVendorEntityPatch(now), { merge: true });
-      }
+
       if (targetType === "management") {
         tx.set(
           db.collection("appSettings").doc("config"),

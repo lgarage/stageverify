@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
 import { asFourDigitPin } from "./pinMatching";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import {
@@ -21,7 +22,10 @@ interface SetManagementPinRequest {
  * New Settings UI should prefer upsertManagementPin for multi-PIN + matrix.
  */
 export const setManagementPin = onCall(
-  { region: "us-central1" },
+  {
+    region: "us-central1",
+    secrets: [accessPinEncryptionKey],
+  },
   async (request) => {
     await requireDispatcherAuth(request);
     const pin = asFourDigitPin((request.data as SetManagementPinRequest)?.pin);

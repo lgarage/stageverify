@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { accessPinEncryptionKey } from "./accessPinCrypto";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import {
   upsertManagementPinDoc,
@@ -15,7 +16,10 @@ interface UpsertManagementPinRequest {
 
 /** Dispatcher create/update management PIN + capability matrix. */
 export const upsertManagementPin = onCall(
-  { region: "us-central1" },
+  {
+    region: "us-central1",
+    secrets: [accessPinEncryptionKey],
+  },
   async (request) => {
     await requireDispatcherAuth(request);
     const data = (request.data ?? {}) as UpsertManagementPinRequest;

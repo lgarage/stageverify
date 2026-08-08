@@ -1,12 +1,11 @@
-import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
-import { hashPinForStorage } from "./pinHashing";
+import {
+  applyAccessPinSecretWriteInTransaction,
+  prepareAccessPinSecretWrite,
+} from "./accessPinSecretWrite";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 import { findManagementPinByAccessPinSecrets } from "./accessPinLookup";
-
-function getDb() {
-  return admin.firestore();
-}
+import { getDb, accessPinSecretDocId } from "./accessPinSecretsShared";
 
 /** Stable id used by setManagementPin back-compat wrapper + legacy migration. */
 export const DEFAULT_MANAGEMENT_PIN_ID = "default";
@@ -325,23 +324,73 @@ export async function upsertManagementPinDoc(
     input.permissions ?? existing?.permissions,
   );
 
-  const pinHash = pin ? hashPinForStorage(pin) : existing!.pinHash;
-  if (!pinHash.includes(":")) {
+  if (pin) {
+    const db = getDb();
+    const refs = prepareAccessPinSecretWrite("management", pinId, pin);
+    await db.runTransaction(async (tx) => {
+      const [existingSecretSnap, uniquenessSnap, entitySnap] =
+        await Promise.all([
+          tx.get(refs.secretRef),
+          tx.get(refs.uniquenessRef),
+          tx.get(refs.entityRef),
+        ]);
+
+      await applyAccessPinSecretWriteInTransaction(tx, db, {
+        targetType: "management",
+        targetId: pinId,
+        pin,
+        now,
+        refs,
+        existingSecretSnap,
+        uniquenessSnap,
+        entitySnap,
+        managementEntityFields: {
+          label,
+          active,
+          permissions,
+          createdAt: existing?.createdAt ?? now,
+        },
+      });
+
+      tx.set(
+        db.collection("appSettings").doc("config"),
+        {
+          managementPinConfigured: true,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+    });
+
+    return { id: pinId };
+  }
+
+  const pinHash = existing!.pinHash;
+  const secretSnap = await getDb()
+    .collection("accessPinSecrets")
+    .doc(accessPinSecretDocId("management", pinId))
+    .get();
+  const usesSecrets =
+    secretSnap.exists ||
+    (existingSnap.data()?.pinConfigured === true && !pinHash.includes(":"));
+
+  if (!usesSecrets && !pinHash.includes(":")) {
     throw new HttpsError("failed-precondition", "PIN hash missing.");
   }
 
-  await ref.set(
-    {
-      id: pinId,
-      label,
-      pinHash,
-      active,
-      permissions,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    },
-    { merge: true },
-  );
+  const patch: Record<string, unknown> = {
+    id: pinId,
+    label,
+    active,
+    permissions,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  if (!usesSecrets) {
+    patch.pinHash = pinHash;
+  }
+
+  await ref.set(patch, { merge: true });
 
   await getDb()
     .collection("appSettings")

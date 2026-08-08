@@ -133,6 +133,7 @@
     "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:access-pin-secrets": "npm run build:functions && node scripts/test-access-pin-secrets.mjs",
+    "test:upsert-management-pin-secrets": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-upsert-management-pin-secrets.mjs\"",
     "test:admin-access-session": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-admin-access-session.mjs\"",
     "test:migrate-access-pins": "node scripts/test-migrate-access-pins.mjs",
     "test:access-pin-rules": "firebase emulators:exec --only firestore \"node scripts/test-access-pin-rules.mjs\"",

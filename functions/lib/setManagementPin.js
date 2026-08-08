@@ -4,6 +4,7 @@ exports.setManagementPin = void 0;
 const admin = require("firebase-admin");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
+const accessPinCrypto_1 = require("./accessPinCrypto");
 const pinMatching_1 = require("./pinMatching");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const managementPinRegistry_1 = require("./managementPinRegistry");
@@ -14,7 +15,10 @@ function getDb() {
  * Back-compat: upserts the stable `default` management PIN with full capabilities.
  * New Settings UI should prefer upsertManagementPin for multi-PIN + matrix.
  */
-exports.setManagementPin = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+exports.setManagementPin = (0, https_1.onCall)({
+    region: "us-central1",
+    secrets: [accessPinCrypto_1.accessPinEncryptionKey],
+}, async (request) => {
     await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const pin = (0, pinMatching_1.asFourDigitPin)(request.data?.pin);
     if (!pin) {
