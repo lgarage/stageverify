@@ -26,7 +26,10 @@ import {
   entityRefForTarget,
   targetHasExistingAccessPin,
 } from "./accessPinTargetHelpers";
-import { normalizeManagementPinPermissions } from "./managementPinRegistry";
+import {
+  normalizeManagementPinPermissions,
+  type ManagementPinPermissions,
+} from "./managementPinRegistry";
 import {
   hasManagerRole,
   requireDispatcherAuth,
@@ -245,7 +248,11 @@ export const setAccessPin = onCall(
       });
       if (targetType === "management") {
         const mgmtBase = entitySnap.exists
-          ? (entitySnap.data() as { label?: string; active?: boolean })
+          ? (entitySnap.data() as {
+              label?: string;
+              active?: boolean;
+              permissions?: ManagementPinPermissions;
+            })
           : {};
         tx.set(
           entityRef,
@@ -253,7 +260,9 @@ export const setAccessPin = onCall(
             id: targetId,
             label: mgmtBase.label ?? "Management PIN",
             active: mgmtBase.active ?? true,
-            permissions: normalizeManagementPinPermissions(null),
+            permissions: entitySnap.exists
+              ? normalizeManagementPinPermissions(mgmtBase.permissions)
+              : normalizeManagementPinPermissions(null),
             createdAt: entitySnap.exists ? undefined : now,
             ...managementEntityPatch(now),
           },
