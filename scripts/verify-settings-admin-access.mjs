@@ -59,33 +59,61 @@ const ADMIN_ACCESS_CONTRAST_SPEC = {
   ],
 };
 
-async function ensureAuthenticated(page) {
+async function gotoSettings(page) {
+  // Hash SPA: reload can drop #/settings → default dispatcher. Always force hash.
   await page.goto(`${appBase}/#/settings`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
-  await page.waitForTimeout(1200);
-  if (!page.url().includes("/login")) return;
-  if (!email || !password) {
-    throw new Error(
-      "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
+  await page.waitForURL(/\/#\/settings/, { timeout: 15_000 });
+}
+
+/** Prefer the floating toggle — avoids hash-drop on reload. */
+async function ensureTheme(page, theme) {
+  const desired = theme === "dark" ? "dark" : "light";
+  for (let i = 0; i < 3; i += 1) {
+    const current = await page.evaluate(
+      () => document.documentElement.getAttribute("data-sv-admin-theme") || "light",
     );
+    if (current === desired) return;
+    const toggle = page.getByTestId("admin-appearance-toggle");
+    await toggle.waitFor({ timeout: 10_000 });
+    await toggle.click();
+    await page.waitForTimeout(250);
   }
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/\/#\/(settings|dispatcher|hub|no-access)/, {
-    timeout: 20_000,
-  });
-  if (page.url().includes("/no-access")) {
-    throw new Error("Test account lacks dispatcher access.");
+  const finalTheme = await page.evaluate(
+    () => document.documentElement.getAttribute("data-sv-admin-theme") || "light",
+  );
+  if (finalTheme !== desired) {
+    throw new Error(`Could not switch admin theme to ${desired} (got ${finalTheme}).`);
+  }
+}
+
+async function ensureAuthenticated(page) {
+  await gotoSettings(page);
+  await page.waitForTimeout(1200);
+  if (page.url().includes("/login")) {
+    if (!email || !password) {
+      throw new Error(
+        "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
+      );
+    }
+    await page.fill("#email", email);
+    await page.fill("#password", password);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/#\/(settings|dispatcher|hub|no-access)/, {
+      timeout: 20_000,
+    });
+    if (page.url().includes("/no-access")) {
+      throw new Error("Test account lacks dispatcher access.");
+    }
   }
   if (!page.url().includes("/settings")) {
-    await page.goto(`${appBase}/#/settings`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
+    await gotoSettings(page);
   }
+  await page
+    .getByTestId("pin-access-management-panel")
+    .waitFor({ timeout: 30_000 });
 }
 
 async function assertExpandedBelowRow(detail) {
@@ -154,6 +182,32 @@ async function assertPinLengthContract(detail) {
   console.log("PASS: PIN input numeric-only, maxLength 4 (≤6)");
 }
 
+/** Wait for reveal result; surface actual UI text on timeout. */
+async function waitForRevealedFourDigitPin(page, detail, label) {
+  await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+  try {
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector('[data-testid="pin-access-current-pin"]');
+        const t = el?.textContent?.trim() || "";
+        return /^\d{4}$/.test(t);
+      },
+      null,
+      { timeout: 20_000 },
+    );
+  } catch {
+    const text = (
+      await detail.getByTestId("pin-access-current-pin").innerText().catch(() => "")
+    ).trim();
+    const panelText = (
+      await page.getByTestId("pin-access-management-panel").innerText()
+    ).slice(0, 400);
+    throw new Error(
+      `${label} reveal did not show a 4-digit PIN (got "${text}"). Panel: ${panelText}`,
+    );
+  }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -167,45 +221,21 @@ async function main() {
     const panel = page.getByTestId("pin-access-management-panel");
     await panel.waitFor({ timeout: 30_000 });
 
-    // Ensure Light theme first
-    const themeToggle = page.getByTestId("admin-appearance-toggle");
-    const themeLabel = (await themeToggle.innerText().catch(() => "")).toLowerCase();
-    if (themeLabel.includes("light")) {
-      // toggle shows the target mode on some builds — click until data-theme=light
-    }
-    await page.evaluate(() => {
-      localStorage.setItem("stageverify-theme", "light");
-    });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await ensureAuthenticated(page);
-    await panel.waitFor({ timeout: 30_000 });
+    // Ensure Light theme first (toggle — do not reload; hash SPA drops route)
+    await ensureTheme(page, "light");
 
-    // 3) Technician Admin Access + expand-below + pin length
+    // 3) Technician Admin Access + expand-below
     let detail = await openEditorByType(page, "technician");
     console.log("PASS: Technician row shows row-scoped Admin Access");
-    await assertPinLengthContract(detail);
     await assertPinShellContrast(page, "Light");
     await panel.screenshot({
       path: resolve(outDir, "settings-admin-access-light.png"),
     });
 
-    // 7) Technician reveal
+    // 7) Technician reveal + PIN length contract (input only after elevation)
     await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
-    const techPin = detail.getByTestId("pin-access-current-pin");
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector('[data-testid="pin-access-current-pin"]');
-        const t = el?.textContent?.trim() || "";
-        return /^\d{4}$/.test(t);
-      },
-      null,
-      { timeout: 20_000 },
-    );
-    const revealed = (await techPin.innerText()).trim();
-    if (!/^\d{4}$/.test(revealed)) {
-      throw new Error("Technician reveal did not show a 4-digit PIN.");
-    }
+    await waitForRevealedFourDigitPin(page, detail, "Technician");
+    await assertPinLengthContract(detail);
     console.log("PASS: Technician current PIN reveal works");
 
     // 12) auto-hide (~25s)
@@ -220,40 +250,22 @@ async function main() {
     );
     console.log("PASS: Revealed PIN auto-hides");
 
-    // 11) row switch revokes prior session — open vendor while tech was elevated
-    // Re-elevate briefly then switch
-    await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    // 11) row switch revokes prior session — elevation still active after auto-hide
+    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 5_000 });
     detail = await openEditorByType(page, "vendor");
     console.log("PASS: Vendor row shows row-scoped Admin Access (single editor)");
-    if ((await page.getByTestId("pin-access-admin-active").count()) !== 0) {
-      // prior session should not carry over; new row may not be elevated yet
-      const activeText = await page
-        .getByTestId("pin-access-admin-active")
-        .innerText()
-        .catch(() => "");
-      if (activeText && (await detail.getByTestId("pin-access-admin-active").count()) > 0) {
-        // Vendor row starting fresh — Admin Access Active only after click
-      }
-    }
-    // Prior tech elevation should be gone after switch (no active on closed tech row)
     if ((await page.getByTestId("pin-access-detail").count()) !== 1) {
       throw new Error("Row switch left multiple editors open.");
     }
-    console.log("PASS: Row switch keeps a single editor (prior session revoked on switch)");
+    if ((await page.getByTestId("pin-access-admin-active").count()) !== 0) {
+      throw new Error("Prior Admin Access session still active after row switch.");
+    }
+    console.log("PASS: Row switch revokes prior Admin Access session");
 
-    // 7) Vendor reveal
+    // 7) Vendor reveal — brief pause to clear reveal min-interval (750ms+)
+    await page.waitForTimeout(1000);
     await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector('[data-testid="pin-access-current-pin"]');
-        const t = el?.textContent?.trim() || "";
-        return /^\d{4}$/.test(t);
-      },
-      null,
-      { timeout: 20_000 },
-    );
+    await waitForRevealedFourDigitPin(page, detail, "Vendor");
     console.log("PASS: Vendor current PIN reveal works");
 
     // 9) Save without PIN change — toast, revoke, collapse
@@ -294,12 +306,7 @@ async function main() {
     console.log("PASS: Cancel revokes and collapses");
 
     // 14) Dark mode contrast with Admin Access shell open
-    await page.evaluate(() => {
-      localStorage.setItem("stageverify-theme", "dark");
-    });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await ensureAuthenticated(page);
-    await panel.waitFor({ timeout: 30_000 });
+    await ensureTheme(page, "dark");
     detail = await openEditorByType(page, "technician");
     await assertPinShellContrast(page, "Dark");
     await panel.screenshot({
@@ -307,6 +314,7 @@ async function main() {
     });
     await detail.getByTestId("pin-access-cancel").click();
     await page.getByTestId("pin-access-detail").waitFor({ state: "detached", timeout: 15_000 });
+    await ensureTheme(page, "light");
 
     // 6) Manager/Dispatcher rows do not show PIN Admin Access
     const authEdit = page
