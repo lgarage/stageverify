@@ -8,7 +8,7 @@
 - **Standing harness:** every session honors **D-47** conf ≥ 97% before any file edit; **D-60** high-risk Sonnet instruct→verify loop on auth/CF/rules ships (`high-risk-sonnet-loop.mdc`).
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
 - **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ v0.0.224. **Firebase rules NOT deployed** — Sonnet pre-deploy APPROVE (`bf2570ff…`); console TTL on `trainingNoteAudit.expireAt` still needed after rules deploy. **CF deployed:** credit-return delivery block (ingest auto-reject + approve/create_shell/relink guard) @ v0.0.217; prior `approveVendorInvoiceImport` credit-return reject @ v0.0.215 (`eb000e7`); `recalculateDeliveryReadiness` + will-call preserve @ v0.0.214 (`5f1f575`); `recordPickupEvent` (`4755802`); **reject-preserve Gmail sync** @ v0.0.213 (`9529530`).
-- Last shipped: **v0.0.224** — merge PR #40: CF `recordTechnicianJobOpen` + soft-fail client TECH_JOB_OPENED evidence; CF deploy required for live events. [high-risk CF + fast-safe client]
+- Last shipped: **v0.0.224** — merge PR #40: CF `recordTechnicianJobOpen` + soft-fail client TECH_JOB_OPENED evidence; CF **deployed** on stageverify-db; gh-pages LIVE. [high-risk CF + fast-safe client]
 - Prior: **v0.0.223** — merge PR #39: Settings Workflow **StageVerify Start Date** (`appSettings.stageVerifyActivatedAt`, YYYY-MM-DD); Green Bay live `2026-08-10` (editable); `verify:settings-staging:prod` PASS. [fast-safe UI]
 - Prior: **v0.0.222** — merge PR #38: unauthenticated technician Complete Pickup (remove client getDoc before recordPickupEvent). [fast-safe]
 - Prior: **v0.0.218** — invoice reject dialog requires non-empty "Why was this rejected?" note for all reasons; shared `InvoiceRejectReasonDialog` deduped from inspect modal; `verify:invoice-review` + `verify:invoice-reject-reason` PASS. [fast-safe UI]
@@ -32,7 +32,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan: confirm CF `recordTechnicianJobOpen` deployed on stageverify-db after v0.0.224 merge; hard-refresh Settings Start Date still `2026-08-10`.
+- Dan: hard-refresh phone — technician job open now records TECH_JOB_OPENED (soft-fail if offline); Settings Start Date still `2026-08-10`.
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
