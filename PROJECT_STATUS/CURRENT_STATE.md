@@ -9,8 +9,14 @@
 - **MVP: 100.00% — done** — SSOT reconciled 2026-07-16 (`MVP_PATH.md`). §14 E2E prod re-verify **PASS** away-130 (2026-07-17).
 - **Partial deploy:** D-59 P2–P7 on `main` (`49924c8b`, v0.0.204). **gh-pages LIVE** @ **v0.0.242** (PR #61 brand mark). **Access PIN migration Phase 1 + Phase 2 COMPLETE**; **Admin Access UI LIVE**; **PIN length 4–6 LIVE** FE+BE (PR #59 merge `6947cb92` + CF deploy of set/verify/migrate PIN callables). Stale PR #47 closed. Sticky-reject / Gmail auto-archive prior deploys unchanged.
 - **Awaiting ops:** Settings → **Reconnect Gmail** (new `gmail.modify` scope) then prod smoke: ingest invoice → leaves Inbox / stays All Mail / not trashed → View Original PDF opens. Durable PDF = away-138 (blocked).
+<<<<<<< HEAD
 - Last shipped LIVE: **v0.0.242** — dispatcher portal sidebar uses authoritative `stageverify-app-icon.svg` via `StageVerifyBrandMark` (Print Location Labels + Staging Map + Dispatcher + Vendors + Settings); gh-pages only (no CF/rules). [fast-safe UI deploy]
 - Prior: **v0.0.241** — PR #59 **4–6 digit access PIN** + coordinated CF deploy (`setAccessPin`, `setManagementPin`, `upsertManagementPin`, `verifyTechnicianPin`, `verifyVendorPin`, `verifyManagementPin`, `migrateAccessPins`) + gh-pages. Existing 4-digit PINs still work. [high-risk CF + fast-safe UI]
+=======
+- **In review (PR, no deploy):** portal sidebar branding → full `stageverify-logo-main.svg` wordmark in white frame via shared `PortalSidebar` / `StageVerifyBrandMark` (`variant="wordmark"`); remove redundant STAGEVERIFY text; keep Dispatcher Portal; print output unchanged. [fast-safe UI — PR only]
+- Last shipped LIVE: **v0.0.242** — dispatcher portal sidebar used authoritative `stageverify-app-icon.svg` via `StageVerifyBrandMark` (Print Location Labels + Staging Map + Dispatcher + Vendors + Settings); gh-pages only (no CF/rules). [fast-safe UI deploy]
+- Prior: **v0.0.241** — PIN length 4–6 digits on main (`20924d1d` / PR #59); deploy status per that ship.
+>>>>>>> 40f70fe2 (fix: use full StageVerify logo in portal sidebar)
 - Prior: **v0.0.240** — Settings **row-scoped Admin Access** gh-pages only (PR #56 UI); PR #58 dual-read CF already live. [fast-safe UI deploy]
 - Prior: **v0.0.239** — sticky manual invoice reject LIVE (CF + gh-pages): CF blocks `reopen` unless `isSystemAutoRejectedImport`; UI hides Re-open for manual rejects; harness never clicks Re-open. Prod sticky verify PASS (6168733 + 3316448A stay rejected; callable reopen blocked). [high-risk CF + fast-safe UI/harness]
 - Prior: **v0.0.238** — dark-mode navy layered surfaces (L0–L3); merge PR #53 `4b406c13`. [fast-safe UI]

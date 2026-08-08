@@ -68,31 +68,35 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
   return (
     <aside className={`${PORTAL_SIDEBAR_CLASS} ${className}`.trim()}>
       <div
-        className="flex flex-col items-center px-6 pt-7 pb-6"
+        className="flex flex-col items-center px-5 pt-6 pb-5"
         data-testid="portal-sidebar-brand"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
       >
-        <StageVerifyBrandMark
-          height={60}
-          className="mb-3"
-          data-testid="portal-sidebar-brand-mark"
-          style={{ filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.20))" }}
-        />
-        <span
+        {/* Full wordmark is designed for a light ground (SVG pagecolor white). */}
+        <div
+          data-testid="portal-sidebar-brand-logo-frame"
           style={{
-            color: "var(--admin-on-navy)",
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: "0.08em",
+            width: "100%",
+            backgroundColor: "#ffffff",
+            borderRadius: 8,
+            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          STAGEVERIFY
-        </span>
+          <StageVerifyBrandMark
+            variant="wordmark"
+            height={34}
+            data-testid="portal-sidebar-brand-mark"
+            style={{ width: "100%" }}
+          />
+        </div>
         <span
           style={{
             color: "rgba(255,255,255,0.45)",
             fontSize: 11,
-            marginTop: 2,
+            marginTop: 10,
           }}
         >
           Dispatcher Portal
