@@ -1,8 +1,10 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
-  consumeAdminAccessSessionByToken,
+  hashAdminAccessSessionRaw,
+  parseAdminAccessSessionToken,
   validateAdminAccessSession,
+  type AdminAccessSessionDoc,
 } from "./adminAccessSession";
 import {
   accessPinEncryptionKey,
@@ -14,6 +16,7 @@ import {
   ACCESS_PIN_SECRETS_COLLECTION,
   ACCESS_PIN_SET_ATTEMPTS_COLLECTION,
   ACCESS_PIN_UNIQUENESS_COLLECTION,
+  ADMIN_ACCESS_SESSIONS_COLLECTION,
   PIN_ACCESS_AUDIT_COLLECTION,
   accessPinSecretDocId,
   accessPinUniquenessDocId,
@@ -139,7 +142,8 @@ export const setAccessPin = onCall(
     await checkSetRateLimit(attemptKey);
 
     const hasExisting = await targetHasExistingAccessPin(targetType, targetId);
-    let validatedSessionToken: string | null = null;
+    let validatedSessionId: string | null = null;
+    let validatedSessionRaw: string | null = null;
 
     if (hasExisting) {
       if (!sessionToken) {
@@ -160,7 +164,15 @@ export const setAccessPin = onCall(
           "Admin access session invalid or expired.",
         );
       }
-      validatedSessionToken = sessionToken;
+      const parsedSession = parseAdminAccessSessionToken(sessionToken);
+      if (!parsedSession) {
+        throw new HttpsError(
+          "permission-denied",
+          "Admin access session invalid or expired.",
+        );
+      }
+      validatedSessionId = parsedSession.sessionId;
+      validatedSessionRaw = parsedSession.raw;
     }
     // Initial assign: ignore optional sessionToken — do not validate or consume.
 
@@ -277,15 +289,57 @@ export const setAccessPin = onCall(
         actorUid: uid,
         createdAt: now,
       });
-    });
 
-    if (validatedSessionToken) {
-      await consumeAdminAccessSessionByToken(validatedSessionToken, {
-        managerUid: uid,
-        targetType,
-        targetId,
-      });
-    }
+      if (validatedSessionId && validatedSessionRaw) {
+        const sessionRef = db
+          .collection(ADMIN_ACCESS_SESSIONS_COLLECTION)
+          .doc(validatedSessionId);
+        const sessionSnap = await tx.get(sessionRef);
+        if (!sessionSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        const session = sessionSnap.data() as AdminAccessSessionDoc;
+        if (
+          session.secretHash !== hashAdminAccessSessionRaw(validatedSessionRaw)
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        if (session.revoked || session.consumedAt) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        if (Date.parse(session.expiresAt) <= Date.now()) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        if (session.managerUid !== uid) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        if (
+          session.targetType !== targetType ||
+          session.targetId !== targetId
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        tx.set(sessionRef, { consumedAt: now }, { merge: true });
+      }
+    });
 
     return { success: true, targetType, targetId, pinConfigured: true };
   },

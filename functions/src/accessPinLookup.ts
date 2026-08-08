@@ -87,8 +87,12 @@ async function collectManagementSecretMatches(
     if (!pinMatches({ pinHash: secret.pinHash }, pin)) continue;
 
     const pinDoc = await loadManagementPinById(secret.targetId);
-    if (!pinDoc || !pinDoc.active || !pinDoc.pinHash.includes(":")) continue;
-    matches.push({ id: secret.targetId, data: pinDoc });
+    if (!pinDoc || !pinDoc.active || pinDoc.virtual) continue;
+
+    matches.push({
+      id: secret.targetId,
+      data: { ...pinDoc, pinHash: secret.pinHash },
+    });
   }
 }
 
