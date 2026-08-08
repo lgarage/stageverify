@@ -59,13 +59,25 @@ const ADMIN_ACCESS_CONTRAST_SPEC = {
   ],
 };
 
-async function ensureAuthenticated(page) {
+function isSettingsRoute(url) {
+  return /#\/settings(?:\?|$)/.test(url);
+}
+
+async function goToSettings(page) {
+  if (isSettingsRoute(page.url())) return;
+  const settingsNav = page.getByRole("link", { name: /^Settings$/i });
+  if ((await settingsNav.count()) > 0) {
+    await settingsNav.first().click();
+    await page.waitForURL(/#\/settings/, { timeout: 15_000 });
+    return;
+  }
   await page.goto(`${appBase}/#/settings`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
-  await page.waitForTimeout(1200);
-  if (!page.url().includes("/login")) return;
+}
+
+async function loginIfNeeded(page) {
   if (!email || !password) {
     throw new Error(
       "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
@@ -80,12 +92,31 @@ async function ensureAuthenticated(page) {
   if (page.url().includes("/no-access")) {
     throw new Error("Test account lacks dispatcher access.");
   }
-  if (!page.url().includes("/settings")) {
-    await page.goto(`${appBase}/#/settings`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
+}
+
+async function ensureAuthenticated(page) {
+  await page.goto(`${appBase}/#/settings`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  // Wait for auth to settle: login form or PIN panel (Firebase IndexedDB restore is async).
+  for (let i = 0; i < 40; i += 1) {
+    if (page.url().includes("/login")) {
+      await loginIfNeeded(page);
+      await goToSettings(page);
+      continue;
+    }
+    if ((await page.getByTestId("pin-access-management-panel").count()) > 0) {
+      return;
+    }
+    if (!isSettingsRoute(page.url())) {
+      await goToSettings(page);
+    }
+    await page.waitForTimeout(500);
   }
+  throw new Error(
+    `Settings PIN panel not available after auth settle (url=${page.url()})`,
+  );
 }
 
 async function assertExpandedBelowRow(detail) {
@@ -178,20 +209,21 @@ async function main() {
     });
     await page.reload({ waitUntil: "domcontentloaded" });
     await ensureAuthenticated(page);
-    await panel.waitFor({ timeout: 30_000 });
+    const panelAfterLight = page.getByTestId("pin-access-management-panel");
+    await panelAfterLight.waitFor({ timeout: 30_000 });
 
     // 3) Technician Admin Access + expand-below + pin length
     let detail = await openEditorByType(page, "technician");
     console.log("PASS: Technician row shows row-scoped Admin Access");
-    await assertPinLengthContract(detail);
     await assertPinShellContrast(page, "Light");
-    await panel.screenshot({
+    await panelAfterLight.screenshot({
       path: resolve(outDir, "settings-admin-access-light.png"),
     });
 
-    // 7) Technician reveal
+    // 7) Technician reveal (+ New PIN input only visible while elevated)
     await detail.getByTestId("pin-access-admin-button").click();
     await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    await assertPinLengthContract(detail);
     const techPin = detail.getByTestId("pin-access-current-pin");
     await page.waitForFunction(
       () => {
@@ -221,30 +253,28 @@ async function main() {
     console.log("PASS: Revealed PIN auto-hides");
 
     // 11) row switch revokes prior session — open vendor while tech was elevated
-    // Re-elevate briefly then switch
-    await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    // Auto-hide only masks the PIN; Admin Access session may still be active.
+    if ((await detail.getByTestId("pin-access-admin-active").count()) === 0) {
+      await detail.getByTestId("pin-access-admin-button").click();
+      await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    }
     detail = await openEditorByType(page, "vendor");
     console.log("PASS: Vendor row shows row-scoped Admin Access (single editor)");
-    if ((await page.getByTestId("pin-access-admin-active").count()) !== 0) {
-      // prior session should not carry over; new row may not be elevated yet
-      const activeText = await page
-        .getByTestId("pin-access-admin-active")
-        .innerText()
-        .catch(() => "");
-      if (activeText && (await detail.getByTestId("pin-access-admin-active").count()) > 0) {
-        // Vendor row starting fresh — Admin Access Active only after click
-      }
-    }
     // Prior tech elevation should be gone after switch (no active on closed tech row)
     if ((await page.getByTestId("pin-access-detail").count()) !== 1) {
       throw new Error("Row switch left multiple editors open.");
     }
+    if ((await detail.getByTestId("pin-access-admin-active").count()) !== 0) {
+      throw new Error("Admin Access carried over to vendor row after switch.");
+    }
     console.log("PASS: Row switch keeps a single editor (prior session revoked on switch)");
 
-    // 7) Vendor reveal
-    await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    // 7) Vendor reveal — wait for prior revoke to settle before starting a new session
+    await page.waitForTimeout(1500);
+    const vendorAdminBtn = detail.getByTestId("pin-access-admin-button");
+    await vendorAdminBtn.waitFor({ state: "visible", timeout: 10_000 });
+    await vendorAdminBtn.click();
+    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 30_000 });
     await page.waitForFunction(
       () => {
         const el = document.querySelector('[data-testid="pin-access-current-pin"]');

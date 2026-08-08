@@ -1,10 +1,20 @@
-# Access PIN migration inventory (read-only)
+# Access PIN migration inventory
 
-**Collected:** 2026-08-08 — Firestore REST via `FIREBASE_TOKEN` (read-only scan).
+**Status (2026-08-08 ops — authoritative):**
 
-**Important:** These counts are **not** from `migrateAccessPins({ dryRun: true })` — that Cloud Function is **undeployed** on prod. This inventory is a REST-side classification snapshot only.
+| Phase | Status |
+| --- | --- |
+| **Phase 1** (secrets / rules / indexes / CF surface) | **COMPLETE** — PR #56 merge `f96afafa`; `ACCESS_PIN_ENCRYPTION_KEY` v2 ENABLED (v1 DISABLED) |
+| **Phase 2** (`migrateAccessPins` live) | **COMPLETE** — migrated 6 (tech 2, vendor 3, mgmt hash-only 1); post-migration auth PASS |
+| **Dual-read hotfixes** | **COMPLETE** — PR #58 `8b449d4c` |
+| **Admin Access UI** | **LIVE** since v0.0.240 |
+| **PIN length 4–6** | **LIVE** since v0.0.241 (PR #59 merge `6947cb92` + CF deploy) |
 
-## Counts (2026-08-08)
+Do **not** remigrate, redo Phase 1, or mutate production PIN values for format testing.
+
+## Historical REST snapshot (pre-migration — superseded)
+
+**Collected:** 2026-08-08 — Firestore REST via `FIREBASE_TOKEN` (read-only scan). Superseded by Phase 2 live migration.
 
 | Category | Count |
 | --- | ---: |
@@ -13,20 +23,12 @@
 | Vendor plaintext/recoverable | 3 |
 | Vendor hash-only | 0 |
 | Management recoverable (`accessPinSecrets` revealable) | 0 |
-| Management hash-only | 1 (`managementPins` doc with `pinHash`; `accessPinSecrets` empty) |
-| Already migrated (`accessPinSecrets` docs) | 0 |
+| Management hash-only | 1 |
+| Already migrated (`accessPinSecrets` docs) | 0 (pre-migration) |
 | Errors/malformed | 0 |
 
-**Also:** `managementPinSecrets` legacy docs = **1** with `managementPinHash` configured (alongside registry).
+**Post Phase 2:** secrets revealable = 5; management remains non-revealable (hash-only).
 
-## After CF deploy
+## PIN length contract (LIVE)
 
-1. Invoke `migrateAccessPins({ dryRun: true, limit: 200 })` via manager auth.
-2. Confirm CF-side classification **matches** the REST inventory above.
-3. Only after dryRun PASS and Dan approval: `migrateAccessPins({ dryRun: false, … })`.
-
-Do **not** run mutating migration against prod until Dan approves deploy.
-
-**Local/emulator fixtures:** none seeded in this PR — tests cover crypto, session helpers, and rules blocks only.
-
-**Post-sync re-verify (2026-08-08):** D-43 UI/build evidence stamped after rebase — `verify:settings-pin-access` PASS; MERGEABLE+CLEAN.
+Numeric only, **min 4 / max 6** — tech, vendor, management, job-scoped vendor. Existing 4-digit PINs remain valid.
